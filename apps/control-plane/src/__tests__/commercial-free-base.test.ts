@@ -752,4 +752,44 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       expect(await expiryItems(f.customer)).toEqual([])
     })
   })
+
+  describe('review findings: between the lapse and the applied lock the subscription is commercially on the free base', () => {
+    const day = 86_400_000
+    /** The customer's request for exactly what the trial held. */
+    const sameAsTrial = async (f: { customer: string }, at: Date) => {
+      const sub = await getSubscription(pool, f.customer)
+      return createQuoteForCustomer(pool, { customer_id: f.customer, request: { ...request(), kind: 'change', subscription_id: sub.id, expected_subscription_revision: sub.revision } }, at)
+    }
+    it('A: the same applications cannot be accepted for zero due before the lock applies; the customer pays and reopens them', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      expect(await row(f.subscription)).toMatchObject({ target_revision_id: null })
+      const quote = await sameAsTrial(f, now)
+      expect(quote.due_now.minor).toBeGreaterThan(0)
+      const sub = await getSubscription(pool, f.customer)
+      const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)
+      expect(order).toMatchObject({ payment_state: 'awaiting_payment' })
+      await pool.query("UPDATE orders SET payment_state='paid' WHERE id=$1", [order.id])
+      await enqueueOutbox(pool, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id, payload: { order_id: order.id } })
+      const paid = await pushed(f.tenant, order.id)
+      for (const key of PAID_KEYS) expect(paid.job.authority.entitlement.features[key], key).toBe(true)
+      await applyReceipt(pool, { order_id: order.id, receipt: paid.receipt })
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'superseded' })
+    })
+    it('B: a lock still blocked at the renewal date neither invoices the trial configuration nor lets dunning suspend', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      const renewalDay = new Date(now.getTime() + 40 * day)
+      expect(await generateRenewals(pool, { now: renewalDay, adapter, returnOrigin: origin, subscription_id: f.subscription })).toEqual([])
+      expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [f.customer])).rows[0].n).toBe(0)
+      // An unpaid upgrade invoice, overdue: the base owes nothing, so nothing is suspended.
+      const sub = await getSubscription(pool, f.customer)
+      const quote = await createQuoteForCustomer(pool, { customer_id: f.customer, request: { ...request(), kind: 'change', requested_users: 4, subscription_id: sub.id, expected_subscription_revision: sub.revision } }, now)
+      await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)
+      expect((await pool.query("SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1 AND status='issued'", [f.customer])).rows[0].n).toBe(1)
+      expect(await applyDunning(pool, { now: new Date(now.getTime() + 30 * day) })).not.toContainEqual(expect.objectContaining({ subscription_id: f.subscription }))
+      expect(await row(f.subscription)).toMatchObject({ state: 'active' })
+    })
+  })
 })

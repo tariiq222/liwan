@@ -24,6 +24,21 @@ export function owesAtRenewal(pricing: Pricing | undefined | null): boolean {
     + pricing.paid_users * pricing.user_unit_minor + pricing.paid_storage_gb * pricing.storage_unit_minor > 0
 }
 
+/**
+ * The effective commercial baseline of a subscription is the free base from the moment its trial lapses, but its APPLIED
+ * snapshot stays the paid trial configuration until the lock order applies. This is the one definition of that window:
+ * an unresolved lapse (`pending`, or `ordered` for the first lock rather than a later lowering) whose trial revision is still the applied one. Quotes, renewals and dunning
+ * all ask here instead of reading the snapshot's own pricing, so none of them bills or prices the trial configuration.
+ */
+export const holdsTrialAfterLapseSql = (subscription: string) => `EXISTS (SELECT 1 FROM trial_lapses tl WHERE tl.subscription_id=${subscription}.id
+  AND tl.trial_revision_id=${subscription}.applied_revision_id AND (tl.state='pending' OR (tl.state='ordered' AND NOT tl.from_limits)))`
+
+export async function unresolvedLapse(client: Pick<PoolClient, 'query'>, subscription: { id: string; applied_revision_id: string }): Promise<{ period_start: string } | null> {
+  const lapse = (await client.query("SELECT period_start::text AS period_start FROM trial_lapses WHERE subscription_id=$1 AND trial_revision_id=$2 AND (state='pending' OR (state='ordered' AND NOT from_limits))",
+    [subscription.id, subscription.applied_revision_id])).rows[0]
+  return lapse ?? null
+}
+
 /** The free base of one trial: the pinned plan with only its included bundles, at the plan's included quantities. */
 export type FreeBase = { quote: Quote; entitlement: ReturnType<typeof compileEntitlements>; start: string; end: string }
 
@@ -64,6 +79,12 @@ export function freeBaseAtCeilings(free: FreeBase, ceilings: ReadonlyMap<string,
   return sealEntitlement({ catalog_release_id: free.entitlement.catalog_release_id, modules: free.entitlement.modules, features })
 }
 
+/** The pricing baseline of the free base: what a change is priced from while the subscription is (or is about to be) on it. */
+export async function freeBasePricing(client: Pick<PoolClient, 'query'>, snapshot: Record<string, any>, free: FreeBase) {
+  const plan = (await client.query('SELECT included_users,included_storage_mb FROM plan_revisions WHERE id=$1', [snapshot.plan_revision_id])).rows[0]
+  return pricingBaseline(free.quote, { extra_branches: snapshot.included_extra_branches, users: plan.included_users, storage_mb: plan.included_storage_mb })
+}
+
 /**
  * Orders the lowering to the free base as an ordinary zero-due change order, so the shared worker pushes it through the
  * same reconfigure job as every other entitlement change: the closed applications and the free limits. The caller holds
@@ -77,12 +98,11 @@ export async function orderFreeBase(client: PoolClient, input: { subscription: R
   const key = `trial-lapse:${subscription.id}:${input.attempt}`
   if ((await client.query('SELECT 1 FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [subscription.customer_id, key])).rowCount) return null
   const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...kept } = snapshot
-  const plan = (await client.query('SELECT included_users,included_storage_mb FROM plan_revisions WHERE id=$1', [snapshot.plan_revision_id])).rows[0]
   const next = { ...kept, bundle_revision_ids: quote.bundle_revision_ids, terms_revision_id: null, period_start: free.start, period_end: free.end,
     // The real number of extra branches, whatever the free base prices: later branch calculations start from the real set.
     extra_branch_count: (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [subscription.id])).rows[0].n,
     entitlement, quote_id: quote.id, free_base: true,
-    pricing: pricingBaseline(quote, { extra_branches: snapshot.included_extra_branches, users: plan.included_users, storage_mb: plan.included_storage_mb }) }
+    pricing: await freeBasePricing(client, snapshot, free) }
   const revisionId = randomUUID()
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)',
     [quote.id, subscription.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])

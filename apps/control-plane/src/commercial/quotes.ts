@@ -12,6 +12,7 @@ import { bundleRevision, loadRelease } from './bundles.js'
 import { planIssues, planRevision } from './plans.js'
 import { getPolicy } from './policies.js'
 import { assertDowngradeFitsUsage } from './usage.js'
+import { freeBaseOf, freeBasePricing, unresolvedLapse } from './free-base.js'
 
 const TTL_MS = 30 * 60 * 1000
 const bad = (code: string, field: string, status = 422) => new CommercialHttpError(code, status, field, [{ code, field }])
@@ -130,7 +131,14 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (!applied) throw bad('subscription_required', 'kind', 409)
     if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
     period = await appliedPeriod(client, s, applied)
-    current = applied.pricing
+    // A trial that lapsed and has not been locked yet is commercially on the free base: a change is priced from there, so the
+    // customer pays for every application and quantity the base does not include.
+    const lapse = await unresolvedLapse(client, s)
+    if (lapse) {
+      const free = await freeBaseOf(client, { subscription: s, snapshot: applied, start: lapse.period_start })
+      if (!free) throw bad('free_base_unavailable', 'subscription_id', 409)
+      current = await freeBasePricing(client, applied, free)
+    } else current = applied.pricing
     if (!current) {
       const old = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [applied.quote_id])).rows[0]?.payload
       if (!old) throw bad('baseline_missing', 'subscription_id', 409)
@@ -181,10 +189,9 @@ export function createQuoteForCustomer(pool: Pool, value: QuoteInput, now = new 
  * the subscription already lives in the free-base cycle (`trial_lapses.period_start` to `renewal_at`).
  */
 export async function appliedPeriod(client: Pick<PoolClient, 'query'>, subscription: { id: string; applied_revision_id: string; renewal_at: unknown }, applied: { period_start: string; period_end: string }) {
-  const lapse = (await client.query("SELECT period_start::text AS period_start FROM trial_lapses WHERE subscription_id=$1 AND trial_revision_id=$2 AND state IN ('pending','ordered')",
-    [subscription.id, subscription.applied_revision_id])).rows[0]
+  const lapse = await unresolvedLapse(client, subscription)
   if (!lapse || !subscription.renewal_at) return { start: applied.period_start, end: applied.period_end }
-  return { start: lapse.period_start as string, end: riyadhDate(subscription.renewal_at instanceof Date ? subscription.renewal_at : new Date(`${subscription.renewal_at}T00:00:00+03:00`)) }
+  return { start: lapse.period_start, end: riyadhDate(subscription.renewal_at instanceof Date ? subscription.renewal_at : new Date(`${subscription.renewal_at}T00:00:00+03:00`)) }
 }
 
 export function pricingBaseline(quote: Quote, included: { extra_branches: number; users: number; storage_mb: number }) {

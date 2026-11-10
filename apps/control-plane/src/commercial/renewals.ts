@@ -12,7 +12,7 @@ import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
-import { owesAtRenewal } from './free-base.js'
+import { holdsTrialAfterLapseSql, owesAtRenewal } from './free-base.js'
 
 const date = (v: any): string => v instanceof Date ? riyadhDate(v) : String(v).slice(0,10)
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
@@ -46,7 +46,8 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
   const candidates = (await pool.query(`SELECT s.id,s.customer_id,EXISTS (SELECT 1 FROM renewals r WHERE r.subscription_id=s.id
       AND r.period_start=s.renewal_at AND r.kind='renewal') AS has_renewal,sr.snapshot->'pricing' AS pricing
     FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id WHERE s.state IN ('active','past_due')
-    AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND ($2::uuid IS NULL OR s.id=$2) ORDER BY s.id`, [today, subscription_id ?? null])).rows
+    AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND ($2::uuid IS NULL OR s.id=$2)
+    AND NOT ${holdsTrialAfterLapseSql('s')} ORDER BY s.id`, [today, subscription_id ?? null])).rows
   let unusableOrigins = 0
   const generated: ReturnType<typeof orderView>[] = []
   for (const candidate of candidates) {
@@ -69,6 +70,9 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     const result = await transaction(pool, async client => {
       const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [candidate.id])).rows[0]
       if (!['active','past_due'].includes(sub.state) || !sub.applied_revision_id || !sub.renewal_at || date(sub.renewal_at)>today) return null
+      // A lapsed trial still holds its paid snapshot until the lock applies: its renewal is the free base's, and that is
+      // generated once the lock is applied. The trial configuration is never invoiced.
+      if ((await client.query(`SELECT ${holdsTrialAfterLapseSql('s')} AS held FROM subscriptions s WHERE s.id=$1`, [sub.id])).rows[0].held) return null
       const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [sub.applied_revision_id])).rows[0].snapshot
       const start = date(sub.renewal_at), end = addCadence(start, snapshot.cadence, 1)
       const renewalId = randomUUID()
@@ -154,7 +158,7 @@ export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Dat
     const rows = (await client.query(`SELECT s.*,sr.snapshot,p.grace_days,p.auto_suspend FROM subscriptions s
       JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
       JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
-      WHERE s.state IN ('active','past_due') AND EXISTS (
+      WHERE s.state IN ('active','past_due') AND NOT ${holdsTrialAfterLapseSql('s')} AND EXISTS (
         SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < $1)
       ORDER BY s.id FOR UPDATE OF s`, [now])).rows
     const results: { subscription_id: string; state: string }[] = []
