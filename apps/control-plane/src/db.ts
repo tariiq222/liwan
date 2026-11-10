@@ -57,7 +57,6 @@ export async function migrate(pool: Pool): Promise<void> {
   const sql38 = await readFile(new URL('./schema_038.sql', import.meta.url), 'utf8')
   const sql39 = await readFile(new URL('./schema_039.sql', import.meta.url), 'utf8')
   const sql40 = await readFile(new URL('./schema_040.sql', import.meta.url), 'utf8')
-  const sql41 = await readFile(new URL('./schema_041.sql', import.meta.url), 'utf8')
   const sql35 = await readFile(new URL('./schema_035.sql', import.meta.url), 'utf8')
   const sql23 = await readFile(new URL('./schema_023.sql', import.meta.url), 'utf8')
   const sql10 = await readFile(new URL('./schema_010.sql', import.meta.url), 'utf8')
@@ -145,7 +144,7 @@ export async function migrate(pool: Pool): Promise<void> {
       await client.query(sql16)
       await client.query('INSERT INTO schema_migrations(version) VALUES(16)')
     }
-    for (const [version, body] of [[17, sql17], [18, sql18], [19, sql19], [20, sql20], [21, sql21], [22, sql22], [23, sql23], [24, sql24], [25, sql25], [26, sql26], [27, sql27], [28, sql28], [29, sql29], [30, sql30], [31, sql31], [32, sql32], [33, sql33], [34, sql34], [35, sql35], [36, sql36], [37, sql37], [38, sql38], [39, sql39], [40, sql40], [41, sql41]] as const) {
+    for (const [version, body] of [[17, sql17], [18, sql18], [19, sql19], [20, sql20], [21, sql21], [22, sql22], [23, sql23], [24, sql24], [25, sql25], [26, sql26], [27, sql27], [28, sql28], [29, sql29], [30, sql30], [31, sql31], [32, sql32], [33, sql33], [34, sql34], [35, sql35], [36, sql36], [37, sql37], [38, sql38], [39, sql39], [40, sql40]] as const) {
       if (!(await client.query(`SELECT version FROM schema_migrations WHERE version=${version}`)).rowCount) {
         await client.query(body)
         await client.query(`INSERT INTO schema_migrations(version) VALUES(${version})`)

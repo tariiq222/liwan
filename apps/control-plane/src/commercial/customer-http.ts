@@ -1,8 +1,7 @@
-import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, createPaymentAttemptRequestSchema, autoRenewOffRequestSchema } from '@liwan/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema } from '@liwan/commercial-contracts'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
@@ -20,7 +19,7 @@ import { getRelease } from './catalog-releases.js'
 import { bankTransferInstructions } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { getUsage } from './usage.js'
-import { createPaymentAttempt, tokenProvider, verifyReturnedAttempt } from './payments.js'
+import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { ReturnOrigin } from './return-origin.js'
 export type PaymentRuntime = {adapter: PaymentAdapter | null; returnOrigin: ReturnOrigin | null}
@@ -135,8 +134,8 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(m==='POST'&&payment){
     requireCapability(principal,'subscription.manage')
     if(!z.uuid().safeParse(payment[1]).success || !(await pool.query('SELECT id FROM orders WHERE id=$1 AND customer_id=$2',[payment[1],customerId])).rowCount)throw new CommercialHttpError('not_found',404)
-    const body=parseBody(input.raw,createPaymentAttemptRequestSchema)
-    return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,...needPayment(runtime),...(body.save_payment_method?{save_payment_method:{actor:principal.actor_id}}:{})})}
+    parseBody(input.raw,z.strictObject({idempotency_key:z.uuid()}))
+    return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,...needPayment(runtime)})}
   }
   const cancel=/^\/orders\/([^/]+)\/cancel$/.exec(path)
   if(m==='POST'&&cancel){
@@ -163,22 +162,12 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(m==='GET'&&path==='/usage'){requireCapability(principal,'subscription.read');const view=await getSubscription(pool,customerId);const features=view.applied?.entitlement.features??{};const limits=Object.fromEntries(Object.entries(features).filter(([,v])=>v===null||typeof v==='number')) as Record<string,number|null>;return {status:200,data:await getUsage(pool,{tenant_id:principal.tenant_id!,limits})}}
   if(m==='POST'&&path==='/auto-renew'){
     requireCapability(principal,'subscription.manage')
-    // Turning it on needs a payment the customer makes with the consent (payment-attempts); only turning it off lives here.
-    parseBody(input.raw,autoRenewOffRequestSchema)
+    const body=parseBody(input.raw,z.strictObject({enabled:z.boolean(),consent:z.boolean().optional()}))
     await transaction(pool,async client=>{
       const r=await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE',[customerId]);if(!r.rowCount)throw new CommercialHttpError('not_found',404)
-      const s=r.rows[0]
-      if(!s.auto_renew_enabled&&!s.provider_token_ref)return
-      // The method is forgotten with the consent: nothing is charged after this, and a new opt-in needs a new consent. The
-      // provider is told by the worker from the row written here, so a crash cannot leave the method behind.
-      await client.query('UPDATE subscriptions SET auto_renew_enabled=false,auto_renew_consent_at=NULL,provider_token_ref=NULL,revision=revision+1 WHERE id=$1',[s.id])
-      if(s.provider_token_ref){
-        // Taken from the attempt that stored the token. Turning it off is never refused: when no attempt says which provider,
-        // the revocation is written for `unknown` and shows in the vendor attention list for an operator to route.
-        const provider=await tokenProvider(client,s.id)
-        await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)',[randomUUID(),s.id,provider??'unknown',s.provider_token_ref])
-      }
-      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',[randomUUID(),`customer:${customerId}`,'subscription.auto_renew_disabled',s.id,'Customer turned automatic renewal off',JSON.stringify({turned_off_by:principal.actor_id})])
+      const s=r.rows[0];if(body.enabled&&(!body.consent||!s.provider_token_ref))throw new CommercialHttpError('token_required',409)
+      if(s.auto_renew_enabled===body.enabled)return
+      await client.query('UPDATE subscriptions SET auto_renew_enabled=$1,auto_renew_consent_at=CASE WHEN $1 THEN now() ELSE auto_renew_consent_at END,revision=revision+1 WHERE id=$2',[body.enabled,s.id])
     })
     return {status:200,data:await getSubscription(pool,customerId)}
   }

@@ -32,8 +32,6 @@ export type ProviderEvent = {
   live: boolean
   status: ProviderEventStatus
   amount: Money
-  /** The reusable payment-method token of a succeeded attempt that asked to save it. Server-side only: settlement stores it on the subscription and it is never persisted with the event, logged or sent to a client. */
-  payment_method_token?: string
   /** Total the provider has refunded on this payment so far (cumulative, never a single refund). Absent means the provider gave no figure, and a refund without one is rejected for the operator, not assumed whole. */
   refunded?: Money
   occurred_at: string
@@ -53,8 +51,6 @@ export type CreateAttemptInput = {
   back_url: string
   callback_url: string
   expires_at?: string
-  /** The customer explicitly consented to keep this payment method for automatic renewal; only an adapter with `storesPaymentMethod` is given it. */
-  save_payment_method?: boolean
 }
 export type CreateAttemptResult = { provider_ref: string; redirect_url: string; status: ProviderEventStatus }
 export type RefundResult = { payment_id: string; status: ProviderEventStatus; refunded: Money }
@@ -66,8 +62,6 @@ export interface PaymentAdapter {
   readonly provider: string
   readonly merchantAccount: string
   readonly mode: 'test' | 'live' | 'simulator'
-  /** True when this adapter can return a reusable token for an attempt created with `save_payment_method`. */
-  readonly storesPaymentMethod?: boolean
   createAttempt(input: CreateAttemptInput): Promise<CreateAttemptResult>
   verifyEvent(rawBody: Uint8Array, headers: AdapterHeaders): ProviderEvent
   lookupAttempt(providerRef: string): Promise<ProviderEvent>
@@ -78,8 +72,6 @@ export interface PaymentAdapter {
   refund(paymentRef: string, amount?: Money): Promise<RefundResult>
   chargeToken(input: ChargeTokenInput): Promise<ProviderEvent>
   getToken(id: string): Promise<TokenInfo>
-  /** Revokes a stored payment method when the customer turns automatic renewal off. */
-  deleteToken?(id: string): Promise<void>
 }
 
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1|[^/]+\.test)$/i

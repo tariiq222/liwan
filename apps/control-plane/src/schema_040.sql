@@ -1,28 +1,26 @@
--- Automatic renewal on a stored payment method (issue 492). The customer's explicit consent to keep the method is
--- recorded on the hosted attempt that asks for it, with who gave it; the token itself never leaves
--- subscriptions.provider_token_ref and token_revocations.
-ALTER TABLE payment_attempts
-  ADD COLUMN save_payment_method boolean NOT NULL DEFAULT false,
-  ADD COLUMN save_payment_method_actor text,
-  ADD COLUMN save_payment_method_consent_at timestamptz,
-  -- A token charge's callback, kept so that replaying an unconfirmed charge sends exactly what the first call sent.
-  ADD COLUMN charge_callback_url text,
-  -- Single flight for the replay of an unconfirmed token charge across workers (a lease, released on the outcome).
-  ADD COLUMN replay_lease_until timestamptz,
-  -- Why a token attempt was closed without a settlement event: refused (a definitive provider refusal) or abandoned (the age bound).
-  ADD COLUMN closed_reason text CHECK(closed_reason IN ('refused','abandoned')),
-  ADD CONSTRAINT payment_attempt_save_consent CHECK(NOT save_payment_method OR (save_payment_method_actor IS NOT NULL AND save_payment_method_consent_at IS NOT NULL));
-
--- A stored payment method the provider still has to forget: written in the same transaction that stopped using it
--- (the customer turned auto-renew off, or a new method replaced it), deleted only once the provider confirmed. A process
--- that dies in between leaves the row for the worker, so a revocation is retried, never lost.
-CREATE TABLE token_revocations (
-  id uuid PRIMARY KEY,
-  subscription_id uuid NOT NULL REFERENCES subscriptions(id),
-  provider text NOT NULL,
-  token text NOT NULL,
+-- A trial that lapses onto the free base (issue 491) is two steps. The lapse itself (state, hard expiry cleared in Odoo)
+-- always happens at once, so the trial's expiry can never lock a tenant. Lowering the entitlement to the base is a
+-- retried step with an explicit state: why it has not happened yet is `reason`, and a lapse with a reason is what the
+-- vendor attention list shows. `limits_pending` is the settled over-limit state: the paid applications are already
+-- locked and only some limits wait for usage to fit.
+CREATE TABLE trial_lapses (
+  subscription_id uuid PRIMARY KEY REFERENCES subscriptions(id),
+  trial_revision_id uuid NOT NULL REFERENCES subscription_revisions(id),
+  period_start date NOT NULL,
+  lapsed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  state text NOT NULL DEFAULT 'pending' CHECK(state IN ('pending','ordered','limits_pending','done','superseded')),
+  -- The order in flight keeps some limit at current usage because usage exceeds the free value (or could not be judged).
+  partial boolean NOT NULL DEFAULT false,
+  -- What exceeds the free limits (machine text, e.g. users.limit:4>3); shown to the vendor while the limits wait.
+  limits_note text,
+  -- The order in flight lowers the limits of a base that is already applied (not the first lowering).
+  from_limits boolean NOT NULL DEFAULT false,
+  order_id uuid REFERENCES orders(id),
   attempts integer NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+  -- Orders issued so far, never reset: the order key is derived from it, so a retry can never meet an old key.
+  order_seq integer NOT NULL DEFAULT 0 CHECK(order_seq >= 0),
   next_attempt_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+  reason text,
+  CHECK(state <> 'ordered' OR order_id IS NOT NULL)
 );
-CREATE INDEX token_revocations_due ON token_revocations(next_attempt_at);
+CREATE INDEX trial_lapses_due ON trial_lapses(next_attempt_at) WHERE state IN ('pending','ordered','limits_pending');

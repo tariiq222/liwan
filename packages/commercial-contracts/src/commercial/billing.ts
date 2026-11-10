@@ -70,16 +70,6 @@ export const paymentAttemptSchema = z.strictObject({
   amount: moneySchema, status: paymentAttemptStatusSchema, redirect_url: z.string().nullable(),
   created_at: z.string(), updated_at: z.string(),
 })
-/**
- * Starting a hosted payment. Keeping the payment method for automatic renewal is an explicit, separate choice: the
- * `consent` literal must be sent, so a client cannot opt a customer in by omission or by a default.
- */
-export const createPaymentAttemptRequestSchema = z.strictObject({
-  idempotency_key: z.uuid(),
-  save_payment_method: z.strictObject({ consent: z.literal(true) }).optional(),
-})
-/** Turning automatic renewal off. Turning it on happens only through a payment that carries the consent above. */
-export const autoRenewOffRequestSchema = z.strictObject({ enabled: z.literal(false) })
 /** Provider event ledger: (provider, provider_event_id) is unique; a verified signature alone never confirms payment. */
 export const paymentEventRecordSchema = z.strictObject({
   id: z.string().min(1), provider: paymentProviderSchema, provider_event_id: z.string().min(1),
@@ -94,7 +84,6 @@ export type InvoiceLine = z.infer<typeof invoiceLineSchema>
 export type Invoice = z.infer<typeof invoiceSchema>
 export type Adjustment = z.infer<typeof adjustmentSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
-export type CreatePaymentAttemptRequest = z.infer<typeof createPaymentAttemptRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>
 export type PaymentAttemptStatus = z.infer<typeof paymentAttemptStatusSchema>
 export type PaymentEventRecord = z.infer<typeof paymentEventRecordSchema>

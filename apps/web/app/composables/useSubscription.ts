@@ -49,13 +49,10 @@ export function useSubscriptionApi() {
       request<CustomerOrderResult>('orders', { method: 'POST', body: { ...body, idempotency_key: idempotencyKey(store(), action) } }),
     cancelOrder: (orderId: string, reason: string) =>
       request<unknown>(`orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST', body: { reason: reason.trim() } }),
-    /** `keepPaymentMethod` sends the customer's explicit consent to keep the method for automatic renewal; omit it for a plain payment. */
-    payment: (orderId: string, action: string, keepPaymentMethod = false) =>
-      request<PaymentAttempt>(`orders/${encodeURIComponent(orderId)}/payment-attempts`, { method: 'POST', body: {
-        idempotency_key: idempotencyKey(store(), `${action}:pay`), ...(keepPaymentMethod ? { save_payment_method: { consent: true } } : {}) } }),
+    payment: (orderId: string, action: string) =>
+      request<PaymentAttempt>(`orders/${encodeURIComponent(orderId)}/payment-attempts`, { method: 'POST', body: { idempotency_key: idempotencyKey(store(), `${action}:pay`) } }),
     done: (action: string) => { forgetIdempotencyKey(store(), action); forgetIdempotencyKey(store(), `${action}:pay`) },
-    /** Turning automatic renewal off forgets the stored method; turning it on happens through a payment that carries the consent. */
-    turnOffAutoRenew: () => request<SubscriptionView>('auto-renew', { method: 'POST', body: { enabled: false } }),
+    setAutoRenew: (enabled: boolean) => request<SubscriptionView>('auto-renew', { method: 'POST', body: { enabled, consent: true } }),
   }
 }
 

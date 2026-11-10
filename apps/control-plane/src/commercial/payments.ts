@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { nextOrderState, type OrderStateInput } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError, iso } from './lifecycle.js'
-import { assertReturnUrl, PaymentError, refundedAmount, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
+import { assertReturnUrl, refundedAmount, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { confirmEvent } from './moyasar-adapter.js'
 import { enqueueOutbox } from './outbox.js'
 import type { ReturnOrigin } from './return-origin.js'
@@ -100,8 +100,6 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
       await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id,
         payload: { order_id: order.id, subscription_id: order.subscription_id, target_revision_id: order.target_revision_id } })
       if (order.kind === 'renewal') await onRenewalPaid(client, order.id)
-      // Money that is going to be refunded or reviewed never starts automatic renewal.
-      await keepPaymentMethod(client, order, attempt, event)
     }
   } else if (event.status === 'refunded') {
     await flagRefundAfterFulfillment(client, order, attempt, event)
@@ -109,41 +107,6 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
     await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1", [attempt.id])
   }
   return 'accepted'
-}
-
-/**
- * Automatic renewal starts with a payment the customer made after consenting to keep the method (issue 492). Only the
- * attempt that carries that consent may store a token, and only the first accepted success reaches here, so a replayed
- * or out-of-order event never stores it twice. The token goes to `subscriptions.provider_token_ref` and nowhere else:
- * not the event table, the audit trail, a log line or any response.
- */
-/** The provider that issued a subscription's stored token: the one whose succeeded attempt carried the consent. Null when no attempt says. */
-export async function tokenProvider(client: Pick<PoolClient, 'query'>, subscriptionId: string, exceptAttempt?: string): Promise<string | null> {
-  const row = (await client.query(`SELECT a.provider FROM payment_attempts a JOIN orders o ON o.id=a.order_id
-    WHERE o.subscription_id=$1 AND a.save_payment_method AND a.status='succeeded' AND ($2::uuid IS NULL OR a.id<>$2)
-    ORDER BY a.succeeded_at DESC NULLS LAST,a.created_at DESC LIMIT 1`, [subscriptionId, exceptAttempt ?? null])).rows[0]
-  return row?.provider ?? null
-}
-
-async function keepPaymentMethod(client: PoolClient, order: any, attempt: any, event: ProviderEvent) {
-  if (!attempt.save_payment_method) return
-  const token = event.payment_method_token
-  if (!token) {
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-      [randomUUID(), 'system', 'payment.method_not_stored', order.subscription_id, 'The provider returned no reusable payment method', JSON.stringify({ attempt_id: attempt.id })])
-    return
-  }
-  const previous = (await client.query('SELECT provider_token_ref FROM subscriptions WHERE id=$1 FOR UPDATE', [order.subscription_id])).rows[0]?.provider_token_ref as string | null
-  const previousProvider = previous ? await tokenProvider(client, order.subscription_id, attempt.id) : null
-  // The consent counts from the payment that carried it, and the method it replaces is forgotten at the provider.
-  await client.query(`UPDATE subscriptions SET provider_token_ref=$2,auto_renew_enabled=true,auto_renew_consent_at=now(),revision=revision+1 WHERE id=$1`,
-    [order.subscription_id, token])
-  // The old method goes to the provider that issued it; when no attempt says which, the new one is the best evidence there is.
-  if (previous && previous !== token)
-    await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)', [randomUUID(), order.subscription_id, previousProvider ?? attempt.provider, previous])
-  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-    [randomUUID(), `customer:${order.customer_id}`, 'subscription.auto_renew_enabled', order.subscription_id, 'Customer consented to keep the payment method for automatic renewal',
-      JSON.stringify({ attempt_id: attempt.id, consented_by: attempt.save_payment_method_actor, consent_requested_at: attempt.save_payment_method_consent_at })])
 }
 
 /**
@@ -237,21 +200,18 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   if (row.provider !== adapter.provider || row.mode !== adapter.mode) throw new CommercialHttpError('provider_mismatch', 409)
   // A token charge has a payment id, not an invoice: the invoice endpoint would answer 404 for it.
   let event: ProviderEvent | null | undefined
-  // A token charge the provider's answer was never recorded for is replayed under its idempotency key, never looked up by
-  // our own reference and never closed as missing: the replay returns the original result if the money was taken.
-  if (row.token_charge && ['created', 'unknown'].includes(row.status)) {
-    const replayed = await replayTokenCharge(pool, adapter, row)
-    if (replayed === 'closed') return 'ignored' as const
-    event = replayed
-  } else event = row.token_charge ? (row.provider_ref ? await adapter.lookupPayment?.(row.provider_ref) : null)
-    : row.provider_ref ? await adapter.lookupAttempt(row.provider_ref) : await adapter.lookupByAttemptId?.(row.id)
+  try {
+    event = row.token_charge ? (row.provider_ref ? await adapter.lookupPayment?.(row.provider_ref) : null)
+      : row.provider_ref ? await adapter.lookupAttempt(row.provider_ref) : await adapter.lookupByAttemptId?.(row.id)
+  } catch (error) {
+    if (row.token_charge && (error as { code?: string }).code === 'not_found' && await closeMissingTokenCharge(pool, row)) return 'ignored' as const
+    throw error
+  }
   if (!event) throw new CommercialHttpError('payment_unknown', 503)
   if (event.provider !== adapter.provider || event.merchant_account !== adapter.merchantAccount || event.live !== (adapter.mode === 'live')
     || (event.attempt_id && event.attempt_id !== row.id) || (row.provider_ref && event.provider_ref !== row.provider_ref)
     || Number(row.amount_minor) !== event.amount.minor || row.currency !== event.amount.currency || row.exponent !== event.amount.exponent)
     throw new CommercialHttpError('payment_mismatch', 409)
-  // A charge the provider keeps reporting `pending` is bounded like an unconfirmed one.
-  if (row.token_charge && event.status === 'pending' && Date.now() - new Date(row.created_at).getTime() > TOKEN_CHARGE_MAX_AGE_MS) { await closeTokenCharge(pool, row, 'abandoned'); return 'ignored' as const }
   // Timeout may have lost only the create response, not the provider-side attempt.
   await pool.query('UPDATE payment_attempts SET provider_ref=COALESCE(provider_ref,$2),updated_at=now() WHERE id=$1', [row.id,event.provider_ref])
   const outcome = await applyConfirmedEvent(pool, event)
@@ -271,82 +231,29 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   return outcome
 }
 
-/** An unconfirmed token attempt younger than this is the charge's own first call still in flight: nobody replays it, the reconciler included. */
-export const TOKEN_CHARGE_GUARD_MS = 5 * 60_000
-/** From its creation, how long an unconfirmed (or forever `pending`) token charge is chased before it is closed `failed` for an operator: a late charge would then go through the duplicate-payment path. */
-export const TOKEN_CHARGE_MAX_AGE_MS = 24 * 3_600_000
-const REPLAY_LEASE_SECONDS = 120
-
-/** A provider answer that cannot be a charge in flight: the token is unknown or not active, or the provider refused the request (4xx). Timeouts, 5xx and unreachable are transient. */
-function isDefinitiveRefusal(error: unknown): boolean {
-  if (!(error instanceof PaymentError)) return false
-  return error.code === 'not_found' || error.code === 'invalid_amount' || (error.code === 'provider_error' && /http 4\d\d|token not active/.test(error.message))
-}
-
-/** Closes a token attempt for good without a settlement event. The order stays payable, so a hosted payment is possible again. */
-async function closeTokenCharge(pool: Pool, row: any, reason: 'refused' | 'abandoned') {
-  const closed = await pool.query("UPDATE payment_attempts SET status='failed',closed_reason=$2,replay_lease_until=NULL,updated_at=now() WHERE id=$1 AND status IN ('created','unknown','pending') RETURNING id", [row.id, reason])
-  if (!closed.rowCount) return
-  await pool.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-    [randomUUID(), 'system', reason === 'refused' ? 'payment.token_charge_refused' : 'payment.token_charge_abandoned', row.order_id,
-      reason === 'refused' ? 'The provider refused the stored-method charge; the invoice is paid by the customer' : 'The stored-method charge stayed unconfirmed past its age bound; closed for an operator (a late charge would be a duplicate payment)',
-      JSON.stringify({ attempt_id: row.id })])
-}
-
-/**
- * Settles a token charge whose outcome was never recorded (the process died, or the answer was lost). The attempt id is the
- * charge's idempotency key (`given_id`), so asking again returns the original payment if the money was taken and charges
- * exactly once if it was never sent; the outcome is recorded and then confirmed by a lookup of the provider's own payment.
- * Whatever cannot be answered now (no token, a provider error) leaves the attempt unresolved: it is never closed as
- * missing, and `createPaymentAttempt` refuses a hosted payment for the order meanwhile, so a second payment is impossible.
- * An answer of `failed` is a definite decline and closes the attempt through the normal settlement.
- */
-async function replayTokenCharge(pool: Pool, adapter: PaymentAdapter, row: any): Promise<ProviderEvent | 'closed'> {
-  const overAge = Date.now() - new Date(row.created_at).getTime() > TOKEN_CHARGE_MAX_AGE_MS
-  // Single flight: one worker (or the customer's page) replays an attempt at a time; the lease ends with the outcome or expires.
-  const claimed = await pool.query(`UPDATE payment_attempts SET replay_lease_until=now()+make_interval(secs => $2::int) WHERE id=$1 AND status IN ('created','unknown')
-    AND (replay_lease_until IS NULL OR replay_lease_until < now()) RETURNING id`, [row.id, REPLAY_LEASE_SECONDS])
-  if (!claimed.rowCount) throw new CommercialHttpError('payment_unknown', 503)
-  try {
-    const token = (await pool.query(`SELECT COALESCE(s.provider_token_ref,(SELECT r.token FROM token_revocations r WHERE r.subscription_id=s.id ORDER BY r.created_at DESC LIMIT 1)) AS token
-      FROM orders o JOIN subscriptions s ON s.id=o.subscription_id WHERE o.id=$1`, [row.order_id])).rows[0]?.token as string | null | undefined
-    if (!token || !row.charge_callback_url) {
-      if (overAge) { await closeTokenCharge(pool, row, 'abandoned'); return 'closed' }
-      throw new CommercialHttpError('payment_unknown', 503)
-    }
-    let event: ProviderEvent
-    try {
-      event = await adapter.chargeToken({ given_id: row.id, token, amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
-        description: `LiwanOS renewal ${row.order_id}`, callback_url: row.charge_callback_url })
-    } catch (error) {
-      if (isDefinitiveRefusal(error)) { await closeTokenCharge(pool, row, 'refused'); return 'closed' }
-      if (overAge) { await closeTokenCharge(pool, row, 'abandoned'); return 'closed' }
-      throw error
-    }
-    await pool.query("UPDATE payment_attempts SET provider_ref=$2,status='pending',updated_at=now() WHERE id=$1 AND status IN ('created','unknown')", [row.id, event.provider_ref])
-    row.provider_ref = event.provider_ref
-    return adapter.lookupPayment ? await adapter.lookupPayment(event.provider_ref) : event
-  } finally {
-    await pool.query('UPDATE payment_attempts SET replay_lease_until=NULL WHERE id=$1', [row.id]).catch(() => {})
-  }
-}
-
-/** Cancels the customer's open hosted attempt at the provider and locally so a new one can carry the consent. Uncertainty keeps the old attempt. */
-async function closeForReplacement(pool: Pool, adapter: PaymentAdapter, row: any) {
-  if (row.provider !== adapter.provider || row.mode !== adapter.mode || !adapter.cancelAttempt) throw new CommercialHttpError('payment_attempt_in_progress', 409)
-  try { if (row.provider_ref) await adapter.cancelAttempt(row.provider_ref) } catch { throw new CommercialHttpError('payment_attempt_in_progress', 409) }
-  await pool.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')", [row.id])
+/** A token charge the provider says does not exist never charged anyone, so it no longer blocks a new attempt. */
+const MISSING_CHARGE_GRACE_MS = 60 * 60_000
+async function closeMissingTokenCharge(pool: Pool, row: any): Promise<boolean> {
+  // Before the charge response arrived the reference is only our own order id, which proves nothing by itself:
+  // wait out a grace period (the response may simply have been lost) before declaring it missing.
+  const unproven = !row.provider_ref || row.provider_ref === row.order_id
+  if (unproven && Date.now() - new Date(row.created_at).getTime() < MISSING_CHARGE_GRACE_MS) return false
+  return transaction(pool, async client => {
+    const closed = await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown') RETURNING id", [row.id])
+    if (!closed.rowCount) return false
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(),'system','payment.token_charge_missing',row.order_id,'The provider has no such token charge; the attempt was closed',JSON.stringify({ attempt_id: row.id, provider_ref: row.provider_ref })])
+    return true
+  })
 }
 
 /** A hosted invoice is created with this lifetime; past it, a live attempt may already be unpayable at the provider. */
 const ATTEMPT_LIFETIME_MS = 30 * 60_000
 
-export async function createPaymentAttempt(pool: Pool, input: { order_id: string; customer_id: string; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; save_payment_method?: { actor: string } }) {
+export async function createPaymentAttempt(pool: Pool, input: { order_id: string; customer_id: string; adapter: PaymentAdapter; returnOrigin: ReturnOrigin }) {
   // The id is fixed before the reservation so an unusable origin fails before any write.
   const attemptId = randomUUID()
   const url = paymentReturnUrls(await input.returnOrigin(input.customer_id), attemptId)
-  // Keeping the method needs an adapter that can return a token; refusing is better than recording a consent nothing honours.
-  if (input.save_payment_method && !input.adapter.storesPaymentMethod) throw new CommercialHttpError('payment_method_storage_unavailable', 409)
   const reserve = () => transaction(pool, async client => {
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.order_id,input.customer_id])).rows[0]
     if (!order) throw new CommercialHttpError('not_found', 404)
@@ -358,31 +265,15 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
       const subscription = (await client.query('SELECT id,tenant_id FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0]
       await requireReachableManager(client, customer, subscription)
     }
-    if (input.save_payment_method) {
-      const plan = (await client.query(`SELECT p.auto_renew_allowed FROM subscriptions s JOIN subscription_revisions r ON r.id=COALESCE(s.target_revision_id,s.applied_revision_id)
-        JOIN plan_revisions p ON p.id=(r.snapshot->>'plan_revision_id')::uuid WHERE s.id=$1`, [order.subscription_id])).rows[0]
-      if (!plan?.auto_renew_allowed) throw new CommercialHttpError('auto_renew_not_allowed', 409)
-    }
     const live = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending','unknown')", [order.id])).rows[0]
-    // The consent belongs to one attempt, in both directions: an open hosted attempt (a renewal opens one on its own) never
-    // carries a consent given later, and one made with consent never stores a method for a request that gave none, so it
-    // is replaced by one that matches. A charge already on a token is not.
-    if (live && (input.save_payment_method !== undefined) !== live.save_payment_method) {
-      if (live.token_charge) throw new CommercialHttpError('payment_attempt_in_progress', 409)
-      return { row: live, fresh: false, replace: true }
-    }
-    if (live) return { row: live, fresh: false, replace: false }
+    if (live) return { row: live, fresh: false }
     const invoice = (await client.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued' ORDER BY created_at LIMIT 1 FOR UPDATE", [order.id])).rows[0]
     if (!invoice || Number(invoice.total_minor) <= 0) throw new CommercialHttpError('issued_invoice_required', 409)
-    const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,amount_minor,currency,exponent,save_payment_method,save_payment_method_actor,save_payment_method_consent_at)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CASE WHEN $10 THEN now() END) RETURNING *`, [attemptId,order.id,invoice.id,input.adapter.provider,input.adapter.mode,order.id,invoice.total_minor,invoice.currency,invoice.exponent,input.save_payment_method !== undefined,input.save_payment_method?.actor ?? null])).rows[0]
-    return { row, fresh: true, replace: false }
+    const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,amount_minor,currency,exponent)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [attemptId,order.id,invoice.id,input.adapter.provider,input.adapter.mode,order.id,invoice.total_minor,invoice.currency,invoice.exponent])).rows[0]
+    return { row, fresh: true }
   })
   let reservation = await reserve()
-  if (reservation.replace) {
-    await closeForReplacement(pool, input.adapter, reservation.row)
-    reservation = await reserve()
-  }
   // An invoice older than its lifetime may have expired unseen: ask the provider first, so an expired one is
   // closed (the order stays payable) and this call starts a fresh attempt instead of handing back a dead link.
   // At most one provider lookup per 5 seconds per attempt (the claim), and a failed lookup never blocks the
@@ -395,14 +286,6 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
       if (looked) reservation = await reserve()
     }
   }
-  if (!reservation.fresh && reservation.row.token_charge) {
-    // A charge on the stored method is in flight or unconfirmed: settle it if the provider can say, and offer no second payment until then.
-    // Its own first call may still be running: an attempt younger than the reconciler's guard is not replayed from here.
-    if (reservation.row.status === 'created' && Date.now() - new Date(reservation.row.created_at).getTime() < TOKEN_CHARGE_GUARD_MS) throw new CommercialHttpError('payment_charge_unresolved', 409)
-    try { await lookup(pool, input.adapter, reservation.row) } catch { /* unresolved: refused below */ }
-    reservation = await reserve()
-    if (!reservation.fresh) throw new CommercialHttpError('payment_charge_unresolved', 409)
-  }
   if (!reservation.fresh && reservation.row.status === 'unknown') {
     await lookup(pool, input.adapter, reservation.row)
     reservation = await reserve() // a closed attempt (missing token charge) no longer blocks a new one
@@ -414,8 +297,7 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
   try {
     const created = await input.adapter.createAttempt({ attempt_id: row.id,order_id: row.order_id,
       amount: { minor: Number(row.amount_minor),currency: row.currency,exponent: row.exponent }, description: `LiwanOS order ${row.order_id}`,
-      success_url: url, back_url: url, callback_url: url, expires_at: new Date(Date.now()+ATTEMPT_LIFETIME_MS).toISOString(),
-      ...(row.save_payment_method ? { save_payment_method: true } : {}) })
+      success_url: url, back_url: url, callback_url: url, expires_at: new Date(Date.now()+ATTEMPT_LIFETIME_MS).toISOString() })
     const updated = await pool.query(`UPDATE payment_attempts SET provider_ref=$2,redirect_url=$3,
       status=CASE WHEN status='created' THEN 'redirected' ELSE status END,updated_at=now() WHERE id=$1 RETURNING *`, [row.id,created.provider_ref,created.redirect_url])
     return paymentAttemptView(updated.rows[0])
@@ -452,11 +334,11 @@ export async function reconcileUnknownAttempts(pool: Pool, adapter: PaymentAdapt
   const rows = (await pool.query(`WITH candidates AS (
     SELECT id FROM payment_attempts
     WHERE status IN ('created','unknown','redirected','pending') AND provider=$1 AND mode=$2
-      AND (status<>'created' OR created_at<=$3::timestamptz - make_interval(secs => $5::int))
+      AND (status<>'created' OR created_at<=$3::timestamptz - interval '5 minutes')
     ORDER BY updated_at,created_at,id LIMIT $4 FOR UPDATE SKIP LOCKED
   ) UPDATE payment_attempts AS attempt SET updated_at=$3
     FROM candidates WHERE attempt.id=candidates.id RETURNING attempt.*`,
-  [adapter.provider, adapter.mode, now, limit, TOKEN_CHARGE_GUARD_MS / 1000])).rows
+  [adapter.provider, adapter.mode, now, limit])).rows
   const results: { id: string; outcome: ReconciliationOutcome }[] = []
   for (const row of rows) {
     try { results.push({ id: row.id, outcome: await lookup(pool, adapter, row) }) }

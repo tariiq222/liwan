@@ -40,21 +40,6 @@ describe('usage never shows unknown as 0', () => {
     expect(c).toContain('f.known ?'); expect(c).toContain('subscription.usage.unavailable')
   })
 })
-describe('automatic renewal', () => {
-  it('is turned on only by a payment that carries the explicit consent, and off by a dedicated call', () => {
-    const composable = read('app/composables/useSubscription.ts'), control = read('app/components/subscription/AutoRenewControl.vue')
-    expect(composable).toContain("save_payment_method: { consent: true }")
-    expect(composable).toContain("body: { enabled: false }")
-    expect(composable).not.toContain('setAutoRenew')
-    // The consent box gates the enable button, which exists only while an invoice is due.
-    expect(control).toContain(':disabled="!consent')
-    expect(control).toContain('canEnable')
-    expect(page('index.vue')).toContain('api.payment(order.id, `auto-renew:${order.id}`, true)')
-  })
-  it('states the notice period from the same constant the control plane uses', () => {
-    expect(read('app/components/subscription/AutoRenewControl.vue')).toContain('RENEWAL_NOTICE_DAYS')
-  })
-})
 describe('permission gating', () => {
   it('pages gate on customer capabilities and use hydration', () => {
     expect(page('change.vue')).toContain("can('subscription.manage')"); expect(page('change.vue')).toContain('useHydrated')

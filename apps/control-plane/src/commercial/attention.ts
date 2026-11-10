@@ -1,9 +1,8 @@
 import type { Pool } from 'pg'
-import { RENEWAL_NOTICE_DAYS } from './notice-timings.js'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
 
-export const RENEWAL_WINDOW_DAYS = RENEWAL_NOTICE_DAYS
+export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
 /** Renewal dates are calendar dates of the business, so "today" and the renewal instant are read in this zone, never the session's. */
 export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
@@ -74,19 +73,6 @@ const subjectsSql = `WITH latest AS (
   JOIN subscription_revisions r ON r.id=s.applied_revision_id
   CROSS JOIN LATERAL (SELECT count(*)::int AS n FROM commercial_branches cb WHERE cb.subscription_id=s.id AND cb.kind='extra' AND cb.state IN ('active','pending')) b
   WHERE (l.state='limits_pending' AND s.applied_revision_id=l.trial_revision_id) OR (l.state IN ('limits_pending','done') AND r.snapshot->>'free_base'='true')
-), abandoned_charges AS (
-  -- A stored-method charge that stayed unconfirmed past its age bound and was closed: the invoice is still unpaid and a late
-  -- charge would be a duplicate payment. Stays until the order is paid or cancelled.
-  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, a.updated_at FROM payment_attempts a
-  JOIN orders o ON o.id=a.order_id JOIN customers c ON c.id=o.customer_id
-  WHERE a.token_charge AND a.closed_reason='abandoned' AND o.payment_state='awaiting_payment' AND NOT o.cancelled
-  ORDER BY c.id, a.updated_at DESC
-), unrouted AS (
-  -- A stored payment method the customer turned off but no payment attempt could name the provider of: nobody will forget it
-  -- at the provider until an operator routes it.
-  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, r.created_at FROM token_revocations r
-  JOIN subscriptions s ON s.id=r.subscription_id JOIN customers c ON c.id=s.customer_id WHERE r.provider='unknown'
-  ORDER BY c.id, r.created_at
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -103,8 +89,6 @@ const subjectsSql = `WITH latest AS (
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
-  UNION ALL SELECT 2,'token_charge_abandoned', customer_id, tenant_id, NULL, NULL, name, ${iso('updated_at')}, NULL, updated_at FROM abandoned_charges WHERE $3::boolean
-  UNION ALL SELECT 2,'payment_method_unrevoked', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM unrouted WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lowering
   UNION ALL SELECT 9,'free_base_limits_pending', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, detail, lapsed_at FROM limits_waiting WHERE detail <> ''

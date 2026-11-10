@@ -59,6 +59,3 @@ export function periodBounds(anchor: string, cadence: Cadence, at: string): { st
   while (addCadence(anchor, cadence, k + 1) <= at) k++
   return { start: addCadence(anchor, cadence, k), end: addCadence(anchor, cadence, k + 1) }
 }
-
-/** Days before `renewal_at` that a customer with automatic renewal is told the stored payment method will be charged; the customer page states the same number. */
-export const RENEWAL_NOTICE_DAYS = 7
