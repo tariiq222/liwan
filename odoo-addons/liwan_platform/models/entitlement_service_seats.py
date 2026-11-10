@@ -202,11 +202,11 @@ class LiwanEntitlementSeats(models.AbstractModel):
         """Make a branch full or read-only, or set its reopening priority; the headquarters company is never a branch."""
         self._liwan_assert_branch_admin()
         profile = self._liwan_profile()
+        profile._liwan_lock()
         branch = self._liwan_branches().filtered(lambda item: item.company_id.id == company_id)
         if not branch:
             code = 'not_found'
             raise LiwanAccessRule(code, 'branch does not exist', status=404)
-        profile._liwan_lock()
         vals = {}
         if read_only is not None:
             if not read_only and branch.read_only:

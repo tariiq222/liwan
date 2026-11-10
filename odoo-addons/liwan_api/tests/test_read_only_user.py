@@ -222,6 +222,10 @@ class TestSeatAdminApi(LiwanApiCase):
         actions = self.api('GET', f'/api/v1/admin/users/{invitee.id}').json()['allowed_actions']
         self.assertIn('cancel_invitation', actions)
         self.assertNotIn('set_seat', actions)
+        refused = self.api('PATCH', f'/api/v1/admin/users/{invitee.id}/seat', {
+            'expected_version': self._version(invitee), 'read_only': True,
+        })
+        self.assertEqual((refused.status_code, refused.json()['code']), (409, 'seat_not_applicable'))
         # The limit drops before the invitee accepts: no full seat is free, so the account comes out read-only.
         self._limit('users.limit', used)
         _token, raw = self.env['liwan.access.service']._liwan_tokens()._liwan_issue(invitee, 'invite')

@@ -6,8 +6,9 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 GRANT = 'access.users.grant'
 SEAT_KEYS = frozenset({'active', 'share', 'liwan_read_only'})
-# Set while the access service creates an invitee: the seat is claimed when the invitation is accepted.
+# A server-created invitation reserves room without counting as a full seat until acceptance.
 INVITEE_CONTEXT = 'liwan_platform.invitee_create'
+INVITEE_TOKEN = object()
 
 
 class LiwanPlatformResUsers(models.Model):
@@ -38,7 +39,7 @@ class LiwanPlatformResUsers(models.Model):
         invitations = 0
         for vals in vals_list or ():
             if vals.get('active', True) and not vals.get('share', False):
-                if self.env.context.get(INVITEE_CONTEXT):
+                if self.env.context.get(INVITEE_CONTEXT) is INVITEE_TOKEN:
                     invitations += 1
                 elif not vals.get('liwan_read_only'):
                     delta += 1
@@ -69,15 +70,25 @@ class LiwanPlatformResUsers(models.Model):
     def _liwan_assert_grant_holder_survives(self):
         """Refuse to turn the last full holder of ``access.users.grant`` read-only or off."""
         access = self.env['liwan.access.service']
+        remaining = self.env['liwan.entitlement.service']._liwan_seat_users().filtered(
+            lambda user: not user.liwan_read_only and user.id not in self.ids,
+        )
         for company in self.company_id:
-            leaving = self.filtered(lambda user, company=company: user.company_id == company)
-            remaining = self.browse(self.env['liwan.entitlement.service']._liwan_full_seat_ids()) - leaving
             if not any(
                 user.company_id == company and access._liwan_has_capability(user, GRANT, company=company)
-                for user in remaining
+                for user in self
             ):
+                continue
+            if not any(access._liwan_has_capability(user, GRANT, company=company) for user in remaining):
                 msg = 'last_access_admin'
                 raise LiwanAccessRule(msg, 'at least one full access administrator is required', status=409)
+
+    def _liwan_check_seat_change(self, vals):
+        if not SEAT_KEYS.intersection(vals) or self.env.cr.precommit.data.get(SETTLE_MARKER):
+            return
+        if vals.get('liwan_read_only') or vals.get('share') or vals.get('active') is False:
+            self._liwan_seat_holders()._liwan_assert_grant_holder_survives()
+        self._liwan_user_quota_delta(records=self, write_vals=vals)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -85,9 +96,7 @@ class LiwanPlatformResUsers(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        if 'liwan_read_only' in vals and vals['liwan_read_only'] and not self.env.cr.precommit.data.get(SETTLE_MARKER):
-            self._liwan_seat_holders()._liwan_assert_grant_holder_survives()
-        self._liwan_user_quota_delta(records=self, write_vals=vals)
+        self._liwan_check_seat_change(vals)
         result = super().write(vals)
         self._liwan_settle_after_activation_change(vals)
         return result
@@ -102,7 +111,7 @@ class LiwanPlatformResUsers(models.Model):
         return super()._liwan_access_create(vals, capability=capability)
 
     def _liwan_access_write(self, vals, capability):
-        self._liwan_user_quota_delta(records=self, write_vals=vals)
+        self._liwan_check_seat_change(vals)
         result = super()._liwan_access_write(vals, capability=capability)
         self._liwan_settle_after_activation_change(vals)
         return result

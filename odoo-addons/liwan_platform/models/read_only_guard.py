@@ -105,7 +105,9 @@ def _allowed_for_read_only_user(records, keys, vals_list=None):
     if model == 'mail.message':
         return _own_mail_message(records, vals_list)
     if model == 'mail.notification':
-        return bool(keys) and keys <= NOTIFICATION_READ_FIELDS
+        return bool(records and keys) and keys <= NOTIFICATION_READ_FIELDS and all(
+            row.res_partner_id == records.env.user.partner_id for row in records
+        )
     if model == 'res.partner':
         return bool(keys) and keys <= OWN_PARTNER_FIELDS and records == records.env.user.partner_id
     if model == 'res.users':
@@ -138,15 +140,17 @@ def _own_companies(records):
     return records.sudo().company_id
 
 
-def _parent_companies(records):
+def _parent_companies(records, vals=None):
     """The companies of the records that RECORDS hang on (see ``PARENT_REFERENCES``)."""
     pair = PARENT_REFERENCES.get(records._name)
     if not pair:
         return records.env['res.company']
     model_field, id_field = pair
+    vals = vals or {}
     ids_by_model = {}
     for row in records.sudo():
-        model, res_id = row[model_field], row[id_field]
+        model = vals[model_field] if model_field in vals else row[model_field]
+        res_id = vals[id_field] if id_field in vals else row[id_field]
         if model and res_id and model in records.env and model not in BRANCH_EXEMPT_MODELS:
             ids_by_model.setdefault(model, set()).add(res_id)
     companies = records.env['res.company']
@@ -160,7 +164,7 @@ def _bound_companies(records):
     return _own_companies(records) | _parent_companies(records)
 
 
-def _registered_allowance(records, vals_list):
+def _registered_allowance(records, vals, vals_list):
     """True when an application registered this write as a read's own bookkeeping (see the module docstring)."""
     env = records.env
     allowances = env['liwan.entitlement.service']._liwan_read_only_allowances()
@@ -171,7 +175,9 @@ def _registered_allowance(records, vals_list):
     if records._name in allowances['own']:
         user = env.user
         if records:
-            return all(owner == user for owner in records.mapped('user_id'))
+            return (vals or {}).get('user_id', user.id) == user.id and all(
+                row.user_id == user for row in records
+            )
         return bool(vals_list) and all(vals.get('user_id') == user.id for vals in vals_list)
     return False
 
@@ -202,7 +208,7 @@ def assert_writable(records, operation, vals=None, vals_list=None):
     # A create checks the identity before the insert; the second call, with the new rows, only asks about the company.
     identity_checked = operation == 'create' and bool(records)
     if not identity_checked and env.user.liwan_read_only:
-        if not _registered_allowance(records, vals_list):
+        if not _registered_allowance(records, vals, vals_list):
             _refuse('user_read_only')
         return
     if model in BRANCH_EXEMPT_MODELS or env.context.get(INBOUND_EVENT_CONTEXT) is INBOUND_EVENT_TOKEN:
@@ -211,5 +217,8 @@ def assert_writable(records, operation, vals=None, vals_list=None):
     in_read_only_branch = bool(records and _bound_companies(records).filtered('liwan_read_only')) or bool(
         targets and env['res.company'].browse(targets).filtered('liwan_read_only'),
     )
-    if in_read_only_branch and not _registered_allowance(records, vals_list):
+    parent_fields = PARENT_REFERENCES.get(model, ())
+    if not in_read_only_branch and records and keys.intersection(parent_fields):
+        in_read_only_branch = bool(_parent_companies(records, vals).filtered('liwan_read_only'))
+    if in_read_only_branch and not _registered_allowance(records, vals, vals_list):
         _refuse('branch_read_only')

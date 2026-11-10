@@ -212,6 +212,21 @@ class TestReadOnlyBranches(ExcessCase):
         self.assertTrue(attachments.create({**values, 'res_id': headquarters.id}).exists())
         self.assertTrue(headquarters.with_user(self.manager).sudo().message_post(body='hello').exists())
 
+    def test_an_attachment_remains_outside_a_read_only_branch_when_relinked(self):
+        company = self.env['res.company'].browse(self._apply(['b1'])[0]['odoo_company_id'])
+        contacts = self.env['res.partner']
+        hq = contacts.create({'name': 'HQ parent', 'company_id': self.record.root_company_id.id})
+        branch = contacts.create({'name': 'Branch parent', 'company_id': company.id})
+        attachment = self.env['ir.attachment'].create({
+            'name': 'parent.txt', 'raw': b'x', 'res_model': 'res.partner', 'res_id': hq.id,
+            'company_id': self.record.root_company_id.id,
+        })
+        self.service._liwan_apply_flags(self._branch('b1'), {'read_only': True})
+        with self.assertRaises(LiwanAccessRule) as caught:
+            attachment.with_user(self.manager).sudo().write({'res_id': branch.id})
+        self.assertEqual(caught.exception.code, 'branch_read_only')
+        self.assertEqual(attachment.res_id, hq.id)
+
     def test_an_inbound_event_is_recorded_in_a_read_only_branch_for_its_own_request_only(self):
         company = self.env['res.company'].browse(self._apply(['b1'])[0]['odoo_company_id'])
         self.service._liwan_apply_flags(self._branch('b1'), {'read_only': True})

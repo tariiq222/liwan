@@ -195,11 +195,35 @@ class TestSeatToggle(ExcessCase):
             self.admin.with_user(self.admin).write({'liwan_read_only': False})
         self.assertTrue(self.admin.liwan_read_only)
 
-    def test_the_last_full_grant_holder_cannot_be_made_read_only(self):
-        self.patch(type(self.service), '_liwan_full_seat_ids', lambda model: [self.admin.id])
-        with self.assertRaises(LiwanAccessRule) as caught:
-            self.admin._liwan_assert_grant_holder_survives()
-        self.assertEqual(caught.exception.code, 'last_access_admin')
+    def test_protected_account_mutation_keeps_the_last_full_grant_holder(self):
+        company = self.env['res.company'].create({'name': 'Only Full Seat Admin'})
+        admin = new_test_user(
+            self.env, login='only_full_grant_admin', groups='liwan_core.group_access_admin',
+            company_id=company.id, company_ids=[Command.set(company.ids)],
+        )
+        self.env['liwan.access.assignment'].create({
+            'user_id': admin.id, 'role_id': self.env.ref('liwan_core.role_system_admin').id,
+            'company_id': company.id,
+        })
+        admin = admin.with_company(company)
+        self.assertTrue(self.access.with_company(company)._liwan_has_capability(admin, GRANT, company=company))
+        for values in ({'liwan_read_only': True}, {'active': False}):
+            with self.subTest(values=values), self.assertRaises(LiwanAccessRule) as caught:
+                with self.env.cr.savepoint():
+                    admin._liwan_access_write(values, GRANT)
+            self.assertEqual(caught.exception.code, 'last_access_admin')
+        self.assertTrue(admin.active)
+        self.assertFalse(admin.liwan_read_only)
+
+    def test_an_account_without_grant_can_release_its_seat_in_a_company_without_a_grant_holder(self):
+        company = self.env['res.company'].create({'name': 'Staff Company'})
+        user = new_test_user(
+            self.env, login='seat_staff_only', groups='liwan_core.group_employee',
+            company_id=company.id, company_ids=[Command.set(company.ids)],
+        )
+        self.assertFalse(self.access._liwan_has_capability(user, GRANT, company=company))
+        user.write({'liwan_read_only': True})
+        self.assertTrue(user.liwan_read_only)
 
     def test_disabling_a_user_reopens_the_next_read_only_account(self):
         _base, users = self._four_users_over_a_limit_of_three()
