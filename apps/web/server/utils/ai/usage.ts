@@ -1,6 +1,6 @@
 import { getCookie, getHeader, type H3Event } from 'h3'
 import { createHash } from 'node:crypto'
-import { AI_USAGE_BATCH_MAX, AiModelCallEventSchema, AiModelUsageEventSchema, type AiModelCallEvent, type AiModelUsageEvent, type AiUsageRecord } from '@liwan/contracts'
+import { AI_USAGE_BATCH_MAX, AI_USAGE_SERVICE_LIMITS, AiModelCallEventSchema, AiModelUsageEventSchema, type AiModelCallEvent, type AiModelUsageEvent, type AiUsageRecord } from '@liwan/contracts'
 import { BEARER_KEY } from '../serviceAuthorization'
 import { logFailure, odooJson, odooServiceUsageJson } from './upstream'
 
@@ -29,7 +29,7 @@ class UsageSpoolExpired extends Error {}
 class UsageKeyMalformed extends Error {}
 /** Logged by count only: the run's user or company is not a usable id, so its rows could not be reported as that user. */
 class UsageOwnerInvalid extends Error {}
-/** Logged by count only: Odoo refused the batch as invalid (422) or as already held under another company (409); a retry cannot succeed, so the rows are dropped, never retried forever. */
+/** Logged by count only: Odoo named these rows (or their user or company) as the reason to refuse them (422/409); a retry cannot succeed, so they are dropped, never retried forever. */
 class UsageRejected extends Error {}
 
 /**
@@ -39,7 +39,7 @@ class UsageRejected extends Error {}
  */
 const SPOOL_MAX_ROWS = 2048
 const SPOOL_SESSION_MAX_ROWS = 256
-const SPOOL_MAX_AGE_MS = 60 * 60 * 1000
+export const SPOOL_MAX_AGE_MS = 60 * 60 * 1000
 /**
  * A refused row becomes due again this long after its refusal. It is bounded on purpose: a failing or ended session would
  * otherwise be retried by every run that ends in the same session, so one broken Odoo would take the load of every finished
@@ -163,38 +163,93 @@ async function sendSpooled(event: H3Event, session: string): Promise<void> {
   }
 }
 
+const rowTokens = (row: AiUsageRecord): number => (row.input_tokens ?? 0) + (row.output_tokens ?? 0)
+
 /**
- * Reports every due row of the service owners with the recorder key, one batch per user and company in the order the rows were
- * observed (at most `AI_USAGE_BATCH_MAX` each). A batch leaves the spool only once Odoo answered 200. A refusal that a retry
- * cannot fix (401/403: the key is wrong or revoked, so nothing else would pass either) defers every due row and stops; an
- * invalid (422) or duplicate (409) batch is dropped and logged by count; a timeout, a 5xx or a dead connection keeps the batch and the rows behind
- * it of the same owner for the retry window. A re-sent batch is settled by the `call_id` Odoo holds once per user and conversation.
+ * Splits rows (in order) into requests Odoo accepts by size: at most `AI_USAGE_BATCH_MAX` rows and at most
+ * `max_batch_tokens` tokens in all. One row is at most the per-row ceilings, so it always fits a request alone.
+ */
+function chunkRows(entries: readonly SpooledRow[]): SpooledRow[][] {
+  const chunks: SpooledRow[][] = []
+  let tokens = 0
+  for (const entry of entries) {
+    const current = chunks.at(-1)
+    const size = rowTokens(entry.row)
+    if (current && current.length < AI_USAGE_BATCH_MAX && tokens + size <= AI_USAGE_SERVICE_LIMITS.max_batch_tokens) { current.push(entry); tokens += size }
+    else { chunks.push([entry]); tokens = size }
+  }
+  return chunks
+}
+
+/** What Odoo named in a 409/422/429 body: the refused field (`items.<i>.<field>`, `items`, `user_id`, ...) and the back-off it asked for. */
+function refusalOf(body: unknown): { field: string; retryAfterMs: number } {
+  const { field, details } = (body && typeof body === 'object' ? body : {}) as { field?: unknown; details?: { retry_after_seconds?: unknown } }
+  const seconds = Number(details?.retry_after_seconds)
+  return { field: typeof field === 'string' ? field : '', retryAfterMs: Number.isFinite(seconds) ? Math.min(Math.max(seconds, 0), 600) * 1000 : 0 }
+}
+
+/**
+ * Reports every due row of the service owners with the recorder key, one request per user and company in the order the rows
+ * were observed, sized the way Odoo accepts them (`chunkRows`). A row leaves the spool only when Odoo accepted it or when Odoo
+ * named that row itself as the reason to refuse it; nothing valid is ever discarded for sharing a request with a bad row:
+ *  - 200: the rows are recorded (a re-sent row is settled by the `call_id` Odoo holds once per user and conversation).
+ *  - 422/409 naming `items.<i>.<field>`: that one row is invalid (a count above the per-row ceiling, a `called_at` older than
+ *    the server window) or already held under another company. It is dropped and logged; the rest are sent again at once. A
+ *    delayed row is never refused for age: the spool gives a row up after an hour and the server window is 24 hours.
+ *  - 422 naming `items` (size): the request is split in two and each half is sent; a single row that is still refused is dropped.
+ *  - 422 naming the owner (`user_id`, `user_company_id`): no row of this owner and company can ever be recorded; dropped and logged.
+ *  - 429: the recorder is over its rate. Every due row backs off for what Odoo asked (at least the retry window) and nothing is dropped.
+ *  - 401/403: the key is wrong or revoked, nothing else would pass either; every due row backs off and nothing is dropped.
+ *  - a timeout, a 5xx, a dead connection: the request and the rows behind it of this owner keep for the retry window.
  */
 async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
   const now = Date.now()
   const groups = new Map<string, SpooledRow[]>()
   for (const entry of spool) if (entry.service && entry.dueAt <= now) groups.set(entry.session, [...(groups.get(entry.session) ?? []), entry])
+  const deferAll = (retryAfterMs: number) => {
+    const retryAt = Date.now() + Math.max(SPOOL_RETRY_AFTER_MS, retryAfterMs)
+    for (const entry of spool) if (entry.service && entry.dueAt <= now) entry.dueAt = retryAt
+  }
   for (const due of groups.values()) {
     const owner = due[0]!.service!
-    for (let start = 0; start < due.length; start += AI_USAGE_BATCH_MAX) {
-      const batch = due.slice(start, start + AI_USAGE_BATCH_MAX)
+    const queue = chunkRows(due)
+    while (queue.length) {
+      const batch = queue.shift()!
+      let receipt: { status: number; body: unknown }
       try {
-        const receipt = await odooServiceUsageJson(event, key, { user_id: owner.user, user_company_id: owner.company, items: batch.map(entry => entry.row) })
-        if (receipt.status === 422 || receipt.status === 409) {
-          logFailure(`usage report of ${batch.length} rows was refused as ${receipt.status === 409 ? 'a duplicate (409)' : 'invalid (422)'} and dropped`, new UsageRejected())
-          removeSpooled(batch)
-          continue
-        }
-        if (receipt.status !== 200) throw new UsageRefused(receipt.status)
+        receipt = await odooServiceUsageJson(event, key, { user_id: owner.user, user_company_id: owner.company, items: batch.map(entry => entry.row) })
       } catch (error) {
-        logFailure(`usage report of ${batch.length} rows failed${error instanceof UsageRefused ? ` with status ${error.status}` : ''}`, error)
+        logFailure(`usage report of ${batch.length} rows failed`, error)
         const retryAt = Date.now() + SPOOL_RETRY_AFTER_MS
-        const stop = error instanceof UsageRefused && (error.status === 401 || error.status === 403)
-        for (const entry of stop ? spool.filter(item => item.service && item.dueAt <= now) : due.slice(start)) entry.dueAt = retryAt
-        if (stop) return
+        for (const entry of [batch, ...queue].flat()) entry.dueAt = retryAt
         break
       }
-      removeSpooled(batch)
+      if (receipt.status === 200) { removeSpooled(batch); continue }
+      if (receipt.status === 401 || receipt.status === 403 || receipt.status === 429) {
+        logFailure(`usage report of ${batch.length} rows failed with status ${receipt.status}`, new UsageRefused(receipt.status))
+        deferAll(receipt.status === 429 ? refusalOf(receipt.body).retryAfterMs : 0)
+        return
+      }
+      if (receipt.status === 409 || receipt.status === 422) {
+        const { field } = refusalOf(receipt.body)
+        const index = Number(/^items\.(\d+)\./.exec(field)?.[1] ?? NaN)
+        if (Number.isInteger(index) && index < batch.length) {
+          logFailure(`dropped 1 usage row refused as ${receipt.status === 409 ? 'a duplicate (409)' : 'invalid (422)'}`, new UsageRejected())
+          removeSpooled([batch[index]!])
+          queue.unshift(...chunkRows(batch.filter((_, position) => position !== index)))
+        } else if (field === 'items' && batch.length > 1) {
+          const half = Math.ceil(batch.length / 2)
+          queue.unshift(batch.slice(0, half), batch.slice(half))
+        } else {
+          logFailure(`dropped ${batch.length} usage rows refused as ${receipt.status === 409 ? 'a duplicate (409)' : 'invalid (422)'} for their user or company`, new UsageRejected())
+          removeSpooled(batch)
+        }
+        continue
+      }
+      logFailure(`usage report of ${batch.length} rows failed with status ${receipt.status}`, new UsageRefused(receipt.status))
+      const retryAt = Date.now() + SPOOL_RETRY_AFTER_MS
+      for (const entry of [batch, ...queue].flat()) entry.dueAt = retryAt
+      break
     }
   }
 }

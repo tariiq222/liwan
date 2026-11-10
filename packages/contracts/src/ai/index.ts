@@ -177,6 +177,13 @@ export const AiUsageServiceBatchSchema = z.object({
   items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX),
 }).strict()
 export type AiUsageServiceBatch = z.infer<typeof AiUsageServiceBatchSchema>
+/**
+ * The ceilings `POST /api/v1/ai/usage/service` enforces (odoo-addons/liwan_ai/models/ai_usage.py, SERVICE_MAX_*), so the Nuxt
+ * server splits its batches the way Odoo accepts them and never sends a request Odoo must refuse for size. Odoo cannot import
+ * this file: a test (apps/web/server/utils/ai/__tests__/usageCeilings.test.ts) reads both and fails when they drift.
+ * `max_age_hours` bounds `called_at`; the web spool gives a row up after an hour, far inside it, so a delayed row is never refused for age.
+ */
+export const AI_USAGE_SERVICE_LIMITS = { max_input_tokens: 2_000_000, max_output_tokens: 1_000_000, max_batch_tokens: 12_000_000, max_age_hours: 24 } as const
 export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
 export type AiUsageRow = z.infer<typeof AiUsageRowSchema>
 export const AiUsageBatchResponseSchema = z.object({ items: z.array(AiUsageRowSchema), total: z.number().int().nonnegative() }).strict()

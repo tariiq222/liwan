@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { H3Event } from 'h3'
-import { AiUsageBatchSchema, AiUsageServiceBatchSchema } from '@liwan/contracts'
-import { createUsageLedger } from '../usage'
+import { AI_USAGE_SERVICE_LIMITS, AiUsageBatchSchema, AiUsageServiceBatchSchema } from '@liwan/contracts'
+import { createUsageLedger, SPOOL_MAX_AGE_MS } from '../usage'
 
 const odooJson = vi.hoisted(() => vi.fn())
 const odooServiceUsageJson = vi.hoisted(() => vi.fn())
@@ -455,27 +455,114 @@ describe('usage ledger reporting with the recorder key', () => {
     expect(serviceCalls().slice(2).map(call => call.body.user_id).sort()).toEqual([30, 31])
   })
 
-  it('drops a batch Odoo refuses as invalid (422) after logging it, instead of retrying it forever', async () => {
+  it('drops the rows of an owner Odoo refuses as a whole (user or company invalid), after logging it, instead of retrying forever', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     odooServiceUsageJson.mockResolvedValueOnce({ status: 422, body: { code: 'invalid', field: 'user_id' } })
     await flushed(ledgerOf(3, 400), noSession, { user: '40', company: '1' })
-    expect(logged(spy)).toContain('[liwan-ai] usage report of 3 rows was refused as invalid (422) and dropped: UsageRejected')
+    expect(logged(spy)).toContain('[liwan-ai] dropped 3 usage rows refused as invalid (422) for their user or company: UsageRejected')
     advance(RETRY_AFTER_MS + 1)
     await flushed(createUsageLedger(), noSession, { user: '41', company: '1' })
     expect(serviceCalls()).toHaveLength(1)
   })
 
-  it('drops a batch Odoo reports as already held under another company (409) after logging it', async () => {
+  it('drops only the row Odoo names as invalid or duplicate and sends the rest again at once', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    odooServiceUsageJson.mockResolvedValueOnce({ status: 422, body: { code: 'invalid', field: 'items.1.input_tokens' } })
+    await flushed(ledgerOf(3, 450), noSession, { user: '45', company: '2' })
+    expect(serviceCalls().map(call => call.body.items.map(item => item.call_id))).toEqual([
+      ['00000000000001c2', '00000000000001c3', '00000000000001c4'], ['00000000000001c2', '00000000000001c4'],
+    ])
     odooServiceUsageJson.mockResolvedValueOnce({ status: 409, body: { code: 'duplicate', field: 'items.0.call_id' } })
-    await flushed(ledgerOf(2, 450), noSession, { user: '45', company: '2' })
-    expect(logged(spy)).toEqual(['[liwan-ai] usage report of 2 rows was refused as a duplicate (409) and dropped: UsageRejected'])
+    await flushed(ledgerOf(2, 500), noSession, { user: '46', company: '2' })
+    expect(serviceCalls().slice(2).map(call => call.body.items.map(item => item.call_id))).toEqual([['00000000000001f4', '00000000000001f5'], ['00000000000001f5']])
+    expect(logged(spy)).toEqual(['[liwan-ai] dropped 1 usage row refused as invalid (422): UsageRejected', '[liwan-ai] dropped 1 usage row refused as a duplicate (409): UsageRejected'])
     advance(RETRY_AFTER_MS + 1)
-    await flushed(createUsageLedger(), noSession, { user: '46', company: '2' })
-    expect(serviceCalls()).toHaveLength(1)
+    await flushed(createUsageLedger(), noSession, { user: '47', company: '2' })
+    expect(serviceCalls()).toHaveLength(4)
   })
 
-  it('refuses to guess an owner: an unusable user or company is logged and nothing is sent', async () => {
+  describe('against the server ceilings (issue #557)', () => {
+    /** Odoo's size rule: more than the aggregate token ceiling in one request is a 422 on `items`, and nothing is recorded. */
+    const strictOdoo = () => odooServiceUsageJson.mockImplementation(async (_event, _key, body: { items: { input_tokens: number | null; output_tokens: number | null }[] }) => {
+      const tokens = body.items.reduce((sum, item) => sum + (item.input_tokens ?? 0) + (item.output_tokens ?? 0), 0)
+      return tokens > AI_USAGE_SERVICE_LIMITS.max_batch_tokens || body.items.length > 64
+        ? { status: 422, body: { code: 'invalid', field: 'items' } }
+        : { status: 200, body: { items: [], total: body.items.length } }
+    })
+    const bigRun = (count: number, first: number) => {
+      const ledger = createUsageLedger()
+      for (let index = first; index < first + count; index++) {
+        const id = index.toString(16)
+        ledger.observe('model_call', callEvent(id))
+        ledger.observe('model_usage', usageEvent(id, { input_tokens: AI_USAGE_SERVICE_LIMITS.max_input_tokens, output_tokens: 0 }))
+      }
+      return ledger
+    }
+
+    it('after an outage, splits seven valid 2,000,000-token rows by the aggregate ceiling and loses none', async () => {
+      strictOdoo()
+      odooServiceUsageJson.mockRejectedValueOnce(new TypeError('connection refused'))
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      await flushed(bigRun(7, 2000), noSession, { user: '60', company: '1' })
+      advance(RETRY_AFTER_MS + 1)
+      await flushed(createUsageLedger(), noSession, { user: '61', company: '1' })
+      const recovered = serviceCalls().slice(1)
+      expect(recovered.map(call => call.body.items.length)).toEqual([6, 1])
+      for (const call of recovered) expect(call.body.items.reduce((sum, item) => sum + (item.input_tokens as number), 0)).toBeLessThanOrEqual(AI_USAGE_SERVICE_LIMITS.max_batch_tokens)
+      expect(recovered.flatMap(call => call.body.items.map(item => item.call_id))).toHaveLength(7)
+      advance(RETRY_AFTER_MS + 1)
+      await flushed(createUsageLedger(), noSession, { user: '62', company: '1' })
+      expect(serviceCalls()).toHaveLength(3)
+    })
+
+    it('splits a request the server still refuses for size in halves, and never discards valid rows for it', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      odooServiceUsageJson.mockImplementation(async (_event, _key, body: { items: unknown[] }) => body.items.length > 2 ? { status: 422, body: { code: 'invalid', field: 'items' } } : { status: 200, body: {} })
+      await flushed(ledgerOf(5, 3000), noSession, { user: '63', company: '1' })
+      expect(serviceCalls().map(call => call.body.items.length)).toEqual([5, 3, 2, 1, 2])
+      expect(logged(spy)).toEqual([])
+      advance(RETRY_AFTER_MS + 1)
+      await flushed(createUsageLedger(), noSession, { user: '64', company: '1' })
+      expect(serviceCalls()).toHaveLength(5)
+    })
+
+    it('backs off on a 429 for what Odoo asked, keeps every deferred row and sends it later', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      odooServiceUsageJson.mockResolvedValueOnce({ status: 429, body: { code: 'rate_limited', details: { retry_after_seconds: 300 } } })
+      await flushed(ledgerOf(2, 4000), noSession, { user: '70', company: '1' })
+      expect(serviceCalls()).toHaveLength(1)
+      advance(RETRY_AFTER_MS + 1)
+      await flushed(createUsageLedger(), noSession, { user: '72', company: '1' })
+      expect(serviceCalls()).toHaveLength(1)
+      advance(300 * 1000)
+      await flushed(createUsageLedger(), noSession, { user: '72', company: '1' })
+      expect(serviceCalls().slice(1).map(call => [call.body.user_id, call.body.items.length])).toEqual([[70, 2]])
+      expect(logged(spy)).toEqual(['[liwan-ai] usage report of 2 rows failed with status 429: UsageRefused'])
+    })
+
+    it('a 429 without a back-off still waits the retry window and is never dropped', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      odooServiceUsageJson.mockResolvedValueOnce({ status: 429, body: 'plain' })
+      await flushed(ledgerOf(1, 4200), noSession, { user: '73', company: '1' })
+      advance(RETRY_AFTER_MS + 1)
+      await flushed(createUsageLedger(), noSession, { user: '73', company: '1' })
+      expect(serviceCalls()).toHaveLength(2)
+    })
+
+    it('a row older than the server window is refused for itself alone: it is dropped with a log and its neighbours are recorded', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      odooServiceUsageJson.mockResolvedValueOnce({ status: 422, body: { code: 'invalid', field: 'items.0.called_at' } })
+      await flushed(ledgerOf(2, 5000), noSession, { user: '74', company: '1' })
+      expect(serviceCalls().map(call => call.body.items.length)).toEqual([2, 1])
+      expect(logged(spy)).toEqual(['[liwan-ai] dropped 1 usage row refused as invalid (422): UsageRejected'])
+    })
+
+    it('never holds a row longer than the server accepts a row for age: the spool gives up first', () => {
+      expect(SPOOL_MAX_AGE_MS).toBeLessThan(AI_USAGE_SERVICE_LIMITS.max_age_hours * 3600 * 1000)
+    })
+  })
+
+    it('refuses to guess an owner: an unusable user or company is logged and nothing is sent', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     for (const who of [{ user: '', company: '1' }, { user: 'abc', company: '1' }, { user: '7', company: '0' }, { user: '-7', company: '1' }, { user: '7;1', company: '1' }]) await flushed(ledgerOf(1, 500), noSession, who)
     expect(serviceCalls()).toHaveLength(0)
