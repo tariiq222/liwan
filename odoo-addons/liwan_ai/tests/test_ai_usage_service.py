@@ -210,6 +210,28 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
             self.Usage.invalidate_model()
             self.assertEqual(self._post(self._batch(None, None, self._attempt(35), self._attempt(36))).status_code, 200)
 
+    def test_the_row_ceiling_counts_every_company_the_recorder_writes_to(self):
+        """Two top-level companies share one budget: rows written into one count against the other (issue #557)."""
+        second = self.env['res.company'].create({'name': 'Usage Second Top-Level Company'})
+        self.assertFalse(second.parent_id or self.other_company.parent_id)
+        self.employee.write({'company_ids': [Command.link(self.other_company.id), Command.link(second.id)]})
+        home, other = self.employee.company_id, self.other_company
+        # The per-row, per-request and age ceilings are values of the request, so they hold in a company that is not the recorder's own.
+        for change, field in (({'input_tokens': SERVICE_MAX_INPUT_TOKENS + 1}, 'input_tokens'), ({'called_at': (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()}, 'called_at')):
+            self.assertEqual(self._post(self._batch(self.employee, second, self._attempt(39, **change))).json()['field'], f'items.0.{field}')
+        full = {'input_tokens': SERVICE_MAX_INPUT_TOKENS, 'output_tokens': SERVICE_MAX_OUTPUT_TOKENS}
+        self.assertEqual(self._post(self._batch(self.employee, second, *[self._attempt(index + 100, **full) for index in range(5)])).json()['field'], 'items')
+        self.assertFalse(self.Usage.search([]))
+        with patch.object(ai_usage, 'SERVICE_MAX_ROWS_PER_MINUTE', 4):
+            self.assertEqual(self._post(self._batch(self.employee, home, self._attempt(40), self._attempt(41))).status_code, 200)
+            self.assertEqual(self._post(self._batch(self.employee, other, self._attempt(42), self._attempt(43))).status_code, 200)
+            for company in (home, other, second):
+                with self.subTest(company=company.name):
+                    refused = self._post(self._batch(self.employee, company, self._attempt(44 + company.id)))
+                    self.assertEqual(refused.status_code, 429, refused.text)
+                    self.assertEqual(refused.json()['code'], 'rate_limited')
+            self.assertEqual(self.Usage.search_count([]), 4)
+
     def test_a_user_holding_every_capability_is_still_refused(self):
         """liwan_core gives vendor support (and the superuser) every capability; only the recorder itself may report."""
         support = new_test_user(self.env, login='usage_support', groups='liwan_core.group_vendor_support')

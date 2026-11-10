@@ -273,14 +273,21 @@ class LiwanAiUsage(models.Model):
         """How many more rows the recorder may add in this minute (``SERVICE_MAX_ROWS_PER_MINUTE`` less what it just added).
 
         Counted from the ledger itself, so it needs no counter store; the ``called_at`` bound only lets the index on it
-        narrow the scan, since a service row is never older than ``SERVICE_MAX_AGE``.
+        narrow the scan, since a service row is never older than ``SERVICE_MAX_AGE``. The budget is the recorder's across the
+        whole tenant: the request is pinned to the recorder's current company and its branches, so each company the recorder
+        may write to is counted in its own context (the record rule and the company fence stay in force, no ``sudo()``), and a
+        key cannot spread its rows over another top-level company to escape the ceiling.
         """
         now = fields.Datetime.now()
-        used = self.search_count([
+        domain = [
             ('create_uid', '=', self.env.uid),
             ('called_at', '>=', now - SERVICE_MAX_AGE - timedelta(minutes=1)),
             ('create_date', '>=', now - timedelta(minutes=1)),
-        ])
+        ]
+        used = sum(
+            self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id]).search_count(domain)
+            for company_id in self.env.user.company_ids.ids
+        )
         return SERVICE_MAX_ROWS_PER_MINUTE - used
 
     @api.model
