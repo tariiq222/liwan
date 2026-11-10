@@ -112,6 +112,10 @@ export function compileEntitlements(input: {
   for (const k of platformKeys) if (!derived.has(k) && !Object.hasOwn(plan.platform_limits, k)) throw new CommercialError('platform_limit_missing', 'platform_limits')
   const platform: CapacityMap = { ...plan.platform_limits, [USERS_LIMIT_KEY]: quantities.users, 'storage.limit_mb': quantities.storage_mb }
   Object.assign(features, domain, platform)
+  // The snapshot carries the AI keys closed: the control plane overlays the live values on every delivery (deliveredEntitlement),
+  // so a value frozen here could only ever be stale, and an open default (null is unlimited) must never be what a tenant gets.
+  // Only a release that declares them carries them; an earlier catalog never registered the keys.
+  for (const k of AI_ENTITLEMENT_KEYS) if (platformKeys.has(k)) features[k] = 0
   for (const [k, v] of Object.entries(terms?.limits ?? {})) {
     // Capacity is the customer's chosen quantity, changed only by a new subscription quote;
     // a terms revision may not grant or remove users/storage outside that agreement.

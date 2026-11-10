@@ -404,6 +404,20 @@ class ReconfigureTests(Base):
         self.assertIn("k.startswith(('ai.balance.', 'ai.allowance.'))", script)
         self.assertIn("dict(profile.features, **ai)", script)
 
+    def test_delivery_with_the_derived_ai_keys_is_accepted_and_every_key_is_registered_by_the_ai_addon(self):
+        keys = {'ai.balance.granted': 666666, 'ai.allowance.trial': 133333, 'ai.allowance.monthly': 0}
+        request = make_request()
+        request['entitlement']['features'].update(keys)
+        se.validate_reconfigure(request)
+        self.assertEqual(_script_values(se.build_apply_script(request))['features'], request['entitlement']['features'])
+        runner = FakeRunner(observation(commercial_revision_id=PREV), apply_state=applied_state(request))
+        self.assertEqual(self.effect(runner).reconfigure(request)['target_revision_id'], TARGET)
+        # The effect passes them to Odoo, whose entitlement service refuses a key no addon registers. This is the
+        # registry that the real service reads (the Odoo test of liwan_ai drives the service itself).
+        registry = (Path(__file__).resolve().parents[2] / 'odoo-addons/liwan_ai/models/feature_registry.py').read_text()
+        for key in keys:
+            self.assertIn(f"{{'key': '{key}', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'}}", registry)
+
     def test_apply_script_grants_newly_opened_roles_to_the_enrolment_admin_only(self):
         script = se.build_apply_script(make_request(admin_login='boss@acme.test'))
         self.assertIn("values = json.loads(", script)

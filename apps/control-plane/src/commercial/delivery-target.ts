@@ -14,14 +14,14 @@ export async function appliedDeliveryTarget(client: Pick<PoolClient, 'query'>, s
 }
 
 /**
- * Re-delivers the applied revision. Callers pass the entitlement through `deliveredEntitlement`, so the live AI keys
+ * Re-delivers the applied revision. `aiPush` marks a job that changes only the derived AI keys (see `pushAiEntitlement`). Callers pass the entitlement through `deliveredEntitlement`, so the live AI keys
  * ride along on every delivery that is not a fulfilment (an expiry change, a ledger change).
  * `unique` gives the job a business key of its own: a ledger state can recur (5, 10, 5), so it must never be swallowed
  * as a replay of an earlier, already verified push.
  */
 export async function enqueueAppliedDelivery(client: PoolClient, target: NonNullable<Awaited<ReturnType<typeof appliedDeliveryTarget>>> & { binding: Record<string, any>; order: { id: string } },
   entitlement: { modules: unknown; features: Record<string, unknown>; digest: string; compiler_version: unknown },
-  expiry: { commercial_valid_until: string | null; commercial_valid_until_revision: number } | null, unique: boolean) {
+  expiry: { commercial_valid_until: string | null; commercial_valid_until_revision: number } | null, unique: boolean, aiPush = false) {
   const { row, binding, order } = target
   const operation_id = randomUUID()
   await enqueueReconfigureJob(client, { schemaVersion: 1, operation: 'reconfigure', requestId: operation_id,
@@ -29,5 +29,5 @@ export async function enqueueAppliedDelivery(client: PoolClient, target: NonNull
     binding: { tenantId: binding.tenant_id, database: binding.database_name, filestore: binding.filestore, registryRevision: Number(binding.registry_revision) },
     authority: { order_id: order.id, operation_id, previous_revision_id: row.applied_revision_id, target_revision_id: row.applied_revision_id,
       entitlement,
-      branches: { apply: [], archive: [] }, ...expiry } }, { unique })
+      branches: { apply: [], archive: [] }, ...expiry, ...(aiPush ? { ai_push: true as const } : {}) } }, { unique })
 }

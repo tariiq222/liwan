@@ -45,18 +45,26 @@ export async function deliveredEntitlement<E extends { features: Record<string, 
 }
 
 /**
- * Pushes the live AI keys to the customer's tenant on its applied revision, without any order. Returns false when there
- * is nothing to push to yet: no applied revision, no binding, or an order still being fulfilled (which delivers the
- * live values itself when it applies).
+ * Pushes the live AI keys to the customer's tenant on its applied revision, as an AI-only job (`ai_push`). Returns false
+ * when there is nothing to push to yet: no applied revision, no binding, or an order still being fulfilled (which delivers
+ * the live values itself when it applies).
  */
 export async function pushAiEntitlement(client: PoolClient, customerId: string): Promise<boolean> {
-  const subscription = (await client.query('SELECT id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
+  const subscription = (await client.query('SELECT id,target_revision_id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
   const target = subscription ? await appliedDeliveryTarget(client, subscription.id) : null
   if (!target?.binding || target.order?.fulfillment_state !== 'applied') return false
+  // A paid change to a newer revision that is still being fulfilled reads the live ledger and settings when it is
+  // delivered, so a push for the revision it replaces would only be superseded. A change nobody has paid yet delivers
+  // nothing, so the applied revision still gets its push.
+  if (subscription.target_revision_id) {
+    const pending = await client.query(`SELECT 1 FROM orders WHERE subscription_id=$1 AND target_revision_id=$2 AND NOT cancelled
+      AND payment_state IN ('paid','not_required') AND fulfillment_state NOT IN ('applied','failed','needs_intervention')`, [subscription.id, subscription.target_revision_id])
+    if (pending.rowCount) return false
+  }
   const { snapshot } = target.row
   const entitlement = await deliveredEntitlement(client, customerId, { modules: snapshot.entitlement.modules, features: snapshot.entitlement.features,
     digest: snapshot.entitlement.digest, compiler_version: snapshot.entitlement.compiler_version })
-  await enqueueAppliedDelivery(client, { ...target, binding: target.binding, order: target.order }, entitlement, null, true)
+  await enqueueAppliedDelivery(client, { ...target, binding: target.binding, order: target.order }, entitlement, null, true, true)
   return true
 }
 

@@ -1,8 +1,8 @@
 import type { Pool } from 'pg'
 import { isSellable } from '@liwan/commercial-contracts/server'
-import { createBundle, mutateBundle } from './bundles.js'
+import { createBundle, DERIVED_LIMITS, mutateBundle } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
-import { DERIVED_LIMITS, mutatePlan } from './plans.js'
+import { mutatePlan } from './plans.js'
 import { CommercialHttpError, type CommercialActor } from './lifecycle.js'
 
 /** The seeded LiwanOS plan family (schema_025.sql): the one sellable platform plan whose applications are optional bundles. */

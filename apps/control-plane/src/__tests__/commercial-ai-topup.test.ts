@@ -17,6 +17,7 @@ import { requestInvoiceRefund } from '../commercial/settlements.js'
 import { extendTrial, pushCommercialExpiry } from '../commercial/trial.js'
 import { transaction } from '../db.js'
 import { reconcileAfterRestore, fakeObserveRunner } from '../shared/subscription-reconcile.js'
+import { assertReconfigureAuthority, runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
 
 const suite = url ? describe : describe.skip
 const POLICY_NO_TAX = '6f1c3d8e-0000-4000-8000-000000000002'
@@ -54,7 +55,11 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
     await pool.query("UPDATE ai_billing_settings SET topup_amounts_minor='{2500,5000,10000,25000,50000}',topup_minimum_minor=2500,usd_rate=3.75,trial_allowance_minor=500,monthly_allowance_minor=0")
     await pool.query('UPDATE billing_settings SET refund_window_days=14 WHERE singleton')
   })
-  afterAll(async () => { await pool.end() })
+  afterAll(async () => {
+    // The scratch database is shared with the next file: leave the vendor settings as the migration seeded them.
+    await pool.query("UPDATE ai_billing_settings SET topup_amounts_minor='{2500,5000,10000,25000,50000}',topup_minimum_minor=2500,usd_rate=3.75,trial_allowance_minor=500,monthly_allowance_minor=0")
+    await pool.end()
+  })
 
   async function customer(adminLogin: string | null = 'owner@example.test') {
     const tenant = randomUUID(), id = randomUUID(), slug = `t${tenant.replaceAll('-', '')}`
@@ -124,9 +129,9 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
     const job = await apply(o.id)
     const features = job.authority.entitlement.features
     expect(features).toMatchObject({ 'ai.balance.granted': 666_666, 'ai.allowance.trial': 133_333, 'ai.allowance.monthly': 0 })
-    // The immutable snapshot never carries them, so nothing can go stale in it.
+    // The immutable snapshot carries them closed (0), never a live value, so nothing can go stale in it and the overlay always wins.
     const snapshot = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [o.target_revision_id])).rows[0].snapshot
-    for (const key of KEYS) expect(snapshot.entitlement.features).not.toHaveProperty(key)
+    for (const key of KEYS) expect(snapshot.entitlement.features[key]).toBe(0)
     expect(job.authority.entitlement.digest).toBe(snapshot.entitlement.digest)
   })
 
@@ -335,6 +340,145 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
     it('the customer catalog carries the offer, the minimum and the rate', async () => {
       const id = await customer()
       expect((await customerCatalog(pool, id)).ai_topup).toEqual({ currency: 'SAR', exponent: 2, amounts_minor: [2500, 5000, 10000, 25000, 50000], minimum_minor: 2500, usd_rate: '3.750000' })
+    })
+  })
+
+  describe('AI pushes run through the worker', () => {
+    const delivered: Array<{ order_id: string; ai_push: boolean; features: Record<string, unknown> }> = []
+    const runner = async ({ job }: { job: any }) => {
+      delivered.push({ order_id: job.authority.order_id, ai_push: job.authority.ai_push === true, features: job.authority.entitlement.features })
+      return { order_id: job.authority.order_id, tenant_id: job.binding.database, database: job.binding.database, target_revision_id: job.authority.target_revision_id,
+        observed_entitlement_digest: job.authority.entitlement.digest, observed_at: new Date().toISOString(), branch_bindings: [], modules_installed: [], root_company_id: 1 } as never
+    }
+    beforeEach(() => { delivered.length = 0 })
+    const jobId = async (order_id: string, aiPush: boolean) => (await pool.query(`SELECT id FROM shared_jobs WHERE payload->'authority'->>'order_id'=$1 AND (payload->'authority'->>'ai_push' IS NOT NULL)=$2 ORDER BY created_at DESC,id DESC LIMIT 1`, [order_id, aiPush])).rows[0]?.id as string | undefined
+    const queued = async (customer_id: string) => (await pool.query(`SELECT j.id FROM shared_jobs j JOIN customers c ON c.tenant_id=j.control_tenant_id WHERE c.id=$1 AND j.state='queued' ORDER BY j.created_at,j.id`, [customer_id])).rows.map((r: any) => r.id as string)
+    const stuck = async (customer_id: string) => (await pool.query(`SELECT j.id FROM shared_jobs j JOIN customers c ON c.tenant_id=j.control_tenant_id WHERE c.id=$1 AND j.state='needs_intervention'`, [customer_id])).rowCount
+    /** The fulfilment job of an order, executed by the worker (not applied by hand), so the tenant's first revision is real. */
+    async function applyViaWorker(order_id: string) {
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      const id = await jobId(order_id, false)
+      expect(id).toBeTruthy()
+      await runSubscriptionReconfigure(pool, id!, runner)
+    }
+    const providerRefund = async (order_id: string) => {
+      const ref = (await pool.query('SELECT provider_ref FROM payment_attempts WHERE order_id=$1', [order_id])).rows[0].provider_ref
+      await adapter.refund(ref.replace('sim_inv_', 'sim_pay_'))
+      await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(ref), headers: {}, adapter })
+    }
+    async function appliedTopup() {
+      const id = await customer()
+      const o = (await order(id, newRequest(free, 2500))).order
+      await pay(id, o.id); await applyViaWorker(o.id)
+      return { id, o }
+    }
+    async function paidChange(id: string) {
+      const sub = (await pool.query('SELECT id,revision FROM subscriptions WHERE customer_id=$1', [id])).rows[0]
+      const change = (await order(id, { ...newRequest(paid), kind: 'change', subscription_id: sub.id, expected_subscription_revision: sub.revision })).order
+      await pay(id, change.id)
+      return change
+    }
+    const patchSettings = (body: Record<string, unknown>) => routesB(pool, { method: 'PATCH', pathname: '/v1/commercial/ai-billing-settings', raw: JSON.stringify({ ...body, reason: `Settings ${randomUUID()}` }), issuer: 't', actor: 7, capabilities: caps, stepUpFresh: true },
+      new URL('http://localhost/v1/commercial/ai-billing-settings'))
+
+    it('a provider refund of the applied top-up order is authorised by the applied revision and lowers the delivered balance', async () => {
+      const { id, o } = await appliedTopup()
+      expect(delivered.at(-1)!.features['ai.balance.granted']).toBe(666_666)
+      await providerRefund(o.id)
+      expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [o.id])).rows[0].payment_state).toBe('refunded')
+      const push = await jobId(o.id, true)
+      expect(push).toBeTruthy()
+      await expect(runSubscriptionReconfigure(pool, push!, runner)).resolves.toMatchObject({ state: 'verified' })
+      expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('the AI-push flag cannot apply a revision, a payment-less order or anything but the three AI keys', async () => {
+      const { id, o } = await appliedTopup()
+      await providerRefund(o.id)
+      const base = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [await jobId(o.id, true)])).rows[0].payload
+      const check = (patch: (job: any) => void, flag = true) => {
+        const job = structuredClone(base)
+        if (!flag) delete job.authority.ai_push
+        patch(job)
+        return transaction(pool, c => assertReconfigureAuthority(c, job))
+      }
+      await expect(check(() => {})).resolves.toBeUndefined()
+      // Without the flag the refunded order authorises nothing: the rule for a job that applies a revision is unchanged.
+      await expect(check(() => {}, false)).rejects.toThrow('order_not_released')
+      await expect(check(job => { job.authority.entitlement.features['users.limit'] = 99 })).rejects.toThrow('ai_push_invalid')
+      await expect(check(job => { job.authority.entitlement.modules = [...job.authority.entitlement.modules, 'liwan_crm'] })).rejects.toThrow('ai_push_invalid')
+      await expect(check(job => { job.authority.branches.apply = [{ branch_id: randomUUID(), name: 'Extra' }] })).rejects.toThrow('ai_push_invalid')
+      await expect(check(job => { job.authority.commercial_valid_until = '2030-01-01'; job.authority.commercial_valid_until_revision = 1 })).rejects.toThrow('ai_push_invalid')
+      await expect(check(job => { job.authority.target_revision_id = randomUUID() })).rejects.toThrow('stale_target')
+      await expect(check(job => { job.restore = true; job.restoreId = randomUUID() })).rejects.toThrow('ai_push_invalid')
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('a settings change while a paid plan change is queued queues no push, and the change delivers the new allowance', async () => {
+      const { id } = await appliedTopup()
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      const before = (await queued(id)).length
+      const r = await patchSettings({ trial_allowance_minor: 1000 })
+      expect((r!.data as any).pushed_tenants).toBe(0)
+      expect(await queued(id)).toHaveLength(before)
+      for (const job of await queued(id)) await runSubscriptionReconfigure(pool, job, runner)
+      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: false, features: { 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 } })
+      expect((await pool.query('SELECT applied_revision_id=$2 AS applied FROM subscriptions WHERE customer_id=$1', [id, change.target_revision_id])).rows[0].applied).toBe(true)
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('a provider refund while a paid plan change is queued is not left behind: the change delivers the lowered balance', async () => {
+      const { id, o } = await appliedTopup()
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      const before = (await jobs(id)).length
+      await providerRefund(o.id)
+      expect(await jobs(id)).toHaveLength(before)
+      for (const job of await queued(id)) await runSubscriptionReconfigure(pool, job, runner)
+      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: false, features: { 'ai.balance.granted': 0 } })
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('an unpaid plan change does not hold back the push for the applied revision', async () => {
+      const { id } = await appliedTopup()
+      const sub = (await pool.query('SELECT id,revision FROM subscriptions WHERE customer_id=$1', [id])).rows[0]
+      await order(id, { ...newRequest(paid), kind: 'change', subscription_id: sub.id, expected_subscription_revision: sub.revision })
+      const r = await patchSettings({ trial_allowance_minor: 1000 })
+      expect((r!.data as any).pushed_tenants).toBe(1)
+    })
+
+    it('a push that a newer revision overtook completes as superseded, never needs_intervention, and the new revision is pushed again', async () => {
+      const { id, o } = await appliedTopup()
+      await patchSettings({ trial_allowance_minor: 1000 })
+      const stale = await jobId(o.id, true)
+      expect(stale).toBeTruthy()
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      // The plan change runs first (the push was queued before it was built, but the worker order here is explicit).
+      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)
+      const result = await runSubscriptionReconfigure(pool, stale!, runner)
+      expect(result).toMatchObject({ state: 'verified', receipt: { superseded: true } })
+      expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [stale])).rows[0].state).toBe('verified')
+      expect(await stuck(id)).toBe(0)
+      // The current revision got a fresh push, which runs normally and carries the live values.
+      const next = await queued(id)
+      expect(next).toHaveLength(1)
+      await runSubscriptionReconfigure(pool, next[0]!, runner)
+      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: true, features: { 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 } })
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('values that change after a fulfilment job was queued are delivered when it runs', async () => {
+      const id = await customer()
+      const o = (await order(id, newRequest(free, 2500))).order
+      await pay(id, o.id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      expect((await jobs(id)).at(-1).authority.entitlement.features['ai.allowance.trial']).toBe(133_333)
+      await pool.query('UPDATE ai_billing_settings SET trial_allowance_minor=1000')
+      await runSubscriptionReconfigure(pool, (await jobId(o.id, false))!, runner)
+      expect(delivered.at(-1)!.features['ai.allowance.trial']).toBe(266_666)
     })
   })
 })
