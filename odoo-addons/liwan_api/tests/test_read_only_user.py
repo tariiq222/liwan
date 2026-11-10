@@ -57,12 +57,13 @@ class TestReadOnlyUserApi(LiwanApiCase):
     def test_the_read_routes_of_every_installed_application_answer_without_a_read_only_refusal(self):
         """Many reads write (logs, sessions, presence): the allow-list is whatever this walk needs, and nothing more."""
         self.authenticate('api_emp', 'api_emp_pass_123')
+        # Detail routes too, with the first id: a read that writes before it looks the record up shows here.
         paths = sorted({
-            rule.rule for rule in self.env['ir.http'].routing_map().iter_rules()
-            if rule.rule.startswith('/api/v1/') and 'GET' in (rule.methods or ()) and '<' not in rule.rule
-            and not SKIPPED_READ_ROUTES.match(rule.rule)
+            path for rule in self.env['ir.http'].routing_map().iter_rules()
+            if rule.rule.startswith('/api/v1/') and 'GET' in (rule.methods or ()) and not SKIPPED_READ_ROUTES.match(rule.rule)
+            and '<' not in (path := re.sub(r'<int:\w+>', '1', rule.rule))
         })
-        self.assertGreater(len(paths), 30)
+        self.assertGreater(len(paths), 100)
         refused = []
         for path in paths:
             response = self.api('GET', path)
@@ -78,6 +79,18 @@ class TestReadOnlyUserApi(LiwanApiCase):
         weak = self.api('POST', '/api/v1/me/password', {'current': 'api_emp_pass_123', 'new': 'short'})
         self.assertEqual((weak.status_code, weak.json()['code']), (422, 'weak_password'))
         self.assertEqual(self.api('POST', '/api/v1/notifications/read-all', {}).status_code, 200)
+
+    def test_the_account_reports_it_is_read_only_and_keeps_its_own_preferences_and_password(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertIs(self.api('GET', '/api/v1/me').json()['read_only'], True)
+        appearance = self.api('PATCH', '/api/v1/me/appearance', {'mode': 'dark', 'font_size': 'large'})
+        self.assertEqual((appearance.status_code, appearance.json()['appearance']), (200, {'mode': 'dark', 'font_size': 'large'}))
+        mails = self.env['mail.mail'].search_count([('email_to', 'ilike', 'api_emp@example.test')])
+        changed = self.api('POST', '/api/v1/me/password', {'current': 'api_emp_pass_123', 'new': 'a-new-twelve-chars'})
+        self.assertEqual((changed.status_code, changed.json()['read_only']), (200, True), changed.text)
+        # Odoo queues its security notice to the person's own address; the fence lets that one mail through.
+        self.assertGreater(self.env['mail.mail'].search_count([('email_to', 'ilike', 'api_emp@example.test')]), mails)
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
 
     def test_an_administrator_who_is_read_only_cannot_write(self):
         self.service._liwan_apply_flags(self.admin, {'liwan_read_only': True})
@@ -197,3 +210,39 @@ class TestSeatAdminApi(LiwanApiCase):
         )
         self.assertEqual(self.api('PATCH', f'/api/v1/admin/branches/{company.id}/seat', {}).status_code, 422)
         self.assertEqual(self.api('PATCH', '/api/v1/admin/branches/999999/seat', {'read_only': True}).status_code, 404)
+
+    def test_a_seat_is_not_offered_for_a_pending_invitee_and_acceptance_reports_the_outcome(self):
+        used = self.service._liwan_count_users()
+        self._limit('users.limit', used + 1)
+        invitee = self.env['liwan.access.service'].with_user(self.admin)._liwan_invite_account(
+            'Pending Seat', 'pending.seat@example.com',
+            [{'role_id': self.env.ref('liwan_core.role_employee').id, 'scope': {'kind': 'company', 'id': self.company.id}}],
+        )
+        self.authenticate('seat_api_admin', 'seat_api_admin_pass_123')
+        actions = self.api('GET', f'/api/v1/admin/users/{invitee.id}').json()['allowed_actions']
+        self.assertIn('cancel_invitation', actions)
+        self.assertNotIn('set_seat', actions)
+        # The limit drops before the invitee accepts: no full seat is free, so the account comes out read-only.
+        self._limit('users.limit', used)
+        _token, raw = self.env['liwan.access.service']._liwan_tokens()._liwan_issue(invitee, 'invite')
+        accepted = self.api('POST', '/api/v1/public/account/invitation/accept', {
+            'token': raw, 'mobile': '+966590000077', 'password': 'a-twelve-chars-pass',
+        })
+        self.assertEqual((accepted.status_code, accepted.json()), (200, {'login': 'pending.seat@example.com', 'read_only': True}))
+
+    def test_a_branch_administrator_cannot_list_or_change_branch_seats(self):
+        self._limit('branches.extra_limit', 2)
+        self.profile.sudo().with_context(**{OPERATOR_CONTEXT: True})._liwan_apply_branches(
+            'op-scope', 'rev-1', [{'branch_id': 'scope-b1', 'name': 'Scope B1'}],
+        )
+        branch = self.env['liwan.tenant.branch'].search([('branch_uid', '=', 'scope-b1')]).company_id
+        scoped = new_test_user(
+            self.env, login='branch_scope_admin', password='branch_scope_admin_pass_123', groups='base.group_user',
+            company_id=branch.id, company_ids=[Command.set(branch.ids)],
+        )
+        self.env['liwan.access.assignment'].create({
+            'user_id': scoped.id, 'role_id': self.env.ref('liwan_core.role_system_admin').id, 'company_id': branch.id,
+        })
+        self.authenticate('branch_scope_admin', 'branch_scope_admin_pass_123')
+        self.assertEqual(self.api('GET', '/api/v1/admin/branches').status_code, 403)
+        self.assertEqual(self.api('PATCH', f'/api/v1/admin/branches/{branch.id}/seat', {'read_only': True}).status_code, 403)

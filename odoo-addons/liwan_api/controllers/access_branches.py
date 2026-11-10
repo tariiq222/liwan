@@ -43,6 +43,7 @@ class AccessBranchesController(http.Controller):
     @requires_capability('settings.company.manage')
     def list_branches(self):
         entitlement = request.env['liwan.entitlement.service']
+        entitlement._liwan_assert_branch_admin()
         branches = entitlement._liwan_branches()
         return {
             'items': [{
