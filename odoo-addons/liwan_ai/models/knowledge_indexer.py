@@ -31,11 +31,15 @@ class LiwanAiKnowledgeIndexer(models.AbstractModel):
 
     @api.model
     def _liwan_sync_companies(self):
-        """Make the indexer user a member of every company (archived ones included), so it reads each company's records."""
-        indexer = self.env.ref('liwan_ai.user_ai_indexer', raise_if_not_found=False)
-        if indexer:
-            companies = self.env['res.company'].with_context(active_test=False).search([])
-            indexer.write({'company_ids': [Command.link(company_id) for company_id in companies.ids]})
+        """Make each technical account (the indexer, the usage recorder) a member of every company, archived ones included.
+
+        The indexer then reads each company's records and the recorder can record a row for a user of any company.
+        """
+        companies = self.env['res.company'].with_context(active_test=False).search([])
+        for xmlid in ('liwan_ai.user_ai_indexer', 'liwan_ai.user_ai_usage'):
+            account = self.env.ref(xmlid, raise_if_not_found=False)
+            if account:
+                account.write({'company_ids': [Command.link(company_id) for company_id in companies.ids]})
 
     @api.model
     def _liwan_queue_insertable(self):

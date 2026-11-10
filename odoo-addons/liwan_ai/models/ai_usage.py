@@ -14,6 +14,8 @@ from odoo.addons.liwan_ai.models.ai_audit import (
     raise_invalid,
 )
 
+# The one route the usage recorder's API key may reach (models/ir_http.py registers it with the platform guard).
+USAGE_SERVICE_PATH = '/api/v1/ai/usage/service'
 USAGE_KINDS = ('plan', 'title')
 USAGE_OUTCOMES = ('ok', 'failed', 'retried', 'aborted')
 # Who paid a provider call: the platform within the package (counted against ai.tokens.monthly), the tenant's own key,
@@ -62,8 +64,9 @@ def parse_called_at(value):
 class LiwanAiUsage(models.Model):
     """One row per AI provider call, owned by the user who made it.
 
-    Written by the Nuxt executor as the user (``/api/v1/ai/usage``); never
-    elevated. The calls already happened, so ``create`` applies no limit: it
+    Written by the Nuxt executor, either as the user (``/api/v1/ai/usage``, their session) or, once their session no
+    longer matters, as the tenant's technical recorder account for that user (``/api/v1/ai/usage/service``); never
+    elevated by ``sudo()``. The calls already happened, so ``create`` applies no limit: it
     only validates and derives the owner. Record rules mirror the audit's: each
     user sees their own rows, the access audit readers see their company's.
     """
@@ -95,8 +98,8 @@ class LiwanAiUsage(models.Model):
     _user_conversation_call_uniq = models.UniqueIndex('(user_id, conversation_id, call_id)')
 
     @api.model
-    def _liwan_ai_prepare(self, values):
-        """Validate one wire payload and return the create values.
+    def _liwan_ai_prepare(self, values, user, company):
+        """Validate one wire payload and return the create values for ``user`` in ``company``.
 
         Raises ``ValidationError`` with ``liwan_field`` for a bad value.
         """
@@ -146,8 +149,8 @@ class LiwanAiUsage(models.Model):
         if called_at > datetime.now(timezone.utc) + FUTURE_TOLERANCE:
             invalid('called_at', 'called_at must not be more than 5 minutes in the future')
         return {
-            'company_id': self.env.company.id,
-            'user_id': self.env.user.id,
+            'company_id': company.id,
+            'user_id': user.id,
             'conversation_id': conversation_id,
             'call_id': call_id,
             'kind': kind,
@@ -176,18 +179,48 @@ class LiwanAiUsage(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Record the attempts of a batch as the signed-in user, each row once (the browser-session path)."""
+        self.env['liwan.entitlement.service'].require('ai.enabled')
+        self.env['liwan.access.service']._liwan_require_capability(AI_USE)
+        return self._liwan_ai_record(vals_list, self.env.user, self.env.company)
+
+    @api.model
+    def _liwan_ai_record_for(self, vals_list, user_id, company_id):
+        """Record the attempts of a batch for ``user_id`` as the technical recorder (the service-identity path).
+
+        The caller is the recorder account, which holds no AI capability; what it may write is bound by its own ACL
+        and by the checks below: the user must exist (a leaver's calls still happened), be an internal user, and
+        belong to ``company_id``, so a row is never attributed to a user or company it does not belong to. The whole
+        write runs in that one company, so its record rules apply to it and to no other.
+        """
+        self.env['liwan.entitlement.service'].require('ai.enabled')
+        if not isinstance(user_id, int) or isinstance(user_id, bool):
+            raise_invalid(self.env, 'user_id', 'user_id must be an integer')
+        if not isinstance(company_id, int) or isinstance(company_id, bool):
+            raise_invalid(self.env, 'user_company_id', 'user_company_id must be an integer')
+        if company_id not in self.env.user.company_ids.ids:
+            raise_invalid(self.env, 'user_company_id', 'user_company_id must be a company of this tenant')
+        scoped = self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id])
+        # One search answers all three questions: it finds the user only if internal and a member of the company.
+        user = scoped.env['res.users'].with_context(active_test=False).search([
+            ('id', '=', user_id), ('share', '=', False), ('company_ids', 'in', [company_id]),
+        ], limit=1)
+        if not user:
+            raise_invalid(self.env, 'user_id', 'user_id must be an internal user of user_company_id')
+        return scoped._liwan_ai_record(vals_list, user, scoped.env['res.company'].browse(company_id))
+
+    @api.model
+    def _liwan_ai_record(self, vals_list, user, company):
         """Record the attempts of a batch, each row once; a row this user already reported is not counted again.
 
         The spool retries a batch whose answer it never saw, so the same attempt can arrive twice (issue #557). The unique
         index on (user, conversation, call) is the guard: a refused insert rolls back only its own savepoint and the batch
         answers success with the rows that already exist, so the retry is settled rather than repeated.
         """
-        self.env['liwan.entitlement.service'].require('ai.enabled')
-        self.env['liwan.access.service']._liwan_require_capability(AI_USE)
         rows = []
         for index, values in enumerate(vals_list):
             try:
-                rows.append(self._liwan_ai_prepare(values))
+                rows.append(self._liwan_ai_prepare(values, user, company))
             except ValidationError as error:
                 error.liwan_index = index
                 raise

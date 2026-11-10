@@ -3,7 +3,8 @@ from odoo import http
 from odoo.exceptions import ValidationError
 from odoo.http import request
 
-from odoo.addons.liwan_ai.models.access_service import AI_USE
+from odoo.addons.liwan_ai.models.access_service import AI_USAGE_RECORD, AI_USE
+from odoo.addons.liwan_ai.models.ai_usage import USAGE_SERVICE_PATH
 from odoo.addons.liwan_ai.models.tool_registry import MODE_AGENTS
 from odoo.addons.liwan_ai.serializers.audit import dump_audit_receipt
 from odoo.addons.liwan_ai.serializers.tool import dump_agent, dump_tool
@@ -11,6 +12,7 @@ from odoo.addons.liwan_ai.serializers.usage import dump_usage
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 
@@ -89,6 +91,37 @@ class AiController(http.Controller):
                 raise ApiError(422, 'invalid', 'each item must be an object', field=f'items.{index}')
         try:
             rows = request.env['liwan.ai.usage'].create(items)
+        except ValidationError as error:
+            raise as_api_error(error, 'items') from error
+        return {'items': [dump_usage(row) for row in rows], 'total': len(rows)}
+
+    @http.route(USAGE_SERVICE_PATH, type='json2', auth='bearer', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature(AI_FEATURE, operation='write')
+    @requires_capability(AI_USAGE_RECORD)
+    def record_usage_service(self, **payload):
+        """Record the usage rows of a finished run for the user who made the calls, without that user's session.
+
+        Only the technical recorder account (``liwan_ai.user_ai_usage``) holds ``ai.usage.record``, so only its API key,
+        the one the deployment holds for the Nuxt server, passes; the browser never reaches this route. The rows belong to ``user_id`` in
+        ``user_company_id``, validated by the model. The company has its own field name because ``company_id`` in a
+        payload is the platform's "which company do you write in" guard, which the recorder (a member of every company)
+        must not be pinned by.
+        """
+        unknown = sorted(set(payload) - {'items', 'user_id', 'user_company_id'})
+        if unknown:
+            raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
+        for name in ('user_id', 'user_company_id'):
+            if name not in payload:
+                raise ApiError(422, 'invalid', f'{name} is required', field=name)
+        items = payload.get('items')
+        if not isinstance(items, list) or not 1 <= len(items) <= MAX_USAGE_ITEMS:
+            raise ApiError(422, 'invalid', f'items must be a list of 1 to {MAX_USAGE_ITEMS} objects', field='items')
+        for index, item in enumerate(items):
+            if not isinstance(item, dict):
+                raise ApiError(422, 'invalid', 'each item must be an object', field=f'items.{index}')
+        try:
+            rows = request.env['liwan.ai.usage']._liwan_ai_record_for(items, payload['user_id'], payload['user_company_id'])
         except ValidationError as error:
             raise as_api_error(error, 'items') from error
         return {'items': [dump_usage(row) for row in rows], 'total': len(rows)}

@@ -167,6 +167,16 @@ export const AiUsageRecordSchema = z.object(AiUsageFields).strict().refine(token
 export type AiUsageRecord = z.infer<typeof AiUsageRecordSchema>
 export const AiUsageBatchSchema = z.object({ items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX) }).strict()
 export type AiUsageBatch = z.infer<typeof AiUsageBatchSchema>
+/**
+ * The same batch as `POST /api/v1/ai/usage/service` records it: the Nuxt server reports it with the tenant's technical
+ * recorder key, so the batch names the user who made the calls and the company they were made in (`user_company_id`, not `company_id`:
+ * a payload `company_id` is the platform's own pinned-company guard). A row never names its own owner.
+ */
+export const AiUsageServiceBatchSchema = z.object({
+  user_id: z.number().int().positive(), user_company_id: z.number().int().positive(),
+  items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX),
+}).strict()
+export type AiUsageServiceBatch = z.infer<typeof AiUsageServiceBatchSchema>
 export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
 export type AiUsageRow = z.infer<typeof AiUsageRowSchema>
 export const AiUsageBatchResponseSchema = z.object({ items: z.array(AiUsageRowSchema), total: z.number().int().nonnegative() }).strict()
