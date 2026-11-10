@@ -79,13 +79,14 @@ class TestReadOnlyUserGuard(ExcessCase):
         own = self.env['res.users'].with_user(self.readonly).browse(self.readonly.id)
         own.write({'lang': 'en_US'})
         self.env['res.users.log'].with_user(self.readonly).sudo().create({})
-        message = self.env['mail.message'].create({'body': 'ping', 'model': 'res.partner', 'res_id': self.readonly.partner_id.id})
-        notification = self.env['mail.notification'].create({
-            'mail_message_id': message.id, 'res_partner_id': self.readonly.partner_id.id,
-            'notification_type': 'inbox',
-        })
-        notification.with_user(self.readonly).sudo().write({'is_read': True})
-        self.assertTrue(notification.is_read)
+        if 'mail.notification' in self.env:
+            message = self.env['mail.message'].create({'body': 'ping', 'model': 'res.partner', 'res_id': self.readonly.partner_id.id})
+            notification = self.env['mail.notification'].create({
+                'mail_message_id': message.id, 'res_partner_id': self.readonly.partner_id.id,
+                'notification_type': 'inbox',
+            })
+            notification.with_user(self.readonly).sudo().write({'is_read': True})
+            self.assertTrue(notification.is_read)
 
     def test_the_allow_list_does_not_cover_other_users_or_other_fields(self):
         other = self.env['res.users'].with_user(self.readonly).sudo().browse(self.full.id)
@@ -213,16 +214,19 @@ class TestReadOnlyBranches(ExcessCase):
         self.service._liwan_apply_flags(self._branch('b1'), {'read_only': True})
         attachments = self.env['ir.attachment'].with_user(self.manager).sudo()
         values = {'name': 'a.txt', 'raw': b'x', 'mimetype': 'text/plain', 'res_model': 'res.partner'}
-        for action in (
-            lambda: attachments.create({**values, 'res_id': partner.id}),
-            lambda: partner.with_user(self.manager).sudo().message_post(body='hello'),
-            lambda: partner.with_user(self.manager).sudo().message_subscribe(partner_ids=self.manager.partner_id.ids),
-        ):
+        actions = [lambda: attachments.create({**values, 'res_id': partner.id})]
+        if 'mail.message' in self.env:
+            actions.extend([
+                lambda: partner.with_user(self.manager).sudo().message_post(body='hello'),
+                lambda: partner.with_user(self.manager).sudo().message_subscribe(partner_ids=self.manager.partner_id.ids),
+            ])
+        for action in actions:
             with self.assertRaises(LiwanAccessRule) as caught:
                 action()
             self.assertEqual(caught.exception.code, 'branch_read_only')
         self.assertTrue(attachments.create({**values, 'res_id': headquarters.id}).exists())
-        self.assertTrue(headquarters.with_user(self.manager).sudo().message_post(body='hello').exists())
+        if 'mail.message' in self.env:
+            self.assertTrue(headquarters.with_user(self.manager).sudo().message_post(body='hello').exists())
 
     def test_an_attachment_remains_outside_a_read_only_branch_when_relinked(self):
         company = self.env['res.company'].browse(self._apply(['b1'])[0]['odoo_company_id'])
