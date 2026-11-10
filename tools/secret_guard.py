@@ -72,7 +72,7 @@ LITERAL_EXCEPTIONS = {
     'tools/test_jev_review.mjs': 'fixture secrets of the review tool tests',
 }
 # A fallback of an E2E_* variable is the login default of a test-only account seeded into the disposable e2e scratch database
-# (tools/e2e_seed.py); this skips the line, not the file, so any other credential in those specs is still judged.
+# (tools/e2e_seed.py); this skips that one match, not the line or the file, so any other credential is still judged.
 E2E_ACCOUNT_RE = re.compile(r'E2E_[A-Z0-9_]*(?:PASSWORD|TOKEN|SECRET)')
 
 
@@ -88,7 +88,7 @@ def is_placeholder(value: str) -> bool:
 
 
 def find_credential_fallbacks(
-    text: str, path: str = '', patterns: tuple = (CREDENTIAL_FALLBACK_RE,), wrap_endings: tuple = ('||', '??', '=', '?', ':'),
+    text: str, path: str = '', patterns: tuple = (CREDENTIAL_FALLBACK_RE,), wrap_endings: tuple = ('||', '??', '=', '?', ':'), exempt=None,
 ) -> list[int]:
     """Line numbers where a credential falls back to a real literal.
 
@@ -115,6 +115,9 @@ def find_credential_fallbacks(
                 raw = next((group for group in match.groups() if group is not None), '')
                 value = raw.strip()
                 start = match.start() + 1
+                if exempt and exempt(match):
+                    start = match.end()  # past the whole exempt expression, not into the tail of its name
+                    continue
                 if not value or is_placeholder(value):
                     continue
                 if TEST_PATH_RE.search(path) and SELF_DESCRIBED_FIXTURE_RE.match(value):
@@ -127,17 +130,19 @@ def find_credential_fallbacks(
 
 def find_wide_fallbacks(text: str, path: str = '') -> list[int]:
     """The high-signal subset of find_credential_fallbacks, for the roots outside SCAN_ROOTS."""
-    hits = find_credential_fallbacks(text, path, (FALLBACK_ONLY_RE, OR_FALLBACK_RE, ENV_DEFAULT_RE), ('||', '??', ' or'))
-    lines = text.splitlines()
-    return [number for number in hits if not E2E_ACCOUNT_RE.search(lines[number - 1])]
+    return find_credential_fallbacks(
+        text, path, (FALLBACK_ONLY_RE, OR_FALLBACK_RE, ENV_DEFAULT_RE), ('||', '??', ' or'),
+        exempt=lambda match: bool(E2E_ACCOUNT_RE.search(match.group(0))),
+    )
 
 
 def find_provider_tokens(text: str, path: str = '') -> list[int]:
     """Line numbers holding a provider token shape or a private key block."""
     hits = []
     for number, line in enumerate(text.splitlines(), start=1):
-        match = PROVIDER_TOKEN_RE.search(line)
-        if match and not (TEST_PATH_RE.search(path) and SELF_DESCRIBED_TOKEN_RE.search(match.group(0))):
+        # Every match is judged: an accepted fixture on a line must not hide a real-looking token later on it.
+        if any(not (TEST_PATH_RE.search(path) and SELF_DESCRIBED_TOKEN_RE.search(match.group(0)))
+               for match in PROVIDER_TOKEN_RE.finditer(line)):
             hits.append(number)
     return hits
 

@@ -191,6 +191,24 @@ class TestWholeTree(unittest.TestCase):
         self.assertTrue(all(reason.strip() for reason in secret_guard.LITERAL_EXCEPTIONS.values()))
         self.assertFalse(any('*' in path for path in secret_guard.LITERAL_EXCEPTIONS))
 
+    def test_every_token_on_a_line_is_judged(self):
+        fixture = 'sk-' + 'fixture-secret-' + 'x' * 24
+        real = 'gh' + 'p_' + 'Z9y8X7w6' * 5
+        test_path = 'apps/web/server/__tests__/a.test.ts'
+        for name, line, expected in (
+            ('fixture then real', f'a = "{fixture}"; b = "{real}"', [1]),
+            ('real then fixture', f'a = "{real}"; b = "{fixture}"', [1]),
+            ('two fixtures', f'a = "{fixture}"; b = "{fixture}y"', []),
+        ):
+            with self.subTest(name):
+                self.assertEqual(find_provider_tokens(line + '\n', test_path), expected)
+
+    def test_a_real_value_on_an_e2e_line_is_still_reported(self):
+        text = "a = process.env.E2E_ADMIN_PASSWORD ?? 'seed-default'; b = process.env.API_KEY ?? 'hunter2hunter2'\n"
+        self.assertEqual(find_wide_fallbacks(text, 'apps/web/e2e/a.spec.ts'), [1])
+        only_e2e = "a = process.env.E2E_ADMIN_PASSWORD ?? 'seed-default'; b = process.env.E2E_USER_TOKEN ?? 'seed-default'\n"
+        self.assertEqual(find_wide_fallbacks(only_e2e, 'apps/web/e2e/a.spec.ts'), [])
+
     def test_only_the_e2e_variable_line_is_skipped_not_the_file(self):
         text = (
             "await page.fill(process.env.E2E_ADMIN_PASSWORD ?? 'hunter2hunter2')\n"
