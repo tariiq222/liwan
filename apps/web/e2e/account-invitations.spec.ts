@@ -74,7 +74,7 @@ test.describe('the anonymous account-link pages', () => {
   test('join: the invitee sets a mobile number and password, and is sent to sign in', async ({ page }) => {
     await page.route('**/api/v1/public/account/token', route => route.fulfill(ok({ usable: true })))
     const accepted: unknown[] = []
-    await page.route('**/api/v1/public/account/invitation/accept', (route) => { accepted.push(route.request().postDataJSON()); return route.fulfill(ok({ login: 'sara@example.com' })) })
+    await page.route('**/api/v1/public/account/invitation/accept', (route) => { accepted.push(route.request().postDataJSON()); return route.fulfill(ok({ login: 'sara@example.com', read_only: false })) })
     await page.goto('/join?token=tok-abc')
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(heading(page, 'قبول الدعوة')).toBeVisible()
@@ -104,7 +104,7 @@ test.describe('the anonymous account-link pages', () => {
 
   test('join: an unavailable service keeps what was typed and the same button retries; a taken number names itself', async ({ page }) => {
     await page.route('**/api/v1/public/account/token', route => route.fulfill(ok({ usable: true })))
-    const answers = [refusal(429, 'rate_limited'), refusal(409, 'mobile_taken', 'taken', 'mobile'), ok({ login: 'sara@example.com' })]
+    const answers = [refusal(429, 'rate_limited'), refusal(409, 'mobile_taken', 'taken', 'mobile'), ok({ login: 'sara@example.com', read_only: false })]
     await page.route('**/api/v1/public/account/invitation/accept', route => route.fulfill(answers.shift()!))
     await page.goto('/join?token=tok-abc')
     await fieldFor(page, 'mobile').fill('+966500000001')

@@ -20,9 +20,13 @@ export type ForgotPasswordInput = z.infer<typeof ForgotPasswordInputSchema>
 export const TokenPasswordResetInputSchema = z.object({ token: TokenSchema, password: PasswordInputSchema }).strict()
 export type TokenPasswordResetInput = z.infer<typeof TokenPasswordResetInputSchema>
 
-/** Accepting an invitation or resetting a password answers with the login the person signs in with. */
+/** Resetting a password answers with the login the person signs in with. */
 export const AccountLoginSchema = z.object({ login: z.string() }).strict()
 export type AccountLogin = z.infer<typeof AccountLoginSchema>
+
+/** Accepting an invitation also reports whether the account came out read-only because no full seat was free. */
+export const InvitationAcceptedSchema = z.object({ login: z.string(), read_only: z.boolean() }).strict()
+export type InvitationAccepted = z.infer<typeof InvitationAcceptedSchema>
 
 export const MobileInputSchema = z.object({ mobile: MobileSchema }).strict()
 export type MobileInput = z.infer<typeof MobileInputSchema>

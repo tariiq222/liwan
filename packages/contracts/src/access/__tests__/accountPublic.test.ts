@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AcceptInvitationInputSchema,
   AccountLoginSchema,
+  InvitationAcceptedSchema,
   AccountTokenCheckInputSchema,
   AccountTokenCheckSchema,
   ForgotPasswordInputSchema,
@@ -49,6 +50,12 @@ describe('public account-link schemas', () => {
     expect(ForgotPasswordInputSchema.parse({ email: ' sara@example.com ' })).toEqual({ email: 'sara@example.com' })
     expect(() => ForgotPasswordInputSchema.parse({ email: 'not-an-email' })).toThrow()
     expect(AccountLoginSchema.parse({ login: 'sara@example.com' }).login).toBe('sara@example.com')
+  })
+
+  it('reports whether an accepted invitation came out read-only', () => {
+    expect(InvitationAcceptedSchema.parse({ login: 'sara@example.com', read_only: true })).toEqual({ login: 'sara@example.com', read_only: true })
+    expect(() => InvitationAcceptedSchema.parse({ login: 'sara@example.com' })).toThrow()
+    expect(() => AccountLoginSchema.parse({ login: 'sara@example.com', read_only: true })).toThrow()
   })
 
   it('saves the holder\'s own mobile as E.164', () => {
