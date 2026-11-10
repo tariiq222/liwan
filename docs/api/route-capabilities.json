@@ -9088,7 +9088,7 @@
         "finance.zatca.submit"
       ],
       "capability_match": "all",
-      "capability_source": "body",
+      "capability_source": "decorator",
       "feature_keys": [
         "finance.enabled"
       ],
