@@ -57,7 +57,7 @@ export async function expireSharedLeases(pool: Pool): Promise<number> {
     FROM expired`)
   return result.rowCount ?? 0
 }
-export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: string; actorUid: number }, reason: string, adapter?: SharedFencedAdapter) {
+export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: string; actorUid: number }, reason: string, adapter?: SharedFencedAdapter, onVerified?: (client: PoolClient) => Promise<void>) {
   if (!adapter) throw new Error('shared_adapter_unavailable')
   z.uuid().parse(id); z.string().trim().min(3).max(1000).parse(reason)
   const inspect = async (client: PoolClient) => {
@@ -99,6 +99,8 @@ export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: 
     await finalizeVerifiedRestore(client,job,{ issuer: row.issuer, actorUid: Number(row.actor_uid) })
     const updated = await client.query("UPDATE shared_jobs SET journal=$1,receipt=$2,state='verified',lease_until=NULL WHERE id=$3 AND fence=$4 AND state='needs_intervention' RETURNING id", [journal,receipt,id,fence])
     if (!updated.rowCount) throw new Error('shared_lease_lost')
+    // The caller's own record of this recovery commits with the verification, never after it.
+    await onVerified?.(client)
     return { state:'verified',receipt }
   })
 }

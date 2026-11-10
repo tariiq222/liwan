@@ -5,6 +5,7 @@ import type { Operation as LegacyOperation, OperationFeed } from '@liwan/commerc
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { canPublishRestore } from '@/utils/restorePublication'
 import { operationTargetTo } from '@/utils/vendorOperations'
+import { canAbandonJob } from '@/utils/sharedJobAbandon'
 definePageMeta({ capability: 'vendor.read' })
 type Operation = LegacyOperation | OperationFeed
 
@@ -24,13 +25,17 @@ const publishOpen = ref(false)
 const publishReason = ref('')
 const publication = computed(() => data.value && 'restore_publication' in data.value ? data.value.restore_publication : undefined)
 const publishAllowed = computed(() => canPublishRestore(data.value, can))
+const abandonOpen = ref(false)
+const abandonReason = ref('')
+const abandonment = computed(() => data.value && 'abandonment' in data.value ? data.value.abandonment : null)
+const abandonAllowed = computed(() => canAbandonJob(data.value, can))
 const busy = ref(false)
 const reason = ref('')
 const actionError = ref<unknown>(null)
 const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 
-const isActive = computed(() => data.value?.status === 'queued' || data.value?.status === 'running' || publication.value?.status === 'queued')
+const isActive = computed(() => data.value?.status === 'queued' || data.value?.status === 'running' || publication.value?.status === 'queued' || abandonment.value?.state === 'pending')
 const isShared = computed(() => source.value === 'shared' || (data.value && 'source' in data.value && data.value.source === 'shared'))
 const canRetry = computed(() => !isShared.value && data.value?.status === 'failed' && ['tenant.inspect', 'health'].includes(data.value.type))
 const needsAttention = computed(() => data.value?.status === 'needs_intervention' || data.value?.stage === 'deployment_incomplete')
@@ -74,6 +79,16 @@ async function publishRestore() {
     await request(`shared/tenants/${data.value.tenant_id}/restore-publications/${publication.value.approvalId}`, {method:'POST',body:{reason:publishReason.value.trim()}})
     publishOpen.value = false; publishReason.value = ''; await manualRefresh()
   } catch(cause) { actionError.value = cause }
+  finally { busy.value = false }
+}
+
+async function abandonJob() {
+  if (!hydrated.value || !data.value || !abandonAllowed.value || busy.value || abandonReason.value.trim().length < 3 || abandonReason.value.trim().length > 1000) return
+  busy.value = true; actionError.value = null
+  try {
+    await request(`shared/tenants/${encodeURIComponent(data.value.tenant_id)}/jobs/${encodeURIComponent(data.value.id)}/abandon`, { method: 'POST', body: { reason: abandonReason.value.trim(), confirm_job_id: data.value.id } })
+    abandonOpen.value = false; abandonReason.value = ''; await manualRefresh()
+  } catch (cause) { actionError.value = cause }
   finally { busy.value = false }
 }
 
@@ -127,6 +142,15 @@ async function retry() {
           <UAlert v-if="needsAttention" color="warning" variant="subtle" :title="t(deploymentIncomplete ? 'vendor.operations.deploymentIncomplete' : 'vendor.operations.needsAttention')" :description="t('vendor.operations.reconcileHint')" />
           <UAlert v-else-if="backupUnverified" color="warning" variant="subtle" :title="t('vendor.operations.backupUnverified')" :description="t('vendor.operations.backupUnverifiedHint')" />
         </div>
+
+        <SharedRecordSection v-if="abandonAllowed || abandonment" :title="t('vendor.operations.abandon.title')" :description="t('vendor.operations.abandon.hint')" variant="panel" data-testid="operation-abandon">
+          <p v-if="abandonment" role="status" class="mb-3">{{ t(`vendor.operations.abandon.states.${abandonment.state}`) }}</p>
+          <UButton v-if="abandonAllowed && !abandonOpen" color="neutral" variant="outline" :disabled="!hydrated || busy" @click="abandonOpen = true">{{ t('vendor.operations.abandon.action') }}</UButton>
+          <SharedInlineConfirm v-if="abandonOpen && abandonAllowed" :title="t('vendor.operations.abandon.confirm')" :confirm-label="t('vendor.operations.abandon.action')" :pending="busy" :disabled="!hydrated || busy || abandonReason.trim().length < 3 || abandonReason.trim().length > 1000" @confirm="abandonJob" @cancel="abandonOpen = false">
+            <UFormField :label="t('vendor.operations.abandon.reason')" class="mt-3"><UTextarea v-model="abandonReason" :maxlength="1000" :disabled="busy" /></UFormField>
+          </SharedInlineConfirm>
+          <UAlert v-if="actionError" class="mt-3" color="error" variant="subtle" :title="t('vendor.errors.action')" />
+        </SharedRecordSection>
 
         <SharedRecordSection v-if="can('vendor.operations.run') && canRetry" :title="t('vendor.operations.retryTitle')" :description="t('vendor.operations.retryHint')" variant="panel">
           <UAlert v-if="actionError" class="mb-3" color="error" variant="subtle" :title="t('vendor.errors.action')" />

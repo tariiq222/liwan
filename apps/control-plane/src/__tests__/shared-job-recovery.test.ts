@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { migrate } from '../db.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
-import { expireSharedLeases, type SharedFencedAdapter } from '../shared/job-worker.js'
+import { expireSharedLeases, recoverSharedJob, type SharedFencedAdapter } from '../shared/job-worker.js'
 import { processJobRecoveries, RECOVERABLE_OPERATIONS, requestSharedJobRecovery, UnsupportedRecoveryOperation } from '../shared/job-recovery.js'
 import { businessKey, payloadDigest } from '../shared/provisioning.js'
 import { vendorAccount } from './helpers/vendor-session.js'
@@ -119,6 +119,33 @@ else describe('shared job recovery', () => {
     expect(await processJobRecoveries(pool, present)).toBe(1)
     expect(await recovery(id)).toMatchObject({ state: 'failed', error: 'shared_job_not_recoverable' })
     expect((await pool.query("SELECT reason FROM audit_events WHERE action='shared_job.recovery_completed' AND subject=$1", [id])).rows[0].reason).toBe('failed: shared_job_not_recoverable')
+  })
+  const completions = async (id: string) => (await pool.query("SELECT reason FROM audit_events WHERE subject=$1 AND action='shared_job.recovery_completed' ORDER BY created_at", [id])).rows.map(r => r.reason)
+  it('writes the outcome in the same transaction as the verification: a failure after it leaves nothing half done', async () => {
+    const id = await crashedJob()
+    await requestSharedJobRecovery(pool, tenant, id, operator, reason)
+    await pool.query(`CREATE OR REPLACE FUNCTION recovery_test_fault() RETURNS trigger AS $$ BEGIN
+      IF NEW.action = 'shared_job.recovery_completed' THEN RAISE EXCEPTION 'simulated connection loss' USING ERRCODE = '08006'; END IF; RETURN NEW; END $$ LANGUAGE plpgsql`)
+    await pool.query('CREATE TRIGGER recovery_test_fault BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION recovery_test_fault()')
+    try { await expect(processJobRecoveries(pool, present)).rejects.toThrow('simulated connection loss') } finally { await pool.query('DROP TRIGGER recovery_test_fault ON audit_events') }
+    expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [id])).rows[0].state).toBe('needs_intervention')
+    expect(await recovery(id)).toMatchObject({ state: 'pending' })
+    expect(await processJobRecoveries(pool, present)).toBe(1)
+    expect(await recovery(id)).toMatchObject({ state: 'verified', error: null })
+    expect(await completions(id)).toEqual(['verified'])
+    await settle()
+  })
+  it('recognises a request whose job its own recovery already verified as done, never as failed', async () => {
+    const id = await crashedJob()
+    await requestSharedJobRecovery(pool, tenant, id, operator, reason)
+    // The state a worker that stopped between verifying the job and recording the outcome left behind.
+    expect((await recoverSharedJob(pool, id, operator, reason, present)).state).toBe('verified')
+    expect(await recovery(id)).toMatchObject({ state: 'pending' })
+    expect(await processJobRecoveries(pool, absent)).toBe(1)
+    expect(await recovery(id)).toMatchObject({ state: 'verified', error: null })
+    expect(await completions(id)).toEqual(['verified'])
+    expect(await processJobRecoveries(pool, absent)).toBe(0)
+    await settle()
   })
   /** A job of any operation parked in needs_intervention (the payload is only read for its operation here). */
   async function stuckJob(operation: string | null) {
