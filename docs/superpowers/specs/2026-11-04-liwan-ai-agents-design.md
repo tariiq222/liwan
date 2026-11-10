@@ -184,9 +184,9 @@ What may reach a model provider, the same for every provider and every key. Enfo
 - **Readiness check** (part of the setup agent): on request, the setup agent lists what is still missing for the tenant, each item with the page that fixes it and an offer to help: settings never set, users without a role, enabled applications not used yet, an unsigned AI acknowledgement, an incomplete ZATCA onboarding. It reads only what its user may see (the settings registry and the existing status routes) and changes nothing by itself.
 - **Budget.** The free agents draw on one vendor-set monthly limit per tenant, renamed from `ai.setup.monthly` to `ai.assist.monthly`, counted in the tenant database; both run on the platform provider, whatever the tenant's own key.
 
-### 6.14 Deferred: routing models by kind of task
+### 6.14 Routing models by kind of task
 
-Routing each step of a request to the model best suited to it (a fast model to plan, a strong one to analyse numbers, another to write or to lay out a report) is deferred until real usage data shows where cost and quality need it. The planned shape: the vendor maps capabilities (quick answer, search, analysis, writing, design, translation) to models in the provider panel; a cheap planner tags each step of a request with a capability; a design step returns a structured layout that LiwanOS templates render, never free HTML; cost is reported per capability. The service already chooses the model per request in one place and records provider, model and tokens per call, so this adds a planner and a mapping, not a rebuild.
+No longer deferred (owner decision 2026-11-10). The design is [2026-11-10 AI plans and task router](2026-11-10-liwan-ai-plans-and-router-design.md) §5.5: one classification per user message, four capabilities, and a vendor map from capability to model in the provider panel. That document also replaces the monthly token limit of §6.8 with message limits; §6.8 is edited in the change that implements them.
 
 ### 6.15 Deferred: more free assistance (owner decision 2026-11-06)
 
