@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
+import { formatNoticeMoney } from '../commercial/notice-money.js'
 import { attention } from '../commercial/attention.js'
 import { claimForSend, reconcileTokenCharges } from '../commercial/token-charge.js'
 import { acceptQuote } from '../commercial/orders.js'
@@ -68,7 +69,9 @@ suite('stored-method renewal notice and collection gate', () => {
     await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
       VALUES($1,$2,'simulator','active',$3,'fixture-key','2026-11-01T00:00:00Z','fixture','fixture')`, [method,subscription,Buffer.from([1])])
     const adapter = new SimulatorAdapter()
-    const run = () => generateRenewals(pool, { subscription_id: subscription, now: new Date(`${renewalDate}T08:00:00Z`), adapter, returnOrigin })
+    const run = (date = `${renewalDate}T08:00:00Z`) => generateRenewals(pool, {
+      subscription_id: subscription, now: new Date(date), clock: () => Date.parse(date), adapter, returnOrigin,
+    })
     const notices = async () => (await pool.query(`SELECT id,state,sent_at,void_reason,amount_minor,currency,exponent,method_id,renewal_date::text,cadence_unit,cadence_count
       FROM renewal_notices WHERE subscription_id=$1 ORDER BY id`, [subscription])).rows
     const attempts = async () => (await pool.query(`SELECT a.id,a.status,a.token_charge,a.notice_id,i.total_minor
@@ -118,6 +121,28 @@ suite('stored-method renewal notice and collection gate', () => {
     await sendRenewalNotices(pool, { adapter: f.adapter, mail: { send }, clock: () => now })
     expect(await f.notices()).toMatchObject([{ state: outcome === 'accepted_late' ? 'void' : 'due', sent_at: null }])
     await f.run()
+    expect(await f.attempts()).toMatchObject([{ token_charge: false, status: 'redirected', notice_id: null }])
+  })
+
+  it('formats unscaled and padded notice money exactly', () => {
+    expect(formatNoticeMoney({ minor: 6, exponent: 0, currency: 'SAR' })).toBe('6 SAR')
+    expect(formatNoticeMoney({ minor: 6, exponent: 2, currency: 'SAR' })).toBe('0.06 SAR')
+    expect(formatNoticeMoney({ minor: 1, exponent: 4, currency: 'SAR' })).toBe('0.0001 SAR')
+  })
+
+  it('mails the exact digits of a safe-integer charge and issues that same amount', async () => {
+    const f = await fixture(await plan(7_832_347_178_035_634, true))
+    const send = vi.fn(async (_message: MailMessage) => ({ accepted: true, provider_message_id: 'fixture' }))
+    await sendRenewalNotices(pool, { adapter: f.adapter, mail: { send }, clock: () => day10 })
+    expect(send.mock.calls[0]?.[0].text).toContain('90071992547409.79 SAR')
+    await f.run()
+    expect(await f.attempts()).toMatchObject([{ token_charge: true, total_minor: '9007199254740979' }])
+  })
+
+  it('uses hosted payment after the Riyadh date on the notice has passed', async () => {
+    const f = await fixture()
+    await seed(f)
+    await f.run('2026-12-10T21:00:00Z')
     expect(await f.attempts()).toMatchObject([{ token_charge: false, status: 'redirected', notice_id: null }])
   })
 
@@ -208,7 +233,7 @@ suite('stored-method renewal notice and collection gate', () => {
     await f.run()
     const [attempt] = await f.attempts()
     await pool.query('UPDATE renewal_notices SET cadence_count=2 WHERE id=$1', [id])
-    expect(await claimForSend(pool, attempt.id)).toBeNull()
+    expect(await claimForSend(pool, attempt.id, () => Date.parse(`${renewalDate}T08:00:00Z`))).toBeNull()
     expect(await f.attempts()).toMatchObject([{ status: 'created', token_charge: true }])
   })
 
@@ -217,8 +242,8 @@ suite('stored-method renewal notice and collection gate', () => {
     await seed(f)
     await f.run()
     const [attempt] = await f.attempts()
-    await claimForSend(pool, attempt.id)
-    await reconcileTokenCharges(pool, f.adapter, new Date(Date.now() + 86_401_000))
+    await claimForSend(pool, attempt.id, () => Date.parse(`${renewalDate}T08:00:00Z`))
+    await reconcileTokenCharges(pool, f.adapter, new Date(Date.parse(`${renewalDate}T08:00:00Z`) + 86_401_000))
     expect((await attention(pool, true)).items).toContainEqual(expect.objectContaining({ kind: 'charge_abandoned' }))
     expect((await attention(pool, false)).items).not.toContainEqual(expect.objectContaining({ kind: 'charge_abandoned' }))
     await pool.query("UPDATE orders SET payment_state='paid' WHERE id=(SELECT order_id FROM payment_attempts WHERE id=$1)", [attempt.id])

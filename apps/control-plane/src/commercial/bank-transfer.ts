@@ -205,7 +205,8 @@ export async function bankTransferInstructions(pool: Pool, input: { invoice_id: 
   if (input.customer_id) { args.push(input.customer_id); where += ' AND customer_id=$2' }
   const invoice = (await pool.query(`SELECT * FROM invoices WHERE ${where}`, args)).rows[0]
   if (!invoice) throw new CommercialHttpError('not_found', 404)
-  const stored = (await pool.query("SELECT * FROM payment_attempts WHERE invoice_id=$1 AND token_charge AND status IN ('created','unknown','pending')", [invoice.id])).rows[0]
+  const stored = (await pool.query(`SELECT a.*,i.period_start::text AS collection_date FROM payment_attempts a JOIN invoices i ON i.id=a.invoice_id
+    WHERE a.invoice_id=$1 AND a.token_charge AND a.status IN ('created','unknown','pending')`, [invoice.id])).rows[0]
   if (stored && storedChargeDeadline(stored) > new Date()) throw storedChargeInProgress(stored)
   const account = bankAccountOf(await billingSettings(pool))
   if (!account) throw new CommercialHttpError('bank_account_unavailable', 409)

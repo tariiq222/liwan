@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
+import { riyadhDate } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { applyConfirmedEvent, closeOtherAttempts } from './payments.js'
@@ -10,17 +11,18 @@ import { STORED_CHARGE_UNSENT_MS, STORED_CHARGE_UNRESOLVED_MS } from './charge-t
 type Query = Pick<PoolClient, 'query'>
 type StoredAttempt = {
   id: string; order_id: string; provider: string; provider_ref: string | null; mode: string
-  status: string; created_at: Date; sent_at: Date | null; amount_minor: string; currency: string; exponent: number
+  status: string; collection_date: string; created_at: Date; sent_at: Date | null; amount_minor: string; currency: string; exponent: number
 }
 type CloseReason = 'token_inactive' | 'unsent_expired' | 'abandoned' | 'refused' | 'superseded' | 'provider_closed' | 'declined'
 type OpenToken = (ciphertext: Buffer, keyId: string) => Promise<string> | string
 
 const live = (status: string) => ['created', 'unknown', 'pending'].includes(status)
 
-export const storedChargeDeadline = (attempt: Pick<StoredAttempt, 'status' | 'created_at' | 'sent_at'>) =>
-  new Date(attempt.status === 'created'
-    ? new Date(attempt.created_at).getTime() + STORED_CHARGE_UNSENT_MS
-    : new Date(attempt.sent_at!).getTime() + STORED_CHARGE_UNRESOLVED_MS)
+export function storedChargeDeadline(attempt: Pick<StoredAttempt, 'status' | 'collection_date' | 'created_at' | 'sent_at'>) {
+  if (attempt.status !== 'created') return new Date(new Date(attempt.sent_at!).getTime() + STORED_CHARGE_UNRESOLVED_MS)
+  const nextMidnight = Date.parse(`${attempt.collection_date}T00:00:00+03:00`) + 86_400_000
+  return new Date(Math.min(nextMidnight, new Date(attempt.created_at).getTime() + STORED_CHARGE_UNSENT_MS))
+}
 
 export function storedChargeInProgress(attempt: StoredAttempt) {
   return new CommercialHttpError('payment_charge_in_progress', 409, undefined, [], { resolve_by: storedChargeDeadline(attempt).toISOString() })
@@ -56,7 +58,7 @@ async function withStoredOrder<T>(pool: Pool, attemptId: string, work: (client: 
 /** The only transition that authorizes a provider send. Its commit precedes the call. */
 export async function claimForSend(pool: Pool, attemptId: string, clock = Date.now) {
   return withStoredOrder(pool, attemptId, async client => {
-    const row = (await client.query(`SELECT a.*,m.token_ciphertext,m.key_id
+    const row = (await client.query(`SELECT a.*,n.renewal_date::text AS collection_date,m.token_ciphertext,m.key_id
       FROM payment_attempts a JOIN payment_methods m ON m.id=a.method_id
       JOIN orders o ON o.id=a.order_id JOIN invoices i ON i.id=a.invoice_id
       JOIN subscriptions s ON s.id=o.subscription_id
@@ -75,10 +77,10 @@ export async function claimForSend(pool: Pool, attemptId: string, clock = Date.n
     if (!row) return null
     // Both locks can block. Measure the unsent window at the actual dispatch fence.
     const claimedAt = new Date(clock())
-    if (storedChargeDeadline(row) <= claimedAt) return null
+    if (riyadhDate(claimedAt) !== row.collection_date || storedChargeDeadline(row) <= claimedAt) return null
     const claimed = await client.query(`UPDATE payment_attempts SET status='unknown',sent_at=$2,updated_at=$2
       WHERE id=$1 AND status='created'`, [attemptId,claimedAt])
-    return claimed.rowCount ? row as StoredAttempt & { token_ciphertext: Buffer; key_id: string } : null
+    return claimed.rowCount ? { ...row, sent_at: claimedAt } as StoredAttempt & { token_ciphertext: Buffer; key_id: string } : null
   })
 }
 
@@ -137,6 +139,14 @@ export async function sendTokenCharge(pool: Pool, input: {
   const row = await claimForSend(pool, input.attemptId, input.clock)
   if (!row) return false
   if (row.key_id !== existing.key_id || !row.token_ciphertext.equals(existing.token_ciphertext)) return true
+  if (riyadhDate(new Date((input.clock ?? Date.now)())) !== row.collection_date) {
+    // The day changed after the claim committed but before invoking the provider.
+    // Keep this invoice's sole reservation and release its hold as never sent.
+    await withStoredOrder(pool, row.id, client => client.query(`UPDATE payment_attempts
+      SET status='canceled',closed_reason='unsent_expired',sent_at=NULL,resolved_at=now(),updated_at=now()
+      WHERE id=$1 AND token_charge AND status='unknown' AND sent_at=$2 AND provider_ref IS NULL`, [row.id,row.sent_at]))
+    return false
+  }
   let response: ProviderEvent
   try {
     response = await adapter.chargeToken({ attempt_id: row.id, token,
@@ -162,7 +172,8 @@ export async function reconcileTokenCharges(pool: Pool, adapter: PaymentAdapter,
   ) UPDATE payment_attempts a SET updated_at=$3 FROM due WHERE a.id=due.id RETURNING a.*`, [adapter.provider, adapter.mode, now])).rows
   for (const row of rows) {
     const expired = await withStoredOrder(pool, row.id, async client => {
-      const current = (await client.query('SELECT * FROM payment_attempts WHERE id=$1 FOR UPDATE', [row.id])).rows[0]
+      const current = (await client.query(`SELECT a.*,i.period_start::text AS collection_date FROM payment_attempts a
+        JOIN invoices i ON i.id=a.invoice_id WHERE a.id=$1 FOR UPDATE OF a`, [row.id])).rows[0]
       return current && await expireStoredCharge(client, current, now)
     })
     if (expired || row.status === 'created') continue
@@ -177,9 +188,10 @@ export const overdueInvoiceSql = (invoice: string, at = 'now()') => `${invoice}.
 
 /** The status reader exposes timing, never a token, key id or provider payment URL. */
 export async function getStoredChargeCollection(client: Query, orderId: string, now = new Date()) {
-  const row: StoredAttempt | undefined = (await client.query(`SELECT id,status,sent_at,created_at FROM payment_attempts
-    WHERE order_id=$1 AND token_charge
-    ORDER BY (status IN ('created','unknown','pending')) DESC,created_at DESC,id DESC LIMIT 1`, [orderId])).rows[0]
+  const row: StoredAttempt | undefined = (await client.query(`SELECT a.id,a.status,a.sent_at,a.created_at,i.period_start::text AS collection_date
+    FROM payment_attempts a JOIN invoices i ON i.id=a.invoice_id
+    WHERE a.order_id=$1 AND a.token_charge
+    ORDER BY (a.status IN ('created','unknown','pending')) DESC,a.created_at DESC,a.id DESC LIMIT 1`, [orderId])).rows[0]
   if (!row) return undefined
   if (live(row.status) && storedChargeDeadline(row) > now)
     return { state: 'in_progress' as const, resolve_by: storedChargeDeadline(row).toISOString() }

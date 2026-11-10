@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
-import { riyadhDate } from '@liwan/commercial-contracts'
+import { addCadence, riyadhDate } from '@liwan/commercial-contracts'
 import { migrate } from '../db.js'
 import { applyConfirmedEvent, createPaymentAttempt, handleProviderEvent, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
 import { bankTransferInstructions, confirmBankTransfer } from '../commercial/bank-transfer.js'
@@ -19,7 +19,10 @@ suite('stored-method charge engine', () => {
   beforeAll(async () => { await migrate(pool) })
   afterAll(async () => { await pool.end() })
 
-  async function fixture() {
+  async function fixture(collectionTime = new Date()) {
+    const collectionDate = riyadhDate(collectionTime), periodEnd = addCadence(collectionDate, { unit: 'month', count: 1 }, 1)
+    const consentAt = new Date(collectionTime.getTime() - 20 * 86_400_000)
+    const noticeSent = new Date(collectionTime.getTime() - 10 * 86_400_000)
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID(), quote = randomUUID()
     const order = randomUUID(), invoice = randomUUID(), method = randomUUID(), notice = randomUUID(), attempt = randomUUID()
     await pool.query("INSERT INTO customers(id,name) VALUES($1,'Stored-method fixture')", [customer])
@@ -29,12 +32,12 @@ suite('stored-method charge engine', () => {
       payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
       VALUES($1,$2,$3,'renewal',$4,$5,$5,'awaiting_payment','not_started',$6,'fixture',1000,'SAR',2)`, [order,customer,subscription,quote,revision,order])
     await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
-      VALUES($1,$2,$3,$4,'renewal','SAR',2,1000,0,1000,'2026-10-01','2026-11-01',now()-interval '1 day')`, [invoice,customer,subscription,order])
+      VALUES($1,$2,$3,$4,'renewal','SAR',2,1000,0,1000,$5,$6,now()-interval '1 day')`, [invoice,customer,subscription,order,collectionDate,periodEnd])
     await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
-      VALUES($1,$2,'simulator','active',$3,'fixture-key','2026-09-01','fixture','fixture')`, [method,subscription,Buffer.from([1])])
+      VALUES($1,$2,'simulator','active',$3,'fixture-key',$4,'fixture','fixture')`, [method,subscription,Buffer.from([1]),consentAt])
     await pool.query(`INSERT INTO renewal_notices(id,subscription_id,method_id,renewal_date,cadence_unit,cadence_count,
       amount_minor,currency,exponent,state,sent_at)
-      VALUES($1,$2,$3,'2026-10-01','month',1,1000,'SAR',2,'sent','2026-09-20')`, [notice,subscription,method])
+      VALUES($1,$2,$3,$4,'month',1,1000,'SAR',2,'sent',$5)`, [notice,subscription,method,collectionDate,noticeSent])
     const reserve = (id: string, methodId: string | null = method) => pool.query(`INSERT INTO payment_attempts
       (id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,token_charge,method_id,notice_id)
       VALUES($1,$2,$3,'simulator','simulator',1000,'SAR',2,true,$4,$5)`, [id,order,invoice,methodId,notice])
@@ -44,7 +47,7 @@ suite('stored-method charge engine', () => {
     const hosted = () => createPaymentAttempt(pool, { order_id: order, customer_id: customer, adapter, returnOrigin: async () => 'https://liwan.test' })
     const state = async () => (await pool.query('SELECT status,sent_at,resolved_at,closed_reason,provider_ref FROM payment_attempts WHERE id=$1',[attempt])).rows[0]
     const orderState = async () => (await pool.query('SELECT payment_state,paid_attempt_id FROM orders WHERE id=$1',[order])).rows[0]
-    return { order, invoice, customer, attempt, adapter, reserve, send, hosted, state, orderState }
+    return { order, invoice, customer, attempt, adapter, reserve, send, hosted, state, orderState, collectionDate }
   }
 
   it('requires method evidence and preserves one attempt per invoice after it closes', async () => {
@@ -92,7 +95,8 @@ suite('stored-method charge engine', () => {
 
   it('does not claim an attempt that expires while waiting for the order lock', async () => {
     const f = await fixture()
-    const createdAt = (await pool.query('SELECT created_at FROM payment_attempts WHERE id=$1',[f.attempt])).rows[0].created_at as Date
+    const createdAt = new Date(`${f.collectionDate}T12:00:00+03:00`)
+    await pool.query('UPDATE payment_attempts SET created_at=$2 WHERE id=$1', [f.attempt,createdAt])
     const deadline = createdAt.getTime() + 60 * 60_000
     let now = deadline - 1
     const charge = vi.spyOn(f.adapter, 'chargeToken')
@@ -191,6 +195,41 @@ suite('stored-method charge engine', () => {
     expect(await f.orderState()).toEqual({ payment_state: 'awaiting_payment', paid_attempt_id: null })
   })
 
+  it('releases a still-young unsent charge to hosted checkout after its Riyadh day', async () => {
+    const f = await fixture(new Date(Date.now() - 86_400_000))
+    const charge = vi.spyOn(f.adapter, 'chargeToken')
+    expect(await f.send()).toBe(false)
+    expect(charge).not.toHaveBeenCalled()
+    expect(await getStoredChargeCollection(pool, f.order)).toEqual({ state: 'closed', resolve_by: null })
+    await expect(bankTransferInstructions(pool, { invoice_id: f.invoice, customer_id: f.customer }))
+      .rejects.toMatchObject({ code: 'bank_account_unavailable' })
+    expect((await f.hosted()).status).toBe('redirected')
+    expect(await f.state()).toMatchObject({ status: 'canceled', closed_reason: 'unsent_expired', sent_at: null })
+  })
+
+  it('does not invoke the provider if midnight falls between the claim and dispatch', async () => {
+    const f = await fixture()
+    const nextMidnight = Date.parse(`${f.collectionDate}T00:00:00+03:00`) + 86_400_000
+    await pool.query('UPDATE payment_attempts SET created_at=$2 WHERE id=$1',[f.attempt,new Date(nextMidnight-60_000)])
+    const clock = vi.fn().mockReturnValueOnce(nextMidnight-1).mockReturnValue(nextMidnight)
+    const charge = vi.spyOn(f.adapter, 'chargeToken')
+    expect(await f.send(clock)).toBe(false)
+    expect(charge).not.toHaveBeenCalled()
+    expect(await f.state()).toMatchObject({ status: 'canceled', closed_reason: 'unsent_expired', sent_at: null })
+    expect((await f.hosted()).status).toBe('redirected')
+  })
+
+  it('still reconciles an already-sent charge after the noticed Riyadh day', async () => {
+    const f = await fixture()
+    const nextMidnight = Date.parse(`${f.collectionDate}T00:00:00+03:00`) + 86_400_000
+    await pool.query('UPDATE payment_attempts SET created_at=$2 WHERE id=$1',[f.attempt,new Date(nextMidnight-60_000)])
+    const charge = vi.spyOn(f.adapter.scriptCharge(f.attempt, 'lose_response'), 'chargeToken')
+    expect(await f.send(() => nextMidnight-1)).toBe(true)
+    await reconcileTokenCharges(pool, f.adapter, new Date(nextMidnight))
+    expect(await f.orderState()).toEqual({ payment_state: 'paid', paid_attempt_id: f.attempt })
+    expect(charge).toHaveBeenCalledTimes(1)
+  })
+
   it('reads back a lost response by attempt id without resending', async () => {
     const f = await fixture()
     const charge = vi.spyOn(f.adapter.scriptCharge(f.attempt, 'lose_response'), 'chargeToken')
@@ -263,8 +302,8 @@ suite('stored-method charge engine', () => {
   )
 
   it('keeps the original settlement and records one credit work item on late duplicate success', async () => {
-    const f = await fixture()
     const openedAt = new Date(Date.now() - 86_401_000)
+    const f = await fixture(openedAt)
     await pool.query('UPDATE payment_attempts SET created_at=$2 WHERE id=$1',[f.attempt,openedAt])
     await claimForSend(pool, f.attempt, () => openedAt.getTime())
     const hosted = await f.hosted()

@@ -1,5 +1,6 @@
 import type { Pool } from 'pg'
 import { daysBetween, riyadhDate } from '@liwan/commercial-contracts'
+import { formatNoticeMoney } from './notice-money.js'
 import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, enqueueOutbox, failOutbox, leaseOutboxRow } from './outbox.js'
 import { trialEndPreview } from './trial-preview.js'
@@ -50,7 +51,7 @@ async function noticesOf(pool: Pool, row: Record<string, any>, input: { now: Dat
     try {
       const preview = await trialEndPreview(pool, row.customer_id, input.now)
       const amount = preview.first_invoice?.due_now
-      const bill = amount ? `${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}` : '0'
+      const bill = amount ? formatNoticeMoney(amount) : '0'
       const limits = preview.limits
       const ar = `تنتهي تجربتك في ${trialEnds} (${daysLeft} يومًا متبقيًا). تبقى المزايا المضمنة والمشتراة. تُقفل التطبيقات الأخرى للقراءة والتصدير فقط. الحدود التالية: ${limits.users} مستخدم، ${limits.storage_mb} ميبيبايت، ${limits.extra_branches} فرع إضافي. قيمة أول فاتورة: ${bill}. راجع صفحة الاشتراك لمعرفة الاستخدام الزائد وصدّر الملفات التي تحتاجها قبل انتهاء التجربة.`
       const en = `Your trial ends on ${trialEnds} (${daysLeft} days left). Included and purchased features remain. Other trial apps become read and export only. New limits: ${limits.users} users, ${limits.storage_mb} MiB, ${limits.extra_branches} extra branches. First invoice: ${bill}. Check Subscription for excess usage and export files you need before the trial ends.`

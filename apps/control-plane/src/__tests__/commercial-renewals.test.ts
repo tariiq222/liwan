@@ -101,7 +101,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const adapter = new SimulatorAdapter()
     vi.stubEnv('LIWAN_INVOICE_DUE_DAYS', '0')
     try { await generateRenewals(pool,args(adapter)) } finally { vi.unstubAllEnvs() }
-    const issued = (await pool.query(`SELECT i.id,i.order_id,i.due_at,a.id AS attempt_id FROM invoices i
+    const issued = (await pool.query(`SELECT i.id,i.order_id,i.due_at,i.period_start::text,a.id AS attempt_id FROM invoices i
       JOIN payment_attempts a ON a.invoice_id=i.id WHERE i.subscription_id=$1 AND i.kind='renewal'`, [id])).rows[0]
     const method = randomUUID(), notice = randomUUID(), attempt = randomUUID()
     await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
@@ -111,10 +111,11 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
       SELECT $1,i.subscription_id,$2,i.period_start,'month',1,i.total_minor,i.currency,i.exponent,'sent','2026-09-20'
       FROM invoices i WHERE i.id=$3`, [notice,method,issued.id])
     await pool.query("UPDATE payment_attempts SET status='canceled' WHERE id=$1", [issued.attempt_id])
+    const issuedDay = new Date(`${issued.period_start}T12:00:00+03:00`)
     await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,created_at,token_charge,method_id,notice_id)
-      SELECT $1,i.order_id,i.id,'simulator','simulator',i.total_minor,i.currency,i.exponent,i.due_at,true,$2,$3 FROM invoices i WHERE i.id=$4`,
-    [attempt,method,notice,issued.id])
-    await claimForSend(pool, attempt, () => issued.due_at.getTime())
+      SELECT $1,i.order_id,i.id,'simulator','simulator',i.total_minor,i.currency,i.exponent,$5,true,$2,$3 FROM invoices i WHERE i.id=$4`,
+    [attempt,method,notice,issued.id,issuedDay])
+    await claimForSend(pool, attempt, () => issuedDay.getTime())
     const afterGrace = new Date(issued.due_at.getTime() + 3 * 86_400_000)
     const state = async () => (await pool.query('SELECT state FROM subscriptions WHERE id=$1',[id])).rows[0].state
     await applyDunning(pool, { now: afterGrace })

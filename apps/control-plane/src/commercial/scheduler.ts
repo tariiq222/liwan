@@ -146,7 +146,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('trial-expiry', () => expireTrials(pool, { now: new Date(now) }))
         const adapter = o.paymentAdapter
         await job('trial-lapse', () => processTrialLapses(pool, { now: new Date(now), adapter }))
-        if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
+        if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), clock, adapter, returnOrigin }))
         const mail = o.mailAdapter
         if (mail && adapter?.mode === 'simulator')
           await job('renewal-notices', () => sendRenewalNotices(pool, { adapter, mail, clock, signal: o.signal }))

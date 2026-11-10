@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { addCadence, daysBetween, riyadhDate, type Cadence, type Money } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { holdsTrialAfterLapseSql, owesAtRenewalSql } from './free-base.js'
+import { formatNoticeMoney } from './notice-money.js'
 import type { MailAdapter } from './mail-adapter.js'
 import { RENEWAL_NOTICE_LEAD_DAYS, RENEWAL_NOTICE_MIN_DAYS } from './notice-timings.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -64,7 +65,7 @@ async function deliver(pool: Pool, notice: ClaimedNotice, mail: MailAdapter, clo
   const { amount, date, id, lease } = notice
   let accepted = false
   if (daysBetween(riyadhDate(new Date(clock())), date) >= RENEWAL_NOTICE_MIN_DAYS) {
-    const money = `${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}`
+    const money = formatNoticeMoney(amount)
     const ar = `يُستحق تجديد اشتراكك في ليوان بتاريخ ${date} بتوقيت الرياض، بمبلغ ${money}. خُصصت وسيلة الدفع المحفوظة لهذا الخصم المجدول. يمكنك إيقاف التجديد التلقائي من صفحة الاشتراك قبل موعد التجديد.`
     const en = `Your Liwan subscription renews on ${date} (Riyadh time) for ${money}. This charge is scheduled for your saved payment method. You can turn off auto-renew from Subscription before renewal.`
     try { accepted = (await mail.send({ to: notice.login, subject: 'إشعار تجديد اشتراك ليوان', text: `${ar}\n${en}`, message_id: `renewal-${id}@liwan` })).accepted === true }
@@ -110,9 +111,9 @@ export async function sendRenewalNotices(pool: Pool, input: {
 
 /** Called within the renewal transaction, after the issued invoice fixes the exact money. */
 export async function reserveNoticedCharge(client: PoolClient, input: {
-  adapter: PaymentAdapter; subscription: string; order: string; invoice: string; date: string; amount: Money; cadence: Cadence
+  adapter: PaymentAdapter; subscription: string; order: string; invoice: string; date: string; amount: Money; cadence: Cadence; clock: () => number
 }) {
-  const { adapter, subscription, order, invoice, date, amount, cadence } = input
+  const { adapter, subscription, order, invoice, date, amount, cadence, clock } = input
   if (adapter.mode !== 'simulator' || amount.minor <= 0) return false
   const evidence = (await client.query(`SELECT n.id,n.method_id FROM renewal_notices n JOIN payment_methods m ON m.id=n.method_id
     WHERE m.subscription_id=$1 AND m.state='active' AND m.provider=$2 AND n.renewal_date=$3
@@ -120,9 +121,11 @@ export async function reserveNoticedCharge(client: PoolClient, input: {
       AND n.cadence_unit=$7 AND n.cadence_count=$8 AND ${timelyRenewalNoticeSql}
     FOR SHARE OF m,n`, [subscription,adapter.provider,date,amount.minor,amount.currency,amount.exponent,cadence.unit,cadence.count])).rows[0]
   if (!evidence) return false
-  await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,token_charge,method_id,notice_id)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10)`, [
-    randomUUID(),order,invoice,adapter.provider,adapter.mode,amount.minor,amount.currency,amount.exponent,evidence.method_id,evidence.id,
+  const reservedAt = new Date(clock())
+  if (riyadhDate(reservedAt) !== date) return false
+  await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,token_charge,method_id,notice_id,created_at,updated_at)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$11)`, [
+    randomUUID(),order,invoice,adapter.provider,adapter.mode,amount.minor,amount.currency,amount.exponent,evidence.method_id,evidence.id,reservedAt,
   ])
   return true
 }

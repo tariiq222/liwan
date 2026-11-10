@@ -306,7 +306,8 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
       const subscription = (await client.query('SELECT id,tenant_id FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0]
       await requireReachableManager(client, customer, subscription)
     }
-    const live = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending','unknown') FOR UPDATE", [order.id])).rows[0]
+    const live = (await client.query(`SELECT a.*,i.period_start::text AS collection_date FROM payment_attempts a JOIN invoices i ON i.id=a.invoice_id
+      WHERE a.order_id=$1 AND a.status IN ('created','redirected','pending','unknown') FOR UPDATE OF a`, [order.id])).rows[0]
     if (live?.token_charge) {
       if (!await expireStoredCharge(client, live, new Date())) throw storedChargeInProgress(live)
     } else if (live) return { row: live, fresh: false }
