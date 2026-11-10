@@ -87,12 +87,30 @@ export async function assertReconfigureAuthority(client:PoolClient,job:SharedRec
   const renewalOfApplied = row.target_revision_id === null && row.applied_revision_id === job.authority.target_revision_id
   if((job.restore || row.fulfillment_state==='applied' || renewalOfApplied ? row.applied_revision_id : row.target_revision_id)!==job.authority.target_revision_id)throw Error('stale_target')
   if(row.snapshot.entitlement?.digest!==job.authority.entitlement.digest)throw Error('observed_mismatch')
-  if (job.authority.recoverable_predecessors) {
+  const predecessors = job.authority.recoverable_predecessors
+  if (predecessors) {
     if (job.origin !== 'trial-end' || job.restore || job.authority.excess_settle !== true || job.authority.trial_ends_at !== null)
       throw Error('recovery_predecessor_invalid')
-    const allowed = await recoverableTrialPredecessors(client, job.authority.order_id)
-    if (!job.authority.recoverable_predecessors.every(v => allowed.some(a => a.revision_id === v.revision_id && a.digest === v.digest)))
-      throw Error('recovery_predecessor_invalid')
+    const a = job.authority
+    if (row.fulfillment_state === 'applied') {
+      // CP may have committed the receipt before the shared job's last journal write. Only the
+      // exact persisted authority and receipt for this still-applied revision can finish that replay.
+      const replay = await client.query(`SELECT 1 FROM fulfillment_effects e JOIN shared_jobs j ON j.id=e.job_id
+        WHERE e.order_id=$1 AND e.operation_id=$2 AND e.observed_digest=$3 AND e.applied_at IS NOT NULL
+          AND e.receipt->>'order_id'=$1::text AND e.receipt->>'database'=$4 AND e.receipt->>'target_revision_id'=$5
+          AND e.receipt->>'observed_entitlement_digest'=$3
+          AND j.control_tenant_id=$6 AND j.payload#>>'{authority,order_id}'=$1::text
+          AND j.payload#>>'{authority,operation_id}'=$2 AND j.payload#>>'{authority,target_revision_id}'=$5
+          AND j.payload#>>'{authority,entitlement,digest}'=$3
+          AND j.payload#>'{authority,recoverable_predecessors}'=$7::jsonb`,
+      [a.order_id, a.operation_id, a.entitlement.digest, job.binding.database, a.target_revision_id,
+        job.controlTenantId, JSON.stringify(predecessors)])
+      if (!replay.rowCount) throw Error('recovery_predecessor_invalid')
+    } else {
+      const allowed = await recoverableTrialPredecessors(client, a.order_id)
+      if (!predecessors.every(v => allowed.some(p => p.revision_id === v.revision_id && p.digest === v.digest)))
+        throw Error('recovery_predecessor_invalid')
+    }
   }
   if(job.restore){
     const approved=await client.query(`SELECT 1 FROM shared_restore_approvals a LEFT JOIN shared_jobs j ON j.payload->>'approvalId'=a.id::text

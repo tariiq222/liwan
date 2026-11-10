@@ -122,9 +122,10 @@ def validate_reconfigure(request):
                     or not isinstance(item['digest'], str) or not DIGEST_RE.fullmatch(item['digest'])):
                 raise EffectError('input_invalid')
             revision_id = _uuid(item['revision_id'], 'input_invalid')
-            if revision_id in identifiers or revision_id == request['target_revision_id']:
+            identity = (revision_id, item['digest'])
+            if identity in identifiers or revision_id == request['target_revision_id']:
                 raise EffectError('input_invalid')
-            identifiers.add(revision_id)
+            identifiers.add(identity)
     ai_post_digest = request.get('ai_expected_post_trial_digest')
     if 'ai_expected_post_trial_digest' in request and (
             request.get('ai_push') is not True or not isinstance(ai_post_digest, str)

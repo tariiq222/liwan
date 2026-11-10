@@ -1017,6 +1017,19 @@ class TrialEndEffectTests(Base):
         self.assertEqual(runner.applies, 1)
         self.assertEqual(_script_values(next(script for stage, _, script in runner.scripts if stage == 'apply'))['recoverable_predecessors'], request['recoverable_predecessors'])
 
+    def test_recovery_accepts_both_recorded_digests_for_one_revision(self):
+        first = {'revision_id': OTHER, 'digest': 'e' * 64}
+        second = {'revision_id': OTHER, 'digest': 'f' * 64}
+        request = {**self.recovery_request(), 'recoverable_predecessors': [first, second]}
+        self.assertEqual(se.validate_reconfigure(request), request)
+        for digest in (first['digest'], second['digest']):
+            with self.subTest(digest=digest):
+                result, profile, _events = self.execute_apply(request, current=OTHER, digest=digest)
+                self.assertEqual(result, {'applied': True})
+                self.assertEqual(profile.commercial_revision_id, TARGET)
+        with self.assertRaises(EffectError):
+            se.validate_reconfigure({**request, 'recoverable_predecessors': [first, first]})
+
     def test_recovery_never_accepts_an_unrelated_revision_or_wrong_digest(self):
         for revision, digest in ((B2, 'e' * 64), (OTHER, 'f' * 64)):
             runner = FakeRunner(observation(commercial_revision_id=revision, commercial_digest=digest,

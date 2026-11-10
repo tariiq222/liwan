@@ -1,6 +1,10 @@
+import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { nextOrderState } from '@liwan/commercial-contracts'
+import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
+import { PRE_WRITE_REFUSALS } from '../shared/commercial-recovery.js'
+import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { enqueueOutbox } from './outbox.js'
 import { markTopupRefunded } from './ai-ledger.js'
 import { recordFulfillmentFailure } from './settlements.js'
@@ -22,6 +26,101 @@ const recoverable = `(o.payment_state='paid' OR (o.payment_state='not_required' 
   SELECT 1 FROM trial_lapses l WHERE l.subscription_id=o.subscription_id AND l.state='pending'
 ))))`
 
+type RecoveryJob = {
+  id: string; state: string; control_tenant_id: string; payload: unknown
+  journal: { stage?: string; operation_id?: string; error_code?: string; may_have_written?: boolean } | null
+}
+type EffectLink = { job_id: string | null; operation_id: string }
+type RecoveryOrder = Parameters<typeof nextOrderState>[0] & {
+  id: string; target_revision_id: string; expected_applied_revision_id: string | null
+}
+type BoundDelivery = Pick<SharedReconfigureJob, 'binding' | 'host'>
+
+function matchingJob(order: Record<string, any>, subscription: Record<string, any>, effect: EffectLink | undefined, job: RecoveryJob | undefined) {
+  if (!job || job.id !== effect?.job_id || job.control_tenant_id !== subscription.tenant_id) return null
+  const parsed = sharedReconfigureJobSchema.safeParse(job.payload)
+  if (!parsed.success || parsed.data.restore || parsed.data.restoreId || parsed.data.authority.ai_push) return null
+  const delivery = parsed.data
+  const a = delivery.authority
+  return delivery.controlTenantId === subscription.tenant_id && a.order_id === order.id
+    && a.operation_id === effect.operation_id && a.target_revision_id === order.target_revision_id
+    && a.previous_revision_id === order.expected_applied_revision_id ? delivery : null
+}
+
+function provenPreWrite(job: RecoveryJob, delivery: SharedReconfigureJob) {
+  const journal = job.journal
+  return journal?.may_have_written === false && ['failed', 'needs_intervention'].includes(journal.stage ?? '')
+    && journal.operation_id === delivery.authority.operation_id && PRE_WRITE_REFUSALS.includes(journal.error_code ?? '')
+}
+
+async function currentBinding(client: PoolClient, tenantId: string): Promise<BoundDelivery | null> {
+  const b = (await client.query(`SELECT tenant_id,database_name,filestore,registry_revision,host FROM shared_registry_bindings
+    WHERE control_tenant_id=$1 AND enabled FOR SHARE`, [tenantId])).rows[0]
+  return b ? { host: b.host, binding: { tenantId: b.tenant_id, database: b.database_name, filestore: b.filestore,
+    registryRevision: Number(b.registry_revision) } } : null
+}
+
+function sameBinding(a: BoundDelivery, b: BoundDelivery) {
+  return a.host === b.host && a.binding.tenantId === b.binding.tenantId && a.binding.database === b.binding.database
+    && a.binding.filestore === b.binding.filestore && a.binding.registryRevision === b.binding.registryRevision
+}
+
+function deferRecovery(client: PoolClient, orderId: string, now: Date) {
+  return client.query('UPDATE orders SET fulfillment_retry_at=$2 WHERE id=$1', [orderId, new Date(now.getTime() + 15 * 60_000)])
+}
+
+async function queueSameDelivery(client: PoolClient, order: RecoveryOrder, job: RecoveryJob,
+  delivery: SharedReconfigureJob, now: Date, currentTarget: boolean) {
+  const binding = currentTarget && await currentBinding(client, job.control_tenant_id)
+  if (!binding || !sameBinding(binding, delivery)) {
+    await deferRecovery(client, order.id, now)
+    return
+  }
+  // The host will verify the exact old effect before running it again. Its original branch ids and operation id stay fenced.
+  const next = nextOrderState(order, { type: 'fulfillment_retry' })
+  await client.query("UPDATE shared_jobs SET state='queued',lease_until=NULL WHERE id=$1", [job.id])
+  await client.query('UPDATE orders SET fulfillment_state=$2,fulfillment_retry_at=NULL WHERE id=$1', [order.id, next.fulfillment_state])
+}
+
+async function requeueTrialPolicy(client: PoolClient, order: RecoveryOrder, subscription: Record<string, any>,
+  effect: EffectLink | undefined, job: RecoveryJob | undefined, delivery: SharedReconfigureJob | null, currentTarget: boolean, now: Date) {
+  if (!currentTarget || subscription.applied_revision_id !== order.expected_applied_revision_id) {
+    await deferRecovery(client, order.id, now)
+    return
+  }
+  if (job && delivery && !provenPreWrite(job, delivery)) {
+    await queueSameDelivery(client, order, job, delivery, now, true)
+    return
+  }
+  const binding = await currentBinding(client, subscription.tenant_id)
+  if (!binding || (job && !delivery) || (!job && effect)) {
+    await deferRecovery(client, order.id, now)
+    return
+  }
+  const operation = randomUUID()
+  if (job && delivery) {
+    // The old immutable job refused before any possible write. Keep the audited order and cutoff, and
+    // use a new operation identity so a previously failed business-key replay cannot swallow the retry.
+    if (sameBinding(binding, delivery) && job.journal?.error_code !== 'tenant_upgrade_required') {
+      await deferRecovery(client, order.id, now)
+      return
+    }
+    await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1", [job.id])
+    const replacement = await enqueueReconfigureJob(client, {
+      ...delivery, ...binding, requestId: operation, authority: { ...delivery.authority, operation_id: operation },
+    }, { unique: true })
+    await client.query('UPDATE fulfillment_effects SET job_id=$2,operation_id=$3 WHERE order_id=$1',
+      [order.id, replacement.id, operation])
+  } else {
+    // No fulfillment effect was ever linked. The normal outbox worker builds the first host authority.
+    await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: `policy-rebind:${operation}`,
+      payload: { order_id: order.id, subscription_id: subscription.id, target_revision_id: order.target_revision_id } })
+  }
+  const next = nextOrderState(order, { type: 'fulfillment_retry' })
+  await client.query('UPDATE orders SET fulfillment_state=$2,fulfillment_retries=0,fulfillment_retry_at=NULL WHERE id=$1',
+    [order.id, next.fulfillment_state])
+}
+
 export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
   const due = (await pool.query(`SELECT id,subscription_id FROM orders o WHERE ${recoverable} AND NOT cancelled
     AND fulfillment_state IN ('failed','needs_intervention') AND COALESCE(fulfillment_retry_at,created_at)<=$1 ORDER BY created_at,id LIMIT 20`, [now])).rows
@@ -36,8 +135,11 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
         const open = (await client.query(`SELECT id,state FROM shared_jobs WHERE payload->>'operation'='reconfigure'
           AND payload->'authority'->>'order_id'=$1 AND state IN ('running','queued','needs_intervention')
           ORDER BY created_at DESC LIMIT 1`, [order.id])).rows[0]
-        const job = open && (await client.query('SELECT id,state FROM shared_jobs WHERE id=$1 FOR UPDATE SKIP LOCKED', [open.id])).rows[0]
-        if (open && (!job || ['running','queued'].includes(job.state))) return
+        const effect = (await client.query<EffectLink>('SELECT job_id,operation_id FROM fulfillment_effects WHERE order_id=$1', [order.id])).rows[0]
+        const jobId = open?.id ?? effect?.job_id
+        const job = jobId ? (await client.query<RecoveryJob>('SELECT id,state,control_tenant_id,payload,journal FROM shared_jobs WHERE id=$1 FOR UPDATE SKIP LOCKED', [jobId])).rows[0] : undefined
+        if (jobId && (!job || ['running','queued','verified'].includes(job.state))) return
+        const delivery = matchingJob(order, subscription, effect, job)
         const currentTarget = subscription.target_revision_id === order.target_revision_id
           || order.kind === 'renewal' && subscription.applied_revision_id === order.target_revision_id
         if (currentTarget && !permanentFailure(order.fulfillment_failure_code) && order.fulfillment_retries < RETRY_MINUTES.length) {
@@ -49,11 +151,18 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
             payload: { order_id: order.id, subscription_id: subscription.id, target_revision_id: order.target_revision_id } })
           return
         }
-        // A terminal trial policy delivery can have written to Odoo while its receipt was lost. Keep its target
-        // fenced for operator reconciliation rather than treating a potentially open trial as closed.
         if (/^trial-(reopen|bootstrap):/.test(order.idempotency_key)) {
-          await client.query("UPDATE orders SET fulfillment_retry_at='infinity' WHERE id=$1", [order.id])
+          await requeueTrialPolicy(client, order, subscription, effect, job, delivery, currentTarget, now)
           return
+        }
+        if (order.payment_state === 'paid' && job) {
+          const branches = delivery?.authority.branches
+          const topologyUncertain = !branches || branches.apply.length || branches.archive.length || branches.restore?.length
+          if (topologyUncertain && (!delivery || !provenPreWrite(job, delivery))) {
+            if (delivery) await queueSameDelivery(client, order, job, delivery, now, currentTarget)
+            else await deferRecovery(client, order.id, now)
+            return
+          }
         }
         if (job?.state === 'needs_intervention') await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1", [job.id])
         if (order.payment_state === 'paid') {
