@@ -1,6 +1,7 @@
 import { actorHoldsSql } from '../admin-auth/grants.js'
 import type { Pool } from 'pg'
 import { commercialProvisionAuthoritySql } from './commercial-enrollment-authority.js'
+import { blockingJobSql } from './job-store.js'
 import { expireSharedLeases, runSharedJob, type SharedFencedAdapter } from './job-worker.js'
 
 /** Single scheduler tick. Selecting an ID is not claiming it: runSharedJob owns
@@ -51,7 +52,7 @@ export async function dispatchSharedOnce(pool: Pool, adapter?: SharedFencedAdapt
     ) OR queued.payload->>'restore'='true'))) AND NOT EXISTS (
       SELECT 1 FROM shared_jobs unresolved
       WHERE unresolved.control_tenant_id=queued.control_tenant_id
-      AND unresolved.state IN ('running','needs_intervention')
+      AND ${blockingJobSql('unresolved', "queued.payload->'authority'->>'ai_push'='true'")}
     ) ORDER BY queued.created_at,queued.id LIMIT 1`)
   if (!next.rows.length) return { state: 'idle' }
   try { return await runSharedJob(pool, next.rows[0].id, adapter) }

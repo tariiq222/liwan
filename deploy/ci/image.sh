@@ -85,7 +85,7 @@ smoke_started vendor-admin
 PROBE=(python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)")
 # The platform provider is read from a file (AI_PLATFORM_PROVIDER_FILE), in a directory mounted read-only like the deployment does.
 mkdir -p "$IMAGE_ROOT/ai"
-printf '%s\n' '{"provider": "ollama", "model": "ci-smoke", "revision": 1}' > "$IMAGE_ROOT/ai/platform-provider.json"
+printf '%s\n' '{"revision": 1, "margin_bps": 0, "providers": {"main": {"provider": "ollama"}}, "models": {"main": {"provider": "main", "model": "ci-smoke"}}, "routes": {"default": "main"}}' > "$IMAGE_ROOT/ai/platform-provider.json"
 chmod 755 "$IMAGE_ROOT/ai"
 chmod 644 "$IMAGE_ROOT/ai/platform-provider.json"
 smoke_started ai-service -v "$IMAGE_ROOT/ai:/etc/liwan-ai:ro" -e AI_PLATFORM_PROVIDER_FILE=/etc/liwan-ai/platform-provider.json \

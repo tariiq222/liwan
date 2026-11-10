@@ -26,14 +26,14 @@ def portable_history(messages: list[BaseMessage]) -> list[BaseMessage]:
 def _portable(message: BaseMessage) -> BaseMessage:
     if isinstance(message, AIMessage):
         return AIMessage(
-            content=_text_of(message.content),
+            content=text_of(message.content),
             tool_calls=[{**call, "args": dict(call["args"]), "id": _portable_id(call["id"])} for call in message.tool_calls],
             id=message.id,
             name=message.name,
         )
     if isinstance(message, ToolMessage):
         return ToolMessage(
-            content=_text_of(message.content),
+            content=text_of(message.content),
             tool_call_id=_portable_id(message.tool_call_id),
             status=message.status,
             id=message.id,
@@ -54,7 +54,7 @@ def _portable_id(call_id: str | None) -> str | None:
     return f"{_REMAPPED_ID_PREFIX}{digest}"
 
 
-def _text_of(content: str | list[Any]) -> str:
+def text_of(content: str | list[Any]) -> str:
     """Plain text of a content: a string as is, a block list reduced to its text blocks."""
     if isinstance(content, str):
         return content

@@ -6,16 +6,19 @@ from odoo.http import request
 
 from .common import parse_choice, require_capability
 from .finance_invoices import _find_invoice
+from .idempotency import idempotent
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     error_response,
     parse_page,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.zatca import (
     dump_zatca_backlog,
     dump_zatca_journal,
+    dump_zatca_overdue_reporting,
     dump_zatca_readiness,
     dump_zatca_submission,
     dump_zatca_waiting_document,
@@ -25,6 +28,8 @@ from odoo.addons.liwan_finance.serializers.zatca import (
 
 ZATCA_OTP = re.compile(r'\d{6}', re.ASCII)
 ONBOARD_FIELDS = frozenset({'otp'})
+MODE_CONFIRMATION = {'sandbox': 'SANDBOX', 'preprod': 'SIMULATION', 'prod': 'PRODUCTION'}
+MODE_FIELDS = frozenset({'mode', 'confirmation'})
 # The documents the work list holds: nothing that ZATCA accepted. Each state is told by the same classification as a submission.
 WAITING_STATES = ('pending', 'retry', 'rejected', 'blocked', 'unauthorized')
 MAX_WAITING = 500
@@ -46,6 +51,18 @@ def _parse_otp(payload):
     return otp
 
 
+def _parse_mode_request(payload):
+    unknown = sorted(set(payload) - MODE_FIELDS)
+    if unknown:
+        raise ApiError(422, 'invalid', f'unknown field: {unknown[0]}', field=unknown[0])
+    mode = payload.get('mode')
+    if not isinstance(mode, str) or mode not in MODE_CONFIRMATION:
+        raise ApiError(422, 'invalid', 'mode must name a ZATCA environment', field='mode')
+    if payload.get('confirmation') != MODE_CONFIRMATION[mode]:
+        raise ApiError(422, 'invalid', 'confirmation must match the exact target environment name', field='confirmation')
+    return mode
+
+
 def _submit(invoice_id, *, retry):
     """Submit now; ZATCA saying no or being unreachable is a committed answer carrying the state."""
     move = request.env['liwan.finance.zatca']._liwan_submit(invoice_id, retry)
@@ -64,7 +81,16 @@ class FinanceZatcaController(http.Controller):
     @requires_feature('finance.enabled', operation='read')
     def get_status(self, **_):
         require_capability('finance.zatca.read')
-        return {**dump_zatca_readiness(request.env.company), 'backlog': dump_zatca_backlog(request.env.company)}
+        company = request.env.company
+        return {**dump_zatca_readiness(company), 'backlog': dump_zatca_backlog(company),
+                'overdue_reporting': dump_zatca_overdue_reporting(company)}
+
+    @http.route('/api/v1/finance/zatca/mode', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    @requires_capability('finance.zatca.environment')
+    def request_mode(self, **payload):
+        return request.env['liwan.finance.zatca']._liwan_request_environment(_parse_mode_request(payload))
 
     @http.route('/api/v1/finance/zatca/journals/<int:journal_id>/onboard', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -92,8 +118,10 @@ class FinanceZatcaController(http.Controller):
     @http.route('/api/v1/finance/invoices/<int:invoice_id>/zatca/retry', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @requires_capability('finance.zatca.submit')
+    @idempotent
     def retry_invoice(self, invoice_id, **_):
-        require_capability('finance.zatca.submit')
+        """Send a failed document again; 422 ``retry_too_soon`` (with ``details.next_retry_at``) until the escalating spacing has passed."""
         return _submit(invoice_id, retry=True)
 
     @http.route('/api/v1/finance/zatca/documents', type='json2', auth='user', methods=['GET'], readonly=True)

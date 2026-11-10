@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { canonicalJson } from './calendar.js'
+import { AI_ENTITLEMENT_KEYS } from './ai-topup.js'
 import { admitsRequiredAdmin, fitsStorageSteps, USERS_LIMIT_KEY, usersWithinCap } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, CustomerTermsRevision, EntitlementSnapshot, PlanRevision } from './types.js'
@@ -7,7 +8,7 @@ import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, C
 export { CommercialError }
 /** /2: modules are the whole release (every application is installed in every tenant) and
  * features carry every key of every release application (spec 3.6, rulings E2/E3/E6). */
-export const COMPILER_VERSION = 'commercial-compiler/3'
+export const COMPILER_VERSION = 'commercial-compiler/4'
 
 /**
  * Whether a customer may buy this application: only a tier that says so. A catalog that predates the flag declares
@@ -93,13 +94,15 @@ export function compileEntitlements(input: {
 
   const domain: CapacityMap = {}
   for (const b of bundles) for (const [k, v] of Object.entries(b.domain_limits)) {
+    if (AI_ENTITLEMENT_KEYS.includes(k)) throw new CommercialError('platform_limit_derived', 'domain_limits')
     if (platformKeys.has(k)) throw new CommercialError('invalid_limit_scope', 'domain_limits')
     if (!domainKeys.has(k)) throw new CommercialError('limit_not_supported', 'domain_limits')
     if (k in domain && domain[k] !== v) throw new CommercialError('ambiguous_limit', 'domain_limits')
     domain[k] = v
   }
   // Users and storage are customer-chosen quantities, never plan limits: one source of truth.
-  const derived = new Set([USERS_LIMIT_KEY, 'storage.limit_mb', 'branches.extra_limit'])
+  // The AI keys are derived too: the control plane delivers them from its ledger and vendor settings (ai-topup.ts).
+  const derived = new Set([USERS_LIMIT_KEY, 'storage.limit_mb', 'branches.extra_limit', ...AI_ENTITLEMENT_KEYS])
   for (const k of Object.keys(plan.platform_limits)) {
     if (derived.has(k)) throw new CommercialError('platform_limit_derived', 'platform_limits')
     if (!platformKeys.has(k)) throw new CommercialError('limit_not_supported', 'platform_limits')
@@ -109,6 +112,10 @@ export function compileEntitlements(input: {
   for (const k of platformKeys) if (!derived.has(k) && !Object.hasOwn(plan.platform_limits, k)) throw new CommercialError('platform_limit_missing', 'platform_limits')
   const platform: CapacityMap = { ...plan.platform_limits, [USERS_LIMIT_KEY]: quantities.users, 'storage.limit_mb': quantities.storage_mb }
   Object.assign(features, domain, platform)
+  // The snapshot carries the AI keys closed: the control plane overlays the live values on every delivery (deliveredEntitlement),
+  // so a value frozen here could only ever be stale, and an open default (null is unlimited) must never be what a tenant gets.
+  // Only a release that declares them carries them; an earlier catalog never registered the keys.
+  for (const k of AI_ENTITLEMENT_KEYS) if (platformKeys.has(k)) features[k] = 0
   for (const [k, v] of Object.entries(terms?.limits ?? {})) {
     // Capacity is the customer's chosen quantity, changed only by a new subscription quote;
     // a terms revision may not grant or remove users/storage outside that agreement.

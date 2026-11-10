@@ -2,7 +2,7 @@
 {
     'name': 'liwan Finance',
     'summary': 'liwan platform: the Finance application — /api/v1/finance over account and l10n_sa',
-    'version': '19.0.1.4.6',
+    'version': '19.0.1.6.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -31,6 +31,7 @@
         'security/finance_audit_rules.xml',
         'data/finance_access_permissions.xml',
         'data/finance_mis_reports.xml',
+        'data/zatca_edi_schedule.xml',
     ],
     'post_init_hook': 'post_init_hook',
     'installable': True,

@@ -9,6 +9,7 @@ from . import (
     budget_guard,
     cash_flow_report,
     closing_service,
+    edi_document,
     feature_registry,
     idempotency,
     mis_report,
@@ -19,5 +20,6 @@ from . import (
     vat_return,
     withholding_report,
     zakat,
+    zatca_runtime,
     zatca_service,
 )

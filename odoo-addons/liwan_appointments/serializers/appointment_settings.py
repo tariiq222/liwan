@@ -11,14 +11,12 @@ from odoo.addons.liwan_appointments.models.appointment_settings import (
     REFERENCE_PREFIX_PATTERN,
     REQUESTER_FIELDS,
     SECTOR_PRESETS,
-    SELF_BOOKING_POLICIES,
 )
 
 WRITABLE_FIELDS = tuple(DEFAULTS)
 SETTING_FIELDS = (*WRITABLE_FIELDS, 'sector_preset')
 SELECTION_OPTIONS = {
-    **{name: tuple(value for value, _label in FIELD_REQUIREMENTS) for name in (*REQUESTER_FIELDS, 'visit_reason_field')},
-    'self_booking_policy': tuple(value for value, _label in SELF_BOOKING_POLICIES),
+    name: tuple(value for value, _label in FIELD_REQUIREMENTS) for name in (*REQUESTER_FIELDS, 'visit_reason_field')
 }
 PRESET_KEYS = [value for value, _label in SECTOR_PRESETS]
 

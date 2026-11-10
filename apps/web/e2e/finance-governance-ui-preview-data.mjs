@@ -49,10 +49,11 @@ const zatcaStatus = {
   private_key_present: true,
   onboarded: false,
   journals: [
-    { journal: { id: 21, name: 'مبيعات الرياض' }, onboarded: true, state: 'onboarded' },
-    { journal: { id: 22, name: 'مبيعات جدة' }, onboarded: false, state: 'not_started' },
-    { journal: { id: 23, name: 'مبيعات الدمام' }, onboarded: false, state: 'compliance_checked' },
+    { journal: { id: 21, name: 'مبيعات الرياض' }, onboarded: true, state: 'onboarded', expires_at: null, expiry_warning_days: null },
+    { journal: { id: 22, name: 'مبيعات جدة' }, onboarded: false, state: 'not_started', expires_at: null, expiry_warning_days: null },
+    { journal: { id: 23, name: 'مبيعات الدمام' }, onboarded: false, state: 'compliance_checked', expires_at: null, expiry_warning_days: null },
   ],
+  overdue_reporting: 0,
   backlog: { to_send: 4, retry: 2, rejected: 1, blocked: 0 },
 }
 
@@ -70,6 +71,9 @@ const waiting = waitingStates.map(([state, mode], index) => ({
     errors: state === 'rejected' ? [{ code: 'BR-KSA-17', message: 'the buyer name is missing' }] : [],
     warnings: state === 'retry' ? [{ code: 'W-01', message: 'ZATCA did not answer; it is retried' }] : [],
     qr_present: false,
+    retry_count: state === 'retry' ? 2 : 0,
+    last_attempt_at: state === 'retry' ? '2026-09-11T08:00:00Z' : null,
+    next_retry_at: state === 'retry' ? '2026-09-11T08:05:00Z' : null,
   },
 }))
 function waitingDocuments(url) {

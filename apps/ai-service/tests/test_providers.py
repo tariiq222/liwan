@@ -18,7 +18,7 @@ def build(provider, *, api_key="k", base_url=None, model="m", stream_usage=None,
     """The platform model for these file fields; a provider that needs an endpoint gets one unless the test gives it."""
     if base_url is None and provider in REGISTRY and REGISTRY[provider].needs_base_url:
         base_url = "https://llm.example.com/v1"
-    return build_platform_model(replace(SETTINGS, **attribution), PlatformProvider(provider, model, base_url, api_key, 1, stream_usage))
+    return build_platform_model(replace(SETTINGS, **attribution), PlatformProvider(provider, base_url, api_key, stream_usage), model)
 
 
 def test_each_provider_builds_its_client_without_network():

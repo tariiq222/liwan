@@ -35,30 +35,40 @@ class PlatformProviderWriterTest(unittest.TestCase):
     def content(self):
         return json.loads(self.target.read_text(encoding='utf-8'))
 
+    def provider(self):
+        return self.content()['providers']['main']
+
+    def model(self):
+        return self.content()['models']['main']
+
+    def single(self, provider, model, *, revision=1, margin_bps=0, **prices):
+        """The file of a single-model install: one provider, one model, the default route."""
+        return {'revision': revision, 'margin_bps': margin_bps, 'providers': {'main': provider}, 'models': {'main': {'provider': 'main', 'model': model, **prices}},
+                'routes': {'default': 'main'}}
+
     def test_writes_the_operator_variables_as_a_mode_600_file(self):
         self.write_env(AI_PROVIDER='openai_compatible', AI_MODEL='deepseek-chat', AI_API_KEY=KEY, AI_BASE_URL='https://api.deepseek.com/v1')
         self.run_script()
-        self.assertEqual(self.content(), {'provider': 'openai_compatible', 'model': 'deepseek-chat', 'api_key': KEY,
-                                          'base_url': 'https://api.deepseek.com/v1', 'revision': 1})
+        self.assertEqual(self.content(), self.single({'provider': 'openai_compatible', 'api_key': KEY, 'base_url': 'https://api.deepseek.com/v1'}, 'deepseek-chat'))
         self.assertEqual(stat.S_IMODE(os.stat(self.target).st_mode), 0o600)
         self.assertEqual([p.name for p in self.target.parent.iterdir()], ['platform-provider.json'])  # no staging file is left
 
     def test_a_local_model_needs_no_key_and_the_default_provider_is_ollama(self):
         self.write_env(AI_MODEL='qwen2.5:7b', AI_BASE_URL='http://ollama:11434')
         self.run_script()
-        self.assertEqual(self.content(), {'provider': 'ollama', 'model': 'qwen2.5:7b', 'base_url': 'http://ollama:11434', 'revision': 1})
+        self.assertEqual(self.content(), self.single({'provider': 'ollama', 'base_url': 'http://ollama:11434'}, 'qwen2.5:7b'))
 
     def test_the_last_assignment_wins_and_an_inline_comment_is_not_part_of_the_value_as_in_compose(self):
         self.env_file.write_text(
             f'AI_PROVIDER=ollama\nAI_MODEL=old # first\nAI_PROVIDER=openai   # the real one\nAI_MODEL="gpt-4o" # quoted, then a comment\n'
             f"AI_API_KEY='{KEY}'   # keep\nexport AI_BASE_URL=\n", encoding='utf-8')
         self.run_script()
-        self.assertEqual(self.content(), {'provider': 'openai', 'model': 'gpt-4o', 'api_key': KEY, 'revision': 1})
+        self.assertEqual(self.content(), self.single({'provider': 'openai', 'api_key': KEY}, 'gpt-4o'))
 
     def test_a_hash_without_a_space_before_it_stays_in_the_value(self):
         self.write_env(AI_PROVIDER='openai', AI_MODEL='gpt-4o', AI_API_KEY=KEY + '#tail')
         self.run_script()
-        self.assertEqual(self.content()['api_key'], KEY + '#tail')
+        self.assertEqual(self.provider()['api_key'], KEY + '#tail')
 
     @unittest.skipIf(os.geteuid() in (0, 10001), 'ownership cannot fail for root or for the ai user itself')
     def test_it_fails_without_writing_or_claiming_success_when_the_file_would_be_unreadable_by_the_service(self):
@@ -76,29 +86,29 @@ class PlatformProviderWriterTest(unittest.TestCase):
         base = dict(AI_PROVIDER='openai_compatible', AI_MODEL='m', AI_API_KEY=KEY, AI_BASE_URL='https://llm.example.com/v1')
         self.write_env(**base)
         self.run_script()
-        self.assertNotIn('stream_usage', self.content())
+        self.assertNotIn('stream_usage', self.provider())
         self.write_env(**base, AI_STREAM_USAGE='true')
         self.run_script()
-        self.assertEqual((self.content()['stream_usage'], self.content()['revision']), (True, 2))
+        self.assertEqual((self.provider()['stream_usage'], self.content()['revision']), (True, 2))
         self.write_env(**base, AI_STREAM_USAGE='False')
         self.run_script()
-        self.assertEqual(self.content()['stream_usage'], False)
+        self.assertEqual(self.provider()['stream_usage'], False)
         self.write_env(AI_PROVIDER='ollama', AI_MODEL='m', AI_STREAM_USAGE='true')
         self.run_script()
-        self.assertNotIn('stream_usage', self.content())
+        self.assertNotIn('stream_usage', self.provider())
         self.write_env(**base, AI_STREAM_USAGE='maybe')
         self.assertIn('AI_STREAM_USAGE', self.run_script(expect=1).stderr)
 
     def test_anthropic_never_carries_a_base_url(self):
         self.write_env(AI_PROVIDER='anthropic', AI_MODEL='claude-sonnet-4-5', AI_API_KEY=KEY, AI_BASE_URL='http://ollama:11434')
         self.run_script()
-        self.assertNotIn('base_url', self.content())
+        self.assertNotIn('base_url', self.provider())
 
     def test_quotes_comments_and_blank_lines_in_the_env_file_are_read_like_compose_does(self):
         self.env_file.write_text(f'# provider\n\nAI_PROVIDER="openai"\nAI_MODEL=\'gpt-4o\'\nAI_API_KEY={KEY}\n', encoding='utf-8')
         self.run_script()
-        self.assertEqual(self.content()['provider'], 'openai')
-        self.assertEqual(self.content()['model'], 'gpt-4o')
+        self.assertEqual(self.provider()['provider'], 'openai')
+        self.assertEqual(self.model()['model'], 'gpt-4o')
 
     def test_an_unchanged_configuration_leaves_the_file_as_it_is_and_a_changed_one_raises_the_revision(self):
         self.write_env(AI_PROVIDER='openai', AI_MODEL='gpt-4o', AI_API_KEY=KEY)
@@ -109,7 +119,7 @@ class PlatformProviderWriterTest(unittest.TestCase):
         self.assertEqual(self.content()['revision'], 1)
         self.write_env(AI_PROVIDER='openai', AI_MODEL='gpt-5', AI_API_KEY=KEY)
         self.run_script()
-        self.assertEqual((self.content()['model'], self.content()['revision']), ('gpt-5', 2))
+        self.assertEqual((self.model()['model'], self.content()['revision']), ('gpt-5', 2))
 
     def test_a_loose_mode_is_tightened_without_changing_the_revision(self):
         self.write_env(AI_PROVIDER='openai', AI_MODEL='gpt-4o', AI_API_KEY=KEY)
@@ -118,6 +128,21 @@ class PlatformProviderWriterTest(unittest.TestCase):
         self.run_script()
         self.assertEqual(stat.S_IMODE(os.stat(self.target).st_mode), 0o600)
         self.assertEqual(self.content()['revision'], 1)
+
+    def test_prices_and_the_margin_are_optional_and_written_for_the_one_model(self):
+        self.write_env(AI_PROVIDER='openai', AI_MODEL='gpt-4o', AI_API_KEY=KEY)
+        self.run_script()
+        self.assertEqual((self.content()['margin_bps'], self.model()), (0, {'provider': 'main', 'model': 'gpt-4o'}))
+        self.write_env(AI_PROVIDER='openai', AI_MODEL='gpt-4o', AI_API_KEY=KEY, AI_PRICE_INPUT='2.5', AI_PRICE_OUTPUT='10', AI_MARGIN_BPS='2000')
+        self.run_script()
+        self.assertEqual(self.content(), self.single({'provider': 'openai', 'api_key': KEY}, 'gpt-4o', revision=2, margin_bps=2000, input_price='2.5', output_price='10'))
+
+    def test_a_price_or_margin_the_service_would_refuse_stops_provisioning_naming_the_variable(self):
+        for name, value in (('AI_PRICE_INPUT', '0.000001'), ('AI_PRICE_OUTPUT', '1e3'), ('AI_PRICE_INPUT', '-1'), ('AI_MARGIN_BPS', '10001'), ('AI_MARGIN_BPS', '20%')):
+            with self.subTest(name=name, value=value):
+                self.write_env(AI_PROVIDER='openai', AI_MODEL='m', AI_API_KEY=KEY, **{name: value})
+                self.assertIn(name, self.run_script(expect=1).stderr)
+                self.assertFalse(self.target.exists())
 
     def test_a_missing_variable_stops_provisioning_naming_the_variable_and_writes_nothing(self):
         for values, variable in (

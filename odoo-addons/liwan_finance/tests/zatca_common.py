@@ -197,6 +197,11 @@ class LiwanZatcaCase(LiwanFinanceWriteCase):
         with self.zatca.patched():
             return self.api('POST', f'/api/v1/finance/invoices/{invoice["id"]}/zatca/{action}', json={})
 
+    def elapse_retry_spacing(self, invoice):
+        """Move the last manual ZATCA send of ``invoice`` back an hour (the cap of the schedule), as if the spacing had passed."""
+        document = self.env['account.move'].browse(invoice['id']).edi_document_ids
+        document.write({'liwan_zatca_last_attempt_at': datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - datetime.timedelta(hours=1, seconds=1)})
+
     def assertNoSecrets(self, result):  # noqa: N802
         text = result.text
         for part in self.SECRET_PARTS:

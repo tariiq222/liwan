@@ -12,6 +12,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 import { createJiti } from 'jiti'
+import { aiProviderRoutes, seedAiSetting } from './ai-provider-mock.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
 import { ADMIN_PASSWORD, INSTALLATION_ID, MOCK_PORT, OWNER_EMAIL, SERVICE_KEY, SUPPORT_EMAIL, TOTP_CODE } from './mock-settings.mjs'
 
@@ -39,6 +40,7 @@ const json = (res, status, body) => {
 
 export function createMockControl() {
   let accounts, invitations, sessions, challenges, nonces, failures, config, stats
+  const state = { ai: null }
 
   function reset() {
     accounts = new Map([[1, { id: 1, email: OWNER_EMAIL, display_name: 'Owner', roles: ['owner'], password: ADMIN_PASSWORD, passkeys: new Set(), recovery: new Set(['abcd-efgh-jkmn']), active: true, disabled: false }],
@@ -51,6 +53,7 @@ export function createMockControl() {
     failures = new Map()
     config = { unavailable: false, stepUpRequired: false }
     stats = { anonymous: 0, numeric: 0, rejected: 0, lastClientIp: null }
+    state.ai = seedAiSetting()
   }
   reset()
 
@@ -228,6 +231,8 @@ export function createMockControl() {
     },
   }
 
+  const aiRoutes = aiProviderRoutes(state, json, ownerSession)
+
   /** /v1/admin/accounts/:id/(roles|disable|reset), matched by pattern because the id is part of the path. */
   const ACCOUNT_ACTION = /^\/v1\/admin\/accounts\/([1-9][0-9]{0,15})\/(roles|disable|reset)$/
   const accountActions = {
@@ -300,7 +305,7 @@ export function createMockControl() {
       const actor = ownerSession(req, res, true)
       return actor ? accountActions[action[2]](accounts.get(Number(action[1])), actor, body, res) : undefined
     }
-    const handler = isAuth ? authRoutes[url.pathname] : apiRoutes[route]
+    const handler = isAuth ? authRoutes[url.pathname] : apiRoutes[route] ?? aiRoutes[route]
     if (!handler && !isAuth) {
       const account = accounts.get(sessionOf(req)?.accountId)
       if (!account) return json(res, 401, { code: 'unauthorized' })

@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import datetime
 import json
 from unittest.mock import patch
 
@@ -19,11 +20,15 @@ from .zatca_common import (
     unreachable,
 )
 from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_finance.serializers.zatca import zatca_document
+from odoo.addons.liwan_finance.serializers.zatca import (
+    RETRY_SPACING_SECONDS,
+    retry_allowed_at,
+    zatca_document,
+)
 
 STATUS = '/api/v1/finance/zatca/status'
-SUBMISSION_KEYS = {'state', 'mode', 'errors', 'warnings', 'qr_present'}
-JOURNAL_KEYS = {'journal', 'onboarded', 'state'}
+SUBMISSION_KEYS = {'state', 'mode', 'errors', 'warnings', 'qr_present', 'retry_count', 'last_attempt_at', 'next_retry_at'}
+JOURNAL_KEYS = {'journal', 'onboarded', 'state', 'expires_at', 'expiry_warning_days'}
 ONBOARDING_ENDPOINTS = ['compliance'] + ['compliance/invoices'] * 6 + ['production/csids']
 
 
@@ -52,10 +57,10 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertEqual((status['api_mode'], status['private_key_present'], status['onboarded']), ('sandbox', True, True))
         self.assertNoSecrets(self.api('GET', STATUS))
 
-    def test_the_stock_edi_cron_is_active_and_runs_daily_with_an_immediate_trigger_per_submission(self):
+    def test_the_stock_edi_cron_is_active_and_runs_hourly_with_an_immediate_trigger_per_submission(self):
         cron = self.env.ref('account_edi.ir_cron_edi_network')
         self.assertTrue(cron.active)
-        self.assertEqual((cron.interval_number, cron.interval_type), (1, 'days'))
+        self.assertEqual((cron.interval_number, cron.interval_type), (1, 'hours'))
 
     def test_the_status_reports_the_backlog_of_the_current_company_only(self):
         self.onboarded_journal()
@@ -76,6 +81,12 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertEqual(status['backlog'], {'to_send': 1, 'retry': 1, 'rejected': 1, 'blocked': 1})
         self.assertEqual(secret_keys(status), set())
 
+    def test_status_counts_old_simplified_documents_awaiting_reporting(self):
+        self.onboarded_journal()
+        self.sale_invoice()
+        self.sale_invoice(partner=self.b2c_buyer)
+        self.assertEqual(self._status()['overdue_reporting'], 1)
+
     def test_the_status_backlog_needs_the_zatca_read_capability(self):
         self.login_as('zatca_reader')
         self.assertIn('backlog', self.api('GET', STATUS).json())
@@ -92,6 +103,12 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         event = self.env['liwan.finance.audit.event'].search([('action', '=', 'zatca_onboarded')])
         self.assertEqual((event.company_id, event.res_model, event.res_id, event.create_uid), (self.company, 'account.journal', self.sale_journal.id, self.manager))
         self.assertNotIn(SANDBOX_OTP, ' '.join(logs.output) + str(event.read()))
+
+    def test_onboarding_does_not_persist_an_otp_wizard(self):
+        Wizard = self.env['l10n_sa_edi.otp.wizard']
+        before = Wizard.search_count([('journal_id', '=', self.sale_journal.id)])
+        self.onboarded_journal()
+        self.assertEqual(Wizard.search_count([('journal_id', '=', self.sale_journal.id)]), before)
 
     def test_a_refused_onboarding_logs_a_warning_without_the_otp(self):
         self.zatca.answers['compliance'] = answer(400, {'message': 'Invalid OTP'})
@@ -130,10 +147,13 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertFalse(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
 
     def test_a_rejected_otp_is_422_zatca_rejected_and_changes_nothing(self):
-        self.zatca.answers['compliance'] = answer(400, {'errors': [{'code': 'Invalid-OTP', 'message': 'Invalid OTP'}]})
-        result = self.onboard()
+        self.zatca.answers['compliance'] = answer(400, {'errors': [{'code': 'Invalid-OTP', 'message': f'Invalid OTP {SANDBOX_OTP}'}]})
+        with self.assertLogs('odoo.addons.l10n_sa_edi.models.account_journal', 'WARNING') as logs:
+            result = self.onboard()
+        self.assertNotIn(SANDBOX_OTP, ' '.join(logs.output))
         self.assertRefused(result, 422, 'zatca_rejected')
         self.assertIn('Invalid OTP', result.json()['message'])
+        self.assertNotIn(SANDBOX_OTP, result.text)
         self.assertNoSecrets(result)
         self.assertFalse(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
         self.assertEqual(self._connection().state, 'not_configured')
@@ -163,6 +183,23 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         result = self.onboard()
         self.assertRefused(result, 422, 'zatca_rejected')
         self.assertFalse(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
+
+    def test_failed_compliance_does_not_log_gateway_response_material(self):
+        sentinel = 'COMPLIANCE-ECHO-SENSITIVE-FIXTURE'
+        for expected, failure in (
+            ('Compliance API returned an error', lambda _body: reply(503, None, text=sentinel)),
+            ('Compliance validation failed', answer(200, {
+                'validationResults': results('ERROR', errors=[{**ERROR, 'message': sentinel}]),
+            })),
+        ):
+            with self.subTest(expected=expected):
+                self.zatca.answers['compliance/invoices'] = failure
+                with self.assertLogs('odoo.addons.l10n_sa_edi.models.account_journal', 'WARNING') as logs:
+                    result = self.onboard()
+                self.assertRefused(result, 422, 'zatca_rejected')
+                self.assertNotIn(sentinel, result.text)
+                self.assertIn(expected, '\n'.join(logs.output))
+                self.assertNotIn(sentinel, '\n'.join(logs.output))
 
     def test_a_failed_re_onboarding_keeps_the_working_onboarding(self):
         self.onboarded_journal()
@@ -268,6 +305,7 @@ class TestFinanceZatcaSubmission(LiwanZatcaCase):
         self.assertEqual(self._state(invoice), submission)
         self.assertRefused(self.submit(invoice), 422, 'invalid_state')
         self.zatca.answers.clear()
+        self.elapse_retry_spacing(invoice)
         retried = self.submit(invoice, 'retry')
         self.assertEqual(retried.status_code, 200, retried.text)
         self.assertEqual(retried.json()['state'], 'accepted')
@@ -281,8 +319,10 @@ class TestFinanceZatcaSubmission(LiwanZatcaCase):
         self.assertEqual(result.json()['details']['submission']['state'], 'retry')
         self.assertEqual(self._state(invoice)['state'], 'retry')
         self.zatca.answers['invoices/clearance/single'] = unreachable
+        self.elapse_retry_spacing(invoice)
         self.assertRefused(self.submit(invoice, 'retry'), 502, 'zatca_unavailable')
         self.zatca.answers.clear()
+        self.elapse_retry_spacing(invoice)
         self.assertEqual(self.submit(invoice, 'retry').json()['state'], 'accepted')
 
     def test_the_submission_outcome_leaves_a_log_record_and_audit_events(self):
@@ -291,6 +331,7 @@ class TestFinanceZatcaSubmission(LiwanZatcaCase):
         with self.assertLogs('odoo.addons.liwan_finance.models.zatca_service', 'INFO') as logs:
             self.assertRefused(self.submit(invoice), 502, 'zatca_unavailable')
             self.zatca.answers.clear()
+            self.elapse_retry_spacing(invoice)
             self.assertEqual(self.submit(invoice, 'retry').json()['state'], 'accepted')
         move = self.env['account.move'].browse(invoice['id'])
         self.assertEqual([record.levelname for record in logs.records], ['WARNING', 'INFO'])
@@ -565,3 +606,169 @@ class TestFinanceZatcaRetryScope(LiwanZatcaCase):
         # The ZATCA document itself was cleared and sent again.
         self.assertEqual((zatca.error, zatca.blocking_level), (False, False))
         self.assertEqual(zatca.state, 'sent')
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestFinanceZatcaRetryThrottle(LiwanZatcaCase):
+    """A manual retry is counted, spaced by an escalating schedule and replayed by its Idempotency-Key (#513)."""
+
+    def _failed(self):
+        self.onboarded_journal()
+        invoice = self.sale_invoice()
+        self.zatca.answers['invoices/clearance/single'] = lambda _body: reply(503, None, text='down')
+        self.assertRefused(self.submit(invoice), 502, 'zatca_unavailable')
+        return invoice
+
+    def _document(self, invoice):
+        return self.env['account.move'].browse(invoice['id']).edi_document_ids
+
+    def _keyed_retry(self, invoice):
+        """The retry as the UI sends it: the key names the invoice and the retries already made."""
+        headers = {'Content-Type': 'application/json', 'Idempotency-Key': f'zatca-retry-{invoice["id"]}-{self._document(invoice).liwan_zatca_retry_count}'}
+        with self.zatca.patched():
+            return self.url_open(f'/api/v1/finance/invoices/{invoice["id"]}/zatca/retry', json={}, headers=headers, method='POST')
+
+    def test_an_immediate_second_retry_is_refused_until_the_spacing_has_passed(self):
+        invoice = self._failed()
+        self.assertRefused(self.submit(invoice, 'retry'), 422, 'retry_too_soon')
+        self.elapse_retry_spacing(invoice)
+        self.assertRefused(self.submit(invoice, 'retry'), 502, 'zatca_unavailable')
+        calls = len(self.zatca.calls)
+        refused = self.submit(invoice, 'retry')
+        self.assertRefused(refused, 422, 'retry_too_soon')
+        self.assertEqual(len(self.zatca.calls), calls)
+        document = self._document(invoice)
+        self.assertEqual(refused.json()['details'], {
+            'next_retry_at': (document.liwan_zatca_last_attempt_at + datetime.timedelta(seconds=120)).isoformat() + 'Z',
+            'retry_count': 1,
+        })
+        self.elapse_retry_spacing(invoice)
+        self.zatca.answers.clear()
+        self.assertEqual(self.submit(invoice, 'retry').json()['state'], 'accepted')
+
+    def test_the_count_grows_with_each_retry_and_the_spacing_escalates_to_its_cap(self):
+        invoice = self._failed()
+        document = self._document(invoice)
+        self.assertEqual(document.liwan_zatca_retry_count, 0)
+        self.assertEqual(RETRY_SPACING_SECONDS, (30, 120, 300, 900, 3600))
+        for _attempt in range(7):
+            self.elapse_retry_spacing(invoice)
+            self.assertRefused(self.submit(invoice, 'retry'), 502, 'zatca_unavailable')
+        self.assertEqual(document.liwan_zatca_retry_count, 7)
+        refused = self.submit(invoice, 'retry')
+        self.assertRefused(refused, 422, 'retry_too_soon')
+        waited = datetime.datetime.fromisoformat(refused.json()['details']['next_retry_at'].rstrip('Z')) - document.liwan_zatca_last_attempt_at
+        self.assertEqual(waited, datetime.timedelta(seconds=3600))
+
+    def test_the_schedule_is_30_120_300_900_then_the_hour_cap(self):
+        invoice = self._failed()
+        document = self._document(invoice)
+        waits = []
+        for _attempt in range(6):
+            allowed_at = retry_allowed_at(document)
+            waits.append(int((allowed_at - document.liwan_zatca_last_attempt_at).total_seconds()))
+            self.elapse_retry_spacing(invoice)
+            self.assertRefused(self.submit(invoice, 'retry'), 502, 'zatca_unavailable')
+        self.assertEqual(waits, [30, 120, 300, 900, 3600, 3600])
+
+    def test_the_serializer_exposes_the_count_and_the_next_allowed_time(self):
+        invoice = self._failed()
+        submission = self.api('GET', f'/api/v1/finance/invoices/{invoice["id"]}/zatca').json()
+        self.assertEqual(submission['retry_count'], 0)
+        self.assertTrue(submission['last_attempt_at'])
+        self.assertTrue(submission['next_retry_at'])
+        self.elapse_retry_spacing(invoice)
+        self.submit(invoice, 'retry')
+        listed = self.api('GET', '/api/v1/finance/zatca/documents').json()['items']
+        row = next(item for item in listed if item['invoice']['id'] == invoice['id'])
+        self.assertEqual(row['submission']['retry_count'], 1)
+        self.assertGreater(row['submission']['next_retry_at'], row['submission']['last_attempt_at'])
+
+    def test_an_accepted_document_has_no_next_retry(self):
+        self.onboarded_journal()
+        invoice = self.sale_invoice()
+        body = self.submit(invoice).json()
+        self.assertEqual((body['state'], body['retry_count'], body['next_retry_at']), ('accepted', 0, None))
+
+    def test_the_same_idempotency_key_replays_the_first_answer_without_a_second_send(self):
+        invoice = self._failed()
+        self.elapse_retry_spacing(invoice)
+        key = f'zatca-retry-{invoice["id"]}-0'
+        url = f'/api/v1/finance/invoices/{invoice["id"]}/zatca/retry'
+        headers = {'Content-Type': 'application/json', 'Idempotency-Key': key}
+        with self.zatca.patched():
+            first = self.url_open(url, json={}, headers=headers, method='POST')
+            calls = len(self.zatca.calls)
+            second = self.url_open(url, json={}, headers=headers, method='POST')
+        self.assertRefused(first, 502, 'zatca_unavailable')
+        self.assertEqual((second.status_code, second.json()), (first.status_code, first.json()))
+        self.assertEqual(len(self.zatca.calls), calls)
+        self.assertEqual(self._document(invoice).liwan_zatca_retry_count, 1)
+
+    def test_a_refused_retry_leaves_no_key_and_no_count(self):
+        invoice = self._failed()
+        self.assertRefused(self._keyed_retry(invoice), 422, 'retry_too_soon')
+        self.assertEqual(self._document(invoice).liwan_zatca_retry_count, 0)
+        self.elapse_retry_spacing(invoice)
+        self.assertRefused(self._keyed_retry(invoice), 502, 'zatca_unavailable')
+        self.assertEqual(self._document(invoice).liwan_zatca_retry_count, 1)
+
+    def test_a_replayed_key_does_not_bypass_the_capability(self):
+        invoice = self._failed()
+        self.elapse_retry_spacing(invoice)
+        key = f'zatca-retry-{invoice["id"]}-0'
+        url = f'/api/v1/finance/invoices/{invoice["id"]}/zatca/retry'
+        headers = {'Content-Type': 'application/json', 'Idempotency-Key': key}
+        with self.zatca.patched():
+            self.url_open(url, json={}, headers=headers, method='POST')
+        self.authenticate('zatca_reader', 'finance_write_pass_123')
+        with self.zatca.patched():
+            self.assertRefused(self.url_open(url, json={}, headers=headers, method='POST'), 403, 'forbidden')
+
+    def test_a_submit_only_user_can_retry_with_a_key(self):
+        """The idempotency store is granted to the submit capability: a user holding only submit (and the reads it needs) is not 403.
+
+        No built-in role holds the submit capability without an invoices/payments/entries/bank management one, so the
+        supported submit-only sets are custom roles: the shared fixture and a second custom role.
+        """
+        invoice = self._failed()
+        self.user_with('zatca_second_submitter', ['finance.zatca.read', 'finance.zatca.submit', 'finance.invoices.read'])
+        for login in ('zatca_submitter', 'zatca_second_submitter'):
+            with self.subTest(login=login):
+                self.elapse_retry_spacing(invoice)
+                self.authenticate(login, 'finance_write_pass_123')
+                self.assertRefused(self._keyed_retry(invoice), 502, 'zatca_unavailable')
+
+    def test_a_resubmit_after_a_failed_send_is_throttled_and_counted_like_a_retry(self):
+        invoice = self._failed()
+        document = self._document(invoice)
+        self.assertRefused(self.submit(invoice), 422, 'retry_too_soon')
+        self.assertEqual(document.liwan_zatca_retry_count, 0)
+        self.elapse_retry_spacing(invoice)
+        self.assertRefused(self.submit(invoice), 502, 'zatca_unavailable')
+        self.assertEqual(document.liwan_zatca_retry_count, 1)
+        self.assertRefused(self.submit(invoice), 422, 'retry_too_soon')
+        self.elapse_retry_spacing(invoice)
+        self.zatca.answers.clear()
+        self.assertEqual(self.submit(invoice).json()['state'], 'accepted')
+        self.assertEqual(document.liwan_zatca_retry_count, 2)
+
+    def test_the_first_send_is_not_throttled(self):
+        self.onboarded_journal()
+        invoice = self.sale_invoice()
+        self.assertEqual(self.submit(invoice).json()['state'], 'accepted')
+        self.assertEqual(self._document(invoice).liwan_zatca_retry_count, 0)
+
+    def test_the_concurrent_send_guard_still_wins_after_the_spacing(self):
+        invoice = self._failed()
+        self.elapse_retry_spacing(invoice)
+        busy = UserError('This document is being sent by another process already. ')
+        with patch.object(type(self.env['account.move']), 'action_process_edi_web_services', side_effect=busy):
+            self.assertRefused(self.submit(invoice), 422, 'invalid_state')
+        self.assertEqual(self._document(invoice).liwan_zatca_retry_count, 0)
+
+    def test_the_retry_stays_sandbox_only(self):
+        invoice = self._failed()
+        self.elapse_retry_spacing(invoice)
+        self.force_api_mode('prod')
+        self.assertRefused(self.submit(invoice, 'retry'), 422, 'zatca_mode_not_allowed')

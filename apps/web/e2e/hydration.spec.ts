@@ -105,3 +105,18 @@ test('task detail: JS controls are disabled pre-hydration, then an immediate cli
   await back.click()
   await expect(page).toHaveURL(/\/tasks$/)
 })
+
+test('search: the navigation toggle waits for hydration and expands with one click', async ({ page }) => {
+  await login(page)
+  const hydrate = await beforeHydration(page, '/search')
+  const toggle = page.getByTestId('search-nav-toggle')
+  try {
+    await expect(toggle).toBeDisabled()
+  } finally {
+    hydrate()
+  }
+  await expect(toggle).toBeEnabled()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+})

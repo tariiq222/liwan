@@ -4000,7 +4000,13 @@
     "GET /api/v1/inbox/channels/{channel_id}/flows": {
       "addon": "liwan_inbox",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "inbox.conversations.reply",
+        "inbox.flows.manage",
+        "inbox.automation.manage",
+        "inbox.templates.manage",
+        "inbox.channels.manage"
+      ],
       "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
@@ -4060,7 +4066,12 @@
     "GET /api/v1/inbox/channels/{channel_id}/templates": {
       "addon": "liwan_inbox",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "inbox.conversations.read",
+        "inbox.templates.manage",
+        "inbox.channels.manage",
+        "inbox.campaigns.manage"
+      ],
       "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
@@ -4262,7 +4273,13 @@
     "GET /api/v1/inbox/flows/{flow_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "inbox.conversations.reply",
+        "inbox.flows.manage",
+        "inbox.automation.manage",
+        "inbox.templates.manage",
+        "inbox.channels.manage"
+      ],
       "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
@@ -4498,7 +4515,12 @@
     "GET /api/v1/inbox/templates/{template_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "inbox.conversations.read",
+        "inbox.templates.manage",
+        "inbox.channels.manage",
+        "inbox.campaigns.manage"
+      ],
       "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
@@ -9066,7 +9088,7 @@
         "finance.zatca.submit"
       ],
       "capability_match": "all",
-      "capability_source": "body",
+      "capability_source": "decorator",
       "feature_keys": [
         "finance.enabled"
       ],
@@ -9463,6 +9485,20 @@
         "finance.enabled"
       ],
       "handler": "onboard_journal",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/zatca/mode": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.zatca.environment"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "request_mode",
       "no_capability_reason": null
     },
     "POST /api/v1/hr/assets/categories": {

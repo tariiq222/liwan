@@ -16,7 +16,7 @@ Review findings remain binding until resolved or explicitly decided by the owner
 A clean report does not replace tests or authorize publication, merging, release
 or deployment. Changes after review need a review of their affected behavior and
 fresh relevant checks. Read-only review must not mutate the candidate or invoke
-paid APIs without explicit authorization; the one Jev run below is the authorized exception.
+paid APIs without explicit authorization.
 
 ## Already automated: do not re-report what is covered
 
@@ -68,18 +68,12 @@ file the tool does not scan).
 5. **Independence.** An application importing another application (R3), a condition on a
    customer name (R6), a feature that breaks `non_saas` (R8).
 
-## Advisory signal: Jev
+## Jev review signal: suspended
 
-The owner's standing authorization (2026-11-08) covers one Jev run per non-trivial review. The
-reviewer runs `npm run review:jev -- --base <base ref> --task "<one-line change description>"`
-(`tools/jev_review.mjs`) once and reports its scores per dimension. Implementers and the pre-commit
-hook do not run it; save `--json` output and pass it back with `--previous <file>` only to compare a
-re-review. It returns scores and confidence per dimension, no prose. The diff goes to the owner's own
-local jev-review service. The scores are advisory: never a merge gate, never a reason to skip or
-override the checks above, and a finding still needs its own `file:line` evidence. Never send
-secrets, customer data, `.env` files, key files or deploy data: the script refuses diffs that
-`tools/secret_guard.py` flags, but anything else sensitive is the sender's responsibility. If the
-script is absent or fails, say so in the report; do not retry or claim Jev passed.
+Owner decision 2026-11-10 suspends the Jev advisory signal because the local jev-review service is
+not installed. Reviewers do not run `tools/jev_review.mjs` (`npm run review:jev`), add no Jev section
+to the report and do not report Jev as missing or failed. The script and the npm script stay in the
+repository; restoring the signal needs the owner's word and an update of this section.
 
 Remote reviews follow the criteria above and consume recorded CI evidence.
 Distinguish checks the reviewer actually ran from evidence supplied by others.
@@ -88,7 +82,7 @@ Distinguish checks the reviewer actually ran from evidence supplied by others.
 
 The default agent review path in this repository is `/code-review` for the whole diff, plus the
 `odoo-reviewer` agent (`.claude/agents/odoo-reviewer.md`) when the diff touches `odoo-addons`,
-`packages/contracts` or `apps/web` composables, plus the Jev signal above. Another selected agent
+`packages/contracts` or `apps/web` composables. Another selected agent
 or a human may review instead when they apply the criteria of this file. Generic review plugins, skills and bots (style, clean-architecture, simplification or
 code-quality reviewers, and automated PR review comments) do not know R1-R10, the documented
 `sudo()` cases or the contract-parity rules. Their output is input to weigh, never the review of

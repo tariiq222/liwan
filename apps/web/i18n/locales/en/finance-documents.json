@@ -179,7 +179,10 @@
       "qrPresent": "Available",
       "qrMissing": "Not available",
       "errors": "Errors from ZATCA",
-      "warnings": "Notes from ZATCA"
+      "warnings": "Notes from ZATCA",
+      "retries": "Manual retries",
+      "retryNow": "You can retry now.",
+      "retryAt": "You can retry at {time}."
     },
     "errors": {
       "notDraft": "The document is not a draft, so this action is not possible.",
@@ -196,6 +199,7 @@
       "zatcaLocalError": "The invoice could not be processed before reaching ZATCA.",
       "zatcaUnauthorized": "ZATCA refused the journal certificate. Onboard the journal again.",
       "zatcaModeNotAllowed": "This submission type is not allowed for this invoice.",
+      "retryTooSoon": "Sent to ZATCA too recently. Wait until the time shown, then retry.",
       "amountExceedsResidual": "The amount is greater than the open balance.",
       "journalCurrencyMismatch": "The journal currency differs from the documents currency.",
       "noJournal": "This company has no journal for this kind of document. Create one in the finance settings first."

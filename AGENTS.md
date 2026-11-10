@@ -57,7 +57,7 @@ Keep three claims separate: an approved requirement, implementation present in a
 Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
-  canonical local development checkout is `/Users/tariq/code/webvue` on `main`.
+  canonical local development checkout is `/Users/tariq/code/liwan` on `main`.
 - Develop bounded tasks in temporary worktrees (any normal branch name) based on current
   `main`. Give each task explicit file ownership and independent dependencies,
   generated files, databases, and ports. One orchestrator owns Git integration,

@@ -7,8 +7,17 @@ their secrets, and raw ZATCA responses, are never read into these shapes.
 import html
 import re
 from collections import Counter
+from datetime import timedelta
+
+from odoo import fields
+
+from odoo.addons.liwan_api.serializers.common import iso
 
 MAX_ITEMS = 20
+# Seconds a manual retry must wait after the previous manual attempt, indexed by the retries already made; the last value is the cap.
+# The first retry follows a transient failure soon (30 s); each further one backs off (2, 5, 15 minutes) so repeated presses
+# cannot hammer the ZATCA gateway, and one hour keeps the button usable for a long outage.
+RETRY_SPACING_SECONDS = (30, 120, 300, 900, 3600)
 MAX_TEXT = 500
 # What the client sees instead of raw stock or ZATCA text for the failures that carry no ZATCA rule code.
 UNAVAILABLE_MESSAGE = 'ZATCA could not be reached or answered unexpectedly; retry later'
@@ -18,6 +27,8 @@ UNAUTHORIZED_STATUSES = frozenset({'401', '403'})
 MAX_LOCAL_TEXT = 200
 STATUS_MARKER = re.compile(r'\[(\d{3})\]')
 ZATCA_FORMAT_CODE = 'sa_zatca'
+EXPIRY_WARNING_DAYS = (1, 7, 30)
+REPORTING_WARNING_HOURS = 12
 # Stock logs one alert box per submission in the chatter; its warning lines read "<b>CODE</b> : message".
 ALERT = re.compile(r"class=[\"']alert alert-(\w+)")
 CODED_LINE = re.compile(r'^(?:\[\d+\]\s*)?([A-Z][A-Za-z0-9-]*-[A-Za-z0-9-]+)\s*:\s*(.+)$')
@@ -49,10 +60,19 @@ def _journal_state(journal):
 
 def dump_zatca_journal(journal):
     state = _journal_state(journal)
+    expiry = journal.l10n_sa_production_csid_validity if state == 'onboarded' else None
+    warning = None
+    if expiry:
+        remaining = expiry - fields.Datetime.now()
+        warning = 0 if remaining <= timedelta() else next(
+            (days for days in EXPIRY_WARNING_DAYS if remaining <= timedelta(days=days)), None,
+        )
     return {
         'journal': {'id': journal.id, 'name': journal.name},
         'onboarded': state == 'onboarded',
         'state': state,
+        'expires_at': iso(expiry),
+        'expiry_warning_days': warning,
     }
 
 
@@ -94,6 +114,16 @@ def dump_zatca_backlog(company):
     }
 
 
+def dump_zatca_overdue_reporting(company):
+    cutoff = fields.Datetime.now() - timedelta(hours=REPORTING_WARNING_HOURS)
+    # Stock ``_l10n_sa_is_simplified``: the commercial partner of the customer is a person (not ``is_company``).
+    # ``commercial_partner_id`` is stored, so one count replaces loading every waiting document.
+    return company.env['account.edi.document'].search_count([
+        *waiting_domain(company), ('move_id.l10n_sa_confirmation_datetime', '<', cutoff),
+        ('move_id.partner_id.commercial_partner_id.is_company', '=', False),
+    ])
+
+
 def zatca_state(document):
     """The submission state of one ZATCA EDI document (see ``dump_zatca_submission``)."""
     return _classify(document)[0]
@@ -101,6 +131,15 @@ def zatca_state(document):
 
 def zatca_document(move):
     return move.edi_document_ids.filtered(lambda document: document.edi_format_id.code == ZATCA_FORMAT_CODE)[:1]
+
+
+def retry_allowed_at(document):
+    """When the next manual retry of ``document`` may run (naive UTC), or None while no manual attempt was made."""
+    last = document.liwan_zatca_last_attempt_at
+    if not last:
+        return None
+    spacing = RETRY_SPACING_SECONDS[min(document.liwan_zatca_retry_count, len(RETRY_SPACING_SECONDS) - 1)]
+    return last + timedelta(seconds=spacing)
 
 
 def zatca_content_final(move):
@@ -175,15 +214,21 @@ def dump_zatca_submission(move):
     keeps the chain index only when ZATCA may have received the document), ``blocked`` (a local failure
     before any verdict) and ``unauthorized`` (ZATCA refused the journal certificate: onboard again).
     ``mode`` is ``clearance`` for a standard (B2B) invoice and ``reporting`` for a simplified (B2C) one.
+    ``retry_count`` counts the manual retries, ``last_attempt_at`` is the last manual send and ``next_retry_at`` is when a
+    retry is next allowed (``null`` before any manual send and once the document is final).
     """
     document = zatca_document(move)
     state, errors = _classify(document) if document else ('not_applicable', [])
+    waiting = state not in ('not_applicable', 'accepted')
     return {
         'state': state,
         'mode': ('reporting' if move._l10n_sa_is_simplified() else 'clearance') if state != 'not_applicable' else None,
         'errors': errors,
         'warnings': _chatter_warnings(move) if state == 'accepted' else [],
         'qr_present': bool(move.l10n_sa_qr_code_str),
+        'retry_count': document.liwan_zatca_retry_count if document else 0,
+        'last_attempt_at': iso(document.liwan_zatca_last_attempt_at) if document else None,
+        'next_retry_at': iso(retry_allowed_at(document)) if document and waiting else None,
     }
 
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BookHeader from '@/components/appointments/BookHeader.vue'
 import BookSlotPicker from '@/components/appointments/BookSlotPicker.vue'
-import { canChange, formatMoment, isInvalidBookingLink, refusalStatus } from '@/composables/appointmentBook'
+import { canChange, formatMoment, isBusyRefusal, isInvalidBookingLink, refusalStatus } from '@/composables/appointmentBook'
 import { useGuestActions, useGuestBooking } from '@/composables/useAppointmentBooking'
 
 // The public page an invited requester opens from the booking link: no account, no session. The access token in the address
@@ -15,7 +15,7 @@ const { link, data: booking, error, isLoading, isError, refetch } = useGuestBook
 const actions = useGuestActions()
 
 const invalidLink = computed(() => !link.value || isInvalidBookingLink(error.value))
-const busy = computed(() => refusalStatus(error.value) === 429)
+const busy = computed(() => isBusyRefusal(error.value))
 const changeable = computed(() => booking.value !== undefined && canChange(booking.value))
 const scheduledAt = computed(() => (booking.value?.start ? formatMoment(booking.value.start, locale.value) : null))
 const stateTone = { pending: 'warning', scheduled: 'info', confirmed: 'success', canceled: 'destructive' } as const
@@ -34,7 +34,7 @@ function failureText(cause: unknown): string {
   const status = refusalStatus(cause)
   if (status === 409) return t('appointments.book.errors.taken')
   if (status === 422) return t('appointments.book.errors.notAllowed')
-  if (status === 429) return t('appointments.book.states.busy.title')
+  if (isBusyRefusal(cause)) return t('appointments.book.states.busy.title')
   return t('appointments.book.errors.failed')
 }
 

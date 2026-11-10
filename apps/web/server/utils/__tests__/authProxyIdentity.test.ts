@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { appendResponseHeader, createApp, createError, defineEventHandler, getHeader, getRequestHeader, getRequestProtocol, readBody, toNodeListener } from 'h3'
+import { createApp, createError, defineEventHandler, deleteCookie, getHeader, readBody, setResponseStatus, toNodeListener } from 'h3'
 
 let upstream: http.Server
 let app: http.Server
@@ -15,7 +15,7 @@ let authenticateAnswer: object = { result: { uid: 7 } }
 
 beforeAll(async () => {
   // Supply Nitro's auto-imports only; H3 request/response handling and the wire are real.
-  for (const [name, value] of Object.entries({ appendResponseHeader, createError, defineEventHandler, getHeader, getRequestHeader, getRequestProtocol, readBody })) vi.stubGlobal(name, value)
+  for (const [name, value] of Object.entries({ createError, defineEventHandler, deleteCookie, getHeader, readBody, setResponseStatus })) vi.stubGlobal(name, value)
   vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl: upstreamUrl, odooDb: 'scratch_auth_wire', authProxyClientIpHeader: configuredHeader }))
   const { assertSameSiteJson } = await import('../same-site')
   vi.stubGlobal('assertSameSiteJson', assertSameSiteJson)
@@ -25,7 +25,9 @@ beforeAll(async () => {
     calls.push(req.headers)
     req.resume()
     res.setHeader('content-type', 'application/json')
-    res.setHeader('set-cookie', 'session_id=synthetic-wire-session; HttpOnly; Path=/')
+    res.setHeader('set-cookie', req.url === '/web/session/destroy'
+      ? ['session_id=; HttpOnly; Path=/; Max-Age=0', 'liwan_device=; HttpOnly; Path=/api/auth; Max-Age=0']
+      : 'session_id=synthetic-wire-session; HttpOnly; Path=/')
     res.end(req.url === '/web/session/authenticate' ? JSON.stringify(authenticateAnswer) : '{}')
   })
   await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
@@ -33,6 +35,7 @@ beforeAll(async () => {
   const h3 = createApp()
   h3.use('/login', login)
   h3.use('/verify', verify)
+  h3.use('/logout', (await import('../../api/auth/logout.post')).default)
   app = http.createServer(toNodeListener(h3))
   await new Promise<void>(resolve => app.listen(0, '127.0.0.1', resolve))
   url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
@@ -61,7 +64,7 @@ async function request(path: string, headers: Record<string, string> = edge) {
         for (const [name, value] of Object.entries(res.headers)) {
           for (const item of Array.isArray(value) ? value : value ? [value] : []) responseHeaders.append(name, item)
         }
-        resolve(new Response(Buffer.concat(chunks), { status: res.statusCode, headers: responseHeaders }))
+        resolve(new Response(res.statusCode === 204 ? null : Buffer.concat(chunks), { status: res.statusCode, headers: responseHeaders }))
       })
     })
     req.on('error', reject)
@@ -76,7 +79,7 @@ describe.each(['/login', '/verify'])('dedicated auth identity on %s', (path) => 
     expect(calls).toHaveLength(1)
     expect(calls[0]).toMatchObject({ 'x-forwarded-for': '203.0.113.7', 'x-forwarded-host': 'liwan.example.test:8443', 'x-forwarded-proto': 'https' })
     expect(calls[0]?.forwarded).toBeUndefined()
-    expect(response.headers.getSetCookie()[0]).toContain('session_id=synthetic-wire-session')
+    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/; Secure'])
   })
 
   it.each(['2001:db8::1234', '::ffff:192.0.2.8'])('supports a single IPv6 peer %s', async (ip) => {
@@ -112,10 +115,21 @@ describe.each(['/login', '/verify'])('dedicated auth identity on %s', (path) => 
 
   it('keeps direct local development independent of all forwarded headers', async () => {
     configuredHeader = ''
-    expect((await request(path, { ...edge, 'x-forwarded-for': '198.51.100.99' })).status).toBe(200)
+    const response = await request(path, { ...edge, 'x-forwarded-for': '198.51.100.99', 'x-forwarded-proto': 'https' })
+    expect(response.status).toBe(200)
+    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/'])
     expect(calls[0]?.['x-forwarded-for']).toBeUndefined()
     expect(calls[0]?.['x-forwarded-host']).toBeUndefined()
   })
+})
+
+it('secures both upstream and local cookie clears on HTTPS logout', async () => {
+  const response = await request('/logout', { ...edge, 'x-forwarded-proto': 'http' })
+  expect(response.status).toBe(204)
+  const cookies = response.headers.getSetCookie()
+  expect(cookies).toHaveLength(2)
+  expect(cookies[0]).toBe('liwan_device=; HttpOnly; Path=/api/auth; Max-Age=0; Secure')
+  expect(cookies[1]).toMatch(/^session_id=;.*Max-Age=0.*; Secure$/)
 })
 
 it.each(['/login', '/verify'])('shared %s preserves tenant authority without trusting dedicated headers', async (path) => {
@@ -127,7 +141,9 @@ it.each(['/login', '/verify'])('shared %s preserves tenant authority without tru
   vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', registry)
   vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
   try {
-    expect((await request(path, { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', ...edge })).status).toBe(200)
+    const response = await request(path, { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' })
+    expect(response.status).toBe(200)
+    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/; Secure'])
     expect(calls[0]).toMatchObject({ host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' })
     expect(calls[0]?.['x-forwarded-for']).toBeUndefined()
     expect(calls[0]?.['x-forwarded-host']).toBeUndefined()

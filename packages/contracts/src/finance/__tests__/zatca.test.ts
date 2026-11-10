@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   FinanceZatcaBacklogSchema,
   FinanceZatcaErrorCodeSchema,
+  FinanceZatcaModeInputSchema,
   FinanceZatcaOnboardInputSchema,
   FinanceZatcaStatusSchema,
   FinanceZatcaSubmissionSchema,
@@ -13,15 +14,19 @@ const SUBMISSION = {
   errors: [{ code: 'BR-KSA-F-06-C01', message: 'The invoice type code is not valid' }],
   warnings: [],
   qr_present: false,
+  retry_count: 0,
+  last_attempt_at: null,
+  next_retry_at: null,
 }
 
 const BACKLOG = { to_send: 3, retry: 1, rejected: 2, blocked: 0 }
 const STATUS = {
   api_mode: 'sandbox',
   private_key_present: true,
-  journals: [{ journal: { id: 7, name: 'Sales' }, onboarded: true, state: 'onboarded' }],
+  journals: [{ journal: { id: 7, name: 'Sales' }, onboarded: true, state: 'onboarded', expires_at: '2026-11-30T13:00:00Z', expiry_warning_days: 30 }],
   onboarded: true,
   backlog: BACKLOG,
+  overdue_reporting: 2,
 }
 
 describe('finance ZATCA contracts', () => {
@@ -43,7 +48,7 @@ describe('finance ZATCA contracts', () => {
       const local = { ...SUBMISSION, state, errors: [{ code: null, message: 'local' }] }
       expect(FinanceZatcaSubmissionSchema.parse(local)).toEqual(local)
     }
-    const none = { state: 'not_applicable', mode: null, errors: [], warnings: [], qr_present: false }
+    const none = { state: 'not_applicable', mode: null, errors: [], warnings: [], qr_present: false, retry_count: 0, last_attempt_at: null, next_retry_at: null }
     expect(FinanceZatcaSubmissionSchema.parse(none)).toEqual(none)
   })
 
@@ -54,12 +59,28 @@ describe('finance ZATCA contracts', () => {
     expect(() => FinanceZatcaSubmissionSchema.parse({ ...SUBMISSION, errors: [{ code: null, message: 'x', raw: 1 }] })).toThrow()
   })
 
+  it('carries the retry count and the times of the spaced manual retry', () => {
+    const spaced = { ...SUBMISSION, state: 'retry', retry_count: 2, last_attempt_at: '2026-09-11T08:00:00Z', next_retry_at: '2026-09-11T08:05:00Z' }
+    expect(FinanceZatcaSubmissionSchema.parse(spaced)).toEqual(spaced)
+    expect(() => FinanceZatcaSubmissionSchema.parse({ ...spaced, retry_count: -1 })).toThrow()
+    expect(() => FinanceZatcaSubmissionSchema.parse({ ...spaced, next_retry_at: 'soon' })).toThrow()
+    const { retry_count: _count, ...without } = spaced
+    expect(() => FinanceZatcaSubmissionSchema.parse(without)).toThrow()
+    expect(FinanceZatcaErrorCodeSchema.options).toContain('retry_too_soon')
+  })
+
   it('validates the onboarding body: a six-digit OTP and nothing else', () => {
     expect(FinanceZatcaOnboardInputSchema.parse({ otp: '123345' })).toEqual({ otp: '123345' })
     expect(() => FinanceZatcaOnboardInputSchema.parse({ otp: '12345' })).toThrow()
     expect(() => FinanceZatcaOnboardInputSchema.parse({ otp: 123345 })).toThrow()
     expect(() => FinanceZatcaOnboardInputSchema.parse({ otp: '123345', mode: 'prod' })).toThrow()
     expect(() => FinanceZatcaOnboardInputSchema.parse({})).toThrow()
+  })
+
+  it('requires the exact environment name and accepts no company or credential inputs', () => {
+    expect(FinanceZatcaModeInputSchema.parse({ mode: 'preprod', confirmation: 'SIMULATION' })).toEqual({ mode: 'preprod', confirmation: 'SIMULATION' })
+    expect(FinanceZatcaModeInputSchema.safeParse({ mode: 'prod', confirmation: 'SIMULATION' }).success).toBe(false)
+    expect(FinanceZatcaModeInputSchema.safeParse({ mode: 'sandbox', confirmation: 'SANDBOX', company_id: 3 }).success).toBe(false)
   })
 
   it('names the stable ZATCA error codes', () => {

@@ -248,6 +248,43 @@ class ReconfigureTests(Base):
         self.assertEqual(str(ctx.exception), 'stale_target')
         self.assertEqual(runner.applies, 0)
 
+    def ai_request(self, **over):
+        request = make_request(previous_revision_id=TARGET, ai_push=True, **over)
+        request['entitlement']['features'].update({'ai.balance.granted': 5, 'ai.allowance.trial': 6, 'ai.allowance.monthly': 0})
+        return request
+
+    def test_ai_push_is_refused_unless_the_tenant_is_on_the_target_revision_with_its_digest(self):
+        for label, state in [('no revision', observation(commercial_revision_id=None, commercial_digest=None)),
+                             ('another revision', observation(commercial_revision_id=PREV)),
+                             ('the target with another digest', observation(commercial_revision_id=TARGET, commercial_digest='c' * 64))]:
+            runner = FakeRunner(state)
+            with self.subTest(label), self.assertRaises(EffectError) as ctx:
+                self.effect(runner).reconfigure(self.ai_request())
+            self.assertEqual(str(ctx.exception), 'stale_target')
+            self.assertEqual(runner.applies, 0)
+
+    def test_ai_push_on_the_target_revision_rewrites_only_the_ai_keys_and_carries_the_guard(self):
+        request = self.ai_request()
+        held = dict(request['entitlement']['features'], **{'ai.balance.granted': 1, 'ai.allowance.trial': 1})
+        runner = FakeRunner(observation(commercial_revision_id=TARGET, commercial_digest=DIGEST, features=held),
+                            apply_state=observation(commercial_revision_id=TARGET, commercial_digest=DIGEST, features=request['entitlement']['features']))
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+        script = next(script for stage, _, script in runner.scripts if stage == 'apply')
+        values = _script_values(script)
+        self.assertIs(values['ai_push'], True)
+        # The same guard runs under the profile lock in Odoo, whatever the payload says.
+        self.assertIn("values.get('ai_push') and (current != values['target_revision_id']", script)
+        self.assertLess(script.index("values.get('ai_push')"), script.index("if current != values['target_revision_id']:"))
+
+    def test_ai_push_may_not_carry_branches_expiry_or_a_false_flag(self):
+        for over in [{'branches': {'apply': [{'branch_id': B1, 'name': 'x'}], 'archive': []}}, {'commercial_valid_until': '2030-01-01', 'commercial_valid_until_revision': 1}]:
+            with self.subTest(over), self.assertRaises(EffectError) as ctx:
+                se.validate_reconfigure(self.ai_request(**over))
+            self.assertEqual(str(ctx.exception), 'input_invalid')
+        with self.assertRaises(EffectError):
+            se.validate_reconfigure(make_request(ai_push=False))
+
     def test_first_revision_from_null(self):
         request = make_request(previous_revision_id=None)
         runner = FakeRunner(observation(commercial_revision_id=None), apply_state=applied_state(request))
@@ -398,6 +435,25 @@ class ReconfigureTests(Base):
         script = se.build_apply_script(make_request())
         self.assertIn("._liwan_close_unlisted_features(values['features'])", script)
         self.assertNotIn("item['type'] == 'boolean' and key not in features", script)
+
+    def test_apply_script_rewrites_only_the_ai_keys_when_the_revision_is_delivered_again(self):
+        script = se.build_apply_script(make_request())
+        self.assertIn("k.startswith(('ai.balance.', 'ai.allowance.'))", script)
+        self.assertIn("dict(profile.features, **ai)", script)
+
+    def test_delivery_with_the_derived_ai_keys_is_accepted_and_every_key_is_registered_by_the_ai_addon(self):
+        keys = {'ai.balance.granted': 666666, 'ai.allowance.trial': 133333, 'ai.allowance.monthly': 0}
+        request = make_request()
+        request['entitlement']['features'].update(keys)
+        se.validate_reconfigure(request)
+        self.assertEqual(_script_values(se.build_apply_script(request))['features'], request['entitlement']['features'])
+        runner = FakeRunner(observation(commercial_revision_id=PREV), apply_state=applied_state(request))
+        self.assertEqual(self.effect(runner).reconfigure(request)['target_revision_id'], TARGET)
+        # The effect passes them to Odoo, whose entitlement service refuses a key no addon registers. This is the
+        # registry that the real service reads (the Odoo test of liwan_ai drives the service itself).
+        registry = (Path(__file__).resolve().parents[2] / 'odoo-addons/liwan_ai/models/feature_registry.py').read_text()
+        for key in keys:
+            self.assertIn(f"{{'key': '{key}', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'}}", registry)
 
     def test_apply_script_grants_newly_opened_roles_to_the_enrolment_admin_only(self):
         script = se.build_apply_script(make_request(admin_login='boss@acme.test'))
@@ -650,3 +706,95 @@ class RestoreRuntimeTests(unittest.TestCase):
             request['restore']['approvalId'] = OTHER
             with self.assertRaisesRegex(EffectError, 'restore_target_unverified'):
                 se.ComposeRunner(request)
+
+
+class OptionalTrialEndKeysTest(unittest.TestCase):
+    """New optional keys are type-checked when present and ignored otherwise."""
+
+    VALID_REQUEST = {
+        'excess_settle': True, 'trial_ends_at': '2026-12-01T00:00:00Z',
+        'post_trial_features': {'users.limit': 3, 'pmo.enabled': False},
+        'post_trial_modules': ['liwan_core'], 'post_trial_digest': 'd' * 64,
+    }
+    INVALID_REQUEST = (
+        ('excess_settle', 'yes', 'input_invalid'), ('excess_settle', None, 'input_invalid'),
+        ('excess_settle', 1, 'input_invalid'),
+        ('trial_ends_at', 1700000000, 'input_invalid'), ('trial_ends_at', 'garbage', 'input_invalid'),
+        ('trial_ends_at', '2026-12-01', 'input_invalid'), ('trial_ends_at', '2026-12-01T00:00:00', 'input_invalid'),
+        ('post_trial_features', [], 'features_invalid'), ('post_trial_features', None, 'features_invalid'),
+        ('post_trial_features', {'Bad Key': True}, 'features_invalid'),
+        ('post_trial_modules', 'liwan_core', 'modules_invalid'), ('post_trial_modules', None, 'modules_invalid'),
+        ('post_trial_modules', ['liwan_core', 'liwan_core'], 'modules_invalid'),
+        ('post_trial_modules', ['liwan_core', 7], 'modules_invalid'),
+        ('post_trial_modules', ['Not-An-Addon'], 'modules_invalid'),
+        ('post_trial_modules', ['liwan_x'] * 2, 'modules_invalid'),
+        ('post_trial_modules', ['liwan_m%d' % i for i in range(257)], 'modules_invalid'),
+        ('post_trial_digest', 'xyz', 'entitlement_invalid'), ('post_trial_digest', None, 'entitlement_invalid'),
+    )
+    BRANCH = {'branch_id': B1, 'state': 'active', 'odoo_company_id': 2, 'active': True, 'parent_is_root': True}
+
+    def test_request_accepts_each_valid_key(self):
+        for key, value in self.VALID_REQUEST.items():
+            with self.subTest(key=key):
+                se.validate_reconfigure(make_request(**{key: value}))
+        se.validate_reconfigure(make_request(trial_ends_at=None))
+        se.validate_reconfigure(make_request(**self.VALID_REQUEST))
+
+    def test_request_rejects_each_wrong_type_with_its_code(self):
+        for key, value, code in self.INVALID_REQUEST:
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(EffectError, code):
+                se.validate_reconfigure(make_request(**{key: value}))
+
+    def test_post_trial_modules_is_shape_only(self):
+        for modules in ([], ['liwan_not_on_this_host'], ['customer_acme_x', 'liwan_core']):
+            with self.subTest(modules=modules):
+                se.validate_reconfigure(make_request(post_trial_modules=modules))
+
+    def test_trial_ends_at_needs_an_explicit_timezone(self):
+        for text in ('2026-12-01T00:00:00Z', '2026-12-01T00:00:00+03:00', '2026-12-01T00:00:00.500000+00:00'):
+            with self.subTest(text=text):
+                se.validate_reconfigure(make_request(trial_ends_at=text))
+
+    def test_request_without_keys_is_unchanged(self):
+        request = make_request()
+        before = json.dumps(request, sort_keys=True)
+        self.assertIs(se.validate_reconfigure(request), request)
+        self.assertEqual(json.dumps(request, sort_keys=True), before)
+
+    def test_request_still_ignores_other_unknown_keys(self):
+        se.validate_reconfigure(make_request(unrelated_key=object()))
+
+    def test_new_keys_change_neither_apply_script_nor_verify(self):
+        plain, extended = make_request(), make_request(**self.VALID_REQUEST)
+        self.assertEqual(se.build_apply_script(plain), se.build_apply_script(extended))
+        matching = observation(commercial_revision_id=TARGET, commercial_digest=DIGEST,
+                               features=plain['entitlement']['features'])
+        for seen in (matching, observation()):
+            with self.subTest(matches=seen is matching):
+                self.assertEqual(se.verify(plain, seen), se.verify(extended, seen))
+        self.assertTrue(se.verify(extended, matching))
+
+    def test_observation_accepts_each_valid_key(self):
+        for over in ({'post_trial_supported': True}, {'excess_supported': False},
+                     {'excess': {'users.limit': 0, 'storage.limit_mb': 1000000000}}, {'excess': {}},
+                     {'branches': [dict(self.BRANCH, read_only=True)]}):
+            with self.subTest(over=sorted(over)):
+                se.validate_observation(observation(**over))
+
+    def test_observation_rejects_each_wrong_type(self):
+        for over in ({'post_trial_supported': 1}, {'excess_supported': None},
+                     {'excess': []}, {'excess': {'users.limit': -1}}, {'excess': {'users.limit': True}},
+                     {'excess': {'users.limit': 1000000001}},
+                     {'excess': {'k%d' % i: 0 for i in range(257)}},
+                     {'excess': {'Bad Key': 1}},
+                     {'branches': [dict(self.BRANCH, read_only='no')]}):
+            with self.subTest(over=over), self.assertRaisesRegex(EffectError, 'observation_invalid'):
+                se.validate_observation(observation(**over))
+
+    def test_observation_without_keys_is_unchanged(self):
+        value = observation(branches=[dict(self.BRANCH)])
+        self.assertIs(se.validate_observation(value), value)
+        with self.assertRaisesRegex(EffectError, 'observation_invalid'):
+            se.validate_observation(observation(unknown_flag=True))
+        with self.assertRaisesRegex(EffectError, 'observation_invalid'):
+            se.validate_observation(observation(branches=[dict(self.BRANCH, extra=1)]))

@@ -61,7 +61,9 @@
           "name": "Sales"
         },
         "onboarded": false,
-        "state": "not_started"
+        "state": "not_started",
+        "expires_at": null,
+        "expiry_warning_days": null
       }
     ],
     "onboarded": false,

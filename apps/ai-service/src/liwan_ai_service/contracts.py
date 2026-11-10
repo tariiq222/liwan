@@ -127,6 +127,7 @@ class Limits(Strict):
 # Whose account pays a request: the platform's within the package, the tenant's own key, or the vendor's setup budget
 # (the free setup agent runs on the platform provider, spec 2026-11-04 §6.5).
 Billing = Literal["platform", "tenant_key", "setup"]
+Quality = Literal["economical", "balanced", "best"]  # the tenant's quality level: which column of the vendor's model map a run uses
 
 
 class Policy(Strict):
@@ -140,6 +141,7 @@ class Policy(Strict):
     # streamed, and the next one stops the run with ``limit_reached`` and ``input_tokens``; a tool call it carried is not
     # made. null means no ceiling. 0 refuses even the first call.
     max_input_tokens: int | None = Field(default=None, ge=0, le=2_000_000)
+    quality: Quality = "balanced"  # platform runs only: the column of the vendor's model map; a tenant key has one model
 
 
 class RunContext(Strict):
@@ -286,8 +288,9 @@ class RunList(Strict):
     total: int
 
 
-ModelCallKind = Literal["plan", "title", "route"]
-# What kind of task a call served; the ``route`` call classifies each new message, the plan calls of that message follow it.
+ModelCallKind = Literal["plan", "title", "route", "summary"]
+# ``route`` classifies each new message and the plan calls of that message follow it; ``summary`` rewrites the rolling summary of a long conversation.
+# What kind of task a call served.
 Capability = Literal["quick", "standard", "analysis", "writing"]
 # Cost units are 0.00001 USD; the bound is the largest value of Odoo's integer column.
 MAX_COST_UNITS = 2_147_483_647

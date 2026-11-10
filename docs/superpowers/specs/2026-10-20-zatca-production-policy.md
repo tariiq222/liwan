@@ -1,9 +1,9 @@
 # ZATCA simulation and production policy
 
-Status: **draft** (2026-10-20). D1 is decided; D2-D6 are **deferred by the owner until before the first production
-server deployment** and are decided then, together with the approval of this policy. Until the owner approves it, the sandbox-only
-confinement in `liwan_finance` stays in force and production invoicing for real tenants remains a release
-blocker (AGENTS.md, `odoo-addons/liwan_finance/README.md`).
+Status as of 2026-11-10. The owner confirmed D2, D3, D4 and D6. D1 remains approved.
+The customer environment remains sandbox-only. The owner approved the simulation privilege widening on
+2026-11-10 (section 7); enabling simulation still requires that change and its release evidence. Production also requires the reference taxpayer outcome,
+accounting sign-off, terms review and a separate release authorization.
 
 Scope: when and how a LiwanOS company leaves the ZATCA developer-portal sandbox for the Fatoora simulation
 environment and then production, through stock `l10n_sa_edi` driven by `liwan_finance`. It covers the
@@ -92,12 +92,15 @@ The CSR's functionality map limits what the unit may submit: `1000` standard onl
 
 ## 3. Current LiwanOS state
 
-- `res.company` constraint (`liwan_finance/models/res_company.py`) refuses any `l10n_sa_api_mode` but `sandbox`.
-- `liwan.finance.zatca` refuses onboarding, submit and retry outside `sandbox` (422 `zatca_mode_not_allowed`)
-  before the documented `sudo()`; no route changes the mode.
-- The stock EDI cron is active with a one-day interval; posting or retrying triggers it immediately, so the daily
-  run is a fallback. It skips documents blocked with `error`.
-- Responses never carry a key, CSR, CSID, secret or raw ZATCA answer.
+- The public company write and create paths refuse unreleased modes before the stock certificate and hash reset.
+  A same-mode sandbox write is a no-op for that field.
+- The mode endpoint is scoped to the current company and dedicated permission, with exact target confirmation.
+  It returns distinct release refusals for simulation and production and logs no credential values.
+- The existing elevated onboarding and submit paths remain sandbox-only. The stock onboarding wizard and EDI
+  posting callback also enforce the company fence before using stock network behavior. The fallback interval is
+  hourly. Stock activation, immediate triggers and callbacks for other formats remain unchanged.
+- Journal status shows expiry and the 30, 7 and 1 day warnings. The ZATCA page reports overdue simplified documents
+  and submission backlog. Responses do not carry credentials or the raw onboarding response.
 
 ## 4. Gaps between stock `l10n_sa_edi` and ZATCA's rules
 
@@ -142,11 +145,8 @@ succeeds. Simplified documents are tracked against the 24-hour window: LiwanOS a
 document has waited more than 12 hours or is `rejected` or `blocked`, and shows the backlog on the ZATCA status page.
 D4 decides the cron fallback interval.
 
-**P8. Chain integrity and restores.** After a company's first production submission, restoring its database to an
-earlier point is forbidden except to recover from data loss, and then only with an operations runbook that
-re-reads the last accepted document hash from the restored data, compares it with the FATOORA portal statistics,
-and re-submits documents generated after the restore point in their original order. Point-in-time restores of other
-tables do not touch the ZATCA documents.
+**P8. Chain integrity and restores.** Preserve the original EGS document sequence and reconcile external
+outcomes before any recovery action. Use the [ZATCA recovery runbook](../../operations/zatca-recovery.md).
 
 **P9. Responsibility.** The customer is the taxpayer and owns its FATOORA access, OTPs, revocations and the
 correctness of its invoices. LiwanOS is the solution provider and owns the EGS behavior (XML, signing, chain,
@@ -173,26 +173,31 @@ checked for newer versions of the documents in section 1, and this policy is upd
 
 ## 6. Decisions for the owner
 
-D2-D6 are deferred (owner, 2026-10-20) until before the first production server deployment; the recommendations
-below are proposals, not decisions.
+The owner confirmed D2, D3, D4 and D6 on 2026-11-10. D5 remains a release gate.
 
 | # | Decision | Options | Recommendation |
 |---|---|---|---|
 | D1 | Is simulation mandatory before production? | (a) per tenant; (b) once for the product with a reference taxpayer, optional per tenant; (c) never | **Decided (owner, 2026-10-20): (b), with the first pilot customer as the reference taxpayer.** LiwanOS is not VAT-registered, so it has no ERAD account and cannot open the FATOORA simulation portal itself. ZATCA calls simulation optional, and a per-tenant step adds an OTP round per journal. |
-| D2 | Which capability switches the mode? | reuse `finance.zatca.manage`; new `finance.zatca.environment` | New `finance.zatca.environment`, not implied by any other capability, because the switch to `prod` is one-way. |
-| D3 | Renewal before expiry | (a) add pre-expiry renewal in `liwan_finance` through stock's public API; (b) accept the gap and renew right after expiry | (a), if it can be done without overriding stock's private methods (R9); otherwise (b) with the P5 warnings and an owner-accepted risk. |
-| D4 | Cron fallback interval | keep 1 day; change to 1 hour | 1 hour, so a failed immediate trigger is retried well inside the 24-hour window. |
+| D2 | Which capability switches the mode? | reuse `finance.zatca.manage`; new `finance.zatca.environment` | Approved. New `finance.zatca.environment`, assigned independently of existing roles. |
+| D3 | Renewal before expiry | (a) add pre-expiry renewal in `liwan_finance` through stock's public API; (b) accept the gap and renew right after expiry | Approved. Use a supported stock extension if one exists. The pinned path refuses early renewal, so this slice provides the P5 warnings and records the release limitation. |
+| D4 | Cron fallback interval | keep 1 day; change to 1 hour | Approved. Hourly stock fallback with the existing immediate trigger preserved. |
 | D5 | Terms of service | add the P9 split to the SaaS terms | Yes, before the first production tenant. |
-| D6 | Who may approve a production switch for a tenant in SaaS | the customer alone; the customer plus a LiwanOS operations check | The customer alone through P2, with the P11 gates already met by the product. |
+| D6 | Who may approve a production switch for a tenant in SaaS | the customer alone; the customer plus a LiwanOS operations check | Approved. The authorized customer switches its own company once the product-level P11 gates and release authorization are met. |
 
-## 7. Implementation that follows approval (not started)
+## 7. Privileged simulation follow-up
 
-- Replace the sandbox-only constraint in `liwan_finance/models/res_company.py` and the
-  `_liwan_require_sandbox` check in `zatca_service.py` with the P1/P2 rules (no parallel old path).
-- Add the mode route, capability (D2), audit entry, expiry and backlog alerts (P5, P7) and the contracts in
-  `packages/contracts`, with Odoo and web tests.
-- Update the documented `sudo()` reason in `tools/arch_documented_sudo.json` and the ZATCA lines in AGENTS.md and the
-  `liwan_finance` README. The `arch_documented_sudo.json` change needs the owner's `Architecture-approved-by:`
-  trailer.
-- Write the P8 restore runbook under `docs/operations/`.
-- Tests keep mocking the gateway; the fake must also cover the simulation base URL.
+The existing documented onboarding and submission elevations in `zatca_service.py` permit sandbox only.
+The owner approved widening them to simulation (`preprod`) on 2026-11-10. Per R7 (owner decision 2026-10-25),
+widening a documented `sudo()` case needs no approval trailer: the updated reason in
+`tools/arch_documented_sudo.json` and review of the actual diff are the record. The widening ships as its own
+change after the readiness slice, following the delta below. Production stays refused.
+
+The reviewable simulation delta is one narrow company write through the stock API. The service would acquire
+the company fence, confirm current `sandbox` and requested `preprod`, enforce the dedicated permission,
+readiness and an empty waiting EDI set, then call stock `res.company.write` for that one company with archived
+journals included. A private transaction marker would authorize only that write and the request would record
+an immutable audit event with actor, company and old/new modes. Replays would return before the stock reset.
+The two existing sandbox-only elevated flows and the native guards would share the authorized simulation
+mode decision. The corresponding documented reasons would name the exact scope and owner approval.
+A local fake for both gateway base URLs, an actual reference simulation and a fresh review would precede
+enabling the mode. Production would still be refused.

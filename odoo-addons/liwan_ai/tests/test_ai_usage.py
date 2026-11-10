@@ -136,7 +136,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self.assertEqual(self._post({**ITEM, 'cost': None, 'charge': None}).status_code, 200)
 
     def test_every_call_kind_is_stored_and_returned(self):
-        for index, kind in enumerate(('plan', 'title', 'route')):
+        for index, kind in enumerate(('plan', 'title', 'route', 'summary')):
             with self.subTest(kind=kind):
                 body = self._post({**ITEM, 'kind': kind, 'call_id': f'{index + 1:016x}'}).json()
                 self.assertEqual(body['items'][0]['kind'], kind)
