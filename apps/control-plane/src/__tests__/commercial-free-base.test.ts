@@ -897,6 +897,18 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
         expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [f.customer])).rows[0].n, mode).toBe(1)
       }
     })
+    it('F2: inside the window a branch change is refused with lock_pending instead of billing the trial configuration again', async () => {
+      const f = await endedTrial()
+      const active = randomUUID(), archived = randomUUID()
+      await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,'active one','extra','paid','active')", [active, f.subscription, f.tenant])
+      await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state,odoo_company_id) VALUES($1,$2,$3,'archived one','extra','paid','archived',77)", [archived, f.subscription, f.tenant])
+      vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(now)
+      try {
+        await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+        for (const body of [{ add: [{ name: 'new one' }] }, { archive: [active] }, { restore: [archived] }])
+          await expect(createBranchQuote(pool, f.customer, JSON.stringify(body)), JSON.stringify(body)).rejects.toMatchObject({ code: 'lock_pending', status: 409 })
+      } finally { vi.useRealTimers() }
+    })
     it('D: a storage ceiling pinned at off-step usage stays a ceiling: branch add, archive and restore quote and accept', async () => {
       const f = await endedTrial({ requested_storage_mb: 30720 })
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
