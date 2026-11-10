@@ -102,15 +102,15 @@ def test_start_fails_clearly_when_the_file_is_missing_or_invalid(tmp_path):
 def test_start_builds_the_endpoint_with_the_token_count_choice_of_the_file(tmp_path):
     for choice, expected in ((True, True), (False, False), (None, False)):
         path = write_platform_file(tmp_path / f"p{choice}.json", "openai_compatible", "m", api_key=KEY, base_url="https://llm.example.com/v1", stream_usage=choice)
-        assert open_platform_model(settings_for(path)).current.run_model.model.stream_usage is expected
+        assert open_platform_model(settings_for(path)).current.models.default.model.stream_usage is expected
 
 
 def test_start_builds_the_model_the_file_names(tmp_path):
     path = write_platform_file(tmp_path / "p.json", "openai_compatible", "deepseek-chat", api_key=KEY, base_url="https://api.deepseek.com/v1", revision=7)
     platform = open_platform_model(settings_for(path))
     current = platform.current
-    assert (current.provider.revision, current.run_model.identity.provider, current.run_model.identity.model) == (7, "openai_compatible", "deepseek-chat")
-    assert current.run_model.model.openai_api_base == "https://api.deepseek.com/v1" and platform.secrets == (KEY,)
+    assert (current.provider.revision, current.models.default.identity.provider, current.models.default.identity.model) == (7, "openai_compatible", "deepseek-chat")
+    assert current.models.default.model.openai_api_base == "https://api.deepseek.com/v1" and platform.secrets == (KEY,)
 
 
 async def wait_for(condition, seconds=5):
@@ -145,8 +145,8 @@ async def test_a_valid_change_replaces_the_model_and_an_invalid_one_keeps_the_la
         newer = "sk-newer-key-0123456789"
         write_platform_file(path, "anthropic", "claude-x", api_key=newer, revision=2)
         await wait_for(lambda: changes == [2])
-        assert (platform.current.provider.provider, platform.current.run_model.identity.model) == ("anthropic", "claude-x")
-        assert first.run_model.identity.model == "gpt-4o"  # a run that already started keeps the model it began on
+        assert (platform.current.provider.provider, platform.current.models.default.identity.model) == ("anthropic", "claude-x")
+        assert first.models.default.identity.model == "gpt-4o"  # a run that already started keeps the model it began on
         assert set(platform.secrets) == {KEY, newer}  # a late log line of the old key is still redacted
         assert newer not in caplog.text
 

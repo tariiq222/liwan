@@ -180,3 +180,38 @@ def test_text_of_flattens_provider_blocks():
     blocks = [{"type": "text", "text": "a"}, {"type": "tool_use", "id": "x", "name": "n", "input": {}}, "b", {"type": "text", "text": "c"}, {"type": "thinking", "thinking": "t"}]
     assert text_of(blocks) == "abc"
     assert text_of([]) == ""
+
+
+def routed(plan_capability):
+    """A graph whose ``analysis`` plan calls go to a second scripted model; the first request carries ``plan_capability``."""
+    from liwan_ai_service.routing import RunModels
+    from liwan_ai_service.usage import ModelIdentity, RunModel
+    from tests.fakes import IDENTITY
+
+    default = ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("من الأساسي")])
+    deep = ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("من العميق")])
+    models = RunModels(RunModel(default, IDENTITY), {"analysis": RunModel(deep, ModelIdentity("ollama", "deep", "platform", "analysis"))})
+    graph = BoundGraph(default, InMemorySaver(), run_models=models)
+    request = RunRequest.model_validate({"new_run_id": new_id(), "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "حلل", "context": None,
+        "tools": [READ_TOOL], "agents": [PMO_AGENT], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY})
+    return default, deep, graph, {**initial_state(request), "capability": plan_capability}
+
+
+@pytest.mark.parametrize(("capability", "used", "unused", "answer"), [("analysis", "deep", "default", "من العميق"), ("standard", "default", "deep", "من الأساسي")])
+async def test_the_plan_call_uses_the_model_mapped_to_the_state_capability_and_a_resume_keeps_it(capability, used, unused, answer):
+    default, deep, graph, state = routed(capability)
+    models = {"default": default, "deep": deep}
+    await graph.ainvoke(state, config("m1"))
+    result = ToolResult(ok=True, data={"items": [], "total": 0})
+    final = await graph.ainvoke(Command(resume=result.model_dump()), config("m1"))
+    assert final["messages"][-1].content == answer
+    assert len(models[used].calls) == 2 and models[unused].calls == []  # the plan before and after the tool interrupt
+
+
+async def test_a_checkpoint_written_without_a_capability_still_resumes_on_the_default():
+    default, _deep, graph, state = routed("standard")
+    await graph.ainvoke({key: value for key, value in state.items() if key != "capability"}, config("m2"))
+    assert "capability" not in (await graph.aget_state(config("m2"))).values
+    result = ToolResult(ok=True, data={"items": [], "total": 0})
+    final = await graph.ainvoke(Command(resume=result.model_dump()), config("m2"))
+    assert final["messages"][-1].content == "من الأساسي" and len(default.calls) == 2

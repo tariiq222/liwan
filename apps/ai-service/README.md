@@ -155,7 +155,8 @@ final. Titles are never retried.
 ## Tenant policy, own key and acknowledgement
 
 Every run and resume carries the tenant's `policy` from Odoo (`provider_mode`, `consent_signed`, `max_output_tokens`).
-The service picks the run's model from it: the deployment's platform model, or the tenant's own key from
+The service picks the run's models from it, a map from capability to model with a default (the platform file names one model today, so
+every capability resolves to it; a `setup` run uses it as `quick` billed to setup): the deployment's platform model, or the tenant's own key from
 `ai_tenant_config` (encrypted with `pgcrypto`; `AI_KEY_ENCRYPTION_KEYS`, `AI_KEY_ENCRYPTION_KEY_ID`). A tenant-key policy
 without a key is refused with 409 `ai_tenant_key_missing`; there is no fallback to the platform key. A policy without a
 signed AI acknowledgement (`consent_signed` false) is refused with 403 `ai_consent_required` before any provider call,
@@ -245,7 +246,7 @@ Archived runs are left out; `?archived=true` lists only the archived ones, in th
 listed as `failed`, as in `GET /v1/runs/{run_id}`.
 
 **Title.** A run starts with the first user message as its title (whitespace-collapsed, cut to 60 characters). When the first
-answer of a run completes, the service asks the same configured provider and model for a short title (at most 6 words and
+answer of a run completes, the service asks the run's `quick` model for a short title (at most 6 words and
 60 characters, in the language of the conversation) from the first message and the first answer, each cut to 300 characters.
 This happens after the `answer` event and before the stream's `done` event, so the list fetched after the stream already shows it.
 The request is best effort with a 10 second timeout: on failure, timeout or an unusable reply the provisional title stays and the

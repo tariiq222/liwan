@@ -28,7 +28,8 @@ from liwan_ai_service.embeddings import Embedder
 from liwan_ai_service.knowledge import KnowledgeStore
 from liwan_ai_service.memory import MemoryFull, MemoryStore
 from liwan_ai_service.prompts import frame_record_text, system_prompt, tool_summary
-from liwan_ai_service.usage import RunModel, invoke_planned, tokens_of
+from liwan_ai_service.routing import RunModels
+from liwan_ai_service.usage import invoke_planned, tokens_of
 
 
 class AgentState(TypedDict):
@@ -50,6 +51,7 @@ class AgentState(TypedDict):
     agent: str  # the active agent: a specialist's key or ``core``
     handoffs: int  # hand-overs made for this request
     company: str | None  # the user's current company: whose approved notes the prompt carries
+    capability: str  # the kind of task this request's plan calls serve; the model is picked from it, never stored
     knowledge: dict[str, list[dict[str, Any]]]  # the references found for the pending knowledge search: {call_id: refs}, never text
 
 
@@ -193,6 +195,7 @@ def request_state(request: RunRequest) -> dict[str, Any]:
         "limit": None,
         "agents": [agent.model_dump() for agent in request.agents],
         "handoffs": 0,
+        "capability": "standard",
         "company": request.company,
         "knowledge": {},
     }
@@ -211,23 +214,23 @@ def continued_state(request: RunRequest, previous: dict[str, Any]) -> dict[str, 
 
 
 DEADLINE_KEY = "__deadline_at"  # a dunder key stays out of the checkpoint metadata
-RUN_MODEL_KEY = "__run_model"  # the request's model, chosen from the tenant's policy; never checkpointed
+RUN_MODELS_KEY = "__run_models"  # the request's models by capability, chosen from the tenant's policy; never checkpointed
 RUN_MEMORY_KEY = "__run_memory"  # where the request's memory tools write; never checkpointed
 RUN_KNOWLEDGE_KEY = "__run_knowledge"  # the request's knowledge search; never checkpointed
 
 
-def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, run_model: RunModel | None = None,
+def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, run_models: RunModels | None = None,
                run_memory: RunMemory | None = None, run_knowledge: RunKnowledge | None = None) -> dict[str, Any]:
     """Graph config; the recursion limit leaves room for error-only loops to reach ``max_steps`` first.
 
-    ``deadline_at`` is the run deadline on the event loop clock: model retries do not wait past it. ``run_model`` is
+    ``deadline_at`` is the run deadline on the event loop clock: model retries do not wait past it. ``run_models`` is
     required to stream the graph and absent for reading its state.
     """
     configurable: dict[str, Any] = {"thread_id": run_id}
     if deadline_at is not None:
         configurable[DEADLINE_KEY] = deadline_at
-    if run_model is not None:
-        configurable[RUN_MODEL_KEY] = run_model
+    if run_models is not None:
+        configurable[RUN_MODELS_KEY] = run_models
     if run_memory is not None:
         configurable[RUN_MEMORY_KEY] = run_memory
     if run_knowledge is not None:
@@ -337,7 +340,7 @@ async def knowledge_candidates(query: str, run_knowledge: RunKnowledge | None) -
 
 
 def build_graph(checkpointer):
-    """One compiled graph per tenant state; each request brings its own model through ``RUN_MODEL_KEY``."""
+    """One compiled graph per tenant state; each request brings its own models through ``RUN_MODELS_KEY``."""
 
     async def plan(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         if state["steps"] >= state["limits"]["max_steps"]:
@@ -350,7 +353,7 @@ def build_graph(checkpointer):
         input_cap = state.get("max_input_tokens")
         if input_cap is not None and state.get("input_tokens", 0) >= input_cap:
             return {"outcome": "limit_reached", "limit": "input_tokens"}
-        run_model: RunModel = config["configurable"][RUN_MODEL_KEY]
+        run_model = config["configurable"][RUN_MODELS_KEY].for_capability(state.get("capability", "standard"))
         current = state.get("agent", CORE_AGENT)
         visible = visible_tools(state["tools"], current)
         specs = [ToolSpec.model_validate(tool) for tool in visible]
