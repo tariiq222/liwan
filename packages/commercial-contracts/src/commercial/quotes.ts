@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { addCadence, canonicalJson, daysBetween, remainingDays } from './calendar.js'
-import { paidExtraBranches, paidStorageGb, paidUnits, prorateMinor, vat } from './pricing.js'
+import { paidExtraBranches, paidStorageGb, paidUnits, prorateOverCycleMinor, vat } from './pricing.js'
 import { fitsStorageSteps, MAX_USERS } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, Cadence, CustomerTermsRevision, Money, PlanRevision, Price, PricingPolicy, Quote, QuoteLine } from './types.js'
@@ -118,13 +118,7 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     dueNow = renewal
   } else {
     const cur = input.current as QuoteCurrent
-    // A trial longer than the cycle after it has more days left than that cycle: whole cycles at full price, the rest pro-rated once.
-    const prorated = (m: number) => {
-      const whole = Math.floor(remaining / prorationDays)
-      const total = m * whole + prorateMinor({ cycleMinor: m, remainingDays: remaining - whole * prorationDays, cycleDays: prorationDays })
-      if (!Number.isSafeInteger(total)) throw new CommercialError('invalid_quantity')
-      return total
-    }
+    const prorated = (m: number) => prorateOverCycleMinor({ cycleMinor: m, remainingDays: remaining, cycleDays: prorationDays })
     const pushDelta = (k: string, kd: QuoteLine['kind'], d: string, q: number, delta: number, src: string, targetMinor: number) => {
       if (delta > 0) {
         const p = prorated(delta); dueNow += p
