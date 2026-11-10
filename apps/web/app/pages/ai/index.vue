@@ -28,7 +28,7 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const config = useRuntimeConfig()
-const { runId, mode: runMode, status, items, limit, error, unavailable, send, decide, load, reset } = useAiRun()
+const { runId, mode: runMode, status, items, limit, limitResetsAt, error, unavailable, send, decide, load, reset } = useAiRun()
 const queryClient = useQueryClient()
 const { me } = useMe()
 const { rows: attentionRows } = useAttention('all', { limit: 3 })
@@ -193,7 +193,7 @@ watch(status, (now, before) => {
             <span>{{ t(`ai.${mode}.banner`) }}</span>
           </p>
           <div v-if="limit || error" class="flex w-full flex-col gap-3">
-            <AiLimitNotice v-if="limit" :limit="limit" />
+            <AiLimitNotice v-if="limit" :limit="limit" :resets-at="limitResetsAt" />
             <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
           </div>
           <div v-if="!conversation" class="flex min-w-0 flex-col gap-4" data-testid="ai-empty">

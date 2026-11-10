@@ -91,7 +91,7 @@ export const MonthlyLimit: Story = {
   render: () => ({
     components,
     template: `<div class="mx-auto flex max-w-2xl flex-col gap-4">
-      <AiLimitNotice limit="messages_monthly" :used="500" :max="500" />
+      <AiLimitNotice limit="messages_monthly" />
       <AiComposer :disabled="true" :pending="false" />
     </div>`,
   }),

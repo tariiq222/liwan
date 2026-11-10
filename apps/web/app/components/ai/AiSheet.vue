@@ -37,7 +37,7 @@ const { rows, pending, failed } = useAttention(nowScope, { limit: NOW_ROWS })
 const sheet = useAssistantSheet()
 // The run and the shared conversation both fetch only while this surface may: a closed sheet stays silent.
 function canFetch() { return sheet.shown.value && !disabled.value }
-const { runId, status, items, limit, error, unavailable, send, decide, load, reset } = useAiRun({ enabled: canFetch })
+const { runId, status, items, limit, limitResetsAt, error, unavailable, send, decide, load, reset } = useAiRun({ enabled: canFetch })
 const { hidden, toggle: toggleSection } = useAiNowSection()
 
 const disabled = computed(() => !config.public.aiEnabled || unavailable.value)
@@ -129,7 +129,7 @@ watch(items, async (now, before) => {
 
       <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto">
         <div v-if="limit || error" class="flex flex-col gap-3 px-3 pt-3">
-          <AiLimitNotice v-if="limit" :limit="limit" />
+          <AiLimitNotice v-if="limit" :limit="limit" :resets-at="limitResetsAt" />
           <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
         </div>
         <div v-if="!conversation" class="flex flex-col gap-4 px-3 py-4" data-testid="ai-sheet-empty">

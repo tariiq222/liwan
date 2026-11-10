@@ -148,6 +148,69 @@ describe('useAiRun', () => {
     expect(ai.error.value).toBeNull()
   })
 
+  it('treats an empty prepaid balance as a limit state and keeps the instant it renews', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(403, { data: { code: 'ai_balance_empty', message: 'الرصيد', details: { resets_at: '2026-11-15T21:00:00Z' } } }))
+    const ai = useAiRun()
+    await ai.send('س')
+    expect(ai.limit.value).toBe('balance_empty')
+    expect(ai.limitResetsAt.value).toBe('2026-11-15T21:00:00Z')
+    expect(ai.status.value).toBe('limit_reached')
+    expect(ai.error.value).toBeNull()
+  })
+
+  it('treats the monthly spend ceiling as a limit state that lifts at the month end', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(403, { data: { code: 'ai_spend_ceiling', details: { resets_at: '2026-12-01T00:00:00Z' } } }))
+    const ai = useAiRun()
+    await ai.send('س')
+    expect(ai.limit.value).toBe('spend_ceiling')
+    expect(ai.limitResetsAt.value).toBe('2026-12-01T00:00:00Z')
+    expect(ai.status.value).toBe('limit_reached')
+    expect(ai.error.value).toBeNull()
+  })
+
+  it('shows no renewal instant for a refusal that names none', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(403, { data: { code: 'ai_balance_empty', details: { resets_at: null } } }))
+    const ai = useAiRun()
+    await ai.send('س')
+    expect(ai.limit.value).toBe('balance_empty')
+    expect(ai.limitResetsAt.value).toBeNull()
+  })
+
+  it('clears the refusal and its renewal instant when the next message goes through', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(403, { data: { code: 'ai_spend_ceiling', details: { resets_at: '2026-12-01T00:00:00Z' } } }))
+    const ai = useAiRun()
+    await ai.send('س')
+    fetchMock.mockResolvedValueOnce(streamResponse(sse(['run', { run_id: 'r_1' }], ['answer', { text: 'تم', records: [] }], ['done', { status: 'done' }])))
+    await ai.send('وبعد؟')
+    expect([ai.limit.value, ai.limitResetsAt.value, ai.status.value]).toEqual([null, null, 'done'])
+  })
+
+  it('falls to the generic error for the retired tokens_monthly limit key', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(403, { data: { code: 'feature_not_included', details: { limit_key: 'ai.tokens.monthly' } } }))
+    const ai = useAiRun()
+    await ai.send('س')
+    expect(ai.limit.value).toBeNull()
+    expect(ai.status.value).toBe('failed')
+    expect(ai.error.value).toBe('errors.generic')
+  })
+
+  it('does not keep a policy renewal instant when a limit event names a per-run limit', async () => {
+    // A pending card keeps a run open, so a refused message can leave a renewal instant while the resume can still stream.
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, {
+      mode: 'assistant', run_id: 'r_9', status: 'waiting_user', messages: [],
+      pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } },
+    }))
+    const ai = useAiRun()
+    await ai.load('r_9')
+    fetchMock.mockResolvedValueOnce(jsonResponse(403, { data: { code: 'ai_balance_empty', details: { resets_at: '2026-11-15T21:00:00Z' } } }))
+    await ai.send('س')
+    expect(ai.limitResetsAt.value).toBe('2026-11-15T21:00:00Z')
+    fetchMock.mockResolvedValueOnce(streamResponse(sse(['limit_reached', { limit: 'max_steps' }], ['done', { status: 'limit_reached' }])))
+    await ai.decide('c_7', 'approved')
+    expect(ai.limit.value).toBe('max_steps')
+    expect(ai.limitResetsAt.value).toBeNull()
+  })
+
   it('takes the mode of a new conversation from its first message and of a reopened run from the server', async () => {
     fetchMock.mockResolvedValueOnce(streamResponse(sse(['run', { run_id: 'r_1' }], ['done', { status: 'done' }])))
     const ai = useAiRun()

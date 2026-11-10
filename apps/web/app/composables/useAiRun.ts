@@ -10,9 +10,9 @@ export type AiThreadItem =
   | { kind: 'draft'; callId: string; tool: string; payload: Record<string, unknown>; summaryAr: string; summaryEn: string; state: 'pending' | 'approved' | 'rejected' }
   | { kind: 'agent'; agent: string; nameAr: string; nameEn: string }
 
-export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'assist_monthly' | 'output_tokens' | 'input_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
-/** The limits that stop every new message until something changes (a new month, a signature, a key), not just this run. */
-const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'messages_per_user', 'assist_monthly', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
+export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'assist_monthly' | 'output_tokens' | 'input_tokens' | 'balance_empty' | 'spend_ceiling' | 'consent_required' | 'tenant_key_missing'
+/** The limits that stop every new message until something changes (a new month, a top-up, a signature, a key), not just this run. */
+const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'messages_per_user', 'assist_monthly', 'balance_empty', 'spend_ceiling', 'consent_required', 'tenant_key_missing'])
 export const isBlockingLimit = (limit: AiLimit | null) => limit !== null && BLOCKING_LIMITS.has(limit)
 export type AiRunState = 'idle' | 'streaming' | 'waiting_user' | 'done' | 'failed' | 'limit_reached'
 type LocalEvent = AiEvent | { event: 'decided'; data: { call_id: string; decision: 'approved' | 'rejected' | 'pending' } }
@@ -20,10 +20,16 @@ type DecidableItem = Extract<AiThreadItem, { kind: 'confirm' | 'draft' }>
 
 // The package limit a 403 names, as the limit the assistant shows.
 const MONTHLY_LIMITS: Record<string, AiLimit> = {
-  'ai.messages.monthly': 'messages_monthly', 'ai.messages.per_user_monthly': 'messages_per_user', 'ai.assist.monthly': 'assist_monthly', 'ai.tokens.monthly': 'tokens_monthly',
+  'ai.messages.monthly': 'messages_monthly', 'ai.messages.per_user_monthly': 'messages_per_user', 'ai.assist.monthly': 'assist_monthly',
 }
-// The tenant policy refusals the Nuxt server answers before a message is counted.
-const POLICY_REFUSALS: Record<string, AiLimit> = { ai_consent_required: 'consent_required', ai_tenant_key_missing: 'tenant_key_missing' }
+// The tenant policy refusals the Nuxt server answers before a message is counted: the acknowledgement, the prepaid balance
+// (and the free allowance), the monthly spend ceiling and the own-key setup. `ai.tokens.monthly` is retired (spec 2026-11-10 §5.4).
+const POLICY_REFUSALS: Record<string, AiLimit> = {
+  ai_consent_required: 'consent_required',
+  ai_balance_empty: 'balance_empty',
+  ai_spend_ceiling: 'spend_ceiling',
+  ai_tenant_key_missing: 'tenant_key_missing',
+}
 const ERROR_MESSAGES: Record<string, string> = {
   provider_unavailable: 'ai.errors.provider',
   audit_failed: 'ai.errors.auditFailed',
@@ -103,6 +109,9 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
   const status = ref<AiRunState>('idle')
   const items = ref<AiThreadItem[]>([])
   const limit = ref<AiLimit | null>(null)
+  // When a policy refusal lifts (naive UTC ISO from Odoo/`assertRunnable`): the allowance renewal, or the month's end for the
+  // spend ceiling. Null when nothing lifts it but a top-up, a signature or a key.
+  const limitResetsAt = ref<string | null>(null)
   const error = ref<string | null>(null)
   // The service or the feature is switched off (503 ai_unavailable): the page shows a state, not an error.
   const unavailable = ref(false)
@@ -158,13 +167,20 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     status.value = 'failed'
   }
 
+  /** The one writer of `limit` and the instant it lifts, so a new state never keeps an old reset time. */
+  function setLimit(value: AiLimit | null, resetsAt: string | null = null) {
+    limit.value = value
+    limitResetsAt.value = value === null ? null : resetsAt
+  }
+
   async function refuse(response: Response) {
     const body = await response.json().catch(() => null)
     const code: string | undefined = body?.data?.code ?? body?.code
-    const limitKey: string | undefined = (body?.data?.details ?? body?.details)?.limit_key
+    const details = body?.data?.details ?? body?.details
+    const limitKey: string | undefined = details?.limit_key
     const refused = response.status === 403 && code === 'feature_not_included' && limitKey ? MONTHLY_LIMITS[limitKey] : code ? POLICY_REFUSALS[code] : undefined
     if (refused) {
-      limit.value = refused
+      setLimit(refused, typeof details?.resets_at === 'string' ? details.resets_at : null)
       status.value = 'limit_reached'
     } else if (response.status === 503 && code === 'ai_unavailable') {
       unavailable.value = true
@@ -188,7 +204,7 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
       buffer = parsed.rest
       for (const event of parsed.events) {
         if (event.event === 'run') runId.value = event.data.run_id
-        else if (event.event === 'limit_reached') limit.value = event.data.limit
+        else if (event.event === 'limit_reached') setLimit(event.data.limit)
         // The event text is never shown: only the code picks one of the fixed messages.
         else if (event.event === 'error') {
           error.value = t(ERROR_MESSAGES[event.data.code] ?? 'errors.generic')
@@ -232,7 +248,7 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
   async function send(message: string, context?: { page: string; id?: number | null } | null, newMode?: AiConversationMode) {
     if (busy) return
     error.value = null
-    limit.value = null
+    setLimit(null)
     // A new conversation takes the mode it is started with; a continued one keeps its own.
     if (!runId.value) mode.value = newMode ?? 'assistant'
     items.value = [...items.value, { kind: 'user', text: message }]
@@ -255,7 +271,7 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
         // The server never recorded the decision: the card is answerable again; no automatic retry.
         items.value = applyEvent(items.value, { event: 'decided', data: { call_id: callId, decision: 'pending' } })
         unavailable.value = false
-        limit.value = null
+        setLimit(null)
         error.value = t('ai.errors.decide')
         status.value = 'waiting_user'
       }
@@ -316,9 +332,9 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     mode.value = null
     status.value = 'idle'
     items.value = []
-    limit.value = null
+    setLimit(null)
     error.value = null
   }
 
-  return { runId, mode, status, items, limit, error, unavailable, send, decide, load, reset }
+  return { runId, mode, status, items, limit, limitResetsAt, error, unavailable, send, decide, load, reset }
 }
