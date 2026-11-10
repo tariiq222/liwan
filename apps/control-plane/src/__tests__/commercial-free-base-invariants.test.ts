@@ -418,4 +418,44 @@ suite('free base invariants (issue 491)', () => {
     })
   })
 
+
+  describe('F3 and F7: what the customer names is bought, what they only echo is not', () => {
+    it('the subscription read exposes purchased and held quantities apart', async () => {
+      const f = await endedTrial({ requested_users: 10 })
+      await locked(f)
+      const view = (await getSubscription(pool, f.customer)).applied!
+      expect(view.purchased_quantities).toEqual({ users: 3, storage_mb: 20480 })
+      expect(view.held_quantities).toEqual({ users: 10 })
+    })
+    it('F3: buying an app from the holding state with the purchased values and the real branch count charges only the app', async () => {
+      const f = await endedTrial({ requested_users: 10 }, plans.priced)
+      for (const name of ['one', 'two', 'three']) await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,$4,'extra','paid','active')", [randomUUID(), f.subscription, f.tenant, name])
+      await locked(f)
+      await freshUsage(f, at(1))
+      const quote = await quoteChange(f, { requested_extra_branches: 3, requested_users: 3, requested_storage_mb: 20480 }, at(1), [bundle.id])
+      expect(quote.lines.filter(l => ['branch', 'users', 'storage'].includes(l.kind) && l.amount.minor > 0), 'only the application is charged').toEqual([])
+      expect(quote.next_renewal.minor).toBeGreaterThan(0)
+      await payAndApply(f, await accept(f, quote))
+      const bought = await applied(f.subscription)
+      expect(bought.pricing.paid_extra_branches).toBe(0)
+      expect(bought.pricing.paid_users).toBe(0)
+      expect(bought.entitlement.features['users.limit'], 'the held users are carried, not bought').toBe(10)
+      expect(bought.held_ceilings['users.limit']).toMatchObject({ held: 10, target: 3 })
+    })
+    it('F7: naming a different quantity ends the hold: the new limit is what was requested, refused when usage exceeds it', async () => {
+      const f = await endedTrial({ requested_users: 10 })
+      await locked(f)
+      await freshUsage(f, at(1), { 'users.limit': 7 })
+      await expect(quoteChange(f, { requested_users: 5 }, at(1))).rejects.toMatchObject({ code: 'downgrade_below_usage' })
+      await freshUsage(f, at(2), { 'users.limit': 4 })
+      const quote = await quoteChange(f, { requested_users: 5 }, at(2))
+      expect(new Set(quote.lines.filter(l => l.kind === 'users').map(l => l.quantity))).toEqual(new Set([2]))
+      await payAndApply(f, await accept(f, quote))
+      const after = await applied(f.subscription)
+      expect(after.entitlement.features['users.limit']).toBe(5)
+      expect(after.held_ceilings?.['users.limit']).toBeUndefined()
+      expect(after.pricing.paid_users).toBe(2)
+    })
+  })
+
 })

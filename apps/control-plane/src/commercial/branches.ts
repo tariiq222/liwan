@@ -38,11 +38,23 @@ export async function listBranches(pool: Db, subscription_id: string): Promise<B
   }
 }
 
+/** Active or pending extra branches: the real set, whatever the subscription is billed for. */
+export async function extraBranchCount(db: Db, subscription_id: string): Promise<number> {
+  return (await db.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [subscription_id])).rows[0].n
+}
+
 /**
- * The number of extra branches a branch change is PRICED at: the one rule for add, archive and restore. A change that
- * activates a branch (add, restore) is a purchase, and every active extra branch above the included ones is priced. A change
- * that only archives buys nothing, so it can never raise the bill: it is priced at what the subscription is billed now, capped
- * by what is left. Branches kept free from the trial (more active than billed) therefore stay free until the customer buys one.
+ * The number of extra branches a request is PRICED at: the one rule for add, archive, restore and any other change. A request
+ * above the real set activates a branch, which is a purchase: every active extra branch above the included ones is priced.
+ * Anything else buys nothing, so it can never raise the bill, whatever count the client echoes back: it is priced at what the
+ * subscription is billed now, capped by what is asked. Branches kept free from the trial (more active than billed) therefore
+ * stay free until the customer buys one.
+ */
+export const pricedBranchCount = (requested: number, real: number, billed: number) => requested > real ? requested : Math.min(requested, billed)
+
+/**
+ * What a branch change is priced at (see `pricedBranchCount`), from the branches as they are after the change. A change that
+ * activates a branch (add, restore) is a purchase; archive-only is priced at what is billed now, capped by what is left.
  */
 export async function requestedExtraBranches(pool: Db, input: { subscription_id: string; add: number; archive: string[]; restore?: string[] }): Promise<number> {
   // Between the lapse and the applied lock the customer's applied configuration is still the paid trial, which a branch change
@@ -64,11 +76,9 @@ export async function requestedExtraBranches(pool: Db, input: { subscription_id:
   }
   const archiving = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending') && new Set(input.archive).has(b.id)).length
   const current = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending')).length
-  const after = current + input.add - archiving + restoring.length
-  if (input.add > 0 || restoring.length > 0) return after
   const pricing = sub?.snapshot?.pricing
   const billed = pricing ? Number(sub.snapshot.included_extra_branches ?? 0) + Number(pricing.paid_extra_branches ?? 0) : current
-  return Math.min(after, billed)
+  return pricedBranchCount(current + input.add - archiving + restoring.length, current, billed)
 }
 
 export async function reserveBranchesForOrder(client: PoolClient, input: {

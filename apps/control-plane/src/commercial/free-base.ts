@@ -122,12 +122,19 @@ export async function purchasedLimits(client: Pick<PoolClient, 'query'>, subscri
   return { users: Number(held['users.limit']?.target ?? features['users.limit'] ?? 0), storage_mb: Number(held['storage.limit_mb']?.target ?? features['storage.limit_mb'] ?? 0) }
 }
 
-/** A held quantity the previous snapshot has stays held, and marked, through any change that does not name it; a change that names a quantity buys it and drops the mark. */
-export function carryHeldCeilings(entitlement: FreeBase['entitlement'], previous: Record<string, any> | null): { entitlement: FreeBase['entitlement']; held: HeldCeilings } {
+/**
+ * A held quantity the previous snapshot has stays held, and marked, through any change that does not name it. A change names a
+ * users or storage quantity when the request differs from the purchased one (`target`): that ends the hold for the key, the new
+ * limit is what was requested (the usage check refuses it when usage exceeds it), and requesting the held quantity itself buys
+ * it. The limit of a closed application is never named by a customer and is always carried.
+ */
+export function carryHeldCeilings(entitlement: FreeBase['entitlement'], previous: Record<string, any> | null, requested: { users: number; storage_mb: number }): { entitlement: FreeBase['entitlement']; held: HeldCeilings } {
   const before = heldCeilingsOf(previous)
   const features = { ...entitlement.features } as Features
+  const named: Record<string, number> = { 'users.limit': requested.users, 'storage.limit_mb': requested.storage_mb }
   const held: HeldCeilings = {}
-  for (const key of Object.keys(before)) {
+  for (const [key, mark] of Object.entries(before)) {
+    if (key in named && named[key] !== mark.target) continue
     const value = features[key], ceiling = previous!.entitlement.features[key]
     if (typeof value === 'number' && typeof ceiling === 'number' && ceiling > value) { features[key] = ceiling; held[key] = { held: ceiling, target: value } }
   }

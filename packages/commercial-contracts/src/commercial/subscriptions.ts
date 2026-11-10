@@ -15,6 +15,10 @@ export const subscriptionRevisionSchema = z.strictObject({
   cadence: cadenceSchema, term_start: isoDate, term_end: isoDate, period_start: isoDate, period_end: isoDate,
   included_extra_branches: z.number().int().min(0), extra_branch_count: z.number().int().min(0),
   entitlement: entitlementSnapshotSchema, quote_id: z.string().min(1), created_at: z.string(),
+  /** What the customer has bought of the quantities they can name (the plan's included plus the paid units), apart from what the entitlement carries. */
+  purchased_quantities: z.strictObject({ users: z.number().int().min(0), storage_mb: z.number().int().min(0) }).optional(),
+  /** Quantities kept from the trial above the purchased ones: free, never lowered automatically, bought when the customer names them. Absent keys are not held. */
+  held_quantities: z.strictObject({ users: z.number().int().min(0).optional(), storage_mb: z.number().int().min(0).optional() }).optional(),
 })
 export const subscriptionViewSchema = z.strictObject({
   id: z.string().min(1), customer_id: z.string().min(1), tenant_id: z.string().nullable(),

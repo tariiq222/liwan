@@ -10,6 +10,7 @@ import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
 import { planIssues, planRevision } from './plans.js'
 import { getPolicy } from './policies.js'
 import { assertDowngradeFitsUsage } from './usage.js'
+import { extraBranchCount, pricedBranchCount } from './branches.js'
 import { carryHeldCeilings, freeBaseOf, freeBasePricing, unresolvedLapse } from './free-base.js'
 
 const TTL_MS = 30 * 60 * 1000
@@ -132,13 +133,17 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     sources.terms = value.previewTerms
   }
   const held = input.kind === 'change' ? applied : null
-  const { entitlement } = carryHeldCeilings(compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } })), held)
+  // A change that does not add a branch carries the kept branches as kept, whatever count the client echoes back.
+  const extraBranches = input.kind === 'change'
+    ? pricedBranchCount(input.requested_extra_branches, await extraBranchCount(client, s.id), Number(applied.included_extra_branches ?? 0) + Number(current.paid_extra_branches ?? 0))
+    : input.requested_extra_branches
+  const { entitlement } = carryHeldCeilings(compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } })), held, { users: input.requested_users, storage_mb: input.requested_storage_mb })
   if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
     tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
     previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,
   })
   try {
-    const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
+    const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: extraBranches,
       requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
       current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
       expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding })
