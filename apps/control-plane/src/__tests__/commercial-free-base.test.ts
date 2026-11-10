@@ -298,6 +298,8 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     // One day left catches up both thresholds (3 and 1): one mail each, never one per worker.
     expect(sent.filter(to => to === `${b.customer}@example.test`)).toHaveLength(2)
     expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='trial.notice' AND aggregate_id=$1", [a.subscription])).rows.map(r => r.status)).toContain('failed')
+    // Leave no failed notice behind for the suites that count them.
+    await pool.query("DELETE FROM commercial_outbox WHERE kind='trial.notice' AND aggregate_id=ANY($1::text[])", [[a.subscription, b.subscription]])
   })
 
   it('a customer who converts still gets the first invoice for what they chose', async () => {
