@@ -13,10 +13,14 @@ export type WaitClock = Ref<Date>
  */
 export function useResendWait(clock: WaitClock = useNow({ interval: 250 })) {
   const deadline = ref(0)
-  const seconds = computed(() => secondsLeft(deadline.value, clock.value.getTime()))
+  // The clock only ticks every 250ms, so right after `start` it can still read an earlier time than the deadline was
+  // measured from; counting from that stale reading would show one second too many. The wait never starts before itself.
+  const startedAt = ref(0)
+  const seconds = computed(() => secondsLeft(deadline.value, Math.max(clock.value.getTime(), startedAt.value)))
   const waiting = computed(() => seconds.value > 0)
   function start(after: number) {
-    deadline.value = after > 0 ? Date.now() + after * 1000 : 0
+    startedAt.value = Date.now()
+    deadline.value = after > 0 ? startedAt.value + after * 1000 : 0
   }
   function stop() { deadline.value = 0 }
   return { seconds, waiting, deadline, start, stop }
