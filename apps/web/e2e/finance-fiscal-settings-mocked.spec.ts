@@ -20,6 +20,10 @@ type Mode = 'manager' | 'reader'
 let mode: Mode = 'manager'
 let fiscalPatches: Array<{ headers: Record<string, string>; body: unknown }> = []
 let rejectNextPatch: { status: number; code: string; message: string } | null = null
+let hardLockRequests: Array<{ headers: Record<string, string>; body: unknown }> = []
+let rejectNextLock: { status: number; code: string; message: string } | null = null
+// The hard lock the stub holds; a successful POST /fiscal/lock sets it, so a reload shows what was saved.
+let hardLockDate: string | null = null
 
 const COMPANY = { id: 1, name: 'ليوان' }
 const SETUP = {
@@ -61,7 +65,7 @@ function me() {
 
 function jsonFor(pathname: string): unknown {
   if (pathname === '/api/v1/me') return me()
-  if (pathname === '/api/v1/finance/setup') return SETUP
+  if (pathname === '/api/v1/finance/setup') return { ...SETUP, fiscal: { ...SETUP.fiscal, hard_lock_date: hardLockDate } }
   if (pathname === '/api/v1/branding') return { name: 'ليوان', logo_url: null, primary_color: '#14102a', font: 'IBM_Plex_Sans_Arabic' }
   // The other cards of the page are not this spec's subject; they answer an empty list.
   if (pathname.startsWith('/api/v1/')) return { items: [], total: 0 }
@@ -147,7 +151,10 @@ test.afterAll(async () => {
   await new Promise<void>((resolveClose) => stub ? stub.close(() => resolveClose()) : resolveClose())
 })
 
-test.beforeEach(() => { mode = 'manager'; fiscalPatches = []; rejectNextPatch = null })
+test.beforeEach(() => {
+  mode = 'manager'; fiscalPatches = []; rejectNextPatch = null
+  hardLockRequests = []; rejectNextLock = null; hardLockDate = null
+})
 
 /** Serves the settings page over the synthetic upstream and captures every fiscal write it makes. */
 async function routeFiscal(page: Page, cookies: Array<{ name: string; value: string }> = []) {
@@ -156,6 +163,7 @@ async function routeFiscal(page: Page, cookies: Array<{ name: string; value: str
     ...cookies.map(cookie => ({ ...cookie, url: origin })),
   ])
   await page.route('**/api/v1/**', fulfillApi)
+  await page.route('**/api/v1/finance/setup/fiscal/lock', fulfillLock)
   await page.route('**/api/v1/finance/setup/fiscal', async (route) => {
     if (route.request().method() !== 'PATCH') { await fulfillApi(route); return }
     fiscalPatches.push({ headers: route.request().headers(), body: route.request().postDataJSON() })
@@ -170,6 +178,21 @@ async function routeFiscal(page: Page, cookies: Array<{ name: string; value: str
       body: JSON.stringify({ ...SETUP, fiscal: { ...SETUP.fiscal, ...body, fiscalyear_last_month: body.fiscalyear_last_month ?? SETUP.fiscal.fiscalyear_last_month } }),
     })
   })
+}
+
+/** The hard lock write: answers a queued refusal once, otherwise sets the lock and returns the setup. */
+async function fulfillLock(route: Route) {
+  if (route.request().method() !== 'POST') { await fulfillApi(route); return }
+  const body = route.request().postDataJSON() as { hard_lock_date: string }
+  hardLockRequests.push({ headers: route.request().headers(), body })
+  if (rejectNextLock) {
+    const { status, code, message } = rejectNextLock
+    rejectNextLock = null
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ code, message, field: 'hard_lock_date' }) })
+    return
+  }
+  hardLockDate = body.hard_lock_date
+  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(jsonFor('/api/v1/finance/setup')) })
 }
 
 /** Opens the settings page once the card is shown. */
@@ -253,25 +276,43 @@ test('an impossible year end blocks the save and sends nothing', async ({ page }
   expect(fiscalPatches).toHaveLength(0)
 })
 
-test('several broken rules list every field in one summary and focus the first', async ({ page }) => {
+// A saved lock can be cleared or moved earlier now (owner decision 2026-11-09), so the old second broken rule of this test
+// (clearing a lock) is a valid edit. The year end is the one rule the picker can still break, and one broken rule is
+// shown under its field without the multi-rule summary; the summary's own rule (more than one issue) stays in the
+// composable unit test.
+test('a broken year end is shown under its field, focuses it and sends nothing', async ({ page }) => {
   await openFiscal(page)
   const day = page.locator('#finance-fiscal-fiscalyear_last_day')
   await day.fill('40')
-  await page.locator('#finance-fiscal-fiscalyear_lock_date').click()
-  await page.getByRole('button', { name: 'مسح التاريخ' }).click()
-  await page.keyboard.press('Escape')
   await expect(saveButton(page)).toBeEnabled()
   await saveButton(page).click()
-  const summary = page.getByTestId('finance-fiscal-error-summary')
-  await expect(summary).toBeVisible()
-  await expect(summary.getByText('صحّح هذه الحقول قبل الحفظ:', { exact: true })).toBeVisible()
-  await expect(summary).not.toContainText('finance.setup.fiscal.errorSummary')
-  await expect(summary.getByRole('link')).toHaveCount(2)
   await expect(fiscalCard(page).getByText('أدخل يومًا صحيحًا من 1 إلى 31.', { exact: true })).toBeVisible()
   await expect(day).toBeFocused()
-  await summary.getByRole('link').nth(1).click()
-  await expect(page.locator('#finance-fiscal-fiscalyear_lock_date')).toBeFocused()
+  await expect(page.getByTestId('finance-fiscal-error-summary')).toHaveCount(0)
   expect(fiscalPatches).toHaveLength(0)
+})
+
+test('a saved lock is cleared in one save, and any soft lock can be moved earlier', async ({ page }) => {
+  await openFiscal(page)
+  const lock = page.locator('#finance-fiscal-fiscalyear_lock_date')
+  await lock.click()
+  await page.getByRole('button', { name: 'مسح التاريخ' }).click()
+  await page.keyboard.press('Escape')
+  await saveButton(page).click()
+  await expect(page.getByText('تم حفظ إعدادات السنة والأقفال.', { exact: true })).toBeVisible()
+  expect(fiscalPatches.map(patch => patch.body)).toEqual([{ fiscalyear_lock_date: null }])
+  await expect(fiscalCard(page).getByText(/لا يمكن إزالة هذا القفل|لا يمكن إرجاع هذا القفل/)).toHaveCount(0)
+})
+
+test('a saved lock moves to an earlier day', async ({ page }) => {
+  await openFiscal(page)
+  await page.locator('#finance-fiscal-fiscalyear_lock_date').click()
+  // The calendar opens on December 2025 (the saved lock); the first day of that month is earlier than the lock.
+  await page.locator('[data-reka-calendar-cell-trigger]:not([data-outside-view])').first().click()
+  await page.keyboard.press('Escape')
+  await saveButton(page).click()
+  await expect(page.getByText('تم حفظ إعدادات السنة والأقفال.', { exact: true })).toBeVisible()
+  expect(fiscalPatches.map(patch => patch.body)).toEqual([{ fiscalyear_lock_date: '2025-12-01' }])
 })
 
 test('a posted-entries refusal keeps the draft and reports it without claiming success', async ({ page }) => {
@@ -336,4 +377,106 @@ for (const { locale, dir, i18n } of [{ locale: 'ar', dir: 'rtl', i18n: 'ar' }, {
       }
     })
   }
+}
+
+// The hard lock card: its own action behind an inline confirmation and an acknowledgement.
+const hardLockCard = (page: Page) => page.getByTestId('finance-setup-hard-lock')
+const ACKNOWLEDGE = 'أفهم أن الإقفال النهائي لا رجعة فيه'
+
+/** Picks the first day of the month the calendar opens on; it is never later than today. */
+async function chooseHardLockDay(page: Page) {
+  await page.locator('#finance-fiscal-hard_lock_date').click()
+  await page.locator('[data-reka-calendar-cell-trigger]:not([data-outside-view])').first().click()
+  await page.keyboard.press('Escape')
+}
+
+async function openHardLock(page: Page, cookies: Array<{ name: string; value: string }> = []) {
+  await routeFiscal(page, cookies)
+  await page.goto(`${origin}/settings/apps/finance#setup`, { waitUntil: 'domcontentloaded' })
+  await expect(hardLockCard(page)).toBeVisible({ timeout: 15_000 })
+}
+
+test('the hard lock is sent only after the acknowledgement, with the identity the screen was read for', async ({ page }) => {
+  await openHardLock(page)
+  const start = page.getByTestId('finance-hard-lock-start')
+  await expect(page.getByTestId('finance-hard-lock-current')).toHaveText('لا يوجد إقفال نهائي')
+  await expect(start).toBeDisabled()
+  await chooseHardLockDay(page)
+  await expect(start).toBeEnabled()
+  await start.click()
+  const confirm = page.getByTestId('inline-confirm')
+  await expect(confirm).toBeVisible()
+  await expect(confirm).toContainText('لن يستطيع أحد تعديل قيود هذه الفترة')
+  // Without the acknowledgement the action stays disabled and nothing is sent.
+  const action = page.getByTestId('inline-confirm-action')
+  await expect(action).toBeDisabled()
+  expect(hardLockRequests).toHaveLength(0)
+  await confirm.getByText(ACKNOWLEDGE, { exact: true }).click()
+  await expect(action).toBeEnabled()
+  await action.click()
+  await expect(page.getByText('تم الإقفال النهائي.', { exact: true })).toBeVisible()
+  expect(hardLockRequests).toHaveLength(1)
+  const [request] = hardLockRequests
+  expect(request?.body).toEqual({ hard_lock_date: expect.stringMatching(/^\d{4}-\d{2}-01$/), confirm: true })
+  expect(request?.headers['x-liwan-expected-user-id']).toBe('2')
+  expect(request?.headers['x-liwan-expected-company-id']).toBe('1')
+  expect(fiscalPatches).toHaveLength(0)
+  await expect(page.getByTestId('finance-hard-lock-current')).toHaveText((request?.body as { hard_lock_date: string }).hard_lock_date)
+  await expect(page.getByTestId('inline-confirm')).toHaveCount(0)
+})
+
+test('cancelling the confirmation sends nothing and keeps the chosen day', async ({ page }) => {
+  await openHardLock(page)
+  await chooseHardLockDay(page)
+  await page.getByTestId('finance-hard-lock-start').click()
+  await page.getByTestId('inline-confirm-cancel').click()
+  await expect(page.getByTestId('inline-confirm')).toHaveCount(0)
+  await expect(page.getByTestId('finance-hard-lock-start')).toBeEnabled()
+  expect(hardLockRequests).toHaveLength(0)
+})
+
+for (const refusal of [
+  { code: 'draft_entries_in_period', message: 'توجد قيود مسودة حتى هذا التاريخ. رحِّلها أو احذفها قبل الإقفال النهائي.' },
+  { code: 'unreconciled_bank_lines', message: 'توجد أسطر كشف بنكي غير مسوّاة حتى هذا التاريخ. سوِّها أو احذفها قبل القفل.' },
+  { code: 'lock_date_loosening', message: 'الإقفال النهائي لا يُزال ولا يُرجع إلى تاريخ أسبق.' },
+]) {
+  test(`a ${refusal.code} refusal is shown in Arabic and the lock stays unset`, async ({ page }) => {
+    await openHardLock(page)
+    rejectNextLock = { status: 422, code: refusal.code, message: 'server text' }
+    await chooseHardLockDay(page)
+    await page.getByTestId('finance-hard-lock-start').click()
+    await page.getByTestId('inline-confirm').getByText(ACKNOWLEDGE, { exact: true }).click()
+    await page.getByTestId('inline-confirm-action').click()
+    const alert = page.getByTestId('finance-hard-lock-error')
+    await expect(alert).toHaveText(refusal.message)
+    await expect(page.getByText('تم الإقفال النهائي.', { exact: true })).toHaveCount(0)
+    await expect(page.getByTestId('finance-hard-lock-current')).toHaveText('لا يوجد إقفال نهائي')
+    await expect(page.getByTestId('inline-confirm')).toHaveCount(0)
+    expect(hardLockRequests).toHaveLength(1)
+  })
+}
+
+test('a saved hard lock is shown, and a reader gets no controls for it', async ({ page }) => {
+  mode = 'reader'
+  hardLockDate = '2026-03-31'
+  await openHardLock(page)
+  await expect(page.getByTestId('finance-hard-lock-current')).toHaveText('2026-03-31')
+  await expect(page.getByTestId('finance-hard-lock-start')).toHaveCount(0)
+  await expect(page.locator('#finance-fiscal-hard_lock_date')).toHaveCount(0)
+})
+
+for (const width of [1440, 390]) {
+  test(`the hard lock card in Arabic RTL at ${width}px stays inside the page, also while confirming`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openHardLock(page, [{ name: 'liwan-locale', value: 'ar' }])
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    await expect.poll(fits).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`hard-lock.rtl.${width}.png`), fullPage: true })
+    await chooseHardLockDay(page)
+    await page.getByTestId('finance-hard-lock-start').click()
+    await expect(page.getByTestId('inline-confirm')).toBeVisible()
+    await expect.poll(fits).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`hard-lock.rtl.confirm.${width}.png`), fullPage: true })
+  })
 }

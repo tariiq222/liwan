@@ -218,27 +218,43 @@
         "yearEndDay": "Fiscal year end day",
         "yearEndMonth": "Fiscal year end month",
         "yearEndHint": "The fiscal year end cannot change after entries are posted. The system checks this when saving.",
-        "locksHint": "Locks can only be tightened; they cannot be removed or moved earlier here.",
-        "hardLockHint": "The hard lock is read-only and cannot be changed here.",
+        "locksHint": "You can change or remove the period locks here. Every change is recorded in the audit log.",
         "saved": "Fiscal year and lock settings saved.",
         "errors": {
           "invalidDay": "Enter a whole day from 1 to 31.",
           "invalidMonth": "Enter a whole month from 1 to 12.",
           "invalidYearEnd": "That date does not exist in the calendar. Enter a valid date.",
           "invalidLockDate": "Enter a valid date.",
-          "lockCannotClear": "This lock cannot be removed here; it can only be tightened.",
-          "lockCannotMoveEarlier": "This lock cannot be moved to an earlier date.",
           "fiscal_year_has_posted_entries": "The fiscal year end cannot change because entries have been posted. Restore the saved year end to save lock changes only.",
-          "lock_date_loosening": "This lock cannot be removed or moved to an earlier date.",
+          "lock_date_loosening": "The hard lock cannot be removed or moved to an earlier date.",
           "invalid_request_context": "This request could not be checked against the signed-in identity. Reload the page and try again.",
           "request_context_changed": "The company or sign-in identity changed since this screen was opened, so this request's result was not applied. Reload the current company's settings to verify.",
-          "unreconciled_bank_lines": "Some bank statement lines up to this date are not reconciled. Reconcile or delete them before locking the fiscal year.",
-          "transferAccountCannotClear": "The transfer account cannot be removed, only replaced by another account."
+          "unreconciled_bank_lines": "Some bank statement lines up to this date are not reconciled. Reconcile or delete them before locking.",
+          "transferAccountCannotClear": "The transfer account cannot be removed, only replaced by another account.",
+          "draft_entries_in_period": "There are draft entries up to this date. Post or delete them before the hard lock."
         },
         "transfer_account_id": "Internal transfer account",
         "transferAccountHint": "The account transfers between banks and cash boxes pass through. It must be a reconcilable current asset.",
         "transferAccountPlaceholder": "Choose an account",
         "transferAccountReadOnly": "Reading the chart of accounts is needed to change this account."
+      },
+      "hardLock": {
+        "title": "Hard lock",
+        "description": "Blocks adding, changing or deleting any entry of the locked period. It cannot be undone, and its date can only move later.",
+        "none": "No hard lock",
+        "dateLabel": "Hard lock up to",
+        "dateHint": "Pick the last day to close the books, no later than today.",
+        "start": "Hard lock",
+        "confirmTitle": "Confirm the hard lock",
+        "confirmBody": "The books will be locked for good up to {date}. Nobody, including a system administrator, can change or delete entries of this period or undo the lock.",
+        "acknowledge": "I understand the hard lock cannot be undone",
+        "confirm": "Lock for good",
+        "done": "The hard lock is set.",
+        "errors": {
+          "invalidLockDate": "Enter a valid date.",
+          "hardLockEarlier": "The hard lock cannot move to a date earlier than the current one.",
+          "hardLockFuture": "The hard lock cannot be later than today."
+        }
       },
       "chart": {
         "title": "Chart of accounts",

@@ -82,6 +82,7 @@ const OUTCOME_SHAPES: [RegExp, string, string[]][] = [
   [/^sold for (.+)$/, 'soldFor', ['amount']],
   [/^base (.+)$/, 'zakatBase', ['amount']],
   [/^(\d{4}):(\w+)$/, 'yearClosed', ['year', 'state']],
+  [/^(\d{4}-\d{2}-\d{2})?>(\d{4}-\d{2}-\d{2})?$/, 'lockChange', ['old', 'new']],
 ]
 
 /** The outcome text the server stores, as a locale key with its figures; null when the text is a plain state word. */

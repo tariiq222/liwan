@@ -9,12 +9,15 @@ from .res_company import GLOBAL_TAX_ROUNDING, SAUDI_COUNTRY_CODE
 _logger = logging.getLogger(__name__)
 
 SETUP_MANAGE = 'finance.setup.manage'
-# The hard lock date is irreversible in stock Odoo, so it is never writable here.
+# The hard lock date is irreversible in stock Odoo, which refuses to lower or remove it; only the confirmed
+# ``/setup/fiscal/lock`` route passes it here.
 COMPANY_FISCAL_FIELDS = frozenset({
     'fiscalyear_last_day', 'fiscalyear_last_month',
-    'fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date',
+    'fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date', 'hard_lock_date',
     'tax_calculation_rounding_method', 'transfer_account_id',
 })
+
+SOFT_LOCK_FIELDS = ('fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date')
 
 
 class LiwanFinanceSetup(models.AbstractModel):
@@ -27,7 +30,9 @@ class LiwanFinanceSetup(models.AbstractModel):
     elevated place in this file: the documented R7 case "finance setup (company fiscal settings)". It checks
     ``finance.setup.manage`` itself before it elevates and acts on the current company only. Each success
     leaves a log record and an audit event (``liwan.finance.audit.event``) created in the caller's
-    environment (no elevation).
+    environment (no elevation). The generic ``company_written`` event names the fields only; each lock date
+    that really changed also gets its own event with the old and new day (``lock_date_changed`` or
+    ``hard_lock_set``).
     """
     _name = 'liwan.finance.setup'
     _description = 'LiwanOS finance guided setup'
@@ -49,6 +54,8 @@ class LiwanFinanceSetup(models.AbstractModel):
         forbidden = sorted(set(vals) - COMPANY_FISCAL_FIELDS)
         if forbidden:
             raise AccessError(self.env._('Finance setup cannot write the field %s.', forbidden[0]))
+        lock_fields = [field for field in (*SOFT_LOCK_FIELDS, 'hard_lock_date') if field in vals]
+        before = {field: company[field] for field in lock_fields}
         try:
             company.sudo().write(vals)
         except RedirectWarning as warning:
@@ -56,3 +63,8 @@ class LiwanFinanceSetup(models.AbstractModel):
             raise UserError(warning.args[0]) from None
         _logger.info('finance.setup.company_written company=%s user=%s fields=%s', company.id, self.env.uid, ', '.join(sorted(vals)))
         self.env['liwan.finance.audit.event']._liwan_log('company_written', company, fields_written=audit_vals)
+        for field in lock_fields:
+            if before[field] != company[field]:
+                action = 'hard_lock_set' if field == 'hard_lock_date' else 'lock_date_changed'
+                outcome = f'{before[field] or ""}>{company[field] or ""}'
+                self.env['liwan.finance.audit.event']._liwan_log(action, company, fields_written=(field,), outcome=outcome)

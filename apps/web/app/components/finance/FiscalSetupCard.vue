@@ -161,7 +161,6 @@ const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({
       <SharedDateField
         :id="`finance-fiscal-${field}`"
         v-model="draft[field]"
-        :min-value="baseline[field]"
         :disabled="locked"
         :aria-label="t(`finance.setup.fiscal.${field}`)"
       />
@@ -181,8 +180,5 @@ const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({
         :aria-label="t('finance.setup.fiscal.transfer_account_id')"
       />
     </UFormField>
-    <SharedSettingRow :label="t('finance.setup.fiscal.hard_lock_date')" :description="t('finance.setup.fiscal.hardLockHint')">
-      <SharedDateField id="finance-fiscal-hard_lock_date" :model-value="setup.fiscal.hard_lock_date" disabled :aria-label="t('finance.setup.fiscal.hard_lock_date')" />
-    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

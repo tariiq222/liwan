@@ -10,6 +10,7 @@ const read = (path: string) => readFileSync(resolve(web, path), 'utf8')
 
 const PAGE = 'app/pages/settings/apps/finance/index.vue'
 const CARD = 'app/components/finance/FiscalSetupCard.vue'
+const HARD_LOCK_CARD = 'app/components/finance/FiscalHardLockCard.vue'
 const COMPOSABLE = 'app/composables/finance/useFinanceSetup.ts'
 const RULES = 'app/composables/finance/financeFiscalSetup.ts'
 
@@ -42,14 +43,30 @@ describe('the fiscal card is an inline card in the existing page', () => {
     expect(card).not.toContain('<SharedFormActions')
   })
 
-  it('offers a date field for the four locks and never an input for the hard lock', () => {
+  it('offers a date field for the four soft locks that moves both ways, and never an input for the hard lock', () => {
     const card = read(CARD)
     expect(card).toContain('FINANCE_FISCAL_LOCK_FIELDS')
     expect(card).toContain('<SharedDateField')
-    expect(card).toContain(':min-value="baseline[field]"')
+    expect(card).not.toContain(':min-value=')
     expect(card).toContain('v-model="draft[field]"')
-    expect(card).not.toContain('v-model="draft.hard_lock_date"')
-    expect(card).toContain("t('finance.setup.fiscal.hard_lock_date')")
+    expect(card).not.toContain('hard_lock_date')
+  })
+
+  it('closes the books for good only from its own card: inline confirmation, acknowledgement, no dialog', () => {
+    const page = read(PAGE)
+    expect(page).toContain('<FiscalHardLockCard')
+    expect(page).toContain(':can-edit="canManage"')
+    const card = read(HARD_LOCK_CARD)
+    for (const needle of ['id="setup-hard-lock"', '<SharedInlineConfirm', 'v-model="acknowledged"', ':disabled="!acknowledged"', ':max-value="today"', ':min-value="current"', 'useLockFinanceFiscal']) {
+      expect(card, needle).toContain(needle)
+    }
+    expect(card).not.toContain('SharedModal')
+    expect(card).not.toContain('UModal')
+    expect(card).not.toContain('company_id')
+    const composable = read(COMPOSABLE)
+    expect(composable).toContain("'/api/v1/finance/setup/fiscal/lock'")
+    expect(composable).toContain('confirm: true')
+    expect(composable).toContain('financeExpectedContextHeaders(request.scope)')
   })
 
   it('sends the changed fields only, and never a client company selector', () => {
@@ -88,6 +105,18 @@ describe('the fiscal rules own the messages the card shows', () => {
         const short = key.replace('finance.setup.fiscal.errors.', '')
         expect(messages.finance.setup.fiscal.errors[short], `${locale}:${short}`).toBeTruthy()
       }
+    }
+  })
+
+  it('keeps the Arabic and English hard lock keys in step', () => {
+    const hardLock = (locale: string) => {
+      const messages = JSON.parse(read(`i18n/locales/${locale}/finance.json`)) as { finance: { setup: { hardLock: Record<string, unknown> } } }
+      return messages.finance.setup.hardLock
+    }
+    expect(Object.keys(hardLock('ar')).sort()).toEqual(Object.keys(hardLock('en')).sort())
+    for (const code of ['invalidLockDate', 'hardLockEarlier', 'hardLockFuture']) {
+      expect((hardLock('ar').errors as Record<string, string>)[code], code).toBeTruthy()
+      expect((hardLock('en').errors as Record<string, string>)[code], code).toBeTruthy()
     }
   })
 

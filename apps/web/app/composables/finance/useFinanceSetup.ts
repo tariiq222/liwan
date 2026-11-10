@@ -1,7 +1,7 @@
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue'
 import { computed, effectScope, ref, toValue, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { FinanceSetupSchema, type FinanceSetup, type FinanceSetupFiscalInput } from '@liwan/contracts'
+import { FinanceSetupSchema, type FinanceHardLockInput, type FinanceSetup, type FinanceSetupFiscalInput } from '@liwan/contracts'
 import {
   financeExpectedContextHeaders,
   financeSetupScopeToken,
@@ -125,6 +125,29 @@ export function useSaveFinanceFiscal() {
       headers: financeExpectedContextHeaders(request.scope),
     })),
     onMutate: (request: FinanceFiscalSaveRequest) => cancelFinanceSetupReads(qc, request.scope),
+    onSuccess: (setup, request) => (sameFinanceSetupScope(request.scope, scope.value)
+      ? applyFinanceSetupWrite(qc, request.scope, setup)
+      : undefined),
+  })
+}
+
+/** What a hard lock sends: the date, and the identity the screen was read for. The confirmation is added here, not by the caller. */
+export type FinanceHardLockRequest = { hard_lock_date: string; scope: FinanceSetupScope }
+
+/** Closes the books up to a date for good. It travels the same identity precondition as the fiscal save, and the same
+ * rule for a response that arrives after the screen moved on. */
+export function useLockFinanceFiscal() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  const { scope, read } = useFinanceSetupScope()
+  return useMutation({
+    mutationFn: (request: FinanceHardLockRequest) => dispatchInScope(request.scope, read, () => $api('/api/v1/finance/setup/fiscal/lock', {
+      method: 'POST',
+      body: { hard_lock_date: request.hard_lock_date, confirm: true } satisfies FinanceHardLockInput,
+      schema: FinanceSetupSchema,
+      headers: financeExpectedContextHeaders(request.scope),
+    })),
+    onMutate: (request: FinanceHardLockRequest) => cancelFinanceSetupReads(qc, request.scope),
     onSuccess: (setup, request) => (sameFinanceSetupScope(request.scope, scope.value)
       ? applyFinanceSetupWrite(qc, request.scope, setup)
       : undefined),
