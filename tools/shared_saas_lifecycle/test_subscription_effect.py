@@ -650,3 +650,62 @@ class RestoreRuntimeTests(unittest.TestCase):
             request['restore']['approvalId'] = OTHER
             with self.assertRaisesRegex(EffectError, 'restore_target_unverified'):
                 se.ComposeRunner(request)
+
+
+class OptionalTrialEndKeysTest(unittest.TestCase):
+    """New optional keys are type-checked when present and ignored otherwise."""
+
+    VALID_REQUEST = {
+        'excess_settle': True, 'trial_ends_at': '2026-12-01T00:00:00Z',
+        'post_trial_features': {'users.limit': 3, 'pmo.enabled': False},
+        'post_trial_modules': ['liwan_core'], 'post_trial_digest': 'd' * 64,
+    }
+    INVALID_REQUEST = {
+        'excess_settle': 'yes', 'trial_ends_at': 1700000000, 'post_trial_features': [],
+        'post_trial_modules': 'liwan_core', 'post_trial_digest': 'xyz',
+    }
+    BRANCH = {'branch_id': B1, 'state': 'active', 'odoo_company_id': 2, 'active': True, 'parent_is_root': True}
+
+    def test_request_accepts_each_valid_key(self):
+        for key, value in self.VALID_REQUEST.items():
+            with self.subTest(key=key):
+                se.validate_reconfigure(make_request(**{key: value}))
+        se.validate_reconfigure(make_request(trial_ends_at=None))
+        se.validate_reconfigure(make_request(**self.VALID_REQUEST))
+
+    def test_request_rejects_each_wrong_type(self):
+        for key, value in self.INVALID_REQUEST.items():
+            with self.subTest(key=key), self.assertRaises(EffectError):
+                se.validate_reconfigure(make_request(**{key: value}))
+
+    def test_request_without_keys_is_unchanged(self):
+        request = make_request()
+        before = json.dumps(request, sort_keys=True)
+        self.assertIs(se.validate_reconfigure(request), request)
+        self.assertEqual(json.dumps(request, sort_keys=True), before)
+
+    def test_request_still_ignores_other_unknown_keys(self):
+        se.validate_reconfigure(make_request(unrelated_key=object()))
+
+    def test_observation_accepts_each_valid_key(self):
+        for over in ({'post_trial_supported': True}, {'excess_supported': False},
+                     {'excess': {'users.limit': 0, 'storage.limit_mb': 4}},
+                     {'branches': [dict(self.BRANCH, read_only=True)]}):
+            with self.subTest(over=sorted(over)):
+                se.validate_observation(observation(**over))
+
+    def test_observation_rejects_each_wrong_type(self):
+        for over in ({'post_trial_supported': 1}, {'excess_supported': None},
+                     {'excess': []}, {'excess': {'users.limit': -1}}, {'excess': {'users.limit': True}},
+                     {'excess': {'Bad Key': 1}},
+                     {'branches': [dict(self.BRANCH, read_only='no')]}):
+            with self.subTest(over=over), self.assertRaisesRegex(EffectError, 'observation_invalid'):
+                se.validate_observation(observation(**over))
+
+    def test_observation_without_keys_is_unchanged(self):
+        value = observation(branches=[dict(self.BRANCH)])
+        self.assertIs(se.validate_observation(value), value)
+        with self.assertRaisesRegex(EffectError, 'observation_invalid'):
+            se.validate_observation(observation(unknown_flag=True))
+        with self.assertRaisesRegex(EffectError, 'observation_invalid'):
+            se.validate_observation(observation(branches=[dict(self.BRANCH, extra=1)]))
