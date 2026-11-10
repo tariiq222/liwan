@@ -126,6 +126,12 @@ class TestWholeTree(unittest.TestCase):
                 problems = self.scan({path: f'const k = "{REAL_SHAPED_TOKEN}"\n'})
                 self.assertEqual(problems, [f'provider token or private key: {path}:1'])
 
+    def test_e2e_and_repo_root_files_are_scanned_too(self):
+        for path in ('e2e/tests/a.e2e.ts', 'e2e.config.ts'):
+            with self.subTest(path=path):
+                self.assertEqual(self.scan({path: f'const k = "{REAL_SHAPED_TOKEN}"\n'}),
+                                 [f'provider token or private key: {path}:1'])
+
     def test_a_private_key_block_is_found(self):
         block = '-----BEGIN ' + 'RSA PRIVATE KEY-----'
         self.assertEqual(find_provider_tokens(block + '\n', 'apps/a/b.py'), [1])
@@ -163,7 +169,7 @@ class TestWholeTree(unittest.TestCase):
         self.assertEqual(problems, ['literal secret: apps/ai-service/pyproject.toml:1'])
 
     def test_an_exception_skips_the_literal_rules_but_not_the_token_rule(self):
-        exceptions = {'apps/web/e2e/*': 'test accounts of the scratch database'}
+        exceptions = {'apps/web/e2e/a.spec.ts': 'test accounts of the scratch database'}
         quiet = {'apps/web/e2e/a.spec.ts': "x = process.env.E2E_PASSWORD ?? 'hunter2hunter2'\n"}
         self.assertEqual(self.scan(quiet, exceptions), [])
         loud = {'apps/web/e2e/a.spec.ts': f'const k = "{REAL_SHAPED_TOKEN}"\n'}
@@ -173,8 +179,24 @@ class TestWholeTree(unittest.TestCase):
         problems = self.scan({'apps/a/b.py': 'x = 1\n'}, {'apps/gone/*': 'removed'})
         self.assertEqual(problems, ['stale literal exception (matches no scanned file): apps/gone/*'])
 
-    def test_every_real_exception_states_a_reason(self):
+    def test_the_exception_set_is_pinned_and_each_entry_states_a_reason(self):
+        # Adding an entry means editing this list in the same change, where review sees it.
+        self.assertEqual(sorted(secret_guard.LITERAL_EXCEPTIONS), [
+            'apps/control-plane/src/commercial/payment-simulator.ts',
+            'tools/shared_acceptance_live/down.sh',
+            'tools/shared_acceptance_live/probe.mjs',
+            'tools/test_jev_review.mjs',
+            'tools/test_secret_guard.py',
+        ])
         self.assertTrue(all(reason.strip() for reason in secret_guard.LITERAL_EXCEPTIONS.values()))
+        self.assertFalse(any('*' in path for path in secret_guard.LITERAL_EXCEPTIONS))
+
+    def test_only_the_e2e_variable_line_is_skipped_not_the_file(self):
+        text = (
+            "await page.fill(process.env.E2E_ADMIN_PASSWORD ?? 'hunter2hunter2')\n"
+            "const apiKey = process.env.API_KEY ?? 'hunter2hunter2'\n"
+        )
+        self.assertEqual(find_wide_fallbacks(text, 'apps/web/e2e/a.spec.ts'), [2])
 
 
 if __name__ == '__main__':

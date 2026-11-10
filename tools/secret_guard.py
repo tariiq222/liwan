@@ -2,7 +2,6 @@
 """Fail when a secret-bearing path is tracked or a literal secret is committed."""
 from __future__ import annotations
 
-import fnmatch
 import re
 import subprocess
 import sys
@@ -39,7 +38,7 @@ CREDENTIAL_FALLBACK_RE = re.compile(
 # (`WIDE_ROOTS`) is large and full of test fixtures, so there only high-signal rules apply: a credential that falls
 # back to a literal (`x || 'v'`, `x ?? 'v'`, `x or 'v'`, a literal default of an environment read), a provider token or a private key.
 SCAN_ROOTS = ('deploy/', '.github/')
-WIDE_ROOTS = ('apps/', 'packages/', 'odoo-addons/', 'tools/')
+WIDE_ROOTS = ('apps/', 'packages/', 'odoo-addons/', 'tools/', 'e2e/')
 JS_SUFFIXES = ('.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.vue')
 SOURCE_SUFFIXES = JS_SUFFIXES + ('.py',)
 CREDENTIAL_WORD_RE = re.compile(r'(?i)password|passwd|secret|token|api_key')
@@ -63,16 +62,18 @@ PROVIDER_TOKEN_RE = re.compile(
     r'|\bAIza[0-9A-Za-z_-]{35}\b|\bglpat-[A-Za-z0-9_-]{20}\b',
 )
 SELF_DESCRIBED_TOKEN_RE = re.compile(r'(?i)example|secret|fake|dummy|fixture|placeholder|sample|test')
-# Files in WIDE_ROOTS whose literal credentials are throwaway by construction. Every entry states why, and an entry
-# that matches no tracked file fails as stale, so the list only shrinks.
+# Files in WIDE_ROOTS whose literal credentials are throwaway by construction. Exact paths only, each with its reason;
+# tools/test_secret_guard.py pins the set, and an entry that matches no tracked file fails as stale.
 LITERAL_EXCEPTIONS = {
-    'apps/web/e2e/*': 'login defaults of the test-only accounts seeded into the disposable e2e scratch database',
     'apps/control-plane/src/commercial/payment-simulator.ts': 'the payment simulator refuses to construct in production',
-    'tools/shared_acceptance_live/*': 'throwaway credentials of the disposable local shared-acceptance stack',
+    'tools/shared_acceptance_live/probe.mjs': 'throwaway credentials of the disposable local shared-acceptance stack',
+    'tools/shared_acceptance_live/down.sh': 'dummy values that only satisfy the compose overlay of a teardown, never printed',
     'tools/test_secret_guard.py': "fixtures of the guard's own tests",
     'tools/test_jev_review.mjs': 'fixture secrets of the review tool tests',
-    'tools/arch_documented_sudo.json': 'prose reasons that mention credential words and hold no value',
 }
+# A fallback of an E2E_* variable is the login default of a test-only account seeded into the disposable e2e scratch database
+# (tools/e2e_seed.py); this skips the line, not the file, so any other credential in those specs is still judged.
+E2E_ACCOUNT_RE = re.compile(r'E2E_[A-Z0-9_]*(?:PASSWORD|TOKEN|SECRET)')
 
 
 def find_forbidden_paths(tracked: list[str]) -> list[str]:
@@ -126,7 +127,9 @@ def find_credential_fallbacks(
 
 def find_wide_fallbacks(text: str, path: str = '') -> list[int]:
     """The high-signal subset of find_credential_fallbacks, for the roots outside SCAN_ROOTS."""
-    return find_credential_fallbacks(text, path, (FALLBACK_ONLY_RE, OR_FALLBACK_RE, ENV_DEFAULT_RE), ('||', '??', ' or'))
+    hits = find_credential_fallbacks(text, path, (FALLBACK_ONLY_RE, OR_FALLBACK_RE, ENV_DEFAULT_RE), ('||', '??', ' or'))
+    lines = text.splitlines()
+    return [number for number in hits if not E2E_ACCOUNT_RE.search(lines[number - 1])]
 
 
 def find_provider_tokens(text: str, path: str = '') -> list[int]:
@@ -140,7 +143,7 @@ def find_provider_tokens(text: str, path: str = '') -> list[int]:
 
 
 def literal_exception(path: str) -> str | None:
-    return next((pattern for pattern in LITERAL_EXCEPTIONS if fnmatch.fnmatch(path, pattern)), None)
+    return path if path in LITERAL_EXCEPTIONS else None
 
 
 def find_secret_lines(path: str, text: str) -> list[tuple[str, int]]:
@@ -167,7 +170,8 @@ def scan_tree(tracked: list[str]) -> list[str]:
     used = set()
     for path in tracked:
         strict = path.startswith(SCAN_ROOTS)
-        if not (strict or path.startswith(WIDE_ROOTS)) or not path.endswith(SCANNED_SUFFIXES + SOURCE_SUFFIXES):
+        wide = path.startswith(WIDE_ROOTS) or '/' not in path  # repo-root files (config, scripts) are scanned like a wide root
+        if not (strict or wide) or not path.endswith(SCANNED_SUFFIXES + SOURCE_SUFFIXES):
             continue
         text = Path(path).read_text(encoding='utf-8', errors='replace')
         problems += [f'provider token or private key: {path}:{n}' for n in find_provider_tokens(text, path)]
