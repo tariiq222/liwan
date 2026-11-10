@@ -157,9 +157,11 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
         }
         if (order.payment_state === 'paid' && job) {
           const branches = delivery?.authority.branches
-          // Only an abandoned paid trial-time policy write with no branch operation may be refunded unreconciled: the
-          // trial-lapse delivery then names its recorded digests as predecessors. Any other possible write stays fenced.
-          const trialPolicyOnly = Boolean(delivery?.authority.trial_ends_at) && branches
+          // Only an abandoned paid trial-time policy write with no branch operation may be refunded unreconciled, and only
+          // once the trial has lapsed: the pending lapse then orders the lock, whose delivery names the recorded digests as
+          // predecessors. While the trial still runs nothing can reconcile Odoo, so the same delivery stays fenced.
+          const lapsed = (await client.query("SELECT 1 FROM trial_lapses WHERE subscription_id=$1 AND state='pending'", [subscription.id])).rowCount === 1
+          const trialPolicyOnly = lapsed && Boolean(delivery?.authority.trial_ends_at) && branches
             && !branches.apply.length && !branches.archive.length && !branches.restore?.length
           if (!trialPolicyOnly && (!delivery || !provenPreWrite(job, delivery))) {
             if (delivery) await queueSameDelivery(client, order, job, delivery, now, currentTarget)
