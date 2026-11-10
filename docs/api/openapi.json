@@ -3253,7 +3253,9 @@
           "kind": {
             "enum": [
               "plan",
-              "title"
+              "title",
+              "route",
+              "summary"
             ],
             "type": "string"
           },
@@ -3282,7 +3284,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "plan",
-          "title"
+          "title",
+          "route",
+          "summary"
         ],
         "type": "string"
       },
@@ -5261,7 +5265,9 @@
                 "kind": {
                   "enum": [
                     "plan",
-                    "title"
+                    "title",
+                    "route",
+                    "summary"
                   ],
                   "type": "string"
                 },
@@ -5406,7 +5412,9 @@
                 "kind": {
                   "enum": [
                     "plan",
-                    "title"
+                    "title",
+                    "route",
+                    "summary"
                   ],
                   "type": "string"
                 },
@@ -5542,7 +5550,9 @@
           "kind": {
             "enum": [
               "plan",
-              "title"
+              "title",
+              "route",
+              "summary"
             ],
             "type": "string"
           },
@@ -5673,7 +5683,9 @@
           "kind": {
             "enum": [
               "plan",
-              "title"
+              "title",
+              "route",
+              "summary"
             ],
             "type": "string"
           },
@@ -5804,7 +5816,9 @@
                 "kind": {
                   "enum": [
                     "plan",
-                    "title"
+                    "title",
+                    "route",
+                    "summary"
                   ],
                   "type": "string"
                 },
@@ -28598,6 +28612,18 @@
                         },
                         "type": "array"
                       },
+                      "last_attempt_at": {
+                        "anyOf": [
+                          {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "mode": {
                         "anyOf": [
                           {
@@ -28612,8 +28638,25 @@
                           }
                         ]
                       },
+                      "next_retry_at": {
+                        "anyOf": [
+                          {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "qr_present": {
                         "type": "boolean"
+                      },
+                      "retry_count": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
                       },
                       "state": {
                         "enum": [
@@ -28655,7 +28698,10 @@
                       "mode",
                       "errors",
                       "warnings",
-                      "qr_present"
+                      "qr_present",
+                      "retry_count",
+                      "last_attempt_at",
+                      "next_retry_at"
                     ],
                     "type": "object"
                   }
@@ -29503,6 +29549,18 @@
                 },
                 "type": "array"
               },
+              "last_attempt_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "mode": {
                 "anyOf": [
                   {
@@ -29517,8 +29575,25 @@
                   }
                 ]
               },
+              "next_retry_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "qr_present": {
                 "type": "boolean"
+              },
+              "retry_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
               },
               "state": {
                 "enum": [
@@ -29560,7 +29635,10 @@
               "mode",
               "errors",
               "warnings",
-              "qr_present"
+              "qr_present",
+              "retry_count",
+              "last_attempt_at",
+              "next_retry_at"
             ],
             "type": "object"
           }
@@ -32791,6 +32869,34 @@
                 "items": {
                   "additionalProperties": false,
                   "properties": {
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expiry_warning_days": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            7,
+                            30
+                          ],
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "journal": {
                       "additionalProperties": false,
                       "properties": {
@@ -32824,7 +32930,9 @@
                   "required": [
                     "journal",
                     "onboarded",
-                    "state"
+                    "state",
+                    "expires_at",
+                    "expiry_warning_days"
                   ],
                   "type": "object"
                 },
@@ -34901,9 +35009,13 @@
           "zatca_local_error",
           "zatca_unauthorized",
           "zatca_mode_not_allowed",
+          "zatca_environment_busy",
+          "zatca_simulation_not_released",
+          "zatca_production_not_released",
           "zatca_not_onboarded",
           "zatca_not_applicable",
-          "company_profile_incomplete"
+          "company_profile_incomplete",
+          "retry_too_soon"
         ],
         "type": "string"
       },
@@ -34911,6 +35023,34 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiry_warning_days": {
+            "anyOf": [
+              {
+                "enum": [
+                  0,
+                  1,
+                  7,
+                  30
+                ],
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "journal": {
             "additionalProperties": false,
             "properties": {
@@ -34944,7 +35084,9 @@
         "required": [
           "journal",
           "onboarded",
-          "state"
+          "state",
+          "expires_at",
+          "expiry_warning_days"
         ],
         "type": "object"
       },
@@ -34977,6 +35119,59 @@
         ],
         "type": "object"
       },
+      "FinanceZatcaModeInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "sandbox",
+              "preprod",
+              "prod"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "confirmation"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaModeResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "api_mode": {
+            "enum": [
+              "sandbox",
+              "preprod",
+              "prod"
+            ],
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "api_mode",
+          "changed"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "sandbox",
+          "preprod",
+          "prod"
+        ],
+        "type": "string"
+      },
       "FinanceZatcaOnboardInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -35007,6 +35202,34 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expiry_warning_days": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        0,
+                        1,
+                        7,
+                        30
+                      ],
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "journal": {
                   "additionalProperties": false,
                   "properties": {
@@ -35040,7 +35263,9 @@
               "required": [
                 "journal",
                 "onboarded",
-                "state"
+                "state",
+                "expires_at",
+                "expiry_warning_days"
               ],
               "type": "object"
             },
@@ -35109,6 +35334,34 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expiry_warning_days": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        0,
+                        1,
+                        7,
+                        30
+                      ],
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "journal": {
                   "additionalProperties": false,
                   "properties": {
@@ -35142,7 +35395,9 @@
               "required": [
                 "journal",
                 "onboarded",
-                "state"
+                "state",
+                "expires_at",
+                "expiry_warning_days"
               ],
               "type": "object"
             },
@@ -35150,6 +35405,11 @@
           },
           "onboarded": {
             "type": "boolean"
+          },
+          "overdue_reporting": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
           },
           "private_key_present": {
             "type": "boolean"
@@ -35160,7 +35420,8 @@
           "private_key_present",
           "journals",
           "onboarded",
-          "backlog"
+          "backlog",
+          "overdue_reporting"
         ],
         "type": "object"
       },
@@ -35190,6 +35451,18 @@
             },
             "type": "array"
           },
+          "last_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "mode": {
             "anyOf": [
               {
@@ -35204,8 +35477,25 @@
               }
             ]
           },
+          "next_retry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "qr_present": {
             "type": "boolean"
+          },
+          "retry_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
           },
           "state": {
             "enum": [
@@ -35247,7 +35537,10 @@
           "mode",
           "errors",
           "warnings",
-          "qr_present"
+          "qr_present",
+          "retry_count",
+          "last_attempt_at",
+          "next_retry_at"
         ],
         "type": "object"
       },
@@ -35357,6 +35650,18 @@
                       },
                       "type": "array"
                     },
+                    "last_attempt_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "mode": {
                       "anyOf": [
                         {
@@ -35371,8 +35676,25 @@
                         }
                       ]
                     },
+                    "next_retry_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "qr_present": {
                       "type": "boolean"
+                    },
+                    "retry_count": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
                     },
                     "state": {
                       "enum": [
@@ -35414,7 +35736,10 @@
                     "mode",
                     "errors",
                     "warnings",
-                    "qr_present"
+                    "qr_present",
+                    "retry_count",
+                    "last_attempt_at",
+                    "next_retry_at"
                   ],
                   "type": "object"
                 }
@@ -35532,6 +35857,18 @@
                 },
                 "type": "array"
               },
+              "last_attempt_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "mode": {
                 "anyOf": [
                   {
@@ -35546,8 +35883,25 @@
                   }
                 ]
               },
+              "next_retry_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "qr_present": {
                 "type": "boolean"
+              },
+              "retry_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
               },
               "state": {
                 "enum": [
@@ -35589,7 +35943,10 @@
               "mode",
               "errors",
               "warnings",
-              "qr_present"
+              "qr_present",
+              "retry_count",
+              "last_attempt_at",
+              "next_retry_at"
             ],
             "type": "object"
           }
@@ -115386,7 +115743,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "retry_invoice",
+        "summary": "Send a failed document again; 422 ``retry_too_soon`` (with ``details.next_retry_at``) until the escalating spacing has passed.",
         "tags": [
           "liwan_finance"
         ],
@@ -118392,6 +118749,46 @@
           ],
           "feature_operation": "write",
           "handler": "onboard_journal",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/zatca/mode": {
+      "post": {
+        "operationId": "liwan_finance.FinanceZatcaController.request_mode.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "request_mode",
+        "tags": [
+          "liwan_finance"
+        ],
+        "x-liwan": {
+          "addon": "liwan_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceZatcaController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "request_mode",
           "readonly": false,
           "route_type": "json2"
         }

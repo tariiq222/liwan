@@ -9088,7 +9088,7 @@
         "finance.zatca.submit"
       ],
       "capability_match": "all",
-      "capability_source": "body",
+      "capability_source": "decorator",
       "feature_keys": [
         "finance.enabled"
       ],
@@ -9485,6 +9485,20 @@
         "finance.enabled"
       ],
       "handler": "onboard_journal",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/zatca/mode": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.zatca.environment"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "request_mode",
       "no_capability_reason": null
     },
     "POST /api/v1/hr/assets/categories": {
