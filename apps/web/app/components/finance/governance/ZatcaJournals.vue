@@ -33,7 +33,7 @@ const openJournal = ref<number | null>(null)
           <p v-if="item.expiry_warning_days !== null" class="mt-1 text-warning">
             {{ item.expiry_warning_days === 0
               ? t('financeGovernance.zatca.expiry.expired')
-              : t('financeGovernance.zatca.expiry.within', { days: item.expiry_warning_days }) }}
+              : t('financeGovernance.zatca.expiry.within', item.expiry_warning_days) }}
           </p>
         </div>
         <ZatcaOnboardForm v-if="canManage && !item.onboarded && openJournal === item.journal.id" class="mt-3" :journal="item.journal" @done="openJournal = null" @cancel="openJournal = null" />

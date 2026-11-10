@@ -1,8 +1,8 @@
 # ZATCA simulation and production policy
 
 Status as of 2026-11-10. The owner confirmed D2, D3, D4 and D6. D1 remains approved.
-The customer environment remains sandbox-only. Simulation still requires a resolved privilege
-authorization and release evidence. Production also requires the reference taxpayer outcome,
+The customer environment remains sandbox-only. The owner approved the simulation privilege widening on
+2026-11-10 (section 7); enabling simulation still requires that change and its release evidence. Production also requires the reference taxpayer outcome,
 accounting sign-off, terms review and a separate release authorization.
 
 Scope: when and how a LiwanOS company leaves the ZATCA developer-portal sandbox for the Fatoora simulation
@@ -186,10 +186,11 @@ The owner confirmed D2, D3, D4 and D6 on 2026-11-10. D5 remains a release gate.
 
 ## 7. Privileged simulation follow-up
 
-The existing documented onboarding and submission elevations in `zatca_service.py` explicitly permit sandbox only.
-This policy requires an owner-authored `Architecture-approved-by:` trailer before widening those cases.
-The general R7 rule covers new documented cases. The approval and trailer for widening the existing ZATCA
-cases remain unresolved. The guarded readiness slice keeps their registry entry and runtime scope intact.
+The existing documented onboarding and submission elevations in `zatca_service.py` permit sandbox only.
+The owner approved widening them to simulation (`preprod`) on 2026-11-10. Per R7 (owner decision 2026-10-25),
+widening a documented `sudo()` case needs no approval trailer: the updated reason in
+`tools/arch_documented_sudo.json` and review of the actual diff are the record. The widening ships as its own
+change after the readiness slice, following the delta below. Production stays refused.
 
 The reviewable simulation delta is one narrow company write through the stock API. The service would acquire
 the company fence, confirm current `sandbox` and requested `preprod`, enforce the dedicated permission,

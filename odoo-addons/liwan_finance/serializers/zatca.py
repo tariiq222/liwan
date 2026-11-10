@@ -116,10 +116,12 @@ def dump_zatca_backlog(company):
 
 def dump_zatca_overdue_reporting(company):
     cutoff = fields.Datetime.now() - timedelta(hours=REPORTING_WARNING_HOURS)
-    documents = company.env['account.edi.document'].search([
+    # Stock ``_l10n_sa_is_simplified``: the commercial partner of the customer is a person (not ``is_company``).
+    # ``commercial_partner_id`` is stored, so one count replaces loading every waiting document.
+    return company.env['account.edi.document'].search_count([
         *waiting_domain(company), ('move_id.l10n_sa_confirmation_datetime', '<', cutoff),
+        ('move_id.partner_id.commercial_partner_id.is_company', '=', False),
     ])
-    return sum(move._l10n_sa_is_simplified() for move in documents.move_id)
 
 
 def zatca_state(document):
