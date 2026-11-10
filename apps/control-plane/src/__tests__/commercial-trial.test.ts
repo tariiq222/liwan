@@ -244,15 +244,16 @@ suite('commercial trial', () => {
       capabilities: ['vendor.subscriptions.manage'], stepUpFresh: true }, new URL(`http://localhost/v1/commercial${path}`), runtime)
   }
   it('extends a trial and audits it', async () => {
-    const c = await trialAt(now, 5)
+    const actualNow = new Date()
+    const c = await trialAt(actualNow, 5)
     const sub = await getSubscription(pool, c.id)
     const response = await vendorPost(`/trials/${sub.id}/extend`, { days: 7, reason: 'promised more time' })
     expect(response!.status).toBe(200)
     const after = await getSubscription(pool, c.id)
-    expect(daysBetween(riyadhDate(now), riyadhDate(new Date(after.trial_ends_at!)))).toBe(12)
+    expect(daysBetween(riyadhDate(actualNow), riyadhDate(new Date(after.trial_ends_at!)))).toBe(12)
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.extended' AND subject=$1", [sub.id])).rowCount).toBe(1)
     const job = (await pool.query("SELECT payload FROM shared_jobs WHERE payload->'authority'->>'target_revision_id'=$1 AND payload->'authority' ? 'commercial_valid_until'", [sub.applied!.id])).rows[0]
-    expect(job?.payload.authority.trial_ends_at).toBe('2026-11-06T09:00:00.000Z')
+    expect(job?.payload.authority.trial_ends_at).toBe(new Date(actualNow.getTime() + 12 * 86_400_000).toISOString())
     expect(job?.payload.authority.commercial_valid_until).toBeNull()
     expect(job?.payload.authority.commercial_valid_until_revision).toBe(1)
   })
@@ -325,14 +326,14 @@ suite('commercial trial', () => {
     await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [c.id])
     await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE subscription_id=(SELECT id FROM subscriptions WHERE customer_id=$1)", [c.id])
     const sub = (await pool.query('SELECT id FROM subscriptions WHERE customer_id=$1', [c.id])).rows[0]
-    await expect(extendTrial(pool, { subscription_id: sub.id, days: 5, reason: 'more', actor: 'vendor' }))
+    await expect(extendTrial(pool, { subscription_id: sub.id, days: 5, reason: 'more', actor: 'vendor', now }))
       .rejects.toMatchObject({ code: 'tenant_binding_unavailable' })
   })
   it('leaves the date to a fulfilment that is still pending', async () => {
     const c = await newCustomer()
     await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
     const sub = (await pool.query('SELECT id FROM subscriptions WHERE customer_id=$1', [c.id])).rows[0]
-    const extended = await extendTrial(pool, { subscription_id: sub.id, days: 3, reason: 'pending', actor: 'vendor' })
+    const extended = await extendTrial(pool, { subscription_id: sub.id, days: 3, reason: 'pending', actor: 'vendor', now })
     expect(extended.trial_ends_at).toBeTruthy()
     // Nothing was pushed, so the monotonic revision must not advance without a job.
     expect((await pool.query('SELECT commercial_expiry_revision FROM subscriptions WHERE id=$1', [sub.id])).rows[0].commercial_expiry_revision).toBe(0)

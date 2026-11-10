@@ -103,7 +103,7 @@ async function trialConversion(db: Ask, period: Period, now: Date) {
   const row = (await db.query(
     `WITH ended AS (
        SELECT s.id,COALESCE(l.ended_at,s.trial_ended_at,s.trial_ends_at) AS ended_at,s.trial_outcome
-       FROM subscriptions s LEFT JOIN trial_lapses l ON l.subscription_id=s.id
+       FROM subscriptions s LEFT JOIN trial_lapses l ON l.subscription_id=s.id AND l.state<>'superseded'
      )
      SELECT count(*) AS ended,
        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=t.id AND i.status='paid'

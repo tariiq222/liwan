@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 import { subscriptionViewSchema, subscriptionRevisionSchema, subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
+import { settledTrialReopenSource } from './trial-reopen.js'
 import { orderView } from './orders.js'
 
 const iso = (value: Date | string | null): string | null => value === null ? null : value instanceof Date ? value.toISOString() : value
@@ -25,7 +26,7 @@ export async function getSubscription(pool: Pool, customerId: string) {
     applied: revision(row.applied_revision_id), target: revision(row.target_revision_id), pending_order: pending.rows[0] ? orderView(pending.rows[0]) : null, order_cancelled: cancelled,
     revision: row.revision, renewal_at: date(row.renewal_at),
     auto_renew: { enabled: row.auto_renew_enabled, consent_at: iso(row.auto_renew_consent_at), token_ref_present: Boolean(row.provider_token_ref) },
-    trial_outcome: row.trial_outcome, trial_ends_at: iso(row.trial_ends_at), grace_ends_at: iso(row.grace_ends_at),
+    trial_reopenable: Boolean(await settledTrialReopenSource(pool, row)), trial_outcome: row.trial_outcome, trial_ends_at: iso(row.trial_ends_at), grace_ends_at: iso(row.grace_ends_at),
   })
   // Consumers derive the display state without confusing paid with applied.
   subscriptionDisplayState(view)

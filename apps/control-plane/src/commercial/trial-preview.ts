@@ -12,7 +12,7 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
       l.next_attempt_at,l.force_empty,l.kept,l.order_id,
       r.snapshot,old.snapshot AS before_lapse
     FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
-    LEFT JOIN trial_lapses l ON l.subscription_id=s.id
+    LEFT JOIN trial_lapses l ON l.subscription_id=s.id AND l.state<>'superseded'
     LEFT JOIN subscription_revisions old ON old.id=l.trial_revision_id WHERE s.customer_id=$1`, [customerId])).rows[0]
   const cutoff = row?.ended_at ?? row?.trial_ended_at ?? row?.trial_ends_at
   if (!cutoff) throw new CommercialHttpError('trial_not_active', 404)

@@ -18,9 +18,9 @@ export async function schedulePaidRecovery(client: PoolClient, order: Record<str
     [order.id, minutes, code])
 }
 
-const recoverable = `(o.payment_state='paid' OR (o.payment_state='not_required' AND EXISTS (
+const recoverable = `(o.payment_state='paid' OR (o.payment_state='not_required' AND (o.idempotency_key LIKE 'trial-reopen:%' OR EXISTS (
   SELECT 1 FROM trial_lapses l WHERE l.subscription_id=o.subscription_id AND l.state='pending'
-)))`
+))))`
 
 export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
   const due = (await pool.query(`SELECT id,subscription_id FROM orders o WHERE ${recoverable} AND NOT cancelled
@@ -47,6 +47,12 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
             await client.query("UPDATE shared_jobs SET state='queued',lease_until=NULL WHERE id=$1", [job.id])
           else await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: `retry:${order.fulfillment_retries + 1}`,
             payload: { order_id: order.id, subscription_id: subscription.id, target_revision_id: order.target_revision_id } })
+          return
+        }
+        // A terminal reopen can have written to Odoo while its receipt was lost. Keep its target
+        // fenced for operator reconciliation rather than treating a potentially open trial as closed.
+        if (String(order.idempotency_key).startsWith('trial-reopen:')) {
+          await client.query("UPDATE orders SET fulfillment_retry_at='infinity' WHERE id=$1", [order.id])
           return
         }
         if (job?.state === 'needs_intervention') await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1", [job.id])

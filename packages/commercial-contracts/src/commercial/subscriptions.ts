@@ -29,6 +29,7 @@ export const subscriptionViewSchema = z.strictObject({
   auto_renew: z.strictObject({ enabled: z.boolean(), consent_at: z.string().nullable(), token_ref_present: z.boolean() }),
   trial_ends_at: z.string().nullable(), grace_ends_at: z.string().nullable(),
   trial_outcome: trialOutcomeSchema.nullable().optional(),
+  trial_reopenable: z.boolean().optional(),
 })
 
 const quantity = z.number().int().nonnegative()

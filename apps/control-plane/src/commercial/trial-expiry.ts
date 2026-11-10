@@ -47,8 +47,12 @@ export async function endTrialOn(client: PoolClient, id: string, input: { now: D
   }
   await client.query(`UPDATE subscriptions SET state='active',trial_ends_at=NULL,renewal_at=$2::date,grace_ends_at=NULL,
     billing_blocked_at=NULL,revision=revision+1 WHERE id=$1`, [id, start])
-  await client.query(`INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,lapsed_at,ended_at,next_attempt_at)
-    VALUES($1,$2,$3,$4,$5,$4)`, [id, row.applied_revision_id, start, input.now, cutoff])
+  const recorded = await client.query(`INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,lapsed_at,ended_at,next_attempt_at)
+    VALUES($1,$2,$3,$4,$5,$4)
+    ON CONFLICT(subscription_id) DO UPDATE SET trial_revision_id=EXCLUDED.trial_revision_id,period_start=EXCLUDED.period_start,
+      lapsed_at=EXCLUDED.lapsed_at,ended_at=EXCLUDED.ended_at,next_attempt_at=EXCLUDED.next_attempt_at,kept=NULL,force_empty=false,
+      customer_retry_at=NULL,state='pending',order_id=NULL,attempts=0,reason=NULL WHERE trial_lapses.state='superseded' RETURNING subscription_id`, [id, row.applied_revision_id, start, input.now, cutoff])
+  if (!recorded.rowCount) throw Error('trial_lapse_conflict')
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
     [randomUUID(), 'system:trial-expiry', 'trial.lapsed', id, 'Trial ended', JSON.stringify({ trial_revision_id: row.applied_revision_id })])
   return 'lapsed' as const

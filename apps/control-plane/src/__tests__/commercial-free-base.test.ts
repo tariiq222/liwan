@@ -3,11 +3,11 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import type { Principal } from '@liwan/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
-import { convertTrial, startTrial } from '../commercial/trial.js'
+import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { endTrialOn, expireTrials } from '../commercial/trial-expiry.js'
 import { processTrialLapses } from '../commercial/trial-lapse.js'
 import { attention } from '../commercial/attention.js'
-import { runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
+import { runSubscriptionReconfigure, type SubscriptionRunner } from '../shared/subscription-reconfigure.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
 import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
@@ -121,7 +121,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   const okRunner = async ({ job }: { job: any }) => ({ order_id: job.authority.order_id, tenant_id: job.binding.database, database: job.binding.database,
     target_revision_id: job.authority.target_revision_id, observed_entitlement_digest: job.authority.entitlement.digest, observed_at: beforeEnd.toISOString(), branch_bindings: [], modules_installed: [] })
   /** Enqueues the order's job and runs it with `runner`, as the shared worker would. */
-  async function runJob(orderId: string, runner: any) {
+  async function runJob(orderId: string, runner: SubscriptionRunner) {
     await enqueued(orderId)
     const jobId = (await pool.query('SELECT job_id FROM fulfillment_effects WHERE order_id=$1', [orderId])).rows[0].job_id
     return runSubscriptionReconfigure(pool, jobId, runner).catch(e => e)
@@ -247,6 +247,53 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       locked_bundle_revision_ids: [], limits: { users: 5 },
     })
 
+    await expect(extendTrial(pool, { subscription_id: f.subscription, days: 5, reason: 'Trial reopening', actor: vendor.actor_id, now: conversionAt }))
+      .rejects.toMatchObject({ code: 'trial_not_reopenable' })
+  })
+
+  it('reopens the original trial policy after the lock, then lapses again once', async () => {
+    const f = await endedTrial()
+    const original = (await getSubscription(pool, f.customer)).applied!
+    await lapse(f)
+    const firstLock = await lock(f)
+    const at = later(10)
+    expect((await getSubscription(pool, f.customer)).trial_reopenable).toBe(true)
+    const reopened = await extendTrial(pool, { subscription_id: f.subscription, days: 5, reason: 'Vendor reopened trial', actor: vendor.actor_id, now: at })
+    const ordered = (await pool.query('SELECT * FROM orders WHERE subscription_id=$1 AND target_revision_id=(SELECT target_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0]
+    expect(ordered).toMatchObject({ kind: 'change', expected_applied_revision_id: firstLock.target_revision_id,
+      due_now_minor: '0', payment_state: 'not_required' })
+    expect(ordered.target_revision_id).not.toBe(original.id)
+    expect(await runJob(ordered.id, async input => {
+      expect(input.job.authority).toMatchObject({ trial_ends_at: new Date(reopened.trial_ends_at).toISOString(),
+        entitlement: { features: { 'pmo.enabled': true } }, post_trial_features: { 'pmo.enabled': false } })
+      return okRunner(input)
+    })).toMatchObject({ state: 'verified' })
+    expect(await getSubscription(pool, f.customer)).toMatchObject({ state: 'trialing', trial_outcome: null })
+    expect((await getSubscription(pool, f.customer)).applied?.bundle_revision_ids).toEqual([bundle.id])
+    const newEnd = new Date(reopened.trial_ends_at)
+    await lapse(f, newEnd)
+    await lock(f, newEnd)
+    expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done', order_seq: 2 })
+    expect((await pool.query('SELECT 1 FROM invoices WHERE customer_id=$1', [f.customer])).rowCount).toBe(0)
+  })
+
+  it('voids a reopened trial’s unpaid invoice and returns a late capture without losing paid trial units', async () => {
+    const f = await endedTrial()
+    const paid = await change(f, { requested_users: 5 }, beforeEnd)
+    expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
+    await lapse(f)
+    await lock(f)
+    const [invoiceOrder] = await generateRenewals(pool, { now, subscription_id: f.subscription, adapter, returnOrigin: origin })
+    const { provider_ref } = (await pool.query('SELECT provider_ref FROM payment_attempts WHERE order_id=$1', [invoiceOrder!.id])).rows[0]
+    await extendTrial(pool, { subscription_id: f.subscription, days: 5, reason: 'Vendor reopened trial', actor: vendor.actor_id, now })
+    expect((await pool.query('SELECT status FROM invoices WHERE order_id=$1', [invoiceOrder!.id])).rows[0].status).toBe('void')
+    adapter.settle(provider_ref, 'succeeded')
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(provider_ref), headers: {}, adapter })
+    await processRefundOutbox(pool, adapter)
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [invoiceOrder!.id])).rows[0].payment_state).toBe('refunded')
+    const pending = (await getSubscription(pool, f.customer)).pending_order!
+    expect(await runJob(pending.id, okRunner)).toMatchObject({ state: 'verified' })
+    expect(await trialEndPreview(pool, f.customer, now)).toMatchObject({ kept: { paid_users: 2 } })
   })
 
   it('cancels an unpaid order so the lock can proceed; a late paid receipt does not reopen the trial (L5)', async () => {

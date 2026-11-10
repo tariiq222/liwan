@@ -12,6 +12,7 @@ import { paymentAttemptView } from './payments.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { getSubscription } from './subscriptions.js'
+import { reopenTrialOn } from './trial-reopen.js'
 import { pushCommercialExpiry } from './expiry-push.js'
 export { pushCommercialExpiry } from './expiry-push.js'
 
@@ -88,10 +89,19 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
 }
 
 /** Vendor-only trial controls; each write is audited and only applies to a trialing subscription. */
-export async function extendTrial(pool: Pool, input: { subscription_id: string; days: number; reason: string; actor: string }) {
+export async function extendTrial(pool: Pool, input: { subscription_id: string; days: number; reason: string; actor: string; now?: Date }) {
+  const now = input.now ?? new Date()
   return transaction(pool, async client => {
-    const updated = await client.query(`UPDATE subscriptions SET trial_ends_at=trial_ends_at+($2||' days')::interval,revision=revision+1
-      WHERE id=$1 AND state='trialing' AND trial_ends_at IS NOT NULL RETURNING customer_id,trial_ends_at`, [input.subscription_id, String(input.days)])
+    const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [input.subscription_id])).rows[0]
+    if (!sub) throw new CommercialHttpError('trial_not_active', 409)
+    if (sub.state !== 'trialing' || (sub.applied_revision_id && sub.trial_ends_at && new Date(sub.trial_ends_at) <= now)) {
+      return reopenTrialOn(client, sub, { ...input, now, endsAt: new Date(trialEndsAt(input.days, now)) })
+    }
+    const reopening = sub.target_revision_id && (await client.query(`SELECT 1 FROM orders WHERE target_revision_id=$1
+      AND idempotency_key LIKE 'trial-reopen:%' AND NOT cancelled`, [sub.target_revision_id])).rowCount
+    if (reopening) throw new CommercialHttpError('subscription_change_pending', 409)
+    const updated = await client.query(`UPDATE subscriptions SET trial_ends_at=GREATEST(trial_ends_at,$3::timestamptz)+($2||' days')::interval,revision=revision+1
+      WHERE id=$1 AND state='trialing' AND trial_ends_at IS NOT NULL RETURNING customer_id,trial_ends_at`, [input.subscription_id, String(input.days), now])
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), input.actor, 'trial.extended', input.subscription_id, input.reason, JSON.stringify({ days: input.days })])
