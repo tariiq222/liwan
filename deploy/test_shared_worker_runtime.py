@@ -73,7 +73,10 @@ container = {'Id': container_id, 'Name': '/liwan-saas-control-local-control-db-1
     'Mounts': [{'Name': 'liwan-saas-control-local-db', 'Destination': '/var/lib/postgresql/data', 'Type': 'volume'}],
     'NetworkSettings': {'Networks': {'liwan-saas-control-local-private': {}}},
     'State': {'Status': 'running', 'Health': {'Status': 'healthy'}}}
-if args[:1] == ['ps']:
+if args[:1] == ['exec'] and 'psql' in args:
+    # The running-operation query of local-process.sh; the test decides what the database holds.
+    print(__import__('os').environ.get('LIWAN_TEST_RUNNING_OPERATION', ''))
+elif args[:1] == ['ps']:
     print(container_id)
 elif args[:1] == ['inspect'] and '--format' in args:
     print('running')
@@ -364,6 +367,33 @@ class SharedModeRuntime(unittest.TestCase):
             time.sleep(.05)
         self.assertFalse(any(self._alive(r['pid']) for r in (api, worker, shared)))
         self.assertEqual(list((self.home / 'processes').iterdir()), [])
+
+    def test_stopping_a_busy_worker_names_its_operation_and_can_be_repeated(self):
+        # An operator job cannot be interrupted or resumed, so the stop neither aborts nor
+        # kills it: it reports the operation with a distinct exit code, keeps every record
+        # and can be repeated until the operation (and with it the worker) has ended.
+        self.runtime_env.write_text('export LIWAN_TEST_IGNORE_TERM=worker\n')
+        supervisor, _ = self.start_runtime()
+        self.wait_for_entries('api', 'worker')
+        api, worker = self.entry('api'), self.entry('worker')
+        before = self.records()
+        busy = {'LIWAN_STOP_SECONDS': '2', 'LIWAN_TEST_RUNNING_OPERATION': 'op_0123 tenant.create'}
+
+        for attempt in (1, 2):
+            stop = self.run_script('stop-local.sh', env=busy)
+            self.assertEqual(stop.returncode, 14, f'attempt {attempt}: {stop.stdout}{stop.stderr[-2000:]}')
+            self.assertIn('Worker is finishing operation op_0123 (tenant.create)', stop.stderr)
+            self.assertEqual(self.records(), before, 'a busy stop keeps every owner record')
+            self.assertTrue(self._alive(worker['pid']), 'the busy worker is never killed')
+            self.assertIsNone(supervisor.poll())
+
+        # The operation ends and the worker exits; the same stop now completes the runtime.
+        os.kill(worker['pid'], 9)
+        done = self.run_script('stop-local.sh', env={'LIWAN_STOP_SECONDS': '2'})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr[-2000:])
+        supervisor.wait(timeout=10)
+        self.assertEqual(list((self.home / 'processes').iterdir()), [])
+        self.assertFalse(self._alive(api['pid']))
 
     def test_dedicated_mode_starts_exactly_api_and_worker(self):
         self.runtime_env.write_text('')

@@ -169,6 +169,12 @@ archive_record_set() {
  printf '%s' "$archive"
 }
 
+# The operation the ordinary worker is running, "<id> <type>", from the control database
+# container run-local.sh owns; empty when none. Read-only, and local sockets are trusted.
+running_operation() {
+ docker exec liwan-saas-control-local-control-db-1 psql -U liwan_control -d liwan_control -Atc \
+  "SELECT id::text || ' ' || type FROM operations WHERE status = 'running' ORDER BY updated_at, id LIMIT 1"
+}
 # SIGTERM one exactly owned child and wait for it to exit within its stop budget. Its
 # records are left for the caller: a stop that times out must never leave a record set
 # with some children already deleted, because the next stop refuses an incomplete set.
@@ -178,6 +184,16 @@ terminate_owner() {
  valid "$n" || { printf 'Exact process identity mismatch for %s; refusing signal.\n' "$n" >&2; return 10; }
  pid="$(<"$state/$n.pid")"; start="$(<"$state/$n.start")"; command kill -TERM "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]] || return 10
  for _ in $(seq 1 "$(stop_budget "$n")"); do if ! kill -0 "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]]; then return 0; fi; sleep 1; done
+ if [[ "$n" == worker ]]; then
+  # An operation is a long operator job (up to 2 hours) that cannot be interrupted or resumed:
+  # a worker that dies mid-run leaves its mutation needs_intervention. Name it and keep waiting.
+  local busy
+  busy="$(running_operation)" || { printf 'Stop timeout for worker; its running operation could not be read; owner records retained.\n' >&2; return 11; }
+  if [[ -n "$busy" ]]; then
+   printf 'Worker is finishing operation %s (%s); it claims nothing more and nothing is aborted or killed. Owner records retained; repeat this stop after the operation ends.\n' "${busy%% *}" "${busy#* }" >&2
+   return 14
+  fi
+ fi
  printf 'Stop timeout for %s; owner records retained.\n' "$n" >&2; return 11
 }
 stop_one() {
