@@ -13,6 +13,7 @@ from odoo.addons.liwan_ai.models.ai_audit import (
     is_conversation_id,
     raise_invalid,
 )
+from odoo.addons.liwan_ai.models.ai_settings import MAX_INPUT_TOKENS_PER_RUN
 
 # The one route the usage recorder's API key may reach (models/ir_http.py registers it with the platform guard).
 USAGE_SERVICE_PATH = '/api/v1/ai/usage/service'
@@ -31,6 +32,19 @@ PROVIDER_PATTERN = re.compile(r'[a-z][a-z0-9_-]{0,31}')
 CONTROL_CHARACTERS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
 MAX_MODEL_LENGTH = 128
 MAX_TOKENS = 100_000_000
+# Ceilings of the service route, whose key is held by the web server and not by a user (issue #557). A wrong or stolen key
+# could otherwise report 64 rows of MAX_TOKENS each and use up ``ai.tokens.monthly`` for the whole tenant, and rows can only
+# be removed by an operator. Each ceiling comes from what the stack itself allows a single call or run to consume:
+#   input per row: the tenant's own ceiling on one run's input tokens, which no single call can exceed (ai_settings.py);
+#   output per row: the AI service's policy cap on one run's output tokens (apps/ai-service contracts.py max_output_tokens);
+#   per request: four full runs, since a request carries the rows a user's runs left unreported during an outage;
+#   age: the web spool gives a row up after an hour (apps/web usage.ts), so a day is generous and keeps a row in its month;
+#   rate: 600 rows a minute is ~45 runs of 13 calls a minute for one tenant, far above real use.
+SERVICE_MAX_INPUT_TOKENS = MAX_INPUT_TOKENS_PER_RUN
+SERVICE_MAX_OUTPUT_TOKENS = 1_000_000
+SERVICE_MAX_BATCH_TOKENS = 4 * (SERVICE_MAX_INPUT_TOKENS + SERVICE_MAX_OUTPUT_TOKENS)
+SERVICE_MAX_AGE = timedelta(hours=24)
+SERVICE_MAX_ROWS_PER_MINUTE = 600
 FUTURE_TOLERANCE = timedelta(minutes=5)
 # RFC 3339 with an offset, the same instants the zod contract's iso datetime({offset: true}) accepts.
 RFC3339 = re.compile(
@@ -98,7 +112,7 @@ class LiwanAiUsage(models.Model):
     _user_conversation_call_uniq = models.UniqueIndex('(user_id, conversation_id, call_id)')
 
     @api.model
-    def _liwan_ai_prepare(self, values, user, company):
+    def _liwan_ai_prepare(self, values, user, company, service=False):
         """Validate one wire payload and return the create values for ``user`` in ``company``.
 
         Raises ``ValidationError`` with ``liwan_field`` for a bad value.
@@ -148,6 +162,13 @@ class LiwanAiUsage(models.Model):
             invalid('called_at', 'called_at must be an ISO-8601 datetime with an offset')
         if called_at > datetime.now(timezone.utc) + FUTURE_TOLERANCE:
             invalid('called_at', 'called_at must not be more than 5 minutes in the future')
+        if service:
+            if tokens['input_tokens'] and tokens['input_tokens'] > SERVICE_MAX_INPUT_TOKENS:
+                invalid('input_tokens', f'input_tokens must not exceed {SERVICE_MAX_INPUT_TOKENS} on this route')
+            if tokens['output_tokens'] and tokens['output_tokens'] > SERVICE_MAX_OUTPUT_TOKENS:
+                invalid('output_tokens', f'output_tokens must not exceed {SERVICE_MAX_OUTPUT_TOKENS} on this route')
+            if called_at < datetime.now(timezone.utc) - SERVICE_MAX_AGE:
+                invalid('called_at', 'called_at must be within the last 24 hours on this route')
         return {
             'company_id': company.id,
             'user_id': user.id,
@@ -207,10 +228,10 @@ class LiwanAiUsage(models.Model):
         ], limit=1)
         if not user:
             raise_invalid(self.env, 'user_id', 'user_id must be an internal user of user_company_id')
-        return scoped._liwan_ai_record(vals_list, user, scoped.env['res.company'].browse(company_id))
+        return scoped._liwan_ai_record(vals_list, user, scoped.env['res.company'].browse(company_id), service=True)
 
     @api.model
-    def _liwan_ai_record(self, vals_list, user, company):
+    def _liwan_ai_record(self, vals_list, user, company, service=False):
         """Record the attempts of a batch, each row once; a row this user already reported is not counted again.
 
         The spool retries a batch whose answer it never saw, so the same attempt can arrive twice (issue #557). The unique
@@ -220,10 +241,12 @@ class LiwanAiUsage(models.Model):
         rows = []
         for index, values in enumerate(vals_list):
             try:
-                rows.append(self._liwan_ai_prepare(values, user, company))
+                rows.append(self._liwan_ai_prepare(values, user, company, service=service))
             except ValidationError as error:
                 error.liwan_index = index
                 raise
+        if service and sum(row['input_tokens'] + row['output_tokens'] for row in rows) > SERVICE_MAX_BATCH_TOKENS:
+            raise_invalid(self.env, 'items', f'a request must not report more than {SERVICE_MAX_BATCH_TOKENS} tokens in all')
         created = []
         for index, row in enumerate(rows):
             existing = self._liwan_ai_existing(row)
@@ -244,6 +267,21 @@ class LiwanAiUsage(models.Model):
                     raise error from None
                 created.append(existing.id)
         return self.browse(created)
+
+    @api.model
+    def _liwan_ai_recorder_rows_left(self):
+        """How many more rows the recorder may add in this minute (``SERVICE_MAX_ROWS_PER_MINUTE`` less what it just added).
+
+        Counted from the ledger itself, so it needs no counter store; the ``called_at`` bound only lets the index on it
+        narrow the scan, since a service row is never older than ``SERVICE_MAX_AGE``.
+        """
+        now = fields.Datetime.now()
+        used = self.search_count([
+            ('create_uid', '=', self.env.uid),
+            ('called_at', '>=', now - SERVICE_MAX_AGE - timedelta(minutes=1)),
+            ('create_date', '>=', now - timedelta(minutes=1)),
+        ])
+        return SERVICE_MAX_ROWS_PER_MINUTE - used
 
     @api.model
     def _liwan_ai_existing(self, row):

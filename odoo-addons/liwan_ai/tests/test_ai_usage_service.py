@@ -2,6 +2,7 @@
 import http.client
 import json
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 from odoo.exceptions import AccessDenied
 from odoo.fields import Command
@@ -9,8 +10,14 @@ from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST, TEST_CURSOR_COOKIE_NAME
 from odoo.tools import config
 
+from odoo.addons.liwan_ai.models import ai_usage
 from odoo.addons.liwan_ai.models.access_service import AI_USAGE_RECORD
-from odoo.addons.liwan_ai.models.ai_usage import USAGE_SERVICE_PATH
+from odoo.addons.liwan_ai.models.ai_usage import (
+    SERVICE_MAX_BATCH_TOKENS,
+    SERVICE_MAX_INPUT_TOKENS,
+    SERVICE_MAX_OUTPUT_TOKENS,
+    USAGE_SERVICE_PATH,
+)
 from odoo.addons.liwan_ai.tests.common import AiProbe
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
@@ -163,6 +170,45 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         # Nothing was added under the second company, and the first row is untouched.
         self.assertEqual(self.Usage.search([]).company_id, self.other_company)
         self.assertEqual(self.Usage.search_count([]), 1)
+
+    def _attempt(self, index, **change):
+        return {**ITEM, 'call_id': f'{index:016x}', **change}
+
+    def test_a_row_cannot_report_more_than_one_call_can_consume(self):
+        self._assert_422(self._post(self._batch(None, None, self._attempt(1, input_tokens=SERVICE_MAX_INPUT_TOKENS + 1))), 'items.0.input_tokens')
+        self._assert_422(self._post(self._batch(None, None, self._attempt(2, output_tokens=SERVICE_MAX_OUTPUT_TOKENS + 1))), 'items.0.output_tokens')
+        self._assert_422(self._post(self._batch(None, None, self._attempt(3), self._attempt(4, input_tokens=100_000_000))), 'items.1.input_tokens')
+        edge = self._attempt(5, input_tokens=SERVICE_MAX_INPUT_TOKENS, output_tokens=SERVICE_MAX_OUTPUT_TOKENS)
+        self.assertEqual(self._post(self._batch(None, None, edge)).status_code, 200)
+
+    def test_a_request_cannot_report_more_than_four_full_runs(self):
+        full = {'input_tokens': SERVICE_MAX_INPUT_TOKENS, 'output_tokens': SERVICE_MAX_OUTPUT_TOKENS}
+        self.assertEqual(SERVICE_MAX_BATCH_TOKENS, 4 * (SERVICE_MAX_INPUT_TOKENS + SERVICE_MAX_OUTPUT_TOKENS))
+        over = [self._attempt(index, **full) for index in range(5)]
+        self._assert_422(self._post(self._batch(None, None, *over)), 'items')
+        self.assertEqual(self._post(self._batch(None, None, *over[:4])).status_code, 200)
+
+    def test_called_at_must_be_recent_so_a_row_cannot_be_moved_into_another_month(self):
+        now = datetime.now(timezone.utc)
+        for index, (moment, field) in enumerate(((now - timedelta(days=2), 'called_at'), (now - timedelta(days=40), 'called_at'), (now + timedelta(minutes=10), 'called_at'))):
+            with self.subTest(moment=moment):
+                self._assert_422(self._post(self._batch(None, None, self._attempt(index + 10, called_at=moment.isoformat()))), f'items.0.{field}')
+        recent = (now - timedelta(hours=23)).isoformat()
+        self.assertEqual(self._post(self._batch(None, None, self._attempt(20, called_at=recent))).status_code, 200)
+
+    def test_the_recorder_is_limited_to_a_row_ceiling_per_minute(self):
+        with patch.object(ai_usage, 'SERVICE_MAX_ROWS_PER_MINUTE', 3):
+            self.assertEqual(self._post(self._batch(None, None, self._attempt(30), self._attempt(31))).status_code, 200)
+            refused = self._post(self._batch(None, None, self._attempt(32), self._attempt(33)))
+            self.assertEqual(refused.status_code, 429, refused.text)
+            self.assertEqual(refused.json()['code'], 'rate_limited')
+            self.assertEqual(refused.json()['details'], {'retry_after_seconds': 60})
+            self.assertEqual(self.Usage.search_count([]), 2)
+            self.assertEqual(self._post(self._batch(None, None, self._attempt(34))).status_code, 200)
+            # A minute later the window has moved on.
+            self.env.cr.execute("UPDATE liwan_ai_usage SET create_date = create_date - interval '2 minutes'")
+            self.Usage.invalidate_model()
+            self.assertEqual(self._post(self._batch(None, None, self._attempt(35), self._attempt(36))).status_code, 200)
 
     def test_a_user_holding_every_capability_is_still_refused(self):
         """liwan_core gives vendor support (and the superuser) every capability; only the recorder itself may report."""

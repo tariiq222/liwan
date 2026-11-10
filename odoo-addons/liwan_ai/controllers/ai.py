@@ -124,8 +124,11 @@ class AiController(http.Controller):
         for index, item in enumerate(items):
             if not isinstance(item, dict):
                 raise ApiError(422, 'invalid', 'each item must be an object', field=f'items.{index}')
+        Usage = request.env['liwan.ai.usage']
+        if len(items) > Usage._liwan_ai_recorder_rows_left():
+            raise ApiError(429, 'rate_limited', 'too many usage rows in the last minute', details={'retry_after_seconds': 60})
         try:
-            rows = request.env['liwan.ai.usage']._liwan_ai_record_for(items, payload['user_id'], payload['user_company_id'])
+            rows = Usage._liwan_ai_record_for(items, payload['user_id'], payload['user_company_id'])
         except ValidationError as error:
             raise as_api_error(error, 'items') from error
         return {'items': [dump_usage(row) for row in rows], 'total': len(rows)}
