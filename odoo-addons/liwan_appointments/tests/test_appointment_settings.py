@@ -59,16 +59,14 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
         self.assertEqual((body['revision'], body['horizon_days'], body['phone_field']), (2, 10, 'hidden'))
         self.assertEqual(self.api('GET', URL).json(), body)
 
-    def test_self_booking_offers_only_the_policy_a_route_serves(self):
-        """#550: `open` is not a value of the setting at all, so no write can promise a page nobody serves."""
+    def test_the_removed_self_booking_policy_is_not_a_setting(self):
+        """#550: the setting is gone, so GET omits it and a PATCH carrying it is refused as an unknown field."""
         self._as_manager()
-        refused = self.api('PATCH', URL, {'self_booking_policy': 'open', 'revision': 0})
+        self.assertNotIn('self_booking_policy', self.api('GET', URL).json())
+        refused = self.api('PATCH', URL, {'self_booking_policy': 'invite_only', 'revision': 0})
         self.assertEqual((refused.status_code, refused.json()['code'], refused.json()['field']), (422, 'invalid', 'self_booking_policy'), refused.text)
-        self.assertEqual(refused.json()['message'], 'choose one of: invite_only')
         self.assertFalse(self.env['liwan.appointment.settings'].search([]))
-        saved = self.api('PATCH', URL, {'self_booking_policy': 'invite_only', 'revision': 0})
-        self.assertEqual((saved.status_code, saved.json()['self_booking_policy']), (200, 'invite_only'), saved.text)
-        self.assertEqual(self.env['liwan.appointment.settings']._fields['self_booking_policy'].selection, (('invite_only', 'Invite only'),))
+        self.assertNotIn('self_booking_policy', self.env['liwan.appointment.settings']._fields)
 
     def test_preset_sets_every_value_and_explicit_field_overrides(self):
         self._as_manager()
@@ -280,7 +278,6 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
             ({'reference_prefix': 5, 'revision': 0}, 'reference_prefix'),
             ({'requester_confirmation': 'yes', 'revision': 0}, 'requester_confirmation'),
             ({'phone_field': 'maybe', 'revision': 0}, 'phone_field'),
-            ({'self_booking_policy': 'anyone', 'revision': 0}, 'self_booking_policy'),
             ({'preset': 'bank', 'revision': 0}, 'preset'),
             ({'preset': [], 'revision': 0}, 'preset'),
             ({'preset': {'clinic': 1}, 'revision': 0}, 'preset'),

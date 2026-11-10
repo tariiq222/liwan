@@ -4,9 +4,6 @@ from odoo.exceptions import AccessError
 
 SETTINGS_CAPABILITIES = ('appointments.bookings.read', 'appointments.bookings.write', 'appointments.bookings.manage')
 FIELD_REQUIREMENTS = (('required', 'Required'), ('optional', 'Optional'), ('hidden', 'Hidden'))
-# ``invite_only`` is the only value: the platform has no public self-booking page, so the field offers no policy that
-# would promise one. It is kept as an explicit, readable setting rather than dropped (issue #550).
-SELF_BOOKING_POLICIES = (('invite_only', 'Invite only'),)
 SECTOR_PRESETS = (('general', 'General'), ('clinic', 'Clinic'), ('services', 'Services'))
 # Inclusive (min, max) of every numeric setting; the database CHECKs and the API parser read this one table.
 INTEGER_RANGES = {
@@ -24,21 +21,21 @@ REQUESTER_FIELDS = ('phone_field', 'email_field', 'national_id_field', 'notes_fi
 PRESETS = {
     'general': {
         'default_slot_minutes': 30, 'min_notice_hours': 2, 'horizon_days': 60, 'modification_deadline_hours': 24,
-        'requester_confirmation': False, 'self_booking_policy': 'invite_only',
+        'requester_confirmation': False,
         'phone_field': 'required', 'email_field': 'optional', 'national_id_field': 'hidden', 'notes_field': 'optional',
         'attendance_tracking': True, 'auto_no_show': True, 'no_show_grace_minutes': 30, 'walk_in_allowed': False,
         'visit_reason_field': 'optional', 'cancel_reason_required': False,
     },
     'clinic': {
         'default_slot_minutes': 15, 'min_notice_hours': 12, 'horizon_days': 30, 'modification_deadline_hours': 24,
-        'requester_confirmation': True, 'self_booking_policy': 'invite_only',
+        'requester_confirmation': True,
         'phone_field': 'required', 'email_field': 'optional', 'national_id_field': 'required', 'notes_field': 'optional',
         'attendance_tracking': True, 'auto_no_show': True, 'no_show_grace_minutes': 30, 'walk_in_allowed': True,
         'visit_reason_field': 'optional', 'cancel_reason_required': False,
     },
     'services': {
         'default_slot_minutes': 60, 'min_notice_hours': 24, 'horizon_days': 90, 'modification_deadline_hours': 48,
-        'requester_confirmation': False, 'self_booking_policy': 'invite_only',
+        'requester_confirmation': False,
         'phone_field': 'required', 'email_field': 'required', 'national_id_field': 'hidden', 'notes_field': 'optional',
         'attendance_tracking': True, 'auto_no_show': True, 'no_show_grace_minutes': 30, 'walk_in_allowed': False,
         'visit_reason_field': 'optional', 'cancel_reason_required': False,
@@ -72,8 +69,7 @@ class LiwanAppointmentSettings(models.Model):
     the booking routes (tickets 05-07), and the attendance
     settings (``attendance_tracking``, ``auto_no_show``, ``no_show_grace_minutes``, ``walk_in_allowed``,
     ``visit_reason_field``, ``cancel_reason_required``) by the booking routes and the no-show cron
-    (ticket 14); ``cancel_reason_required`` binds the staff cancel route and the requester's. ``self_booking_policy``
-    is ``invite_only`` only: no route implements a public self-booking page (issue #550).
+    (ticket 14); ``cancel_reason_required`` binds the staff cancel route and the requester's.
     ``reference_prefix`` is read when a booking is created, and ``link_valid_days_after_end`` bounds how long the
     requester's link stays readable after the appointment ends, or after the booking was created while it has no time. Existing bookings are never changed. Applying a sector
     preset writes ``sector_preset`` (the last applied preset) and every preset value in one save; a field sent with the
@@ -94,7 +90,6 @@ class LiwanAppointmentSettings(models.Model):
     email_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['email_field'])
     national_id_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['national_id_field'])
     notes_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['notes_field'])
-    self_booking_policy = fields.Selection(SELF_BOOKING_POLICIES, required=True, default=DEFAULTS['self_booking_policy'])
     attendance_tracking = fields.Boolean(default=DEFAULTS['attendance_tracking'])
     auto_no_show = fields.Boolean(default=DEFAULTS['auto_no_show'])
     no_show_grace_minutes = fields.Integer(required=True, default=DEFAULTS['no_show_grace_minutes'])

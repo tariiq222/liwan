@@ -3253,7 +3253,9 @@
           "kind": {
             "enum": [
               "plan",
-              "title"
+              "title",
+              "route",
+              "summary"
             ],
             "type": "string"
           },
@@ -3282,7 +3284,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "plan",
-          "title"
+          "title",
+          "route",
+          "summary"
         ],
         "type": "string"
       },
@@ -5261,7 +5265,9 @@
                 "kind": {
                   "enum": [
                     "plan",
-                    "title"
+                    "title",
+                    "route",
+                    "summary"
                   ],
                   "type": "string"
                 },
@@ -5406,7 +5412,9 @@
                 "kind": {
                   "enum": [
                     "plan",
-                    "title"
+                    "title",
+                    "route",
+                    "summary"
                   ],
                   "type": "string"
                 },
@@ -5542,7 +5550,9 @@
           "kind": {
             "enum": [
               "plan",
-              "title"
+              "title",
+              "route",
+              "summary"
             ],
             "type": "string"
           },
@@ -5673,7 +5683,9 @@
           "kind": {
             "enum": [
               "plan",
-              "title"
+              "title",
+              "route",
+              "summary"
             ],
             "type": "string"
           },
@@ -5804,7 +5816,9 @@
                 "kind": {
                   "enum": [
                     "plan",
-                    "title"
+                    "title",
+                    "route",
+                    "summary"
                   ],
                   "type": "string"
                 },
@@ -7546,13 +7560,6 @@
         ],
         "type": "string"
       },
-      "AppointmentSelfBookingPolicySchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "enum": [
-          "invite_only"
-        ],
-        "type": "string"
-      },
       "AppointmentSettingsPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -7647,12 +7654,6 @@
             "maximum": 9007199254740991,
             "minimum": 0,
             "type": "integer"
-          },
-          "self_booking_policy": {
-            "enum": [
-              "invite_only"
-            ],
-            "type": "string"
           },
           "visit_reason_field": {
             "enum": [
@@ -7777,12 +7778,6 @@
             ],
             "type": "string"
           },
-          "self_booking_policy": {
-            "enum": [
-              "invite_only"
-            ],
-            "type": "string"
-          },
           "visit_reason_field": {
             "enum": [
               "required",
@@ -7805,7 +7800,6 @@
           "email_field",
           "national_id_field",
           "notes_field",
-          "self_booking_policy",
           "attendance_tracking",
           "auto_no_show",
           "no_show_grace_minutes",
@@ -28598,6 +28592,18 @@
                         },
                         "type": "array"
                       },
+                      "last_attempt_at": {
+                        "anyOf": [
+                          {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "mode": {
                         "anyOf": [
                           {
@@ -28612,8 +28618,25 @@
                           }
                         ]
                       },
+                      "next_retry_at": {
+                        "anyOf": [
+                          {
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "qr_present": {
                         "type": "boolean"
+                      },
+                      "retry_count": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
                       },
                       "state": {
                         "enum": [
@@ -28655,7 +28678,10 @@
                       "mode",
                       "errors",
                       "warnings",
-                      "qr_present"
+                      "qr_present",
+                      "retry_count",
+                      "last_attempt_at",
+                      "next_retry_at"
                     ],
                     "type": "object"
                   }
@@ -29503,6 +29529,18 @@
                 },
                 "type": "array"
               },
+              "last_attempt_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "mode": {
                 "anyOf": [
                   {
@@ -29517,8 +29555,25 @@
                   }
                 ]
               },
+              "next_retry_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "qr_present": {
                 "type": "boolean"
+              },
+              "retry_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
               },
               "state": {
                 "enum": [
@@ -29560,7 +29615,10 @@
               "mode",
               "errors",
               "warnings",
-              "qr_present"
+              "qr_present",
+              "retry_count",
+              "last_attempt_at",
+              "next_retry_at"
             ],
             "type": "object"
           }
@@ -34903,7 +34961,8 @@
           "zatca_mode_not_allowed",
           "zatca_not_onboarded",
           "zatca_not_applicable",
-          "company_profile_incomplete"
+          "company_profile_incomplete",
+          "retry_too_soon"
         ],
         "type": "string"
       },
@@ -35190,6 +35249,18 @@
             },
             "type": "array"
           },
+          "last_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "mode": {
             "anyOf": [
               {
@@ -35204,8 +35275,25 @@
               }
             ]
           },
+          "next_retry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "qr_present": {
             "type": "boolean"
+          },
+          "retry_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
           },
           "state": {
             "enum": [
@@ -35247,7 +35335,10 @@
           "mode",
           "errors",
           "warnings",
-          "qr_present"
+          "qr_present",
+          "retry_count",
+          "last_attempt_at",
+          "next_retry_at"
         ],
         "type": "object"
       },
@@ -35357,6 +35448,18 @@
                       },
                       "type": "array"
                     },
+                    "last_attempt_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "mode": {
                       "anyOf": [
                         {
@@ -35371,8 +35474,25 @@
                         }
                       ]
                     },
+                    "next_retry_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "qr_present": {
                       "type": "boolean"
+                    },
+                    "retry_count": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
                     },
                     "state": {
                       "enum": [
@@ -35414,7 +35534,10 @@
                     "mode",
                     "errors",
                     "warnings",
-                    "qr_present"
+                    "qr_present",
+                    "retry_count",
+                    "last_attempt_at",
+                    "next_retry_at"
                   ],
                   "type": "object"
                 }
@@ -35532,6 +35655,18 @@
                 },
                 "type": "array"
               },
+              "last_attempt_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "mode": {
                 "anyOf": [
                   {
@@ -35546,8 +35681,25 @@
                   }
                 ]
               },
+              "next_retry_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "qr_present": {
                 "type": "boolean"
+              },
+              "retry_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
               },
               "state": {
                 "enum": [
@@ -35589,7 +35741,10 @@
               "mode",
               "errors",
               "warnings",
-              "qr_present"
+              "qr_present",
+              "retry_count",
+              "last_attempt_at",
+              "next_retry_at"
             ],
             "type": "object"
           }
@@ -115386,7 +115541,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "retry_invoice",
+        "summary": "Send a failed document again; 422 ``retry_too_soon`` (with ``details.next_retry_at``) until the escalating spacing has passed.",
         "tags": [
           "liwan_finance"
         ],

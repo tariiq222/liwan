@@ -110,11 +110,6 @@
       "requester": {
         "title": "Requester",
         "hint": "What the requester is asked for and may do.",
-        "selfBooking": "Who can book",
-        "selfBookingHint": "Booking is by invitation: staff invite a requester, who books from their own link.",
-        "policy": {
-          "invite_only": "Invite only"
-        },
         "confirmation": "Requester confirmation",
         "confirmationHint": "The appointment waits for the requester to confirm after booking.",
         "fields": {

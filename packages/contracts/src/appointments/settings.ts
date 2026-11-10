@@ -1,9 +1,6 @@
 import { z } from 'zod'
 
 export const AppointmentFieldRequirementSchema = z.enum(['required', 'optional', 'hidden'])
-/** Who may book. `invite_only` is the only policy: no route serves a public booking page, so `open` is not a value at
- * all (issue #550). */
-export const AppointmentSelfBookingPolicySchema = z.enum(['invite_only'])
 export const AppointmentSectorPresetSchema = z.enum(['general', 'clinic', 'services'])
 
 const slotMinutes = z.number().int().min(5).max(480)
@@ -25,7 +22,6 @@ export const AppointmentSettingsSchema = z.object({
   email_field: AppointmentFieldRequirementSchema,
   national_id_field: AppointmentFieldRequirementSchema,
   notes_field: AppointmentFieldRequirementSchema,
-  self_booking_policy: AppointmentSelfBookingPolicySchema,
   attendance_tracking: z.boolean(),
   auto_no_show: z.boolean(),
   no_show_grace_minutes: noShowGraceMinutes,
@@ -55,7 +51,6 @@ export const AppointmentSettingsPatchSchema = z.object({
   email_field: AppointmentFieldRequirementSchema,
   national_id_field: AppointmentFieldRequirementSchema,
   notes_field: AppointmentFieldRequirementSchema,
-  self_booking_policy: AppointmentSelfBookingPolicySchema,
   attendance_tracking: z.boolean(),
   auto_no_show: z.boolean(),
   no_show_grace_minutes: noShowGraceMinutes,
