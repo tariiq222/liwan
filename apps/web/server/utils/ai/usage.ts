@@ -97,10 +97,13 @@ function sessionKey(event: H3Event): string {
 }
 
 /**
- * Drops rows that waited past the age bound, naming the count only: no row payload ever reaches a log line. This is the ONLY way
+ * Drops rows that waited past the age bound, naming the count only: no row payload ever reaches a log line. This is the only way
  * a row Odoo refused (or could not be asked about) is given up, and it is the last resort on purpose: this process keeps no
- * durable store (adding one would be new infrastructure), so rows wait in memory for an hour, are retried every minute meanwhile,
- * and are then expired with a count that an operator can alert on. A server refusal alone never discards real usage.
+ * durable store (adding one would be new infrastructure), so rows wait in memory for an hour. There is no timer: a waiting row
+ * is retried when the next AI run ends on this process, and at most once a minute per row, so a quiet tenant can let rows reach
+ * the age bound even after Odoo has recovered. They are then expired with a count that an operator can alert on. A server
+ * refusal alone never discards real usage. The two size bounds (`SPOOL_MAX_ROWS`, `SPOOL_SESSION_MAX_ROWS`) still evict the
+ * oldest rows when they are exceeded, each with its own counted log line.
  */
 function expireSpooled(now: number): void {
   const kept = spool.filter(entry => now - entry.observedAt <= SPOOL_MAX_AGE_MS)
@@ -199,7 +202,9 @@ function refusalOf(body: unknown): { field: string; retryAfterMs: number } {
  * Reports every due row of the service owners with the recorder key, one request per user and company in the order the rows
  * were observed, sized the way Odoo admits them (`chunkRows`). A row leaves the spool in exactly two ways: Odoo has it, or the
  * spool age bound expires it (`expireSpooled`, which logs the count, and is the last resort for a row Odoo will not take: this
- * process keeps no other store, and a refusal is never a licence to discard real usage). Every server answer:
+ * process keeps no other store, and a refusal is never a licence to discard real usage; the 2048-row process bound and the 256-row
+ * per-owner bound still evict the oldest rows, each with a counted log line). Retries happen when the next AI run ends on this
+ * process, at most once a minute per row; there is no timer. Every server answer:
  *  - 200: recorded; the rows leave the spool.
  *  - 409 naming `items.<i>.<field>`: that row is already held (under another company); Odoo has it, so it leaves the spool.
  *  - 422 naming `items.<i>.<field>` (size, `called_at`, ...): the server will not take that row now. It is KEPT, deferred for
