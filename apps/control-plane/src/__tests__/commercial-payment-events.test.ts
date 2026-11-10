@@ -226,26 +226,17 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('canceled')
     expect((await f.adapter.lookupAttempt(created.provider_ref)).status).toBe('canceled')
   })
-  it('closes a token charge the provider does not know so the renewal can be paid by hand',async()=>{
-    const f=await fixture(),order=await state(f.order_id)
-    const insert=(ref:string)=>pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,token_charge)
-      SELECT $1,$2,$3,'simulator','simulator',$2::uuid::text,$4,11500,'SAR',2,'unknown',true`,[randomUUID(),f.order_id,f.invoice,ref])
-    // A payment id the provider answered 404 for is authoritative.
-    await insert(`pay_gone_${randomUUID()}`)
-    const next=await createPaymentAttempt(pool,f.input)
-    expect(next.status).toBe('redirected')
-    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'failed'}])
-    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.token_charge_missing' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
-    expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
-    // Only our own order id as the reference proves nothing yet: it waits out a grace period.
-    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE order_id=$1 AND NOT token_charge",[f.order_id])
-    await pool.query('DELETE FROM payment_attempts WHERE order_id=$1 AND token_charge',[f.order_id])
-    await insert(order.id)
-    await expect(createPaymentAttempt(pool,f.input)).rejects.toBeTruthy()
+  it('never closes an unconfirmed token charge as missing, and offers no hosted payment while it is unresolved',async()=>{
+    const f=await fixture()
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,token_charge)
+      SELECT $1,$2,$3,'simulator','simulator',$2::uuid::text,$4,11500,'SAR',2,'unknown',true`,[randomUUID(),f.order_id,f.invoice,`pay_gone_${randomUUID()}`])
+    // Nothing to replay the charge with (no stored token): the attempt stays open, and a second payment is refused with a reason.
+    await expect(createPaymentAttempt(pool,f.input)).rejects.toMatchObject({status:409,code:'payment_charge_unresolved'})
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '3 hours' WHERE order_id=$1 AND token_charge",[f.order_id])
+    await reconcileUnknownAttempts(pool,f.adapter,{limit:100})
     expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'unknown'}])
-    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '2 hours' WHERE order_id=$1 AND token_charge",[f.order_id])
-    expect((await createPaymentAttempt(pool,f.input)).status).toBe('redirected')
-    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'failed'}])
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.token_charge_missing' AND subject=$1",[f.order_id])).rows[0].n).toBe(0)
+    expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
   })
   it('never closes a hosted invoice attempt because the provider says it is missing',async()=>{
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)

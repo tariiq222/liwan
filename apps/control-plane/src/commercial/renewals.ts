@@ -161,15 +161,17 @@ async function chargeStoredMethod(pool: Pool, input: { adapter: PaymentAdapter; 
       return null
     }
     const attemptId = randomUUID()
-    await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,token_charge)
-      VALUES($1::uuid,$2,$3,$4,$5,$6,$1::uuid::text,$7,$8,$9,true)`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,order.id,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
+    const callbackUrl = paymentReturnUrls(input.origin, attemptId)
+    // The callback is kept on the attempt: a replay after a crash must send exactly what the first call did.
+    await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,token_charge,charge_callback_url)
+      VALUES($1::uuid,$2,$3,$4,$5,$6,$1::uuid::text,$7,$8,$9,true,$10)`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,order.id,invoice.total.minor,invoice.total.currency,invoice.total.exponent,callbackUrl])
     await client.query("UPDATE renewals SET status='charging' WHERE order_id=$1", [order.id])
-    return { attemptId, token: sub.provider_token_ref as string }
+    return { attemptId, token: sub.provider_token_ref as string, callbackUrl }
   })
   if (!reserved) return false
   try {
     const event = await adapter.chargeToken({given_id:reserved.attemptId,token:reserved.token,amount:invoice.total,
-      description:`LiwanOS renewal ${order.id}`,callback_url:paymentReturnUrls(input.origin,reserved.attemptId)})
+      description:`LiwanOS renewal ${order.id}`,callback_url:reserved.callbackUrl})
     // A charge response only identifies the attempt; settlement requires provider lookup.
     await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [reserved.attemptId,event.provider_ref])
   } catch {

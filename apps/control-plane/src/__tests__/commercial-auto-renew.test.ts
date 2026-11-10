@@ -283,12 +283,14 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
     it('provider charged but the answer was lost (process death): the attempt is reconciled and the invoice is paid once', async () => {
       const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_52')
       const original = adapter.chargeToken.bind(adapter)
-      vi.spyOn(adapter, 'chargeToken').mockImplementation(async input => { await original(input); throw new PaymentError('timeout', 'died after the charge') })
+      const spy = vi.spyOn(adapter, 'chargeToken').mockImplementation(async input => { await original(input); throw new PaymentError('timeout', 'died after the charge') })
       await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
       expect((await attemptOf(f)).status).toBe('unknown')
       expect(await paidOrders(f)).toBe(before)
       // A worker that died before even recording `unknown` leaves `created`; the reconciler takes it after its grace.
       await pool.query("UPDATE payment_attempts SET status='created' WHERE id=$1", [(await attemptOf(f)).id])
+      // The restarted worker asks again: the provider returns the original payment, nothing is charged twice.
+      spy.mockImplementation(original)
       const later = () => ({ clock: () => Date.now() + 10 * 60_000, limit: 100 })
       await reconcileUnknownAttempts(pool, adapter, later())
       expect(await paidOrders(f)).toBe(before + 1)
@@ -305,18 +307,26 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
       expect(await applyConfirmedEvent(pool, await adapter.lookupPayment(attempt.provider_ref))).toBe('accepted')
       expect(await paidOrders(f)).toBe(before + 1)
     })
-    it('a provider timeout with no charge leaves the attempt unknown and is never charged again blindly', async () => {
+    it('a charge that never reached the provider is unresolved, offers no hosted payment, and is charged exactly once by the reconciler', async () => {
       const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_54')
+      const original = adapter.chargeToken.bind(adapter)
       const charge = vi.spyOn(adapter, 'chargeToken').mockRejectedValue(new PaymentError('timeout', 'no answer'))
       await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
-      expect((await attemptOf(f)).status).toBe('unknown')
-      const outcome = await reconcileUnknownAttempts(pool, adapter, { limit: 100 })
       const id = (await attemptOf(f)).id
-      expect(outcome.find(r => r.id === id)?.outcome).toBe('unknown')
       expect((await attemptOf(f)).status).toBe('unknown')
-      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
-      expect(charge).toHaveBeenCalledTimes(1)
+      // While the provider cannot say, the reconciler keeps trying and the attempt is never closed as missing.
+      const outcome = await reconcileUnknownAttempts(pool, adapter, { limit: 100 })
+      expect(outcome.find(r => r.id === id)?.outcome).not.toBe('accepted')
+      expect((await attemptOf(f)).status).toBe('unknown')
+      // No second payment can be started for the order meanwhile.
+      await expect(createPaymentAttempt(pool, { order_id: (await attemptOf(f)).order_id, customer_id: f.customer, adapter, returnOrigin: origin })).rejects.toMatchObject({ status: 409, code: 'payment_charge_unresolved' })
       expect(await paidOrders(f)).toBe(before)
+      // The provider is reachable again: one replay charges once and settles the invoice.
+      charge.mockImplementation(original)
+      await reconcileUnknownAttempts(pool, adapter, { limit: 100 })
+      await reconcileUnknownAttempts(pool, adapter, { limit: 100 })
+      expect(await paidOrders(f)).toBe(before + 1)
+      expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1 AND token_charge', [(await attemptOf(f)).order_id])).rows[0].n).toBe(1)
     })
     it('a replayed run, and the same idempotency key, never charge twice', async () => {
       const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_55')

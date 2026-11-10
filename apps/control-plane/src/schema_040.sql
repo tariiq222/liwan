@@ -5,6 +5,8 @@ ALTER TABLE payment_attempts
   ADD COLUMN save_payment_method boolean NOT NULL DEFAULT false,
   ADD COLUMN save_payment_method_actor text,
   ADD COLUMN save_payment_method_consent_at timestamptz,
+  -- A token charge's callback, kept so that replaying an unconfirmed charge sends exactly what the first call sent.
+  ADD COLUMN charge_callback_url text,
   ADD CONSTRAINT payment_attempt_save_consent CHECK(NOT save_payment_method OR (save_payment_method_actor IS NOT NULL AND save_payment_method_consent_at IS NOT NULL));
 
 -- A stored payment method the provider still has to forget: written in the same transaction that stopped using it
