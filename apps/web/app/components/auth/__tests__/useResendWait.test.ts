@@ -29,6 +29,14 @@ describe('the resend wait', () => {
     expect(wait.waiting.value).toBe(false)
   })
 
+  it('starts at the server wait even when the clock last ticked before the start', () => {
+    const clock = ref(at('2026-01-01T00:00:00Z'))
+    const wait = useResendWait(clock)
+    vi.setSystemTime(at('2026-01-01T00:00:00.100Z'))
+    wait.start(60)
+    expect(wait.seconds.value).toBe(60)
+  })
+
   it('catches up after a suspended tab instead of drifting with each tick', () => {
     const clock = ref(at('2026-01-01T00:00:00Z'))
     const wait = useResendWait(clock)
