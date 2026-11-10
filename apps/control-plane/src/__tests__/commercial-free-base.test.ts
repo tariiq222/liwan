@@ -296,6 +296,28 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(await trialEndPreview(pool, f.customer, now)).toMatchObject({ kept: { paid_users: 2 } })
   })
 
+  it('issues a fresh payable renewal when a reopened trial converts in the same Riyadh day', async () => {
+    const at = new Date('2026-11-19T10:00:00Z')
+    const f = await endedTrial()
+    const paid = await change(f, { requested_users: 5 }, beforeEnd)
+    expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
+    await lapse(f, at)
+    await lock(f, at)
+    const [oldOrder] = await generateRenewals(pool, { now: at, subscription_id: f.subscription, adapter, returnOrigin: origin })
+    expect(oldOrder?.id).toBeTruthy()
+    await extendTrial(pool, { subscription_id: f.subscription, days: 5, reason: 'Vendor reopened trial', actor: vendor.actor_id, now: at })
+    const pending = (await getSubscription(pool, f.customer)).pending_order!
+    expect(await runJob(pending.id, okRunner)).toMatchObject({ state: 'verified' })
+
+    const conversion = await convertTrial(pool, { customer_id: f.customer, now: new Date('2026-11-19T11:00:00Z'), adapter, returnOrigin: origin })
+    expect(conversion.pending).toBe(false)
+    expect(conversion.order?.id).not.toBe(oldOrder!.id)
+    expect(conversion.attempt?.redirect_url).toBeTruthy()
+    const rows = (await pool.query(`SELECT r.order_id,i.status FROM renewals r JOIN invoices i ON i.id=r.invoice_id
+      WHERE r.subscription_id=$1 AND r.period_start='2026-11-19' ORDER BY r.created_at`, [f.subscription])).rows
+    expect(rows).toEqual([{ order_id: oldOrder!.id, status: 'void' }, { order_id: conversion.order!.id, status: 'issued' }])
+  })
+
   it('cancels an unpaid order so the lock can proceed; a late paid receipt does not reopen the trial (L5)', async () => {
     const f = await endedTrial()
     const pending = await change(f, { requested_users: 5 }, beforeEnd, false)

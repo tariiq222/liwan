@@ -82,7 +82,8 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
   await generateRenewals(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id })
   // The renewal run may also create other due renewals: read this subscription's own first order, never index 0.
   const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
-    WHERE r.subscription_id=$1 ORDER BY r.created_at DESC,o.id DESC LIMIT 1`, [sub.id])).rows[0]
+    WHERE r.subscription_id=$1 AND r.period_start=$2 AND r.kind='renewal' AND r.status<>'superseded' AND NOT o.cancelled
+    LIMIT 1`, [sub.id, riyadhDate(input.now)])).rows[0]
   const order = row ? orderView(row) : null
   const attempt = order ? (await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1', [order.id])).rows[0] : null
   return { order, attempt: attempt ? paymentAttemptView(attempt) : null, pending: !order }

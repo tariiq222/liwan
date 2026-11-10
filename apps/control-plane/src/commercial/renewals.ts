@@ -46,7 +46,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
   // `has_renewal`: the period already has its renewal (an unpaid invoice may be waiting); nothing is left to generate for it.
   // `owes`: the applied pricing owes something at renewal. A renewal that owes nothing needs no return origin and is never billing-blocked.
   const candidates = (await pool.query(`SELECT s.id,s.customer_id,EXISTS (SELECT 1 FROM renewals r WHERE r.subscription_id=s.id
-      AND r.period_start=s.renewal_at AND r.kind='renewal') AS has_renewal,sr.snapshot->'pricing' AS pricing
+      AND r.period_start=s.renewal_at AND r.kind='renewal' AND r.status<>'superseded') AS has_renewal,sr.snapshot->'pricing' AS pricing
     FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id WHERE s.state IN ('active','past_due') AND NOT s.manual_suspension
     AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND ($2::uuid IS NULL OR s.id=$2)
     AND NOT ${holdsTrialAfterLapseSql('s')} ORDER BY s.id`, [today, subscription_id ?? null])).rows
@@ -116,7 +116,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
           [targetRevision, sub.id, sub.revision + 1, JSON.stringify(converted), quote.id])
         await client.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [sub.id, targetRevision])
       }
-      const key = `renewal:${sub.id}:${start}`
+      const key = `renewal:${sub.id}:${start}:${renewalId}`
       const row = (await client.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,
         payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
         VALUES($1,$2,$3,'renewal',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,

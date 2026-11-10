@@ -20,7 +20,7 @@ export async function settledTrialReopenSource(client: Query, sub: Subscription)
     FROM trial_lapses l JOIN orders o ON o.id=l.order_id
     WHERE l.subscription_id=$1 AND l.state='done' AND o.target_revision_id=$2 AND NOT EXISTS (
       SELECT 1 FROM renewals r JOIN orders charged ON charged.id=r.order_id
-      WHERE r.subscription_id=$1 AND r.period_start>=l.period_start AND charged.due_now_minor>0
+      WHERE r.subscription_id=$1 AND r.period_start>=l.period_start AND r.status<>'superseded' AND charged.due_now_minor>0
         AND charged.payment_state IN ('paid','refund_pending','refunded'))`, [sub.id, sub.applied_revision_id])).rows[0] ?? null
 }
 
@@ -35,7 +35,7 @@ async function voidUnpaidTrialInvoices(client: PoolClient, subscriptionId: strin
   const orderIds = unpaid.map(row => row.id)
   await client.query('UPDATE orders SET cancelled=true,automatic_refund=true WHERE id=ANY($1::uuid[])', [orderIds])
   await client.query("UPDATE invoices SET status='void' WHERE id=ANY($1::uuid[])", [unpaid.map(row => row.invoice_id)])
-  await client.query("UPDATE renewals SET status='failed' WHERE order_id=ANY($1::uuid[])", [orderIds])
+  await client.query("UPDATE renewals SET status='superseded' WHERE order_id=ANY($1::uuid[])", [orderIds])
   return orderIds
 }
 

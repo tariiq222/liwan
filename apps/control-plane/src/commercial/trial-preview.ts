@@ -36,7 +36,8 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
     'users.limit': limits.users, 'storage.limit_mb': limits.storage_mb,
   } })
   const firstOrder = settled ? (await pool.query(`SELECT q.payload FROM renewals rr JOIN orders o ON o.id=rr.order_id
-    JOIN commercial_quotes q ON q.id=o.quote_id WHERE rr.subscription_id=$1 AND rr.period_start=$2 AND NOT o.cancelled`,
+    JOIN commercial_quotes q ON q.id=o.quote_id WHERE rr.subscription_id=$1 AND rr.period_start=$2 AND rr.kind='renewal'
+      AND rr.status<>'superseded' AND NOT o.cancelled`,
   [row.id, start])).rows[0]?.payload : null
   const users = usage.metrics.find(metric => metric.key === 'users.limit')?.used
   const available = usage.freshness === 'fresh'
