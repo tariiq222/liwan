@@ -120,6 +120,8 @@ suite('commercial trial', () => {
       .rejects.toMatchObject({ status: 422, code: 'return_url_forbidden' })
     const blocked = async () => (await pool.query('SELECT state,billing_blocked_at FROM subscriptions WHERE customer_id=$1', [c.id])).rows[0]
     expect(await blocked()).toMatchObject({ state: 'past_due', billing_blocked_at: expect.any(Date) })
+    // The strict subscription view never exposes the internal marker.
+    expect(Object.keys(await getSubscription(pool, c.id))).not.toContain('billing_blocked_at')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(0)
     const since = (await blocked()).billing_blocked_at
     // Another blocked run keeps the original time; a run with a usable origin invoices and clears the block.
