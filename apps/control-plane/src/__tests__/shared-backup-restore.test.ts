@@ -16,9 +16,8 @@ import { migrate } from '../db.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob } from '../shared/job-worker.js'
-import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
-import { bindJob, payloadDigest } from '../shared/provisioning.js'
-import { bootstrapFirstAdmin, ensureAdminBindingSchema, inspectTenantReadiness } from '../shared/provision-readiness.js'
+import { createFencedStorageAdapter, ensureAdminBindingSchema, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
+import { bindAdminRow } from './helpers/shared-admin.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
@@ -80,9 +79,8 @@ else describe('shared backup and restore authority', () => {
     const job = await enqueueSharedJob(pool, tenantId, actor, { schemaVersion: 1, operation: 'provision', requestId }, 'Backup source provision')
     const result = await runSharedJob(pool, job.id, adapter)
     if (result.state !== 'verified') throw new Error(`provision not verified: ${result.state}`)
-    const stored = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [job.id])).rows[0].payload
     const storage = await connect(sourceDatabase)
-    try { await bootstrapFirstAdmin(storage, { tenantId: 't04', requestId, login: 'admin.t04', expectedEffectDigest: payloadDigest(bindJob(stored)) }) } finally { await storage.pool.end() }
+    try { await bindAdminRow(storage, { tenantId: 't04', requestId, login: 'admin.t04' }) } finally { await storage.pool.end() }
     // Fresh, empty target database for the restore.
     const target = await connect(targetDatabase)
     await ensureTenantStorageSchema(target)
@@ -165,7 +163,7 @@ else describe('shared backup and restore authority', () => {
       .rejects.toThrow('shared_restore_forbidden')
   })
 
-  it('restores a pre-change backup without a policy row and fails activation on initial_policy', async () => {
+  it('restores a pre-change backup without a policy row', async () => {
     // A backup taken before shared_tenant_policy existed: snapshot with no
     // `policy` key and a digest computed the old way (over exactly that shape).
     const src = await connect(sourceDatabase)
@@ -197,18 +195,6 @@ else describe('shared backup and restore authority', () => {
     const consumed = await pool.query('SELECT consumed_at FROM shared_restore_approvals WHERE id=$1', [approvalId])
     expect(consumed.rows[0].consumed_at).not.toBeNull()
     await expect(restoreBackupToNewTarget(pool, connect, { approvalId, actor })).rejects.toThrow('restore_approval_unavailable')
-    // A restored tenant without a policy is fail-closed: the activation
-    // readiness check reports initial_policy as failed.
-    const restoreTenant = randomUUID()
-    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,\'live-v1\',\'core\',true)',
-      [restoreTenant, 'Legacy restore target', 'legacy-restore'])
-    const revision = Number((await pool.query('SELECT revision::int AS revision FROM shared_registry_state WHERE singleton')).rows[0].revision)
-    await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: restoreTenant, expectedSnapshotRevision: revision, target: { host: 't09.legacy.invalid', tenantId: 't09', database: preChangeTarget, filestore: preChangeTarget, enabled: true, registryRevision: 1 }, reason: 'Legacy restore target binding' })
-    const provisionJob = await enqueueSharedJob(pool, restoreTenant, actor, { schemaVersion: 1, operation: 'provision', requestId: randomUUID() }, 'Legacy restore readiness fixture')
-    await pool.query("UPDATE shared_jobs SET state='verified',receipt='{\"schemaVersion\":1,\"status\":\"verified\"}'::jsonb WHERE id=$1", [provisionJob.id])
-    const report = await inspectTenantReadiness(pool, connect, restoreTenant)
-    expect(report.ready).toBe(false)
-    expect(report.checks.find(c => c.name === 'initial_policy')).toMatchObject({ passed: false, detail: 'missing' })
   })
 
   it('rolls back the target and keeps the approval unconsumed on a readback mismatch', async () => {

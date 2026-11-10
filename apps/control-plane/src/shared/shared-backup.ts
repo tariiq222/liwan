@@ -15,8 +15,7 @@ import { z } from 'zod'
 import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import type { TenantStorage } from './fenced-adapter.js'
-import { ensureTenantStorageSchema } from './fenced-adapter.js'
-import { ensureAdminBindingSchema } from './provision-readiness.js'
+import { ensureAdminBindingSchema, ensureTenantStorageSchema } from './fenced-adapter.js'
 import { REGISTRY_ADVISORY_LOCK } from './registry-store.js'
 import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
@@ -250,9 +249,7 @@ export async function approveSharedRestore(pool: Pool, input: { backupId: string
  * The readback digest is computed over the snapshot's own shape: a backup
  * taken before `shared_tenant_policy` existed stores a snapshot with no
  * `policy` key and a digest over that shape, so the readback omits `policy`
- * for it too. A restored tenant without a policy row then fails the
- * activation gate's `initial_policy` check — fail-closed by design: an
- * operator must grant the policy before the tenant can activate.
+ * for it too, and the restored tenant has no policy row.
  *
  * Everything that can fail without touching the target (the reservation check
  * and the target schema checks) runs before the first tenant write; the digest
@@ -308,8 +305,6 @@ export async function restoreBackupToNewTarget(pool: Pool, connect: (database: s
         for (const row of snapshot.effects) await tenant.query('INSERT INTO shared_effects(tenant_id,business_key,payload_digest,attempt_id,fence) VALUES($1,$2,$3,$4,$5)', [row.tenant_id, row.business_key, row.payload_digest, row.attempt_id, row.fence])
         for (const row of snapshot.admin) await tenant.query('INSERT INTO shared_admin(tenant_id,request_id,login) VALUES($1,$2,$3)', [row.tenant_id, row.request_id, row.login])
         // A pre-policy backup carries no `policy` key: restore its shape as-is.
-        // The restored tenant then stays below the activation gate until an
-        // operator grants the policy (initial_policy check).
         if ('policy' in snapshot) for (const row of snapshot.policy ?? []) await tenant.query('INSERT INTO shared_tenant_policy(tenant_id,policy_revision,features) VALUES($1,$2,$3::jsonb)', [row.tenant_id, row.policy_revision, JSON.stringify(row.features)])
         await input.hooks?.beforeReadback?.(tenant)
         // Readback verification of the applied state, still uncommitted: the

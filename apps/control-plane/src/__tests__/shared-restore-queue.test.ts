@@ -26,9 +26,9 @@ import { migrate } from '../db.js'
 import { publishRegistryMutation, REGISTRY_ADVISORY_LOCK } from '../shared/registry-store.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob, recoverSharedJob, expireSharedLeases } from '../shared/job-worker.js'
-import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
-import { bindJob, payloadDigest } from '../shared/provisioning.js'
-import { bootstrapFirstAdmin, ensureAdminBindingSchema } from '../shared/provision-readiness.js'
+import { createFencedStorageAdapter, ensureAdminBindingSchema, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
+import { bindJob } from '../shared/provisioning.js'
+import { bindAdminRow } from './helpers/shared-admin.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
@@ -186,9 +186,8 @@ else describe('shared restore queue', () => {
     const job = await enqueueSharedJob(pool, tenantId, actor, { schemaVersion: 1, operation: 'provision', requestId }, 'Restore source provision')
     const result = await runSharedJob(pool, job.id, adapter)
     if (result.state !== 'verified') throw new Error(`provision not verified: ${result.state}`)
-    const stored = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [job.id])).rows[0].payload
     const sourceStorage = await connect(sourceDatabase)
-    try { await bootstrapFirstAdmin(sourceStorage, { tenantId: tenantSlug, requestId, login: 'admin.t07', expectedEffectDigest: payloadDigest(bindJob(stored)) }) } finally { await sourceStorage.pool.end() }
+    try { await bindAdminRow(sourceStorage, { tenantId: tenantSlug, requestId, login: 'admin.t07' }) } finally { await sourceStorage.pool.end() }
     const otherProvision = await enqueueSharedJob(pool, otherTenantId, actor, { schemaVersion: 1, operation: 'provision', requestId: randomUUID() }, 'Other tenant provision')
     const otherProvisioned = await runSharedJob(pool, otherProvision.id, adapter)
     if (otherProvisioned.state !== 'verified') throw new Error(`other provision not verified: ${otherProvisioned.state}`)

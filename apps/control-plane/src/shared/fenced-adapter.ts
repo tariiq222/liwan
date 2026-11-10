@@ -18,7 +18,6 @@ import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import { businessKey, payloadDigest } from './provisioning.js'
 import type { SharedFencedAdapter } from './job-worker.js'
 import { restoreBackupToNewTarget } from './shared-backup.js'
-import { ensureAdminBindingSchema } from './provision-readiness.js'
 
 export class StaleFenceError extends Error {
   constructor(public code: string) { super(code) }
@@ -63,13 +62,23 @@ export async function ensureTenantStorageSchema(storage: TenantStorage): Promise
   )`)
   // Initial tenant feature policy, written ONLY by the verified provision
   // effect from the job payload's server-side catalog policy (never from a
-  // caller). The activation gate refuses a tenant without revision >= 1 and
-  // non-empty features, so a fresh tenant cannot be active before policy.
+  // caller). Activation (`reconcileOdooOnboardings`) needs a verified provision
+  // job, so a fresh tenant cannot be active before policy.
   await storage.pool.query(`CREATE TABLE IF NOT EXISTS shared_tenant_policy (
     tenant_id text PRIMARY KEY,
     policy_revision bigint NOT NULL CHECK (policy_revision >= 0),
     features jsonb NOT NULL DEFAULT '{}'::jsonb,
     recorded_at timestamptz NOT NULL DEFAULT clock_timestamp()
+  )`)
+}
+
+/** The first administrator's login bound to its provisioning request; backup and restore carry it. No password column exists. */
+export async function ensureAdminBindingSchema(storage: TenantStorage): Promise<void> {
+  await storage.pool.query(`CREATE TABLE IF NOT EXISTS shared_admin (
+    tenant_id text PRIMARY KEY,
+    request_id uuid NOT NULL,
+    login text NOT NULL,
+    bound_at timestamptz NOT NULL DEFAULT clock_timestamp()
   )`)
 }
 
