@@ -166,7 +166,8 @@ The generated API files (openapi.json and route-capabilities.json in docs/api) a
 `tools/git_policy.py` refuses such a commit, because every parallel branch that touched them would
 conflict. The orchestrator regenerates both once, on the integration branch
 `<prefix>/tools-integrate-<slug>` (the only branches allowed to carry them), after merging
-the task branches, and runs `python3 tools/api_surface.py --check` there. The per-branch route gate is
+the task branches, and runs `python3 tools/api_surface.py --check` there. Staleness is detected by the nightly CI
+run and by `npm run check:fast`, never by pull-request CI. The per-branch route gate is
 `tools/route_gate_policy.py`, run inside `npm test`: it needs no generated file.
 
 ## Finishing a task

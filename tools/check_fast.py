@@ -42,6 +42,8 @@ def plan(changed, base):
         steps.append(('ruff', ['ruff', 'check', 'odoo-addons']))
     if touched('tools/'):
         steps.append(('tools_unittest', [PY, '-B', '-m', 'unittest', 'discover', '-s', 'tools', '-p', 'test_*.py']))
+    if touched('tools/api_surface.py', 'tools/contracts_jsonschema.mjs', 'docs/api/'):
+        steps.append(('api_surface', [PY, '-B', 'tools/api_surface.py', '--check']))
     if touched('packages/contracts/'):
         steps.append(('contracts_test', ['npm', '-w', 'packages/contracts', 'run', 'test']))
     if touched('packages/ui/'):
