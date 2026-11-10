@@ -67,6 +67,12 @@ describe('API session preadmission on the wire', () => {
     expect(await response.json()).toMatchObject({ data: { code: 'not_found' } })
     expect(calls).toBe(0)
   })
+  it('refuses a browser POST to the server-only /api/v1/ai/usage/service and never reaches Odoo (issue #557)', async () => {
+    const response = await fetch(`${url}/api/v1/ai/usage/service`, { method: 'POST', headers: { cookie: 'session_id=valid-wire-session', authorization: `Bearer ${'a1'.repeat(20)}`, 'content-type': 'application/json' }, body: '{"items":[]}' })
+    expect(response.status).toBe(404)
+    expect(await response.json()).toMatchObject({ data: { code: 'not_found' } })
+    expect(calls).toBe(0)
+  })
   it('refuses a browser POST to the server-only /api/v1/ai/audit, so no approval or message is counted by a client (issue #556)', async () => {
     const body = JSON.stringify({ conversation_id: 'r_1', kind: 'draft', agent: 'pmo', tool_name: 'pmo.draft_project', input: { name: 'x' }, result: 'approved', http_status: 201, draft: { name: 'x' }, approved: { id: 1 } })
     const response = await fetch(`${url}/api/v1/ai/audit`, { method: 'POST', headers: { cookie: 'session_id=valid-wire-session', 'content-type': 'application/json' }, body })

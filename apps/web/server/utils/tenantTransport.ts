@@ -2,6 +2,7 @@ import http from 'node:http'
 import https from 'node:https'
 import { createError, getHeader, type H3Event } from 'h3'
 import { createBodyAdmission, createResponseAdmission, HEAVY_CREDITS, readBodyBytes } from './bufferAdmission.mjs'
+import { BEARER_KEY, isServiceAuthorizedRequest } from './serviceAuthorization'
 import { tenantUpstreamHeaders } from './tenantRequest'
 import { uiLocaleHeaders } from './uiLocale'
 import { HEAVY_TIMEOUT, UPSTREAM_TIMEOUT } from './upstreamDeadlines'
@@ -262,7 +263,9 @@ export async function legacyTenantResponse(event: H3Event, configuredUpstream: s
       const headers = new Headers(options.headers)
       const hop = ['connection', 'keep-alive', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']
       const nominated = (value: string | null | undefined) => (value ?? '').toLowerCase().split(',').map(name => name.trim()).filter(Boolean)
-      for (const name of ['host', 'content-length', ...hop, ...nominated(getHeader(event, 'connection'))]) headers.delete(name)
+      // The browser's own credentials header never reaches Odoo on this path: h3's proxy headers keep it, and the one request
+      // allowed to carry a key (the AI usage report) is built by the server and never goes through here.
+      for (const name of ['host', 'content-length', 'authorization', ...hop, ...nominated(getHeader(event, 'connection'))]) headers.delete(name)
       const response = await fetch(new URL(path, base), { method: options.method, body: options.body ? new Uint8Array(options.body) : undefined, headers, signal, redirect: 'manual' })
       if (response.status >= 300 && response.status < 400 && response.status !== 304 && !isCallbackRedirect(path, response.status, response.headers.get('location'))) { await response.body?.cancel(); throw failure() }
       const forwarded = new Headers(response.headers)
@@ -280,10 +283,14 @@ export async function legacyTenantResponse(event: H3Event, configuredUpstream: s
  * Bounded buffering deliberately replaces streaming: max16MiB request/32MiB response,
  * 15s total deadline (the heavy budget's deadline for an allowlisted heavy route). This supports current JSON attachments, not unbounded exports.
  * By default the call is destroyed when the browser disconnects; `ignoreClientClose` is only for a step that must finish
- * once begun (a claimed AI write) and keeps just the deadline and the optional `signal`. */
-export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; signal?: AbortSignal; ignoreClientClose?: boolean; heavy?: HeavyBudget } = {}): Promise<Response> {
+ * once begun (a claimed AI write) and keeps just the deadline and the optional `signal`.
+ * `authorization` is the server-held credential of the one request allowed to carry it (the AI usage report): any other
+ * method or path is refused outright, so a caller cannot widen where the key goes. A browser's own `Authorization` header
+ * is never read here: only this explicit option reaches the upstream. */
+export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; authorization?: string; signal?: AbortSignal; ignoreClientClose?: boolean; heavy?: HeavyBudget } = {}): Promise<Response> {
   const binding = tenantUpstreamHeaders(event)
   if (!binding.host) throw failure()
+  if (options.authorization !== undefined && (!isServiceAuthorizedRequest(options.method, path) || !BEARER_KEY.test(options.authorization))) throw failure()
   const base = operatorUpstream(configuredUpstream, path)
   const body = options.body
   if (body && Buffer.byteLength(body) > MAX_REQUEST) throw payloadTooLarge()
@@ -300,8 +307,10 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   const signatureHeader = HOOK_SIGNATURE_HEADERS.get(path.split('?')[0] ?? path)
   const signature = signatureHeader ? getHeader(event, signatureHeader) : undefined
   if (signatureHeader && signature) headers[signatureHeader] = signature
-  const cookie = options.headers?.cookie ?? getHeader(event, 'cookie')
+  // A service-authorized request is the server's own call: the user's session cookie must not ride along with the key.
+  const cookie = options.authorization !== undefined ? undefined : (options.headers?.cookie ?? getHeader(event, 'cookie'))
   if (cookie) headers.cookie = cookie
+  if (options.authorization !== undefined) headers.authorization = options.authorization
   Object.assign(headers, uiLocaleHeaders(event))
   if (body) headers['content-length'] = String(Buffer.byteLength(body))
   const cancellation = clientCancellation(event, options)

@@ -92,6 +92,20 @@ describe('server-only API routes', () => {
     expect(transport).not.toHaveBeenCalled()
   })
 
+  it.each(['POST', 'GET', 'PATCH'])('refuses a browser %s to the server-only /api/v1/ai/usage/service, even carrying an Authorization header', async (method) => {
+    // Issue #557: this route takes the deployment's recorder key and is for the Nuxt server alone.
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+    transport.mockClear()
+    proxyMock.mockClear()
+    const { proxy, handler } = await setup()
+    for (const path of ['/api/v1/ai/usage/service', '/api/v1/ai/usage/service/', '/api/v1/ai/usage/service?x=1', '/api/v1/ai/usage/%73ervice']) {
+      const event = { path, method, node: { req: { headers: { cookie: 'session_id=synthetic', authorization: `Bearer ${'a1'.repeat(20)}` } } } }
+      await expect(handler(event as never)).rejects.toMatchObject({ statusCode: 404, data: { code: 'not_found' } })
+    }
+    expect(proxy).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
+  })
+
   it.each(['POST', 'GET', 'PATCH'])('refuses a browser %s to the server-only /api/v1/ai/audit, which only this server writes', async (method) => {
     // Issue #556: the browser posts no audit row at all any more — an approval is recorded by the run's own resume — so a
     // client that could still reach the route could count messages or claim an approval it never made.

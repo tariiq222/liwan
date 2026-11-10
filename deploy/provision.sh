@@ -8,6 +8,9 @@
 #   deploy/provision.sh --public-origin app.customer.sa customerdb
 #     After a DOMAIN change of a provisioned environment: pins the database's public
 #     origin (web.base.url) to https://<domain> again and exits.
+#   deploy/provision.sh --rotate-ai-usage-key app.customer.sa customerdb
+#     Revokes the tenant's AI usage recorder key, mints a new one into deploy/.env (mode 600, never printed)
+#     and recreates `web` with it. Needs the ai profile and a provisioned database.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -73,6 +76,7 @@ stage_branding() {
   cp branding.json data/seed/branding.json
   cp seed_branding.py data/seed/seed_branding.py
   cp seed_legacy_policy.py data/seed/seed_legacy_policy.py
+  cp seed_ai_usage_key.py data/seed/seed_ai_usage_key.py
 
   local logo_path resolved_path staged_name
   logo_path="$(sed -n 's/.*"logo_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' branding.json | head -n 1)"
@@ -115,6 +119,9 @@ MODE=provision
 if [ "${1:-}" = "--public-origin" ]; then
   MODE=public-origin
   shift
+elif [ "${1:-}" = "--rotate-ai-usage-key" ]; then
+  MODE=rotate-ai-usage-key
+  shift
 fi
 
 # .env first, then the positional arguments: the domain and the database name are
@@ -130,6 +137,32 @@ DB_NAME="${2:?usage: provision.sh <domain> <db name>}"
 [ "${#DOMAIN}" -le 253 ] && [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$ ]] \
   || { echo "domain must be a lowercase DNS name" >&2; exit 1; }
 export DOMAIN DB_NAME
+
+# The tenant's AI usage recorder key (issue #557). The Odoo shell prints exactly one line, LIWAN_AI_USAGE_KEY=<hex>, which is
+# filtered here and written to deploy/.env by ai/write_env_secret.sh (mode 600): the key is never echoed, logged or passed on a
+# command line. Needs the ai profile (no AI service, no usage to record) and a database where liwan_ai is installed.
+mint_ai_usage_key() {
+  local minted
+  minted="$(docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
+    shell -d "$DB_NAME" --no-http < data/seed/seed_ai_usage_key.py | sed -n 's/^LIWAN_AI_USAGE_KEY=\([0-9a-f]\{32,128\}\)$/\1/p' | tail -n 1)"
+  [ -n "$minted" ] || { echo "provision: could not mint the AI usage key (seed_ai_usage_key.py printed no key)" >&2; exit 1; }
+  printf '%s' "$minted" | sh ai/write_env_secret.sh .env LIWAN_AI_USAGE_KEY \
+    || { echo "provision: could not store LIWAN_AI_USAGE_KEY in deploy/.env" >&2; exit 1; }
+  export LIWAN_AI_USAGE_KEY="$minted"
+}
+ai_profile_enabled() { grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; }
+
+if [ "$MODE" = rotate-ai-usage-key ]; then
+  ai_profile_enabled || { echo "provision: --rotate-ai-usage-key needs COMPOSE_PROFILES with ai in deploy/.env" >&2; exit 1; }
+  [ -f data/odoo.conf ] || { echo "provision: data/odoo.conf missing; provision $DB_NAME first" >&2; exit 1; }
+  export ODOO_COMMIT="$(cat "$PWD/odoo/ODOO_COMMIT")"
+  export LIWAN_IMAGE_TAG="${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the running image tag}"
+  stage_branding
+  mint_ai_usage_key
+  docker compose up -d web
+  echo "provision: AI usage key rotated; web restarted with the new key."
+  exit 0
+fi
 
 if [ "$MODE" = public-origin ]; then
   [ -f data/odoo.conf ] || { echo "provision: data/odoo.conf missing; provision $DB_NAME first" >&2; exit 1; }
@@ -205,6 +238,11 @@ docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$
 docker compose run --rm -T -e VENDOR_PASSWORD -e VENDOR_EMAIL -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 set_public_origin
+# A key already in deploy/.env is kept: the Odoo side cannot show it again, and re-minting would cut the running web off until it
+# restarts. A new database needs the line removed first; `--rotate-ai-usage-key` replaces it on purpose.
+if ai_profile_enabled && [ -z "${LIWAN_AI_USAGE_KEY:-}" ]; then
+  mint_ai_usage_key
+fi
 # Give LiwanOS AI's role CONNECT and its own schema in the tenant database, with no access to schema public
 # (ai/tenant_schema.sql; the PUBLIC revoke is the isolation step above). A no-op when the liwan_ai role does not
 # exist (deployments without AI); a real error still stops provisioning.

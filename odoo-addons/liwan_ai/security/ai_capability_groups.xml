@@ -6,4 +6,7 @@
      knowledge source give this group read access to the source's model, and security/ir.model.access.csv gives it the
      cursor and the settings it needs to index. -->
 <record id="group_ai_indexer" model="res.groups"><field name="name">LiwanOS AI knowledge indexer</field></record>
+<!-- The one capability of the machine identity that records usage for a user whose session has ended
+     (data/ai_usage_recorder.xml). Only that account holds it, in every company, and no role can carry it. -->
+<record id="group_cap_ai_usage_record" model="res.groups"><field name="name">Record LiwanOS AI usage for a user</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
 </odoo>
