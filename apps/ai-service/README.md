@@ -15,11 +15,15 @@ Policy: a known vulnerability in `requirements-dev.txt` fails the `ai-service` s
 tolerate one is a line `<advisory id> <reason and review date>` in `pip-audit-ignore.txt`; a line without a reason fails, and a line
 is removed when the package is upgraded.
 
-Changing a dependency is an owner decision. After it, regenerate the four files from this folder (uv; the date keeps releases less than
-two weeks old out of the lock, move it forward only with the decision):
+The lock is for Linux (the image and CI). `requirements.txt` pins exactly the versions the last successful main image build installed
+before this lock existed (ci run 42738750098); the dev, build and audit locks were resolved on 2026-11-10 with those as constraints.
 
-    D=2026-10-27T00:00:00Z
-    C="uv pip compile --universal --python-version 3.12 --generate-hashes --no-header --quiet --exclude-newer $D"
+Changing a dependency version is a deliberate, owner-approved change under `docs/UPDATE_POLICY.md`, never a side effect.
+The commands below are reproducible: each output file already exists, and `uv pip compile` keeps the versions it pins there and
+changes only what a new or edited requirement needs. Do not pass `--upgrade` or `--exclude-newer` without the approval. Run them
+from this folder:
+
+    C="uv pip compile --python-platform linux --python-version 3.12 --generate-hashes --no-header --quiet"
     $C pyproject.toml -o requirements.txt
     $C pyproject.toml --extra dev -o requirements-dev.txt
     $C requirements-build.in -o requirements-build.txt
