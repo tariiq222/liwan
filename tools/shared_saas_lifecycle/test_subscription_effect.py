@@ -695,7 +695,7 @@ class OptionalTrialEndKeysTest(unittest.TestCase):
                 se.validate_reconfigure(make_request(post_trial_modules=modules))
 
     def test_trial_ends_at_needs_an_explicit_timezone(self):
-        for text in ('2026-12-01T00:00:00Z', '2026-12-01T00:00:00+03:00', '2026-12-01T00:00:00.5+00:00'):
+        for text in ('2026-12-01T00:00:00Z', '2026-12-01T00:00:00+03:00', '2026-12-01T00:00:00.500000+00:00'):
             with self.subTest(text=text):
                 se.validate_reconfigure(make_request(trial_ends_at=text))
 
