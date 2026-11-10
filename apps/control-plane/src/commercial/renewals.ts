@@ -60,6 +60,10 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id WHERE s.state IN ('active','past_due')
     AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND ($2::uuid IS NULL OR s.id=$2)
     AND NOT ${holdsTrialAfterLapseSql('s')} ORDER BY s.id`, [today, subscription_id ?? null])).rows
+  // A subscription that is no longer a candidate (suspended, cancelled, changed, or already renewed) has nothing left to fail.
+  await pool.query(`UPDATE subscriptions SET renewal_failure=NULL,renewal_failed_at=NULL WHERE renewal_failure IS NOT NULL
+    AND ($2::uuid IS NULL OR id=$2) AND (NOT (id = ANY($1::uuid[])) OR id = ANY($3::uuid[]))`,
+  [candidates.map(c => c.id), subscription_id ?? null, candidates.filter(c => c.has_renewal).map(c => c.id)])
   let unusableOrigins = 0
   const generated: ReturnType<typeof orderView>[] = []
   const failures: unknown[] = []
@@ -167,7 +171,9 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       failures.push(error)
     }
   }
-  if (failures.length) throw failures[0]
+  // A candidate that failed is already logged and flagged for the vendor; it must not hide what the others generated or fail the
+  // job past the rest of the tick. A caller that asked for one subscription still gets its error.
+  if (failures.length && subscription_id) throw failures[0]
   if (unusableOrigins) throw new CommercialHttpError('return_url_forbidden', 422)
   return generated
 }

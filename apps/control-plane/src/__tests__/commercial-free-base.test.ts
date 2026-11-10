@@ -23,6 +23,8 @@ import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { sendTrialNotices } from '../commercial/trial-notices.js'
 import { overLimitText, sendOverLimitNotices } from '../commercial/over-limit-notices.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { createCommercialScheduler } from '../commercial/scheduler.js'
+import type { Config } from '../config.js'
 
 const POLICY = '6f1c3d8e-0000-4000-8000-000000000001'
 const PAID_KEYS = ['pmo.enabled', 'pmo.change_control', 'pmo.baselines', 'pmo.evm']
@@ -749,6 +751,38 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
           expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
         })
       }
+      it('R3: a permanently failing renewal never stops the trial expiry of the same tick, and its flag clears when it leaves the candidates', async () => {
+        const poison = async () => {
+          const f = await endedTrial()
+          await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+          await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+          const order = await lapseOrder(f.subscription)
+          await applyReceipt(pool, { order_id: order.id, receipt: (await pushed(f.tenant, order.id)).receipt })
+          await pool.query("UPDATE subscriptions SET renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
+          await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
+          await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(snapshot,'{policy_revision_id}',to_jsonb(gen_random_uuid()::text)) WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)", [f.subscription])
+          await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
+          return f
+        }
+        const flag = async (id: string) => (await pool.query('SELECT renewal_failure FROM subscriptions WHERE id=$1', [id])).rows[0].renewal_failure
+        const bad = await poison(), exited = await poison()
+        const due = await endedTrial()
+        const logs: string[] = []
+        const scheduler = createCommercialScheduler({ pool, config: {} as Config, env: {}, clock: () => now.getTime(), paymentAdapter: adapter, log: (m, e) => logs.push(`${m}: ${e instanceof Error ? e.message : e ?? ''}`) })
+        await scheduler.tick()
+        // The trial that was due lapsed in the same tick, and the renewals job reported no failure past the other steps.
+        expect(await lapseRow(due.subscription)).toBeTruthy()
+        expect(logs.filter(l => l.startsWith('renewals failed'))).toEqual([])
+        expect(await flag(bad.subscription)).toBe('pinned_policy_missing')
+        expect(await flag(exited.subscription)).toBe('pinned_policy_missing')
+        // One leaves the candidates (suspended), one already has its renewal: the flag does not stay forever.
+        await pool.query("UPDATE subscriptions SET state='suspended',revision=revision+1 WHERE id=$1", [bad.subscription])
+        await pool.query("INSERT INTO renewals(id,subscription_id,period_start,period_end) VALUES($1,$2,'2026-11-01','2026-12-01')", [randomUUID(), exited.subscription])
+        await generateRenewals(pool, { now, adapter, returnOrigin: origin })
+        expect(await flag(bad.subscription)).toBeNull()
+        expect(await flag(exited.subscription)).toBeNull()
+        for (const f of [bad, exited]) await pool.query("UPDATE subscriptions SET renewal_at='2099-01-01',revision=revision+1 WHERE id=$1", [f.subscription])
+      })
       describe('requesting exactly a held quantity buys it (owner decision 2026-11-10)', () => {
         const buy = async (f: F, over: Record<string, unknown>, when: Date) => {
           const sub = await getSubscription(pool, f.customer)
@@ -831,7 +865,9 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
         await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
         await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(snapshot,'{policy_revision_id}',to_jsonb(gen_random_uuid()::text)) WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)", [broken!.subscription])
         await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
-        await expect(generateRenewals(pool, { now, adapter, returnOrigin: origin })).rejects.toThrow('pinned_policy_missing')
+        // The failure is logged and shown, never thrown past the rest of the tick; what was generated is returned.
+        const generated = await generateRenewals(pool, { now, adapter, returnOrigin: origin })
+        expect(generated.length).toBeGreaterThanOrEqual(others.length)
         for (const f of others) expect((await pool.query('SELECT count(*)::int AS n FROM renewals WHERE subscription_id=$1', [f.subscription])).rows[0].n).toBe(1)
         const items = (await attention(pool, true)).items.filter(i => i.customer_id === broken!.customer)
         expect(items).toContainEqual(expect.objectContaining({ kind: 'renewal_failed', detail: 'pinned_policy_missing' }))
