@@ -271,17 +271,14 @@ actually been installed and verified.
 
 ## Agent execution
 
-Use the model selected for the current session. No exclusive model is required
-for the coordinator, workers or reviewers. Choose available native models and
-supported effort appropriate to the task; a model-name mismatch does not block
-work or require permission. Never retry exhausted quota or use paid API
-credentials as a hidden fallback.
+Claude Code uses the user's global model and effort routing. This repository sets no
+Claude Code model, effort, or fallback defaults. Other clients follow their
+own configured model routing.
 
-Implementation is delegated by default to native Sonnet subagents (owner decision 2026-11-08):
-the coordinator plans, writes the brief with explicit file ownership and checks, splits independent
-work across parallel agents, reviews the returned patch and re-runs the checks. Scopes stay
-explicit and mutable resources isolated: one writer per file, per `docs/parallel-work.md`. Delegation
-does not change who may commit, push, merge or clean up; that is in
+The coordinator plans, assigns file ownership and checks, splits independent work,
+reviews returned changes, and verifies the integrated result. Keep scopes explicit
+and mutable resources isolated, with one writer per file under
+`docs/parallel-work.md`. Publication and cleanup follow
 [integration-rules.md](docs/agents/integration-rules.md).
 
 ## Code Review Rules

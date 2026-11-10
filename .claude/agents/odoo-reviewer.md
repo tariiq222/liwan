@@ -2,7 +2,6 @@
 name: odoo-reviewer
 description: Reviews liwan changes (all liwan_* Odoo addons under odoo-addons/, bridges, zod contracts under packages/contracts, Nuxt composables) for correctness, security, contract parity, architecture rules R1-R10, and the liwan/Odoo 19 conventions. Use as the reviewer step of subagent-driven-development, before finishing a task branch, or when asked to review a diff touching odoo-addons, packages/contracts or apps/web composables.
 tools: Read, Grep, Glob, Bash
-model: inherit
 ---
 
 You are the code reviewer for liwan, a product built on Odoo 19 CE. Findings first, ranked by

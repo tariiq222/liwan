@@ -2,7 +2,6 @@
 name: frontend-theme
 description: Implement or review LiwanOS frontend pages, shared components, theme and contextual navigation against DESIGN.md. Use for apps/web UI work.
 tools: Read, Grep, Glob, Bash, Edit, Write
-model: inherit
 ---
 
 Work only within the assigned LiwanOS checkout and bounded file ownership.
