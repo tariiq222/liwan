@@ -415,29 +415,46 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       expect(await stuck(id)).toBe(0)
     })
 
-    it('a settings change while a paid plan change is queued queues no push, and the change delivers the new allowance', async () => {
+    it('a settings change while a paid plan change is queued leaves one extra push, and after both run the tenant has the new revision and allowance', async () => {
       const { id } = await appliedTopup()
       const change = await paidChange(id)
       await processFulfillmentOutbox(pool, { limit: 1000 })
       const before = (await queued(id)).length
-      const r = await patchSettings({ trial_allowance_minor: 1000 })
-      expect((r!.data as any).pushed_tenants).toBe(0)
-      expect(await queued(id)).toHaveLength(before)
-      for (const job of await queued(id)) await runSubscriptionReconfigure(pool, job, runner)
-      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: false, features: { 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 } })
+      await patchSettings({ trial_allowance_minor: 1000 })
+      await patchSettings({ trial_allowance_minor: 1000, monthly_allowance_minor: 0 })
+      const pending = await queued(id)
+      expect(pending).toHaveLength(before + 1)
+      for (const job of pending) await runSubscriptionReconfigure(pool, job, runner)
+      expect(delivered.filter(d => d.order_id === change.id && !d.ai_push).at(-1)!.features).toMatchObject({ 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 })
       expect((await pool.query('SELECT applied_revision_id=$2 AS applied FROM subscriptions WHERE customer_id=$1', [id, change.target_revision_id])).rows[0].applied).toBe(true)
+      expect(await queued(id)).toHaveLength(0)
       expect(await stuck(id)).toBe(0)
     })
 
-    it('a provider refund while a paid plan change is queued is not left behind: the change delivers the lowered balance', async () => {
+    it('a provider refund while a paid plan change is queued leaves one extra push, and after both run the tenant has the new revision and the lowered balance', async () => {
       const { id, o } = await appliedTopup()
       const change = await paidChange(id)
       await processFulfillmentOutbox(pool, { limit: 1000 })
-      const before = (await jobs(id)).length
+      const before = (await queued(id)).length
       await providerRefund(o.id)
-      expect(await jobs(id)).toHaveLength(before)
-      for (const job of await queued(id)) await runSubscriptionReconfigure(pool, job, runner)
-      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: false, features: { 'ai.balance.granted': 0 } })
+      const pending = await queued(id)
+      expect(pending).toHaveLength(before + 1)
+      for (const job of pending) await runSubscriptionReconfigure(pool, job, runner)
+      expect(delivered.filter(d => d.order_id === change.id && !d.ai_push).at(-1)!.features['ai.balance.granted']).toBe(0)
+      expect((await pool.query('SELECT applied_revision_id=$2 AS applied FROM subscriptions WHERE customer_id=$1', [id, change.target_revision_id])).rows[0].applied).toBe(true)
+      expect(await queued(id)).toHaveLength(0)
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('an order stuck applying with no job does not stop a refund from reaching the tenant', async () => {
+      const { id, o } = await appliedTopup()
+      const change = await paidChange(id)
+      await pool.query("UPDATE orders SET fulfillment_state='applying' WHERE id=$1", [change.id])
+      await providerRefund(o.id)
+      const push = await jobId(o.id, true)
+      expect(push).toBeTruthy()
+      await runSubscriptionReconfigure(pool, push!, runner)
+      expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
       expect(await stuck(id)).toBe(0)
     })
 
@@ -449,7 +466,7 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       expect((r!.data as any).pushed_tenants).toBe(1)
     })
 
-    it('a push that a newer revision overtook completes as superseded, never needs_intervention, and the new revision is pushed again', async () => {
+    it('a push that a newer revision overtook completes as superseded and never needs_intervention', async () => {
       const { id, o } = await appliedTopup()
       await patchSettings({ trial_allowance_minor: 1000 })
       const stale = await jobId(o.id, true)
@@ -462,19 +479,14 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       expect(result).toMatchObject({ state: 'verified', receipt: { superseded: true } })
       expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [stale])).rows[0].state).toBe('verified')
       expect(await stuck(id)).toBe(0)
-      // The current revision got a fresh push, which runs normally and carries the live values.
-      const next = await queued(id)
-      expect(next).toHaveLength(1)
-      await runSubscriptionReconfigure(pool, next[0]!, runner)
-      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: true, features: { 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 } })
-      expect(await stuck(id)).toBe(0)
+      expect(await queued(id)).toHaveLength(0)
     })
 
-    it('a refund skipped for a pending change is delivered when that change fails', async () => {
+    it('a refund while a paid change is pending is pushed at once, and the change failing adds no second push', async () => {
       const { id, o } = await appliedTopup()
       const change = await paidChange(id)
       await providerRefund(o.id)
-      expect(await queued(id)).toHaveLength(0)
+      expect(await queued(id)).toHaveLength(1)
       await failFulfillment(pool, { order_id: change.id, code: 'retries_exhausted' })
       const pending = await queued(id)
       expect(pending).toHaveLength(1)
@@ -575,11 +587,14 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       await processFulfillmentOutbox(pool, { limit: 1000 })
       await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runnerDuring(() => providerRefund(o.id)) as never)
       expect(delivered.at(-1)).toMatchObject({ order_id: change.id, features: { 'ai.balance.granted': 666_666 } })
+      // The push queued during the run targets the revision the change replaced (it completes superseded); the
+      // completion check queues the one that reaches the new revision.
       const next = await queued(id)
-      expect(next).toHaveLength(1)
-      await runSubscriptionReconfigure(pool, next[0]!, runner)
+      expect(next).toHaveLength(2)
+      for (const job of next) await runSubscriptionReconfigure(pool, job, runner)
       expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
       expect(await queued(id)).toHaveLength(0)
+      expect(await stuck(id)).toBe(0)
     })
 
     it('unchanged values queue nothing when a plan change completes', async () => {

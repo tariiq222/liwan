@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { AI_UNITS_MAX, aiEntitlementFeatures, quoteSchema, sarMinorToAiUnits, type AiBillingSettings } from '@liwan/commercial-contracts'
+import { AI_ENTITLEMENT_KEYS, AI_UNITS_MAX, aiEntitlementFeatures, quoteSchema, sarMinorToAiUnits, type AiBillingSettings } from '@liwan/commercial-contracts'
 import { appliedDeliveryTarget, enqueueAppliedDelivery } from './delivery-target.js'
 
 type Q = Pick<Pool, 'query'>
@@ -46,21 +46,23 @@ export async function deliveredEntitlement<E extends { features: Record<string, 
 
 /**
  * Pushes the live AI keys to the customer's tenant on its applied revision, as an AI-only job (`ai_push`), authorised by
- * the order that applied that revision. Returns false when there is nothing to push to (no applied revision, binding or
- * applying order), and when a paid order for a different, newer revision is queued or applying: a push for the revision
- * it replaces would be stale. That order's completion (or failure) calls `pushAiIfStale` / this function, so the values
- * still converge. A pending renewal or an unpaid change never matters here.
+ * the order that applied that revision. Returns false only when there is nothing to push to (no applied revision, binding
+ * or applying order). It is never held back by other orders: a push claimed after a newer revision applied completes as
+ * superseded and queues one fresh push, and `pushAiIfStale` converges the values after every delivery. A push still
+ * queued for the same revision with the same values is reused, so repeats collapse into one job.
  */
 export async function pushAiEntitlement(client: PoolClient, customerId: string): Promise<boolean> {
-  const subscription = (await client.query('SELECT id,applied_revision_id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
+  const subscription = (await client.query('SELECT id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
   const target = subscription ? await appliedDeliveryTarget(client, subscription.id, 'applied') : null
   if (!target?.binding || !target.order) return false
-  const newer = await client.query(`SELECT 1 FROM orders WHERE subscription_id=$1 AND target_revision_id<>$2 AND NOT cancelled
-    AND payment_state IN ('paid','not_required') AND fulfillment_state IN ('queued','applying')`, [subscription.id, subscription.applied_revision_id])
-  if (newer.rowCount) return false
   const { snapshot } = target.row
   const entitlement = await deliveredEntitlement(client, customerId, { modules: snapshot.entitlement.modules, features: snapshot.entitlement.features,
     digest: snapshot.entitlement.digest, compiler_version: snapshot.entitlement.compiler_version })
+  const values = Object.fromEntries(Object.entries(entitlement.features).filter(([key]) => AI_ENTITLEMENT_KEYS.includes(key)))
+  const queued = await client.query(`SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1 AND state='queued' AND payload->'authority'->>'ai_push'='true'
+    AND payload->'authority'->>'target_revision_id'=$2 AND payload->'authority'->'entitlement'->'features' @> $3::jsonb`,
+  [target.row.tenant_id, target.row.applied_revision_id, JSON.stringify(values)])
+  if (queued.rowCount) return true
   await enqueueAppliedDelivery(client, { ...target, binding: target.binding, order: target.order }, entitlement, null, true, true)
   return true
 }

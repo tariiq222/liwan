@@ -4,7 +4,7 @@ import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import { applyReceipt, failFulfillmentOn, type SubscriptionReceipt } from '../commercial/fulfillment.js'
-import { deliveredEntitlement, pushAiEntitlement, pushAiIfStale } from '../commercial/ai-ledger.js'
+import { deliveredEntitlement, pushAiIfStale } from '../commercial/ai-ledger.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 
 export type SubscriptionRunner = (input: {job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number;assertOwned:()=>Promise<void>}) => Promise<unknown>
@@ -84,8 +84,8 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     const blocked=await client.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND id<>$2 AND state IN ('running','needs_intervention') LIMIT 1",[job.controlTenantId,id])
     if(blocked.rowCount)throw Error('shared_reconciliation_required')
     if(job.authority.ai_push){
-      // A newer revision applied after this push was queued: it delivered the live values itself, so this push is
-      // superseded. It completes without touching the tenant, and the current revision gets a fresh push in case its
+      // A newer revision applied after this push was queued: its own completion check already compared the live values
+      // with what it delivered, so this push is superseded and completes without touching the tenant.
       // delivery was built before the change that queued this one.
       const current=(await client.query('SELECT customer_id,applied_revision_id FROM subscriptions WHERE tenant_id=$1 FOR SHARE',[job.controlTenantId])).rows[0]
       if(!current){
@@ -100,7 +100,6 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
       if(current.applied_revision_id!==job.authority.target_revision_id){
         const receipt:SupersededReceipt={superseded:true,applied_revision_id:current.applied_revision_id}
         await client.query("UPDATE shared_jobs SET state='verified',receipt=$2,lease_until=NULL,journal=$3 WHERE id=$1",[id,receipt,{stage:'verified',operation_id:job.authority.operation_id,superseded:true}])
-        await pushAiEntitlement(client,current.customer_id)
         return {superseded:receipt}
       }
     }
