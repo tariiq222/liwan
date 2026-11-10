@@ -476,14 +476,28 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       post_trial_supported: true, excess_supported: true, storage_bytes: 20480 * 1024 * 1024 + 17,
       ...(blockedStorageBytes === undefined ? {} : { blocked_storage_bytes: blockedStorageBytes }),
     } : null })
+    const previous = await row(f.subscription)
+    await observe()
     await observe()
     expect(await lapse(f)).toMatchObject({ deferred: [f.subscription] })
     expect(await trialEndPreview(pool, f.customer)).toMatchObject({ excess: { storage_bytes: 17, source: 'usage_snapshot' } })
-    const job = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
-    expect(job.payload.authority.post_trial_features['pmo.enabled']).toBe(false)
-    await runSubscriptionReconfigure(pool, job.id, async input => ({
-      ...await okRunner(input), post_trial_supported: true, excess_supported: true,
-    }))
+    const bootstrap = (await getSubscription(pool, f.customer)).pending_order
+    expect(bootstrap).toMatchObject({
+      expected_applied_revision_id: previous.applied_revision_id, payment_state: 'not_required', due_now: { minor: 0 },
+    })
+    expect(bootstrap!.target_revision_id).not.toBe(previous.applied_revision_id)
+    expect((await pool.query("SELECT id FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'trial-bootstrap:%'", [f.subscription])).rowCount).toBe(1)
+    expect(await row(f.subscription)).toMatchObject({ state: 'trialing', trial_ends_at: previous.trial_ends_at })
+    await expect(extendTrial(pool, { subscription_id: f.subscription, now: beforeEnd, days: 5, reason: 'While priming', actor: vendor.actor_id }))
+      .rejects.toMatchObject({ code: 'subscription_change_pending' })
+    expect(await runJob(bootstrap!.id, async input => {
+      expect(input.job.authority).toMatchObject({
+        trial_ends_at: previous.trial_ends_at.toISOString(), previous_revision_id: previous.applied_revision_id,
+        target_revision_id: bootstrap!.target_revision_id,
+        entitlement: { features: { 'pmo.enabled': true } }, post_trial_features: { 'pmo.enabled': false },
+      })
+      return { ...await okRunner(input), post_trial_supported: true, excess_supported: true }
+    })).toMatchObject({ state: 'verified' })
     expect(await lapse(f)).toMatchObject({ lapsed: [f.subscription] })
     await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
     expect(await runJob((await lapseOrder(f.subscription)).id, okRunner)).toMatchObject({ state: 'verified' })
@@ -491,6 +505,45 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(await trialEndPreview(pool, f.customer)).toMatchObject({ excess: { storage_bytes: null } })
     await observe(33)
     expect(await trialEndPreview(pool, f.customer)).toMatchObject({ excess: { storage_bytes: 33, source: 'usage_snapshot' } })
+  })
+
+  it('leaves an accepted trial target in charge of delivering the fallback', async () => {
+    const f = await endedTrial()
+    const pending = await change(f, {}, beforeEnd)
+    await pool.query('UPDATE tenants SET post_trial_supported=NULL,excess_supported=NULL WHERE id=$1', [f.tenant])
+    const binding = (await pool.query('SELECT database_name FROM shared_registry_bindings WHERE control_tenant_id=$1', [f.tenant])).rows[0]
+    const usage = { 'users.limit': 3, 'storage.limit_mb': 0, 'branches.extra_limit': 0 }
+    await collectUsage(pool, { limit: 100, runner: async input => input.tenant_id === f.tenant ? {
+      database: binding.database_name, observed_at: new Date().toISOString(), usage,
+      limit_gates: Object.fromEntries(Object.keys(usage).map(key => [key, []])),
+      post_trial_supported: true, excess_supported: true,
+    } : null })
+    expect(await row(f.subscription)).toMatchObject({ target_revision_id: pending.order.target_revision_id })
+    expect((await pool.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'trial-bootstrap:%'", [f.subscription])).rowCount).toBe(0)
+    expect(await lapse(f)).toMatchObject({ deferred: [f.subscription] })
+  })
+
+  it('primes a manually suspended legacy trial without collecting its usage or lifting suspension', async () => {
+    const f = await endedTrial()
+    await pool.query('UPDATE tenants SET post_trial_supported=NULL,excess_supported=NULL WHERE id=$1', [f.tenant])
+    await suspendSubscription(pool, { subscription_id: f.subscription, reason: 'Manual hold during rollout', actor: vendor.actor_id })
+    const previous = await row(f.subscription)
+    const binding = (await pool.query('SELECT database_name FROM shared_registry_bindings WHERE control_tenant_id=$1', [f.tenant])).rows[0]
+    const usage = { 'users.limit': 3, 'storage.limit_mb': 0, 'branches.extra_limit': 0 }
+    await collectUsage(pool, { limit: 100, runner: async input => input.tenant_id === f.tenant ? {
+      database: binding.database_name, observed_at: new Date().toISOString(), usage,
+      limit_gates: Object.fromEntries(Object.keys(usage).map(key => [key, []])),
+      post_trial_supported: true, excess_supported: true,
+    } : null })
+    expect((await pool.query('SELECT 1 FROM usage_snapshots WHERE tenant_id=$1', [f.tenant])).rowCount).toBe(0)
+    const bootstrap = (await getSubscription(pool, f.customer)).pending_order!
+    expect(bootstrap?.expected_applied_revision_id).toBe(previous.applied_revision_id)
+    expect(await runJob(bootstrap.id, async input => ({
+      ...await okRunner(input), post_trial_supported: true, excess_supported: true,
+    }))).toMatchObject({ state: 'verified' })
+    expect(await row(f.subscription)).toMatchObject({
+      state: 'suspended', suspended_from: 'trialing', manual_suspension: true, trial_ends_at: previous.trial_ends_at,
+    })
   })
 
   it('rolls back expiry and its lapse together if the transaction crashes (T12)', async () => {

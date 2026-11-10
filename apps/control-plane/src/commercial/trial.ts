@@ -97,9 +97,9 @@ export async function extendTrial(pool: Pool, input: { subscription_id: string; 
     if (sub.state !== 'trialing' || (sub.applied_revision_id && sub.trial_ends_at && new Date(sub.trial_ends_at) <= now)) {
       return reopenTrialOn(client, sub, { ...input, now, endsAt: new Date(trialEndsAt(input.days, now)) })
     }
-    const reopening = sub.target_revision_id && (await client.query(`SELECT 1 FROM orders WHERE target_revision_id=$1
-      AND idempotency_key LIKE 'trial-reopen:%' AND NOT cancelled`, [sub.target_revision_id])).rowCount
-    if (reopening) throw new CommercialHttpError('subscription_change_pending', 409)
+    const trialPolicyPending = sub.target_revision_id && (await client.query(`SELECT 1 FROM orders WHERE target_revision_id=$1
+      AND (idempotency_key LIKE 'trial-reopen:%' OR idempotency_key LIKE 'trial-bootstrap:%') AND NOT cancelled`, [sub.target_revision_id])).rowCount
+    if (trialPolicyPending) throw new CommercialHttpError('subscription_change_pending', 409)
     const updated = await client.query(`UPDATE subscriptions SET trial_ends_at=GREATEST(trial_ends_at,$3::timestamptz)+($2||' days')::interval,revision=revision+1
       WHERE id=$1 AND state='trialing' AND trial_ends_at IS NOT NULL RETURNING customer_id,trial_ends_at`, [input.subscription_id, String(input.days), now])
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)

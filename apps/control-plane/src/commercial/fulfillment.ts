@@ -4,7 +4,7 @@ import { transaction } from '../db.js'
 import { nextOrderState, riyadhDate, type EffectReceipt } from '@liwan/commercial-contracts'
 import { activateBranches, archiveBranches, listBranches } from './branches.js'
 import { claimOutbox, completeOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
-import { schedulePaidRecovery } from './paid-fulfillment-recovery.js'
+import { scheduleFulfillmentRecovery } from './paid-fulfillment-recovery.js'
 import { recoverableTrialPredecessors } from '../shared/commercial-recovery.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import type { Config } from '../config.js'
@@ -118,7 +118,8 @@ export async function failFulfillmentOn(client: PoolClient, input: { order_id: s
   const type = INTERVENTION_CODES.includes(input.code) ? 'fulfillment_needs_intervention' : 'fulfillment_failed'
   const next = nextOrderState(started, { type })
   await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
-  if (order.payment_state === 'paid') await schedulePaidRecovery(client, order, input.code)
+  if (order.payment_state === 'paid' || /^trial-(reopen|bootstrap):/.test(order.idempotency_key))
+    await scheduleFulfillmentRecovery(client, order, input.code)
 }
 
 /** Worker-only runtime configuration; omit actor to use paid-subscription service authority.

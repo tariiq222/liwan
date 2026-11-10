@@ -1,7 +1,8 @@
 import type { Pool } from 'pg'
 import { z } from 'zod'
 import { transaction } from '../db.js'
-import { pushCommercialExpiry } from './expiry-push.js'
+import { randomUUID } from 'node:crypto'
+import { queueTrialPolicyRevision } from './trial-policy-order.js'
 import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { recordUsage } from './usage.js'
 import { sweepAi } from './ai-ledger.js'
@@ -90,7 +91,7 @@ async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: nu
   try { return await Promise.race([work(controller.signal), timeout, stopped]) } finally { clearTimeout(timer); stop?.removeEventListener('abort', onStop) }
 }
 
-async function recordLifecycle(pool: Pool, target: { tenant_id: string; database_name: string; registry_revision: string }, observed: NonNullable<UsageObservation['lifecycle']>) {
+async function recordLifecycle(pool: Pool, target: { tenant_id: string; database_name: string; registry_revision: string }, observed: NonNullable<UsageObservation['lifecycle']>, now: Date) {
   await transaction(pool, async client => {
     const subscription = (await client.query('SELECT * FROM subscriptions WHERE tenant_id=$1 FOR UPDATE', [target.tenant_id])).rows[0]
     const bound = await client.query(`SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled
@@ -104,8 +105,18 @@ async function recordLifecycle(pool: Pool, target: { tenant_id: string; database
         AND state IN ('queued','running','needs_intervention')`, [target.tenant_id])
       // Existing trials need an actual fallback delivery before CP can enable their lapse. A capability-only
       // observation never counts as that delivery. The receipt flips the flags after the host verified it.
-      if ((!tenant?.post_trial_supported || !tenant?.excess_supported) && !job.rowCount)
-        await pushCommercialExpiry(client, subscription.id, subscription.trial_ends_at)
+      if ((!tenant?.post_trial_supported || !tenant?.excess_supported) && !job.rowCount) {
+        // Seeding a legacy profile is a complete new revision. The same-revision prohibition
+        // for reopening a materialized F1 trial stays intact.
+        const queued = await queueTrialPolicyRevision(client, subscription, { kind: 'trial-bootstrap',
+          sourceId: subscription.applied_revision_id, endsAt: subscription.trial_ends_at, now })
+        if (!queued) throw Error('trial_order_unavailable')
+        await client.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1',
+          [subscription.id, queued.revisionId])
+        await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+          [randomUUID(), 'system:trial-bootstrap', 'trial.policy_bootstrap_queued', subscription.id, 'Install the existing trial fallback',
+            JSON.stringify({ source_revision_id: subscription.applied_revision_id, target_revision_id: queued.revisionId, trial_ends_at: subscription.trial_ends_at })])
+      }
     }
     if (!trialing || !ready) await client.query(`UPDATE tenants SET post_trial_supported=COALESCE($2,post_trial_supported),
       excess_supported=COALESCE($3,excess_supported) WHERE id=$1`,
@@ -122,7 +133,8 @@ async function recordLifecycle(pool: Pool, target: { tenant_id: string; database
  * cancelled on timeout), so a run is short and a failing tenant cannot starve the others. Only one run
  * collects at a time across workers (advisory lock; a second caller returns { locked: true }).
  * Nothing is recorded unless the observation names the bound database, is fresh, complete, and the
- * binding is unchanged after the observation; a rejected sample leaves the previous snapshot untouched. */
+ * binding is unchanged after the observation. A manually suspended trial missing capabilities is only probed to seed its
+ * fallback and records no usage. A rejected sample leaves the previous snapshot untouched. */
 export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; clock?: () => number; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number; signal?: AbortSignal; busy?: () => Promise<boolean> }) {
   const now = input.now ?? (() => new Date())
   const clock = input.clock ?? Date.now
@@ -134,15 +146,17 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
   try {
     if (!(await lock.query('SELECT pg_try_advisory_lock($1,$2) AS ok', [USAGE_LOCK_CLASS, USAGE_LOCK_OBJECT])).rows[0].ok) return { ...result, locked: true }
     try {
-      const targets = (await pool.query(`SELECT x.tenant_id, x.database_name, x.registry_revision FROM (
-          SELECT DISTINCT ON (b.control_tenant_id) s.tenant_id, b.database_name, b.registry_revision
+      const targets = (await pool.query(`SELECT x.tenant_id, x.database_name, x.registry_revision, x.capability_only FROM (
+          SELECT DISTINCT ON (b.control_tenant_id) s.tenant_id, b.database_name, b.registry_revision, ${tenantStatusSql('s')}='suspended' AS capability_only
           FROM subscriptions s
           JOIN tenants t ON t.id=s.tenant_id AND t.operations_enabled=true
           JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
-          WHERE s.applied_revision_id IS NOT NULL AND ${tenantStatusSql('s')}='active'
+          WHERE s.applied_revision_id IS NOT NULL AND (${tenantStatusSql('s')}='active'
+            OR (s.suspended_from='trialing' AND s.trial_ends_at IS NOT NULL AND s.target_revision_id IS NULL
+              AND (t.post_trial_supported IS NOT TRUE OR t.excess_supported IS NOT TRUE)))
           ORDER BY b.control_tenant_id, s.id) x
         LEFT JOIN usage_collection_attempts a ON a.tenant_id=x.tenant_id
-        ORDER BY a.attempted_at ASC NULLS FIRST, x.tenant_id LIMIT $1`, [input.limit ?? DEFAULT_LIMIT])).rows as Array<{ tenant_id: string; database_name: string; registry_revision: string }>
+        ORDER BY a.attempted_at ASC NULLS FIRST, x.tenant_id LIMIT $1`, [input.limit ?? DEFAULT_LIMIT])).rows as Array<{ tenant_id: string; database_name: string; registry_revision: string; capability_only: boolean }>
       const deadline = clock() + (input.budget_ms ?? BUDGET_MS)
       for (const target of targets) {
         if (clock() >= deadline || input.signal?.aborted) break
@@ -160,9 +174,13 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
           const still = await pool.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true AND database_name=$2 AND registry_revision=$3',
             [target.tenant_id, target.database_name, target.registry_revision])
           if (!still.rowCount) { result.skipped++; continue }
+          if (target.capability_only) {
+            if (observed.lifecycle) await recordLifecycle(pool, target, observed.lifecycle, now())
+            continue
+          }
           await recordUsage(pool, { tenant_id: target.tenant_id, observed_at: new Date(observed.observed_at), metrics: observed.usage, limit_gates: observed.limit_gates, excess: observed.lifecycle?.excess, source: 'odoo.observe' })
           result.recorded++
-          if (observed.lifecycle) await recordLifecycle(pool, target, observed.lifecycle).catch(error =>
+          if (observed.lifecycle) await recordLifecycle(pool, target, observed.lifecycle, now()).catch(error =>
             log(`tenant ${target.tenant_id}: trial capability: ${error instanceof Error ? error.message : 'observation_failed'}`))
           // The level-triggered check: what the tenant holds against the ledger. A failure here must not lose the sample.
           if (observed.ai) await sweepAi(pool, target, observed.ai, log).catch(error => log(`tenant ${target.tenant_id}: ai sweep: ${error instanceof Error ? error.message : 'sweep_failed'}`))

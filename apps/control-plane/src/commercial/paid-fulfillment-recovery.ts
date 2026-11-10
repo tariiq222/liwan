@@ -12,13 +12,13 @@ const PERMANENT = ['stale_target', 'provision_needs_intervention', 'order_not_re
 const permanentFailure = (code: string | null) => Boolean(code && (PERMANENT.includes(code) || code.startsWith('retries_exhausted:')))
 
 /** A known non-retryable refusal releases the target on the next pass. Others retry at 5, 15 and 60 minutes. */
-export async function schedulePaidRecovery(client: PoolClient, order: Record<string, any>, code: string) {
+export async function scheduleFulfillmentRecovery(client: PoolClient, order: Record<string, any>, code: string) {
   const minutes = permanentFailure(code) ? 0 : RETRY_MINUTES[order.fulfillment_retries] ?? 0
   await client.query(`UPDATE orders SET fulfillment_retry_at=CASE WHEN $2::int>0 THEN now()+make_interval(mins=>$2::int) ELSE NULL END,fulfillment_failure_code=$3 WHERE id=$1`,
     [order.id, minutes, code])
 }
 
-const recoverable = `(o.payment_state='paid' OR (o.payment_state='not_required' AND (o.idempotency_key LIKE 'trial-reopen:%' OR EXISTS (
+const recoverable = `(o.payment_state='paid' OR (o.payment_state='not_required' AND (o.idempotency_key LIKE 'trial-reopen:%' OR o.idempotency_key LIKE 'trial-bootstrap:%' OR EXISTS (
   SELECT 1 FROM trial_lapses l WHERE l.subscription_id=o.subscription_id AND l.state='pending'
 ))))`
 
@@ -49,9 +49,9 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
             payload: { order_id: order.id, subscription_id: subscription.id, target_revision_id: order.target_revision_id } })
           return
         }
-        // A terminal reopen can have written to Odoo while its receipt was lost. Keep its target
+        // A terminal trial policy delivery can have written to Odoo while its receipt was lost. Keep its target
         // fenced for operator reconciliation rather than treating a potentially open trial as closed.
-        if (String(order.idempotency_key).startsWith('trial-reopen:')) {
+        if (/^trial-(reopen|bootstrap):/.test(order.idempotency_key)) {
           await client.query("UPDATE orders SET fulfillment_retry_at='infinity' WHERE id=$1", [order.id])
           return
         }

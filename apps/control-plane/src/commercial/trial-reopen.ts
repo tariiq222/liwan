@@ -1,9 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
-import { riyadhDate, type Quote } from '@liwan/commercial-contracts'
-import { CommercialHttpError, digestOf } from './lifecycle.js'
-import { pricingOf } from './quote-sources.js'
-import { enqueueOutbox } from './outbox.js'
+import { CommercialHttpError } from './lifecycle.js'
+import { queueTrialPolicyRevision } from './trial-policy-order.js'
 
 type Query = Pick<PoolClient, 'query'>
 type Subscription = {
@@ -51,35 +49,13 @@ export async function reopenTrialOn(client: PoolClient, sub: Subscription, input
   const lapse = sub.state === 'trialing' ? null : await settledTrialReopenSource(client, sub)
   if (sub.state !== 'trialing' && !lapse) throw unavailable()
   const sourceId = lapse?.trial_revision_id ?? sub.applied_revision_id
-  const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [sourceId])).rows[0]?.snapshot
-  if (!snapshot) throw unavailable()
-  const prior = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [snapshot.quote_id])).rows[0]?.payload as Quote | undefined
-  if (!prior) throw unavailable()
-  const pricing = await pricingOf(client, snapshot)
-  const periodEnd = riyadhDate(input.endsAt)
-  const quote: Quote = { ...prior, id: randomUUID(), effective_date: riyadhDate(input.now), expected_subscription_revision: sub.revision,
-    due_now: { ...prior.due_now, minor: 0 }, lines: [], next_renewal_at: periodEnd,
-    expires_at: new Date(input.now.getTime()+30*60_000).toISOString(), digest: '' }
-  quote.digest = digestOf({ ...quote, digest: undefined })
-  const revisionId = randomUUID(), orderId = randomUUID()
-  const { branch_archive_ids: _archive, branch_restore_ids: _restore, trial_end: _end, ...trial } = snapshot
-  const next = { ...trial, period_end: periodEnd, quote_id: quote.id, pricing }
   const voided = lapse ? await voidUnpaidTrialInvoices(client, sub.id, lapse.period_start) : []
-  await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)',
-    [quote.id, sub.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
-  await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)',
-    [revisionId, sub.id, sub.revision+1, JSON.stringify(next), quote.id])
+  const queued = await queueTrialPolicyRevision(client, sub, { ...input, sourceId, kind: 'trial-reopen' })
+  if (!queued) throw unavailable()
+  const { revisionId, periodEnd } = queued
   await client.query(`UPDATE subscriptions SET state='trialing',trial_ends_at=$2,trial_ended_at=NULL,trial_outcome=NULL,trial_paid_through=NULL,
     grace_ends_at=NULL,billing_blocked_at=NULL,renewal_at=$3,target_revision_id=$4,revision=revision+1 WHERE id=$1`, [sub.id,input.endsAt,periodEnd,revisionId])
   if (lapse) await client.query("UPDATE trial_lapses SET state='superseded',reason=NULL WHERE subscription_id=$1", [sub.id])
-  const key = `trial-reopen:${sub.id}:${sub.revision}`
-  await client.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,
-    payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
-    VALUES($1,$2,$3,'change',$4,$5,$6,'not_required','queued',$7,$8,$9,0,$10,$11)`,
-  [orderId, sub.customer_id, sub.id, quote.id, revisionId, sub.applied_revision_id, input.now, key,
-    digestOf({ source_revision_id: sourceId, trial_ends_at: input.endsAt }), quote.due_now.currency, quote.due_now.exponent])
-  await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: orderId, dedupe_key: revisionId,
-    payload: { order_id: orderId, subscription_id: sub.id, target_revision_id: revisionId } })
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
     [randomUUID(), input.actor, 'trial.reopened', sub.id, input.reason, JSON.stringify({
       source_revision_id: sourceId, target_revision_id: revisionId, trial_ends_at: input.endsAt, voided_order_ids: voided,
