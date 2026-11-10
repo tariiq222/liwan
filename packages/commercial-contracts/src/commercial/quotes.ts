@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { addCadence, canonicalJson, daysBetween, remainingDays } from './calendar.js'
-import { paidExtraBranches, paidStorageGb, paidUnits, prorateOverCycleMinor, vat } from './pricing.js'
+import { paidExtraBranches, paidStorageGb, paidUnits, prorateMinor, prorateOverCycleMinor, vat } from './pricing.js'
 import { fitsStorageSteps, MAX_USERS } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, Cadence, CustomerTermsRevision, Money, PlanRevision, Price, PricingPolicy, Quote, QuoteLine } from './types.js'
@@ -12,6 +12,8 @@ export type QuoteCurrent = {
   user_unit_minor: number; storage_unit_minor: number
 }
 export type QuoteIds = { id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number }
+export type PaidThrough = Record<string, { quantity: number; through: string }[]>
+
 export type ComputeQuoteInput = {
   kind: 'new' | 'change'; plan: PlanRevision; bundles: BundleRevision[]; terms: CustomerTermsRevision | null
   cadence: Cadence; requested_extra_branches: number; requested_users: number; requested_storage_mb: number; current?: QuoteCurrent
@@ -23,6 +25,8 @@ export type ComputeQuoteInput = {
    * cycle that follows the trial, the daily rate inside the trial equals the daily rate after it.
    */
   proration_cycle_days?: number
+  /** Trial delta units already paid through the given date (end exclusive), for the first post-trial cycle. */
+  paid_through?: PaidThrough
   /** A one-time assisted onboarding on a first order only, at the vendor's own fee; never on a renewal. */
   onboarding?: { amount: Money } | null
 }
@@ -40,6 +44,20 @@ function pick(cadence: Cadence, currency: string, ...sources: (Price[] | Price |
     }
   }
   return undefined
+}
+
+/** Allocate the longest paid periods first, never more units than the requested configuration contains. */
+function firstCycleMinor(minor: number, quantity: number, coverage: PaidThrough[string], period: ComputeQuoteInput['period'], cycleDays: number) {
+  if (!coverage.length || minor === 0) return minor
+  let units = quantity
+  let paidDays = 0
+  for (const { quantity: paidQuantity, through } of [...coverage].sort((a, b) => b.through.localeCompare(a.through))) {
+    if (!Number.isSafeInteger(paidQuantity) || paidQuantity < 1) throw new CommercialError('invalid_quantity')
+    const covered = Math.min(paidQuantity, units)
+    paidDays += covered * Math.max(0, Math.min(cycleDays, daysBetween(period.start, through)))
+    units -= covered
+  }
+  return prorateMinor({ cycleMinor: minor, remainingDays: quantity * cycleDays - paidDays, cycleDays: quantity * cycleDays })
 }
 
 export function computeQuote(input: ComputeQuoteInput): Quote {
@@ -110,13 +128,14 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     if (!Number.isSafeInteger(amount)) throw new CommercialError('invalid_quantity')
   for (const [k, kd, d, q, m, s] of renewalLines) {
     renewal += m
-    if (kind === 'new') add(k, kd, d, q, m, 'now', s, period.start, period.end)
-    else add(k, kd, d, q, m, 'renewal', s, period.end, nextPeriodEnd)
+    if (kind === 'new') {
+      const amount = firstCycleMinor(m, q, input.paid_through?.[k] ?? [], period, cycleDays)
+      dueNow += amount
+      add(k, kd, d, q, amount, 'now', s, period.start, period.end)
+    } else add(k, kd, d, q, m, 'renewal', s, period.end, nextPeriodEnd)
   }
 
-  if (kind === 'new') {
-    dueNow = renewal
-  } else {
+  if (kind === 'change') {
     const cur = input.current as QuoteCurrent
     const prorated = (m: number) => prorateOverCycleMinor({ cycleMinor: m, remainingDays: remaining, cycleDays: prorationDays })
     const pushDelta = (k: string, kd: QuoteLine['kind'], d: string, q: number, delta: number, src: string, targetMinor: number) => {
