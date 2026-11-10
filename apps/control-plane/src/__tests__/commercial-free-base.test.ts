@@ -62,19 +62,20 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 })
 
   /** A customer whose trial of the paid application ended a day before `now`, with the trial order applied. */
-  async function endedTrial(over: Record<string, unknown> = {}) {
+  async function endedTrial(over: Record<string, unknown> = {}, bound = true) {
     const customer = randomUUID(), tenant = randomUUID()
     const slug = `t${tenant.replaceAll('-', '')}`
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Free base','saas','shared_managed',$2,true)", [tenant, slug])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [customer, 'Free base', tenant, 'Manager', `${customer}@example.test`])
-    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.test`, `liwan_scratch_${slug.slice(1)}`])
+    const bind = () => pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.test`, `liwan_scratch_${slug.slice(1)}`])
+    if (bound) await bind()
     const principal = { actor_id: '7', kind: 'customer', customer_id: customer, tenant_id: tenant, capabilities: ['subscription.manage'] } as unknown as Principal
     await startTrial(pool, { customer_id: customer, request: { ...request(), ...over }, principal, now: new Date(now.getTime() - 15 * 86_400_000) })
     await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [customer])
     await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE customer_id=$1", [customer])
     await pool.query("UPDATE commercial_outbox SET status='done' WHERE kind='fulfillment.enqueue' AND aggregate_id IN (SELECT id::text FROM orders WHERE customer_id=$1)", [customer])
     const sub = await getSubscription(pool, customer)
-    return { customer, tenant, subscription: sub.id }
+    return { customer, tenant, subscription: sub.id, bind }
   }
   const row = async (id: string) => (await pool.query('SELECT * FROM subscriptions WHERE id=$1', [id])).rows[0]
   /** What the shared worker would push to Odoo for the order, and the receipt it would return. */
@@ -695,6 +696,43 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       await applyReceipt(pool, { order_id: upgrade.id, receipt: paid.receipt })
       await processTrialLapses(pool, { now: at(24), adapter, subscription_id: f.subscription })
       expect(await lapseRow(f.subscription)).toMatchObject({ state: 'superseded' })
+    })
+  })
+
+  describe('the trial hard expiry in Odoo is never left to lock the company unseen', () => {
+    const clearingJob = async (tenant: string) => (await pool.query("SELECT id,state FROM shared_jobs WHERE control_tenant_id=$1 AND payload->'authority'->'commercial_valid_until'='null'::jsonb ORDER BY created_at,id LIMIT 1", [tenant])).rows[0]
+    const expiryItems = async (customer: string) => (await attention(pool, true)).items.filter(i => i.customer_id === customer && i.kind === 'free_base_blocked')
+    it('a clearing job that needs intervention is shown to the vendor and disappears once it succeeds', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      const job = await clearingJob(f.tenant)
+      expect(await expiryItems(f.customer)).toEqual([])
+      await runSubscriptionReconfigure(pool, job.id, failingRunner('observed_mismatch')).catch(e => e)
+      // No order failed and no operation row exists: only the job itself says the company will lock after the grace period.
+      expect((await pool.query("SELECT count(*)::int AS n FROM orders WHERE customer_id=$1 AND fulfillment_state IN ('failed','needs_intervention')", [f.customer])).rows[0].n).toBe(0)
+      expect(await expiryItems(f.customer)).toEqual([expect.objectContaining({ detail: 'expiry_clearing:observed_mismatch' })])
+      // A write may have happened: the lapse pass leaves the job to the scheduler's resume and the operator, and keeps showing it.
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      expect((await clearingJob(f.tenant)).state).toBe('needs_intervention')
+      expect(await expiryItems(f.customer)).toEqual([expect.objectContaining({ detail: 'expiry_clearing:observed_mismatch' })])
+      expect(await runSubscriptionReconfigure(pool, job.id, okRunner, true)).toMatchObject({ state: 'verified' })
+      expect(await expiryItems(f.customer)).toEqual([])
+    })
+    it('a clearing job the host refused before writing is closed so it stops blocking the queue, and stays visible until the base order applies', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      const job = await clearingJob(f.tenant)
+      await runSubscriptionReconfigure(pool, job.id, failingRunner('commercial_expiry_revision_stale')).catch(e => e)
+      expect((await clearingJob(f.tenant)).state).toBe('needs_intervention')
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      expect((await clearingJob(f.tenant)).state).toBe('failed')
+      expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='trial.expiry_clearing_job_closed' AND subject=$1", [f.subscription])).rows[0].n).toBe(1)
+      expect(await expiryItems(f.customer)).toEqual([expect.objectContaining({ detail: 'expiry_clearing:commercial_expiry_revision_stale' })])
+      // The lock order carries the clearing too, and nothing blocks it any more.
+      const order = await lapseOrder(f.subscription)
+      expect(order).toBeTruthy()
+      expect(await runJob(order.id, okRunner)).toMatchObject({ state: 'verified' })
+      expect(await expiryItems(f.customer)).toEqual([])
     })
   })
 })

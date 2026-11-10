@@ -10,6 +10,7 @@ import { enqueueOutbox } from './outbox.js'
 import type { OverLimit } from './over-limit-notices.js'
 import { FREE_BASE_ORDER_WAIT_DAYS } from './notice-timings.js'
 import type { PaymentAdapter } from './payment-adapter.js'
+import { EXPIRY_CLEARING_REASON, expiryClearingJob, pushCommercialExpiry } from './expiry-push.js'
 
 /**
  * What follows a trial that lapsed onto the free base. The lapse itself (`trial-expiry.ts`) already left the subscription
@@ -116,12 +117,43 @@ async function voidUnpaidRenewals(client: PoolClient, subscriptionId: string): P
   return candidates.length - orders.length
 }
 
+/**
+ * The lapse cleared the trial's hard expiry in its own transaction; every pass of the first step looks at the result, because
+ * Odoo locks the whole company when that expiry passes. No clearing job exists (the tenant could not take the push) -> push
+ * again, and return the code while it still cannot. A job the host refused before writing anything is closed so it stops
+ * blocking the tenant's queue, as a refused order job is in `settleOrdered`; the lock order that follows carries no expiry
+ * either. A job that may have written to Odoo is left to the scheduler's own resume (`recoverInterrupted`) and the operator.
+ * Its state stays the single record: the vendor attention list reads the job itself.
+ */
+async function resumeExpiryClearing(pool: Pool, lapse: Lapse): Promise<string | null> {
+  return transaction(pool, async client => {
+    const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [lapse.subscription_id])).rows[0]
+    if (sub.applied_revision_id !== lapse.trial_revision_id) return null
+    const job = (await client.query(`SELECT j.id,j.state,j.journal->>'stage' AS stage,j.journal->>'error_code' AS code FROM shared_jobs j
+      WHERE ${expiryClearingJob('j', '$1', '$2')} ORDER BY j.created_at DESC,j.id DESC LIMIT 1 FOR UPDATE`, [sub.tenant_id, lapse.trial_revision_id])).rows[0]
+    if (!job) {
+      try { await pushCommercialExpiry(client, sub.id, null) }
+      catch (error) { if (error instanceof CommercialHttpError) return error.code; throw error }
+    } else if (job.state === 'needs_intervention' && job.stage === 'needs_intervention' && (PRE_WRITE_REFUSALS as readonly string[]).includes(job.code)) {
+      await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1 AND state='needs_intervention'", [job.id])
+      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+        [randomUUID(), 'system:trial-expiry', 'trial.expiry_clearing_job_closed', sub.id, `The job clearing the trial expiry was refused before any write (${job.code}); it was closed so the tenant's queue is not blocked`, JSON.stringify({ job_id: job.id })])
+    }
+    await client.query('UPDATE trial_lapses SET reason=NULL WHERE subscription_id=$1 AND reason LIKE $2', [lapse.subscription_id, `${EXPIRY_CLEARING_REASON}:%`])
+    return null
+  })
+}
+
 async function attempt(pool: Pool, lapse: Lapse, now: Date, adapter?: PaymentAdapter) {
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE id=$1', [lapse.subscription_id])).rows[0]
   // The customer changed plan after the trial: there is nothing left to lower.
   if (sub.applied_revision_id !== lapse.trial_revision_id) {
     await pool.query("UPDATE trial_lapses SET state='superseded',reason=NULL,limits_note=NULL WHERE subscription_id=$1 AND state IN ('pending','limits_pending')", [lapse.subscription_id])
     return
+  }
+  if (lapse.state === 'pending') {
+    const refused = await resumeExpiryClearing(pool, lapse)
+    if (refused) return blocked(pool, lapse, now, `${EXPIRY_CLEARING_REASON}:${refused}`)
   }
   if (sub.target_revision_id) {
     const pending = (await pool.query('SELECT * FROM orders WHERE subscription_id=$1 AND target_revision_id=$2', [sub.id, sub.target_revision_id])).rows[0]

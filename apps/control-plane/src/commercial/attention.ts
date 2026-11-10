@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
+import { EXPIRY_CLEARING_REASON, expiryClearingJob } from './expiry-push.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
@@ -59,9 +60,19 @@ const subjectsSql = `WITH latest AS (
 ), lowering AS (
   -- A trial that lapsed onto the free base but could not be lowered yet: the tenant is usable (its hard expiry is already
   -- cleared); reason is the machine reason of the last attempt. It clears the moment the customer's own order is applied.
-  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.reason FROM trial_lapses l
+  -- Until the lock is applied the trial's hard expiry in Odoo must also be cleared, or Odoo locks the WHOLE company after the
+  -- grace period: a clearing job that needs intervention (or was closed after a refusal) is shown from the job itself, so it
+  -- disappears the moment the job is verified.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, COALESCE(l.reason, stuck.reason) AS reason FROM trial_lapses l
   JOIN subscriptions s ON s.id=l.subscription_id AND s.applied_revision_id=l.trial_revision_id JOIN customers c ON c.id=s.customer_id
-  WHERE l.state IN ('pending','ordered','limits_pending') AND l.reason IS NOT NULL
+  LEFT JOIN LATERAL (
+    SELECT '${EXPIRY_CLEARING_REASON}:' || COALESCE(latest_job.journal->>'error_code', latest_job.state) AS reason FROM (
+      SELECT j.state, j.journal FROM shared_jobs j
+      WHERE l.state IN ('pending','ordered') AND ${expiryClearingJob('j', 's.tenant_id', 'l.trial_revision_id')}
+      ORDER BY j.created_at DESC, j.id DESC LIMIT 1
+    ) latest_job WHERE latest_job.state IN ('needs_intervention','failed')
+  ) stuck ON true
+  WHERE l.state IN ('pending','ordered','limits_pending') AND COALESCE(l.reason, stuck.reason) IS NOT NULL
 ), limits_waiting AS (
   -- The settled over-limit state: the paid applications are locked, existing data is untouched, and only some limits wait for
   -- usage to fit, or extra branches above the plan's included ones stay active (the leak is accepted; the vendor can follow up

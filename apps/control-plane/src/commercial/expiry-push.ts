@@ -3,6 +3,18 @@ import type { PoolClient } from 'pg'
 import { CommercialHttpError } from './lifecycle.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 
+/** Prefix of the vendor-visible reason while the hard expiry of a lapsed trial is not cleared in Odoo yet (`expiry_clearing:<code>`). */
+export const EXPIRY_CLEARING_REASON = 'expiry_clearing'
+
+/**
+ * SQL condition (on `job`, a `shared_jobs` row) for the reconfigure job that clears the hard expiry of one applied revision:
+ * the one `pushCommercialExpiry(.., null)` enqueues. `tenant` and `revision` are SQL expressions. Its state is the single
+ * source of truth for whether the expiry is cleared, so the attention list and the lapse retry both read it from here.
+ */
+export const expiryClearingJob = (job: string, tenant: string, revision: string) =>
+  `${job}.control_tenant_id=${tenant} AND ${job}.payload->>'operation'='reconfigure' AND COALESCE(${job}.payload->>'restore','false')<>'true'
+    AND ${job}.payload->'authority'->'commercial_valid_until'='null'::jsonb AND ${job}.payload->'authority'->>'target_revision_id'=${revision}::text`
+
 /** Push the trial's Odoo hard expiry on every trial-date mutation, not only at fulfilment. */
 export async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | null) {
   const row = (await client.query(`SELECT s.*,r.snapshot
