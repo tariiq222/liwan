@@ -2,6 +2,7 @@
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanHrCase, make_archivable, set_hr_feature
+from odoo.addons.liwan_api.controllers.common import DEFAULT_PAGE_LIMIT
 
 EMP_KEYS = {
     'id', 'name', 'job_title', 'department', 'work_email', 'work_phone', 'user_id',
@@ -130,6 +131,18 @@ class TestHrEmployees(LiwanHrCase):
         body = self.api('GET', '/api/v1/hr/employees?q=Pagination&limit=1&offset=1').json()
         self.assertEqual(len(body['items']), 1)
         self.assertEqual(body['total'], 3)
+
+    def test_zero_limit_returns_the_default_page_not_every_employee(self):
+        self.env['hr.employee'].create([
+            {'name': f'Zero Limit Employee {index:03d}'}
+            for index in range(DEFAULT_PAGE_LIMIT + 1)
+        ])
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/hr/employees?q=Zero%20Limit&limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertEqual(body['total'], DEFAULT_PAGE_LIMIT + 1)
+        missing = self.api('GET', '/api/v1/hr/employees?q=Zero%20Limit').json()
+        self.assertEqual(len(missing['items']), DEFAULT_PAGE_LIMIT)
 
     def test_employee_ids_are_hr_ids_not_user_ids(self):
         # The HR directory keys rows by hr.employee id and carries the linked

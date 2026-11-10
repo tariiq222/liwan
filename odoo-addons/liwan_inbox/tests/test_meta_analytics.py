@@ -11,7 +11,10 @@ from .common import BUSINESS_ACCOUNT_ID, LiwanInboxCase
 from .health_common import DISPLAY_NUMBER, HEALTH_BODY, meta, meta_error
 from odoo.addons.liwan_inbox.adapters import whatsapp
 
-TODAY = fields.Datetime.now().date()
+
+def today():
+    """Read the day when used: the sync reads it at run time, and a module constant goes stale past midnight."""
+    return fields.Datetime.now().date()
 
 
 def unix(day):
@@ -61,7 +64,7 @@ class TestMetaAnalytics(LiwanInboxCase):
         return self.env['liwan.inbox.cost.day'].search([('channel_id', '=', self.channel.id)])
 
     def test_pricing_points_are_stored_per_day_category_type_and_country(self):
-        yesterday = TODAY - timedelta(days=1)
+        yesterday = today() - timedelta(days=1)
         fake = Meta(pricing_analytics=meta(pricing(
             point(yesterday, volume=3, cost=1.5), point(yesterday, country='AE', volume=2, cost=1.0),
             point(yesterday, category='SERVICE', pricing_type='FREE_CUSTOMER_SERVICE', volume=4),
@@ -79,15 +82,15 @@ class TestMetaAnalytics(LiwanInboxCase):
         self.assertTrue(self.channel.analytics_synced_at)
         (call,) = fake.to('pricing_analytics')
         self.assertIn(f'phone_numbers(["{DISPLAY_NUMBER}"])', call[2]['params']['fields'])
-        self.assertIn(f'start({unix(TODAY - timedelta(days=89))})', call[2]['params']['fields'])  # the first sync backfills 90 days
+        self.assertIn(f'start({unix(today() - timedelta(days=89))})', call[2]['params']['fields'])  # the first sync backfills 90 days
 
     def test_a_resync_replaces_the_window_and_later_syncs_read_three_days(self):
-        yesterday = TODAY - timedelta(days=1)
+        yesterday = today() - timedelta(days=1)
         self.sync(Meta(pricing_analytics=meta(pricing(point(yesterday, volume=3)))))
         fake = Meta(pricing_analytics=meta(pricing(point(yesterday, volume=5))))
         self.sync(fake)
         self.assertEqual(self.costs().mapped('volume'), [5])
-        self.assertIn(f'start({unix(TODAY - timedelta(days=2))})', fake.to('pricing_analytics')[0][2]['params']['fields'])
+        self.assertIn(f'start({unix(today() - timedelta(days=2))})', fake.to('pricing_analytics')[0][2]['params']['fields'])
 
     def test_a_missing_currency_falls_back_to_null(self):
         self.sync(Meta(pricing_analytics=meta(pricing()), currency=meta_error('(#100) nonexisting field (currency)')))
@@ -116,7 +119,7 @@ class TestMetaAnalytics(LiwanInboxCase):
 
     def test_template_analytics_store_days_clicks_and_spend_for_opted_in_channels_only(self):
         template = self.make_template()
-        day = TODAY - timedelta(days=2)
+        day = today() - timedelta(days=2)
         fake = Meta(pricing_analytics=meta(pricing()), template_analytics=self.template_answer(template, day))
         self.sync(fake)
         self.assertFalse(fake.to('template_analytics'))
@@ -162,7 +165,7 @@ class TestMetaAnalytics(LiwanInboxCase):
         template = self.make_template()
         self.channel.template_insights_enabled = True
         user = self._capability_user('inbox_channels_only', 'inbox.channels.manage')
-        yesterday = TODAY - timedelta(days=1)
+        yesterday = today() - timedelta(days=1)
         fake = Meta(
             pricing_analytics=meta(pricing(point(yesterday, volume=3, cost=1.5))),
             template_analytics=self.template_answer(template, yesterday),

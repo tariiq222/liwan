@@ -657,16 +657,17 @@ async function handle(req, res) {
         const detail = projectsPreviewData(`/api/v1/tasks/${item.id}`, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })
         return json(res, 200, { items: detail.attachments, total: detail.attachments.length })
       }
-      const limit = Math.min(Number(url.searchParams.get('limit') ?? 50), 200)
+      const requested = Number(url.searchParams.get('limit') ?? 50)
       const offset = Number(url.searchParams.get('offset') ?? 0)
-      if (!Number.isInteger(limit) || limit < 0 || !Number.isInteger(offset) || offset < 0) return fail(res, 422, 'invalid', 'limit and offset must be nonnegative integers')
+      if (!Number.isInteger(requested) || requested < 0 || !Number.isInteger(offset) || offset < 0) return fail(res, 422, 'invalid', 'limit and offset must be nonnegative integers')
+      const limit = Math.min(requested || 50, 200) // limit=0 means the route default, as in the real route
       const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
       const project = PROJECTS.find(project => project.id === item.project?.id)
       const candidates = (project?.active ? TASKS : [])
         .filter(task => task.id !== item.id && task.project?.id === item.project?.id && (!q || task.name.toLowerCase().includes(q)))
         .sort((a, b) => a.name.localeCompare(b.name, 'ar') || a.id - b.id)
         .map(({ id, name, state }) => ({ id, name, state }))
-      return json(res, 200, { items: candidates.slice(offset, limit === 0 ? undefined : offset + limit), total: candidates.length })
+      return json(res, 200, { items: candidates.slice(offset, offset + limit), total: candidates.length })
     }
     const preview = pmoPreviewData(path, url, { PROJECTS, TASKS, CURRENCY })
       ?? projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })

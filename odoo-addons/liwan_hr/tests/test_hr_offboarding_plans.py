@@ -5,6 +5,7 @@ from odoo.tests import new_test_user, tagged
 from .common import LiwanHrCase, set_hr_feature
 from .test_hr_offboarding import MANAGER_KEYS, READER_KEYS, RUN_KEYS
 from .test_hr_onboarding import PLAN_KEYS, RUN_STEP_KEYS, STEP_KEYS
+from odoo.addons.liwan_api.controllers.common import DEFAULT_PAGE_LIMIT
 
 PLANS = '/api/v1/hr/offboarding/plans'
 RUNS = '/api/v1/hr/offboarding/runs'
@@ -194,6 +195,20 @@ class TestHrOffboardingPlans(LiwanHrCase):
         self.assertGreaterEqual(page['total'], 2)
         bad = self.api('GET', f'{PLANS}?active=maybe')
         self.assertEqual((bad.status_code, bad.json()['code'], bad.json()['field']), (422, 'invalid', 'active'))
+
+    def test_zero_limit_lists_the_default_page_of_plans(self):
+        self._as_manager()
+        before = self.api('GET', PLANS).json()['total']
+        self.env['mail.activity.plan'].create([
+            {'name': f'Zero limit offboarding plan {index:03d}', 'res_model': 'hr.employee',
+             'hr_purpose': 'offboarding', 'company_id': self.env.company.id}
+            for index in range(DEFAULT_PAGE_LIMIT + 1)
+        ])
+        body = self.api('GET', f'{PLANS}?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertEqual(body['total'], before + DEFAULT_PAGE_LIMIT + 1)
+        # A missing limit is the same default page, not an unbounded list.
+        self.assertEqual(len(self.api('GET', PLANS).json()['items']), DEFAULT_PAGE_LIMIT)
 
     def test_plan_patch_replaces_the_steps_and_deactivates_the_plan(self):
         self._as_manager()

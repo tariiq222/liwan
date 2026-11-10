@@ -4,6 +4,7 @@ from odoo.exceptions import ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanHrCase, set_hr_feature
+from odoo.addons.liwan_api.controllers.common import DEFAULT_PAGE_LIMIT
 
 PLAN_KEYS = {'id', 'name', 'department', 'active', 'steps'}
 STEP_KEYS = {'id', 'summary', 'responsible_type', 'responsible', 'delay_count', 'delay_unit', 'delay_from'}
@@ -160,6 +161,20 @@ class TestHrOnboarding(LiwanHrCase):
         self.assertNotIn(plan['id'], {item['id'] for item in default['items']})
         every = self.api('GET', '/api/v1/hr/onboarding/plans?active=all').json()
         self.assertIn(plan['id'], {item['id'] for item in every['items']})
+
+    def test_zero_limit_lists_the_default_page_of_plans(self):
+        self._as_manager()
+        before = self.api('GET', '/api/v1/hr/onboarding/plans').json()['total']
+        self.env['mail.activity.plan'].create([
+            {'name': f'Zero limit onboarding plan {index:03d}', 'res_model': 'hr.employee',
+             'hr_purpose': 'onboarding', 'company_id': self.env.company.id}
+            for index in range(DEFAULT_PAGE_LIMIT + 1)
+        ])
+        body = self.api('GET', '/api/v1/hr/onboarding/plans?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertEqual(body['total'], before + DEFAULT_PAGE_LIMIT + 1)
+        # A missing limit is the same default page, not an unbounded list.
+        self.assertEqual(len(self.api('GET', '/api/v1/hr/onboarding/plans').json()['items']), DEFAULT_PAGE_LIMIT)
 
     def test_plan_payload_is_strict(self):
         self._as_manager()

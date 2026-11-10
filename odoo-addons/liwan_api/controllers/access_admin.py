@@ -11,7 +11,7 @@ from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     clear_security_caches_after_commit,
     get_record,
-    parse_nonneg_int,
+    parse_page,
     parse_positive_int,
 )
 from odoo.addons.liwan_api.serializers.access import (
@@ -32,8 +32,9 @@ def parse_query(allowed):
     unknown = set(args) - set(allowed)
     if unknown:
         raise ApiError(400, 'unsupported_filter', 'unsupported query parameter', field=sorted(unknown)[0])
-    limit = min(parse_nonneg_int(args.pop('limit', 50), 'limit'), MAX_PAGE)
-    offset = parse_nonneg_int(args.pop('offset', 0), 'offset')
+    limit, offset = parse_page(args, maximum=MAX_PAGE)
+    args.pop('limit', None)
+    args.pop('offset', None)
     return args, limit, offset
 
 

@@ -7,7 +7,7 @@ from .common import hr_rule_handler, related_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_nonneg_int,
+    parse_page,
     require_capabilities,
     requires_feature,
 )
@@ -54,8 +54,7 @@ class HrDepartmentController(http.Controller):
     def list_departments(self, **_):
         _require('hr.departments.read')
         args = request.httprequest.args
-        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
-        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        limit, offset = parse_page(args, maximum=MAX_LIMIT)
         Department = request.env['hr.department']
         domain = [('company_id', 'in', request.env.companies.ids)]
         recs = Department.search(domain, order='name, id', limit=limit, offset=offset)

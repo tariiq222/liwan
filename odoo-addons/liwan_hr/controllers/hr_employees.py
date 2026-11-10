@@ -7,7 +7,7 @@ from .common import hr_rule_handler, own_public_employee, related_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_nonneg_int,
+    parse_page,
     require_capabilities,
     requires_feature,
 )
@@ -123,8 +123,7 @@ class HrEmployeeController(http.Controller):
         _require('hr.employees.read')
         if archived:
             _require('hr.employees.archive')
-        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
-        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        limit, offset = parse_page(args, maximum=MAX_LIMIT)
         domain = [('company_id', 'in', request.env.companies.ids)]
         if q:
             domain.append(('name', 'ilike', q))

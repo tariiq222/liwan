@@ -5,6 +5,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanHrCase
+from odoo.addons.liwan_api.controllers.common import DEFAULT_PAGE_LIMIT
 from odoo.addons.liwan_hr.models.hr_department import DEPARTMENT_SCOPE_ERROR
 from odoo.addons.liwan_hr.serializers.hr_department import (
     dump_department,
@@ -71,6 +72,18 @@ class TestHrDepartments(LiwanHrCase):
         body = self.api('GET', '/api/v1/hr/departments?limit=1&offset=1').json()
         self.assertEqual(len(body['items']), 1)
         self.assertEqual(body['total'], expected_total)
+
+    def test_zero_limit_returns_the_default_page_not_every_department(self):
+        self.env['hr.department'].create([
+            {'name': f'Zero Limit Department {index:03d}'}
+            for index in range(DEFAULT_PAGE_LIMIT + 1)
+        ])
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/hr/departments?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertGreater(body['total'], DEFAULT_PAGE_LIMIT)
+        # A missing limit is the same default page, not an unbounded list.
+        self.assertEqual(len(self.api('GET', '/api/v1/hr/departments').json()['items']), DEFAULT_PAGE_LIMIT)
 
     def test_employee_count_includes_archived_employee(self):
         self.env['hr.employee'].create({
