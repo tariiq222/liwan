@@ -64,7 +64,7 @@ export const FinanceSetupSchema = z.object({
   blockers: z.array(FinanceSetupBlockerSchema),
 }).strict()
 
-/** PATCH /finance/setup/fiscal: the hard lock date is irreversible and never written here. */
+/** PATCH /finance/setup/fiscal: the fiscal year end, the transfer account and the soft locks, which move both ways. The hard lock is never written here. */
 export const FinanceSetupFiscalInputSchema = z.object({
   fiscalyear_last_day: z.number().int().min(1).max(31),
   fiscalyear_last_month: z.number().int().min(1).max(12),
@@ -75,8 +75,15 @@ export const FinanceSetupFiscalInputSchema = z.object({
   transfer_account_id: z.number().int().positive(),
 }).partial().strict()
 
+/** POST /finance/setup/fiscal/lock: the irreversible hard lock, which only moves later and needs the explicit confirmation. */
+export const FinanceHardLockInputSchema = z.object({
+  hard_lock_date: day,
+  confirm: z.literal(true),
+}).strict()
+
 export type FinanceSetupBlocker = z.infer<typeof FinanceSetupBlockerSchema>
 export type FinanceZatcaJournal = z.infer<typeof FinanceZatcaJournalSchema>
 export type FinanceZatcaReadiness = z.infer<typeof FinanceZatcaReadinessSchema>
 export type FinanceSetup = z.infer<typeof FinanceSetupSchema>
 export type FinanceSetupFiscalInput = z.infer<typeof FinanceSetupFiscalInputSchema>
+export type FinanceHardLockInput = z.infer<typeof FinanceHardLockInputSchema>

@@ -10,6 +10,8 @@ import {
   financeFiscalFieldError,
   financeFiscalIssues,
   financeFiscalSaveMessage,
+  financeHardLockIssue,
+  financeToday,
   financeSetupScopeToken,
   isFinanceCalendarDate,
   isFinanceContextChanged,
@@ -115,11 +117,11 @@ describe('the rules a draft must satisfy before anything is sent', () => {
       .toEqual(['fiscalyear_lock_date'])
   })
 
-  it('refuses clearing a saved lock and moving one earlier', () => {
-    expect(codes(draftWith({ fiscalyear_lock_date: null }))).toContain('fiscalyear_lock_date:lockCannotClear')
-    expect(codes(draftWith({ fiscalyear_lock_date: '2026-06-29' }))).toContain('fiscalyear_lock_date:lockCannotMoveEarlier')
-    expect(codes(draftWith({ fiscalyear_lock_date: '2026-06-30' }))).toEqual([])
-    expect(codes(draftWith({ fiscalyear_lock_date: '2026-07-01' }))).toEqual([])
+  it('lets a saved soft lock be cleared or moved earlier, and sends the change', () => {
+    expect(codes(draftWith({ fiscalyear_lock_date: null }))).toEqual([])
+    expect(codes(draftWith({ fiscalyear_lock_date: '2026-06-29' }))).toEqual([])
+    expect(financeFiscalDelta(draftWith({ fiscalyear_lock_date: null }), baseline())).toEqual({ fiscalyear_lock_date: null })
+    expect(financeFiscalDelta(draftWith({ fiscalyear_lock_date: '2026-05-31' }), baseline())).toEqual({ fiscalyear_lock_date: '2026-05-31' })
   })
 
   it('accepts setting a lock that was empty', () => {
@@ -140,6 +142,30 @@ describe('the rules a draft must satisfy before anything is sent', () => {
     expect(isFinanceCalendarDate('2026-04-31')).toBe(false)
     expect(isFinanceCalendarDate('2026-12-31')).toBe(true)
     expect(isFinanceCalendarDate('2026-1-1')).toBe(false)
+  })
+})
+
+describe('the hard lock date', () => {
+  const TODAY = '2026-11-10'
+
+  it('is a real day, no later than today and no earlier than the saved hard lock', () => {
+    expect(financeHardLockIssue('2026-02-31', null, TODAY)).toBe('invalidLockDate')
+    expect(financeHardLockIssue('2026-11-11', null, TODAY)).toBe('hardLockFuture')
+    expect(financeHardLockIssue('2026-03-30', '2026-03-31', TODAY)).toBe('hardLockEarlier')
+    expect(financeHardLockIssue('2026-03-31', '2026-03-31', TODAY)).toBeNull()
+    expect(financeHardLockIssue('2026-04-30', '2026-03-31', TODAY)).toBeNull()
+    expect(financeHardLockIssue(TODAY, null, TODAY)).toBeNull()
+  })
+
+  it('reads today in the local calendar', () => {
+    expect(financeToday(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05')
+    expect(financeToday(new Date(2026, 10, 10, 0, 1))).toBe('2026-11-10')
+  })
+
+  it('maps the draft refusal and the hard lock refusal to messages of their own', () => {
+    expect(financeFiscalErrorKey('draft_entries_in_period')).toBe('finance.setup.fiscal.errors.draft_entries_in_period')
+    expect(financeFiscalSaveMessage(new ApiError(422, 'lock_date_loosening', 'server text', 'hard_lock_date'), t))
+      .toBe('t:finance.setup.fiscal.errors.lock_date_loosening')
   })
 })
 

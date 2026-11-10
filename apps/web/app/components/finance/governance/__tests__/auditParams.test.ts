@@ -59,6 +59,9 @@ describe('audit record and outcome text', () => {
     expect(auditOutcome('12 lines, 3 reconciled')).toEqual({ key: 'linesReconciled', params: { lines: '12', reconciled: '3' } })
     expect(auditOutcome('add 10.5')).toEqual({ key: 'zakatAdjustment', params: { kind: 'add', amount: '10.5' } })
     expect(auditOutcome('2026:closed')).toEqual({ key: 'yearClosed', params: { year: '2026', state: 'closed' } })
+    expect(auditOutcome('2026-06-30>2025-01-01')).toEqual({ key: 'lockChange', params: { old: '2026-06-30', new: '2025-01-01' } })
+    expect(auditOutcome('>2026-06-30')).toEqual({ key: 'lockChange', params: { old: '', new: '2026-06-30' } })
+    expect(auditOutcome('2026-09-30>')).toEqual({ key: 'lockChange', params: { old: '2026-09-30', new: '' } })
     expect(auditOutcome('posted')).toBeNull()
   })
 
@@ -66,7 +69,7 @@ describe('audit record and outcome text', () => {
     for (const audit of [ar.financeGovernance.audit, en.financeGovernance.audit]) {
       const keys = ['invoice', 'entry', 'move', 'other', 'res_partner', 'mis_budget_by_account', 'account_bank_statement']
       for (const key of keys) expect(audit.records).toHaveProperty(key)
-      for (const key of ['linesReconciled', 'lines', 'entries', 'statement', 'soldFor', 'zakatBase', 'zakatAdjustment', 'yearClosed']) expect(audit.outcomeShapes).toHaveProperty(key)
+      for (const key of ['linesReconciled', 'lines', 'entries', 'statement', 'soldFor', 'zakatBase', 'zakatAdjustment', 'yearClosed', 'lockChange', 'lockNone']) expect(audit.outcomeShapes).toHaveProperty(key)
     }
   })
 })

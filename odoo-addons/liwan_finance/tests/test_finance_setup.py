@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import Command
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import new_test_user, tagged
 
 from .common import (
@@ -153,16 +153,48 @@ class TestFinanceSetup(LiwanFinanceCase):
         later = self._write('PATCH', 'fiscal', {'tax_lock_date': '2026-07-31'})
         self.assertEqual(later.json()['fiscal']['tax_lock_date'], '2026-07-31')
 
-    def test_a_lock_date_can_only_be_tightened(self):
+    def test_the_soft_locks_move_both_ways_and_can_be_cleared(self):
         self.authenticate(ADMIN_LOGIN, PASSWORD)
-        self.assertEqual(self._write('PATCH', 'fiscal', {'sale_lock_date': '2026-06-30'}).status_code, 200)
-        self.assertEqual(self._write('PATCH', 'fiscal', {'sale_lock_date': '2026-06-30'}).status_code, 200)
-        for value in ('2026-05-31', None):
-            with self.subTest(value=value):
-                result = self._write('PATCH', 'fiscal', {'sale_lock_date': value})
-                self.assertEqual((result.status_code, result.json()['code']), (422, 'lock_date_loosening'), result.text)
-                self.assertEqual(result.json()['field'], 'sale_lock_date')
-        self.assertEqual(self._get()['fiscal']['sale_lock_date'], '2026-06-30')
+        for field in ('fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date'):
+            with self.subTest(field=field):
+                for value in ('2026-06-30', '2026-05-31', None, '2026-07-31'):
+                    result = self._write('PATCH', 'fiscal', {field: value})
+                    self.assertEqual(result.status_code, 200, result.text)
+                    self.assertEqual(result.json()['fiscal'][field], value)
+                    self.assertNotIn('Odoo', result.text)
+        self.assertEqual(self._get()['fiscal']['sale_lock_date'], '2026-07-31')
+
+    def _lock_events(self):
+        events = self.env['liwan.finance.audit.event'].search([
+            ('company_id', '=', self.fresh.id), ('action', 'in', ('lock_date_changed', 'hard_lock_set')),
+        ], order='id')
+        return [(event.action, event.fields_written, event.outcome, event.res_model, event.res_id, event.create_uid) for event in events]
+
+    def test_each_lock_date_change_is_audited_with_its_old_and_new_day_and_actor(self):
+        self.authenticate(ADMIN_LOGIN, PASSWORD)
+        actor = self.signed_in
+        company = ('res.company', self.fresh.id, actor)
+        steps = (
+            ({'fiscalyear_lock_date': '2026-06-30'}, ('lock_date_changed', 'fiscalyear_lock_date', '>2026-06-30')),
+            ({'fiscalyear_lock_date': '2025-01-01'}, ('lock_date_changed', 'fiscalyear_lock_date', '2026-06-30>2025-01-01')),
+            ({'fiscalyear_lock_date': '2026-09-30'}, ('lock_date_changed', 'fiscalyear_lock_date', '2025-01-01>2026-09-30')),
+            ({'fiscalyear_lock_date': None}, ('lock_date_changed', 'fiscalyear_lock_date', '2026-09-30>')),
+            ({'sale_lock_date': '2026-03-31'}, ('lock_date_changed', 'sale_lock_date', '>2026-03-31')),
+        )
+        expected = []
+        for body, event in steps:
+            with self.subTest(body=body):
+                self.assertEqual(self._write('PATCH', 'fiscal', body).status_code, 200)
+                expected.append((*event, *company))
+                self.env.invalidate_all()
+                self.assertEqual(self._lock_events(), expected)
+        # A save that changes no lock date, or only the year end, adds no lock event.
+        self.assertEqual(self._write('PATCH', 'fiscal', {'sale_lock_date': '2026-03-31', 'fiscalyear_last_day': 30}).status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual(self._lock_events(), expected)
+        # The generic event keeps naming fields only.
+        generic = self.env['liwan.finance.audit.event'].search([('company_id', '=', self.fresh.id), ('action', '=', 'company_written')])
+        self.assertFalse(any(event.outcome for event in generic))
 
     def test_the_transfer_account_comes_from_the_chart_and_can_be_changed(self):
         self.env['account.chart.template'].try_loading('sa', self.fresh)
@@ -254,7 +286,7 @@ class TestFinanceSetup(LiwanFinanceCase):
         setup = self.env['liwan.finance.setup'].with_user(
             self._user('finance_setup_direct', self.fresh, 'liwan_core.group_employee', ['finance.setup.read', 'finance.setup.manage']),
         ).with_company(self.fresh)
-        for vals in ({'name': 'Hacked'}, {'hard_lock_date': '2026-01-01'}, {'currency_id': 1}, {'city': 'Riyadh'}, {'vat': VALID_VAT}, {'fiscalyear_last_day': 30, 'email': 'x@y.z'}):
+        for vals in ({'name': 'Hacked'}, {'currency_id': 1}, {'city': 'Riyadh'}, {'vat': VALID_VAT}, {'fiscalyear_last_day': 30, 'email': 'x@y.z'}):
             with self.subTest(vals=vals), self.assertRaises(AccessError):
                 setup._liwan_write_company(self.fresh, vals)
         with self.assertRaises(AccessError):
@@ -288,16 +320,17 @@ class TestFinanceSetup(LiwanFinanceCase):
         routes = (
             ('GET', '/api/v1/finance/setup'),
             ('PATCH', '/api/v1/finance/setup/fiscal'),
+            ('POST', '/api/v1/finance/setup/fiscal/lock'),
             ('GET', '/api/v1/finance/reports/vat?date_from=2026-10-01&date_to=2026-10-31'),
         )
-        allowed = {OUTSIDER_LOGIN: (), READER_LOGIN: (routes[0],), REPORTER_LOGIN: (routes[2],)}
+        allowed = {OUTSIDER_LOGIN: (), READER_LOGIN: (routes[0],), REPORTER_LOGIN: (routes[3],)}
         for login, password in (
             (OUTSIDER_LOGIN, OUTSIDER_PASSWORD), (READER_LOGIN, PASSWORD), (REPORTER_LOGIN, PASSWORD),
         ):
             self.authenticate(login, password)
             for method, route in routes:
                 with self.subTest(login=login, route=route):
-                    result = self._api(method, route, {'fiscalyear_last_day': 30} if method == 'PATCH' else {})
+                    result = self._api(method, route, {'fiscalyear_last_day': 30} if method in ('PATCH', 'POST') else {})
                     if (method, route) in allowed[login]:
                         self.assertEqual(result.status_code, 200, result.text)
                     else:
@@ -462,11 +495,139 @@ class TestFinanceSetup(LiwanFinanceCase):
         self.assertEqual(result.status_code, 200, result.text)
         self.assertEqual(str(self.fresh.fiscalyear_lock_date), '2026-06-30')
 
+    def _lock(self, day='2025-12-31', **overrides):
+        return self._write('POST', 'fiscal/lock', {'hard_lock_date': day, 'confirm': True, **overrides})
+
+    def test_the_hard_lock_is_set_with_an_explicit_confirmation_and_audited(self):
+        self._setup_manager()
+        result = self._lock()
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(set(result.json()['fiscal']), FISCAL_KEYS)
+        self.assertEqual(result.json()['fiscal']['hard_lock_date'], '2025-12-31')
+        self.assertEqual(self._get()['fiscal']['hard_lock_date'], '2025-12-31')
+        self.env.invalidate_all()
+        self.assertEqual(str(self.fresh.hard_lock_date), '2025-12-31')
+        self.assertEqual(
+            self._lock_events(),
+            [('hard_lock_set', 'hard_lock_date', '>2025-12-31', 'res.company', self.fresh.id, self.signed_in)],
+        )
+        self.assertEqual(self._lock('2026-03-31').status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual(self._lock_events()[-1][:3], ('hard_lock_set', 'hard_lock_date', '2025-12-31>2026-03-31'))
+
+    def test_repeating_the_hard_lock_already_in_force_changes_and_audits_nothing(self):
+        self._setup_manager()
+        self.assertEqual(self._lock('2025-12-31').status_code, 200)
+        self.env.invalidate_all()
+        events = self.env['liwan.finance.audit.event'].search_count([('company_id', '=', self.fresh.id)])
+        with self.assertNoLogs('odoo.addons.liwan_finance.models.setup_service', 'INFO'):
+            again = self._lock('2025-12-31')
+        self.assertEqual(again.status_code, 200, again.text)
+        self.assertEqual(again.json()['fiscal']['hard_lock_date'], '2025-12-31')
+        self.env.invalidate_all()
+        self.assertEqual(self.env['liwan.finance.audit.event'].search_count([('company_id', '=', self.fresh.id)]), events)
+        self.assertEqual(len(self._lock_events()), 1)
+
+    def test_the_hard_lock_needs_the_confirmation_and_a_valid_date(self):
+        self._setup_manager()
+        for body, field in (
+            ({'hard_lock_date': '2025-12-31'}, 'confirm'),
+            ({'hard_lock_date': '2025-12-31', 'confirm': False}, 'confirm'),
+            ({'hard_lock_date': '2025-12-31', 'confirm': 'true'}, 'confirm'),
+            ({'confirm': True}, 'hard_lock_date'),
+            ({'hard_lock_date': None, 'confirm': True}, 'hard_lock_date'),
+            ({'hard_lock_date': 'tomorrow', 'confirm': True}, 'hard_lock_date'),
+            ({'hard_lock_date': '2999-12-31', 'confirm': True}, 'hard_lock_date'),
+            ({'hard_lock_date': '2025-12-31', 'confirm': True, 'tax_lock_date': '2025-12-31'}, 'tax_lock_date'),
+            ({}, None),
+        ):
+            with self.subTest(body=body):
+                result = self._write('POST', 'fiscal/lock', body)
+                self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'), result.text)
+                if field:
+                    self.assertEqual(result.json()['field'], field)
+        self.env.invalidate_all()
+        self.assertFalse(self.fresh.hard_lock_date)
+
+    def test_the_hard_lock_can_only_move_later(self):
+        self._setup_manager()
+        self.assertEqual(self._lock('2025-12-31').status_code, 200)
+        self.assertEqual(self._lock('2025-12-31').status_code, 200)
+        self.assertEqual(self._lock('2026-03-31').status_code, 200)
+        result = self._lock('2025-12-31')
+        self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'lock_date_loosening', 'hard_lock_date'), result.text)
+        self.assertNotIn('Odoo', result.json()['message'])
+        self.env.invalidate_all()
+        self.assertEqual(str(self.fresh.hard_lock_date), '2026-03-31')
+
+    def test_nothing_clears_or_lowers_the_hard_lock(self):
+        self._setup_manager()
+        self.assertEqual(self._lock('2026-03-31').status_code, 200)
+        for body in ({'hard_lock_date': None}, {'hard_lock_date': '2025-01-01'}):
+            with self.subTest(body=body):
+                result = self._write('PATCH', 'fiscal', body)
+                self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'invalid', 'hard_lock_date'), result.text)
+        # A soft lock below the hard lock is allowed and changes nothing about the hard one.
+        self.assertEqual(self._write('PATCH', 'fiscal', {'fiscalyear_lock_date': '2025-01-01'}).status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual(str(self.fresh.hard_lock_date), '2026-03-31')
+        with self.assertRaises(UserError):
+            self.fresh.sudo().write({'hard_lock_date': False})
+        with self.assertRaises(UserError):
+            self.fresh.sudo().write({'hard_lock_date': '2025-01-01'})
+
+    def test_an_entry_of_a_hard_locked_year_cannot_be_changed_through_the_orm(self):
+        move = self._post_fresh_company_entry()
+        self.assertEqual(self._lock('2026-10-31').status_code, 200)
+        self.env.invalidate_all()
+        with self.assertRaises(UserError):
+            move.with_company(self.fresh).button_draft()
+        with self.assertRaises(UserError):
+            move.with_company(self.fresh).write({'date': '2026-10-02'})
+        self.assertEqual((move.state, str(move.date)), ('posted', '2026-10-01'))
+
+    def test_draft_entries_and_unreconciled_lines_block_the_hard_lock(self):
+        move = self._post_fresh_company_entry()
+        draft = move.copy({'date': '2026-01-10'})
+        self.assertEqual(draft.state, 'draft')
+        result = self._lock('2026-06-30')
+        self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'draft_entries_in_period', 'hard_lock_date'), result.text)
+        self.assertEqual(result.json()['details'], {'count': 1})
+        self.assertNotIn('Odoo', result.json()['message'])
+        draft.unlink()
+        journal = self.env['account.journal'].search([('company_id', '=', self.fresh.id), ('type', '=', 'bank')], limit=1)
+        self.env['account.bank.statement.line'].with_company(self.fresh).create({
+            'journal_id': journal.id, 'amount': 100, 'date': '2026-01-10', 'payment_ref': 'unreconciled',
+        })
+        result = self._lock('2026-06-30')
+        self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'unreconciled_bank_lines', 'hard_lock_date'), result.text)
+        self.assertEqual(result.json()['details'], {'count': 1})
+        self.env.invalidate_all()
+        self.assertFalse(self.fresh.hard_lock_date)
+
+    def test_the_hard_lock_is_refused_before_any_effect_without_the_capability_or_the_context(self):
+        self.authenticate(READER_LOGIN, PASSWORD)
+        for headers in (None, {}, {SETUP_EXPECTED_USER_HEADER: '0'}):
+            with self.subTest(headers=headers):
+                result = self._write('POST', 'fiscal/lock', {'hard_lock_date': '2025-12-31', 'confirm': True}, headers=headers)
+                self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'), result.text)
+        self._setup_manager()
+        body = {'hard_lock_date': '2025-12-31', 'confirm': True}
+        stale = self._write('POST', 'fiscal/lock', body, headers={
+            SETUP_EXPECTED_USER_HEADER: str(self.signed_in.id), SETUP_EXPECTED_COMPANY_HEADER: str(self.company.id),
+        })
+        self.assertEqual((stale.status_code, stale.json()['code']), (409, 'request_context_changed'), stale.text)
+        missing = self._write('POST', 'fiscal/lock', body, headers={})
+        self.assertEqual((missing.status_code, missing.json()['code']), (422, 'invalid_request_context'), missing.text)
+        self.env.invalidate_all()
+        self.assertFalse(self.fresh.hard_lock_date)
+
     def test_a_closed_feature_refuses_every_setup_route(self):
         set_probe_feature(self, key='finance.enabled', enabled=False)
         self.authenticate(ADMIN_LOGIN, PASSWORD)
         for method, route in (
             ('GET', '/api/v1/finance/setup'), ('PATCH', '/api/v1/finance/setup/fiscal'),
+            ('POST', '/api/v1/finance/setup/fiscal/lock'),
         ):
             with self.subTest(route=route):
                 self.assertEqual(self._api(method, route, {'fiscalyear_last_day': 30}).status_code, 403)

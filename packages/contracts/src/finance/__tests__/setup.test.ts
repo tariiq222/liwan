@@ -1,4 +1,5 @@
 import {
+  FinanceHardLockInputSchema,
   FinanceSetupFiscalInputSchema,
   FinanceSetupSchema,
   FinanceVatSummarySchema,
@@ -68,6 +69,16 @@ describe('finance setup contracts', () => {
     expect(FinanceSetupFiscalInputSchema.parse({ fiscalyear_last_month: 6, tax_lock_date: null })).toBeTruthy()
     expect(() => FinanceSetupFiscalInputSchema.parse({ fiscalyear_last_month: 13 })).toThrow()
     expect(() => FinanceSetupFiscalInputSchema.parse({ hard_lock_date: '2026-01-01' })).toThrow()
+  })
+})
+
+describe('finance hard lock contract', () => {
+  it('needs a date and the explicit confirmation, and nothing else', () => {
+    expect(FinanceHardLockInputSchema.parse({ hard_lock_date: '2025-12-31', confirm: true })).toBeTruthy()
+    expect(() => FinanceHardLockInputSchema.parse({ hard_lock_date: '2025-12-31' })).toThrow()
+    expect(() => FinanceHardLockInputSchema.parse({ hard_lock_date: '2025-12-31', confirm: false })).toThrow()
+    expect(() => FinanceHardLockInputSchema.parse({ hard_lock_date: null, confirm: true })).toThrow()
+    expect(() => FinanceHardLockInputSchema.parse({ hard_lock_date: '2025-12-31', confirm: true, tax_lock_date: null })).toThrow()
   })
 })
 

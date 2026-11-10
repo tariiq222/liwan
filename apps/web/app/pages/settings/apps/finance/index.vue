@@ -7,6 +7,7 @@ import AnalyticPlansSection from '@/components/finance/analytic/AnalyticPlansSec
 import AuditPreview from '@/components/finance/governance/AuditPreview.vue'
 import ClosingView from '@/components/finance/governance/ClosingView.vue'
 import ZatcaView from '@/components/finance/governance/ZatcaView.vue'
+import FiscalHardLockCard from '@/components/finance/FiscalHardLockCard.vue'
 import FiscalSetupCard from '@/components/finance/FiscalSetupCard.vue'
 import { financeSetupProgress } from '@/composables/finance/financeSetupSteps'
 import { financeSetupScopeToken } from '@/composables/finance/financeFiscalSetup'
@@ -75,6 +76,7 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
         <BranchStrictCard scope="finance" path="/api/v1/finance/branch-strictness" :can-read="can('finance.setup.read')" :can-edit="canManage" />
 
         <FiscalSetupCard v-if="fiscalScope" :key="financeSetupScopeToken(fiscalScope)" :setup="data" :scope="fiscalScope" :can-edit="canManage" :context-changed="contextChanged" :reload-setup="reloadSetup" @context-changed="onContextChanged" @saved="contextChanged = false" />
+        <FiscalHardLockCard v-if="fiscalScope" :key="`hard-lock-${financeSetupScopeToken(fiscalScope)}`" :setup="data" :scope="fiscalScope" :can-edit="canManage" @context-changed="onContextChanged" @saved="contextChanged = false" />
 
         <SharedRecordSection variant="panel" :title="t('finance.setup.chart.title')" :description="t('finance.setup.chart.hint')" data-testid="finance-setup-chart">
           <SharedPropertiesPanel>

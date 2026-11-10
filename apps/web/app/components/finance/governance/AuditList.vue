@@ -50,6 +50,7 @@ function outcomeLabel(outcome: string) {
   const shaped = auditOutcome(outcome)
   if (shaped) {
     const params = { ...shaped.params }
+    if (shaped.key === 'lockChange') for (const side of ['old', 'new'] as const) params[side] ||= t('financeGovernance.audit.outcomeShapes.lockNone')
     if (params.kind) params.kind = t(`financeGovernance.audit.outcomes.${params.kind}`)
     if (params.state) params.state = te(`financeGovernance.audit.outcomes.${params.state}`) ? t(`financeGovernance.audit.outcomes.${params.state}`) : params.state
     return t(`financeGovernance.audit.outcomeShapes.${shaped.key}`, params)

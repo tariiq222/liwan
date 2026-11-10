@@ -7,7 +7,10 @@ class LiwanFinanceAuditEvent(models.Model):
     """The immutable audit trail of the elevated and irreversible finance actions.
 
     One row per action: who (``create_uid``), when (``create_date``), which company and record, the names
-    of the fields written (never values, amounts or secrets) and the outcome. Rows are created by
+    of the fields written (never values, amounts or secrets) and the outcome. The one exception is the
+    accounting lock dates (``lock_date_changed``, ``hard_lock_set``): they are not sensitive, and what a lock
+    was moved from and to is the point of the record, so their outcome is ``<old>><new>`` (a day, or empty
+    for no lock), one row per changed field. Rows are created by
     ``_liwan_log`` in the caller's own environment (the ACL grants create to the capability groups that
     perform the actions, no ``sudo()``) and can never be changed or deleted.
     """
@@ -98,6 +101,8 @@ class LiwanFinanceAuditEvent(models.Model):
         ('payment_term_archived', 'Payment term archived'),
         ('payment_term_unarchived', 'Payment term unarchived'),
         ('company_written', 'Company setup changed'),
+        ('lock_date_changed', 'Lock date changed'),
+        ('hard_lock_set', 'Hard lock set'),
         ('fiscal_year_closed', 'Fiscal year closed'),
         ('zatca_onboarded', 'ZATCA journal onboarded'),
         ('zatca_submitted', 'ZATCA submission'),
@@ -105,7 +110,7 @@ class LiwanFinanceAuditEvent(models.Model):
     res_model = fields.Char(required=True)
     res_id = fields.Integer(required=True)
     fields_written = fields.Char(help='Names of the fields written, comma separated; never their values.')
-    outcome = fields.Char(help='The resulting state, for example the ZATCA submission state.')
+    outcome = fields.Char(help='The resulting state, for example the ZATCA submission state; for a lock date, the old and new day as <old>><new>.')
 
     @api.model_create_multi
     def create(self, vals_list):

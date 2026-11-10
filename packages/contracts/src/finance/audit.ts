@@ -12,7 +12,7 @@ export const FinanceAuditActionSchema = z.enum([
   'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived',
   'tax_created', 'tax_changed', 'tax_archived', 'tax_unarchived',
   'payment_term_created', 'payment_term_changed', 'payment_term_archived', 'payment_term_unarchived',
-  'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted',
+  'company_written', 'lock_date_changed', 'hard_lock_set', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted',
 ])
 
 /** One immutable audit row: who (`actor`), when (`created_at`, ISO UTC), what, and the field names written, never values. */
