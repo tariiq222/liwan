@@ -126,6 +126,10 @@ class LiwanAiUsage(models.Model):
     # The part of ``charge`` taken from the prepaid balance; the rest was covered by the free allowance of the call's window.
     # Set by the server when the recorder reports the row (``_liwan_ai_record``), never accepted from the wire.
     charge_paid = fields.Integer()
+    # The start of the free-allowance window this charged row was settled against (naive UTC), set with `charge_paid` and never
+    # accepted from the wire. The allowance left in a window sums the rows that carry its start, so a later change of how windows
+    # are derived (a different billing timezone) cannot move a settled row into another window. Null on an uncharged row.
+    allowance_window_start = fields.Datetime(index=True)
     called_at = fields.Datetime(required=True, index=True)
 
     # The own-rows rule filters on user_id and orders by called_at; a monthly per-user sum reads the same.
@@ -230,7 +234,7 @@ class LiwanAiUsage(models.Model):
 
     @api.model
     def _liwan_platform_tokens_used(self):
-        """Input plus output tokens of the platform-billed calls of the whole tenant since the start of this month (root company's timezone).
+        """Input plus output tokens of the platform-billed calls of the whole tenant since the start of this month (billing timezone).
 
         Plain SQL like the monthly message count: the limit is the tenant's, so it spans every company and user.
         """
@@ -303,7 +307,7 @@ class LiwanAiUsage(models.Model):
                 created.append(existing.id)
                 continue
             if service:
-                row['charge_paid'] = balance._liwan_ai_charge_paid(row)
+                row.update(balance._liwan_ai_settle(row))
             try:
                 with self.env.cr.savepoint():
                     created.append(super().create([row]).id)

@@ -6,10 +6,11 @@ from pathlib import Path
 from psycopg2 import IntegrityError
 
 from odoo import fields
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 from odoo.tools import mute_logger
 
+from odoo.addons.liwan_ai.models.ai_balance import RUN_RESERVE
 from odoo.addons.liwan_ai.serializers.usage import dump_usage
 from odoo.addons.liwan_ai.tests.common import AiProbe
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
@@ -71,15 +72,18 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         )
         return rows.sudo().mapped('charge_paid')
 
-    def _raw(self, charge, paid, called_at, billing='platform', user=None, company=None, add_to_total=True):
+    def _raw(self, charge, paid, called_at, billing='platform', user=None, company=None, add_to_total=True, window_start=None):
         """A ledger row written directly, to place it in a window the service route would not accept; its paid part joins the
-        running total as the recorder's write does."""
+        running total as the recorder's write does.
+        It is settled against the window of its call unless ``window_start`` says otherwise."""
+        window_start = window_start or self.Balance._liwan_ai_window(called_at)[1]
         self.env.cr.execute(
             "INSERT INTO liwan_ai_usage (company_id, user_id, conversation_id, call_id, kind, capability, billing, provider, model,"
             " outcome, input_tokens, output_tokens, tokens_reported, cost, cost_reported, charge, charge_reported, charge_paid,"
-            " called_at) VALUES (%s, %s, 'r_raw', %s, 'plan', 'standard', %s, 'acme-ai', 'acme-1', 'ok', 1, 1, true, %s, true, %s,"
-            " true, %s, %s)",
-            [(company or self.env.company).id, (user or self.employee).id, self._call_id(), billing, charge, charge, paid, called_at],
+            " called_at, allowance_window_start) VALUES (%s, %s, 'r_raw', %s, 'plan', 'standard', %s, 'acme-ai', 'acme-1', 'ok', 1, 1,"
+            " true, %s, true, %s, true, %s, %s, %s)",
+            [(company or self.env.company).id, (user or self.employee).id, self._call_id(), billing, charge, charge, paid, called_at,
+             window_start],
         )
         if paid and add_to_total:
             self.profile.sudo()._liwan_add_ai_paid(paid)
@@ -93,7 +97,8 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.env.invalidate_all()
 
     def _charge_paid_at(self, charge, at):
-        return self.Balance._liwan_ai_charge_paid({'billing': 'platform', 'charge_reported': True, 'charge': charge, 'called_at': at})
+        row = {'billing': 'platform', 'charge_reported': True, 'charge': charge, 'called_at': at}
+        return self.Balance._liwan_ai_settle(row)['charge_paid']
 
     # -- deduction at write time ----------------------------------------------------------------------------------------------
 
@@ -155,7 +160,7 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.assertEqual(self._charge_paid_at(50, now), 0)
         self.assertEqual(self._charge_paid_at(80, now), 20)
         self.assertEqual(self._charge_paid_at(30, start + timedelta(days=2)), 30)
-        self.assertEqual(self.Balance._liwan_ai_allowance(now)[1:], (60, start + timedelta(days=10)))
+        self.assertEqual(self.Balance._liwan_ai_allowance(now)[1::2], (60, start + timedelta(days=10)))
 
     def test_after_the_trial_the_monthly_allowance_applies(self):
         start = fields.Datetime.now() - timedelta(days=20)
@@ -199,8 +204,8 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self._raw(100, 100, fields.Datetime.now())
 
     def test_a_run_starts_while_the_balance_has_something_left(self):
-        self._set_features({GRANTED: 100})
-        self._raw(99, 99, fields.Datetime.now())
+        self._set_features({GRANTED: 4 * RUN_RESERVE})
+        self._raw(2 * RUN_RESERVE, 2 * RUN_RESERVE, fields.Datetime.now())
         self.assertEqual(self._send().status_code, 200)
 
     def test_a_new_run_is_refused_when_the_allowance_and_the_balance_are_used_up(self):
@@ -221,7 +226,7 @@ class TestAiBalance(AiProbe, LiwanApiCase):
 
     def test_a_free_allowance_left_lets_the_run_start_with_an_empty_balance(self):
         self._empty_balance()
-        self._set_features({MONTHLY: 50})
+        self._set_features({MONTHLY: 2 * RUN_RESERVE})
         self.assertEqual(self._send().status_code, 200)
 
     def test_the_free_agents_the_tenant_key_and_a_tenant_without_a_balance_are_never_refused(self):
@@ -234,7 +239,7 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.assertEqual(self._send(conversation_id='r_unlimited').status_code, 200)
 
     def test_the_monthly_spend_ceiling_stops_new_runs(self):
-        self._set_features({GRANTED: 10_000})
+        self._set_features({GRANTED: 10_000_000})
         settings = self.env['liwan.ai.settings']._liwan_current()
         settings.monthly_spend_ceiling = 100
         self._raw(99, 99, fields.Datetime.now())
@@ -247,12 +252,12 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.assertEqual(self._send(conversation_id='r_no_ceiling').status_code, 200)
 
     def test_the_ceiling_stops_paid_spend_only_and_the_free_allowance_comes_first(self):
-        self._set_features({GRANTED: 10_000, MONTHLY: 50})
+        self._set_features({GRANTED: 10_000_000, MONTHLY: 2 * RUN_RESERVE})
         self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 100
         self._raw(100, 100, fields.Datetime.now())
         # Free allowance left: the run is paid by it, so the reached ceiling does not stop it.
         self.assertEqual(self._send().status_code, 200)
-        self._raw(50, 0, fields.Datetime.now())
+        self._raw(2 * RUN_RESERVE, 0, fields.Datetime.now())
         refused = self._send(conversation_id='r_after_free')
         self.assertEqual(refused.json()['code'], 'ai_spend_ceiling')
 
@@ -265,7 +270,7 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.assertEqual((empty['code'], policy['blocked']), ('ai_balance_empty', 'ai_balance_empty'))
         self.assertEqual(empty['details'], {'resets_at': policy['blocked_resets_at']})
         self.assertEqual(policy['blocked_resets_at'], policy['allowance_resets_at'])
-        self._set_features({GRANTED: 10_000})
+        self._set_features({GRANTED: 10_000_000})
         self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 100
         ceiling = self._send(conversation_id='r_ceiling_shape').json()
         policy = self.Balance._liwan_ai_policy_fields()
@@ -278,7 +283,7 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.assertEqual(self._send(conversation_id='r_none').json()['details'], {'resets_at': None})
 
     def test_last_months_spend_does_not_count_against_the_ceiling(self):
-        self._set_features({GRANTED: 10_000})
+        self._set_features({GRANTED: 10_000_000})
         self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 100
         self._raw(500, 500, self.Balance._liwan_ai_window(fields.Datetime.now())[1] - timedelta(minutes=1))
         self.assertEqual(self._send().status_code, 200)
@@ -286,9 +291,9 @@ class TestAiBalance(AiProbe, LiwanApiCase):
     # -- the policy ----------------------------------------------------------------------------------------------------------
 
     def test_the_policy_carries_the_balance_for_a_manager_and_no_token_fields(self):
-        self._set_features({GRANTED: 1000, MONTHLY: 300})
-        self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 700
-        self._raw(400, 100, fields.Datetime.now())
+        self._set_features({GRANTED: 1_000_000, MONTHLY: 300_000})
+        self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 700_000
+        self._raw(400_000, 100_000, fields.Datetime.now())
         policy = self.env['liwan.ai.tool.registry'].with_user(self.manager)._liwan_ai_policy()
         self.assertNotIn('tokens_monthly', policy)
         self.assertNotIn('tokens_used', policy)
@@ -296,8 +301,8 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.assertEqual({key: policy[key] for key in (
             'balance_granted', 'balance_left', 'allowance', 'allowance_left', 'spend_ceiling', 'spend_this_month', 'blocked',
         )}, {
-            'balance_granted': 1000, 'balance_left': 900, 'allowance': 300, 'allowance_left': 0, 'spend_ceiling': 700,
-            'spend_this_month': 100, 'blocked': None,
+            'balance_granted': 1_000_000, 'balance_left': 900_000, 'allowance': 300_000, 'allowance_left': 0, 'spend_ceiling': 700_000,
+            'spend_this_month': 100_000, 'blocked': None,
         })
 
     def test_an_ordinary_user_gets_the_verdict_and_no_billing_figures(self):
@@ -434,3 +439,104 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.env.cr.execute('DELETE FROM liwan_ai_usage WHERE user_id = %s', [user.id])
         with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.env.cr.savepoint():
             user.unlink()  # the audit row alone also refuses it
+
+    # -- the running total is the deduction's alone ---------------------------------------------------------------------------
+
+    def test_nothing_but_the_deduction_writes_the_running_total(self):
+        admin = new_test_user(self.env, login='ai_balance_sysadmin', groups='base.group_system')
+        for user in (admin, self.recorder, self.manager, self.employee):
+            with self.subTest(user=user.login), self.assertRaises(AccessError):
+                self.profile.with_user(user).write({'ai_paid_total': 5})
+        # An elevated environment alone is not enough, nor the operator's own context.
+        with self.assertRaises(AccessError):
+            self.profile.sudo().write({'ai_paid_total': 5})
+        with self.assertRaises(AccessError):
+            self.profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({'ai_paid_total': 5})
+        self.profile.invalidate_recordset()
+        self.assertEqual(self.profile.ai_paid_total, 0)
+
+    def test_the_settings_route_cannot_reach_the_running_total(self):
+        self.authenticate('ai_balance_admin', 'ai_balance_admin_pass_123')
+        revision = self.env['liwan.ai.settings']._liwan_current().revision
+        response = self.api('PATCH', '/api/v1/ai/settings', {'ai_paid_total': 5, 'revision': revision})
+        self.assertEqual((response.status_code, response.json()['code']), (422, 'unknown_field'))
+        self.assertNotIn('ai_paid_total', [item['key'] for item in self.env['liwan.ai.setting.registry']._liwan_ai_setting_map().values()])
+
+    def test_the_running_total_only_increases_through_the_deduction(self):
+        writer = self.profile.sudo()
+        writer._liwan_add_ai_paid(40)
+        for amount in (0, -3, True, 2.5):
+            with self.subTest(amount=amount), self.assertRaises(ValidationError):
+                writer._liwan_add_ai_paid(amount)
+        with self.assertRaises(ValidationError):
+            writer.with_context(**{'liwan_platform.ai_paid_total': True}).write({'ai_paid_total': 10})
+        writer.invalidate_recordset()
+        self.assertEqual(writer.ai_paid_total, 40)
+
+    # -- the billing timezone is the platform's -------------------------------------------------------------------------------
+
+    def test_the_company_timezone_changes_no_window(self):
+        partner = self.profile.root_company_id.partner_id.sudo()
+        now = fields.Datetime.now()
+        before = (self.Balance._liwan_ai_window(now), self.env['liwan.ai.audit']._liwan_ai_month_start())
+        for zone in ('Pacific/Kiritimati', 'Pacific/Pago_Pago', 'Europe/London'):
+            partner.tz = zone
+            self.env.invalidate_all()
+            self.assertEqual((self.Balance._liwan_ai_window(now), self.env['liwan.ai.audit']._liwan_ai_month_start()), before, zone)
+
+    def test_free_left_follows_the_window_recorded_on_a_row_not_its_date(self):
+        self._set_features({MONTHLY: 100})
+        month_start = self.Balance._liwan_ai_window(fields.Datetime.now())[1]
+        # Called just after the boundary but settled against the previous window, and the reverse.
+        previous = self.Balance._liwan_ai_window(month_start - timedelta(seconds=1))[1]
+        self._raw(100, 0, month_start + timedelta(seconds=1), window_start=previous)
+        self._raw(60, 0, month_start - timedelta(seconds=1), window_start=month_start)
+        self.assertEqual(self._charge_paid_at(30, month_start + timedelta(hours=1)), 0)
+        self.assertEqual(self._charge_paid_at(50, month_start + timedelta(hours=1)), 10)
+        self.assertEqual(self._charge_paid_at(10, month_start - timedelta(hours=1)), 10)
+
+    def test_a_charged_row_records_its_window_and_an_uncharged_one_does_not(self):
+        self._set_features({MONTHLY: 100})
+        charged, plain = self.Usage.with_user(self.recorder)._liwan_ai_record_for(
+            [self._item(15), self._item(None, cost=None)], self.employee.id, self.employee.company_id.id,
+        ).sudo()
+        self.assertEqual(charged.allowance_window_start, self.Balance._liwan_ai_window(fields.Datetime.now())[1])
+        self.assertFalse(plain.allowance_window_start)
+        with self.assertRaises(Exception) as caught:
+            self._record(self._item(15, allowance_window_start='2026-01-01T00:00:00Z'))
+        self.assertEqual(caught.exception.liwan_field, 'allowance_window_start')
+
+    # -- the reserve for runs in flight ---------------------------------------------------------------------------------------
+
+    def _balance_for(self, runs):
+        self._set_features({GRANTED: runs * RUN_RESERVE, MONTHLY: 0})
+
+    def test_runs_in_flight_reserve_their_worst_case_cost(self):
+        self._balance_for(2)
+        self.assertEqual(self._send(conversation_id='r_one').status_code, 200)
+        self.assertEqual(self._send(conversation_id='r_two').status_code, 200)
+        refused = self._send(conversation_id='r_three')
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'ai_balance_empty'))
+        self.assertEqual(self.Balance._liwan_ai_policy_fields()['blocked'], 'ai_balance_empty')
+
+    def test_a_new_message_is_accepted_once_the_runs_in_flight_have_timed_out(self):
+        self._balance_for(2)
+        self._send(conversation_id='r_one')
+        self._send(conversation_id='r_two')
+        self.assertEqual(self._send(conversation_id='r_three').status_code, 403)
+        self.env.cr.execute("UPDATE liwan_ai_audit SET create_date = create_date - interval '5 minutes'")
+        self.assertEqual(self._send(conversation_id='r_four').status_code, 200)
+
+    def test_a_balance_below_one_reserve_refuses_even_when_positive(self):
+        self._set_features({GRANTED: RUN_RESERVE - 1, MONTHLY: 0})
+        self.assertEqual(self._send().json()['code'], 'ai_balance_empty')
+
+    def test_a_tenant_with_ample_balance_is_not_limited_by_the_reserve(self):
+        self._balance_for(1000)
+        for index in range(6):
+            self.assertEqual(self._send(conversation_id=f'r_ample_{index}').status_code, 200, index)
+
+    def test_a_tenant_without_a_balance_reserves_nothing(self):
+        self._set_features({GRANTED: None})
+        for index in range(4):
+            self.assertEqual(self._send(conversation_id=f'r_free_{index}').status_code, 200)

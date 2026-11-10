@@ -13,6 +13,8 @@ from odoo.addons.liwan_platform.models.entitlement_service import (
 )
 
 _logger = logging.getLogger(__name__)
+# Set only by `_liwan_add_ai_paid`: the one writer of `ai_paid_total`.
+AI_PAID_CONTEXT = 'liwan_platform.ai_paid_total'
 
 # LiwanOS's accounting baseline. The root company is Saudi before `account` installs, so stock
 # loads the `sa` chart and its VAT taxes (`account/models/ir_module.py`, `IrModuleModule.write`)
@@ -286,10 +288,17 @@ class LiwanTenantProfile(models.Model):
         return self.browse(self.id)
 
     def _liwan_add_ai_paid(self, amount):
-        """Add ``amount`` cost units to the running total of AI charges paid from the balance, under the row lock."""
+        """Add ``amount`` cost units to the running total of AI charges paid from the balance, under the row lock.
+
+        The only writer of ``ai_paid_total``: ``write`` refuses the field unless this method's context is set, and refuses a
+        decrease. It needs the profile as `_liwan_profile()` returns it (an elevated record), which is how the deduction path
+        already holds it; no caller elevates anything for this.
+        """
         self.ensure_one()
+        if not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
+            raise ValidationError(self.env._('The AI paid total only increases by a positive amount.'))
         locked = self._liwan_lock()
-        locked.write({'ai_paid_total': locked.ai_paid_total + amount})
+        locked.with_context(**{AI_PAID_CONTEXT: True}).write({'ai_paid_total': locked.ai_paid_total + amount})
 
     def _liwan_bump_quota_revision(self):
         self.ensure_one()
@@ -344,6 +353,8 @@ class LiwanTenantProfile(models.Model):
             raise AccessError(self.env._('Commercial classification is immutable; conversion requires a separate procedure.'))
         if (vals.get('valid_until') or vals.get('commercial_valid_until')) and any(record.commercial_mode == 'non_saas' for record in self):
             raise ValidationError(self.env._('Independent installations cannot have a subscription expiry.'))
+        if 'ai_paid_total' in vals:
+            self._liwan_check_ai_paid(vals['ai_paid_total'])
         policy_keys = POLICY_FIELDS.intersection(vals)
         trusted = self.env.su and self.env.context.get(OPERATOR_CONTEXT)
         if policy_keys and not trusted:
@@ -387,6 +398,18 @@ class LiwanTenantProfile(models.Model):
         if 'quota_revision' in next_vals and next_vals['quota_revision'] < 0:
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
         return super().write(next_vals)
+
+    def _liwan_check_ai_paid(self, value):
+        """The running total of paid AI charges moves only up and only through ``_liwan_add_ai_paid``.
+
+        Not a policy field (the control plane never delivers it and a charge must not bump the policy revision), so it has its own
+        flag with the same shape as the operator guard: an elevated environment carrying the context set by that method. A
+        database CHECK cannot compare old and new values, so the decrease is refused here.
+        """
+        if not (self.env.su and self.env.context.get(AI_PAID_CONTEXT)):
+            raise AccessError(self.env._('The AI paid total is kept by the AI deduction only.'))
+        if any(value < record.ai_paid_total for record in self):
+            raise ValidationError(self.env._('The AI paid total cannot decrease.'))
 
     def _liwan_require_operator(self):
         self.ensure_one()

@@ -4,10 +4,9 @@ from datetime import datetime, timedelta
 from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.liwan_platform.models.usage_window import (
-    DEFAULT_TIMEZONE,
+    BILLING_TIMEZONE,
     month_label,
     month_window,
-    tenant_timezone,
     trial_window,
 )
 
@@ -57,13 +56,8 @@ class TestUsageWindow(TransactionCase):
         self.assertIsNone(trial_window(TRIAL_START - timedelta(seconds=1), TRIAL_START, TRIAL_END))
         self.assertIsNone(trial_window(TRIAL_START, None, None))
 
-    def test_the_tenant_timezone_is_the_root_companys_or_riyadh(self):
-        partner = self.env['liwan.entitlement.service']._liwan_profile().root_company_id.partner_id
-        partner.tz = False
-        self.assertEqual(tenant_timezone(self.env), DEFAULT_TIMEZONE)
-        partner.tz = 'Europe/London'
-        self.assertEqual(tenant_timezone(self.env), 'Europe/London')
-        partner.flush_recordset()
-        self.env.cr.execute('UPDATE res_partner SET tz = %s WHERE id = %s', ['Not/AZone', partner.id])
-        self.env.invalidate_all()
-        self.assertEqual(tenant_timezone(self.env), DEFAULT_TIMEZONE)
+    def test_the_billing_timezone_is_one_platform_constant(self):
+        self.assertEqual(BILLING_TIMEZONE, RIYADH)
+        now = datetime(2026, 10, 31, 21, 0)
+        self.assertEqual(month_window(now), month_window(now, RIYADH))
+        self.assertEqual(month_label(now), '2026-11')
