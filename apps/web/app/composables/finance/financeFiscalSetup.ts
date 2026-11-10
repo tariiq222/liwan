@@ -9,7 +9,7 @@ import { saveErrorMessage } from '../../utils/formFeedback'
 
 export type FinanceFiscalValues = FinanceSetup['fiscal']
 
-/** The locks this editor may tighten. The hard lock is irreversible in stock Odoo and stays read-only. */
+/** The locks this editor moves in either direction. The hard lock is irreversible and has its own confirmed action. */
 export const FINANCE_FISCAL_LOCK_FIELDS = [
   'fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date',
 ] as const
@@ -28,7 +28,7 @@ export type FinanceFiscalDraft = {
 } & Record<FinanceFiscalLockField, string | null>
 
 export type FinanceFiscalIssueCode =
-  | 'invalidDay' | 'invalidMonth' | 'invalidYearEnd' | 'invalidLockDate' | 'lockCannotClear' | 'lockCannotMoveEarlier' | 'transferAccountCannotClear'
+  | 'invalidDay' | 'invalidMonth' | 'invalidYearEnd' | 'invalidLockDate' | 'transferAccountCannotClear'
 export type FinanceFiscalIssue = { field: FinanceFiscalField; code: FinanceFiscalIssueCode }
 
 /** The identity a setup screen was read for: the signed-in user, their current company and the observed identity generation. */
@@ -42,6 +42,7 @@ const REFERENCE_YEAR = 2000
 const FISCAL_ERROR_KEYS: Record<string, string> = {
   fiscal_year_has_posted_entries: 'finance.setup.fiscal.errors.fiscal_year_has_posted_entries',
   lock_date_loosening: 'finance.setup.fiscal.errors.lock_date_loosening',
+  draft_entries_in_period: 'finance.setup.fiscal.errors.draft_entries_in_period',
   unreconciled_bank_lines: 'finance.setup.fiscal.errors.unreconciled_bank_lines',
   invalid_request_context: 'finance.setup.fiscal.errors.invalid_request_context',
   request_context_changed: 'finance.setup.fiscal.errors.request_context_changed',
@@ -63,6 +64,24 @@ export function isFinanceCalendarDate(value: string): boolean {
   return day <= new Date(Date.UTC(year, month, 0)).getUTCDate()
 }
 
+export type FinanceHardLockIssueCode = 'invalidLockDate' | 'hardLockEarlier' | 'hardLockFuture'
+
+/** Why a hard lock date cannot be sent, or null: it must be a real day, no later than today (the lock cannot be
+ * taken back, so a typo in the future would close the books for good) and no earlier than the saved hard lock. */
+export function financeHardLockIssue(value: string, current: string | null, today: string): FinanceHardLockIssueCode | null {
+  if (!isFinanceCalendarDate(value)) return 'invalidLockDate'
+  if (value > today) return 'hardLockFuture'
+  if (current && value < current) return 'hardLockEarlier'
+  return null
+}
+
+/** Today in the browser's calendar, as the `YYYY-MM-DD` the API speaks. */
+export function financeToday(now: Date = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
 export function financeFiscalDraftFromValues(values: FinanceFiscalValues): FinanceFiscalDraft {
   const draft = {
     fiscalyear_last_day: String(values.fiscalyear_last_day),
@@ -78,9 +97,9 @@ function readNumber(value: string): number | null {
   return Number(value)
 }
 
-/** Every reason the draft cannot be sent: a malformed day or month, an impossible year end, a lock that
- * was cleared or moved earlier than the saved one, or a saved transfer account that was cleared (the server
- * takes a replacement, never none). The locks can only be tightened from here. */
+/** Every reason the draft cannot be sent: a malformed day or month, an impossible year end, a malformed lock
+ * date, or a saved transfer account that was cleared (the server takes a replacement, never none). The soft
+ * locks may move either way or be cleared. */
 export function financeFiscalIssues(draft: FinanceFiscalDraft, baseline: FinanceFiscalDraft): FinanceFiscalIssue[] {
   const issues: FinanceFiscalIssue[] = []
   const day = readNumber(draft.fiscalyear_last_day)
@@ -92,10 +111,7 @@ export function financeFiscalIssues(draft: FinanceFiscalDraft, baseline: Finance
   }
   for (const field of FINANCE_FISCAL_LOCK_FIELDS) {
     const value = draft[field]
-    const current = baseline[field]
-    if (value !== null && !isFinanceCalendarDate(value)) { issues.push({ field, code: 'invalidLockDate' }); continue }
-    if (current && value === null) { issues.push({ field, code: 'lockCannotClear' }); continue }
-    if (current && value !== null && value < current) issues.push({ field, code: 'lockCannotMoveEarlier' })
+    if (value !== null && !isFinanceCalendarDate(value)) issues.push({ field, code: 'invalidLockDate' })
   }
   if (baseline.transfer_account_id !== null && draft.transfer_account_id === null) {
     issues.push({ field: 'transfer_account_id', code: 'transferAccountCannotClear' })
