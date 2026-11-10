@@ -173,12 +173,17 @@ class TestSeatAdminApi(LiwanApiCase):
             {'expected_version': self._version(user)},
             {'expected_version': self._version(user), 'read_only': 'yes'},
             {'expected_version': self._version(user), 'priority': -1},
+            {'expected_version': self._version(user), 'priority': 2_147_483_648},
+            {'expected_version': self._version(user), 'read_only': True, 'priority': None},
+            {'expected_version': self._version(user), 'read_only': None, 'priority': 1},
             {'expected_version': self._version(user), 'read_only': True, 'extra': 1},
             {'read_only': True},
         ):
             self.assertEqual(self.api('PATCH', url, body).status_code, 422, body)
         stale = self.api('PATCH', url, {'expected_version': 'u0-r0', 'read_only': True})
         self.assertEqual(stale.status_code, 409)
+        largest = self.api('PATCH', url, {'expected_version': self._version(user), 'priority': 2_147_483_647})
+        self.assertEqual((largest.status_code, largest.json().get('seat_priority')), (200, 2_147_483_647))
 
     def test_the_seat_route_needs_the_grant_capability(self):
         user = new_test_user(self.env, login='seat_api_f', groups='liwan_core.group_employee')
@@ -209,6 +214,13 @@ class TestSeatAdminApi(LiwanApiCase):
             (True, 'customer', 1),
         )
         self.assertEqual(self.api('PATCH', f'/api/v1/admin/branches/{company.id}/seat', {}).status_code, 422)
+        oversized = self.api('PATCH', f'/api/v1/admin/branches/{company.id}/seat', {'priority': 2_147_483_648})
+        self.assertEqual((oversized.status_code, oversized.json().get('field')), (422, 'priority'))
+        self.assertEqual(self.api('PATCH', f'/api/v1/admin/branches/{company.id}/seat', {
+            'read_only': None, 'priority': 1,
+        }).status_code, 422)
+        largest = self.api('PATCH', f'/api/v1/admin/branches/{company.id}/seat', {'priority': 2_147_483_647})
+        self.assertEqual((largest.status_code, largest.json().get('restore_priority')), (200, 2_147_483_647))
         self.assertEqual(self.api('PATCH', '/api/v1/admin/branches/999999/seat', {'read_only': True}).status_code, 404)
 
     def test_a_seat_is_not_offered_for_a_pending_invitee_and_acceptance_reports_the_outcome(self):

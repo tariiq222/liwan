@@ -38,6 +38,18 @@ def parse_query(allowed):
     return args, limit, offset
 
 
+def parse_seat_options(payload):
+    if 'read_only' not in payload and 'priority' not in payload:
+        raise ApiError(422, 'invalid', 'read_only or priority is required', field='read_only')
+    read_only = payload.get('read_only')
+    if 'read_only' in payload and not isinstance(read_only, bool):
+        raise ApiError(422, 'invalid', 'read_only must be a boolean', field='read_only')
+    priority = payload.get('priority')
+    if 'priority' in payload and (type(priority) is not int or not 0 <= priority <= 2_147_483_647):
+        raise ApiError(422, 'invalid', 'priority must be an integer between 0 and 2147483647', field='priority')
+    return read_only, priority
+
+
 def require_exact(payload, allowed, required=()):
     extra = set(payload) - set(allowed)
     if extra:
@@ -206,14 +218,7 @@ class AccessAdminUsersController(http.Controller):
     @api_handler
     def seat(self, user_id, **payload):
         require_exact(payload, {'expected_version', 'read_only', 'priority'}, {'expected_version'})
-        if payload.get('read_only') is None and payload.get('priority') is None:
-            raise ApiError(422, 'invalid', 'read_only or priority is required', field='read_only')
-        read_only = payload.get('read_only')
-        if read_only is not None and not isinstance(read_only, bool):
-            raise ApiError(422, 'invalid', 'read_only must be a boolean', field='read_only')
-        priority = payload.get('priority')
-        if priority is not None and (isinstance(priority, bool) or not isinstance(priority, int) or priority < 0):
-            raise ApiError(422, 'invalid', 'priority must be a non-negative integer', field='priority')
+        read_only, priority = parse_seat_options(payload)
         target = _target_user(user_id)
         request.env['liwan.access.service']._liwan_set_seat(target, payload['expected_version'], read_only, priority)
         clear_security_caches_after_commit(request.env)

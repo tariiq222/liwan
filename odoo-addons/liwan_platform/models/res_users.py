@@ -27,21 +27,12 @@ class LiwanPlatformResUsers(models.Model):
         'CHECK(liwan_seat_priority >= 0)', 'liwan seat priority cannot be negative',
     )
 
-    def _liwan_seat_holders(self):
-        """The accounts of ``self`` that count as a full seat right now."""
-        service = self.env['liwan.entitlement.service']
-        held = set(service._liwan_full_seat_ids())
-        return self.filtered(lambda user: user.id in held)
-
     def _liwan_user_quota_delta(self, vals_list=None, records=None, write_vals=None):
         service = self.env['liwan.entitlement.service']
         delta = 0
-        invitations = 0
         for vals in vals_list or ():
             if vals.get('active', True) and not vals.get('share', False):
-                if self.env.context.get(INVITEE_CONTEXT) is INVITEE_TOKEN:
-                    invitations += 1
-                elif not vals.get('liwan_read_only'):
+                if self.env.context.get(INVITEE_CONTEXT) is INVITEE_TOKEN or not vals.get('liwan_read_only'):
                     delta += 1
         if records is not None and write_vals and SEAT_KEYS & set(write_vals):
             held_ids = set(service._liwan_full_seat_ids())
@@ -51,35 +42,25 @@ class LiwanPlatformResUsers(models.Model):
                 active = write_vals.get('active', user.active)
                 share = write_vals.get('share', user.share)
                 if user.id in awaiting:
-                    # An invitation holds a seat for the check while it is pending (it is claimed again, as a full seat,
-                    # at acceptance); a cancelled one that is invited again must fit like a new one.
-                    invitations += int(bool(active and not share and not user.active and user.id not in excluded))
+                    if user.id not in excluded:
+                        delta += int(bool(active and not share)) - int(bool(user.active and not user.share))
                     continue
                 counted = (
                     active and not share and not write_vals.get('liwan_read_only', user.liwan_read_only)
                     and user.id not in excluded
                 )
                 delta += int(bool(counted)) - int(user.id in held_ids)
-        if not self.env.cr.precommit.data.get(SETTLE_MARKER):
-            if delta:
-                service._liwan_claim_users(delta)
-            if invitations:
-                service._liwan_claim_invitations(invitations)
-        return delta
+        if delta and not self.env.cr.precommit.data.get(SETTLE_MARKER):
+            service._liwan_claim_users(delta)
 
     def _liwan_assert_grant_holder_survives(self):
-        """Refuse to turn the last full holder of ``access.users.grant`` read-only or off."""
-        access = self.env['liwan.access.service']
-        remaining = self.env['liwan.entitlement.service']._liwan_seat_users().filtered(
-            lambda user: not user.liwan_read_only and user.id not in self.ids,
-        )
-        for company in self.company_id:
-            if not any(
-                user.company_id == company and access._liwan_has_capability(user, GRANT, company=company)
-                for user in self
-            ):
-                continue
-            if not any(access._liwan_has_capability(user, GRANT, company=company) for user in remaining):
+        """Protect each company in which a departing account is the last full grant holder."""
+        service = self.env['liwan.entitlement.service']
+        full = service._liwan_seat_users().filtered(lambda user: not user.liwan_read_only)
+        leaving = full & self
+        remaining = full - leaving
+        for company in leaving.company_ids.filtered('active'):
+            if service._liwan_grant_holders(leaving, company) and not service._liwan_grant_holders(remaining, company):
                 msg = 'last_access_admin'
                 raise LiwanAccessRule(msg, 'at least one full access administrator is required', status=409)
 
@@ -87,7 +68,7 @@ class LiwanPlatformResUsers(models.Model):
         if not SEAT_KEYS.intersection(vals) or self.env.cr.precommit.data.get(SETTLE_MARKER):
             return
         if vals.get('liwan_read_only') or vals.get('share') or vals.get('active') is False:
-            self._liwan_seat_holders()._liwan_assert_grant_holder_survives()
+            self._liwan_assert_grant_holder_survives()
         self._liwan_user_quota_delta(records=self, write_vals=vals)
 
     @api.model_create_multi

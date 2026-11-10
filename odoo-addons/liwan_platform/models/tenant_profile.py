@@ -1,10 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import logging
 import re
+from contextlib import contextmanager
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
+from .entitlement_service_seats import DEFER_BRANCH_REOPENING
 from odoo.addons.liwan_platform.commercial_config import SOURCES, load_classification
 from odoo.addons.liwan_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
@@ -375,6 +377,24 @@ class LiwanTenantProfile(models.Model):
         self.ensure_one()
         if not (self.env.su and self.env.context.get(OPERATOR_CONTEXT)):
             raise AccessError(self.env._('A trusted local operator is required.'))
+
+    @contextmanager
+    def _liwan_defer_branch_reopening(self):
+        """Reserve full seats for ordered branches before reopening automatic excess."""
+        self._liwan_require_operator()
+        cr = self.env.cr
+        if DEFER_BRANCH_REOPENING in cr.cache:
+            yield
+            return
+        with cr.savepoint():
+            self._liwan_lock()
+            # Mid-operation flushes can run and clear precommit callbacks.
+            cr.cache[DEFER_BRANCH_REOPENING] = True
+            try:
+                yield
+            finally:
+                cr.cache.pop(DEFER_BRANCH_REOPENING)
+            self.env['liwan.entitlement.service']._liwan_settle_branches()
 
     def _liwan_grant_opened_admin_roles(self, login, roles_before):
         """Give the enrolment administrator the roles a policy change newly opened.

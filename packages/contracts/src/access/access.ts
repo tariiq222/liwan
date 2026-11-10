@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MIN_PASSWORD_LENGTH } from '../common/password'
+import { MAX_SEAT_PRIORITY } from './seats'
 
 export const LocalizedLabelSchema = z.object({ ar: z.string(), en: z.string().nullable() }).strict()
 
@@ -279,7 +280,7 @@ export const AdminUserSummarySchema = z.object({
   /** Who decided `read_only`: the automatic settle, or the administrator who picked it. */
   seat_choice: z.enum(['auto', 'customer']),
   /** The administrator's order for reopening read-only accounts when seats are added; `0` means not set. */
-  seat_priority: z.number().int().nonnegative(),
+  seat_priority: z.number().int().nonnegative().max(MAX_SEAT_PRIORITY),
   assignments: z.array(RoleAssignmentSchema),
   version: z.string().min(1),
 }).strict()

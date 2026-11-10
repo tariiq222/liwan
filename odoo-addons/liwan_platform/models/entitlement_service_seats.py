@@ -14,6 +14,7 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 USER_LIMIT = 'users.limit'
 BRANCH_LIMIT = 'branches.extra_limit'
 UNSET_PRIORITY = float('inf')
+DEFER_BRANCH_REOPENING = 'liwan_platform.defer_branch_reopening'
 
 
 class LiwanEntitlementSeats(models.AbstractModel):
@@ -48,12 +49,6 @@ class LiwanEntitlementSeats(models.AbstractModel):
         """
         users, pending = self._liwan_seat_candidates()
         return len(users.filtered(lambda user: not user.liwan_read_only)) + len(pending)
-
-    @api.model
-    def _liwan_claim_invitations(self, count):
-        """Refuse COUNT new invitations that do not fit under ``users.limit`` beside the full seats and the pending ones."""
-        self._liwan_profile()._liwan_lock()
-        return self._liwan_claim(USER_LIMIT, self._liwan_count_held_seats(), count)
 
     @api.model
     def _liwan_full_seat_ids(self):
@@ -130,23 +125,27 @@ class LiwanEntitlementSeats(models.AbstractModel):
         self._liwan_profile()._liwan_bump_quota_revision()
 
     @api.model
+    def _liwan_grant_holders(self, users, company):
+        access = users.env['liwan.access.service'].with_company(company)
+        return users.filtered(lambda user: access._liwan_has_capability(user, GRANT, company=company))
+
+    @api.model
     def _liwan_user_keep_order(self, users):
-        """Full users by the order they stay full: the customer's picks, grant holders, then oldest first."""
-        service = self.env['liwan.access.service']
-        holders = {
-            user.id for user in users
-            if service._liwan_has_capability(user, GRANT, company=user.company_id)
-        }
+        """Full users in keep order, with headquarters recovery preferred when a holder must be preserved."""
+        root = self._liwan_profile().root_company_id
+        root_holders = self._liwan_grant_holders(users, root)
+        holders = root_holders | users.filtered(lambda user: self._liwan_grant_holders(user, user.company_id))
+        holder_ids = set(holders.ids)
         ordered = sorted(users, key=lambda user: (
-            user.liwan_seat_choice != 'customer', user.id not in holders, user.create_date, user.id,
+            user.liwan_seat_choice != 'customer', user.id not in holder_ids, user.create_date, user.id,
         ))
-        return ordered, holders
+        return ordered, set((root_holders or holders).ids)
 
     @api.model
     def _liwan_settle_users(self):
-        users = self._liwan_seat_users()
+        users, pending = self._liwan_seat_candidates()
         users.invalidate_recordset(['liwan_read_only', 'liwan_seat_choice', 'liwan_seat_priority'])
-        capacity = self._liwan_capacity(USER_LIMIT, len(users))
+        capacity = self._liwan_capacity(USER_LIMIT, len(users) + len(pending))
         if capacity is None:
             return False
         full = users.filtered(lambda user: not user.liwan_read_only)
@@ -163,7 +162,7 @@ class LiwanEntitlementSeats(models.AbstractModel):
         reopenable = sorted(
             (user for user in users - full if user.liwan_seat_choice == 'auto'),
             key=lambda user: (user.liwan_seat_priority or UNSET_PRIORITY, user.create_date, user.id),
-        )[:capacity - len(full)]
+        )[:max(0, capacity - len(full) - len(pending))]
         self._liwan_apply_flags(self.env['res.users'].browse([user.id for user in reopenable]), {'liwan_read_only': False})
         return bool(reopenable)
 
@@ -180,6 +179,8 @@ class LiwanEntitlementSeats(models.AbstractModel):
             demote = full.filtered(lambda branch: branch not in ordered[:capacity])
             self._liwan_apply_flags(demote, {'read_only': True, 'seat_choice': 'auto'})
             return bool(demote)
+        if DEFER_BRANCH_REOPENING in self.env.cr.cache:
+            return False
         reopenable = sorted(
             (branch for branch in branches - full if branch.seat_choice == 'auto'),
             key=lambda branch: (branch.restore_priority or UNSET_PRIORITY, branch.create_date, branch.id),

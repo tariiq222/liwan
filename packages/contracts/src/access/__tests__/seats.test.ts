@@ -11,6 +11,15 @@ describe('seat contracts', () => {
     expect(() => SeatChangeInputSchema.parse({ read_only: true })).toThrow()
   })
 
+  it('limits user and branch priorities to the stored integer range', () => {
+    const expected_version = 'u1-r1'
+    const priority = 2_147_483_647
+    expect(SeatChangeInputSchema.safeParse({ expected_version, priority }).success).toBe(true)
+    expect(BranchSeatChangeInputSchema.safeParse({ priority }).success).toBe(true)
+    expect(SeatChangeInputSchema.safeParse({ expected_version, priority: priority + 1 }).success).toBe(false)
+    expect(BranchSeatChangeInputSchema.safeParse({ priority: priority + 1 }).success).toBe(false)
+  })
+
   it('counts full seats and the read-only remainder', () => {
     expect(SeatUsageSchema.parse({ used: 3, limit: 3, read_only: 1 }).read_only).toBe(1)
     expect(() => SeatUsageSchema.parse({ used: 3, limit: 3 })).toThrow()

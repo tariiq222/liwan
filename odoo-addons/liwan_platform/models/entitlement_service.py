@@ -389,7 +389,7 @@ class LiwanEntitlementService(models.AbstractModel):
         if delta > 0:
             # Lock before counting: concurrent claims must see each other's committed seat.
             self._liwan_profile()._liwan_lock()
-        return self._liwan_claim('users.limit', self._liwan_count_users(), delta)
+        return self._liwan_claim('users.limit', self._liwan_count_held_seats(), delta)
 
     @api.model
     def _liwan_claim_storage(self, delta_bytes):

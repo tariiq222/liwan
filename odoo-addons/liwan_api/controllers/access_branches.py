@@ -2,9 +2,8 @@
 from odoo import http
 from odoo.http import request
 
-from .access_admin import _target_user, require_exact
+from .access_admin import _target_user, parse_seat_options, require_exact
 from .common import (
-    ApiError,
     api_handler,
     clear_security_caches_after_commit,
     requires_capability,
@@ -60,14 +59,7 @@ class AccessBranchesController(http.Controller):
     @requires_capability('settings.company.manage')
     def update_branch_seat(self, branch_id, **payload):
         require_exact(payload, {'read_only', 'priority'})
-        read_only = payload.get('read_only')
-        priority = payload.get('priority')
-        if read_only is None and priority is None:
-            raise ApiError(422, 'invalid', 'read_only or priority is required', field='read_only')
-        if read_only is not None and not isinstance(read_only, bool):
-            raise ApiError(422, 'invalid', 'read_only must be a boolean', field='read_only')
-        if priority is not None and (isinstance(priority, bool) or not isinstance(priority, int) or priority < 0):
-            raise ApiError(422, 'invalid', 'priority must be a non-negative integer', field='priority')
+        read_only, priority = parse_seat_options(payload)
         branch = request.env['liwan.entitlement.service']._liwan_set_branch_seat(branch_id, read_only, priority)
         return {
             'id': branch_id, 'name': branch.company_id.name, 'read_only': branch.read_only,

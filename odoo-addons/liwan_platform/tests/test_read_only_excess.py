@@ -123,6 +123,55 @@ class TestExcessUsersAreReadOnly(ExcessCase):
         self.assertTrue(invitee.liwan_read_only)
         self.assertEqual(self.service._liwan_count_users(), full)
 
+    def test_other_claims_and_automatic_reopening_respect_a_pending_reservation(self):
+        admin = new_test_user(self.env, login='reservation_admin', groups='liwan_core.group_access_admin')
+        promoted, inactive = self._users(2, 'reserved_capacity')
+        inactive.write({'active': False})
+        full = self.service._liwan_count_users() - 1
+        self._set_limit('users.limit', full + 1)
+        self.service._liwan_apply_flags(promoted, {'liwan_read_only': True})
+        invitee = self._invite(admin, 'reserved.pending')
+        for user, values in ((promoted, {'liwan_read_only': False}), (inactive, {'active': True})):
+            with self.assertRaises(LiwanAccessRule) as caught:
+                user.write(values)
+            self.assertEqual(caught.exception.details['limit_key'], 'users.limit')
+        self._set_limit('users.limit', full + 1)
+        self.assertTrue(promoted.liwan_read_only)
+        _token, raw = self.access._liwan_tokens()._liwan_issue(invitee, 'invite')
+        self.access._liwan_accept_invitation(raw, '+966500000094', 'reserved_password_123')
+        self.assertFalse(invitee.liwan_read_only)
+
+    def test_settlement_preserves_the_headquarters_admin_ahead_of_a_picked_branch_admin(self):
+        root = self.record.root_company_id
+        company_id = self.record.with_context(**{OPERATOR_CONTEXT: True})._liwan_apply_branches(
+            'seat-root', 'rev', [{'branch_id': 'seat-root-branch', 'name': 'Branch-only admin'}],
+        )[0]['odoo_company_id']
+        branch = self.env['res.company'].browse(company_id)
+        root_admin, branch_admin = [
+            new_test_user(self.env, login=f'seat_admin_{company.id}', groups='base.group_user',
+                          company_id=company.id, company_ids=[Command.set(company.ids)])
+            for company in (root, branch)
+        ]
+        role = self.env.ref('liwan_core.role_system_admin')
+        for user in root_admin | branch_admin:
+            self.env['liwan.access.assignment'].create({
+                'user_id': user.id, 'role_id': role.id, 'company_id': user.company_id.id,
+            })
+        for company, user in ((root, root_admin), (branch, branch_admin)):
+            self.assertTrue(self.access.with_company(company)._liwan_has_capability(user, GRANT, company=company))
+        self.env.user.write({'company_ids': [Command.link(branch.id)]})
+        self.assertTrue(self.access._liwan_has_capability(branch_admin, GRANT, company=branch))
+        others = self.service._liwan_seat_users() - (root_admin | branch_admin)
+        self.service._liwan_apply_flags(others, {'liwan_read_only': True, 'liwan_seat_choice': 'customer'})
+        self.service._liwan_apply_flags(branch_admin, {'liwan_seat_choice': 'customer'})
+        root_admin.write({'company_ids': [Command.link(branch.id)], 'company_id': branch.id})
+        with self.assertRaises(LiwanAccessRule) as caught:
+            root_admin.write({'liwan_read_only': True})
+        self.assertEqual(caught.exception.code, 'last_access_admin')
+        self._set_limit('users.limit', 1)
+        self.assertEqual(self.service._liwan_full_seat_ids(), [root_admin.id])
+        self.assertTrue(branch_admin.liwan_read_only)
+
     def test_inviting_a_cancelled_invitation_again_needs_a_free_seat(self):
         admin = new_test_user(self.env, login='excess_reinviter', groups='liwan_core.group_access_admin')
         full = self.service._liwan_count_users()

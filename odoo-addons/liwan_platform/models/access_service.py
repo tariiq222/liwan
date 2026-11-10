@@ -10,7 +10,7 @@ class LiwanPlatformAccessService(models.AbstractModel):
 
     @api.model
     def _liwan_create_invitee(self, name, login, partner_id):
-        """An invitee holds no seat while the invitation is pending; the seat is claimed at acceptance."""
+        """A pending invitation reserves capacity without counting as a full seat."""
         invite = self.with_context(**{INVITEE_CONTEXT: INVITEE_TOKEN})
         return super(LiwanPlatformAccessService, invite)._liwan_create_invitee(name, login, partner_id)
 

@@ -1,7 +1,8 @@
 import { z } from 'zod'
 
 const VersionSchema = z.string().trim().min(1)
-const PrioritySchema = z.number().int().nonnegative()
+export const MAX_SEAT_PRIORITY = 2_147_483_647
+const PrioritySchema = z.number().int().nonnegative().max(MAX_SEAT_PRIORITY)
 
 /** Make an account a full or a read-only seat holder, or set its reopening priority (`0` clears it). */
 export const SeatChangeInputSchema = z.object({
