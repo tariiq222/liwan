@@ -69,6 +69,12 @@ const subjectsSql = `WITH latest AS (
   SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.limits_note FROM trial_lapses l
   JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
   WHERE l.state='limits_pending' AND l.reason IS NULL
+), unrouted AS (
+  -- A stored payment method the customer turned off but no payment attempt could name the provider of: nobody will forget it
+  -- at the provider until an operator routes it.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, r.created_at FROM token_revocations r
+  JOIN subscriptions s ON s.id=r.subscription_id JOIN customers c ON c.id=s.customer_id WHERE r.provider='unknown'
+  ORDER BY c.id, r.created_at
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -85,6 +91,7 @@ const subjectsSql = `WITH latest AS (
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 2,'payment_method_unrevoked', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM unrouted WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lowering
   UNION ALL SELECT 9,'free_base_limits_pending', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, limits_note, lapsed_at FROM limits_waiting

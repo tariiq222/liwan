@@ -173,11 +173,10 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
       // provider is told by the worker from the row written here, so a crash cannot leave the method behind.
       await client.query('UPDATE subscriptions SET auto_renew_enabled=false,auto_renew_consent_at=NULL,provider_token_ref=NULL,revision=revision+1 WHERE id=$1',[s.id])
       if(s.provider_token_ref){
-        // Taken from the attempt that stored the token, never from whether this process has a payment runtime; a token no
-        // attempt accounts for is refused loudly rather than queued for a provider nobody will ask.
+        // Taken from the attempt that stored the token. Turning it off is never refused: when no attempt says which provider,
+        // the revocation is written for `unknown` and shows in the vendor attention list for an operator to route.
         const provider=await tokenProvider(client,s.id)
-        if(!provider)throw new CommercialHttpError('payment_method_provider_unknown',409)
-        await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)',[randomUUID(),s.id,provider,s.provider_token_ref])
+        await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)',[randomUUID(),s.id,provider??'unknown',s.provider_token_ref])
       }
       await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',[randomUUID(),`customer:${customerId}`,'subscription.auto_renew_disabled',s.id,'Customer turned automatic renewal off',JSON.stringify({turned_off_by:principal.actor_id})])
     })

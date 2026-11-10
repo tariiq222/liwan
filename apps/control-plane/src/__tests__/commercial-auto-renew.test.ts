@@ -8,6 +8,7 @@ import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { convertTrial, startTrial } from '../commercial/trial.js'
 import { applyConfirmedEvent, createPaymentAttempt, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
+import { attention } from '../commercial/attention.js'
 import { renewalNoticeKey, sendRenewalNotices } from '../commercial/renewal-notices.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
@@ -536,14 +537,18 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
       await processTokenRevocations(pool, worker)
       expect(revoke).toHaveBeenCalledWith(f.token)
     })
-    it('refuses a turn-off it cannot route to a provider, and keeps the token', async () => {
+    it('never refuses a turn-off: with no known provider it withdraws the consent and queues the revocation for an operator, who sees it', async () => {
       const f = await converted()
       await pool.query("UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=now(),provider_token_ref='sim_tok_0a0b0c0d_62',revision=revision+1 WHERE id=$1", [f.subscription.id])
       const response = await call(f.tenant, '/v1/customer/auto-renew', { enabled: false })
-      expect(response.status).toBe(409)
-      expect((await response.json()).code).toBe('payment_method_provider_unknown')
-      expect((await sub(f.subscription.id)).provider_token_ref).toBe('sim_tok_0a0b0c0d_62')
-      expect((await pool.query('SELECT count(*)::int AS n FROM token_revocations WHERE subscription_id=$1', [f.subscription.id])).rows[0].n).toBe(0)
+      expect(response.status).toBe(200)
+      expect(await sub(f.subscription.id)).toMatchObject({ auto_renew_enabled: false, auto_renew_consent_at: null, provider_token_ref: null })
+      expect((await pool.query('SELECT provider FROM token_revocations WHERE subscription_id=$1', [f.subscription.id])).rows).toEqual([{ provider: 'unknown' }])
+      // No worker routes an unknown provider, so it must be visible.
+      const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
+      expect(items).toContainEqual(expect.objectContaining({ kind: 'payment_method_unrevoked' }))
+      await processTokenRevocations(pool, new SimulatorAdapter())
+      expect((await pool.query('SELECT count(*)::int AS n FROM token_revocations WHERE subscription_id=$1', [f.subscription.id])).rows[0].n).toBe(1)
     })
     it('needs the subscription capability', async () => {
       const f = await dueWithToken('sim_tok_0a0b0c0d_5')
