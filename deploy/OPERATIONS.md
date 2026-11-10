@@ -496,7 +496,8 @@ no-overwrite condition against the selected provider before scheduling captures.
 `deploy/restore_drill.py` authenticates the newest manifest for one tenant before
 downloading its artifact, then restores it
 into a **new scratch database** through `deploy/restore_verify.py` (same checks: Liwan
-modules installed, none stuck mid-transition, every referenced attachment present),
+modules installed, none stuck mid-transition, every referenced attachment present, and
+the dump and filestore matching the digests in the artifact's own `manifest.json`),
 measures the backup's age at drill start against the 1-hour RPO and the elapsed
 restore time against the 4-hour RTO, and writes an atomic record. Both budgets must
 pass for a verified result. The status command also requires a record that finished

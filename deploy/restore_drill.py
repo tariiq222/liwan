@@ -142,9 +142,10 @@ def _fetch_verified_artifact(
     """Authenticate the newest manifest, then fetch and decrypt its artifact.
 
     Returns the artifact reference, the parsed manifest, and the manifest bytes as
-    they arrived. The bytes are returned rather than a digest alone so the restore
-    verifier receives exactly the manifest that was just verified, and the record's
-    digest names those same bytes.
+    they arrived, so the record's digest names the exact manifest that was verified.
+    The artifact carries ``deploy/backup.py``'s own ``manifest.json`` with the dump
+    and filestore digests; that file, and no other, is what the restore verifier
+    reads, so the pipeline manifest is never written over it.
     """
     ref = backup_pipeline.latest_artifact(store, tenant)
     if ref is None:
@@ -180,17 +181,6 @@ def _fetch_verified_artifact(
         )
         raise DrillError(message)
     return ref, manifest, manifest_bytes
-
-
-def _write_capture_manifest(backup_dir: Path, manifest_bytes: bytes) -> None:
-    """Write the capture manifest the restore verifier insists on beside the dump.
-
-    ``deploy/restore_verify.py`` requires ``database.dump``, ``filestore/`` and
-    ``manifest.json`` in one directory. The artifact carries the first two; this
-    writes the third from the bytes that were verified against the ciphertext, so the
-    verifier records the capture-time manifest and not a synthesized one.
-    """
-    (backup_dir / 'manifest.json').write_bytes(manifest_bytes)
 
 
 def _extract_archive(archive: Path, destination: Path) -> None:
@@ -330,7 +320,6 @@ def run_drill(
         )
         backup_dir = stage / BACKUP_DIR_NAME
         _extract_archive(stage / PLAINTEXT_NAME, backup_dir)
-        _write_capture_manifest(backup_dir, manifest_bytes)
         argv = _restore_argv(
             restore_script=script,
             backup_dir=backup_dir,
