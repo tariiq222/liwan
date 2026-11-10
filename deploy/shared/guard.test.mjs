@@ -598,3 +598,36 @@ test('public signup allows only its exact routes and relays the address supplied
     assert.throws(() => prospectPlan(prospect(target, {}, method), 'app.liwan.test', token))
   }
 })
+const recorderKey = 'a1'.repeat(20)
+const trusted = (headers = {}) => ({ 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', ...headers })
+const usageTarget = '/api/v1/ai/usage/service'
+test('the recorder key passes only on the trusted hop, to the exact AI usage report, as POST', () => {
+  const plan = requestPlan({ ...req(0, trusted({ authorization: `Bearer ${recorderKey}` }), usageTarget), method: 'POST' }, registry, token, codec)
+  assert.equal(plan.odoo, true)
+  assert.equal(plan.headers.authorization, `Bearer ${recorderKey}`)
+  assert.equal(plan.headers.host, targets[0].database)
+})
+test('the recorder key is stripped on every other path, method, spelling and hop (issue #557)', () => {
+  const authorization = `Bearer ${recorderKey}`
+  const near = [usageTarget + '/', usageTarget.toUpperCase(), usageTarget + '?x=1', usageTarget + '#f', usageTarget + '/x', usageTarget + '/../x', '/api/v1/ai/usage/./service', '/api/v1/ai//usage/service',
+    '/api/v1/ai/usage', '/api/v1/ai/audit', '/api/v1/ai/tools', '/api/v1/me', '/api/v1/ai/usage/service%2f', '/api/v1/ai/usage%2fservice', '/api/v1/ai/usage/servic%65',
+    '/json/2/liwan.ai.usage/create', '/web/dataset/call_kw', '/jsonrpc', '/xmlrpc/2/object', '//api/v1/ai/usage/service']
+  for (const target of near) {
+    for (const method of ['POST', 'GET', 'PUT', 'PATCH', 'DELETE']) {
+      let plan
+      try { plan = requestPlan({ ...req(0, trusted({ authorization }), target), method }, registry, token, codec) } catch { continue }
+      assert.equal(plan.headers.authorization, undefined, `${method} ${target}`)
+    }
+  }
+  for (const method of ['GET', 'PUT', 'PATCH', 'DELETE', 'HEAD', undefined]) {
+    assert.equal(requestPlan({ ...req(0, trusted({ authorization }), usageTarget), method }, registry, token, codec).headers.authorization, undefined, String(method))
+  }
+  // A browser, which cannot hold the proxy token, never gets its header through, even on the exact target.
+  const browser = requestPlan({ ...req(0, { authorization }, usageTarget), method: 'POST' }, registry, token, codec)
+  assert.equal(browser.odoo, false)
+  assert.equal(browser.headers.authorization, undefined)
+  // Nor a credential that is not an Odoo API key.
+  for (const bad of ['Bearer x', 'Basic ' + recorderKey, `Bearer ${recorderKey} extra`, `bearer ${recorderKey}`, '']) {
+    assert.equal(requestPlan({ ...req(0, trusted({ authorization: bad }), usageTarget), method: 'POST' }, registry, token, codec).headers.authorization, undefined, bad)
+  }
+})

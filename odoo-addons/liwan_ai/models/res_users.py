@@ -2,9 +2,11 @@
 import logging
 
 from odoo import models
+from odoo.exceptions import AccessDenied
 
 _logger = logging.getLogger(__name__)
 OUTBOX = 'liwan_ai.ai_outbox'
+USAGE_RECORDER = 'liwan_ai.user_ai_usage'
 
 
 class LiwanAiResUsers(models.Model):
@@ -16,6 +18,17 @@ class LiwanAiResUsers(models.Model):
     nothing. The insert is in this transaction, so a rolled-back deactivation reports nothing either.
     """
     _inherit = 'res.users'
+
+    def _check_credentials(self, credential, env):
+        """The usage recorder is a machine account: no password, key or code ever signs it in to a session.
+
+        Its API key authenticates only through the bearer path, which never calls this method.
+        """
+        recorder = self.env['ir.model.data']._xmlid_to_res_id(USAGE_RECORDER, raise_if_not_found=False)
+        # Base Odoo verifies the password of the environment's user, so both the record and the acting user are checked.
+        if recorder and (recorder in self.ids or recorder == self.env.user.id):
+            raise AccessDenied()
+        return super()._check_credentials(credential, env)
 
     def write(self, vals):
         changed = self.filtered(lambda user: user.active != bool(vals['active'])) if 'active' in vals else self.browse()

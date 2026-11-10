@@ -57,6 +57,11 @@ VERSION_VALUE = re.compile(r'^(?:0|[0-9]{20})-[a-f0-9]{12}$')
 LOGO_QUERY_KEYS = frozenset({'company', 'v'})
 
 
+# A bearer API key authenticates a request on no route by default: an application that has a machine caller registers its
+# one exact path by extending ``_liwan_bearer_routes``. Every other route with ``auth='bearer'`` (Odoo's own ``/json/2``
+# among them) is a 404 before the key is even looked at.
+
+
 def _query_keys(httprequest):
     return set(httprequest.args)
 
@@ -78,6 +83,22 @@ class LiwanPlatformIrHttp(models.AbstractModel):
     _inherit = 'ir.http'
 
     @classmethod
+    def _liwan_bearer_routes(cls):
+        """The exact paths a bearer API key may reach; an application adds its own through ``super()``."""
+        return frozenset()
+
+    @classmethod
+    def _auth_method_bearer(cls):
+        """Answer a missing or wrong key on a registered route with the JSON 401 the web app reads."""
+        try:
+            super()._auth_method_bearer()
+        except Unauthorized:
+            response = request.make_json_response(
+                {'code': 'unauthorized', 'message': 'A valid API key is required.'}, status=401,
+            )
+            raise Unauthorized(response=response) from None
+
+    @classmethod
     def _auth_method_user(cls):
         """Answer 401 ``session_required`` on /api/v1 without a session; stock Odoo answers 403.
 
@@ -96,9 +117,12 @@ class LiwanPlatformIrHttp(models.AbstractModel):
 
     @classmethod
     def _authenticate_explicit(cls, auth):
-        super()._authenticate_explicit(auth)
         httprequest = request.httprequest
         path = httprequest.path
+        # Exact match only: no prefix, no trailing slash, no other case. A foreign path never reaches the key check.
+        if auth == 'bearer' and path not in cls._liwan_bearer_routes():
+            raise NotFound()
+        super()._authenticate_explicit(auth)
         if path.startswith(RPC_PREFIXES):
             raise NotFound()
         user = request.env.user

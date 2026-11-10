@@ -73,16 +73,27 @@ class TestClassification(unittest.TestCase):
                 classification.stage(self.source, self.output, self.data['database'], None)
             self.assertFalse(self.output.exists())
 
+    def test_provision_resolves_its_inputs_from_its_own_directory_not_the_working_directory(self):
+        """An operator may run the script from anywhere: it stages every seed it uses from beside itself."""
+        deploy, env = self.provision_fixture()
+        elsewhere = self.root / 'elsewhere'
+        elsewhere.mkdir()
+        result = subprocess.run(['bash', str(deploy / 'provision.sh'), '--stage-only'], cwd=elsewhere, env=env, text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(sorted(path.name for path in (deploy / 'data/seed').iterdir()),
+                         ['branding.json', 'seed_ai_usage_key.py', 'seed_branding.py', 'seed_legacy_policy.py'])
+        self.assertEqual(list(elsewhere.iterdir()), [])
+
     def provision_fixture(self):
         deploy = self.root / 'deploy'
         deploy.mkdir()
-        for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py', 'seed_public_origin.py'):
+        for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py', 'seed_public_origin.py', 'seed_ai_usage_key.py'):
             shutil.copy(ROOT / 'deploy' / name, deploy / name)
         config = self.root / 'odoo-addons/liwan_platform'
         config.mkdir(parents=True)
         shutil.copy(classification.PARSER, config / 'commercial_config.py')
         (deploy / 'ai').mkdir()
-        for name in ('tenant_schema.sql', 'ensure_secrets.sh', 'egress_hosts.sh'):
+        for name in ('tenant_schema.sql', 'ensure_secrets.sh', 'egress_hosts.sh', 'write_env_secret.sh'):
             shutil.copy(ROOT / 'deploy' / 'ai' / name, deploy / 'ai' / name)
         (deploy / '__init__.py').write_text('')
         (deploy / 'releases').mkdir()

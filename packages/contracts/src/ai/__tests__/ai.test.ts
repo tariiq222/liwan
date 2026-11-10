@@ -1,4 +1,4 @@
-import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema, AiUsageServiceBatchSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
@@ -119,6 +119,15 @@ describe('LiwanOS AI usage contracts', () => {
   it('keeps the model events out of the browser stream', () => {
     expect(() => AiEventSchema.parse({ event: 'model_call', data: call })).toThrow()
     expect(() => AiEventSchema.parse({ event: 'model_usage', data: usage })).toThrow()
+  })
+
+  it('names the user and company of a service-reported batch once, never per row', () => {
+    const batch = { user_id: 7, user_company_id: 1, items: [record] }
+    expect(AiUsageServiceBatchSchema.parse(batch).user_id).toBe(7)
+    for (const bad of [{ ...batch, user_id: 0 }, { ...batch, user_company_id: 1.5 }, { ...batch, items: [] }, { ...batch, extra: 1 }, { items: [record] }, { user_id: 7, items: [record] }]) {
+      expect(() => AiUsageServiceBatchSchema.parse(bad)).toThrow()
+    }
+    expect(() => AiUsageServiceBatchSchema.parse({ ...batch, items: [{ ...record, user_id: 7 }] })).toThrow()
   })
 
   it('batches 1 to 64 records and answers with the stored rows', () => {
