@@ -33,7 +33,7 @@ function pendingUser(overrides: Record<string, unknown> = {}) {
   return AdminUserDetailSchema.parse({
     id: 21, name: 'سارة محمد', login: 'sara@example.com', mobile: null,
     invitation: { state: 'pending', delivery: 'sent', sent_at: '2026-11-06T10:00:00Z', expires_at: '2026-11-09T10:00:00Z' },
-    employee: null, active: true, protected: false, version: 'u21-v1',
+    employee: null, active: true, protected: false, read_only: false, seat_choice: 'auto', seat_priority: 0, version: 'u21-v1',
     assignments: [{ id: 211, role: ROLE, scope: COMPANY }],
     capabilities: [], allowed_actions: ['read', 'send_reset_link', 'disable', 'resend_invitation', 'edit_invitation', 'cancel_invitation'],
     ...overrides,
@@ -45,7 +45,7 @@ async function mockAdmin(page: Page, options: { seats?: unknown; user?: ReturnTy
   const calls: { method: string; path: string; body: unknown }[] = []
   const user = options.user ?? pendingUser()
   const reads: Record<string, unknown> = {
-    '/users/seats': SeatUsageSchema.parse(options.seats ?? { used: 6, limit: 10 }),
+    '/users/seats': SeatUsageSchema.parse(options.seats ?? { used: 6, limit: 10, read_only: 0 }),
     '/roles': RoleListSchema.parse({ items: [{ ...ROLE, description: '', active: true, assignable: true, user_count: 2, version: 'r3' }], total: 1 }),
     '/roles/3': RoleDetailSchema.parse({ ...ROLE, description: '', active: true, assignable: true, user_count: 2, version: 'r3', permissions: [], allowed_actions: ['read'] }),
     '/permissions': PermissionCatalogSchema.parse({ items: [], total: 0, version: 'p1' }),
@@ -201,7 +201,7 @@ test.describe('the administrator screens', () => {
   })
 
   test('at the seat limit the form says so and cannot send; without a limit it shows no seat line', async ({ page }) => {
-    await mockAdmin(page, { seats: { used: 10, limit: 10 } })
+    await mockAdmin(page, { seats: { used: 10, limit: 10, read_only: 0 } })
     await page.goto('/settings/team/users/new')
     await expect(page.getByRole('alert').filter({ hasText: 'وصل اشتراكك إلى الحد الأقصى' })).toBeVisible()
     await fieldFor(page, 'name').fill('خالد')
@@ -209,7 +209,7 @@ test.describe('the administrator screens', () => {
     await page.getByRole('checkbox').first().check()
     await expect(page.getByRole('button', { name: 'إرسال الدعوة', exact: true })).toBeDisabled()
     await page.unroute('**/api/v1/admin/**')
-    await mockAdmin(page, { seats: { used: 3, limit: null } })
+    await mockAdmin(page, { seats: { used: 3, limit: null, read_only: 0 } })
     await page.goto('/settings/team/users/new')
     await expect(page.getByRole('button', { name: 'إرسال الدعوة', exact: true })).toBeVisible()
     await expect(page.getByTestId('seat-line')).toHaveCount(0)
