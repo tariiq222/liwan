@@ -17,6 +17,7 @@ defineOptions({ name: 'ProjectFinanceEntryNew' })
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const hydrated = useHydrated()
 const toast = useToast()
 const projectId = computed(() => parsePositiveId(route.params.id))
 const access = useProjectFinanceList(projectId, { limit: 1, offset: 0 })
@@ -60,7 +61,7 @@ function saved(entry: { id: number }) {
       <template v-else>
         <UAlert v-if="refreshError" color="error" variant="soft" :title="t('projects.finance.refreshError')">
           <template #actions>
-            <UButton color="neutral" variant="outline" type="button" @click="access.refetch()">{{ t('app.retry') }}</UButton>
+            <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated" @click="access.refetch()">{{ t('app.retry') }}</UButton>
           </template>
         </UAlert>
         <FinanceEntryForm

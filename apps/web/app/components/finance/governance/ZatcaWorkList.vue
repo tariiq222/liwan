@@ -50,7 +50,10 @@ function choose(value: unknown) { state.value = String(value); page.value = 1 }
             <template #partner-cell="{ row }">{{ row.original.partner?.name ?? dash }}</template>
             <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date ?? dash }}</bdi></template>
             <template #amount-cell="{ row }"><Money :amount="row.original.amount_total" /></template>
-            <template #state-cell="{ row }"><SharedStatusBadge size="sm" :tone="ZATCA_STATE_TONE[row.original.submission.state]" :label="t(`financeDocuments.zatcaStates.${row.original.submission.state}`)" /></template>
+            <template #state-cell="{ row }">
+              <SharedStatusBadge size="sm" :tone="ZATCA_STATE_TONE[row.original.submission.state]" :label="t(`financeDocuments.zatcaStates.${row.original.submission.state}`)" />
+              <span v-if="row.original.submission.retry_count" class="block text-xs text-muted" :data-testid="`finance-zatca-work-retries-${row.original.invoice.id}`">{{ t('financeDocuments.zatca.retries') }}: <bdi class="tabular-nums">{{ row.original.submission.retry_count }}</bdi></span>
+            </template>
             <template #mobile-row="{ row }">
               <div class="flex min-w-0 flex-col gap-1">
                 <span class="flex items-center justify-between gap-2">
@@ -59,6 +62,7 @@ function choose(value: unknown) { state.value = String(value); page.value = 1 }
                 </span>
                 <span class="truncate text-sm text-muted">{{ row.partner?.name ?? dash }} · <bdi class="tabular-nums">{{ row.date ?? dash }}</bdi></span>
                 <span v-if="firstMessage(row)" class="truncate text-xs text-muted">{{ firstMessage(row)!.message }}</span>
+                <span v-if="row.submission.retry_count" class="text-xs text-muted">{{ t('financeDocuments.zatca.retries') }}: <bdi class="tabular-nums">{{ row.submission.retry_count }}</bdi></span>
                 <Money :amount="row.amount_total" />
               </div>
             </template>

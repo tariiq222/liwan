@@ -23,7 +23,7 @@ function setupPayroll(failing: Name, unloaded = false) {
     _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed,
     LeaveSettingsForm: {}, LeaveApprovalCard: {}, ShiftSettingsForm: {}, WarningSettingsForm: {}, WarningTypesCard: {}, InsuranceSettingsForm: {}, InsuranceProvidersCard: {}, EosCaseMapTable: {}, PayrollCostCenterTable: {}, PayrollFinanceSettingsForm: {},
     BankProfileForm: {}, BranchStrictCard: {}, GosiRateTable: {}, PayrollGeneralSettingsForm: {},
-    useI18n: () => ({ t: String }), useAccess: () => ({ can: () => true }),
+    useI18n: () => ({ t: String }), useHydrated: () => Vue.ref(true), useAccess: () => ({ can: () => true }),
     useSettingsPage: () => ({ parts: Vue.ref([{ id: 'payroll' }]), shows: (id: string) => id === 'payroll' }),
     useHrLeaveSettings: idle, useHrShiftSettings: idle, useHrWarningSettings: idle, useHrWarningTypes: idle, useHrInsuranceSettings: idle, useHrInsuranceProviders: idle, useHrLeaveApprovalProcess: idle,
     useHrPayrollSettings: () => queries.settings, useHrPayrollStructures: idle, useHrGosiRates: () => queries.rates,

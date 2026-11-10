@@ -7,8 +7,15 @@ their secrets, and raw ZATCA responses, are never read into these shapes.
 import html
 import re
 from collections import Counter
+from datetime import timedelta
+
+from odoo.addons.liwan_api.serializers.common import iso
 
 MAX_ITEMS = 20
+# Seconds a manual retry must wait after the previous manual attempt, indexed by the retries already made; the last value is the cap.
+# The first retry follows a transient failure soon (30 s); each further one backs off (2, 5, 15 minutes) so repeated presses
+# cannot hammer the ZATCA gateway, and one hour keeps the button usable for a long outage.
+RETRY_SPACING_SECONDS = (30, 120, 300, 900, 3600)
 MAX_TEXT = 500
 # What the client sees instead of raw stock or ZATCA text for the failures that carry no ZATCA rule code.
 UNAVAILABLE_MESSAGE = 'ZATCA could not be reached or answered unexpectedly; retry later'
@@ -103,6 +110,15 @@ def zatca_document(move):
     return move.edi_document_ids.filtered(lambda document: document.edi_format_id.code == ZATCA_FORMAT_CODE)[:1]
 
 
+def retry_allowed_at(document):
+    """When the next manual retry of ``document`` may run (naive UTC), or None while no manual attempt was made."""
+    last = document.liwan_zatca_last_attempt_at
+    if not last:
+        return None
+    spacing = RETRY_SPACING_SECONDS[min(document.liwan_zatca_retry_count, len(RETRY_SPACING_SECONDS) - 1)]
+    return last + timedelta(seconds=spacing)
+
+
 def zatca_content_final(move):
     """Whether a ZATCA document makes the content of ``move`` final: it carries a document **and** a chain index.
 
@@ -175,15 +191,21 @@ def dump_zatca_submission(move):
     keeps the chain index only when ZATCA may have received the document), ``blocked`` (a local failure
     before any verdict) and ``unauthorized`` (ZATCA refused the journal certificate: onboard again).
     ``mode`` is ``clearance`` for a standard (B2B) invoice and ``reporting`` for a simplified (B2C) one.
+    ``retry_count`` counts the manual retries, ``last_attempt_at`` is the last manual send and ``next_retry_at`` is when a
+    retry is next allowed (``null`` before any manual send and once the document is final).
     """
     document = zatca_document(move)
     state, errors = _classify(document) if document else ('not_applicable', [])
+    waiting = state not in ('not_applicable', 'accepted')
     return {
         'state': state,
         'mode': ('reporting' if move._l10n_sa_is_simplified() else 'clearance') if state != 'not_applicable' else None,
         'errors': errors,
         'warnings': _chatter_warnings(move) if state == 'accepted' else [],
         'qr_present': bool(move.l10n_sa_qr_code_str),
+        'retry_count': document.liwan_zatca_retry_count if document else 0,
+        'last_attempt_at': iso(document.liwan_zatca_last_attempt_at) if document else None,
+        'next_retry_at': iso(retry_allowed_at(document)) if document and waiting else None,
     }
 
 
