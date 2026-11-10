@@ -3,7 +3,8 @@ import { signMock as signServiceRequest, mockSessionQuery } from '../__tests__/h
 import { withPublicationLock } from './registry-publisher.js'
 import { expect, it } from 'vitest'
 import { registryMutationSchema, publishRegistryMutation, recoverRegistry } from './registry-store.js'
-import { mkdtemp, readFile, access } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile, access } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { Pool } from 'pg'
@@ -159,6 +160,34 @@ it('never clears the barrier on uncertain commit and recovers disabled authority
   expect(recovered.targets[0]!.enabled).toBe(false)
   expect(JSON.parse(await readFile(path, 'utf8')).targets[0].enabled).toBe(false)
   await expect(access(`${path}.pending`)).rejects.toThrow()
+})
+it('recovers after a hard crash: the offline tool frees only the stale lock, then the control plane republishes', async () => {
+  const f = fixture(), path = await publicationPath()
+  await publishRegistryMutation(f.pool, path, actor, input)
+  f.flags.commitUnknown = true
+  await expect(publishRegistryMutation(f.pool, path, actor, { ...input, expectedSnapshotRevision: 1, target: { ...input.target, enabled: false, registryRevision: 2 } })).rejects.toThrow('connection_lost_after_commit')
+  // A SIGKILLed publisher cannot run its finally block: its lock stays too (see registry-publisher.test.ts).
+  await writeFile(`${path}.publisher-lock`, JSON.stringify({ owner: 'crashed', pid: 2147483646 }))
+  const staleFile = await readFile(path), barrier = await readFile(`${path}.pending`)
+  const tool = new URL('../../../../deploy/shared/registry-recover.mjs', import.meta.url).pathname
+  const run = (...args: string[]) => spawnSync(process.execPath, [tool, '--registry', path, ...args], { encoding: 'utf8' })
+
+  // Without the lock step the documented control-plane route is a dead end.
+  await expect(recoverRegistry(f.pool, path, actor, 'Recover after hard crash')).rejects.toThrow('registry_lock_unavailable')
+  // The tool refuses to clear the barrier for the older file, and the lock-only mode leaves it alone.
+  expect(run('--confirm').status).toBe(1)
+  expect(run('--release-lock', '--confirm').status).toBe(0)
+  await expect(access(`${path}.publisher-lock`)).rejects.toThrow()
+  expect(await readFile(`${path}.pending`)).toEqual(barrier)
+  expect(await readFile(path)).toEqual(staleFile)
+  expect(run('--confirm').status).toBe(1)
+  await access(`${path}.pending`)
+
+  const recovered = await recoverRegistry(f.pool, path, actor, 'Recover after hard crash')
+  expect(recovered.targets[0]!.enabled).toBe(false)
+  expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({ schemaVersion: 1, snapshotRevision: 2, targets: [{ ...input.target, enabled: false, registryRevision: 2 }] })
+  await expect(access(`${path}.pending`)).rejects.toThrow()
+  await expect(access(`${path}.publisher-lock`)).rejects.toThrow()
 })
 it('denies a revoked manager before writing a publication barrier', async () => {
   const f = fixture(), path = await publicationPath()

@@ -180,6 +180,12 @@ Without `--confirm` it only reports (dry run) and applies the same refusals. Wit
 `<registry>.pending` and `<registry>.publisher-lock`; it never writes, truncates or renames the registry JSON. The
 barrier is removed last, so an interrupted recovery leaves readers closed.
 
+`--release-lock` is the one mode that works when the tool refuses: it removes **only** `<registry>.publisher-lock`
+(dry run by default, `--confirm` to act), never `.pending` and never the registry JSON, so readers stay closed
+until the control plane republishes. Use it only after every publisher is stopped; the recorded pid is shown as
+evidence for the operator, not used to decide, because a pid cannot be proven dead across containers or reused
+pids. The control plane deliberately does not take over a lock itself for the same reason.
+
 ```sh
 # 1. stop every registry publisher (control-plane control-worker / any admin CLI) first:
 #    a paused publisher may still resume, and the lock is never reclaimed by TTL or PID.
@@ -190,15 +196,23 @@ node deploy/shared/registry-recover.mjs --registry <stateDir>/registry.json --co
 # 3. restart the guard (or let Compose restart it).
 #
 # If step 2 exits 1 with registry_behind_barrier or barrier_unverifiable, do NOT delete the barrier by hand.
-# Start the control plane and call POST /v1/registry/recover (vendor.tenants.manage, step-up). It rebuilds the
-# snapshot from the database, replaces the file and clears the barrier, so the file, the audit row and the
-# durable authority agree. The guard keeps answering 503 until then.
+# The control plane must republish from the database. A publisher that died hard (SIGKILL, OOM, host loss)
+# also left <stateDir>/registry.json.publisher-lock, and the control plane never reclaims it by TTL or pid:
+# without step 2a, POST /v1/registry/recover fails with registry_lock_unavailable.
+# 2a. only if that lock exists, and every publisher is confirmed stopped (it prints the recorded pid):
+node deploy/shared/registry-recover.mjs --registry <stateDir>/registry.json --release-lock
+node deploy/shared/registry-recover.mjs --registry <stateDir>/registry.json --release-lock --confirm
+# 2b. start the control plane and call POST /v1/registry/recover (vendor.tenants.manage, step-up). It rebuilds
+#     the snapshot from the database, replaces the file and clears the barrier, so the file, the audit row and
+#     the durable authority agree. The guard keeps answering 503 until then; restart it afterwards (step 3).
 ```
 
 `node --test deploy/shared/registry-recover.test.mjs` covers this offline: recovery leaves the registry bytes
 unchanged, refuses an invalid registry, refuses a registry behind the barrier or a barrier with no revision (and
-keeps both marker files), and clears one whose registry carries the revision. The control-plane tests
-(`registry-store.test.ts`, `registry-publisher.test.ts`) cover what the publisher writes into the barrier. A live
+keeps both marker files), clears one whose registry carries the revision, and releases a stale publisher lock
+without touching the barrier or the registry. The control-plane tests (`registry-store.test.ts`,
+`registry-publisher.test.ts`) cover what the publisher writes into the barrier and show the control-plane
+recovery acquiring the released lock and republishing. A live
 recovery is an operator action, not a test result; nothing here proves a real publisher crash or a production
 control-plane outage.
 

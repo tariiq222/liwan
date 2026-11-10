@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync, symlinkSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { recoverRegistry, RecoveryRefused } from './registry-recover.mjs'
+import { recoverRegistry, releasePublisherLock, RecoveryRefused } from './registry-recover.mjs'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 
 const target = { host: 't0.example.test', tenantId: 'tenant_0', database: 'db_0', filestore: 'db_0', enabled: true, registryRevision: 1 }
@@ -203,5 +203,94 @@ test('the CLI refuses an invalid registry with a non-zero exit and keeps the bar
     assert.equal(result.status, 1)
     assert.match(result.stderr, /registry_invalid/)
     assert.ok(statSync(`${path}.pending`).isFile())
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('releasing the publisher lock removes only the lock, even while the registry is behind the barrier', () => {
+  // A crashed publisher left the lock and a barrier for revision 2 next to a revision 1 file.
+  const { root, path } = fixture({ barrier: JSON.stringify({ snapshotRevision: 2 }) })
+  try {
+    const registryBytes = readFileSync(path)
+    const barrierBytes = readFileSync(`${path}.pending`)
+    // The barrier is still never cleared in this state.
+    assert.throws(() => recoverRegistry({ registry: path, confirm: true }), error => error.code === 'registry_behind_barrier')
+
+    const plan = releasePublisherLock({ registry: path })
+    assert.equal(plan.released, false)
+    assert.equal(plan.recordedPid, 1)
+    assert.ok(statSync(`${path}.publisher-lock`).isFile())
+
+    const result = releasePublisherLock({ registry: path, confirm: true })
+    assert.equal(result.released, true)
+    assert.throws(() => statSync(`${path}.publisher-lock`), { code: 'ENOENT' })
+    assert.deepEqual(readFileSync(`${path}.pending`), barrierBytes)
+    assert.deepEqual(readFileSync(path), registryBytes)
+    // Readers stay closed and the tool still refuses to clear the barrier.
+    assert.throws(() => readTenantRegistry(path), { statusCode: 503, code: 'tenant_registry_unavailable' })
+    assert.throws(() => recoverRegistry({ registry: path, confirm: true }), error => error.code === 'registry_behind_barrier')
+    assert.ok(statSync(`${path}.pending`).isFile())
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('releasing the publisher lock refuses when there is no lock or the path is not a regular file', () => {
+  const noLock = fixture({ lock: false })
+  try {
+    assert.throws(() => releasePublisherLock({ registry: noLock.path, confirm: true }), error => error.code === 'lock_missing')
+    assert.ok(statSync(`${noLock.path}.pending`).isFile())
+  } finally { rmSync(noLock.root, { recursive: true, force: true }) }
+
+  const symlinked = fixture({ lock: false })
+  try {
+    symlinkSync(join(symlinked.root, 'elsewhere'), `${symlinked.path}.publisher-lock`)
+    assert.throws(() => releasePublisherLock({ registry: symlinked.path, confirm: true }), error => error.code === 'lock_missing')
+  } finally { rmSync(symlinked.root, { recursive: true, force: true }) }
+
+  const { root, path } = fixture()
+  try {
+    assert.throws(() => releasePublisherLock({ registry: 'registry.json', confirm: true }), error => error.code === 'registry_path_not_absolute')
+    assert.throws(() => releasePublisherLock({ registry: path, confirm: 'yes' }), error => error.code === 'invalid_confirm')
+    assert.ok(statSync(`${path}.publisher-lock`).isFile())
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('the CLI --release-lock is a dry run by default, removes only the lock and says the readers stay closed', () => {
+  const { root, path } = fixture({ barrier: JSON.stringify({ snapshotRevision: 2 }) })
+  try {
+    const refused = spawnSync(process.execPath, [tool, '--registry', path, '--confirm'], { encoding: 'utf8' })
+    assert.equal(refused.status, 1)
+    // The refusal itself names the next step for a left-behind lock.
+    assert.match(refused.stderr, /--release-lock --confirm/)
+
+    const dry = spawnSync(process.execPath, [tool, '--registry', path, '--release-lock'], { encoding: 'utf8' })
+    assert.equal(dry.status, 0, dry.stderr)
+    assert.match(dry.stdout, /dry run/)
+    assert.match(dry.stdout, /recorded pid 1/)
+    assert.ok(statSync(`${path}.publisher-lock`).isFile())
+
+    const released = spawnSync(process.execPath, [tool, '--registry', path, '--release-lock', '--confirm'], { encoding: 'utf8' })
+    assert.equal(released.status, 0, released.stderr)
+    assert.ok(released.stdout.includes(`removed: ${path}.publisher-lock`))
+    assert.match(released.stdout, /readers stay closed \(503\)/)
+    assert.match(released.stdout, /POST \/v1\/registry\/recover/)
+    assert.ok(!released.stdout.includes(`removed: ${path}.pending`))
+    assert.ok(statSync(`${path}.pending`).isFile())
+
+    const again = spawnSync(process.execPath, [tool, '--registry', path, '--release-lock', '--confirm'], { encoding: 'utf8' })
+    assert.equal(again.status, 1)
+    assert.match(again.stderr, /lock_missing/)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('the boot message names the lock release step', () => {
+  const { root, path } = fixture({ lock: false })
+  try {
+    const start = spawnSync(process.execPath, [new URL('start.mjs', import.meta.url).pathname], {
+      encoding: 'utf8',
+      env: { ...process.env, LIWAN_TENANCY_MODE: 'shared', LIWAN_SHARED_PROXY_TOKEN: 'synthetic-boot-token-'.repeat(3), LIWAN_TENANT_REGISTRY_PATH: path },
+    })
+    assert.equal(start.status, 1)
+    assert.ok(start.stderr.includes(`${path}.publisher-lock`), start.stderr)
+    assert.match(start.stderr, /--release-lock --confirm/)
+    assert.match(start.stderr, /POST \/v1\/registry\/recover/)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })

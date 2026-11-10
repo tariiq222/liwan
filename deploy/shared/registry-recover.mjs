@@ -23,6 +23,12 @@
  *   - with `--confirm` removes ONLY `<path>.pending` and `<path>.publisher-lock`.
  * It never writes, truncates or renames the registry JSON.
  *
+ * A publisher that dies hard (SIGKILL, OOM, host loss) also leaves `<path>.publisher-lock`, and
+ * `withPublicationLock` never reclaims it by TTL or pid, so the control plane's own recovery route
+ * (`recoverRegistry`) fails with `registry_lock_unavailable` until the lock is gone. When this tool refuses
+ * to clear the barrier, `--release-lock` removes ONLY `<path>.publisher-lock`. It never touches `.pending` or
+ * the registry JSON, so readers stay closed until the control plane republishes from the database.
+ *
  * The operator MUST stop every publisher first: a paused publisher can still resume, and recovery must not
  * race a live writer. `apps/control-plane/src/shared/registry-publisher.ts` states the same rule.
  */
@@ -74,6 +80,14 @@ function barrierRevision(path) {
   return recorded.snapshotRevision
 }
 
+/** The pid recorded by withPublicationLock, shown to the operator as evidence; never used to decide. */
+function recordedPid(path) {
+  try {
+    const { pid } = JSON.parse(readFileSync(path, 'utf8'))
+    return Number.isSafeInteger(pid) ? pid : null
+  } catch { return null }
+}
+
 function lockEvidence(path) {
   try {
     const stat = lstatSync(path)
@@ -109,12 +123,37 @@ export function recoverRegistry({ registry, confirm = false }) {
   return { ...plan, recovered: true, removed: [hasLock && lock, barrier].filter(Boolean) }
 }
 
+/**
+ * Plans, and with `confirm` performs, the removal of a left-behind `<registry>.publisher-lock` ONLY.
+ * Valid only after every publisher is stopped (the same rule as recovery; staleness cannot be proven from a
+ * pid across containers). `.pending` and the registry JSON are never touched, so readers stay closed.
+ */
+export function releasePublisherLock({ registry, confirm = false }) {
+  if (typeof registry !== 'string' || !registry) throw new RecoveryRefused('registry_path_required')
+  if (!isAbsolute(registry)) throw new RecoveryRefused('registry_path_not_absolute', registry)
+  if (confirm !== true && confirm !== false) throw new RecoveryRefused('invalid_confirm')
+  const lock = `${registry}.publisher-lock`
+  if (!lockEvidence(lock)) throw new RecoveryRefused('lock_missing', `${lock} does not exist or is not a regular file`)
+  const barrier = `${registry}.pending`
+  let barrierPresent = true
+  try { lstatSync(barrier) }
+  catch (error) {
+    if (error.code !== 'ENOENT') throw new RecoveryRefused('barrier_unreadable', barrier)
+    barrierPresent = false
+  }
+  const plan = { registry, publisherLock: lock, recordedPid: recordedPid(lock), barrier, barrierPresent, confirm }
+  if (!confirm) return { ...plan, released: false }
+  unlinkSync(lock)
+  return { ...plan, released: true }
+}
+
 function parseArguments(argv) {
-  const options = { registry: undefined, confirm: false, help: false }
+  const options = { registry: undefined, confirm: false, releaseLock: false, help: false }
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index]
     if (argument === '--confirm') options.confirm = true
     else if (argument === '--dry-run') options.confirm = false
+    else if (argument === '--release-lock') options.releaseLock = true
     else if (argument === '--help' || argument === '-h') options.help = true
     else if (argument === '--registry') {
       const value = argv[++index]
@@ -126,15 +165,17 @@ function parseArguments(argv) {
   return options
 }
 
-const usage = 'usage: node deploy/shared/registry-recover.mjs --registry <absolute path> [--confirm]'
+const usage = 'usage: node deploy/shared/registry-recover.mjs --registry <absolute path> [--release-lock] [--confirm]'
+const lockHint = 'If a crashed publisher left a .publisher-lock, the control plane cannot recover until it is released: with every publisher stopped, run this tool with --release-lock --confirm (it removes only the lock).'
 const refusalText = code => ({
   registry_path_required: 'a registry path is required',
   registry_path_not_absolute: 'the registry path must be absolute',
   registry_missing: 'the registry file does not exist',
   registry_unreadable: 'the registry file cannot be read',
   registry_invalid: 'the registry file is invalid; fix or republish it before removing the barrier',
-  registry_behind_barrier: 'the registry file is older than the interrupted publication, so it may predate a committed change (for example a disabled tenant); the barrier was kept. Recover through the control plane (POST /v1/registry/recover) so the file is republished from the database',
-  barrier_unverifiable: 'the publication barrier does not record which snapshot it was publishing, so the registry cannot be proven current; the barrier was kept. Recover through the control plane (POST /v1/registry/recover)',
+  registry_behind_barrier: `the registry file is older than the interrupted publication, so it may predate a committed change (for example a disabled tenant); the barrier was kept. Recover through the control plane (POST /v1/registry/recover) so the file is republished from the database. ${lockHint}`,
+  barrier_unverifiable: `the publication barrier does not record which snapshot it was publishing, so the registry cannot be proven current; the barrier was kept. Recover through the control plane (POST /v1/registry/recover). ${lockHint}`,
+  lock_missing: 'there is no publisher lock to release; nothing was changed',
   barrier_missing: 'there is no publication barrier to recover; nothing was changed',
   barrier_invalid: 'the publication barrier is not a regular file; inspect it manually',
   publisher_lock_unreadable: 'the publisher lock cannot be inspected; stop every publisher first',
@@ -155,6 +196,7 @@ function main(argv) {
     console.error(usage)
     return USAGE
   }
+  if (options.releaseLock) return releaseLock(options)
   let result
   try { result = recoverRegistry(options) }
   catch (error) {
@@ -175,6 +217,30 @@ function main(argv) {
   }
   for (const path of result.removed) console.log(`removed: ${path}`)
   console.log('recovered: the registry is published again; restart the guard')
+  return 0
+}
+
+function releaseLock(options) {
+  let result
+  try { result = releasePublisherLock(options) }
+  catch (error) {
+    if (!(error instanceof RecoveryRefused)) throw error
+    console.error(`registry-recover: ${refusalText(error.code)} (${error.code})`)
+    if (error.detail) console.error(`  ${error.detail}`)
+    return REFUSED
+  }
+  console.log(`registry: ${result.registry}`)
+  console.log(`publisher lock: ${result.publisherLock} (recorded pid ${result.recordedPid ?? 'unreadable'}; confirm that publisher is stopped)`)
+  console.log(`barrier: ${result.barrierPresent ? `${result.barrier} (kept)` : 'absent'}`)
+  console.log('the publication barrier and the registry JSON are not modified')
+  if (!result.released) {
+    console.log('dry run: stop every registry publisher, then re-run with --release-lock --confirm to remove the lock')
+    return 0
+  }
+  console.log(`removed: ${result.publisherLock}`)
+  console.log(result.barrierPresent
+    ? 'released the lock only: readers stay closed (503) until the control plane republishes; start it and call POST /v1/registry/recover'
+    : 'released the lock only: there is no publication barrier, so readers are unaffected')
   return 0
 }
 
