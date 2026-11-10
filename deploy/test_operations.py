@@ -5,8 +5,12 @@ These tests must not contact PostgreSQL, Docker, or a live Odoo/Nuxt process.
 """
 from __future__ import annotations
 
+import hashlib
+import io
 import json
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -651,6 +655,250 @@ class TestBackupFailClosed(unittest.TestCase):
         self.assertNotIn('stop', actions)
         with self.assertRaises(SystemExit):
             parser.parse_args(['restore'])
+
+
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+class BackupCase(unittest.TestCase):
+    """A scratch data dir with a filestore, a fake pg_dump and a private lock directory."""
+
+    DB = 'customerdb'
+
+    def setUp(self) -> None:
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.filestore = self.root / 'data' / 'filestore' / self.DB
+        _touch(self.filestore / 'ab' / 'one', 'x')
+        _touch(self.filestore / 'cd' / 'two', 'yy')
+        self.pg_dump = self.root / 'pg_dump'
+        _touch(self.pg_dump, 'x')
+        self.pg_dump.chmod(0o755)
+        self.locks = self.root / 'locks'
+        self.locks.mkdir()
+        self.argvs: list[list[str]] = []
+
+    def dump_runner(self, argv, **kwargs):
+        self.argvs.append(argv)
+        Path(argv[argv.index('-f') + 1]).write_bytes(b'dump')
+        return FakeCompleted(0)
+
+    def backup(self, name: str, *, db: str | None = None, runner=None, **extra) -> Path:
+        db = db or self.DB
+        store = self.filestore.parent / db
+        return backup.perform_backup(
+            opt_in=backup.OPT_IN_TOKEN,
+            acknowledge_unverified=backup.UNVERIFIED_TOKEN,
+            db_name=db,
+            filestore=str(store),
+            output_dir=str(self.root / name),
+            pg_dump=str(self.pg_dump),
+            lock_dir=str(self.locks),
+            runner=runner or self.dump_runner,
+            **extra,
+        )
+
+
+class TestBackupIntegrity(BackupCase):
+    def test_manifest_pins_the_dump_and_the_filestore(self) -> None:
+        payload = json.loads(self.backup('out').read_text(encoding='utf-8'))
+        lines = f'{_sha256(b"x")}  ab/one\n{_sha256(b"yy")}  cd/two\n'
+        self.assertEqual(payload['database_dump_sha256'], _sha256(b'dump'))
+        self.assertEqual(payload['filestore_sha256'], _sha256(lines.encode()))
+        self.assertEqual(payload['filestore_file_count'], 2)
+        self.assertEqual(payload['consistency'], 'UNVERIFIED')
+
+    def test_pg_dump_takes_a_serializable_deferrable_snapshot(self) -> None:
+        self.backup('out')
+        self.assertIn('--serializable-deferrable', self.argvs[0])
+
+    def test_the_digest_follows_the_content_and_the_names(self) -> None:
+        before = backup.filestore_digest(self.filestore)
+        _touch(self.filestore / 'ab' / 'one', 'z')
+        changed = backup.filestore_digest(self.filestore)
+        self.assertNotEqual(before[0], changed[0])
+        self.assertEqual(before[1], changed[1])
+        (self.filestore / 'ab' / 'one').rename(self.filestore / 'ab' / 'renamed')
+        self.assertNotEqual(changed[0], backup.filestore_digest(self.filestore)[0])
+        self.assertEqual(backup.filestore_digest(self.filestore)[1], 2)
+
+    def test_an_empty_filestore_has_a_digest_and_a_zero_count(self) -> None:
+        empty = self.root / 'empty'
+        empty.mkdir()
+        self.assertEqual(backup.filestore_digest(empty), (_sha256(b''), 0))
+
+    def assert_refused_before_any_work(self, message: str) -> None:
+        with self.assertRaisesRegex(backup.BackupError, message):
+            self.backup('out')
+        self.assertEqual(self.argvs, [])
+        self.assertFalse((self.root / 'out').exists())
+
+    def test_a_symlinked_file_is_refused(self) -> None:
+        (self.filestore / 'ab' / 'escape').symlink_to('/etc/hosts')
+        self.assert_refused_before_any_work('symlink')
+
+    def test_a_dangling_symlink_is_refused(self) -> None:
+        (self.filestore / 'ab' / 'dangling').symlink_to(self.root / 'missing')
+        self.assert_refused_before_any_work('symlink')
+
+    def test_a_symlinked_directory_is_refused(self) -> None:
+        (self.filestore / 'outside').symlink_to(self.root, target_is_directory=True)
+        self.assert_refused_before_any_work('symlink')
+
+    def test_a_special_file_is_refused(self) -> None:
+        os.mkfifo(self.filestore / 'ab' / 'pipe')
+        self.assert_refused_before_any_work('special file')
+
+    def test_a_symlinked_filestore_root_is_refused(self) -> None:
+        moved = self.root / 'elsewhere' / self.DB
+        moved.parent.mkdir()
+        self.filestore.rename(moved)
+        self.filestore.symlink_to(moved, target_is_directory=True)
+        self.assert_refused_before_any_work('must not be a symlink')
+
+    def test_the_filestore_copy_is_not_asked_to_carry_links(self) -> None:
+        seen = {}
+
+        def copier(source, destination, **kwargs):
+            seen.update(kwargs)
+            return shutil.copytree(source, destination, **kwargs)
+
+        self.backup('out', copier=copier)
+        self.assertFalse(seen.get('symlinks', False))
+
+
+class TestBackupLock(BackupCase):
+    def test_a_second_concurrent_run_for_the_same_database_is_refused(self) -> None:
+        refusals: list[str] = []
+
+        def runner(argv, **kwargs):
+            try:
+                self.backup('second')
+            except backup.BackupError as error:
+                refusals.append(str(error))
+            return self.dump_runner(argv, **kwargs)
+
+        self.backup('first', runner=runner)
+        self.assertEqual(len(refusals), 1)
+        self.assertIn(f'another backup of database {self.DB} is already running', refusals[0])
+        self.assertFalse((self.root / 'second').exists())
+
+    def test_a_run_is_allowed_again_after_the_first_released_the_lock(self) -> None:
+        self.backup('first')
+        self.assertTrue(self.backup('second').is_file())
+
+    def test_the_lock_is_released_when_the_run_fails(self) -> None:
+        with self.assertRaises(backup.BackupError):
+            self.backup('first', runner=lambda argv, **kwargs: FakeCompleted(1))
+        self.assertTrue(self.backup('second').is_file())
+
+    def test_the_lock_is_released_when_the_run_raises_unexpectedly(self) -> None:
+        def runner(argv, **kwargs):
+            raise RuntimeError('pg_dump could not start')
+
+        with self.assertRaises(RuntimeError):
+            self.backup('first', runner=runner)
+        self.assertTrue(self.backup('second').is_file())
+
+    def test_another_database_is_not_blocked(self) -> None:
+        _touch(self.filestore.parent / 'otherdb' / 'blob', 'x')
+        results: list[Path] = []
+
+        def runner(argv, **kwargs):
+            results.append(self.backup('other', db='otherdb'))
+            return self.dump_runner(argv, **kwargs)
+
+        self.backup('first', runner=runner)
+        self.assertTrue(results[0].is_file())
+
+    def test_a_lock_held_by_another_process_refuses_the_run(self) -> None:
+        holder = subprocess.Popen(
+            [sys.executable, '-B', '-c',
+             'import sys; sys.path.insert(0, sys.argv[1]); import backup; '
+             'lock = backup.database_lock(sys.argv[2], sys.argv[3]); lock.__enter__(); '
+             'print("locked", flush=True); sys.stdin.read()',
+             str(Path(backup.__file__).parent), self.DB, str(self.locks)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+        )
+        try:
+            self.assertEqual(holder.stdout.readline().strip(), 'locked')
+            with self.assertRaisesRegex(backup.BackupError, 'already running'):
+                self.backup('out')
+        finally:
+            holder.communicate()
+        self.assertTrue(self.backup('out').is_file())
+
+    def test_the_command_line_refuses_with_a_message_and_exit_code_2(self) -> None:
+        arguments = [
+            '--opt-in', backup.OPT_IN_TOKEN,
+            '--acknowledge-unverified', backup.UNVERIFIED_TOKEN,
+            '--db-name', self.DB,
+            '--filestore', str(self.filestore),
+            '--output-dir', str(self.root / 'out'),
+            '--pg-dump', str(self.pg_dump),
+            '--lock-dir', str(self.locks),
+        ]
+        stderr = io.StringIO()
+        with backup.database_lock(self.DB, str(self.locks)), patch('sys.stderr', stderr):
+            code = backup.main(arguments)
+        self.assertEqual(code, 2)
+        self.assertIn('already running', stderr.getvalue())
+        self.assertFalse((self.root / 'out').exists())
+
+    def lock_path(self) -> Path:
+        return self.locks / f'{self.DB}.lock'
+
+    def test_the_lock_file_is_created_0644_whatever_the_umask(self) -> None:
+        previous = os.umask(0o077)
+        try:
+            with backup.database_lock(self.DB, str(self.locks)):
+                pass
+        finally:
+            os.umask(previous)
+        self.assertEqual(self.lock_path().stat().st_mode & 0o777, 0o644)
+
+    def test_a_lock_file_the_caller_cannot_write_is_lockable_again(self) -> None:
+        """Another user's leftover file: flock needs no write access, so a read-only file works."""
+        self.backup('first')
+        self.lock_path().chmod(0o444)
+        self.assertTrue(self.backup('second').is_file())
+        with backup.database_lock(self.DB, str(self.locks)):
+            with self.assertRaisesRegex(backup.BackupError, 'already running'):
+                self.backup('third')
+        self.assertEqual(self.lock_path().stat().st_mode & 0o777, 0o444)
+
+    def test_a_lock_file_that_cannot_be_opened_is_an_explicit_error(self) -> None:
+        with patch('os.open', side_effect=PermissionError(13, 'Permission denied')):
+            with self.assertRaisesRegex(backup.BackupError, 'cannot open the backup lock .*Permission denied'):
+                with backup.database_lock(self.DB, str(self.locks)):
+                    pass
+
+    def test_a_fifo_in_place_of_the_lock_file_is_refused_without_hanging(self) -> None:
+        os.mkfifo(self.lock_path())
+        with self.assertRaisesRegex(backup.BackupError, 'not a regular file'):
+            with backup.database_lock(self.DB, str(self.locks)):
+                pass
+
+    def test_a_symlink_in_place_of_the_lock_file_is_refused(self) -> None:
+        target = self.root / 'elsewhere'
+        target.write_text('x')
+        self.lock_path().symlink_to(target)
+        with self.assertRaisesRegex(backup.BackupError, 'cannot open the backup lock'):
+            with backup.database_lock(self.DB, str(self.locks)):
+                pass
+
+    def test_the_default_lock_directory_is_private_and_owned_by_this_user(self) -> None:
+        with patch('tempfile.gettempdir', return_value=str(self.root)):
+            directory = backup.lock_directory(None)
+        self.assertEqual(directory, self.root / backup.LOCK_DIR_NAME)
+        self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
+
+    def test_a_default_lock_directory_that_is_a_symlink_is_refused(self) -> None:
+        (self.root / backup.LOCK_DIR_NAME).symlink_to(self.locks, target_is_directory=True)
+        with patch('tempfile.gettempdir', return_value=str(self.root)):
+            with self.assertRaisesRegex(backup.BackupError, 'not a directory owned by this user'):
+                backup.lock_directory(None)
 
 
 class TestHelpAndChecksFragment(unittest.TestCase):

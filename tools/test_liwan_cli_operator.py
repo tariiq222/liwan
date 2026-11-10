@@ -748,8 +748,7 @@ class OperatorCase(unittest.TestCase):
                 (destination / 'manifest.json').write_text(json.dumps(
                     backup_wrapper.candidate_manifest_payload(
                         db='liwan_scratch_demo', store=store,
-                        dump_name='database.dump', filestore_name='filestore',
-                        http_observation=None,
+                        backup_dir=destination, http_observation=None,
                     )))
                 return 0, '', ''
             if str(operator.RESTORE_WRAPPER) in argv:
@@ -794,8 +793,7 @@ class OperatorCase(unittest.TestCase):
                     backup_wrapper.candidate_manifest_payload(
                         db='liwan_scratch_demo',
                         store=self.data / 'filestore' / 'liwan_scratch_demo',
-                        dump_name='database.dump', filestore_name='filestore',
-                        http_observation=None,
+                        backup_dir=destination, http_observation=None,
                     )))
                 return 0, '', ''
             if '-u' in argv:
@@ -835,8 +833,7 @@ class OperatorCase(unittest.TestCase):
                 (destination / 'manifest.json').write_text(json.dumps(
                     backup_wrapper.candidate_manifest_payload(
                         db='liwan_scratch_demo', store=store,
-                        dump_name='database.dump', filestore_name='filestore',
-                        http_observation=None,
+                        backup_dir=destination, http_observation=None,
                     )))
                 return 0, '', ''
             if '-u' in argv:

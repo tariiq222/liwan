@@ -3,7 +3,8 @@
 set +x
 set +v
 set -euo pipefail
-for n in api worker; do
+for n in api worker shared-worker; do
+  # A dedicated generation has no shared worker record; stop_one is a no-op then.
   "$DEPLOY/local-process.sh" stop "$n" || exit 10
 done
 rm -f "$HOME_DIR/processes/runtime.pid" "$HOME_DIR/processes/runtime.start" "$HOME_DIR/processes/generation"

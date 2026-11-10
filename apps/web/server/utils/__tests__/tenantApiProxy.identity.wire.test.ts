@@ -109,15 +109,23 @@ it.each(['pending', 'disabled', 'revision'] as const)('refuses the cold identity
   hold = true; calls = 0
   try {
     // Native fetch owns Host; use a raw loopback request to model the trusted proxy hop.
-    const pending = new Promise<number>((resolve, reject) => {
-      const request = http.request(`${url}/api/v1/me`, { headers: { host: target.host, 'x-liwan-proxy-token': 't'.repeat(40), 'x-liwan-tenant-revision': '1', cookie: `session_id=publication-${kind}` } }, response => { response.resume(); resolve(response.statusCode!) })
+    const pending = new Promise<{ status: number; text: string }>((resolve, reject) => {
+      const request = http.request(`${url}/api/v1/me`, { headers: { host: target.host, 'x-liwan-proxy-token': 't'.repeat(40), 'x-liwan-tenant-revision': '1', cookie: `session_id=publication-${kind}` } }, response => {
+        let text = ''
+        response.on('data', chunk => { text += chunk })
+        response.on('end', () => resolve({ status: response.statusCode!, text }))
+      })
       request.on('error', reject); request.end()
     })
     await vi.waitFor(() => expect(replies).toHaveLength(1))
     if (kind === 'pending') writeFileSync(`${path}.pending`, '')
     else writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 2, targets: [{ ...target, enabled: kind !== 'disabled', registryRevision: 2 }] }))
     hold = false; replies.shift()!()
-    expect(await pending).toBe(403)
+    const response = await pending
+    // A barrier is an unavailable service (503); a disabled/rebound identity is a boundary refusal (403).
+    expect(response.status).toBe(kind === 'pending' ? 503 : 403)
+    // The Nuxt hop uses the app's error envelope (`data.code`), the same shape as session_required.
+    if (kind === 'pending') expect(JSON.parse(response.text).data).toMatchObject({ code: 'tenant_registry_unavailable' })
     expect(calls).toBe(1)
   } finally { hold = false; vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated') }
 })

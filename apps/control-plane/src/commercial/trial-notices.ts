@@ -6,8 +6,9 @@ import { completeOutbox, enqueueOutbox, failOutbox } from './outbox.js'
 /**
  * One email per notice threshold and subscription. The in-app banner is always available from
  * `trial_ends_at`; email is an additional channel and its absence never changes the state.
+ * After `signal` (worker shutdown) no further notice is queued or sent; the next run catches up.
  */
-export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: MailAdapter }): Promise<number> {
+export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
   const rows = (await pool.query(`SELECT s.id,s.trial_ends_at,s.customer_id,p.trial_days,sr.snapshot,c.admin_login
     FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
     JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
@@ -21,6 +22,7 @@ export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: Mai
     // not the current day, is the dedupe key, so a late run still sends each notice once.
     for (const threshold of [3, 1].filter(days => days < Number(row.trial_days))) {
       if (daysLeft > threshold) continue
+      if (input.signal?.aborted) return sent
       const dedupe = `trial-notice:${row.id}:${threshold}`
       const inserted = await enqueueOutbox(pool, {
         kind: 'trial.notice', aggregate_id: row.id, dedupe_key: dedupe,

@@ -18,7 +18,8 @@
 | المكوّن | الدور | ملاحظات |
 |---|---|---|
 | `control-api` | واجهة التحكم (`apps/control-plane/src/http.ts` و`commercial/http.ts` تحت `/v1/commercial`) | مصدر الاتفاق التجاري والأسعار والإصدارات؛ طلبات الواجهة موقّعة عبر BFF |
-| `control-worker` | تنفيذ المهام (`src/worker-main.ts`، و`worker:shared` للمشترك `shared-worker-main.ts`) | يشغّل [مدخل العامل المشترك](../../deploy/control-plane/run-shared-worker.sh) المجدول التجاري بعد دورات العامل |
+| `control-worker` | تنفيذ المهام (`src/worker-main.ts`) | لا مجدول فيه |
+| `control-worker-shared` | العامل المشترك (`src/shared-worker-main.ts`، سكربت `npm -w apps/control-plane run worker:shared`) | العملية الوحيدة التي تشغّل المجدول التجاري وتدفع حالة المستأجر إلى Odoo. مدخلها [run-shared-worker.sh](../../deploy/control-plane/run-shared-worker.sh) ووحدتها [liwan-shared-worker.service](../../deploy/control-plane/liwan-shared-worker.service) |
 | `commercial_outbox` | جدول أحداث خارجة (`schema_013.sql`): `kind, aggregate_id, dedupe_key, status ∈ pending/done/failed` | فريد على (kind, aggregate_id, dedupe_key) لمنع التكرار |
 | reconfigure jobs | مهام تغيير الخدمة بعد الاتفاق/الدفع (`shared/job-*`)، وأثرها في `fulfillment_effects` (إيصال، `observed_digest`) | لا يُعلن «applied» قبل readback من Odoo |
 | محوّل Moyasar | `commercial/moyasar-adapter.ts`: فاتورة مستضافة + redirect، webhook، token، استرداد | الـwebhook يحمل `secret_token` مشتركًا (بلا HMAC)؛ يُعاد فحص الحالة من المزود قبل الاعتماد |
@@ -50,19 +51,50 @@
 
 ### تشغيل العامل المشترك
 
-استخدم `deploy/control-plane/run-shared-worker.sh` كأمر التشغيل في مشرف الخدمات.
-يعمل في المقدمة ويتلقى إشارات الإيقاف مباشرة. استخدم إصدار Node من `.nvmrc`
-وثبّت الاعتماديات مع اعتماد التطوير `tsx` عبر `npm ci --include=dev --ignore-scripts`
-في نسخة الشيفرة التي سيشغّلها المشرف. اضبط
-`LIWAN_TENANCY_MODE=shared` واحقن إعدادات قاعدة التحكم وهوية الخدمة
+العامل المشترك (`apps/control-plane/src/shared-worker-main.ts`) هو العملية الوحيدة
+التي تشغّل المجدول التجاري وتدفع حالة المستأجر إلى Odoo. غيابه يعني أن التعليق
+والتجديد يغيّران قاعدة التحكم فقط ولا يصلان إلى مساحة العميل. يُشغَّل بثلاث طرق
+فقط، وكلها تستدعي `deploy/control-plane/run-shared-worker.sh` نفسه:
+
+| البيئة | الآلية | التحقق |
+|---|---|---|
+| محلية/قبول | `deploy/control-plane/run-local.sh` عند `LIWAN_TENANCY_MODE=shared` في `runtime.env` (يبدأ `shared-worker` ويسجّل pid/start/generation مثل `api` و`worker`) | `deploy/control-plane/status-local.sh` يطبع سطر العامل المشترك |
+| خادم оператор | وحدة systemd [liwan-shared-worker.service](../../deploy/control-plane/liwan-shared-worker.service) | `systemctl status liwan-shared-worker` و`journalctl -u liwan-shared-worker` |
+| اختبار قبول | `tools/foundation_acceptance/provision_two_tenants.mjs` و`tools/saas_e12/recovery.mjs` | يراقبان `commercial_scheduler_tick` في سجل العامل |
+
+**لماذا لا يوجد service في `deploy/docker-compose.shared.yml`:** شيفرة لوحة التحكم
+ليست داخل صورة `liwan-guard` (ولا Node dependencies لها ولا `tsx` ولا عميل Docker)،
+والعامل يحتاج مقبس Docker ليشغّل تأثيرات Odoo (`tools/shared_saas_lifecycle`). إضافة
+service صحيح تعني صورة كاملة جديدة وعقد أسرار كامل وشبكة تصل إلى كل حاويات المستأجرين
+— وهذا خارج هذا التغيير. لذلك المشرف الفعلي هو وحدة systemd على المضيف، لا خدمة Compose.
+
+**التهيئة.** يعمل في المقدمة ويتلقى إشارات الإيقاف مباشرة. استخدم إصدار Node من
+`.nvmrc` وثبّت الاعتماديات مع اعتماد التطوير `tsx` عبر
+`npm ci --include=dev --ignore-scripts` في نسخة الشيفرة التي سيشغّلها المشرف.
+اضبط `LIWAN_TENANCY_MODE=shared` واحقن إعدادات قاعدة التحكم وهوية الخدمة
 والمخزون وحالة المشغّل في بيئة العملية. اضبط `LIWAN_SHARED_RUNTIME_CONFIG`
 على ملف إعداد التشغيل المشترك و`LIWAN_TENANT_REGISTRY_PATH` على سجل المستأجرين،
-بمسارات مطلقة. يحتاج العامل إلى الوصول إلى Docker الخاص بالمكدس؛ تُمرَّر
-إعدادات قناة الدعوات الداخلية إلى الـAPI والعامل حسب
-[عقد TLS والأسرار](../../deploy/shared/README.md).
+بمسارات مطلقة (يرفض `run-local.sh` وضع shared بدونهما). يحتاج العامل إلى الوصول إلى
+Docker الخاص بالمكدس؛ تُمرَّر إعدادات قناة الدعوات الداخلية إلى الـAPI والعامل حسب
+[عقد TLS والأسرار](../../deploy/shared/README.md). ملف بيئة systemd يستخدم
+`KEY=value` بلا `export` (خلافًا لـ`runtime.env` المحلي الذي يكتبه `init-local.sh`).
 
-رد `GET /healthz` برمز 200 من واجهة التحكم يثبت اتصالها بقاعدة التحكم.
-للتحقق من العامل، يشغّل [اختبار القبول المعزول](../../tools/foundation_acceptance/README.md)
+**التحقق من أن العامل حي.** لا يوجد مسار HTTP خاص به. الدليل الوحيد هو السجل:
+المجدول يطبع `console.debug` في `apps/control-plane/src/commercial/scheduler.ts`
+سطرًا واحدًا لكل دورة بالصيغة
+`{"event":"commercial_scheduler_tick","tick":<n>,"jobs":{...}}`. راقب تكراره:
+
+```sh
+journalctl -u liwan-shared-worker -f | grep --line-buffered commercial_scheduler_tick
+```
+
+عدم ظهور السطر بعد دورة كاملة يعني عاملًا متوقفًا أو عالقًا قبل أول tick؛ لا تعتبر
+`systemctl is-active` وحده دليلًا. في التشغيل المحلي يكون السجل في
+`$LIWAN_CONTROL_HOME/logs/shared-worker.log`، و`status-local.sh` يتحقق من
+argv/start time/سجل الجيل. رد `GET /healthz` برمز 200 من واجهة التحكم يثبت
+اتصالها بقاعدة التحكم فقط، لا حياة العامل.
+
+للتحقق من العامل في قبول معزول، يشغّل [اختبار القبول المعزول](../../tools/foundation_acceptance/README.md)
 مدخل التشغيل نفسه ويراقب تجهيز مستأجرين حقيقيين حتى يصبحا نشطين.
 
 ## 3. حسابات لوحة تحكم ليوان
@@ -166,7 +198,7 @@ npm -w apps/vendor-admin run dev -- --port 3100
 - التجديد يصدر فاتورة واحدة للفترة (`renewals` فريد)، ثم `charging` عبر token المزود إن وُجدت موافقة صريحة، وإلا طلب دفع.
 - قبل أي تشغيل جماعي: تحقق الساعة، وأن المزود في الوضع الصحيح، وعدم وجود `renewals` عالقة بـ`charging`.
 - تتبّع الحالات: `invoiced → charging → paid | past_due | suspended | failed`. لا يُعاد تشغيل التجديد لفترة سبق إصدار فاتورتها.
-- في المصدر، `npm -w apps/control-plane run worker:shared` يشغّل `shared-worker-main.ts`، الذي يستدعي `createCommercialScheduler().tick()` بعد كل دورة للعامل. يشغّل مسار الفوترة كل `LIWAN_COMMERCIAL_BILLING_INTERVAL_SEC` ثانية (الافتراضي 3600)، ويُنشئ التجديدات فقط عند توفر مهايئ الدفع. هذه آلية مصدر، وليست دليلًا على أن عاملًا يعمل في staging أو production.
+- في المصدر، `npm -w apps/control-plane run worker:shared` يشغّل `shared-worker-main.ts`، الذي يستدعي `createCommercialScheduler().tick()` بعد كل دورة للعامل. يشغّل مسار الفوترة كل `LIWAN_COMMERCIAL_BILLING_INTERVAL_SEC` ثانية (الافتراضي 3600)، ويُنشئ التجديدات فقط عند توفر مهايئ الدفع. هذه آلية مصدر، وليست دليلًا على أن عاملًا يعمل في staging أو production؛ الدليل الوحيد على تشغيله هو تكرار `commercial_scheduler_tick` في سجله (انظر §2).
 - يوجد أيضًا `POST /v1/commercial/renewals/run`؛ يتطلب `vendor.billing.manage` وتأكيد step-up حديثًا، ويرفض تمرير `now` في production. وجود المسار لا يجيز تشغيلًا يدويًا؛ لا يُستخدم قبل قبول الإجراء في بيئته المقصودة.
 
 ### 4.5 past_due والتعليق وفق سياسة الباقة [قبول تشغيلي غير متحقق] [غير مختبر]

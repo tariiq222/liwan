@@ -36,11 +36,31 @@ def validate_capability() -> int:
     return fd
 
 
+def lock_descriptors() -> list[int]:
+    """Inherited descriptors 3..63 that are the lifecycle lock file (same device and inode)."""
+    try:
+        expected = os.stat(lock_path())
+    except FileNotFoundError:
+        return []
+    found = []
+    for fd in range(3, 64):
+        try:
+            actual = os.fstat(fd)
+        except OSError:  # EBADF: the descriptor is not open
+            continue
+        if (actual.st_dev, actual.st_ino) == (expected.st_dev, expected.st_ino):
+            found.append(fd)
+    return found
+
+
 if len(sys.argv) < 2:
     raise SystemExit(2)
 mode = sys.argv[1]
 if mode == '--check':
     validate_capability()
+    raise SystemExit(0)
+if mode == '--fds':
+    print(*lock_descriptors())
     raise SystemExit(0)
 if mode == '--hold':
     command = sys.argv[2:]

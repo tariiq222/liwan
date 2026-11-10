@@ -265,6 +265,10 @@ class DisabledMailAdapter implements MailAdapter {
   }
 }
 
+/** Upper bound of one send from the scheduler (connect to QUIT). A worker stop waits for the send in flight,
+ * so `deploy/control-plane/local-process.sh` derives the shared worker's stop budget from this value. */
+export const SCHEDULED_MAIL_SEND_TIMEOUT_MS = 60_000;
+
 export function mailAdapterFromEnv(env: Record<string, string | undefined>, totalTimeoutMs?: number): MailAdapter {
   const mode = env.LIWAN_MAIL_MODE ?? "smtp";
   if (mode === "disabled") return new DisabledMailAdapter();

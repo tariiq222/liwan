@@ -28,11 +28,15 @@ export async function withPublicationLock<T>(path: string, action: () => Promise
   }
 }
 /** Low-level primitive: caller must hold withPublicationLock for this same path
- * across SQL mutation and completion. Exported for focused fault tests only. */
-export async function beginPublication(path: string): Promise<void> {
+ * across SQL mutation and completion. Exported for focused fault tests only.
+ * The barrier records `{"snapshotRevision":N}`, the revision the publication will make durable.
+ * `deploy/shared/registry-recover.mjs` reads it: a registry file below N may predate a committed
+ * change, so that tool must refuse to clear the barrier. */
+export async function beginPublication(path: string, snapshotRevision: number): Promise<void> {
   if (!isAbsolute(path)) throw new Error('registry_path_invalid')
+  if (!Number.isSafeInteger(snapshotRevision) || snapshotRevision < 1) throw new Error('registry_revision_invalid')
   const marker = await open(`${path}.pending`, 'wx', 0o600)
-  try { await marker.writeFile('registry publication pending\n'); await marker.sync() }
+  try { await marker.writeFile(JSON.stringify({ snapshotRevision })); await marker.sync() }
   finally { await marker.close() }
   await syncDirectory(path)
 }

@@ -37,6 +37,11 @@ policies() {
   python3 -B tools/migration_guard.py --base "$BASE_REF"
   python3 -B tools/git_policy.py --base "$BASE_REF"
   python3 -B tools/arch_policy.py --base "$BASE_REF"
+  # The generated API files are checked in the nightly run only: task branches may not regenerate them
+  # (tools/git_policy.py), so a pull request that adds a route would fail a check it cannot fix.
+  if [ "${GITHUB_EVENT_NAME:-}" = schedule ]; then
+    python3 -B tools/api_surface.py --check
+  fi
   python3 -B tools/semgrep_gate.py --base "$BASE_REF"
   # The retired product name stays out of the tree. The local checkout path keeps its folder name.
   python3 -B tools/forbidden_terms.py --terms tools/retired_terms.txt --exceptions tools/retired_terms_exceptions.txt \
@@ -54,7 +59,7 @@ policies() {
   python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'
   node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.test.mjs deploy/shared/release-routes.test.mjs deploy/releases/test_dedicated_guard.mjs \
     deploy/shared/guard.test.mjs deploy/shared/boundary-regressions.test.mjs deploy/shared/guard-rate-limit.test.mjs \
-    deploy/shared/securityHeaders.test.mjs \
+    deploy/shared/securityHeaders.test.mjs deploy/shared/registry-recover.test.mjs \
     deploy/shared/image-routes.test.mjs deploy/shared/tiktok-relay.test.mjs tools/shared_isolation_acceptance/ssr-boundary.test.mjs
 }
 

@@ -16,16 +16,22 @@ export function validateRegistry(value: unknown): TenantRegistry {
   if (r.targets.some(t => typeof t.enabled !== 'boolean' || t.host !== t.host.toLowerCase() || t.database !== t.filestore)) throw new Error('tenant_registry_invalid')
   return structuredClone(r)
 }
+/** An unreadable or half-published registry is unavailable, not a security refusal.
+ * Every reader (guard, Nuxt, relay, recovery tooling) constructs the failure here so
+ * statusCode and code cannot drift apart. */
+export function registryUnavailable(): Error & { statusCode: 503; code: 'tenant_registry_unavailable' } {
+  return Object.assign(new Error('tenant_registry_unavailable'), { statusCode: 503 as const, code: 'tenant_registry_unavailable' as const })
+}
 function requireCompletedPublication(path: string): void {
   try { lstatSync(`${path}.pending`) }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
-    throw new Error('tenant_registry_unavailable')
+    throw registryUnavailable()
   }
-  throw new Error('tenant_registry_unavailable')
+  throw registryUnavailable()
 }
 export function readTenantRegistry(path: string): TenantRegistry {
-  if (!path) throw new Error('tenant_registry_unavailable')
+  if (!path) throw registryUnavailable()
   // A durable writer creates this barrier before committing authority changes.
   // An interrupted publication must deny access, never fall back to an old enable.
   requireCompletedPublication(path)
@@ -48,23 +54,23 @@ let sharedSnapshot: WeakRef<TenantRegistrySnapshot> | undefined
 
 function publicationSignature(path: string): string {
   const stat = statSync(path, { bigint: true })
-  if (!stat.isFile()) throw new Error('tenant_registry_unavailable')
+  if (!stat.isFile()) throw registryUnavailable()
   return [stat.dev, stat.ino, stat.size, stat.mtimeNs, stat.ctimeNs].join(':')
 }
 export function readTenantRegistrySnapshot(path: string, previous?: TenantRegistrySnapshot): TenantRegistrySnapshot {
-  if (!path) throw new Error('tenant_registry_unavailable')
+  if (!path) throw registryUnavailable()
   requireCompletedPublication(path)
   const signature = publicationSignature(path)
   const retained = previous?.path === path && previous.signature === signature ? previous : sharedSnapshot?.deref()
   if (retained?.path === path && retained.signature === signature) {
     requireCompletedPublication(path)
     // A writer may have completed and removed its marker after the first stat.
-    if (publicationSignature(path) !== signature) throw new Error('tenant_registry_unavailable')
+    if (publicationSignature(path) !== signature) throw registryUnavailable()
     return retained
   }
   const registry = readTenantRegistry(path)
   // Detect replacement/in-place mutation during the read; do not bind an uncertain snapshot.
-  if (publicationSignature(path) !== signature) throw new Error('tenant_registry_unavailable')
+  if (publicationSignature(path) !== signature) throw registryUnavailable()
   requireCompletedPublication(path)
   const hosts: Record<string, Readonly<TenantHostTarget>> = Object.create(null)
   for (const target of registry.targets) hosts[target.host] = Object.freeze(target)
