@@ -17,13 +17,16 @@ from odoo.addons.liwan_ai.models.ai_audit import (
 # The one route the usage recorder's API key may reach (models/ir_http.py registers it with the platform guard).
 USAGE_SERVICE_PATH = '/api/v1/ai/usage/service'
 USAGE_KINDS = ('plan', 'title')
+# What kind of task a call served (the AI service's ``Capability`` and the zod ``AiCapabilitySchema``).
+USAGE_CAPABILITIES = ('quick', 'standard', 'analysis', 'writing')
 USAGE_OUTCOMES = ('ok', 'failed', 'retried', 'aborted')
 # Who paid a provider call: the platform within the package (counted against ai.tokens.monthly), the tenant's own key,
 # or the vendor's assistance budget (the free setup and help agents run on the platform provider outside the package,
 # spec §6.5); the AI service names that last billing ``setup``.
 USAGE_BILLINGS = ('platform', 'tenant_key', 'setup')
 WIRE_KEYS = frozenset({
-    'conversation_id', 'call_id', 'kind', 'billing', 'provider', 'model', 'outcome', 'input_tokens', 'output_tokens', 'called_at',
+    'conversation_id', 'call_id', 'kind', 'capability', 'billing', 'provider', 'model', 'outcome', 'input_tokens', 'output_tokens',
+    'cost', 'charge', 'called_at',
 })
 # The same provider attempt reported twice is the same row: the spool retries a batch whose answer it never saw.
 CALL_ID_PATTERN = re.compile(r'[0-9a-f]{16}')
@@ -31,6 +34,8 @@ PROVIDER_PATTERN = re.compile(r'[a-z][a-z0-9_-]{0,31}')
 CONTROL_CHARACTERS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
 MAX_MODEL_LENGTH = 128
 MAX_TOKENS = 100_000_000
+# Cost and charge are in cost units of 0.00001 USD; the bound is the largest value of the integer column.
+MAX_COST_UNITS = 2_147_483_647
 # What a row is and how large one can be (issue #557). A row is ONE provider call (`call_id` is the provider attempt, apps/ai-service
 # contracts.py ModelUsageEvent), not a run. The executor does not bound one call tighter than the wire: `input_tokens_per_run=0`
 # disables the per-run input ceiling, and the ceilings (graph.py) are checked BETWEEN calls, so the call that crosses one still
@@ -56,6 +61,10 @@ RFC3339 = re.compile(
 
 def is_token_count(value):
     return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= MAX_TOKENS
+
+
+def is_cost_units(value):
+    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= MAX_COST_UNITS
 
 
 def parse_called_at(value):
@@ -99,6 +108,7 @@ class LiwanAiUsage(models.Model):
     # The provider's own id of the call (16 hex): the wire's identity of the row, so a re-sent batch adds nothing.
     call_id = fields.Char(required=True)
     kind = fields.Selection([(kind, kind) for kind in USAGE_KINDS], required=True)
+    capability = fields.Selection([(capability, capability) for capability in USAGE_CAPABILITIES], required=True, default='standard')
     billing = fields.Selection([(billing, billing) for billing in USAGE_BILLINGS], required=True)
     provider = fields.Char(required=True)
     model = fields.Char(required=True)
@@ -106,6 +116,13 @@ class LiwanAiUsage(models.Model):
     input_tokens = fields.Integer()
     output_tokens = fields.Integer()
     tokens_reported = fields.Boolean()
+    # What the call cost the vendor and what the tenant is charged, in cost units (0.00001 USD). An Integer column cannot tell
+    # null from 0 (a free model costs 0), so each has a ``*_reported`` flag like ``tokens_reported``; the serializer returns
+    # null unless the flag is set. ``charge`` is null where the vendor pays the call (``setup``) or the tenant's own key does.
+    cost = fields.Integer()
+    cost_reported = fields.Boolean()
+    charge = fields.Integer()
+    charge_reported = fields.Boolean()
     called_at = fields.Datetime(required=True, index=True)
 
     # The own-rows rule filters on user_id and orders by called_at; a monthly per-user sum reads the same.
@@ -140,6 +157,9 @@ class LiwanAiUsage(models.Model):
         kind = values['kind']
         if not isinstance(kind, str) or kind not in USAGE_KINDS:
             invalid('kind', f'kind must be one of {USAGE_KINDS}')
+        capability = values['capability']
+        if not isinstance(capability, str) or capability not in USAGE_CAPABILITIES:
+            invalid('capability', f'capability must be one of {USAGE_CAPABILITIES}')
         billing = values['billing']
         if not isinstance(billing, str) or billing not in USAGE_BILLINGS:
             invalid('billing', f'billing must be one of {USAGE_BILLINGS}')
@@ -159,6 +179,22 @@ class LiwanAiUsage(models.Model):
         for field, value in tokens.items():
             if value is not None and not is_token_count(value):
                 invalid(field, f'{field} must be an integer from 0 to {MAX_TOKENS}')
+        for field in ('cost', 'charge'):
+            if values[field] is not None and not is_cost_units(values[field]):
+                invalid(field, f'{field} must be an integer from 0 to {MAX_COST_UNITS} or null')
+        if values['cost'] is not None and not all(reported):
+            invalid('cost', 'cost needs token counts')
+        if values['charge'] is not None and values['cost'] is None:
+            invalid('charge', 'charge needs a cost')
+        if billing == 'tenant_key' and (values['cost'] is not None or values['charge'] is not None):
+            invalid('cost' if values['cost'] is not None else 'charge', 'a call on the tenant key has no cost or charge')
+        if billing == 'setup' and values['charge'] is not None:
+            invalid('charge', 'a setup call is paid by the vendor and has no charge')
+        if not service:
+            # The session route is open to every user with ai.use: a user must not write the figures deducted from the balance.
+            for field in ('cost', 'charge'):
+                if values[field] is not None:
+                    invalid(field, f'{field} is only accepted from the usage recorder')
         called_at = parse_called_at(values['called_at'])
         if called_at is None:
             invalid('called_at', 'called_at must be an ISO-8601 datetime with an offset')
@@ -173,6 +209,7 @@ class LiwanAiUsage(models.Model):
             'conversation_id': conversation_id,
             'call_id': call_id,
             'kind': kind,
+            'capability': capability,
             'billing': billing,
             'provider': provider,
             'model': model,
@@ -180,6 +217,10 @@ class LiwanAiUsage(models.Model):
             'input_tokens': tokens['input_tokens'] or 0,
             'output_tokens': tokens['output_tokens'] or 0,
             'tokens_reported': all(reported),
+            'cost': values['cost'] or 0,
+            'cost_reported': values['cost'] is not None,
+            'charge': values['charge'] or 0,
+            'charge_reported': values['charge'] is not None,
             'called_at': called_at.replace(tzinfo=None),
         }
 

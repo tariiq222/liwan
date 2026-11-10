@@ -78,7 +78,8 @@ class AiController(http.Controller):
     # Two routes carry one fact (a run's usage rows) while the shared SaaS registry has no per-tenant recorder key. This session
     # route is the fallback for those deployments and for a run reported without the key. REMOVE IT, with the cookie spool in
     # apps/web/server/utils/ai/usage.ts and `create`'s session branch, in the change that delivers that key (tracked in #557);
-    # record_usage_service below is then the only path.
+    # record_usage_service below is then the only path. This route refuses a non-null cost or charge: any user with ai.use can reach
+    # it, and those figures are deducted from the tenant's balance, so only the recorder account may write them.
     @http.route('/api/v1/ai/usage', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(AI_FEATURE, operation='write')

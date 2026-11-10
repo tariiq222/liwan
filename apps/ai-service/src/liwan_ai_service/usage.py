@@ -19,7 +19,15 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable
 
-from liwan_ai_service.contracts import Billing, ModelCallEvent, ModelCallKind, ModelCallOutcome, ModelUsageEvent
+from liwan_ai_service.contracts import (
+    MAX_COST_UNITS,
+    Billing,
+    Capability,
+    ModelCallEvent,
+    ModelCallKind,
+    ModelCallOutcome,
+    ModelUsageEvent,
+)
 from liwan_ai_service.errors import is_transient_provider_error
 
 log = logging.getLogger("liwan_ai_service")
@@ -27,8 +35,14 @@ log = logging.getLogger("liwan_ai_service")
 PLAN_ATTEMPTS = 3
 BACKOFF_SECONDS = (0.5, 1.0)  # before the second and the third attempt
 JITTER = 0.25  # each wait grows by a random 0 to 25 %, so concurrent runs do not retry in step
+TOKENS_PER_PRICE = 1_000_000  # prices are per million tokens
+BPS = 10_000  # basis points in 100 %
 Tokens = tuple[int | None, int | None]
 Emit = Callable[[dict[str, Any]], None]  # takes ``{"event": name, "data": payload}``; the graph passes LangGraph's custom stream writer
+
+
+def _is_count(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
 @dataclass(frozen=True)
@@ -36,6 +50,20 @@ class ModelIdentity:
     provider: str
     model: str
     billing: Billing  # whose account pays: the platform's, the tenant's own key, or the vendor's setup budget
+    capability: Capability = "standard"  # the kind of task the model was chosen for (see ``capability_of`` for title and setup calls)
+    input_units: int | None = None  # price per million input tokens in cost units; None while unknown
+    output_units: int | None = None  # price per million output tokens in cost units; None while unknown
+    margin_bps: int = 0  # the vendor margin on cost, in basis points (2000 = 20 %)
+
+    def __post_init__(self) -> None:
+        for name in ("input_units", "output_units"):
+            value = getattr(self, name)
+            if value is not None and not _is_count(value):
+                msg = f"{name} must be None or a non-negative integer"
+                raise ValueError(msg)
+        if not _is_count(self.margin_bps):
+            msg = "margin_bps must be a non-negative integer"
+            raise ValueError(msg)
 
 
 @dataclass(frozen=True)
@@ -50,15 +78,44 @@ def new_call_id() -> str:
     return secrets.token_hex(8)
 
 
+def call_cost(tokens: Tokens, input_units: int | None, output_units: int | None) -> int | None:
+    """What a call cost the vendor in cost units, rounded up; None while the tokens or a price are unknown, or above the shared maximum."""
+    input_tokens, output_tokens = tokens
+    if input_tokens is None or output_tokens is None or input_units is None or output_units is None:
+        return None
+    cost = -(-(input_tokens * input_units + output_tokens * output_units) // TOKENS_PER_PRICE)
+    return cost if cost <= MAX_COST_UNITS else None
+
+
+def call_charge(cost: int | None, margin_bps: int) -> int | None:
+    """The cost plus the vendor margin, rounded up; None without a cost or above the shared maximum."""
+    if cost is None:
+        return None
+    charge = -(-(cost * (BPS + margin_bps)) // BPS)
+    return charge if charge <= MAX_COST_UNITS else None
+
+
+def capability_of(kind: ModelCallKind, identity: ModelIdentity) -> Capability:
+    """Titles and the vendor's setup and help runs are always ``quick``; any other call reports the capability its model was chosen for."""
+    return "quick" if kind == "title" or identity.billing == "setup" else identity.capability
+
+
 def call_event(call_id: str, kind: ModelCallKind, identity: ModelIdentity) -> dict[str, Any]:
     event = ModelCallEvent(
-        call_id=call_id, kind=kind, billing=identity.billing, provider=identity.provider, model=identity.model, called_at=datetime.now(UTC),
+        call_id=call_id, kind=kind, capability=capability_of(kind, identity), billing=identity.billing, provider=identity.provider,
+        model=identity.model, called_at=datetime.now(UTC),
     )
     return {"event": "model_call", "data": event.model_dump(mode="json")}
 
 
-def usage_event(call_id: str, outcome: ModelCallOutcome, tokens: Tokens = (None, None)) -> dict[str, Any]:
-    event = ModelUsageEvent(call_id=call_id, outcome=outcome, input_tokens=tokens[0], output_tokens=tokens[1])
+def usage_event(call_id: str, outcome: ModelCallOutcome, identity: ModelIdentity, tokens: Tokens = (None, None)) -> dict[str, Any]:
+    """The tenant's own key is not priced here (cost and charge null); a setup call has a cost but no charge, the vendor pays it."""
+    cost = None if identity.billing == "tenant_key" else call_cost(tokens, identity.input_units, identity.output_units)
+    charge = call_charge(cost, identity.margin_bps) if identity.billing == "platform" else None
+    priced = tokens[0] is not None and identity.input_units is not None and identity.output_units is not None
+    if identity.billing != "tenant_key" and priced and (cost is None or (identity.billing == "platform" and charge is None)):
+        log.warning("%s/%s: the cost or charge of a call is above %s units and is not reported", identity.provider, identity.model, MAX_COST_UNITS)
+    event = ModelUsageEvent(call_id=call_id, outcome=outcome, input_tokens=tokens[0], output_tokens=tokens[1], cost=cost, charge=charge)
     return {"event": "model_usage", "data": event.model_dump(mode="json")}
 
 
@@ -114,12 +171,12 @@ async def invoke_planned(
             wait = retry_wait(error, attempt) if attempt < PLAN_ATTEMPTS - 1 and is_transient_provider_error(error) else None
             if wait is not None and deadline_at is not None and wait >= deadline_at - asyncio.get_running_loop().time():
                 wait = None  # the run deadline comes first: no point waiting for an attempt it would cut
-            emit(usage_event(call_id, "failed" if wait is None else "retried"))
+            emit(usage_event(call_id, "failed" if wait is None else "retried", identity))
             if wait is None:
                 raise
             log.warning("plan call attempt %s failed (%s); retrying in %.2fs", attempt + 1, type(error).__name__, wait)
             await asyncio.sleep(wait)
             continue
-        emit(usage_event(call_id, "ok", tokens_of([response])))
+        emit(usage_event(call_id, "ok", identity, tokens_of([response])))
         return response
     raise AssertionError("unreachable: the last attempt returns or raises")  # pragma: no cover

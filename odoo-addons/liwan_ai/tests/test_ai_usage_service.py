@@ -22,9 +22,9 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 from odoo.addons.liwan_platform.models.ir_http import LiwanPlatformIrHttp
 
 ITEM = {
-    'conversation_id': 'r_test_01', 'call_id': '0f1e2d3c4b5a6978', 'kind': 'plan', 'billing': 'platform',
+    'conversation_id': 'r_test_01', 'call_id': '0f1e2d3c4b5a6978', 'kind': 'plan', 'capability': 'standard', 'billing': 'platform',
     'provider': 'acme-ai', 'model': 'acme-large-1',
-    'outcome': 'ok', 'input_tokens': 120, 'output_tokens': 45, 'called_at': datetime.now(timezone.utc).isoformat(),
+    'outcome': 'ok', 'input_tokens': 120, 'output_tokens': 45, 'cost': 12, 'charge': 15, 'called_at': datetime.now(timezone.utc).isoformat(),
 }
 
 
@@ -170,6 +170,32 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
 
     def _attempt(self, index, **change):
         return {**ITEM, 'call_id': f'{index:016x}', **change}
+
+    def test_cost_and_charge_tell_null_from_zero_on_the_recorder_route(self):
+        for index, (change, expected) in enumerate((
+            ({'cost': 0, 'charge': 0}, (0, 0)),
+            ({'cost': 7, 'charge': None}, (7, None)),
+            ({'cost': None, 'charge': None}, (None, None)),
+            ({'cost': 2_147_483_647, 'charge': 2_147_483_647}, (2_147_483_647, 2_147_483_647)),
+        ), start=100):
+            with self.subTest(change=change):
+                body = self._post(self._batch(None, None, self._attempt(index, **change))).json()
+                self.assertEqual((body['items'][0]['cost'], body['items'][0]['charge']), expected)
+                row = self.Usage.browse(body['items'][0]['id'])
+                self.assertEqual((row.cost_reported, row.charge_reported), (expected[0] is not None, expected[1] is not None))
+
+    def test_the_recorder_enforces_the_billing_rules_on_cost_and_charge(self):
+        for change, field in (
+            ({'billing': 'tenant_key', 'cost': 5, 'charge': None}, 'items.0.cost'),
+            ({'billing': 'tenant_key', 'cost': None, 'charge': 5}, 'items.0.charge'),
+            ({'billing': 'setup', 'cost': 5, 'charge': 6}, 'items.0.charge'),
+            ({'input_tokens': None, 'output_tokens': None}, 'items.0.cost'),
+            ({'cost': None, 'charge': 5}, 'items.0.charge'),
+        ):
+            with self.subTest(change=change):
+                self._assert_422(self._post(self._batch(None, None, self._attempt(200, **change))), field)
+        ok = self._post(self._batch(None, None, self._attempt(201, billing='setup', cost=5, charge=None), self._attempt(202, billing='tenant_key', cost=None, charge=None)))
+        self.assertEqual(ok.status_code, 200, ok.text)
 
     def test_a_row_larger_than_the_old_ceiling_is_recorded(self):
         """A call may legitimately use more than a configured run ceiling (the ceiling is checked between calls, and 0 disables it)."""
