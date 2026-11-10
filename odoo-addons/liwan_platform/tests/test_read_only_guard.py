@@ -50,6 +50,18 @@ class TestReadOnlyUserGuard(ExcessCase):
             'name': 'no.txt', 'raw': b'x', 'mimetype': 'text/plain',
         }))
 
+    def test_a_scheduled_server_action_cannot_write_as_a_read_only_user(self):
+        cron = self.env['ir.cron'].create({
+            'name': 'Attachment scheduled action',
+            'model_id': self.env.ref('base.model_ir_attachment').id,
+            'state': 'code', 'user_id': self.readonly.id,
+            'code': "model.create({'name': 'scheduled.txt', 'raw': b'scheduled'})",
+        })
+        action = cron.ir_actions_server_id
+        self._refused(lambda: action.with_user(cron.user_id).sudo().run())
+        action.sudo().run()
+        self.assertTrue(self.env['ir.attachment'].search([('name', '=', 'scheduled.txt')]))
+
     def test_the_superuser_identity_is_never_fenced(self):
         """A cron of ``base.user_root``, the operator and installs run as the superuser identity."""
         root = self.env['ir.attachment'].with_user(SUPERUSER_ID)

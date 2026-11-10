@@ -50,6 +50,13 @@ class TestOutbox(LiwanInboxCase):
         self.run_outbox(mocked)
         self.assertEqual(mocked.call_count, 1)
 
+    def test_a_queued_reply_is_sent_after_its_author_loses_a_full_seat(self):
+        message = self.queue(author_id=self.agent.id)
+        self.env['liwan.entitlement.service']._liwan_apply_flags(self.agent, {'liwan_read_only': True})
+        mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.QUEUED'}]}))
+        self.run_outbox(mocked)
+        self.assertEqual((message.delivery_state, message.provider_message_id), ('sent', 'wamid.QUEUED'))
+
     def test_a_template_reply_is_sent_with_its_parameters(self):
         template = self.env['liwan.inbox.template'].create({
             'channel_id': self.channel.id, 'name': 'order_ready', 'language': 'ar', 'status': 'approved',

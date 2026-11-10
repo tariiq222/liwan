@@ -11,6 +11,8 @@ MIRROR_CONTEXT = 'liwan_mirror_texts'
 
 class LiwanBase(models.AbstractModel):
     _inherit = 'base'
+    # A related owner for models without a direct company field.
+    _liwan_read_only_company_path = None
 
     def write(self, vals):
         assert_writable(self, 'write', vals)

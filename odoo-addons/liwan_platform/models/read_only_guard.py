@@ -10,9 +10,8 @@ The acting identity is ``env.uid``:
 * ``sudo()`` and ``with_user`` keep or change the uid, never the rule: code that runs ``sudo()`` for a
   read-only user is still that user, and a job that runs ``with_user(read_only_user)`` is refused. Code that
   runs as the superuser and only carries a user's id as data is outside the ORM's reach.
-* A record bound to a read-only branch company refuses writes from every non-superuser identity. A record is
-  bound to a company by its own ``company_id`` or, for attachments, messages, followers and activities, by the
-  record it hangs on.
+* A record bound to a read-only branch company refuses writes from every non-superuser identity. The owner
+  comes from its own company field or an owning record (including parents of attachments and messages).
 * Applications register what a read has to write (own bookkeeping rows, defaults seeded on first read) through
   ``liwan.entitlement.service._liwan_read_only_allowances``; the platform names none of their models.
 * Inbound events from outside (a gateway callback) are recorded whatever the branch's state: the route sets
@@ -126,33 +125,42 @@ PARENT_REFERENCES = {
 }
 
 
-def _own_companies(records):
-    """The company column of RECORDS (the company itself for ``res.company``), read elevated.
+def _owner_path(records):
+    for name in ('company_id', 'owner_company_id'):
+        field = records._fields.get(name)
+        if field is not None and field.type == 'many2one' and field.comodel_name == 'res.company':
+            return name
+    return records._liwan_read_only_company_path
 
-    The acting user may hold the write grant on a row without the record-rule read of its company column, and the
-    answer (a company id) reveals nothing the write itself would not.
-    """
+
+def _own_companies(records):
+    """Read the owning company regardless of the actor's read grants."""
     if records._name == 'res.company':
         return records
-    field = records._fields.get('company_id')
-    if field is None or field.type != 'many2one' or field.comodel_name != 'res.company':
-        return records.env['res.company']
-    return records.sudo().company_id
+    path = _owner_path(records)
+    return records.sudo().mapped(path) if path else records.env['res.company']
 
 
-def _parent_companies(records, vals=None):
-    """The companies of the records that RECORDS hang on (see ``PARENT_REFERENCES``)."""
+def _parent_companies(records, vals=None, vals_list=None):
+    """Find the owners of the current or proposed polymorphic parents."""
     pair = PARENT_REFERENCES.get(records._name)
     if not pair:
         return records.env['res.company']
     model_field, id_field = pair
-    vals = vals or {}
+    if records:
+        vals = vals or {}
+        parents = (
+            (vals[model_field] if model_field in vals else row[model_field],
+             vals[id_field] if id_field in vals else row[id_field])
+            for row in records.sudo()
+        )
+    else:
+        parents = ((row.get(model_field), row.get(id_field)) for row in vals_list or ())
     ids_by_model = {}
-    for row in records.sudo():
-        model = vals[model_field] if model_field in vals else row[model_field]
-        res_id = vals[id_field] if id_field in vals else row[id_field]
-        if model and res_id and model in records.env and model not in BRANCH_EXEMPT_MODELS:
-            ids_by_model.setdefault(model, set()).add(res_id)
+    for model, res_id in parents:
+        if isinstance(model, str) and type(res_id) is int and res_id > 0:
+            if model in records.env and model not in BRANCH_EXEMPT_MODELS:
+                ids_by_model.setdefault(model, set()).add(res_id)
     companies = records.env['res.company']
     for model, ids in ids_by_model.items():
         companies |= _own_companies(records.env[model].browse(ids).exists())
@@ -186,9 +194,19 @@ def _refuse(code):
     raise LiwanAccessRule(code, status=403)
 
 
-def _target_company_ids(vals, vals_list):
-    values = [vals or {}, *(vals_list or ())]
-    return {item['company_id'] for item in values if isinstance(item.get('company_id'), int)}
+def _target_companies(records, vals, vals_list):
+    path = _owner_path(records)
+    if not path:
+        return records.env['res.company']
+    field_name, related, _tail = path.partition('.')
+    ids = {
+        value for row in (vals_list or (vals or {},))
+        if type(value := row.get(field_name)) is int and value > 0
+    }
+    if not ids:
+        return records.env['res.company']
+    targets = records.env[records._fields[field_name].comodel_name].browse(ids).exists()
+    return _own_companies(targets) if related else targets
 
 
 def assert_writable(records, operation, vals=None, vals_list=None):
@@ -213,12 +231,11 @@ def assert_writable(records, operation, vals=None, vals_list=None):
         return
     if model in BRANCH_EXEMPT_MODELS or env.context.get(INBOUND_EVENT_CONTEXT) is INBOUND_EVENT_TOKEN:
         return
-    targets = _target_company_ids(vals, vals_list)
-    in_read_only_branch = bool(records and _bound_companies(records).filtered('liwan_read_only')) or bool(
-        targets and env['res.company'].browse(targets).filtered('liwan_read_only'),
-    )
+    companies = _target_companies(records, vals, vals_list)
+    if records:
+        companies |= _bound_companies(records)
     parent_fields = PARENT_REFERENCES.get(model, ())
-    if not in_read_only_branch and records and keys.intersection(parent_fields):
-        in_read_only_branch = bool(_parent_companies(records, vals).filtered('liwan_read_only'))
-    if in_read_only_branch and not _registered_allowance(records, vals, vals_list):
+    if vals_list or keys.intersection(parent_fields):
+        companies |= _parent_companies(records, vals=vals, vals_list=vals_list)
+    if companies.filtered('liwan_read_only') and not _registered_allowance(records, vals, vals_list):
         _refuse('branch_read_only')

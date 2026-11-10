@@ -18,6 +18,7 @@ from .health_common import (
     meta_error,
     process,
 )
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import whatsapp
 
 HOOK = '/api/v1/inbox/hooks/whatsapp'
@@ -53,7 +54,7 @@ class TestHealthWebhook(LiwanInboxCase):
         return self.env['liwan.inbox.channel.alert'].search([('channel_id', '=', (channel or self.channel).id)])
 
     def test_a_read_only_branch_still_stores_a_signed_delivery(self):
-        """The raw event carries its owner company, not a `company_id`, so the branch fence never meets the hook identity."""
+        """The signed delivery is recorded even though its owner company no longer permits ordinary writes."""
         self.env['liwan.tenant.branch'].create({
             'branch_uid': 'inbox-ro', 'company_id': self.channel.owner_company_id.id, 'operation_id': 'op-inbox',
             'read_only': True,
@@ -62,6 +63,15 @@ class TestHealthWebhook(LiwanInboxCase):
         stored = self.env['liwan.inbox.event'].search_count([('channel_id', '=', self.channel.id)])
         self.assertEqual(self.post(account_event('account_update', FIELDS['account_update'])).status_code, 200)
         self.assertEqual(self.env['liwan.inbox.event'].search_count([('channel_id', '=', self.channel.id)]), stored + 1)
+
+    def test_a_read_only_branch_does_not_accept_channel_settings_changes(self):
+        self.env['liwan.tenant.branch'].create({
+            'branch_uid': 'inbox-settings-ro', 'company_id': self.channel.owner_company_id.id,
+            'operation_id': 'op-inbox', 'read_only': True,
+        })
+        with self.assertRaises(LiwanAccessRule) as caught:
+            self.channel.with_user(self.env.ref('base.user_admin')).sudo().write({'name': 'Edited'})
+        self.assertEqual(caught.exception.code, 'branch_read_only')
 
     def test_every_health_field_is_routed_by_the_account_id_and_signed_by_the_channel_secret(self):
         for field, value in FIELDS.items():
