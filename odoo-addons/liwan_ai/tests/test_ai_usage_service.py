@@ -216,12 +216,16 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         admin = new_test_user(self.env, login='usage_admin', groups='base.group_system')
         service = self.env['liwan.access.service']
         self.assertIn(AI_USAGE_RECORD, service.with_user(support)._liwan_capability_keys(support))
-        for user in (support, admin, self.env.ref('base.user_root')):
+        for user in (support, admin):
             with self.subTest(user=user.login):
                 response = self._post(self._batch(), key=self._key(user))
                 self.assertEqual(response.status_code, 403, response.text)
                 self.assertEqual(response.json()['code'], 'forbidden')
                 self.assertFalse(self.Usage.search([]))
+        # The superuser is inactive, and Odoo accepts an API key of an active user only.
+        root = self.env.ref('base.user_root')
+        self.assertFalse(root.active)
+        self.assertEqual(self._post(self._batch(), key=self._key(root)).status_code, 401)
 
     def test_a_key_is_refused_with_404_on_every_bearer_route_the_platform_does_not_list(self):
         """The platform guard answers before it reads the key: a wrong key and the real one get the same 404.
