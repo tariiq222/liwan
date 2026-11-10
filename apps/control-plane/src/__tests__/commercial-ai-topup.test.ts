@@ -499,15 +499,21 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       expect(delivered.at(-1)).toMatchObject({ order_id: change.id, features: { 'ai.allowance.trial': 266_666 } })
     })
 
-    it('a push whose subscription is gone is superseded, not left in needs_intervention', async () => {
+    it('a push whose tenant has no subscription ends failed (visible, non-blocking) and is logged, never reported done', async () => {
       const { id, o } = await appliedTopup()
       await patchSettings({ trial_allowance_minor: 1000 })
       const push = await jobId(o.id, true)
       // The revision-conflict trigger guards the row; detach the tenant for the duration of this one statement.
       await pool.query('ALTER TABLE subscriptions DISABLE TRIGGER USER')
       try { await pool.query('UPDATE subscriptions SET tenant_id=NULL WHERE customer_id=$1', [id]) } finally { await pool.query('ALTER TABLE subscriptions ENABLE TRIGGER USER') }
-      await expect(runSubscriptionReconfigure(pool, push!, runner)).resolves.toMatchObject({ state: 'verified', receipt: { superseded: true } })
-      expect(await stuck(id)).toBe(0)
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+      await expect(runSubscriptionReconfigure(pool, push!, runner)).rejects.toThrow('ai_push_no_subscription')
+      const tenant = (await pool.query('SELECT control_tenant_id FROM shared_jobs WHERE id=$1', [push])).rows[0].control_tenant_id
+      expect(log).toHaveBeenCalledWith(expect.stringContaining(`AI balance push ${push} for tenant ${tenant}`))
+      log.mockRestore()
+      const row = (await pool.query('SELECT state,journal FROM shared_jobs WHERE id=$1', [push])).rows[0]
+      expect(row).toMatchObject({ state: 'failed', journal: { error_code: 'ai_push_no_subscription' } })
+      expect(delivered.filter(d => d.order_id === o.id && d.ai_push)).toHaveLength(0)
     })
 
     it('refuses an AI push naming another revision of the subscription, or an order of another tenant', async () => {

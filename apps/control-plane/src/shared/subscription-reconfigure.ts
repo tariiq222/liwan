@@ -17,7 +17,7 @@ export interface SubscriptionAdapter {
 }
 function digest(job:SharedReconfigureJob) {return createHash('sha256').update(JSON.stringify(job)).digest('hex')}
 /** What an AI push that a newer revision overtook records instead of a tenant receipt. */
-type SupersededReceipt = Partial<SubscriptionReceipt> & { superseded: true; applied_revision_id: string | null }
+type SupersededReceipt = Partial<SubscriptionReceipt> & { superseded: true; applied_revision_id: string }
 async function assertCurrentBinding(client:PoolClient,job:SharedReconfigureJob) {
   const binding=await client.query('SELECT * FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true FOR SHARE',[job.controlTenantId])
   const b=binding.rows[0]
@@ -88,10 +88,19 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
       // superseded. It completes without touching the tenant, and the current revision gets a fresh push in case its
       // delivery was built before the change that queued this one.
       const current=(await client.query('SELECT customer_id,applied_revision_id FROM subscriptions WHERE tenant_id=$1 FOR SHARE',[job.controlTenantId])).rows[0]
-      if(!current || current.applied_revision_id!==job.authority.target_revision_id){
-        const receipt:SupersededReceipt={superseded:true,applied_revision_id:current?.applied_revision_id??null}
+      if(!current){
+        // Nothing to deliver to and nobody to push for: a balance change that cannot be applied must not look done. It
+        // ends `failed` (which does not block the tenant), is logged, and shows on the operation feed. A subscription is
+        // bound to its tenant once (from NULL) and a customer has one subscription, so there is no other tenant to re-push to.
+        const code='ai_push_no_subscription'
+        console.error(`[control-plane] AI balance push ${id} for tenant ${job.controlTenantId} cannot be delivered: ${code}`)
+        await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL,journal=$2 WHERE id=$1",[id,{stage:'failed',operation_id:job.authority.operation_id,error_code:code}])
+        return {failed:code}
+      }
+      if(current.applied_revision_id!==job.authority.target_revision_id){
+        const receipt:SupersededReceipt={superseded:true,applied_revision_id:current.applied_revision_id}
         await client.query("UPDATE shared_jobs SET state='verified',receipt=$2,lease_until=NULL,journal=$3 WHERE id=$1",[id,receipt,{stage:'verified',operation_id:job.authority.operation_id,superseded:true}])
-        if(current)await pushAiEntitlement(client,current.customer_id)
+        await pushAiEntitlement(client,current.customer_id)
         return {superseded:receipt}
       }
     }
@@ -101,6 +110,7 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     await client.query("UPDATE shared_jobs SET state='running',attempt_id=$2,fence=$3,lease_until=clock_timestamp()+interval '120 seconds' WHERE id=$1",[id,attemptId,fence])
     return {job:live,attemptId,fence}
   })
+  if('failed' in claim)throw Error(claim.failed)
   if('superseded' in claim)return {state:'verified',receipt:claim.superseded}
   const owned=async <T>(action:(client:PoolClient)=>Promise<T>)=>transaction(pool,async client=>{
     const current=await client.query("SELECT 1 FROM shared_jobs WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() FOR UPDATE",[id,claim.attemptId,claim.fence])
