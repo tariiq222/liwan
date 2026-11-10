@@ -65,10 +65,13 @@ export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter):
 const AUTOMATIC_CREDIT = 'Payment returned after an undelivered trial order'
 
 /**
- * An automatic refund that cannot finish (no adapter, a payment the provider cannot refund, retries used up) becomes the
- * manual review the operator already works: one pending credit note for what the attempt paid and is not yet credited
- * (an undelivered order already has its fulfilment note, so it gets none more), and the row closed as failed with its
- * reason. The row keeps its payload, which trial recovery reads as proof. Recording the refund on the note settles the order.
+ * An automatic refund that cannot finish is closed as failed with its reason; the row keeps its payload, which trial
+ * recovery reads as proof. When the failure is proven to come before any refund (no adapter, or a code in
+ * NON_RETRYABLE_REFUND) it also becomes the manual review the operator already works: one pending credit note for what
+ * the attempt paid and is not yet credited (an undelivered order already has its fulfilment note, so it gets none more).
+ * Recording the refund on the note settles the order. Any other code (retries used up on a timeout or a provider error)
+ * may have followed a refund the provider did make, so no note is written: the failed row shows in the attention list as
+ * refund_rejected and the operator checks the provider before refunding, to avoid paying the customer twice.
  */
 async function handOffAutomaticRefund(pool: Pool, row: { id: string; kind: string; aggregate_id: string; payload: unknown }, reason: string) {
   await transaction(pool, async client => {
@@ -77,7 +80,7 @@ async function handOffAutomaticRefund(pool: Pool, row: { id: string; kind: strin
     const attemptId = (row.payload as { attempt_id?: string }).attempt_id
     const attempt = typeof attemptId === 'string' && z.uuid().safeParse(attemptId).success ? (await client.query(`SELECT a.* FROM payment_attempts a
       JOIN orders o ON o.id=a.order_id WHERE a.id=$1 AND o.id::text=$2 AND o.payment_state='refund_pending' AND o.paid_attempt_id=a.id`, [attemptId, row.aggregate_id])).rows[0] : undefined
-    if (attempt) {
+    if (attempt && NON_RETRYABLE_REFUND.includes(reason)) {
       const invoice = (await client.query('SELECT id,customer_id FROM invoices WHERE id=$1 FOR UPDATE', [attempt.invoice_id])).rows[0]
       const credited = Number((await client.query(`SELECT ${creditedMinorSql('$1')} AS amount`, [invoice.id])).rows[0].amount)
       if (credited < Number(attempt.amount_minor))

@@ -70,7 +70,7 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     expect(await notes(f.invoice)).toHaveLength(1)
   })
 
-  it('F1 retries a transient refund failure with backoff, then hands it over once the attempts are used', async () => {
+  it('F1 retries a transient refund failure with backoff, then closes it for operator verification once the attempts are used', async () => {
     const f = await lateOrder({ provider: 'simulator' }) // the simulator does not know this ref: the lookup fails
     const adapter = new SimulatorAdapter()
     await processRefundOutbox(pool, adapter)
@@ -79,7 +79,9 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     await pool.query('UPDATE commercial_outbox SET attempts=5,next_attempt_at=now() WHERE aggregate_id=$1', [f.order])
     await processRefundOutbox(pool, adapter)
     expect(await outbox(f.order)).toMatchObject({ status: 'failed' })
-    expect(await notes(f.invoice)).toHaveLength(1)
+    // A transient error may follow a refund the provider made: no note, the operator verifies the provider first.
+    expect(await notes(f.invoice)).toHaveLength(0)
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(1)
   })
 
   it('F1 keeps the single fulfilment note of an undelivered order when its refund is handed over', async () => {
