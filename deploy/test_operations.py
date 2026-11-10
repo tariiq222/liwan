@@ -6,9 +6,11 @@ These tests must not contact PostgreSQL, Docker, or a live Odoo/Nuxt process.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -673,6 +675,8 @@ class BackupCase(unittest.TestCase):
         self.pg_dump = self.root / 'pg_dump'
         _touch(self.pg_dump, 'x')
         self.pg_dump.chmod(0o755)
+        self.locks = self.root / 'locks'
+        self.locks.mkdir()
         self.argvs: list[list[str]] = []
 
     def dump_runner(self, argv, **kwargs):
@@ -690,6 +694,7 @@ class BackupCase(unittest.TestCase):
             filestore=str(store),
             output_dir=str(self.root / name),
             pg_dump=str(self.pg_dump),
+            lock_dir=str(self.locks),
             runner=runner or self.dump_runner,
             **extra,
         )
@@ -761,6 +766,97 @@ class TestBackupIntegrity(BackupCase):
 
         self.backup('out', copier=copier)
         self.assertFalse(seen.get('symlinks', False))
+
+
+class TestBackupLock(BackupCase):
+    def test_a_second_concurrent_run_for_the_same_database_is_refused(self) -> None:
+        refusals: list[str] = []
+
+        def runner(argv, **kwargs):
+            try:
+                self.backup('second')
+            except backup.BackupError as error:
+                refusals.append(str(error))
+            return self.dump_runner(argv, **kwargs)
+
+        self.backup('first', runner=runner)
+        self.assertEqual(len(refusals), 1)
+        self.assertIn(f'another backup of database {self.DB} is already running', refusals[0])
+        self.assertFalse((self.root / 'second').exists())
+
+    def test_a_run_is_allowed_again_after_the_first_released_the_lock(self) -> None:
+        self.backup('first')
+        self.assertTrue(self.backup('second').is_file())
+
+    def test_the_lock_is_released_when_the_run_fails(self) -> None:
+        with self.assertRaises(backup.BackupError):
+            self.backup('first', runner=lambda argv, **kwargs: FakeCompleted(1))
+        self.assertTrue(self.backup('second').is_file())
+
+    def test_the_lock_is_released_when_the_run_raises_unexpectedly(self) -> None:
+        def runner(argv, **kwargs):
+            raise RuntimeError('pg_dump could not start')
+
+        with self.assertRaises(RuntimeError):
+            self.backup('first', runner=runner)
+        self.assertTrue(self.backup('second').is_file())
+
+    def test_another_database_is_not_blocked(self) -> None:
+        _touch(self.filestore.parent / 'otherdb' / 'blob', 'x')
+        results: list[Path] = []
+
+        def runner(argv, **kwargs):
+            results.append(self.backup('other', db='otherdb'))
+            return self.dump_runner(argv, **kwargs)
+
+        self.backup('first', runner=runner)
+        self.assertTrue(results[0].is_file())
+
+    def test_a_lock_held_by_another_process_refuses_the_run(self) -> None:
+        holder = subprocess.Popen(
+            [sys.executable, '-B', '-c',
+             'import sys; sys.path.insert(0, sys.argv[1]); import backup; '
+             'lock = backup.database_lock(sys.argv[2], sys.argv[3]); lock.__enter__(); '
+             'print("locked", flush=True); sys.stdin.read()',
+             str(Path(backup.__file__).parent), self.DB, str(self.locks)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+        )
+        try:
+            self.assertEqual(holder.stdout.readline().strip(), 'locked')
+            with self.assertRaisesRegex(backup.BackupError, 'already running'):
+                self.backup('out')
+        finally:
+            holder.communicate()
+        self.assertTrue(self.backup('out').is_file())
+
+    def test_the_command_line_refuses_with_a_message_and_exit_code_2(self) -> None:
+        arguments = [
+            '--opt-in', backup.OPT_IN_TOKEN,
+            '--acknowledge-unverified', backup.UNVERIFIED_TOKEN,
+            '--db-name', self.DB,
+            '--filestore', str(self.filestore),
+            '--output-dir', str(self.root / 'out'),
+            '--pg-dump', str(self.pg_dump),
+            '--lock-dir', str(self.locks),
+        ]
+        stderr = io.StringIO()
+        with backup.database_lock(self.DB, str(self.locks)), patch('sys.stderr', stderr):
+            code = backup.main(arguments)
+        self.assertEqual(code, 2)
+        self.assertIn('already running', stderr.getvalue())
+        self.assertFalse((self.root / 'out').exists())
+
+    def test_the_default_lock_directory_is_private_and_owned_by_this_user(self) -> None:
+        with patch('tempfile.gettempdir', return_value=str(self.root)):
+            directory = backup.lock_directory(None)
+        self.assertEqual(directory, self.root / backup.LOCK_DIR_NAME)
+        self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
+
+    def test_a_default_lock_directory_that_is_a_symlink_is_refused(self) -> None:
+        (self.root / backup.LOCK_DIR_NAME).symlink_to(self.locks, target_is_directory=True)
+        with patch('tempfile.gettempdir', return_value=str(self.root)):
+            with self.assertRaisesRegex(backup.BackupError, 'not a directory owned by this user'):
+                backup.lock_directory(None)
 
 
 class TestHelpAndChecksFragment(unittest.TestCase):

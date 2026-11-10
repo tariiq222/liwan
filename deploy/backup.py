@@ -10,24 +10,30 @@ The manifest pins the bytes it copied: the SHA-256 of ``database.dump`` and a
 tree digest plus file count of the filestore copy, so ``restore_verify.py`` can
 tell a dump or an attachment that changed after the copy. The filestore must
 hold only regular files and directories; a symlink or special file is refused.
+One database has one backup at a time: a second run is refused while the first
+holds the lock.
 """
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 import re
 import shutil
 import socket
+import stat
 import subprocess
 import sys
+import tempfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterator, Mapping, Sequence
 
 OPT_IN_TOKEN = 'MANUAL_BACKUP_OPT_IN'
 UNVERIFIED_TOKEN = 'CANDIDATE_BACKUP_UNVERIFIED'
@@ -36,6 +42,7 @@ DUMP_NAME = 'database.dump'
 FILESTORE_NAME = 'filestore'
 HASH_BLOCK_BYTES = 1024 * 1024
 SHA256_RE = re.compile(r'[a-f0-9]{64}')
+LOCK_DIR_NAME = 'liwan-backup-locks'
 FORBIDDEN_DB_EXACT = frozenset({
     'odoo19',
     'production',
@@ -316,6 +323,48 @@ def candidate_manifest_payload(
     return payload
 
 
+def lock_directory(lock_dir: str | None) -> Path:
+    """The directory that holds the per-database lock files.
+
+    An explicit ``--lock-dir`` must be an existing absolute directory. The default is a private
+    directory under the system temporary directory; it is refused unless this user owns it, so
+    another user cannot plant a lock directory (or a symlink to one) there.
+    """
+    if lock_dir:
+        return validate_existing_dir(lock_dir, what='lock directory')
+    directory = Path(tempfile.gettempdir()) / LOCK_DIR_NAME
+    directory.mkdir(mode=0o700, exist_ok=True)
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid():
+        fail(f'default lock directory {directory} is not a directory owned by this user; pass --lock-dir')
+    return directory
+
+
+@contextmanager
+def database_lock(db: str, lock_dir: str | None) -> Iterator[None]:
+    """Hold an exclusive, non-blocking ``flock`` on this database's lock file.
+
+    The lock lives as long as the file descriptor, so it is released on every exit path: a
+    normal return, an exception, or the process dying. A second run for the same database is
+    refused at once; runs for other databases do not wait on it.
+    """
+    path = lock_directory(lock_dir) / f'{db}.lock'
+    try:
+        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    except OSError as error:
+        fail(f'cannot open the backup lock {path}: {error.strerror}')
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            fail(f'another backup of database {db} is already running (lock {path}); refusing a concurrent run')
+        except OSError as error:
+            fail(f'cannot lock {path}: {error.strerror}')
+        yield
+    finally:
+        os.close(descriptor)
+
+
 def perform_backup(
     *,
     opt_in: str,
@@ -328,6 +377,7 @@ def perform_backup(
     pg_port: str | None = None,
     pg_user: str | None = None,
     observe_http_port_value: str | None = None,
+    lock_dir: str | None = None,
     runner=subprocess.run,
     copier=shutil.copytree,
     connector: Callable[[str, int], int] | None = None,
@@ -343,6 +393,30 @@ def perform_backup(
         host, port = parse_host_port(observe_http_port_value, flag='--observe-http-port')
         http_observation = observe_http_port(host, port, connector=connector)
 
+    with database_lock(db, lock_dir):
+        return _write_candidate(
+            db=db,
+            store=store,
+            output_dir=output_dir,
+            pg_dump=pg_dump,
+            pg_connection=(pg_host, pg_port, pg_user),
+            http_observation=http_observation,
+            runner=runner,
+            copier=copier,
+        )
+
+
+def _write_candidate(
+    *,
+    db: str,
+    store: Path,
+    output_dir: str,
+    pg_dump: str,
+    pg_connection: tuple[str | None, str | None, str | None],
+    http_observation: dict[str, str] | None,
+    runner,
+    copier,
+) -> Path:
     destination = Path(output_dir)
     if not destination.is_absolute():
         fail('output directory must be an absolute path')
@@ -354,6 +428,7 @@ def perform_backup(
 
     dump_path = destination / DUMP_NAME
     filestore_dest = destination / FILESTORE_NAME
+    pg_host, pg_port, pg_user = pg_connection
     argv = build_pg_dump_argv(
         pg_dump=pg_dump,
         db_name=db,
@@ -410,6 +485,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--pg-host')
     parser.add_argument('--pg-port')
     parser.add_argument('--pg-user')
+    parser.add_argument(
+        '--lock-dir',
+        help='absolute directory for the per-database lock file; '
+        f'default: a private {LOCK_DIR_NAME} directory under the system temporary directory',
+    )
     parser.add_argument('--verify-port', help=argparse.SUPPRESS)
     parser.add_argument('--pid-file', help=argparse.SUPPRESS)
     parser.add_argument('--quiesced', action='store_true', help=argparse.SUPPRESS)
@@ -446,6 +526,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             pg_port=args.pg_port,
             pg_user=args.pg_user,
             observe_http_port_value=args.observe_http_port,
+            lock_dir=args.lock_dir,
         )
     except BackupDeclined as error:
         sys.stderr.write(f'DECLINED: {error}\n')

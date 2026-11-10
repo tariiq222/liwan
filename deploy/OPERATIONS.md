@@ -253,7 +253,8 @@ python3 deploy/backup.py \
   --pg-user tariq
 ```
 
-Optional `--observe-http-port HOST:PORT` records TCP reachability. If that port
+Optional `--lock-dir DIR` moves the lock file directory (see "One backup per
+database" below). Optional `--observe-http-port HOST:PORT` records TCP reachability. If that port
 accepts connections, the candidate copy is refused. If it does not accept
 connections, the manifest still stays `UNVERIFIED`. `--verify-port`,
 `--pid-file`, `--consistent`, `--quiesced`, `--assume-stopped`, and `--live`
@@ -300,6 +301,19 @@ filestore path that is itself a symlink is refused before anything is copied:
 a restore cannot reproduce it, and a link can point outside the copy. The copy
 never carries links. `restore_verify.py` refuses the same entries in a backup
 directory and refuses a symlinked `database.dump`.
+
+### One backup per database
+
+A run takes a non-blocking `flock` on `<db_name>.lock` and holds it until it
+exits, on every path including failure. A second run for the same database,
+whatever its output directory, is refused at once with `another backup of
+database <db_name> is already running` and exit code 2. Runs for different
+databases do not wait on each other. The lock is released if the process dies.
+
+The lock file lives in `liwan-backup-locks/` under the system temporary
+directory, created `0700`; it is refused unless the current user owns it. Two
+users, or a service with a private `/tmp`, do not share that directory: give
+every caller the same absolute `--lock-dir` that all of them can write.
 
 ### Verifying the copy
 
