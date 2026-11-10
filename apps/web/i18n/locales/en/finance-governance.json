@@ -183,6 +183,8 @@
         "payment_term_archived": "Payment term archived",
         "payment_term_unarchived": "Payment term unarchived",
         "company_written": "Company settings changed",
+        "lock_date_changed": "Lock date changed",
+        "hard_lock_set": "Hard lock set",
         "fiscal_year_closed": "Fiscal year closed",
         "zatca_onboarded": "Journal connected to ZATCA",
         "zatca_submitted": "Invoice sent to ZATCA",
@@ -270,7 +272,9 @@
         "soldFor": "Sold for {amount}",
         "zakatBase": "Base {amount}",
         "zakatAdjustment": "{kind} {amount}",
-        "yearClosed": "Year {year}: {state}"
+        "yearClosed": "Year {year}: {state}",
+        "lockChange": "from {old} to {new}",
+        "lockNone": "no lock"
       }
     }
   }

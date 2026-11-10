@@ -183,6 +183,8 @@
         "payment_term_archived": "أرشفة شرط دفع",
         "payment_term_unarchived": "إلغاء أرشفة شرط دفع",
         "company_written": "تعديل إعدادات الشركة",
+        "lock_date_changed": "تغيير تاريخ إقفال",
+        "hard_lock_set": "الإقفال النهائي",
         "fiscal_year_closed": "إقفال سنة مالية",
         "zatca_onboarded": "ربط يومية بزاتكا",
         "zatca_submitted": "إرسال فاتورة لزاتكا",
@@ -270,7 +272,9 @@
         "soldFor": "بيع بمبلغ {amount}",
         "zakatBase": "الوعاء {amount}",
         "zakatAdjustment": "{kind} {amount}",
-        "yearClosed": "سنة {year}: {state}"
+        "yearClosed": "سنة {year}: {state}",
+        "lockChange": "من {old} إلى {new}",
+        "lockNone": "بلا إقفال"
       }
     }
   }

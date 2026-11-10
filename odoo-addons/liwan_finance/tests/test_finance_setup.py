@@ -164,13 +164,37 @@ class TestFinanceSetup(LiwanFinanceCase):
                     self.assertNotIn('Odoo', result.text)
         self.assertEqual(self._get()['fiscal']['sale_lock_date'], '2026-07-31')
 
-    def test_a_loosened_soft_lock_is_audited(self):
+    def _lock_events(self):
+        events = self.env['liwan.finance.audit.event'].search([
+            ('company_id', '=', self.fresh.id), ('action', 'in', ('lock_date_changed', 'hard_lock_set')),
+        ], order='id')
+        return [(event.action, event.fields_written, event.outcome, event.res_model, event.res_id, event.create_uid) for event in events]
+
+    def test_each_lock_date_change_is_audited_with_its_old_and_new_day_and_actor(self):
         self.authenticate(ADMIN_LOGIN, PASSWORD)
-        self.assertEqual(self._write('PATCH', 'fiscal', {'fiscalyear_lock_date': '2026-12-31'}).status_code, 200)
-        self.assertEqual(self._write('PATCH', 'fiscal', {'fiscalyear_lock_date': None}).status_code, 200)
-        events = self.env['liwan.finance.audit.event'].search([('company_id', '=', self.fresh.id)], order='id')
-        self.assertEqual(events.mapped('fields_written'), ['fiscalyear_lock_date'] * 2)
-        self.assertFalse(self.fresh.fiscalyear_lock_date)
+        actor = self.signed_in
+        company = ('res.company', self.fresh.id, actor)
+        steps = (
+            ({'fiscalyear_lock_date': '2026-06-30'}, ('lock_date_changed', 'fiscalyear_lock_date', '>2026-06-30')),
+            ({'fiscalyear_lock_date': '2025-01-01'}, ('lock_date_changed', 'fiscalyear_lock_date', '2026-06-30>2025-01-01')),
+            ({'fiscalyear_lock_date': '2026-09-30'}, ('lock_date_changed', 'fiscalyear_lock_date', '2025-01-01>2026-09-30')),
+            ({'fiscalyear_lock_date': None}, ('lock_date_changed', 'fiscalyear_lock_date', '2026-09-30>')),
+            ({'sale_lock_date': '2026-03-31'}, ('lock_date_changed', 'sale_lock_date', '>2026-03-31')),
+        )
+        expected = []
+        for body, event in steps:
+            with self.subTest(body=body):
+                self.assertEqual(self._write('PATCH', 'fiscal', body).status_code, 200)
+                expected.append((*event, *company))
+                self.env.invalidate_all()
+                self.assertEqual(self._lock_events(), expected)
+        # A save that changes no lock date, or only the year end, adds no lock event.
+        self.assertEqual(self._write('PATCH', 'fiscal', {'sale_lock_date': '2026-03-31', 'fiscalyear_last_day': 30}).status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual(self._lock_events(), expected)
+        # The generic event keeps naming fields only.
+        generic = self.env['liwan.finance.audit.event'].search([('company_id', '=', self.fresh.id), ('action', '=', 'company_written')])
+        self.assertFalse(any(event.outcome for event in generic))
 
     def test_the_transfer_account_comes_from_the_chart_and_can_be_changed(self):
         self.env['account.chart.template'].try_loading('sa', self.fresh)
@@ -483,8 +507,26 @@ class TestFinanceSetup(LiwanFinanceCase):
         self.assertEqual(self._get()['fiscal']['hard_lock_date'], '2025-12-31')
         self.env.invalidate_all()
         self.assertEqual(str(self.fresh.hard_lock_date), '2025-12-31')
-        events = self.env['liwan.finance.audit.event'].search([('company_id', '=', self.fresh.id)])
-        self.assertEqual(events.mapped('fields_written'), ['hard_lock_date'])
+        self.assertEqual(
+            self._lock_events(),
+            [('hard_lock_set', 'hard_lock_date', '>2025-12-31', 'res.company', self.fresh.id, self.signed_in)],
+        )
+        self.assertEqual(self._lock('2026-03-31').status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual(self._lock_events()[-1][:3], ('hard_lock_set', 'hard_lock_date', '2025-12-31>2026-03-31'))
+
+    def test_repeating_the_hard_lock_already_in_force_changes_and_audits_nothing(self):
+        self._setup_manager()
+        self.assertEqual(self._lock('2025-12-31').status_code, 200)
+        self.env.invalidate_all()
+        events = self.env['liwan.finance.audit.event'].search_count([('company_id', '=', self.fresh.id)])
+        with self.assertNoLogs('odoo.addons.liwan_finance.models.setup_service', 'INFO'):
+            again = self._lock('2025-12-31')
+        self.assertEqual(again.status_code, 200, again.text)
+        self.assertEqual(again.json()['fiscal']['hard_lock_date'], '2025-12-31')
+        self.env.invalidate_all()
+        self.assertEqual(self.env['liwan.finance.audit.event'].search_count([('company_id', '=', self.fresh.id)]), events)
+        self.assertEqual(len(self._lock_events()), 1)
 
     def test_the_hard_lock_needs_the_confirmation_and_a_valid_date(self):
         self._setup_manager()

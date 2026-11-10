@@ -141,7 +141,9 @@ def _require_no_unreconciled_lines(vals, company):
 
 
 def parse_hard_lock_vals(payload, company):
-    """The one irreversible write: a dated hard lock, stated with an explicit confirmation, that only moves later."""
+    """The one irreversible write: a dated hard lock, stated with an explicit confirmation, that only moves later.
+
+    Returns no values when that date is already in force."""
     _require_payload(payload, ('hard_lock_date', 'confirm'))
     if payload.get('confirm') is not True:
         raise ApiError(422, 'invalid', 'the irreversible hard lock must be confirmed with confirm: true', field='confirm')
@@ -155,6 +157,9 @@ def parse_hard_lock_vals(payload, company):
         raise ApiError(
             422, 'lock_date_loosening', 'the hard lock date is irreversible and can only move later', field='hard_lock_date',
         )
+    if company.hard_lock_date == lock:
+        # Already in force: nothing to write and nothing to audit.
+        return {}
     drafts = request.env['account.move'].search_count([
         ('company_id', 'child_of', company.ids), ('state', '=', 'draft'), ('date', '<=', lock),
     ])
@@ -196,5 +201,7 @@ class FinanceSetupController(http.Controller):
         require_capability('finance.setup.manage')
         user, company = request.env.user, request.env.company
         require_expected_context(user, company)
-        request.env['liwan.finance.setup']._liwan_write_company(company, parse_hard_lock_vals(payload, company))
+        vals = parse_hard_lock_vals(payload, company)
+        if vals:
+            request.env['liwan.finance.setup']._liwan_write_company(company, vals)
         return dump_setup(company)
