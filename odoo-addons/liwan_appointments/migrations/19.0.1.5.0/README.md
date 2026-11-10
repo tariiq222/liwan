@@ -11,8 +11,7 @@ Two changes of the appointments settings and the booking type:
   `post-inherit-deadline.py` reads the old column before it goes: a type whose stored value equals its company's
   setting becomes an inheriting type (the behaviour it already had), any other type keeps its value as its own. The
   column is then dropped; no second copy of the same fact remains in the table.
-- **The `open` self-booking policy is retired** (issue #550). No route serves a public booking page, so the value
-  promised a capability that does not exist. The field's selection now holds `invite_only` only, and
-  `post-retire-open-self-booking.py` writes that value on any row that still carried another one.
+- **The `open` self-booking policy was retired** (issue #550). The field itself is removed in 19.0.1.7.0, which
+  also deleted the script that rewrote a stored `open` value; see that migration.
 
 No other row, booking or type changes; a running booking is not rewritten either, its type's deadline is simply read.
