@@ -4,7 +4,7 @@
 
 ## المصدر والبيئة
 
-- المصدر: فرع `codex/tools-e2e-odoo-specs` من `main` عند `3a9a79ddd70e4e9bbfcd66528bc7481400e90154`، مع تعديلات الفرع غير الملتزمة وقت التشغيل (الـspecs والمشتركات والـfixture و`deploy/ci/e2e-odoo.sh` و`docs/testing.md`). لم يُغيَّر أي كود منتج.
+- المصدر: فرع `codex/tools-e2e-odoo-specs` من `main` عند `3a9a79ddd70e4e9bbfcd66528bc7481400e90154`، مع تعديلات الفرع غير الملتزمة وقت التشغيل (الـspecs والمشتركات والـfixture و`deploy/ci/e2e-odoo.sh` و`docs/testing.md`). لم يُغيَّر أي كود منتج في ترحيل الـspecs؛ إصلاحا الخروج والمفاتيح الميتة في القسم أدناه التزامان لاحقان منفصلان.
 - الجهاز: macOS محلي، PostgreSQL محلي، Odoo من `/Users/tariq/code/odoo` بمنفذ **8172**، وبناء إنتاج لـ Nuxt على المنفذ **44300**.
 - القاعدة: `liwan_scratch_e2e` فقط. أنشأها السكربت وحذفها عند الانتهاء. لم يُلمس `liwan_dev` ولا `odoo19`.
 - الأمر المُلزِم (السكربت نفسه، كما في CI):
@@ -45,14 +45,19 @@
 - **`deploy/ci/e2e-odoo.sh`**: `REAL_ODOO_SPECS` صار الملفات الأربعة عشر، و`EXCLUDED_REAL_ODOO_SPECS` فارغة مع تعليق يشرح أنها تبقى ليبقى للبوابة معنى. الحرس في `tools/test_ci_scope.py` (40 اختبارًا، كلها ناجحة) لا يزال يفشل إذا وُجد spec محروس بـ`E2E_REAL_ODOO` في أي من القائمتين.
 - **`docs/testing.md`**: فقرة `e2e-odoo` تقول الآن أن الأربعة عشر كلها تعمل وأن المستثنى يبقى بالاسم مع السبب.
 
-## عيوب منتج اكتُشفت أثناء الترحيل ولم تُصلَح (خارج ملكية هذه المهمة)
+## عيبان اكتُشفا أثناء الترحيل وأُصلحا لاحقًا
 
-1. **الخروج يعيد إلى `/` لا إلى `/login`**: بعد `POST /api/auth/logout` (204) و`GET /api/v1/me` (401)، `useSignOut` (`apps/web/app/composables/useSignOut.ts:26`) ينادي `navigateTo('/login')`، لكن حارس الزائر في `apps/web/app/middleware/auth.global.ts:21` يعيد `/login` إلى `/` ما دام `me.value` غير فارغ، فتبقى الهوية السابقة مرسومة ويُعاد طلب `/api/v1/me` بعشرات المرات (71 طلبًا في ~6 ثوانٍ، كلها 401). `appearance-user.spec.ts` يثبت اليوم أن الجلسة انتهت فعلًا (`/api/v1/me` = 401) ويسجّل مسار الهبوط كتعليق وتشخيص، بدل أن يعتمد على إعادة توجيه معطوبة.
-2. **`hr.leaveSettings.conflict` / `.reload` / `.reloadError`** (`apps/web/i18n/locales/ar/hr.json:457-459`) صارت مفاتيح ميتة: البطاقة تعرض `app.settingsConflict` و`app.reloadCurrent` من طبقة الواجهة المشتركة.
+1. **الخروج كان يعيد إلى `/` لا إلى `/login`** — أُصلح في `apps/web/app/composables/useSignOut.ts`. بعد `POST /api/auth/logout` (204) و`GET /api/v1/me` (401) كانت الهوية السابقة تبقى مرسومة ويُعاد طلب `/api/v1/me` عشرات المرات: 71 طلبًا في نحو 6 ثوانٍ في أول قياس، و89 طلبًا في إعادة إنتاج لاحقة على المكدس الحقيقي، وكلها 401.
+
+   السبب: `refreshNuxtData('me')` يستدعي `execute` بسبب `refresh:hook`، وNuxt مع `granularCachedData` يقرأ في هذا الفرع `getCachedData`، فيعيد `nuxtApp.static.data.me` وفيه هوية المستخدم الخارج. فتُحلّ `me` بالهوية نفسها وتبقى الحالة `success` بلا خطأ، وحارس الزائر في `apps/web/app/middleware/auth.global.ts` يرى هوية فيعيد `/login` إلى `/`، وكل دورة تُنعش `me` من المخزن ذاته.
+
+   الإصلاح: `useSignOut` يسجّل `useNuxtData<Me | null>('me').data.value = null` قبل `navigateTo('/login')`. الخادم رفض `/api/v1/me` فعلًا، فالقيمة `null` هي الجواب الصادق. القياس على المكدس نفسه قبل إعادة الأساس على `main`: الهبوط على `/login` ونموذج الدخول ظاهر وبلا هوية قديمة، و4 طلبات بدل 89 تتوقف خلال 27 مللي ثانية. يثبّته `apps/web/app/composables/__tests__/useSignOut.test.ts`، و`appearance-user.spec.ts` عاد إلى `toHaveURL(/\/login/)` ويتحقق أن اسم الحساب الخارج وبريده غير مرسومين.
+2. **`hr.leaveSettings.conflict` / `.saveError` / `.reload` / `.reloadError`** (`apps/web/i18n/locales/{ar,en}/hr.json`) — حُذفت. البحث في `apps/web` لا يجد أي مستخدم لها: البطاقة تعرض `app.settingsConflict` و`app.reloadCurrent` من `packages/ui`.
 
 ## ما بقي غير مثبت
 
 - المرحلة لم تُشغَّل عبر GitHub Actions؛ هذا تشغيل محلي على جهاز مطوّر، وليس دليل نشر.
+- إصلاح الخروج وتعديل `appearance-user.spec.ts` لم يُشغَّلا عبر `deploy/ci/e2e-odoo.sh` بعد إعادة الأساس على `main`؛ قياس 89 مقابل 4 طلبات سابق لها. المثبت بعدها هو اختبار الوحدة وفحص الأنواع فقط.
 - الزمن المحلي (دقيقتان للـspecs، وأكثر مع تركيب الوحدات والبناء) لا يمثل زمن CI على `ubuntu-24.04`.
 - بنك البريد غير مهيّأ على المكدس المؤقت، فالدعوات تُسجَّل `delivery: failed` و`state: pending`؛ الاختبارات تقرأ الحالة من الـAPI وتؤكد ما يعرضه السجل، ولا تدّعي أن رسالة وصلت. خطوات ما بعد القبول في `access-admin` و`hr-people-access` تبقى مشروطة بـ`E2E_MAIL_OUTBOX` كما كانت.
 

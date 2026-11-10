@@ -453,11 +453,7 @@
       "managerOnly": "Only a manager can cancel",
       "managerApprovalHint": "A request leaves the approved leave and balance unchanged until an authorized manager approves cancellation.",
       "directEmployeeHint": "Employees can cancel their own eligible approved leave immediately. A pending request still needs a manager decision.",
-      "managerOnlyHint": "Employees cannot initiate cancellation. An authorized manager can cancel another employee’s eligible approved leave.",
-      "conflict": "The policy changed. Your draft is retained; reload the latest policy before saving.",
-      "saveError": "Unable to save leave policy",
-      "reload": "Reload policy",
-      "reloadError": "Unable to reload. Your draft and conflict were retained."
+      "managerOnlyHint": "Employees cannot initiate cancellation. An authorized manager can cancel another employee’s eligible approved leave."
     },
     "bell": {
       "leaveApproved": "Your leave request ({dates}) was approved",
