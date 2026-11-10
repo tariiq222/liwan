@@ -164,11 +164,21 @@ old file could re-enable a tenant that was just disabled — but "the registry i
 - `start.mjs` refuses to start while a barrier is present (fail-closed) and prints one line naming the
   barrier file and the recovery command instead of an uncaught stack trace.
 
-Recovery while the control plane is down. `registry-recover.mjs` needs no database, network or control
-plane. It validates the published registry and refuses unless the barrier is a regular file; without
-`--confirm` it only reports (dry run). With `--confirm` it removes **only** `<registry>.pending` and
-`<registry>.publisher-lock`; it never writes, truncates or renames the registry JSON. The barrier is removed
-last, so an interrupted recovery leaves readers closed.
+Recovery while the control plane is down. The barrier records `{"snapshotRevision":N}`, the snapshot revision
+its publication was going to make durable. `registry-recover.mjs` needs no database, network or control plane. It
+validates the published registry, requires the barrier to be a regular file that records N, and clears the barrier
+**only when the registry file's `snapshotRevision` is at least N**. The control plane replaces the file strictly
+after it commits, so a file at N or later is the committed authority and only the final unlink was lost.
+
+A file **below** N cannot be trusted. If the publisher died after committing a tenant disable but before replacing
+the file, the file still lists that tenant as enabled, and clearing the barrier would serve it again. The tool cannot
+tell that case from a publication that never committed, because it does not read the database, so it refuses
+(`registry_behind_barrier`, exit 1) and keeps the barrier. It also refuses a barrier that does not record a
+revision (`barrier_unverifiable`): empty, torn or from another tool. Readers stay closed (503) in both cases.
+
+Without `--confirm` it only reports (dry run) and applies the same refusals. With `--confirm` it removes **only**
+`<registry>.pending` and `<registry>.publisher-lock`; it never writes, truncates or renames the registry JSON. The
+barrier is removed last, so an interrupted recovery leaves readers closed.
 
 ```sh
 # 1. stop every registry publisher (control-plane control-worker / any admin CLI) first:
@@ -177,13 +187,20 @@ last, so an interrupted recovery leaves readers closed.
 #    (the guard container mounts the registry read-only, so the tool does not run there):
 node deploy/shared/registry-recover.mjs --registry <stateDir>/registry.json
 node deploy/shared/registry-recover.mjs --registry <stateDir>/registry.json --confirm
-# 3. restart the guard (or let Compose restart it); 4. republish through the control plane
-#    so the durable snapshot, audit row and file agree.
+# 3. restart the guard (or let Compose restart it).
+#
+# If step 2 exits 1 with registry_behind_barrier or barrier_unverifiable, do NOT delete the barrier by hand.
+# Start the control plane and call POST /v1/registry/recover (vendor.tenants.manage, step-up). It rebuilds the
+# snapshot from the database, replaces the file and clears the barrier, so the file, the audit row and the
+# durable authority agree. The guard keeps answering 503 until then.
 ```
 
-`node --test deploy/shared/registry-recover.test.mjs` covers this offline: it proves recovery leaves the
-registry bytes unchanged and refuses an invalid registry. A live recovery is an operator action, not a
-test result; nothing here proves a real publisher crash or a production control-plane outage.
+`node --test deploy/shared/registry-recover.test.mjs` covers this offline: recovery leaves the registry bytes
+unchanged, refuses an invalid registry, refuses a registry behind the barrier or a barrier with no revision (and
+keeps both marker files), and clears one whose registry carries the revision. The control-plane tests
+(`registry-store.test.ts`, `registry-publisher.test.ts`) cover what the publisher writes into the barrier. A live
+recovery is an operator action, not a test result; nothing here proves a real publisher crash or a production
+control-plane outage.
 
 ## Restore hosts
 

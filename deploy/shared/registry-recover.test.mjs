@@ -11,7 +11,7 @@ const target = { host: 't0.example.test', tenantId: 'tenant_0', database: 'db_0'
 const registry = { schemaVersion: 1, snapshotRevision: 1, targets: [target] }
 const tool = new URL('registry-recover.mjs', import.meta.url).pathname
 
-function fixture({ content = JSON.stringify(registry), barrier = 'registry publication pending\n', lock = true } = {}) {
+function fixture({ content = JSON.stringify(registry), barrier = JSON.stringify({ snapshotRevision: 1 }), lock = true } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'liwan-registry-recover-'))
   const path = join(root, 'registry.json')
   writeFileSync(path, content)
@@ -63,6 +63,49 @@ test('the recovery tool refuses an invalid registry and changes nothing', () => 
       // A refused recovery must keep the barrier: the registry is not safe to serve.
       assert.ok(statSync(`${path}.pending`).isFile())
       assert.deepEqual(readFileSync(path), before)
+    } finally { rmSync(root, { recursive: true, force: true }) }
+  }
+})
+
+test('the recovery tool refuses a registry older than the interrupted publication and keeps the barrier and lock', () => {
+  // A publisher that committed a tenant disable (revision 2) and died before replacing the file leaves the
+  // old, still-enabled revision 1 file next to a barrier for revision 2. Clearing it would serve the tenant.
+  const { root, path } = fixture({ barrier: JSON.stringify({ snapshotRevision: 2 }) })
+  try {
+    const before = readFileSync(path)
+    for (const confirm of [false, true]) {
+      assert.throws(() => recoverRegistry({ registry: path, confirm }), error => error instanceof RecoveryRefused && error.code === 'registry_behind_barrier' && /revision 1/.test(error.detail) && /revision 2/.test(error.detail))
+    }
+    assert.ok(statSync(`${path}.pending`).isFile())
+    assert.ok(statSync(`${path}.publisher-lock`).isFile())
+    assert.deepEqual(readFileSync(path), before)
+    // The reader keeps failing closed.
+    assert.throws(() => readTenantRegistry(path), { statusCode: 503, code: 'tenant_registry_unavailable' })
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('the recovery tool clears a barrier whose registry already carries the published revision or a newer one', () => {
+  for (const [barrierRevision, registryRevision] of [[2, 2], [1, 2]]) {
+    const { root, path } = fixture({
+      content: JSON.stringify({ ...registry, snapshotRevision: registryRevision, targets: [{ ...target, registryRevision }] }),
+      barrier: JSON.stringify({ snapshotRevision: barrierRevision }),
+    })
+    try {
+      const result = recoverRegistry({ registry: path, confirm: true })
+      assert.equal(result.recovered, true)
+      assert.equal(result.barrierSnapshotRevision, barrierRevision)
+      assert.throws(() => statSync(`${path}.pending`), { code: 'ENOENT' })
+    } finally { rmSync(root, { recursive: true, force: true }) }
+  }
+})
+
+test('the recovery tool refuses a barrier that does not record the revision it was publishing', () => {
+  for (const barrier of ['registry publication pending\n', '', '{"snapshotRevision":', '[]', 'null', '{}', '{"snapshotRevision":0}', '{"snapshotRevision":1.5}', '{"snapshotRevision":"1"}', '{"snapshotRevision":1,"extra":true}']) {
+    const { root, path } = fixture({ barrier })
+    try {
+      assert.throws(() => recoverRegistry({ registry: path, confirm: true }), error => error instanceof RecoveryRefused && error.code === 'barrier_unverifiable', `barrier ${JSON.stringify(barrier)}`)
+      assert.ok(statSync(`${path}.pending`).isFile())
+      assert.ok(statSync(`${path}.publisher-lock`).isFile())
     } finally { rmSync(root, { recursive: true, force: true }) }
   }
 })
@@ -136,6 +179,20 @@ test('a boot with a publication barrier names it and the recovery command, then 
     assert.ok(start.stderr.includes(`deploy/shared/registry-recover.mjs --registry ${path} --confirm`), start.stderr)
     assert.doesNotMatch(start.stderr, /\n\s+at /)
     assert.equal(start.stdout, '')
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('the CLI refuses a stale registry with a non-zero exit, names the control plane recovery and keeps the barrier', () => {
+  const { root, path } = fixture({ barrier: JSON.stringify({ snapshotRevision: 2 }) })
+  try {
+    for (const flags of [[], ['--confirm']]) {
+      const result = spawnSync(process.execPath, [tool, '--registry', path, ...flags], { encoding: 'utf8' })
+      assert.equal(result.status, 1)
+      assert.match(result.stderr, /registry_behind_barrier/)
+      assert.match(result.stderr, /POST \/v1\/registry\/recover/)
+      assert.doesNotMatch(result.stdout, /removed:|recovered:/)
+      assert.ok(statSync(`${path}.pending`).isFile())
+    }
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 

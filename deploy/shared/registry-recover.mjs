@@ -3,13 +3,22 @@
  * Offline recovery for a stuck tenant-registry publication barrier (#447).
  *
  * The control plane creates `<registry>.pending` before it commits authority changes and removes it after
- * the new snapshot is durable. If the publisher crashes, the barrier stays and every reader fails closed:
- * the guard refuses to start and any running guard answers 503 `tenant_registry_unavailable`.
+ * the new snapshot is durable. The barrier records `{"snapshotRevision":N}`, the revision that publication
+ * will make durable. If the publisher crashes, the barrier stays and every reader fails closed: the guard
+ * refuses to start and any running guard answers 503 `tenant_registry_unavailable`.
+ *
+ * A crash after the SQL commit but before the registry file is replaced leaves the OLD file next to a
+ * barrier. Clearing the barrier then would serve a tenant that was just disabled. The file is only proven
+ * current when its `snapshotRevision` is at least N, because the file is replaced strictly after the commit.
+ * Below N the committed authority is unknown to this tool (the commit may or may not have happened), so it
+ * refuses and the operator republishes from the authority through the control plane
+ * (`POST /v1/registry/recover`, `recoverRegistry` in apps/control-plane/src/shared/registry-store.ts).
  *
  * This tool needs no control plane, no database and no network. It:
  *   - requires `--registry <absolute path>`;
  *   - refuses unless the published registry file parses and validates;
- *   - refuses unless `<path>.pending` exists and is a regular file;
+ *   - refuses unless `<path>.pending` exists, is a regular file and records the revision it was publishing;
+ *   - refuses unless the registry's `snapshotRevision` is at least the barrier's;
  *   - without `--confirm` only prints the plan (dry run);
  *   - with `--confirm` removes ONLY `<path>.pending` and `<path>.publisher-lock`.
  * It never writes, truncates or renames the registry JSON.
@@ -45,7 +54,8 @@ export function verifyRegistry(path) {
   catch { throw new RecoveryRefused('registry_invalid', 'the registry does not satisfy the published schema') }
 }
 
-function barrierEvidence(path) {
+/** Returns the snapshot revision the interrupted publication was going to make durable. */
+function barrierRevision(path) {
   let stat
   try { stat = lstatSync(path) }
   catch (error) {
@@ -54,6 +64,14 @@ function barrierEvidence(path) {
   }
   // completePublication only accepts a regular marker; a symlink (or a directory) is not a publication barrier.
   if (!stat.isFile() || stat.isSymbolicLink()) throw new RecoveryRefused('barrier_invalid', `${path} is not a regular file`)
+  let recorded
+  try { recorded = JSON.parse(readFileSync(path, 'utf8')) }
+  catch { throw new RecoveryRefused('barrier_unverifiable', `${path} does not record a snapshot revision`) }
+  const keys = recorded && typeof recorded === 'object' ? Object.keys(recorded) : []
+  if (keys.length !== 1 || keys[0] !== 'snapshotRevision' || !Number.isSafeInteger(recorded.snapshotRevision) || recorded.snapshotRevision < 1) {
+    throw new RecoveryRefused('barrier_unverifiable', `${path} does not record a snapshot revision`)
+  }
+  return recorded.snapshotRevision
 }
 
 function lockEvidence(path) {
@@ -76,10 +94,14 @@ export function recoverRegistry({ registry, confirm = false }) {
   if (confirm !== true && confirm !== false) throw new RecoveryRefused('invalid_confirm')
   const snapshot = verifyRegistry(registry)
   const barrier = `${registry}.pending`
-  barrierEvidence(barrier)
+  const barrierSnapshotRevision = barrierRevision(barrier)
+  // The file is replaced only after the commit, so a file at or past the barrier's revision carries it.
+  if (snapshot.snapshotRevision < barrierSnapshotRevision) {
+    throw new RecoveryRefused('registry_behind_barrier', `the registry is at revision ${snapshot.snapshotRevision} but the interrupted publication targets revision ${barrierSnapshotRevision}`)
+  }
   const lock = `${registry}.publisher-lock`
   const hasLock = lockEvidence(lock)
-  const plan = { registry, barrier, publisherLock: hasLock ? lock : null, snapshotRevision: snapshot.snapshotRevision, targets: snapshot.targets.length, confirm }
+  const plan = { registry, barrier, publisherLock: hasLock ? lock : null, snapshotRevision: snapshot.snapshotRevision, barrierSnapshotRevision, targets: snapshot.targets.length, confirm }
   if (!confirm) return { ...plan, recovered: false, removed: [] }
   // Remove the barrier last: while it exists readers stay closed, even if this process dies mid-recovery.
   if (hasLock) unlinkSync(lock)
@@ -111,6 +133,8 @@ const refusalText = code => ({
   registry_missing: 'the registry file does not exist',
   registry_unreadable: 'the registry file cannot be read',
   registry_invalid: 'the registry file is invalid; fix or republish it before removing the barrier',
+  registry_behind_barrier: 'the registry file is older than the interrupted publication, so it may predate a committed change (for example a disabled tenant); the barrier was kept. Recover through the control plane (POST /v1/registry/recover) so the file is republished from the database',
+  barrier_unverifiable: 'the publication barrier does not record which snapshot it was publishing, so the registry cannot be proven current; the barrier was kept. Recover through the control plane (POST /v1/registry/recover)',
   barrier_missing: 'there is no publication barrier to recover; nothing was changed',
   barrier_invalid: 'the publication barrier is not a regular file; inspect it manually',
   publisher_lock_unreadable: 'the publisher lock cannot be inspected; stop every publisher first',
@@ -142,7 +166,7 @@ function main(argv) {
   // One line per fact so an operator log is greppable and the plan is auditable before and after.
   console.log(`registry: ${result.registry}`)
   console.log(`snapshot: revision ${result.snapshotRevision}, ${result.targets} target(s), valid`)
-  console.log(`barrier: ${result.barrier}`)
+  console.log(`barrier: ${result.barrier} (publishing revision ${result.barrierSnapshotRevision}, present in the registry)`)
   console.log(`publisher lock: ${result.publisherLock ?? 'absent'}`)
   console.log('the registry JSON is not modified')
   if (!result.recovered) {

@@ -151,6 +151,9 @@ it('never clears the barrier on uncertain commit and recovers disabled authority
   f.flags.commitUnknown = true
   await expect(publishRegistryMutation(f.pool, path, actor, { ...input, expectedSnapshotRevision: 1, target: { ...input.target, enabled: false, registryRevision: 2 } })).rejects.toThrow('connection_lost_after_commit')
   await access(`${path}.pending`)
+  // The barrier names the revision the publication was committing, so offline recovery can tell this
+  // stale (still enabled) file from a published one.
+  expect(JSON.parse(await readFile(`${path}.pending`, 'utf8'))).toEqual({ snapshotRevision: 2 })
   expect(JSON.parse(await readFile(path, 'utf8')).targets[0].enabled).toBe(true)
   const recovered = await recoverRegistry(f.pool, path, actor, 'Recover after disconnect')
   expect(recovered.targets[0]!.enabled).toBe(false)

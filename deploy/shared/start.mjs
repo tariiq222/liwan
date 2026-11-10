@@ -12,7 +12,7 @@ try {
   // Fail closed, but say what happened and how to recover: a stale `.pending` barrier is an operator
   // problem, not a crash. The guard must not start while publication authority is uncertain.
   const barrier = `${registryPath}.pending`
-  console.error(`tenant_registry_unavailable: refusing to start while the publication barrier ${barrier} exists; stop every registry publisher, then run on the host: node deploy/shared/registry-recover.mjs --registry ${registryPath} --confirm`)
+  console.error(`tenant_registry_unavailable: refusing to start while the publication barrier ${barrier} exists; stop every registry publisher, then run on the host: node deploy/shared/registry-recover.mjs --registry ${registryPath} --confirm (it refuses when the registry file may predate a committed change; then recover through the control plane, POST /v1/registry/recover)`)
   process.exit(1)
 }
 const server = createGuard({
