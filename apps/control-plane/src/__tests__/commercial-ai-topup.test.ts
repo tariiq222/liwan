@@ -17,6 +17,7 @@ import { requestInvoiceRefund } from '../commercial/settlements.js'
 import { extendTrial, pushCommercialExpiry } from '../commercial/trial.js'
 import { transaction } from '../db.js'
 import { reconcileAfterRestore, fakeObserveRunner } from '../shared/subscription-reconcile.js'
+import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { assertReconfigureAuthority, runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
 
 const suite = url ? describe : describe.skip
@@ -493,6 +494,43 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       await runSubscriptionReconfigure(pool, pending[0]!, runner)
       expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
       expect(await stuck(id)).toBe(0)
+    })
+
+    it('a push read against the old revision after the change completed is superseded and re-queued for the current one', async () => {
+      const { id, o } = await appliedTopup()
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)
+      expect(await queued(id)).toHaveLength(0)
+      const oldRevision = (await pool.query('SELECT payload FROM shared_jobs WHERE payload->>\'operation\'=\'reconfigure\' AND payload->\'authority\'->>\'order_id\'=$1', [o.id])).rows[0].payload.authority.target_revision_id
+      // A refund committed after the completion check, whose push was built against the revision that was applied before.
+      await pool.query('UPDATE ai_topups SET refunded_at=now(),refunded_by=\'system\',refund_reason=\'race\' WHERE customer_id=$1', [id])
+      const tenant = (await pool.query('SELECT tenant_id FROM customers WHERE id=$1', [id])).rows[0].tenant_id
+      const oldApplied = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [await jobId(o.id, false)])).rows[0].payload
+      const stale = structuredClone(oldApplied)
+      stale.requestId = stale.authority.operation_id = randomUUID()
+      stale.authority.ai_push = true
+      stale.authority.previous_revision_id = stale.authority.target_revision_id = oldRevision
+      stale.authority.entitlement.features = { ...stale.authority.entitlement.features, 'ai.balance.granted': 0 }
+      const staleId = (await transaction(pool, c => enqueueReconfigureJob(c, stale, { unique: true }))).id
+      await expect(runSubscriptionReconfigure(pool, staleId, runner)).resolves.toMatchObject({ state: 'verified', receipt: { superseded: true } })
+      const next = await queued(id)
+      expect(next).toHaveLength(1)
+      await runSubscriptionReconfigure(pool, next[0]!, runner)
+      expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+      expect(await queued(id)).toHaveLength(0)
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('a superseded push queues nothing when the current revision already holds the live values', async () => {
+      const { id, o } = await appliedTopup()
+      await patchSettings({ trial_allowance_minor: 1000 })
+      const stale = await jobId(o.id, true)
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)
+      await expect(runSubscriptionReconfigure(pool, stale!, runner)).resolves.toMatchObject({ receipt: { superseded: true } })
+      expect(await queued(id)).toHaveLength(0)
     })
 
     it('a failed AI push does not block the next paid order, and is logged', async () => {

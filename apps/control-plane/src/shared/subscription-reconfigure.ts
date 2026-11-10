@@ -85,8 +85,9 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     if(blocked.rowCount)throw Error('shared_reconciliation_required')
     if(job.authority.ai_push){
       // A newer revision applied after this push was queued: its own completion check already compared the live values
-      // with what it delivered, so this push is superseded and completes without touching the tenant.
-      // delivery was built before the change that queued this one.
+      // with what it delivered, so this push is superseded and completes without touching the tenant. A change committed
+      // after that check but read against the old revision is caught here: the values the current revision last received
+      // are compared with the live ones, and one push is queued only if they differ.
       const current=(await client.query('SELECT customer_id,applied_revision_id FROM subscriptions WHERE tenant_id=$1 FOR SHARE',[job.controlTenantId])).rows[0]
       if(!current){
         // Nothing to deliver to and nobody to push for: a balance change that cannot be applied must not look done. It
@@ -100,6 +101,9 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
       if(current.applied_revision_id!==job.authority.target_revision_id){
         const receipt:SupersededReceipt={superseded:true,applied_revision_id:current.applied_revision_id}
         await client.query("UPDATE shared_jobs SET state='verified',receipt=$2,lease_until=NULL,journal=$3 WHERE id=$1",[id,receipt,{stage:'verified',operation_id:job.authority.operation_id,superseded:true}])
+        const last=await client.query(`SELECT journal->'ai_delivered' AS delivered FROM shared_jobs WHERE control_tenant_id=$1 AND state='verified'
+          AND payload->'authority'->>'target_revision_id'=$2 AND journal ? 'ai_delivered' ORDER BY created_at DESC,id DESC LIMIT 1`,[job.controlTenantId,current.applied_revision_id])
+        await pushAiIfStale(client,current.customer_id,last.rows[0]?.delivered??{})
         return {superseded:receipt}
       }
     }
@@ -135,7 +139,7 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     }
     // applyReceipt clears the target; completion checks ownership separately.
     await transaction(pool,async client=>{
-      const done=await client.query("UPDATE shared_jobs SET state='verified',receipt=$4,lease_until=NULL,journal=$5 WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id",[id,claim.attemptId,claim.fence,receipt,{stage:'verified',operation_id:claim.job.authority.operation_id}])
+      const done=await client.query("UPDATE shared_jobs SET state='verified',receipt=$4,lease_until=NULL,journal=$5 WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id",[id,claim.attemptId,claim.fence,receipt,{stage:'verified',operation_id:claim.job.authority.operation_id,ai_delivered:Object.fromEntries(Object.entries(claim.job.authority.entitlement.features).filter(([k])=>AI_ENTITLEMENT_KEYS.includes(k)))}])
       if(!done.rowCount)throw Error('shared_lease_lost')
       // Values read at claim time may have changed while the job ran: the delivered AI values are checked against the
       // live ones here, in the completing transaction, and a push follows when they differ.
