@@ -20,13 +20,13 @@ suite('vendor attention list on PostgreSQL', () => {
   const operationId = randomUUID()
   let rejectedFixture: { order: string; attempt: string; invoice: string }
   /** A paid invoice with its paying attempt, and a refund row the worker closed as failed. */
-  async function refundFixture(customerId: string, s: { sub: string, rev: string }) {
+  async function refundFixture(customerId: string, s: { sub: string, rev: string }, row: { error?: string, refunded?: unknown, omitAttempt?: boolean } = {}) {
     const orderId = randomUUID(), attempt = randomUUID(), invoice = randomUUID()
     await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'new',$4,$5,'paid','applied',$6,'d',11500,'SAR',2)", [orderId, customerId, s.sub, randomUUID(), s.rev, randomUUID()])
     await pool.query("INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at) VALUES($1,$2,$3,$4,'initial','paid','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())", [invoice, customerId, s.sub, orderId])
     await pool.query("INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status) VALUES($1,$2,$3,'moyasar','live',$4,11500,'SAR',2,'succeeded')", [attempt, orderId, invoice, `moy-${attempt}`])
     await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status,processed_at) VALUES($1,'payment.intervention',$2,$3,$4,'failed',now() - interval '1 day')",
-      [randomUUID(), orderId, attempt, JSON.stringify({ order_id: orderId, attempt_id: attempt, error: 'refund_exceeds_payment' })])
+      [randomUUID(), orderId, attempt, JSON.stringify({ order_id: orderId, ...(row.omitAttempt ? {} : { attempt_id: attempt }), ...(row.refunded ? { refunded: row.refunded } : {}), error: row.error ?? 'refund_exceeds_payment' })])
     return { order: orderId, attempt, invoice }
   }
 
@@ -128,17 +128,58 @@ suite('vendor attention list on PostgreSQL', () => {
     expect(r.counts.setup_required).toBeGreaterThanOrEqual(1)
   })
 
-  it('keeps a rejected refund listed until a credit note for that attempt exists, and then drops it', async () => {
-    const listed = async () => (await get(BILLING)).items.some(i => i.kind === 'refund_rejected' && i.customer_id === id.rejected)
-    expect(await listed()).toBe(true)
-    // A note for another attempt of the same invoice does not resolve it; a voided note neither.
-    const note = (reason: string, status: string) => pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-      VALUES($1,$2,$3,'credit_note',$4,5000,'SAR',2,$5,'system','system')`, [randomUUID(), rejectedFixture.invoice, id.rejected, reason, status])
-    await note(`payment refunded after fulfillment — manual review (attempt ${randomUUID()})`, 'pending')
-    await note(`payment refunded after fulfillment — manual review (attempt ${rejectedFixture.attempt})`, 'void')
-    expect(await listed()).toBe(true)
-    await note(`payment refunded after fulfillment — manual review (attempt ${rejectedFixture.attempt})`, 'pending')
-    expect(await listed()).toBe(false)
+  describe('a rejected refund and the credit that covers it', () => {
+    const listed = async (customerId: string) => (await get(BILLING)).items.some(i => i.kind === 'refund_rejected' && i.customer_id === customerId)
+    const credit = (fixture: { invoice: string }, customerId: string, reason: string, status: string, minor = 5000, origin = 'vendor') => pool.query(
+      `INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
+       VALUES($1,$2,$3,'credit_note',$4,$5,'SAR',2,$6,'t',$7) RETURNING id`, [randomUUID(), fixture.invoice, customerId, reason, minor, status, origin])
+    const rejectedCustomer = async () => {
+      const customer = randomUUID()
+      await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, `${tag} rejected-extra`])
+      const s = await subscription(customer, 'active', new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10))
+      return { customer, s }
+    }
+
+    it('is shown without credit, cleared by any non-void credit of the invoice, and shown again when that credit is voided', async () => {
+      expect(await listed(id.rejected)).toBe(true)
+      // A duplicate-charge note is another payment's money and covers nothing.
+      await credit(rejectedFixture, id.rejected, 'duplicate payment — manual review (attempt x)', 'pending', 11500, 'system')
+      expect(await listed(id.rejected)).toBe(true)
+      const vendor = (await credit(rejectedFixture, id.rejected, 'Customer asked for the money back', 'pending', 11500)).rows[0].id
+      expect(await listed(id.rejected)).toBe(false)
+      await pool.query("UPDATE invoice_adjustments SET status='void' WHERE id=$1", [vendor])
+      expect(await listed(id.rejected)).toBe(true)
+    })
+    it('never shows a rejected event whose refund the vendor credit already covered', async () => {
+      const { customer, s } = await rejectedCustomer()
+      const fixture = await refundFixture(customer, s, { error: 'refund_amount_missing' })
+      await pool.query("DELETE FROM commercial_outbox WHERE aggregate_id=$1", [fixture.order])
+      await credit(fixture, customer, 'Customer asked for the money back', 'applied', 11500)
+      await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status,processed_at) VALUES($1,'payment.intervention',$2,'k',$3,'failed',now())",
+        [randomUUID(), fixture.order, JSON.stringify({ order_id: fixture.order, attempt_id: fixture.attempt, error: 'refund_amount_missing' })])
+      expect(await listed(customer)).toBe(false)
+    })
+    it('compares a known refunded figure with the credit and clears on a later processed event', async () => {
+      const { customer, s } = await rejectedCustomer()
+      const fixture = await refundFixture(customer, s, { error: 'refund_currency_mismatch', refunded: { currency: 'SAR', exponent: 2, minor: 8000 } })
+      expect(await listed(customer)).toBe(true)
+      await credit(fixture, customer, 'Part of it back', 'pending', 3000)
+      expect(await listed(customer)).toBe(true) // 3000 does not cover 8000
+      await credit(fixture, customer, 'The rest', 'pending', 5000)
+      expect(await listed(customer)).toBe(false)
+      const other = await rejectedCustomer()
+      const second = await refundFixture(other.customer, other.s, { error: 'refund_amount_missing' })
+      expect(await listed(other.customer)).toBe(true)
+      await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status,processed_at) VALUES($1,'payment.intervention',$2,'later',$3,'done',now())",
+        [randomUUID(), second.order, JSON.stringify({ order_id: second.order, attempt_id: second.attempt, refunded: { currency: 'SAR', exponent: 2, minor: 5000 } })])
+      expect(await listed(other.customer)).toBe(false)
+    })
+    it('keeps a rejected row that names no attempt', async () => {
+      const { customer, s } = await rejectedCustomer()
+      const fixture = await refundFixture(customer, s, { error: 'attempt_id_missing', omitAttempt: true })
+      await credit(fixture, customer, 'Customer asked for the money back', 'applied', 11500)
+      expect(await listed(customer)).toBe(true)
+    })
   })
 
   it('anchors renewals to the business day, whatever the session time zone', async () => {

@@ -1,5 +1,6 @@
 import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
+import { creditedMinorSql } from './refund-credit.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
@@ -30,18 +31,29 @@ const subjectsSql = `WITH latest AS (
 ), setup AS (
   SELECT * FROM latest WHERE commercial_setup_required OR subscription_id IS NULL
 ), rejected_refunds AS (
-  -- A refund the worker closed as failed. It stays until a credit note for that attempt exists (a later, valid
-  -- cumulative refund event makes one); there is no operator action that resolves it otherwise.
-  SELECT DISTINCT ON (ob.aggregate_id) ob.aggregate_id, ob.processed_at, ob.payload->>'error' AS reason, a.invoice_id,
-    o.customer_id, COALESCE(c.name, ob.aggregate_id) AS name, c.tenant_id
-  FROM commercial_outbox ob
-  LEFT JOIN payment_attempts a ON a.id::text = ob.payload->>'attempt_id'
-  LEFT JOIN orders o ON o.id::text = ob.aggregate_id
+  -- A refund the worker closed as failed. It leaves the list once the invoice's credit covers it, by the same
+  -- definition of "credited" the worker uses (any non-void note, any origin): the figure the provider gave when it is
+  -- valid (at most the payment), otherwise any credit at all, or when a later event for the attempt was processed.
+  -- A row with no attempt has no invoice to be covered on and stays; no operator action dismisses it.
+  SELECT DISTINCT ON (r.aggregate_id) r.aggregate_id, r.processed_at, r.payload->>'error' AS reason, r.invoice_id,
+    o.customer_id, COALESCE(c.name, r.aggregate_id) AS name, c.tenant_id
+  FROM (
+    SELECT ob.aggregate_id, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id,
+      a.amount_minor AS paid_minor,
+      CASE WHEN a.currency = ob.payload#>>'{refunded,currency}' AND ob.payload#>>'{refunded,minor}' ~ '^[0-9]{1,15}$'
+        THEN (ob.payload#>>'{refunded,minor}')::bigint END AS refunded_minor,
+      CASE WHEN a.id IS NOT NULL THEN ${creditedMinorSql('a.invoice_id')} END AS credited_minor
+    FROM commercial_outbox ob
+    LEFT JOIN payment_attempts a ON a.id::text = ob.payload->>'attempt_id'
+    WHERE ob.kind IN ('payment.intervention','reconcile.refund') AND ob.status='failed' AND ob.payload ? 'error'
+  ) r
+  LEFT JOIN orders o ON o.id::text = r.aggregate_id
   LEFT JOIN customers c ON c.id = o.customer_id
-  WHERE ob.kind IN ('payment.intervention','reconcile.refund') AND ob.status='failed' AND ob.payload ? 'error'
-    AND NOT EXISTS (SELECT 1 FROM invoice_adjustments ia WHERE ia.kind='credit_note' AND ia.status<>'void'
-      AND ia.reason LIKE '%(attempt ' || a.id::text || ')')
-  ORDER BY ob.aggregate_id, ob.processed_at DESC
+  WHERE r.attempt_id IS NULL OR NOT (
+    COALESCE(r.credited_minor >= CASE WHEN r.refunded_minor > 0 THEN LEAST(r.refunded_minor, r.paid_minor) ELSE 1 END, false)
+    OR EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind = 'payment.intervention' AND later.status = 'done'
+      AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at))
+  ORDER BY r.aggregate_id, r.processed_at DESC
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), renewing AS (

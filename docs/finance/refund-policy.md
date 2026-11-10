@@ -18,7 +18,7 @@ automatic refund path in this phase.
   The note carries the part the provider refunded, not the whole invoice: each further partial refund adds a note for
   its own part, a replay adds nothing, and the notes never add up to more than the attempt paid. Every non-void credit note of the invoice counts toward what is already credited, the vendor-requested one included (only a duplicate-charge note is other money): a refund the operator already recorded is not credited a second time when the provider's event arrives, and asking for a refund after the event attached to the existing pending note instead of opening a second one. A row that cannot
   become a note (a missing attempt, a refund above the payment, another currency) is closed as `failed` with its
-  reason and a `payment.refund_rejected` audit event, and it shows in the vendor "today" list as `refund_rejected` (billing access) until a credit note for that attempt exists (a later valid cumulative refund event creates one); there is no operator action that closes it otherwise. It never blocks the other rows.
+  reason and a `payment.refund_rejected` audit event, and it shows in the vendor "today" list as `refund_rejected` (billing access) until the invoice's credit covers it, by the same definition the worker uses (any non-void credit note, any origin, duplicate-charge notes excluded): a vendor-recorded refund clears it, voiding that note shows it again, and a later processed refund event for the attempt clears it too. A row with no attempt has no invoice to be covered on and stays; there is no operator action that dismisses it. It never blocks the other rows.
 - `needs_intervention` orders get no credit note automatically; the operator decides after reading Odoo back.
 
 ## Procedure

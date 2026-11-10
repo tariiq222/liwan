@@ -8,6 +8,7 @@ import { adjustmentView } from './invoices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { billingSettings } from './billing-settings.js'
+import { creditedMinorSql, DUPLICATE_PAYMENT_REASON } from './refund-credit.js'
 
 /** Late payment is a manual credit review, never an automatic provider refund. */
 export async function processRefundOutbox(pool: Pool, _adapter?: PaymentAdapter): Promise<number> {
@@ -60,7 +61,7 @@ async function insertSystemCreditNote(client: PoolClient, invoice: { id: string;
 async function creditDuplicatePayment(client: PoolClient, attemptId: unknown): Promise<string | null> {
   const attempt = await lockAttempt(client, attemptId)
   if (typeof attempt === 'string') return attempt
-  const reason = `duplicate payment — manual review (attempt ${attempt.id})`
+  const reason = `${DUPLICATE_PAYMENT_REASON} (attempt ${attempt.id})`
   const existing = await client.query('SELECT id FROM invoice_adjustments WHERE invoice_id=$1 AND reason=$2', [attempt.invoice_id, reason])
   if (!existing.rowCount) await insertSystemCreditNote(client, attempt.invoice, reason, { minor: attempt.amount_minor, currency: attempt.currency, exponent: attempt.exponent })
   return null
@@ -93,8 +94,7 @@ async function creditRefundedAfterFulfillment(client: PoolClient, payload: any):
   // Every credit note of the invoice counts, the vendor's own included: when the operator refunded this money through
   // `requestInvoiceRefund` first, the provider's event is that same money and adds nothing. Only a note for a duplicate
   // charge is other money (a different attempt's payment).
-  const credited = Number((await client.query(`SELECT COALESCE(sum(amount_minor),0) AS total FROM invoice_adjustments
-    WHERE invoice_id=$1 AND kind='credit_note' AND status<>'void' AND reason NOT LIKE 'duplicate payment%'`, [attempt.invoice_id])).rows[0].total)
+  const credited = Number((await client.query(`SELECT ${creditedMinorSql('$1')} AS total`, [attempt.invoice_id])).rows[0].total)
   const part = refunded.minor - credited
   if (part > 0) {
     await insertSystemCreditNote(client, attempt.invoice, reason, { minor: part, currency: attempt.currency, exponent: attempt.exponent })
