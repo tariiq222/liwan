@@ -126,8 +126,10 @@ jobs:
           echo "Reused jobs (passed with these inputs): $(jq -c '.reused' <<< "$plan")"
 
   # One job, one stage: the parts of deploy/ci/static.sh run in parallel as the matrix, and the job (so ci-result)
-  # passes only when every part passes; fail-fast is off so a red run reports every failing part. A documentation-only
-  # pull request runs its light checks in the policies part and nothing in the other two.
+  # passes only when every part passes; fail-fast is off so a red run reports every failing part. A pull request
+  # runs only the units of each part that its changed files can affect (tools/ci_static_profile.py): a documentation-only
+  # one runs its light checks in the policies part and nothing in the other two, and a part with no unit skips its setup
+  # and stays green. Every other event runs every unit.
   static:
     name: static (${{ matrix.part }})
     needs: scope
@@ -149,24 +151,26 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
+          STATIC_PART: ${{ matrix.part }}
         run: |
-          mode="$(python3 -B tools/ci_static_profile.py --base "$PR_BASE")"
-          echo "mode=$mode" >> "$GITHUB_OUTPUT"
-          echo "Static checks: $mode"
+          selection="$(python3 -B tools/ci_static_profile.py --base "$PR_BASE" --part "$STATIC_PART")"
+          echo "$selection" | tee -a "$GITHUB_OUTPUT"
       - name: Check documentation
-        if: steps.profile.outputs.mode == 'docs' && matrix.part == 'policies'
+        if: steps.profile.outputs.mode == 'docs'
         run: bash deploy/ci/lib/docs-static.sh
-      # Only the tests part drives Chromium (two web tests in npm test); the type check needs no Python.
+      # Only a run of the apps/web tests drives Chromium (two of them); the type check needs no Python.
       - uses: ./.github/actions/setup
-        if: steps.profile.outputs.mode != 'docs'
+        if: steps.profile.outputs.mode != 'docs' && steps.profile.outputs.mode != 'skip'
         with:
-          playwright: ${{ matrix.part == 'tests' && 'true' || 'false' }}
+          playwright: ${{ matrix.part == 'tests' && steps.profile.outputs.playwright != 'false' && 'true' || 'false' }}
           python: ${{ matrix.part != 'types' && 'true' || 'false' }}
       - name: Python tools
-        if: steps.profile.outputs.mode != 'docs' && matrix.part == 'policies'
+        if: steps.profile.outputs.mode != 'docs' && steps.profile.outputs.mode != 'skip' && matrix.part == 'policies'
         run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0
       - run: deploy/ci/static.sh ${{ matrix.part }}
-        if: steps.profile.outputs.mode != 'docs'
+        if: steps.profile.outputs.mode != 'docs' && steps.profile.outputs.mode != 'skip'
+        env:
+          CI_STATIC_UNITS: ${{ steps.profile.outputs.units }}
 
   ai-service:
     needs: scope

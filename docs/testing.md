@@ -264,11 +264,42 @@ dependencies or Chromium; only the `policies` part of `static` runs them. Deleti
 static profile. The job and required `ci-result` are the same. Pushes to `main`,
 scheduled runs, manual runs and merge groups always use the full static profile.
 
+### Change-scoped static units
+
+Any other pull request runs the part of `static` its changed files can affect. `tools/ci_static_profile.py --base <ref>
+--part policies|tests|types` reads the diff once per job and prints `mode=docs|skip|run`, `units=<names>` and
+`playwright=true|false`; the workflow passes the units to `deploy/ci/static.sh` as `CI_STATIC_UNITS` and sets up Chromium
+only when `playwright` is true. A part with `mode=skip` skips its setup and script, and the job still succeeds, so `ci-result`
+stays the single required check.
+
+| Part | Unit | Runs | Selected by |
+| --- | --- | --- | --- |
+| `policies` | `gates` | ruff, catalog, migration, Git and architecture policies, semgrep, retired terms, image pins, the dependency audit when a manifest changed | every pull request |
+| `policies` | `deploy-suites` | `deploy/` Python and Node suites, the release and staging suites, the lifecycle, continuous-update, documents and isolation acceptance tests | `deploy/`, `apps/*/Dockerfile`, `apps/control-plane/`, `packages/commercial-contracts/`, `docs/operations/` (an edit there is never documentation-only), `odoo-addons/*/__manifest__.py`, the `apps/web/server/` tree, the `tools/` modules the suites import (`tools/liwan_cli/`, `tools/shared_saas_lifecycle/`, the three acceptance folders, and the scripts and registers listed in `DEPLOY_TOOLS`) and the few other files the suites read (`DEPLOY_*` and `RULES` in the script; `tools/test_ci_static_profile.py` checks the import list against the sources) |
+| `tests` | `repo` | `npm run test:repo`: secret guard, docs, external references, sudo, UI policy, UI inventory, UI templates, UI catalog | every pull request |
+| `tests` | `tools` | `npm run test:tools`: the `tools/` Python tests and the tools Node tests | every pull request: its tests scan the whole tree (retired namespace, architecture baseline, catalog, test inventory) |
+| `tests` | one per workspace | `npm -w <workspace> run test` for `packages/contracts`, `packages/ui`, `packages/commercial-ui`, `packages/commercial-contracts`, `apps/web`, `apps/vendor-admin` | the workspace, every workspace that depends on it, and the files its tests read outside it |
+| `types` | `types` | the `apps/web` type check | `apps/web` and every workspace it depends on, and the deploy modules its server tests import |
+
+Dependents come from the `@liwan/*` entries of each workspace `package.json` (dependencies, devDependencies, peerDependencies),
+not from a fixed list: a change in `packages/ui` runs `packages/commercial-ui`, `apps/web` and `apps/vendor-admin` too, and a
+change in `packages/contracts` runs `apps/web`. A file a workspace test reads outside its workspace selects only that
+workspace (for example `deploy/catalog/` selects `packages/commercial-contracts`, and the `liwan_core`, `liwan_api` and
+`liwan_access_hr` Python sources select `packages/contracts`). Only `apps/web` drives Chromium.
+
+The default is every unit. Root `package.json`, `package-lock.json`, `.npmrc`, `.nvmrc`, `.github/`, `deploy/ci/static.sh`,
+`tools/ci_static_profile.py`, `tools/test_slot.py`, any path no rule owns (a new top-level folder, a new workspace) and any
+error while reading the diff or the workspace manifests select every unit. Pushes to `main`, scheduled runs, manual runs and
+merge groups never call the selector and run every unit; so does a local `deploy/ci/static.sh` without `CI_STATIC_UNITS`.
+`npm test` still runs everything: it is `npm run test:tools`, `npm run test:repo` and `npm run test:workspaces` inside one
+test slot, and `tools/test_ci_static_profile.py` checks that the selector's workspaces equal the ones `test:workspaces` runs.
+
 ### CI job pass cache
 
 In a pull request or merge-queue entry, an individual job that already passed on exactly the same inputs
 is omitted from the next run. `static` always runs with three parallel parts
-(`deploy/ci/static.sh policies|tests|types`; without an argument the script runs all three in order).
+(`deploy/ci/static.sh policies|tests|types`; without an argument the script runs all three in order), each narrowed to
+its changed units as described under "Change-scoped static units".
 Every other stage job ends with `.github/actions/stage-pass`, which saves a key from
 `python3 -B tools/ci_stage_cache.py key`: a hash of the tracked files the stage reads (the `RULES` of
 `tools/ci_scope.py`) and its matrix entry. The `scope` job trusts keys from the same ref only.
