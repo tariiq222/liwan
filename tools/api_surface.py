@@ -280,6 +280,7 @@ def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
                         "file": str(py.relative_to(REPO)),
                         "controller": cls.name,
                         "handler": fn.name,
+                        "docstring": docstring,
                         "summary": docstring.strip().splitlines()[0] if docstring.strip() else None,
                         "paths": paths,
                         "http_type": kw_const(route, "type"),
@@ -337,6 +338,41 @@ def namespace_hint(path: str) -> str | None:
     return None
 
 
+WEBHOOK_AUTH_FALLBACK = "Authorized by the provider's webhook protocol, not by a LiwanOS session."
+
+# What each route `auth` value really requires. `security` is the OpenAPI requirement list;
+# `description` is added to the operation when the requirement is not a declared scheme.
+AUTH_REQUIREMENTS = {
+    "user": {"security": [{"sessionCookie": []}], "description": None},
+    "bearer": {"security": [{"bearerAuth": []}], "description": None},
+    "public": {"security": [], "description": None},
+    "inbox_hook": {
+        "security": [],
+        "description": WEBHOOK_AUTH_FALLBACK,
+        "documented_by_handler": True,
+    },
+}
+
+
+def route_description(route: dict) -> str | None:
+    """The handler's own docstring (first paragraph) when its auth says the handler documents itself."""
+    requirement = auth_requirement(route)
+    if requirement.get("documented_by_handler"):
+        paragraph = (route.get("docstring") or "").strip().split("\n\n")[0]
+        if paragraph:
+            return " ".join(paragraph.split())
+    return requirement["description"]
+
+
+def auth_requirement(route: dict) -> dict:
+    try:
+        return AUTH_REQUIREMENTS[route["auth"]]
+    except KeyError:
+        raise SystemExit(
+            f"{route['addon']}.{route['handler']}: auth={route['auth']!r} has no entry in AUTH_REQUIREMENTS"
+        ) from None
+
+
 def build_document(routes: list[dict], contract_schemas: dict) -> dict:
     paths: dict = {}
     for route in sorted(routes, key=lambda r: (r["addon"], r["paths"][0], r["handler"])):
@@ -344,6 +380,7 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
             path, path_params = openapi_params(odoo_path)
             entry = paths.setdefault(path, {})
             for method in sorted(route["methods"], key=lambda m: (METHOD_ORDER + [m]).index(m)):
+                requirement = auth_requirement(route)
                 secured = route["auth"] != "public"
                 operation = {
                     "tags": [route["addon"]],
@@ -368,13 +405,16 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                 if route["http_type"] == "json2":
                     operation["x-liwan"]["body"] = "application/json (JSON-RPC style params)"
                 if secured:
-                    operation["security"] = [{"sessionCookie": []}]
+                    operation["security"] = requirement["security"]
                     operation["responses"]["403"] = {"$ref": "#/components/responses/Forbidden"}
                     operation["responses"]["422"] = {"$ref": "#/components/responses/Invalid"}
                     if path_params:
                         operation["responses"]["404"] = {"$ref": "#/components/responses/NotFound"}
                 else:
-                    operation["security"] = []
+                    operation["security"] = requirement["security"]
+                description = route_description(route)
+                if description:
+                    operation["description"] = description
                 entry[method.lower()] = operation
 
     components = {
@@ -383,8 +423,13 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                 "type": "apiKey",
                 "in": "cookie",
                 "name": "session_id",
-                "description": "Odoo session cookie; browser traffic is same-origin, no bearer tokens.",
-            }
+                "description": "Odoo session cookie; browser traffic is same-origin.",
+            },
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "API key in the Authorization header for machine routes; a session cookie alone answers 401.",
+            },
         },
         "responses": {
             "Forbidden": {
