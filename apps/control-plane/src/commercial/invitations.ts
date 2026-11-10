@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
-import { enqueueOutbox, claimOutbox, completeOutbox, failOutbox } from './outbox.js'
+import { enqueueOutbox, claimOutbox, completeOutbox, failOutbox, releaseOutbox } from './outbox.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { buildInvitationUrl, createInvitationToken, hashToken, invitationExpiry, renderInvitationEmail } from './invitation-tokens.js'
 import { isLocalCapture, type MailAdapter } from './mail-adapter.js'
@@ -47,9 +47,11 @@ export async function onSubscriptionActivated(pool: Pool, subscription_id: strin
   return issueInvitation(pool, { customer_id: s.customer_id, tenant_id: s.tenant_id, admin_login: s.admin_login, ttl_seconds: opts.ttl_seconds ?? 72 * 3600 })
 }
 
-export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; returnOrigin: ReturnOrigin; smtpHost?: string; limit?: number }) {
+/** `signal` is the worker shutdown: the message in flight finishes, every other claimed row gives its lease back untouched. */
+export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; returnOrigin: ReturnOrigin; smtpHost?: string; limit?: number; signal?: AbortSignal }) {
   let sent = 0, failed = 0
   for (const row of await claimOutbox(pool, [INVITATION_KIND], o.limit ?? 20)) {
+    if (o.signal?.aborted) { await releaseOutbox(pool, row.id); continue }
     const { invitation_id, token } = row.payload as { invitation_id: string; token?: string }
     try {
       const q = await pool.query(
