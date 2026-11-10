@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 import pytest
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
@@ -171,6 +171,26 @@ async def test_a_very_long_leaving_window_is_summarised_in_part_and_the_rest_sta
     sent = texts(model.calls[-1])
     assert f"question {covered}{pad}" in sent and f"question {covered - 1}{pad}" not in sent  # the uncovered rest is still verbatim
     assert len(state["messages"]) == 2 * FIRST
+
+
+async def test_summaries_keep_advancing_after_a_first_group_that_alone_exceeds_the_budget():
+    calls = [{"name": f"tool_{i}", "args": {"q": "x" * 2000}, "id": f"c{i}", "type": "tool_call"} for i in range(13)]
+    group = [AIMessage("", tool_calls=calls), *(ToolMessage("r" * 2000, tool_call_id=f"c{i}") for i in range(13))]
+    stored = [HumanMessage("question 0"), *group, AIMessage("answer 0")]
+    for index in range(1, FIRST - 1):
+        stored += [HumanMessage(f"question {index}"), AIMessage(f"answer {index}")]
+    model = scripted(3, summary_responses=[ai_text("S1"), ai_text("S2"), ai_text("S3")])
+    graph = graph_of(model)
+    first = {**initial_state(REQUEST), "messages": [*stored, HumanMessage(f"question {FIRST - 1}")]}
+    state = await graph.ainvoke(first, config("s14"))
+    assert len(model.summary_calls) == 1 and state["summary_covers"] == 1  # the first call read only the question before the group
+    state = await send(graph, "s14", FIRST, state)
+    assert len(model.summary_calls) == 2 and state["summary_covers"] == 1 + len(group)  # the group, shortened but whole
+    request = model.summary_calls[1][1].content
+    assert all(f"tool_{i} " in request for i in range(13)) and request.count("Tool result:") == 13
+    assert len(request) <= SUMMARY_TRANSCRIPT_CHARS + 200
+    state = await send(graph, "s14", FIRST + 1, state)
+    assert len(model.summary_calls) == 3 and state["summary"] == "S3" and state["summary_covers"] > 1 + len(group)
 
 
 async def test_a_resume_after_a_tool_result_never_writes_a_summary():

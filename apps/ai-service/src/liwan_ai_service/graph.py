@@ -429,12 +429,10 @@ def build_graph(checkpointer):
         leaving = messages[start:recent_start(messages)]
         if sum(isinstance(message, HumanMessage) for message in leaving) < SUMMARY_BATCH_USER_MESSAGES:
             return {}
-        included = fit_transcript(leaving)
-        if not included:
-            return {}
+        included, item_chars = fit_transcript(leaving)
         quick = config["configurable"][RUN_MODELS_KEY].for_capability("quick")
         try:
-            reply = await invoke_once("summary", quick.model, summary_messages(state.get("summary", ""), included), quick.identity,
+            reply = await invoke_once("summary", quick.model, summary_messages(state.get("summary", ""), included, item_chars), quick.identity,
                                       get_stream_writer(), SUMMARY_TIMEOUT_SECONDS, config["configurable"].get(DEADLINE_KEY))
             summary = text_of(reply.content).strip()[:SUMMARY_MAX_CHARS]
         except Exception as error:  # noqa: BLE001 - the summary is best effort; the cause is logged by class only, never its text
