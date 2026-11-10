@@ -693,6 +693,20 @@ class TestFinanceZatcaRetryThrottle(LiwanZatcaCase):
         with self.zatca.patched():
             self.assertRefused(self.url_open(url, json={}, headers=headers, method='POST'), 403, 'forbidden')
 
+    def test_a_submit_only_user_can_retry_with_a_key(self):
+        """The idempotency store is granted to the submit capability: a user holding only submit (and the reads it needs) is not 403.
+
+        No built-in role holds the submit capability without an invoices/payments/entries/bank management one, so the
+        supported submit-only sets are custom roles: the shared fixture and a second custom role.
+        """
+        invoice = self._failed()
+        self.user_with('zatca_second_submitter', ['finance.zatca.read', 'finance.zatca.submit', 'finance.invoices.read'])
+        for login in ('zatca_submitter', 'zatca_second_submitter'):
+            with self.subTest(login=login):
+                self.elapse_retry_spacing(invoice)
+                self.authenticate(login, 'finance_write_pass_123')
+                self.assertRefused(self._keyed_retry(invoice), 502, 'zatca_unavailable')
+
     def test_the_retry_stays_sandbox_only(self):
         invoice = self._failed()
         self.elapse_retry_spacing(invoice)
