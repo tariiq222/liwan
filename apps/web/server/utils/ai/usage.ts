@@ -29,8 +29,10 @@ class UsageSpoolExpired extends Error {}
 class UsageKeyMalformed extends Error {}
 /** Logged by count only: the run's user or company is not a usable id, so its rows could not be reported as that user. */
 class UsageOwnerInvalid extends Error {}
-/** Logged by count only: Odoo named these rows (or their user or company) as the reason to refuse them (422/409); a retry cannot succeed, so they are dropped, never retried forever. */
-class UsageRejected extends Error {}
+/** Logged by count and field: Odoo refuses these rows now (422); they are kept and retried, and only the spool age bound expires them. */
+class UsageRefusedRow extends Error {}
+/** Logged by count only: Odoo already holds this row (409), so it leaves the spool without being lost. */
+class UsageSettled extends Error {}
 
 /**
  * Rows kept for a retry: at most 2048 in the process, oldest dropped first, none older than an hour. A busy tenant must not
@@ -94,7 +96,12 @@ function sessionKey(event: H3Event): string {
   return createHash('sha256').update(`${getHeader(event, 'host') ?? ''}\n${session}`).digest('base64url').slice(0, 22)
 }
 
-/** Drops rows that waited past the age bound, naming the count only: no row payload ever reaches a log line. */
+/**
+ * Drops rows that waited past the age bound, naming the count only: no row payload ever reaches a log line. This is the ONLY way
+ * a row Odoo refused (or could not be asked about) is given up, and it is the last resort on purpose: this process keeps no
+ * durable store (adding one would be new infrastructure), so rows wait in memory for an hour, are retried every minute meanwhile,
+ * and are then expired with a count that an operator can alert on. A server refusal alone never discards real usage.
+ */
 function expireSpooled(now: number): void {
   const kept = spool.filter(entry => now - entry.observedAt <= SPOOL_MAX_AGE_MS)
   const expired = spool.length - kept.length
@@ -175,7 +182,7 @@ function chunkRows(entries: readonly SpooledRow[]): SpooledRow[][] {
   for (const entry of entries) {
     const current = chunks.at(-1)
     const size = rowTokens(entry.row)
-    if (current && current.length < AI_USAGE_BATCH_MAX && tokens + size <= AI_USAGE_SERVICE_LIMITS.max_batch_tokens) { current.push(entry); tokens += size }
+    if (current && current.length < AI_USAGE_BATCH_MAX && tokens + size <= AI_USAGE_SERVICE_LIMITS.max_request_tokens) { current.push(entry); tokens += size }
     else { chunks.push([entry]); tokens = size }
   }
   return chunks
@@ -190,16 +197,18 @@ function refusalOf(body: unknown): { field: string; retryAfterMs: number } {
 
 /**
  * Reports every due row of the service owners with the recorder key, one request per user and company in the order the rows
- * were observed, sized the way Odoo accepts them (`chunkRows`). A row leaves the spool only when Odoo accepted it or when Odoo
- * named that row itself as the reason to refuse it; nothing valid is ever discarded for sharing a request with a bad row:
- *  - 200: the rows are recorded (a re-sent row is settled by the `call_id` Odoo holds once per user and conversation).
- *  - 422/409 naming `items.<i>.<field>`: that one row is invalid (a count above the per-row ceiling, a `called_at` older than
- *    the server window) or already held under another company. It is dropped and logged; the rest are sent again at once. A
- *    delayed row is never refused for age: the spool gives a row up after an hour and the server window is 24 hours.
- *  - 422 naming `items` (size): the request is split in two and each half is sent; a single row that is still refused is dropped.
- *  - 422 naming the owner (`user_id`, `user_company_id`): no row of this owner and company can ever be recorded; dropped and logged.
- *  - 429: the recorder is over its rate. Every due row backs off for what Odoo asked (at least the retry window) and nothing is dropped.
- *  - 401/403: the key is wrong or revoked, nothing else would pass either; every due row backs off and nothing is dropped.
+ * were observed, sized the way Odoo admits them (`chunkRows`). A row leaves the spool in exactly two ways: Odoo has it, or the
+ * spool age bound expires it (`expireSpooled`, which logs the count, and is the last resort for a row Odoo will not take: this
+ * process keeps no other store, and a refusal is never a licence to discard real usage). Every server answer:
+ *  - 200: recorded; the rows leave the spool.
+ *  - 409 naming `items.<i>.<field>`: that row is already held (under another company); Odoo has it, so it leaves the spool.
+ *  - 422 naming `items.<i>.<field>` (size, `called_at`, ...): the server will not take that row now. It is KEPT, deferred for
+ *    the retry window and logged loudly with the field; the other rows of the request are sent again at once. It cannot come
+ *    from a size ceiling the executor can legitimately exceed (the only per-row bound is the AI service's own wire contract).
+ *  - 422 naming `items` (the request is above the per-minute token ceiling): split in halves; a lone row that is still refused is kept.
+ *  - 422 naming the owner (`user_id`, `user_company_id`): this owner's rows are kept and deferred, loudly, until the age bound.
+ *  - 429: the recorder is over its budget. Every due row backs off for what Odoo asked (at least the retry window); nothing is lost.
+ *  - 401/403: the key is wrong or revoked, nothing else would pass either; every due row backs off.
  *  - a timeout, a 5xx, a dead connection: the request and the rows behind it of this owner keep for the retry window.
  */
 async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
@@ -210,6 +219,7 @@ async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
     const retryAt = Date.now() + Math.max(SPOOL_RETRY_AFTER_MS, retryAfterMs)
     for (const entry of spool) if (entry.service && entry.dueAt <= now) entry.dueAt = retryAt
   }
+  const keep = (entries: readonly SpooledRow[]) => { for (const entry of entries) entry.dueAt = Date.now() + SPOOL_RETRY_AFTER_MS }
   for (const due of groups.values()) {
     const owner = due[0]!.service!
     const queue = chunkRows(due)
@@ -220,8 +230,7 @@ async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
         receipt = await odooServiceUsageJson(event, key, { user_id: owner.user, user_company_id: owner.company, items: batch.map(entry => entry.row) })
       } catch (error) {
         logFailure(`usage report of ${batch.length} rows failed`, error)
-        const retryAt = Date.now() + SPOOL_RETRY_AFTER_MS
-        for (const entry of [batch, ...queue].flat()) entry.dueAt = retryAt
+        keep([batch, ...queue].flat())
         break
       }
       if (receipt.status === 200) { removeSpooled(batch); continue }
@@ -234,21 +243,27 @@ async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
         const { field } = refusalOf(receipt.body)
         const index = Number(/^items\.(\d+)\./.exec(field)?.[1] ?? NaN)
         if (Number.isInteger(index) && index < batch.length) {
-          logFailure(`dropped 1 usage row refused as ${receipt.status === 409 ? 'a duplicate (409)' : 'invalid (422)'}`, new UsageRejected())
-          removeSpooled([batch[index]!])
+          const row = batch[index]!
+          if (receipt.status === 409) {
+            logFailure('settled 1 usage row Odoo already holds (409)', new UsageSettled())
+            removeSpooled([row])
+          } else {
+            logFailure(`KEPT 1 usage row Odoo refuses (422 ${field}); it is retried until the spool age bound`, new UsageRefusedRow())
+            keep([row])
+          }
           queue.unshift(...chunkRows(batch.filter((_, position) => position !== index)))
         } else if (field === 'items' && batch.length > 1) {
           const half = Math.ceil(batch.length / 2)
           queue.unshift(batch.slice(0, half), batch.slice(half))
         } else {
-          logFailure(`dropped ${batch.length} usage rows refused as ${receipt.status === 409 ? 'a duplicate (409)' : 'invalid (422)'} for their user or company`, new UsageRejected())
-          removeSpooled(batch)
+          logFailure(`KEPT ${batch.length} usage rows Odoo refuses as a whole (${receipt.status} ${field || 'no field'}); they are retried until the spool age bound`, new UsageRefusedRow())
+          keep([batch, ...queue].flat())
+          break
         }
         continue
       }
       logFailure(`usage report of ${batch.length} rows failed with status ${receipt.status}`, new UsageRefused(receipt.status))
-      const retryAt = Date.now() + SPOOL_RETRY_AFTER_MS
-      for (const entry of [batch, ...queue].flat()) entry.dueAt = retryAt
+      keep([batch, ...queue].flat())
       break
     }
   }

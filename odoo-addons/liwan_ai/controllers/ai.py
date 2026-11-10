@@ -138,8 +138,12 @@ class AiController(http.Controller):
             request.env.user.lock_for_update(allow_referencing=True)
         except LockError:
             raise ApiError(429, 'rate_limited', 'another usage report is being recorded', details={'retry_after_seconds': 1}) from None
-        if len(items) > Usage._liwan_ai_recorder_rows_left():
-            raise ApiError(429, 'rate_limited', 'too many usage rows in the last minute', details={'retry_after_seconds': 60})
+        admission = Usage._liwan_ai_admission(items)
+        if admission == 'too_large':
+            # Not a matter of waiting: the request alone is above the per-minute token ceiling, so it must be split.
+            raise ApiError(422, 'invalid', 'a request must not report more tokens than the per-minute ceiling; split it', field='items')
+        if admission == 'rate_limited':
+            raise ApiError(429, 'rate_limited', 'too many usage rows or tokens in the last minute', details={'retry_after_seconds': 60})
         try:
             rows = Usage._liwan_ai_record_for(items, payload['user_id'], payload['user_company_id'])
         except ValidationError as error:

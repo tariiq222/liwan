@@ -14,12 +14,7 @@ from odoo.tools import config
 
 from odoo.addons.liwan_ai.models import ai_usage
 from odoo.addons.liwan_ai.models.access_service import AI_USAGE_RECORD
-from odoo.addons.liwan_ai.models.ai_usage import (
-    SERVICE_MAX_BATCH_TOKENS,
-    SERVICE_MAX_INPUT_TOKENS,
-    SERVICE_MAX_OUTPUT_TOKENS,
-    USAGE_SERVICE_PATH,
-)
+from odoo.addons.liwan_ai.models.ai_usage import MAX_TOKENS, USAGE_SERVICE_PATH
 from odoo.addons.liwan_ai.tests.common import AiProbe
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
@@ -176,19 +171,29 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
     def _attempt(self, index, **change):
         return {**ITEM, 'call_id': f'{index:016x}', **change}
 
-    def test_a_row_cannot_report_more_than_one_call_can_consume(self):
-        self._assert_422(self._post(self._batch(None, None, self._attempt(1, input_tokens=SERVICE_MAX_INPUT_TOKENS + 1))), 'items.0.input_tokens')
-        self._assert_422(self._post(self._batch(None, None, self._attempt(2, output_tokens=SERVICE_MAX_OUTPUT_TOKENS + 1))), 'items.0.output_tokens')
-        self._assert_422(self._post(self._batch(None, None, self._attempt(3), self._attempt(4, input_tokens=100_000_000))), 'items.1.input_tokens')
-        edge = self._attempt(5, input_tokens=SERVICE_MAX_INPUT_TOKENS, output_tokens=SERVICE_MAX_OUTPUT_TOKENS)
-        self.assertEqual(self._post(self._batch(None, None, edge)).status_code, 200)
+    def test_a_row_larger_than_the_old_ceiling_is_recorded(self):
+        """A call may legitimately use more than a configured run ceiling (the ceiling is checked between calls, and 0 disables it)."""
+        big = self._attempt(1, input_tokens=3_000_000, output_tokens=2_000_000)
+        edge = self._attempt(2, input_tokens=MAX_TOKENS, output_tokens=MAX_TOKENS)
+        for item in (big, edge):
+            with self.subTest(call=item['call_id']):
+                response = self._post(self._batch(None, None, item))
+                self.assertEqual(response.status_code, 200, response.text)
+                # Both rows together would be more than a minute's budget: let the first leave the window.
+                self.env.cr.execute("UPDATE liwan_ai_usage SET create_date = create_date - interval '2 minutes'")
+                self.Usage.invalidate_model()
+        self.assertEqual(sorted(self.Usage.search([]).mapped('input_tokens')), [3_000_000, MAX_TOKENS])
 
-    def test_a_request_cannot_report_more_than_four_full_runs(self):
-        full = {'input_tokens': SERVICE_MAX_INPUT_TOKENS, 'output_tokens': SERVICE_MAX_OUTPUT_TOKENS}
-        self.assertEqual(SERVICE_MAX_BATCH_TOKENS, 4 * (SERVICE_MAX_INPUT_TOKENS + SERVICE_MAX_OUTPUT_TOKENS))
-        over = [self._attempt(index, **full) for index in range(5)]
-        self._assert_422(self._post(self._batch(None, None, *over)), 'items')
-        self.assertEqual(self._post(self._batch(None, None, *over[:4])).status_code, 200)
+    def test_only_the_wire_bound_of_the_ai_service_refuses_a_row_for_size(self):
+        self._assert_422(self._post(self._batch(None, None, self._attempt(3, input_tokens=MAX_TOKENS + 1))), 'items.0.input_tokens')
+        self._assert_422(self._post(self._batch(None, None, self._attempt(4), self._attempt(5, output_tokens=MAX_TOKENS + 1))), 'items.1.output_tokens')
+
+    def test_a_request_above_the_per_minute_token_ceiling_is_a_422_to_split_never_a_wait(self):
+        with patch.object(ai_usage, 'SERVICE_MAX_TOKENS_PER_MINUTE', 400):
+            refused = self._post(self._batch(None, None, *[self._attempt(index + 6) for index in range(3)]))
+            self.assertEqual((refused.status_code, refused.json()['field']), (422, 'items'), refused.text)
+            self.assertFalse(self.Usage.search([]))
+            self.assertEqual(self._post(self._batch(None, None, *[self._attempt(index + 6) for index in range(2)])).status_code, 200)
 
     def test_called_at_must_be_recent_so_a_row_cannot_be_moved_into_another_month(self):
         now = datetime.now(timezone.utc)
@@ -218,11 +223,9 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         self.assertFalse(second.parent_id or self.other_company.parent_id)
         self.employee.write({'company_ids': [Command.link(self.other_company.id), Command.link(second.id)]})
         home, other = self.employee.company_id, self.other_company
-        # The per-row, per-request and age ceilings are values of the request, so they hold in a company that is not the recorder's own.
-        for change, field in (({'input_tokens': SERVICE_MAX_INPUT_TOKENS + 1}, 'input_tokens'), ({'called_at': (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()}, 'called_at')):
+        # The size and age rules are values of the request, so they hold in a company that is not the recorder's own.
+        for change, field in (({'input_tokens': MAX_TOKENS + 1}, 'input_tokens'), ({'called_at': (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()}, 'called_at')):
             self.assertEqual(self._post(self._batch(self.employee, second, self._attempt(39, **change))).json()['field'], f'items.0.{field}')
-        full = {'input_tokens': SERVICE_MAX_INPUT_TOKENS, 'output_tokens': SERVICE_MAX_OUTPUT_TOKENS}
-        self.assertEqual(self._post(self._batch(self.employee, second, *[self._attempt(index + 100, **full) for index in range(5)])).json()['field'], 'items')
         self.assertFalse(self.Usage.search([]))
         with patch.object(ai_usage, 'SERVICE_MAX_ROWS_PER_MINUTE', 4):
             self.assertEqual(self._post(self._batch(self.employee, home, self._attempt(40), self._attempt(41))).status_code, 200)
@@ -233,6 +236,25 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
                     self.assertEqual(refused.status_code, 429, refused.text)
                     self.assertEqual(refused.json()['code'], 'rate_limited')
             self.assertEqual(self.Usage.search_count([]), 4)
+
+    def test_the_token_ceiling_counts_every_company_the_recorder_writes_to(self):
+        """The per-minute token budget is tenant-wide too: rows in one top-level company use the budget of the others."""
+        second = self.env['res.company'].create({'name': 'Usage Token Second Company'})
+        self.employee.write({'company_ids': [Command.link(self.other_company.id), Command.link(second.id)]})
+        home, other = self.employee.company_id, self.other_company
+        # Each ITEM row is 165 tokens: 495 of 500 are spent across two companies, so one more row (165) cannot fit anywhere.
+        with patch.object(ai_usage, 'SERVICE_MAX_TOKENS_PER_MINUTE', 500):
+            self.assertEqual(self._post(self._batch(self.employee, home, self._attempt(70), self._attempt(71))).status_code, 200)
+            self.assertEqual(self._post(self._batch(self.employee, other, self._attempt(72))).status_code, 200)
+            for company in (home, other, second):
+                with self.subTest(company=company.name):
+                    refused = self._post(self._batch(self.employee, company, self._attempt(73 + company.id)))
+                    self.assertEqual((refused.status_code, refused.json()['code']), (429, 'rate_limited'), refused.text)
+            self.assertEqual(self.Usage.search_count([]), 3)
+            # A minute later the window has moved on and the budget is whole again.
+            self.env.cr.execute("UPDATE liwan_ai_usage SET create_date = create_date - interval '2 minutes'")
+            self.Usage.invalidate_model()
+            self.assertEqual(self._post(self._batch(self.employee, second, self._attempt(90), self._attempt(91))).status_code, 200)
 
     def test_a_user_holding_every_capability_is_still_refused(self):
         """liwan_core gives vendor support (and the superuser) every capability; only the recorder itself may report."""

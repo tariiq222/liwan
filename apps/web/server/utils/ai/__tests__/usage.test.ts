@@ -455,17 +455,21 @@ describe('usage ledger reporting with the recorder key', () => {
     expect(serviceCalls().slice(2).map(call => call.body.user_id).sort()).toEqual([30, 31])
   })
 
-  it('drops the rows of an owner Odoo refuses as a whole (user or company invalid), after logging it, instead of retrying forever', async () => {
+  it('keeps the rows of an owner Odoo refuses as a whole, retries them, and gives them up only at the spool age bound', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     odooServiceUsageJson.mockResolvedValueOnce({ status: 422, body: { code: 'invalid', field: 'user_id' } })
     await flushed(ledgerOf(3, 400), noSession, { user: '40', company: '1' })
-    expect(logged(spy)).toContain('[liwan-ai] dropped 3 usage rows refused as invalid (422) for their user or company: UsageRejected')
+    expect(logged(spy)).toContain('[liwan-ai] KEPT 3 usage rows Odoo refuses as a whole (422 user_id); they are retried until the spool age bound: UsageRefusedRow')
     advance(RETRY_AFTER_MS + 1)
     await flushed(createUsageLedger(), noSession, { user: '41', company: '1' })
-    expect(serviceCalls()).toHaveLength(1)
+    expect(serviceCalls().map(call => [call.body.user_id, call.body.items.length])).toEqual([[40, 3], [40, 3]])
+    advance(SPOOL_MAX_AGE_MS + 1)
+    await flushed(createUsageLedger(), noSession, { user: '42', company: '1' })
+    expect(logged(spy).some(line => /^\[liwan-ai] expired \d+ usage rows unaccepted for 60 minutes: UsageSpoolExpired$/.test(String(line)))).toBe(true)
+    expect(serviceCalls().filter(call => call.body.user_id === 40)).toHaveLength(2)
   })
 
-  it('drops only the row Odoo names as invalid or duplicate and sends the rest again at once', async () => {
+  it('settles only the row Odoo already holds (409) and keeps the row it refuses (422), sending the rest again at once', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     odooServiceUsageJson.mockResolvedValueOnce({ status: 422, body: { code: 'invalid', field: 'items.1.input_tokens' } })
     await flushed(ledgerOf(3, 450), noSession, { user: '45', company: '2' })
@@ -475,31 +479,35 @@ describe('usage ledger reporting with the recorder key', () => {
     odooServiceUsageJson.mockResolvedValueOnce({ status: 409, body: { code: 'duplicate', field: 'items.0.call_id' } })
     await flushed(ledgerOf(2, 500), noSession, { user: '46', company: '2' })
     expect(serviceCalls().slice(2).map(call => call.body.items.map(item => item.call_id))).toEqual([['00000000000001f4', '00000000000001f5'], ['00000000000001f5']])
-    expect(logged(spy)).toEqual(['[liwan-ai] dropped 1 usage row refused as invalid (422): UsageRejected', '[liwan-ai] dropped 1 usage row refused as a duplicate (409): UsageRejected'])
+    expect(logged(spy)).toEqual([
+      '[liwan-ai] KEPT 1 usage row Odoo refuses (422 items.1.input_tokens); it is retried until the spool age bound: UsageRefusedRow',
+      '[liwan-ai] settled 1 usage row Odoo already holds (409): UsageSettled',
+    ])
+    // The refused row comes back after the retry window, on its own; the 409 row never does.
     advance(RETRY_AFTER_MS + 1)
     await flushed(createUsageLedger(), noSession, { user: '47', company: '2' })
-    expect(serviceCalls()).toHaveLength(4)
+    expect(serviceCalls().slice(4).map(call => call.body.items.map(item => item.call_id))).toEqual([['00000000000001c3']])
   })
 
-  describe('against the server ceilings (issue #557)', () => {
-    /** Odoo's size rule: more than the aggregate token ceiling in one request is a 422 on `items`, and nothing is recorded. */
+  describe('against the server rules (issue #557)', () => {
+    /** Odoo's aggregate rule: a request above the per-minute token ceiling is a 422 on `items`; nothing else is size-limited. */
     const strictOdoo = () => odooServiceUsageJson.mockImplementation(async (_event, _key, body: { items: { input_tokens: number | null; output_tokens: number | null }[] }) => {
       const tokens = body.items.reduce((sum, item) => sum + (item.input_tokens ?? 0) + (item.output_tokens ?? 0), 0)
-      return tokens > AI_USAGE_SERVICE_LIMITS.max_batch_tokens || body.items.length > 64
+      return tokens > AI_USAGE_SERVICE_LIMITS.max_request_tokens || body.items.length > 64
         ? { status: 422, body: { code: 'invalid', field: 'items' } }
         : { status: 200, body: { items: [], total: body.items.length } }
     })
-    const bigRun = (count: number, first: number) => {
+    const bigRun = (count: number, first: number, input_tokens: number = AI_USAGE_SERVICE_LIMITS.max_row_tokens) => {
       const ledger = createUsageLedger()
       for (let index = first; index < first + count; index++) {
         const id = index.toString(16)
         ledger.observe('model_call', callEvent(id))
-        ledger.observe('model_usage', usageEvent(id, { input_tokens: AI_USAGE_SERVICE_LIMITS.max_input_tokens, output_tokens: 0 }))
+        ledger.observe('model_usage', usageEvent(id, { input_tokens, output_tokens: 0 }))
       }
       return ledger
     }
 
-    it('after an outage, splits seven valid 2,000,000-token rows by the aggregate ceiling and loses none', async () => {
+    it('after an outage, splits seven valid maximal rows by the request ceiling and loses none', async () => {
       strictOdoo()
       odooServiceUsageJson.mockRejectedValueOnce(new TypeError('connection refused'))
       vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -507,12 +515,17 @@ describe('usage ledger reporting with the recorder key', () => {
       advance(RETRY_AFTER_MS + 1)
       await flushed(createUsageLedger(), noSession, { user: '61', company: '1' })
       const recovered = serviceCalls().slice(1)
-      expect(recovered.map(call => call.body.items.length)).toEqual([6, 1])
-      for (const call of recovered) expect(call.body.items.reduce((sum, item) => sum + (item.input_tokens as number), 0)).toBeLessThanOrEqual(AI_USAGE_SERVICE_LIMITS.max_batch_tokens)
-      expect(recovered.flatMap(call => call.body.items.map(item => item.call_id))).toHaveLength(7)
+      expect(recovered.map(call => call.body.items.length)).toEqual([2, 2, 2, 1])
+      for (const call of recovered) expect(call.body.items.reduce((sum, item) => sum + (item.input_tokens as number), 0)).toBeLessThanOrEqual(AI_USAGE_SERVICE_LIMITS.max_request_tokens)
       advance(RETRY_AFTER_MS + 1)
       await flushed(createUsageLedger(), noSession, { user: '62', company: '1' })
-      expect(serviceCalls()).toHaveLength(3)
+      expect(serviceCalls()).toHaveLength(5)
+    })
+
+    it('sends a row above the old 2,000,000 ceiling like any other, in the same request as small ones', async () => {
+      strictOdoo()
+      await flushed(bigRun(3, 2500, 5_000_000), noSession, { user: '65', company: '1' })
+      expect(serviceCalls().map(call => call.body.items.length)).toEqual([3])
     })
 
     it('splits a request the server still refuses for size in halves, and never discards valid rows for it', async () => {
@@ -524,6 +537,17 @@ describe('usage ledger reporting with the recorder key', () => {
       advance(RETRY_AFTER_MS + 1)
       await flushed(createUsageLedger(), noSession, { user: '64', company: '1' })
       expect(serviceCalls()).toHaveLength(5)
+    })
+
+    it('never drops a row for its size: a lone row Odoo refuses on a size field is kept, logged loudly, and retried', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      odooServiceUsageJson.mockResolvedValueOnce({ status: 422, body: { code: 'invalid', field: 'items.0.input_tokens' } })
+      await flushed(bigRun(1, 2800), noSession, { user: '66', company: '1' })
+      expect(logged(spy)).toEqual(['[liwan-ai] KEPT 1 usage row Odoo refuses (422 items.0.input_tokens); it is retried until the spool age bound: UsageRefusedRow'])
+      advance(RETRY_AFTER_MS + 1)
+      await flushed(createUsageLedger(), noSession, { user: '67', company: '1' })
+      expect(serviceCalls()).toHaveLength(2)
+      expect(serviceCalls()[1]!.body.items.map(item => item.call_id)).toEqual(serviceCalls()[0]!.body.items.map(item => item.call_id))
     })
 
     it('backs off on a 429 for what Odoo asked, keeps every deferred row and sends it later', async () => {
@@ -549,12 +573,12 @@ describe('usage ledger reporting with the recorder key', () => {
       expect(serviceCalls()).toHaveLength(2)
     })
 
-    it('a row older than the server window is refused for itself alone: it is dropped with a log and its neighbours are recorded', async () => {
+    it('a row with a stale called_at is refused for itself alone: it is kept and logged, its neighbour is recorded now', async () => {
       const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       odooServiceUsageJson.mockResolvedValueOnce({ status: 422, body: { code: 'invalid', field: 'items.0.called_at' } })
       await flushed(ledgerOf(2, 5000), noSession, { user: '74', company: '1' })
       expect(serviceCalls().map(call => call.body.items.length)).toEqual([2, 1])
-      expect(logged(spy)).toEqual(['[liwan-ai] dropped 1 usage row refused as invalid (422): UsageRejected'])
+      expect(logged(spy)).toEqual(['[liwan-ai] KEPT 1 usage row Odoo refuses (422 items.0.called_at); it is retried until the spool age bound: UsageRefusedRow'])
     })
 
     it('never holds a row longer than the server accepts a row for age: the spool gives up first', () => {

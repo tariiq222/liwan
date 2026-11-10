@@ -13,7 +13,6 @@ from odoo.addons.liwan_ai.models.ai_audit import (
     is_conversation_id,
     raise_invalid,
 )
-from odoo.addons.liwan_ai.models.ai_settings import MAX_INPUT_TOKENS_PER_RUN
 
 # The one route the usage recorder's API key may reach (models/ir_http.py registers it with the platform guard).
 USAGE_SERVICE_PATH = '/api/v1/ai/usage/service'
@@ -32,19 +31,22 @@ PROVIDER_PATTERN = re.compile(r'[a-z][a-z0-9_-]{0,31}')
 CONTROL_CHARACTERS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
 MAX_MODEL_LENGTH = 128
 MAX_TOKENS = 100_000_000
-# Ceilings of the service route, whose key is held by the web server and not by a user (issue #557). A wrong or stolen key
-# could otherwise report 64 rows of MAX_TOKENS each and use up ``ai.tokens.monthly`` for the whole tenant, and rows can only
-# be removed by an operator. Each ceiling comes from what the stack itself allows a single call or run to consume:
-#   input per row: the tenant's own ceiling on one run's input tokens, which no single call can exceed (ai_settings.py);
-#   output per row: the AI service's policy cap on one run's output tokens (apps/ai-service contracts.py max_output_tokens);
-#   per request: four full runs, since a request carries the rows a user's runs left unreported during an outage;
-#   age: the web spool gives a row up after an hour (apps/web usage.ts), so a day is generous and keeps a row in its month;
-#   rate: 600 rows a minute is ~45 runs of 13 calls a minute for one tenant, far above real use.
-SERVICE_MAX_INPUT_TOKENS = MAX_INPUT_TOKENS_PER_RUN
-SERVICE_MAX_OUTPUT_TOKENS = 1_000_000
-SERVICE_MAX_BATCH_TOKENS = 4 * (SERVICE_MAX_INPUT_TOKENS + SERVICE_MAX_OUTPUT_TOKENS)
+# What a row is and how large one can be (issue #557). A row is ONE provider call (`call_id` is the provider attempt, apps/ai-service
+# contracts.py ModelUsageEvent), not a run. The executor does not bound one call tighter than the wire: `input_tokens_per_run=0`
+# disables the per-run input ceiling, and the ceilings (graph.py) are checked BETWEEN calls, so the call that crosses one still
+# finishes with the whole history sent. The only trustworthy per-row bound is therefore the AI service's own contract
+# (`le=100_000_000` on both counts, mirrored by MAX_TOKENS here and by the zod schema); a test reads that contract and fails if it
+# grows past MAX_TOKENS. Nothing smaller is enforced per row: a smaller number would refuse legitimate usage.
+#
+# Abuse protection on the service route (a stolen key could report 64 rows of MAX_TOKENS and use up ``ai.tokens.monthly`` for the
+# whole tenant) is therefore an AGGREGATE bound on what the recorder inserted in the last minute, tenant-wide, counted under the
+# recorder lock (controllers/ai.py): rows, and tokens. The token ceiling is two full rows' worth (input plus output of one maximal
+# row), so any single valid row fits an empty window; it is an engineering sanity value far above any provider's per-account
+# rate, not a derived limit, and is single-sourced with the Nuxt splitter in packages/contracts (a drift test compares them).
+# Age: the web spool gives a row up after an hour (apps/web usage.ts), so a day is generous and keeps a row in its month.
 SERVICE_MAX_AGE = timedelta(hours=24)
 SERVICE_MAX_ROWS_PER_MINUTE = 600  # exact: the route serializes admission per recorder (controllers/ai.py), so parallel requests cannot overshoot
+SERVICE_MAX_TOKENS_PER_MINUTE = 2 * MAX_TOKENS
 FUTURE_TOLERANCE = timedelta(minutes=5)
 # RFC 3339 with an offset, the same instants the zod contract's iso datetime({offset: true}) accepts.
 RFC3339 = re.compile(
@@ -163,10 +165,6 @@ class LiwanAiUsage(models.Model):
         if called_at > datetime.now(timezone.utc) + FUTURE_TOLERANCE:
             invalid('called_at', 'called_at must not be more than 5 minutes in the future')
         if service:
-            if tokens['input_tokens'] and tokens['input_tokens'] > SERVICE_MAX_INPUT_TOKENS:
-                invalid('input_tokens', f'input_tokens must not exceed {SERVICE_MAX_INPUT_TOKENS} on this route')
-            if tokens['output_tokens'] and tokens['output_tokens'] > SERVICE_MAX_OUTPUT_TOKENS:
-                invalid('output_tokens', f'output_tokens must not exceed {SERVICE_MAX_OUTPUT_TOKENS} on this route')
             if called_at < datetime.now(timezone.utc) - SERVICE_MAX_AGE:
                 invalid('called_at', 'called_at must be within the last 24 hours on this route')
         return {
@@ -245,8 +243,6 @@ class LiwanAiUsage(models.Model):
             except ValidationError as error:
                 error.liwan_index = index
                 raise
-        if service and sum(row['input_tokens'] + row['output_tokens'] for row in rows) > SERVICE_MAX_BATCH_TOKENS:
-            raise_invalid(self.env, 'items', f'a request must not report more than {SERVICE_MAX_BATCH_TOKENS} tokens in all')
         created = []
         for index, row in enumerate(rows):
             existing = self._liwan_ai_existing(row)
@@ -268,15 +264,32 @@ class LiwanAiUsage(models.Model):
                 created.append(existing.id)
         return self.browse(created)
 
+    @staticmethod
+    def _liwan_ai_tokens_of(items):
+        """The tokens a raw request claims (anything that is not a valid count counts 0; validation refuses it later)."""
+        return sum(
+            value for item in items if isinstance(item, dict)
+            for value in (item.get('input_tokens'), item.get('output_tokens')) if is_token_count(value)
+        )
+
     @api.model
-    def _liwan_ai_recorder_rows_left(self):
-        """How many more rows the recorder may add in this minute (``SERVICE_MAX_ROWS_PER_MINUTE`` less what it just added).
+    def _liwan_ai_admission(self, items):
+        """``None`` when the recorder may add ``items`` now, ``'rate_limited'`` when it must wait, ``'too_large'`` when it must split."""
+        claimed = self._liwan_ai_tokens_of(items)
+        if claimed > SERVICE_MAX_TOKENS_PER_MINUTE:
+            return 'too_large'
+        rows_left, tokens_left = self._liwan_ai_recorder_budget_left()
+        return 'rate_limited' if len(items) > rows_left or claimed > tokens_left else None
+
+    @api.model
+    def _liwan_ai_recorder_budget_left(self):
+        """``(rows, tokens)`` the recorder may still add in this minute, tenant-wide.
 
         Counted from the ledger itself, so it needs no counter store; the ``called_at`` bound only lets the index on it
-        narrow the scan, since a service row is never older than ``SERVICE_MAX_AGE``. The budget is the recorder's across the
-        whole tenant: the request is pinned to the recorder's current company and its branches, so each company the recorder
-        may write to is counted in its own context (the record rule and the company fence stay in force, no ``sudo()``), and a
-        key cannot spread its rows over another top-level company to escape the ceiling.
+        narrow the scan, since a service row is never older than ``SERVICE_MAX_AGE``. The request is pinned to the recorder's
+        current company and its branches, so each company the recorder may write to is counted in its own context (the record
+        rule and the company fence stay in force, no ``sudo()``): a key cannot spread its rows over another top-level company
+        to escape either ceiling. The caller holds the recorder lock, so the read and the insert are one critical section.
         """
         now = fields.Datetime.now()
         domain = [
@@ -284,11 +297,13 @@ class LiwanAiUsage(models.Model):
             ('called_at', '>=', now - SERVICE_MAX_AGE - timedelta(minutes=1)),
             ('create_date', '>=', now - timedelta(minutes=1)),
         ]
-        used = sum(
-            self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id]).search_count(domain)
-            for company_id in self.env.user.company_ids.ids
-        )
-        return SERVICE_MAX_ROWS_PER_MINUTE - used
+        rows = tokens = 0
+        for company_id in self.env.user.company_ids.ids:
+            scoped = self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id])
+            [[count, input_sum, output_sum]] = scoped._read_group(domain, [], ['__count', 'input_tokens:sum', 'output_tokens:sum'])
+            rows += count
+            tokens += (input_sum or 0) + (output_sum or 0)
+        return SERVICE_MAX_ROWS_PER_MINUTE - rows, SERVICE_MAX_TOKENS_PER_MINUTE - tokens
 
     @api.model
     def _liwan_ai_existing(self, row):
