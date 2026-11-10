@@ -11,8 +11,12 @@ import unittest
 from deploy.test_edge_rate_limit import CADDYFILE, _adapt_shared_caddyfile, _caddy_container
 
 
-def edge_requests(cases, *, identify_backend=False):
-    config = _adapt_shared_caddyfile(CADDYFILE.read_text().replace('{$DOMAIN}', 'http://127.0.0.1:8080'))
+def edge_requests(cases, *, identify_backend=False, tls=False):
+    endpoint = 'https://127.0.0.1:8080' if tls else 'http://127.0.0.1:8080'
+    site = CADDYFILE.read_text().replace('{$DOMAIN}', endpoint)
+    if tls:
+        site = site.replace(endpoint + ' {', endpoint + ' {\n\ttls internal', 1)
+    config = _adapt_shared_caddyfile(site)
     config['admin'] = {'disabled': True}
 
     def redirect_upstreams(value):
@@ -59,7 +63,10 @@ def edge_requests(cases, *, identify_backend=False):
         script += ' --request-target ' + shlex.quote(case['path'])
         for name, value in case.get('headers', {}).items():
             script += ' -H ' + shlex.quote(f'{name}: {value}')
-        script += ' -o /tmp/body -w "%{http_code}\\n" http://127.0.0.1:8080/\ncat /tmp/body\nprintf "\\n"\n'
+        if tls:
+            # The disposable Caddy instance signs with its own local CA.
+            script += ' --insecure'
+        script += f' -o /tmp/body -w "%{{http_code}}\\n" {endpoint}/\ncat /tmp/body\nprintf "\\n"\n'
     records = _caddy_container(script).stdout.split('LIWAN_AUTH_CASE ')[1:]
     if len(records) != len(cases):
         raise AssertionError('missing real edge response')
@@ -90,6 +97,14 @@ class TestDedicatedAuthEdge(unittest.TestCase):
         ])
         self.assertEqual(rows, [(200, {'ip': ip, 'host': '127.0.0.1:8080', 'proto': 'http', 'xff': ip})
                                 for ip in ('127.0.0.2', '127.0.0.3')])
+
+    def test_https_edge_reports_its_tls_scheme_to_auth_routes(self):
+        paths = ['/api/auth/login', '/api/auth/verify', '/api/auth/logout']
+        rows = edge_requests([{'path': path, 'headers': {
+            'X-Forwarded-Proto': 'http', 'X-Liwan-Client-Proto': 'http',
+        }} for path in paths], tls=True)
+        self.assertEqual([status for status, _ in rows], [200] * len(paths))
+        self.assertEqual([identity['proto'] for _, identity in rows], ['https'] * len(paths))
 
     def test_rotating_headers_does_not_reset_socket_peer_budget(self):
         rows = edge_requests([
