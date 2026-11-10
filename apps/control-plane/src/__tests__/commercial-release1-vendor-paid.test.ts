@@ -208,6 +208,9 @@ suite('a vendor-added customer starts paid (W4)', () => {
 
   it('leaves the trial path untouched: a vendor can still start a trial', async () => {
     const customer = await createCustomer('Trial customer', 'trial@example.test')
+    // An existing tenant can start a trial only once its runtime can enforce the cutoff and excess policy.
+    await pool.query(`UPDATE tenants SET post_trial_supported=true,excess_supported=true
+      WHERE id=(SELECT tenant_id FROM customers WHERE id=$1)`, [customer.id])
     const trial = await routesB(pool, { method: 'POST', pathname: `/v1/commercial/customers/${customer.id}/trial`,
       raw: JSON.stringify({ kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: bundles_param(), cadence: monthly,
         requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 }),

@@ -35,10 +35,12 @@ export async function claimOutbox(pool: Pool, kinds: string[], limit: number, fi
 /**
  * Takes a five minute lease on one pending row, for a sender that delivers outside a worker loop. Exactly one caller wins
  * a due row, so a row two workers both found is sent once; a lease that expires (a sender that died) makes it due again.
+ * The returned database timestamp preserves lease identity for a stopped sender to release only its own lease.
  */
-export async function leaseOutboxRow(pool: Pick<Pool, 'query'>, id: string): Promise<boolean> {
-  const r = await pool.query("UPDATE commercial_outbox SET next_attempt_at = now() + interval '5 minutes' WHERE id=$1 AND status='pending' AND next_attempt_at <= now() RETURNING id", [id])
-  return (r.rowCount ?? 0) > 0
+export async function leaseOutboxRow(pool: Pick<Pool, 'query'>, id: string): Promise<string | null> {
+  const r = await pool.query<{ lease_until: string }>(
+    "UPDATE commercial_outbox SET next_attempt_at = now() + interval '5 minutes' WHERE id=$1 AND status='pending' AND next_attempt_at <= now() RETURNING next_attempt_at::text AS lease_until", [id])
+  return r.rows[0]?.lease_until ?? null
 }
 
 export async function completeOutbox(pool: Pick<Pool, 'query'>, id: string): Promise<void> {
@@ -62,6 +64,8 @@ export async function deferOutbox(pool: Pick<Pool, 'query'>, id: string, error: 
 }
 
 /** A waiting row (nothing failed) gives its lease back so the next tick re-checks it. */
-export async function releaseOutbox(pool: Pick<Pool, 'query'>, id: string): Promise<void> {
-  await pool.query(`UPDATE commercial_outbox SET next_attempt_at = now() WHERE id=$1 AND status='pending'`, [id])
+export async function releaseOutbox(pool: Pick<Pool, 'query'>, id: string, leaseUntil?: string): Promise<void> {
+  const condition = leaseUntil ? ' AND next_attempt_at=$2::timestamptz' : ''
+  await pool.query(`UPDATE commercial_outbox SET next_attempt_at = now() WHERE id=$1 AND status='pending'${condition}`,
+    leaseUntil ? [id, leaseUntil] : [id])
 }
