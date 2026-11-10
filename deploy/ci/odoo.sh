@@ -23,6 +23,12 @@ else
   SCRATCH_DB="liwan_scratch_ci_${GITHUB_RUN_ID}"
   TAGS="/${MODULES//,/,/}"
 fi
+# The image starts Odoo through deploy/security/odoo_secure.py, which must keep pypdf's bounded decompressor after Odoo's
+# import-time patch. Its test needs this stage's Odoo checkout and virtualenv; one run is enough, so only shard 1 (or the
+# single run) executes it.
+if [ -z "$SHARD" ] || [ "${SHARD%/*}" = 1 ]; then
+  LIWAN_ODOO_ROOT="$ODOO_ROOT" "$ODOO_PYTHON" -B -m unittest discover -s deploy/security -p 'test_odoo_secure.py' -v
+fi
 SCRATCH_ROOT="$(mktemp -d)"
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
 cleanup() { dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; }

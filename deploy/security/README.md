@@ -22,7 +22,7 @@ Start Odoo in a fresh process through `odoo_secure.py`. Pass an absolute officia
 
 The launcher preserves pypdf's bounded decompressor after Odoo's import-time patch, rejects PyPDF2 precedence and retains the root during Odoo restart/gevent spawning. Do not pre-import Odoo before invoking the launcher. It does not claim that all Odoo/PDF paths are resource-bounded or that the entire application is vulnerability-free.
 
-Tests require an installed official Odoo checkout and this environment:
+Tests require an installed official Odoo checkout and this environment; `LIWAN_ODOO_ROOT` is required and the test fails without it. CI runs them in the `odoo` stage (`deploy/ci/odoo.sh`) with that stage's checkout and virtualenv:
 
 ```sh
 LIWAN_ODOO_ROOT=/absolute/odoo-source /absolute/new-env/bin/python \

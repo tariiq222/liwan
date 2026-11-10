@@ -13,12 +13,8 @@ import unittest
 from pathlib import Path
 
 LAUNCHER = Path(__file__).with_name("odoo_secure.py")
-ODOO_ROOT = Path(
-    os.environ.get(
-        "LIWAN_ODOO_ROOT",
-        "/Users/tariq/code/webvue-security-evidence-20260909/odoo-runtime",
-    ),
-)
+ODOO_ROOT_VARIABLE = "LIWAN_ODOO_ROOT"
+ODOO_ROOT = Path(os.environ.get(ODOO_ROOT_VARIABLE, ""))
 
 
 def run_launcher(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -32,6 +28,16 @@ def run_launcher(*arguments: str, cwd: Path | None = None) -> subprocess.Complet
 
 
 class OdooSecureLauncherTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        # CI runs this in the odoo stage (deploy/ci/odoo.sh) with ODOO_ROOT and its virtualenv, where pypdf is installed.
+        if not os.environ.get(ODOO_ROOT_VARIABLE):
+            message = f"{ODOO_ROOT_VARIABLE} must name an Odoo source checkout and the test must run in the Odoo virtualenv"
+            raise RuntimeError(message)
+        if not (ODOO_ROOT / "odoo").is_dir():
+            message = f"{ODOO_ROOT_VARIABLE}={ODOO_ROOT} is not an Odoo source checkout"
+            raise RuntimeError(message)
+
     def test_odoo_root_is_required_and_must_be_absolute_existing_directory(self) -> None:
         missing = run_launcher()
         self.assertNotEqual(missing.returncode, 0)
@@ -83,8 +89,6 @@ class OdooSecureLauncherTests(unittest.TestCase):
         self.assertRegex(result.stderr, r"PyPDF2|pypdf2")
 
     def test_restores_pypdf_bounded_decompressor_after_real_odoo_import(self) -> None:
-        self.assertTrue(ODOO_ROOT.is_dir(), f"installed Odoo runtime missing: {ODOO_ROOT}")
-
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             cli = root / "odoo" / "cli"

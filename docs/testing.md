@@ -157,6 +157,19 @@ The thirteen stages are `static`, `ai-service`, `control-plane`, `vendor-admin`,
 `odoo-app-standalone`, `odoo-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock`, `e2e-odoo` and
 `rtl-stories`.
 
+The `ai-service` stage first runs `deploy/ci/lib/ai-service-audit.sh`, then installs `apps/ai-service` from its hashed lock
+(`requirements-dev.txt`, `requirements-build.txt`; the image installs `requirements.txt`) and runs ruff and pytest. The audit
+installs pip-audit from `requirements-audit.txt` and checks the pinned set against the PyPI advisory database. Any known
+vulnerability fails, unless its advisory id is listed with a reason in `apps/ai-service/pip-audit-ignore.txt`. pip-audit is a CI
+tool added with this gate, and it needs network access. Regenerating the locks is described in `apps/ai-service/README.md`.
+
+Two jobs of the daily `audit` workflow check `main` without gating pull requests: `ai-service-audit` (the same script, so a new
+advisory against an unchanged lock is reported there) and `secret-scan` (`python3 -B tools/secret_guard.py` over every tracked
+file of the scanned roots). `npm run check:audit` runs there too. `tools/secret_guard.py` reads `deploy/`, `.github/`, `apps/`,
+`packages/`, `odoo-addons/`, `tools/`, `e2e/` and the repository root. It judges credential fallbacks, provider token shapes,
+private key blocks and config-file literals; the exact files exempted are listed with reasons in `LITERAL_EXCEPTIONS`. Plain
+`NAME = 'literal'` assignments in application code, `docs/`, Markdown and git history are not scanned.
+
 ### Review evidence
 
 Review follows `REVIEW.md` using the selected available agent or a human.
@@ -178,8 +191,12 @@ python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>] [--pull-
 A pull request is narrower still (`--pull-request`, passed by the `scope` job only for the `pull_request`
 and `merge_group` events; a merge-queue entry is selected from the queue base to the queued merge result):
 
-- `upgrade`, `restore-drill` and `image` never run on a pull request. They run on the push to `main`, the
-  nightly run and a full dispatch.
+- `upgrade` and `restore-drill` never run on a pull request, and `image` runs only when the change touches a file
+  that decides how an image builds: a `Dockerfile`, a Compose file, `.dockerignore`, `deploy/ci/image.sh`,
+  `deploy/odoo/requirements-python312-linux.txt`, or `apps/ai-service/requirements.txt` and `requirements-build.txt`
+  (`feeds_image_build` in `tools/ci_scope.py`; the dev and audit locks are read by no Dockerfile). Otherwise the three
+  run on the push to `main`, the nightly run and a full dispatch. The `ci-result` job names the deferred stages a run
+  left out in its log and job summary, so a green result is not read as proof that they ran.
 - `e2e-odoo` runs before merge for changes under `apps/web/` or `odoo-addons/`, and when a shared input selects
   it through `tools/ci_scope.py`. The stage's seed and runner also select it.
 - An addon file selects `static`, the Odoo stages with affected modules, and `e2e-odoo`. The other stages in the
@@ -299,16 +316,21 @@ installs the release in the Odoo image and checks it is hardened, starts web, ve
 and guard without external services (web answers `/login`, vendor-admin serves a built static asset because its pages need the control plane, ai-service `/healthz`, guard
 denies an unknown host with 403 and passes its healthcheck) and asserts none runs as root, validates both
 Caddyfiles with the proxy image and checks its rate-limit module (the official Caddy base keeps root), and
-writes each image's tag and content digest to the job summary. After the smoke checks it scans all six
+writes each image's tag, content digest and registry digest to the job summary (the CI images are built, never pushed, so the
+registry digest reads `not published`). After the smoke checks it scans all six
 images with Trivy 0.75.0 (the official `aquasec/trivy` container, pinned by tag and digest, run against the
 Docker socket) for vulnerabilities that have a fix available: any CRITICAL finding fails the stage, HIGH findings
 are listed in the job log and counted in the summary without failing, and a scanner error (for example the
 vulnerability database download) fails the stage with a message instead of passing. All images are scanned before
 the stage fails. The scan covers OS and language packages known to the Trivy database at run time, not the
 application code, and it does not allowlist anything. The daily `image-scan` workflow runs the same stage on `main`,
-so an advisory published against an unchanged base image fails there first instead of in every pull request. The image digests are not published artifacts. A change under
+so an advisory published against an unchanged base image fails there first instead of in every pull request. The stage also
+writes a CycloneDX SBOM (packages and licenses, from the pinned Trivy) for each image into `LIWAN_SBOM_DIR`; both the `ci` image
+job and the `image-scan` workflow upload them as the `image-sbom` artifact (30 days), and a generator error fails the stage.
+The image digests are not registry-published and nothing is signed or attested; where the images are published and how they
+are signed is an owner decision (`deploy/image_pins.py --check` stays the failing release gate). A change under
 `apps/web`, `apps/vendor-admin`, `apps/ai-service`, `packages/ui`, `packages/commercial-ui` or
-`packages/commercial-contracts` selects the `image` stage because those images build from them. Mock browser tests and RTL stories cover their listed flows, not every possible
+`packages/commercial-contracts` selects the `image` stage on the push to `main` because those images build from them. Mock browser tests and RTL stories cover their listed flows, not every possible
 real integration. No paid model calls are required.
 
 The `upgrade` stage reports an explicit absence of a compatible release baseline when none exists. That

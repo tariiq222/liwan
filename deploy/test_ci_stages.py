@@ -61,10 +61,13 @@ if args[:1] == ['inspect']: print('true')
 if args[:1] == ['exec'] and joined.endswith('id -u'): print(10001)
 if args[:1] == ['exec'] and 'unknown.invalid' in joined: print(403)
 if args[:1] == ['exec'] and 'wget' in joined: print('wget: server returned error: HTTP/1.1 502 Bad Gateway')  # the proxy answers; its upstreams are absent
-if args[:2] == ['image', 'inspect']: print('sha256:' + args[-1])
+if args[:2] == ['image', 'inspect']: print('not published' if 'RepoDigests' in joined else 'sha256:' + args[-1])
 if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args):
-    # TRIVY_FAKE maps an image tag to {"exit": code, "report": trivy json}; an unlisted image is clean.
+    # TRIVY_FAKE maps an image tag to {"exit": code, "report": trivy json, "sbom_exit": code}; an unlisted image is clean.
     plan = json.loads(os.environ.get('TRIVY_FAKE', '{}')).get(args[-1], {})
+    if 'cyclonedx' in args:
+        print(json.dumps({'bomFormat': 'CycloneDX', 'component': args[-1]}))
+        sys.exit(plan.get('sbom_exit', 0))
     print(json.dumps(plan.get('report', {'Results': []})))
     sys.exit(plan.get('exit', 0))
 ''')
@@ -83,6 +86,10 @@ elif "SELECT state" in ' '.join(args): print('installed')
 
     def fake(self, name, body):
         file = self.bin / name
+        if name == 'odoo-python':
+            # `-m unittest` is the stage's launcher test (deploy/security), not an Odoo run: record the checkout it is given and pass.
+            body = ("if 'unittest' in args:\n Path(%r).write_text(os.environ.get('LIWAN_ODOO_ROOT', ''))\n sys.exit(0)\n"
+                    % str(self.root / 'launcher-root')) + body
         file.write_text(f'#!{sys.executable}\nimport os,sys,json\nfrom pathlib import Path\n'
                         f'args=sys.argv[1:]\nwith open({str(self.calls)!r}, "a") as out: '
                         f'out.write(json.dumps([{name!r}, *args])+"\\n")\n' + body)
@@ -101,7 +108,7 @@ elif "SELECT state" in ' '.join(args): print('installed')
                 process = self.execute(name, *args)
                 self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
                 calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
-                odoo = next(x for x in calls if x[0] == 'odoo-python' and 'shell' not in x)
+                odoo = next(x for x in calls if x[0] == 'odoo-python' and 'shell' not in x and 'unittest' not in x)
                 self.assertIn('--db_port=55432', odoo)
                 self.assertIn('--db_host=127.0.0.1', odoo)
                 self.assertIn('--http-port=' + wanted_port, odoo)
@@ -182,16 +189,75 @@ if 'deploy/classification.py' in args: Path(args[args.index('--output')+1]).writ
         self.fake('pip', '')
         self.fake('ruff', '')
         self.fake('pytest', "Path('observed-url').write_text(os.environ['AI_TEST_DATABASE_URL'])\n")
+        self.fake('pip-audit', '')
+        (self.root / 'apps/ai-service/pip-audit-ignore.txt').write_text('# no exceptions\n')
         self.fake('python3', "if args[0] == '-': os.execv(sys.executable, [sys.executable, *args])\nif '-m' in args: sys.exit(42)  # Host Python may be older than the service requires.\n")
         self.fake('odoo-python', '''
 if args[:2] == ['-m','venv']:
  directory=Path(args[2])/'bin'; directory.mkdir(parents=True)
- for name in ('pip','ruff','pytest'): (directory/name).symlink_to(Path(sys.argv[0]).parent/name)
+ for name in ('pip','ruff','pytest','pip-audit'): (directory/name).symlink_to(Path(sys.argv[0]).parent/name)
 ''')
         process = self.execute('ai-service')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         self.assertEqual((self.root / 'apps/ai-service/observed-url').read_text(),
                          'postgresql://odoo:scratch@127.0.0.1:55432/liwan_ai_ci_123')
+
+    def prepare_ai_audit(self, ignore_text):
+        (self.root / 'apps/ai-service').mkdir(parents=True)
+        (self.root / 'apps/ai-service/pip-audit-ignore.txt').write_text(ignore_text)
+        self.fake('pip-audit', '')
+        self.fake('pip', '')
+        self.fake('odoo-python', '''
+if args[:2] == ['-m','venv']:
+ directory=Path(args[2])/'bin'; directory.mkdir(parents=True)
+ for name in ('pip','pip-audit'): (directory/name).symlink_to(Path(sys.argv[0]).parent/name)
+''')
+        self.environment['AUDIT_PYTHON'] = str(self.bin / 'odoo-python')
+
+    def test_the_ai_audit_installs_pip_audit_from_the_hash_lock_and_audits_the_pinned_set(self):
+        self.prepare_ai_audit('# no exceptions\n')
+        process = subprocess.run(['bash', str(self.root / 'deploy/ci/lib/ai-service-audit.sh')], cwd=self.root,
+                                 env=self.environment, capture_output=True, text=True, check=False)
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
+        install = next(x for x in calls if x[0] == 'pip')
+        self.assertIn('--require-hashes', install)
+        self.assertIn('requirements-audit.txt', install)
+        audit = next(x for x in calls if x[0] == 'pip-audit')
+        self.assertEqual(audit[1:], ['--require-hashes', '--disable-pip', '--progress-spinner', 'off', '-r', 'requirements-dev.txt'])
+
+    def test_the_ai_audit_tolerates_only_an_advisory_listed_with_a_reason(self):
+        self.prepare_ai_audit('# note\nPYSEC-2099-1 accepted until the 2026-12 upgrade, reviewed 2026-11-10\n')
+        process = subprocess.run(['bash', str(self.root / 'deploy/ci/lib/ai-service-audit.sh')], cwd=self.root,
+                                 env=self.environment, capture_output=True, text=True, check=False)
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        audit = next(json.loads(line) for line in self.calls.read_text().splitlines() if json.loads(line)[0] == 'pip-audit')
+        self.assertEqual(audit[audit.index('--ignore-vuln') + 1], 'PYSEC-2099-1')
+
+    def test_the_ai_audit_rejects_an_ignored_advisory_without_a_reason(self):
+        self.prepare_ai_audit('PYSEC-2099-1\n')
+        process = subprocess.run(['bash', str(self.root / 'deploy/ci/lib/ai-service-audit.sh')], cwd=self.root,
+                                 env=self.environment, capture_output=True, text=True, check=False)
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn("'PYSEC-2099-1' has no reason", process.stderr)
+        self.assertNotIn('pip-audit', [json.loads(line)[0] for line in self.calls.read_text().splitlines()])
+
+    def test_the_odoo_stage_runs_the_launcher_test_once_with_its_odoo_checkout(self):
+        for shard, expected in ((None, True), ('1/3', True), ('2/3', False), ('3/3', False)):
+            with self.subTest(shard=shard):
+                marker = self.root / 'launcher-root'
+                if marker.exists():
+                    marker.unlink()
+                self.calls.write_text('')
+                process = self.execute('odoo', *(('--shard', shard) if shard else ()))
+                self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+                launcher = [json.loads(line) for line in self.calls.read_text().splitlines()
+                            if json.loads(line)[0] == 'odoo-python' and 'unittest' in json.loads(line)]
+                self.assertEqual(len(launcher), 1 if expected else 0)
+                if expected:
+                    self.assertEqual(launcher[0][launcher[0].index('-s') + 1], 'deploy/security')
+                    self.assertEqual(launcher[0][launcher[0].index('-p') + 1], 'test_odoo_secure.py')
+                    self.assertEqual(marker.read_text(), str(self.odoo))
 
     def test_restore_drill_uses_the_isolated_port_in_backup_restore_and_odoo(self):
         self.fake('curl', '')
@@ -260,14 +326,14 @@ if 'deploy/restore_verify.py' in args:
                 self.assertEqual(build[-1], context)
                 self.assertIn(['docker', 'rmi', '-f', tag], calls)
                 self.assertIn(['docker', 'image', 'inspect', '--format', '{{.Id}}', tag], calls)
-                self.assertIn('| %s | sha256:%s |' % (tag, tag), process.stdout)
+                self.assertIn('| %s | sha256:%s | not published | %s.cdx.json |' % (tag, tag, tag.split(':')[0]), process.stdout)
                 if name != 'proxy':
                     started = next(x for x in calls if x[:3] == ['docker', 'run', '-d']
                                    and x[x.index('--name') + 1] == 'liwan-ci-123-' + name)
                     self.assertIn(tag, started)
                     self.assertIn(['docker', 'exec', 'liwan-ci-123-' + name, 'id', '-u'], calls)
                     self.assertIn(['docker', 'rm', '-fv', 'liwan-ci-123-' + name], calls)
-        self.assertIn('| liwan-odoo:ci-123 | sha256:liwan-odoo:ci-123 |', process.stdout)
+        self.assertIn('| liwan-odoo:ci-123 | sha256:liwan-odoo:ci-123 | not published | liwan-odoo.cdx.json |', process.stdout)
         proxy = [x for x in calls if x[:2] == ['docker', 'run'] and 'liwan-proxy:ci-123' in x]
         validated = [x for x in proxy if 'validate' in x]
         self.assertEqual(len(validated), 2)
@@ -294,9 +360,36 @@ if 'deploy/restore_verify.py' in args:
             {'VulnerabilityID': 'CVE-2099-%d' % n, 'PkgName': 'libfake', 'InstalledVersion': '1.0',
              'FixedVersion': '1.1', 'Severity': severity} for n in range(count)]}]}
 
-    def trivy_runs(self):
+    def all_trivy_runs(self):
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
         return [x for x in calls if x[:2] == ['docker', 'run'] and any(a.startswith('aquasec/trivy:') for a in x)]
+
+    def trivy_runs(self):
+        return [x for x in self.all_trivy_runs() if 'cyclonedx' not in x]
+
+    def sbom_runs(self):
+        return [x for x in self.all_trivy_runs() if 'cyclonedx' in x]
+
+    def test_image_gate_writes_a_cyclonedx_sbom_for_every_image(self):
+        sbom_dir = self.root / 'sbom'
+        self.environment['LIWAN_SBOM_DIR'] = str(sbom_dir)
+        process = self.execute('image')
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        names = ('liwan-odoo', 'liwan-web', 'liwan-vendor-admin', 'liwan-ai-service', 'liwan-proxy', 'liwan-guard')
+        self.assertEqual([x[-1] for x in self.sbom_runs()], ['%s:ci-123' % name for name in names])
+        for name in names:
+            document = json.loads((sbom_dir / (name + '.cdx.json')).read_text())
+            self.assertEqual(document, {'bomFormat': 'CycloneDX', 'component': name + ':ci-123'})
+        for run in self.sbom_runs():
+            self.assertEqual(run[run.index('--format') + 1], 'cyclonedx')
+            self.assertRegex(next(a for a in run if a.startswith('aquasec/trivy:')), r'^aquasec/trivy:\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$')
+
+    def test_image_gate_fails_when_an_sbom_cannot_be_produced(self):
+        self.environment['TRIVY_FAKE'] = json.dumps({'liwan-guard:ci-123': {'sbom_exit': 1}})
+        process = self.execute('image')
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('liwan-guard:ci-123 sbom failed', process.stderr)
+        self.assertEqual(len(self.trivy_runs()), 6)
 
     def test_image_gate_scans_every_image_with_the_pinned_scanner_and_reports_counts(self):
         self.environment['TRIVY_FAKE'] = json.dumps({'liwan-web:ci-123': {'report': self.trivy_report('HIGH', 2)}})

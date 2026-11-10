@@ -9,7 +9,8 @@ the ``scope`` job of ``.github/workflows/ci.yml`` feeds to the stage jobs. ``--f
 stage without reading a diff. This module is the only place the path-to-stage map lives.
 
 ``--pull-request`` narrows the selection for a pull request: the ``DEFERRED_STAGES`` are left to the
-push to ``main``, the nightly run and a full dispatch, and the Odoo stages reach only the release modules
+push to ``main``, the nightly run and a full dispatch, except that ``image`` still runs when the change
+touches a file that decides how an image builds (``feeds_image_build``), and the Odoo stages reach only the release modules
 the change affects (the changed addons plus every addon depending on them, ``None`` meaning all of them
 when a changed path outside ``odoo-addons/`` feeds an Odoo stage). ``--modules`` prints that affected list
 as comma-separated names (empty means every release module).
@@ -47,6 +48,10 @@ ISOLATION_STAGES = ('odoo-app-standalone', 'odoo-bridge')
 ODOO_STAGES = ('odoo', *ISOLATION_STAGES)
 # Slow, and about the merged result rather than one change: a pull request leaves them to the push to main.
 DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image')
+# A pull request still builds and scans the images when it changes what decides how they build: a Dockerfile, a
+# Compose file, `.dockerignore`, the image stage script, or a package lock the Dockerfiles install from.
+IMAGE_BUILD_INPUTS = ('deploy/ci/image.sh', 'deploy/odoo/requirements-python312-linux.txt',
+                      'apps/ai-service/requirements.txt', 'apps/ai-service/requirements-build.txt')
 # The web and vendor-admin images build from these packages, so `image` is selected with them.
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'
@@ -132,6 +137,14 @@ def affected_modules(paths: list[str], release: list[str], addons: Path = app_is
     return app_isolation.affected(changed, release, addons)
 
 
+def feeds_image_build(path: str) -> bool:
+    """True for a file whose change can break an image build, whatever folder it sits in."""
+    name = path.rsplit('/', 1)[-1]
+    return (name == 'Dockerfile' or name.startswith('Dockerfile.') or name == '.dockerignore'
+            or (name.startswith(('docker-compose', 'compose')) and name.endswith(('.yml', '.yaml')))
+            or any(fnmatchcase(path, pattern) for pattern in IMAGE_BUILD_INPUTS))
+
+
 def pull_request_stages(paths: list[str], affected: list[str] | None) -> tuple[str, ...]:
     """Keep nondeferred stages and run the Odoo test stages only when they have work.
 
@@ -143,6 +156,8 @@ def pull_request_stages(paths: list[str], affected: list[str] | None) -> tuple[s
     if addon_files:
         selected.update((*ODOO_STAGES, 'e2e-odoo'))
     selected.difference_update(DEFERRED_STAGES)
+    if any(feeds_image_build(path) for path in paths):
+        selected.add('image')
     if affected is not None:
         runs = {'odoo': affected,
                 'odoo-app-standalone': app_isolation.matrix('apps', only=affected),
