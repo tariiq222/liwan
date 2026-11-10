@@ -45,17 +45,14 @@ set -a; . "$HOME_DIR/runtime.env"; set +a
 # scheduler: trial expiry, renewals, dunning, refunds and the tenant status push to
 # Odoo. Without it a suspension or renewal never reaches Odoo, so a shared runtime
 # starts it and a dedicated runtime starts exactly api + worker as before.
-# runtime.env owns the tenancy mode: local-process.sh launches every child from it.
-# Drop the inherited value so nothing exported in the operator's shell can make this
-# decision disagree with the children, then read the file once for both.
-runtime_tenancy_mode="$(
-  unset LIWAN_TENANCY_MODE
-  set -a; . "$HOME_DIR/runtime.env"; set +a
-  printf '%s' "${LIWAN_TENANCY_MODE:-}"
-)"
+# runtime.env owns the tenancy mode (runtime-tenancy.sh): local-process.sh launches every
+# child from it. Drop the value sourced above so nothing exported in the operator's shell
+# or leaked from the file into this process can disagree with the children.
+source "$DEPLOY/runtime-tenancy.sh"
+tenancy_mode="$(runtime_tenancy_mode)"
 unset LIWAN_TENANCY_MODE
 shared_worker=0
-if [[ "$runtime_tenancy_mode" == shared ]]; then
+if [[ "$tenancy_mode" == shared ]]; then
   # Both paths are validated absolute by getConfig(); an absent one makes the worker
   # exit at startup with shared_adapter_unavailable. Refuse before starting anything.
   for name in LIWAN_SHARED_RUNTIME_CONFIG LIWAN_TENANT_REGISTRY_PATH; do

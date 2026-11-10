@@ -56,7 +56,7 @@ NODE22 = _node22()
 SCRIPTS = ('run-local.sh', 'local-process.sh', 'status-local.sh', 'stop-local.sh',
            'process_lock.py', 'startup_handoff.py', 'begin_generation.py',
            'recover_generation.py', 'resource_guard.py', 'runtime-trap.sh',
-           'runtime-trap-cleanup.sh')
+           'runtime-trap-cleanup.sh', 'runtime-tenancy.sh')
 
 DOCKER_PY = r'''import json, sys
 from pathlib import Path
@@ -247,6 +247,11 @@ class SharedModeRuntime(unittest.TestCase):
                               cwd=str(self.root), env=self.env(),
                               capture_output=True, text=True, timeout=timeout)
 
+    def run_local_process(self, *args, timeout=30):
+        return subprocess.run(['bash', str(self.root / 'deploy/control-plane/local-process.sh'), *args],
+                              cwd=str(self.root), env=self.env(),
+                              capture_output=True, text=True, timeout=timeout)
+
     def records(self):
         return sorted(p.name for p in (self.home / 'processes').iterdir())
 
@@ -281,9 +286,7 @@ class SharedModeRuntime(unittest.TestCase):
 
         # The per-name status path is supervised like api/worker.
         self.assertEqual(self.run_script('local-process.sh', timeout=30).returncode, 2)  # usage, no args
-        shared_status = subprocess.run(
-            ['bash', str(self.root / 'deploy/control-plane/local-process.sh'), 'status', 'shared-worker'],
-            cwd=str(self.root), env=self.env(), capture_output=True, text=True, timeout=30)
+        shared_status = self.run_local_process('status', 'shared-worker')
         self.assertEqual(shared_status.returncode, 0, shared_status.stderr[-2000:])
 
         stop = self.run_script('stop-local.sh')
@@ -294,6 +297,38 @@ class SharedModeRuntime(unittest.TestCase):
             time.sleep(.05)
         for name, record in (('api', api), ('worker', worker), ('shared-worker', shared)):
             self.assertFalse(self._alive(record['pid']), f'{name} must be stopped with the runtime')
+        supervisor.wait(timeout=10)
+        self.assertEqual(list((self.home / 'processes').iterdir()), [])
+
+    def test_shared_runtime_is_not_healthy_once_its_shared_worker_was_stopped_alone(self):
+        # `local-process.sh stop shared-worker` removes only that child's records. In a
+        # shared runtime the scheduler is mandatory (a suspension or renewal can no longer
+        # reach Odoo without it), so neither status command may report success.
+        self.runtime_env.write_text(
+            'export LIWAN_TENANCY_MODE=shared\n'
+            f'export LIWAN_SHARED_RUNTIME_CONFIG={self.base / "shared-runtime.json"}\n'
+            f'export LIWAN_TENANT_REGISTRY_PATH={self.base / "registry.json"}\n')
+        supervisor, _ = self.start_runtime()
+        self.wait_for_entries('api', 'worker', 'shared-worker')
+        shared = self.entry('shared-worker')
+
+        stopped = self.run_local_process('stop', 'shared-worker')
+        self.assertEqual(stopped.returncode, 0, stopped.stderr[-2000:])
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and self._alive(shared['pid']):
+            time.sleep(.05)
+        self.assertFalse(self._alive(shared['pid']))
+        self.assertFalse((self.home / 'processes' / 'shared-worker.pid').exists())
+
+        status = self.run_script('status-local.sh')
+        self.assertEqual(status.returncode, 2, status.stdout + status.stderr[-2000:])
+        self.assertIn('shared-worker exact process identity not confirmed', status.stderr)
+        runtime_status = self.run_local_process('status', 'runtime')
+        self.assertEqual(runtime_status.returncode, 2, runtime_status.stdout + runtime_status.stderr[-2000:])
+        self.assertIn('Shared worker identity mismatch', runtime_status.stderr)
+
+        # The damaged runtime can still be stopped, which removes every record.
+        self.assertEqual(self.run_script('stop-local.sh').returncode, 0)
         supervisor.wait(timeout=10)
         self.assertEqual(list((self.home / 'processes').iterdir()), [])
 
@@ -322,9 +357,7 @@ class SharedModeRuntime(unittest.TestCase):
         self.runtime_env.write_text('')
         state = self.home / 'processes'; state.mkdir(mode=0o700)
         (state / 'generation').write_text('a' * 32 + '\n')
-        result = subprocess.run(
-            ['bash', str(self.root / 'deploy/control-plane/local-process.sh'), 'start', 'shared-worker'],
-            cwd=str(self.root), env=self.env(), capture_output=True, text=True, timeout=30)
+        result = self.run_local_process('start', 'shared-worker')
         self.assertEqual(result.returncode, 13, result.stdout + result.stderr[-2000:])
         self.assertIn('LIWAN_TENANCY_MODE=shared', result.stderr)
         self.assertIsNone(self.entry('shared-worker'))

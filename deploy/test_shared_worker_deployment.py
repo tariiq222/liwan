@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTROL = ROOT / 'deploy' / 'control-plane'
 RUN_LOCAL = CONTROL / 'run-local.sh'
 LOCAL_PROCESS = CONTROL / 'local-process.sh'
+TENANCY = CONTROL / 'runtime-tenancy.sh'
 UNIT = CONTROL / 'liwan-shared-worker.service'
 ENTRYPOINT = CONTROL / 'run-shared-worker.sh'
 WORKER_MAIN = ROOT / 'apps' / 'control-plane' / 'src' / 'shared-worker-main.ts'
@@ -64,17 +65,19 @@ class RunLocalSharedMode(unittest.TestCase):
         cls.source = RUN_LOCAL.read_text(encoding='utf-8')
         # The mode decision is one block; executing it in bash is the behavioural
         # check, not a string match on a whole script that needs Docker and Postgres.
-        cls.block = _between(cls.source, 'runtime_tenancy_mode="$(', 'shared_worker=1\nfi')
-        # The inherited mode is dropped before the decision, so the file is the only input.
+        cls.block = _between(cls.source, 'tenancy_mode="$(runtime_tenancy_mode)"', 'shared_worker=1\nfi')
+        # The mode comes from the shared helper, and the value sourced from runtime.env
+        # is dropped before the decision, so the file is the only input.
         assert cls.block.index('unset LIWAN_TENANCY_MODE') < cls.block.index('shared_worker=0')
 
     def decide(self, runtime_env: str, **env: str) -> subprocess.CompletedProcess:
         with tempfile.TemporaryDirectory(prefix='liwan-run-local-mode-') as home:
             Path(home, 'runtime.env').write_text(runtime_env)
-            # run-local.sh sources runtime.env under `set -a` before the decision block
-            # (line 41); the block then reads the mode from that same file again.
-            script = (f'set -euo pipefail\nHOME_DIR={home!r}\n'
+            # run-local.sh sources runtime.env under `set -a` and the mode helper before the
+            # decision block; the block then reads the mode from that same file again.
+            script = (f'set -euo pipefail\nHOME_DIR={home!r}\nDEPLOY={str(CONTROL)!r}\n'
                       'set -a; . "$HOME_DIR/runtime.env"; set +a\n'
+                      'source "$DEPLOY/runtime-tenancy.sh"\n'
                       f'{self.block}\n'
                       'printf "shared_worker=%s\\n" "$shared_worker"')
             return _bash(script, _clean_env(**env))
@@ -177,9 +180,11 @@ class LocalProcessSharedWorker(unittest.TestCase):
 
     def test_start_maps_the_name_to_the_entrypoint_and_gates_on_shared_mode(self):
         self.assertIn('shared-worker) script=shared-worker-main;;', self.source)
-        self.assertIn('if [[ "$n" == shared-worker ]] && ! shared_mode; then', self.source)
-        # The gate reads the same private runtime.env the child would be started from.
-        self.assertIn('. "$HOME_DIR/runtime.env"', self.source)
+        self.assertIn('if [[ "$n" == shared-worker && "$(runtime_tenancy_mode)" != shared ]]; then', self.source)
+        # The gate reads the mode through the helper that every script shares, from the
+        # same private runtime.env the child would be started from.
+        self.assertIn('source "$(dirname "$0")/runtime-tenancy.sh"', self.source)
+        self.assertIn('. "$HOME_DIR/runtime.env"', TENANCY.read_text(encoding='utf-8'))
 
     def test_generation_records_include_the_shared_worker(self):
         records = _between(self.source, 'RECORD_NAMES=(', ')')

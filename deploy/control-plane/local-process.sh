@@ -14,12 +14,7 @@ RECORD_NAMES=(generation runtime.pid runtime.start api.pid api.start api.generat
 if [[ -z "${LIWAN_PROCESS_LOCK_FD:-}" ]]; then exec python3 "$(dirname "$0")/process_lock.py" --hold /bin/bash "$0" "$@"; fi
 proc_start() { ps -p "$1" -o lstart= 2>/dev/null | xargs || true; }
 expected() { case "$1" in api) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/main.ts";; worker) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/worker-main.ts";; shared-worker) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/shared-worker-main.ts";; runtime) printf '%s' "bash $ROOT/deploy/control-plane/run-local.sh";; esac; }
-# The shared worker is a shared-tenancy process: refuse to start it in a dedicated
-# runtime even when an operator names it directly. runtime.env is the operator-owned
-# private file local-process.sh already sources to launch children.
-shared_mode() {
- ( unset LIWAN_TENANCY_MODE; set -a; . "$HOME_DIR/runtime.env"; set +a; test "${LIWAN_TENANCY_MODE:-}" = shared )
-}
+source "$(dirname "$0")/runtime-tenancy.sh"
 command_matches() {
  local name="$1" command="$2" expected_command index
  local -a actual expected_argv
@@ -80,7 +75,7 @@ start_one() {
    [[ -f "$state/generation" ]] || { printf 'Runtime generation marker missing.\n' >&2; return 7; }
    # A dedicated runtime has no tenant registry or shared runtime config, so the
    # shared worker would refuse its own start; refuse here instead of orphaning it.
-   if [[ "$n" == shared-worker ]] && ! shared_mode; then printf 'Shared worker requires LIWAN_TENANCY_MODE=shared in runtime.env.\n' >&2; return 13; fi
+   if [[ "$n" == shared-worker && "$(runtime_tenancy_mode)" != shared ]]; then printf 'Shared worker requires LIWAN_TENANCY_MODE=shared in runtime.env.\n' >&2; return 13; fi
    cat "$state/generation" > "$state/$n.generation"; chmod 600 "$state/$n.generation"
    case "$n" in worker) script=worker-main;; shared-worker) script=shared-worker-main;; *) script=main;; esac
    (umask 077; set -a; . "$HOME_DIR/runtime.env"; set +a; export PATH="$NODE_BIN:$PATH"; close_lock_descriptors; exec "$NODE_BIN/node" "$ROOT/node_modules/tsx/dist/cli.mjs" "$ROOT/apps/control-plane/src/$script.ts") >>"$HOME_DIR/logs/$n.log" 2>&1 &
@@ -213,6 +208,6 @@ case "$mode" in
       if [[ "$mixed" == 1 ]]; then printf 'Owned runtime stopped; dead owner records archived; DB/data retained.\n'
       else printf 'Owned runtime stopped; DB/data retained.\n'; fi
     else stop_one "$name"; fi;;
- status) valid "$name" || { printf '%s process is not confirmed.\n' "$name" >&2; exit 1; }; printf '%s exact argv/start-time ownership verified.\n' "$name"; if [[ "$name" == runtime ]]; then valid api && valid worker || { printf 'Child identity mismatch.\n' >&2; exit 2; }; if [[ -f "$state/shared-worker.pid" ]]; then valid shared-worker || { printf 'Shared worker identity mismatch.\n' >&2; exit 2; }; fi; curl -fsS http://127.0.0.1:14179/healthz >/dev/null && printf 'API/database HTTP 200.\n' || exit 3; fi;;
+ status) valid "$name" || { printf '%s process is not confirmed.\n' "$name" >&2; exit 1; }; printf '%s exact argv/start-time ownership verified.\n' "$name"; if [[ "$name" == runtime ]]; then valid api && valid worker || { printf 'Child identity mismatch.\n' >&2; exit 2; }; tenancy_mode="$(runtime_tenancy_mode)"; if shared_worker_expected "$tenancy_mode" "$state"; then valid shared-worker || { printf 'Shared worker identity mismatch.\n' >&2; exit 2; }; fi; curl -fsS http://127.0.0.1:14179/healthz >/dev/null && printf 'API/database HTTP 200.\n' || exit 3; fi;;
  *) printf 'Usage: local-process.sh start|stop|status|recover api|worker|shared-worker|runtime\n' >&2; exit 2;;
 esac

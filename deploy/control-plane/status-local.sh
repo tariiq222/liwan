@@ -28,10 +28,14 @@ valid() {
  else [[ "$command" == "$expected" ]] || return 1; fi
  if [[ "$name" != runtime ]]; then [[ -f "$state/$name.generation" && -f "$state/generation" ]] || return 1; gen="$(<"$state/$name.generation")"; [[ "$gen" == "$(<"$state/generation")" && "$gen" =~ ^[a-f0-9]{32}$ ]] || return 1; fi
 }
-# The shared worker exists only in a shared-tenancy generation; its record is then mandatory.
+# The shared worker exists only in a shared-tenancy generation, where it is mandatory:
+# a runtime whose worker was stopped alone must not report success.
+source "$(dirname "$0")/runtime-tenancy.sh"
 names=(runtime api worker)
-[[ ! -f "$state/shared-worker.pid" ]] || names+=(shared-worker)
+tenancy_mode="$(runtime_tenancy_mode)"
+shared_worker=0
+if shared_worker_expected "$tenancy_mode" "$state"; then shared_worker=1; names+=(shared-worker); fi
 for name in "${names[@]}"; do valid "$name" || { printf '%s exact process identity not confirmed.\n' "$name" >&2; exit 2; }; done
 printf 'Runtime/API/worker exact argv, start times and generation ownership verified.\n'
-[[ ! -f "$state/shared-worker.pid" ]] || printf 'Shared worker (commercial scheduler) exact argv, start time and generation ownership verified.\n'
+[[ "$shared_worker" == 0 ]] || printf 'Shared worker (commercial scheduler) exact argv, start time and generation ownership verified.\n'
 curl -fsS http://127.0.0.1:14179/healthz >/dev/null && printf 'Control API/database health HTTP 200.\n' || { printf 'Control API unavailable.\n' >&2; exit 3; }
