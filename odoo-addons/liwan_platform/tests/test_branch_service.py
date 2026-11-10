@@ -131,14 +131,14 @@ class TestBranchService(TransactionCase):
         self.assertEqual((late.state, late.read_only), ('active', False))
         self.assertEqual((full.read_only, early.read_only), (False, True))
 
-    def test_paid_restore_keeps_a_customer_read_only_choice(self):
+    def test_paid_restore_makes_a_customer_read_only_branch_full(self):
         self._apply(['full', 'chosen'])
         self.env.flush_all()
         chosen = self.env['liwan.tenant.branch'].search([('branch_uid', '=', 'chosen')])
         chosen.write({'read_only': True, 'seat_choice': 'customer'})
         self._op()._liwan_archive_branch('archive', 'chosen')
         self._op()._liwan_restore_branch('restore', 'chosen')
-        self.assertEqual((chosen.state, chosen.read_only), ('active', True))
+        self.assertEqual((chosen.state, chosen.read_only, chosen.seat_choice), ('active', False, 'auto'))
 
     def test_paid_new_branch_uses_the_purchased_seat_before_automatic_reopening(self):
         self._apply(['full', 'extra'])

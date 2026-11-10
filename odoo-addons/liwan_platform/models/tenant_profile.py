@@ -605,9 +605,11 @@ class LiwanTenantProfile(models.Model):
         )
         branch.company_id.write({'active': True})
         branch.write({'state': 'active', 'operation_id': operation_id})
-        if branch.read_only and branch.seat_choice == 'auto':
-            # The purchased seat is the restored branch's own; only the customer's own read-only choice survives.
-            self.env['liwan.entitlement.service']._liwan_apply_flags(branch, {'read_only': False})
+        if branch.read_only:
+            # The purchased seat is the restored branch's own, so an older read-only choice does not outlive the restore.
+            self.env['liwan.entitlement.service']._liwan_apply_flags(
+                branch, {'read_only': False, 'seat_choice': 'auto'},
+            )
         return branch.company_id
 
     def _liwan_bind_user_to_branch(self, user, branch_uid):
