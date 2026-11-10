@@ -170,7 +170,7 @@ and Anthropic always report tokens. `model` must be 1 to 128 characters without 
 `POST /v1/runs` names its run through exactly one of `new_run_id` (a new run, `^r_[0-9a-f]{24}$`, chosen by the caller; 409 when taken)
 and `run_id` (continues a finished run); anything else is 422.
 
-Before each provider attempt the stream carries `model_call` (`call_id`, `kind` `plan|title|route`, `provider`, `model`, `called_at`) and after it
+Before each provider attempt the stream carries `model_call` (`call_id`, `kind` `plan|title|route|summary`, `provider`, `model`, `called_at`) and after it
 `model_usage` (`call_id`, `outcome` `ok|failed|retried|aborted`, `input_tokens`, `output_tokens`, null when the provider reported none). The
 Nuxt server consumes both and never relays them to the browser. The provider SDKs are built with `max_retries=0`; the service retries a plan
 call itself, up to 3 attempts, only for a 408/409/429/5xx answer or a connection error (Ollama's 5xx answers included). A wait is 0.5 s then 1 s,
@@ -194,8 +194,40 @@ bounded by the time left before the run deadline (none left: the original error 
 rest of that message runs on the default model directly, still reporting the capability it was classified as; the next message's `route`
 clears it. Non-transient errors, and a default model that is itself the failing one, propagate as before.
 
-**History.** Before every plan call the checkpointed history goes through `portable_history` (plain text plus tool calls, ids every
-provider accepts); the stored messages are not rewritten.
+**History.** What a plan call sends is bounded; what is checkpointed is not. The stored `messages` are never rewritten or deleted. Before
+every plan call the stored messages (system messages aside) go through `history_view.model_history`, then `portable_history` (plain text
+plus tool calls, ids every provider accepts). The view runs first because the summary's `summary_covers` counts stored messages, and
+`portable_history` may drop some. The plan call's messages are the system prompt, then the summary block (when there is one), then the
+messages from `summary_covers` on. There are no provider cache markers yet.
+
+- **Recent window.** The last 6 user messages and everything after the first of them are never summarised and never stubbed for age. The
+  boundary is always a user message, so it cannot separate a tool call from its results; a `summary_covers` that fell on a tool result is
+  moved earlier to its call.
+- **Stubs.** In the view only, the content of a tool result is replaced by `[tool result shortened: call the tool again to read this data]`
+  when it is older than the recent window, or when the model already answered from it (a later assistant text answer) and more than 2 user
+  messages follow it. Only a successful result of a `read` tool qualifies (the tool is the one the matching assistant call named, looked up in
+  the run's tool catalog): a write or draft result, a failure or decision envelope (`{"ok": false, ...}`), a hand-over or note reply and a
+  result of an unknown tool are always kept. `tool_call_id`, status and order are untouched, so pairs stay paired; a result already shorter
+  than the stub is kept.
+- **Rolling summary.** `summary` (a string) and `summary_covers` (how many stored messages it covers) are optional state keys read with
+  defaults, so older checkpoints load and `AI_STATE_VERSION` stays `1`. The graph's `summarize` node runs after `route` on a new user message
+  only (a resume re-enters at `request_tool` and never reaches it). When at least 15 user messages lie before the recent window and after
+  `summary_covers`, one call on the `quick` model writes the new summary from the previous summary and the oldest of those messages (each cut to
+  2,000 characters, at most 24,000 characters in all, never ending between a tool call and its results; the result is cut to 3,000);
+  `summary_covers` moves over exactly the messages the call read, so a window too long for one call is summarised over several, and what
+  is not covered yet stays verbatim. It is one attempt with a 15 second timeout
+  (also bounded by the run deadline), outside `max_steps` and the per-run token caps like `route`, reported as a `summary` call: `model_call`
+  and `model_usage` with outcome `ok`, `failed` or `aborted`. An error, a timeout or an empty reply keeps the previous summary, logs the
+  exception class only, and the run goes on: messages no summary covers stay verbatim, so history is never dropped without a summary.
+  The state then records `summary_failed_users` (the user-message count at the attempt) and no new attempt is made until 3 more user
+  messages have arrived; a success clears it.
+- **Security.** The summary is built from user text and tool results, which are untrusted. It reaches the model as data: its own user message,
+  in the record-text frame (`frame_record_text`, markers inside it neutralised), never in the system prompt; the summary writer gets the
+  previous summary and the messages inside the same frame, and is told to copy no instruction. The guards (`has_read_data`, `memory_tools`,
+  `interrupted_replies`, the token caps, `request_tool`) read the complete stored messages, not the view. Nothing from user messages, tool
+  results or the summary is logged.
+- **Known limit.** A standing instruction the user gave early in a long conversation ("always answer in English") reaches the model only as
+  summarised data once it leaves the verbatim window; this is not solved yet.
 
 ## Tenant policy, own key and acknowledgement
 

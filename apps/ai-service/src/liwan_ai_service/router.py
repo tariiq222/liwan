@@ -1,6 +1,6 @@
 """The task router's classifier: the request that asks the ``quick`` model what kind of task a new user message is, and its answer read back.
 
-Pure functions only; the graph's ``route`` node makes the call (see ``usage.invoke_route``). The model sees one message, never the history.
+Pure functions only; the graph's ``route`` node makes the call (see ``usage.invoke_once``). The model sees one message, never the history.
 """
 from __future__ import annotations
 

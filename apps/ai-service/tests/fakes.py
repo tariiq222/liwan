@@ -19,6 +19,7 @@ from liwan_ai_service.router import ROUTE_RULES
 from liwan_ai_service.routing import RunModels
 from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
+from liwan_ai_service.summary import SUMMARY_RULES
 from liwan_ai_service.tenancy import MemoryDirectory
 from liwan_ai_service.tenant_state import TenantState, TenantStates
 from liwan_ai_service.titles import TITLE_RULES
@@ -146,14 +147,20 @@ def is_route_request(messages: list[BaseMessage]) -> bool:
     return bool(messages) and isinstance(messages[0], SystemMessage) and messages[0].content == ROUTE_RULES
 
 
+def is_summary_request(messages: list[BaseMessage]) -> bool:
+    return bool(messages) and isinstance(messages[0], SystemMessage) and messages[0].content == SUMMARY_RULES
+
+
 class ScriptedChatModel(BaseChatModel):
-    """The tests script the run's turns in ``responses``; the title and classification requests are answered apart, from
-    ``title_responses`` and ``route_responses`` (none left: the call fails)."""
+    """The tests script the run's turns in ``responses``; the title, classification and summary requests are answered apart, from
+    ``title_responses``, ``route_responses`` and ``summary_responses`` (none left: the call fails)."""
 
     responses: list[AIMessage]
     title_responses: list[AIMessage] = []
     route_responses: list[AIMessage] = []
+    summary_responses: list[AIMessage] = []
     route_calls: list[list[BaseMessage]] = []
+    summary_calls: list[list[BaseMessage]] = []
     bound_tools: list[Any] = []
     bound_history: list[list[str]] = []  # the tool names bound for each plan call, in order
     calls: list[list[BaseMessage]] = []
@@ -172,9 +179,9 @@ class ScriptedChatModel(BaseChatModel):
         return self
 
     def _next(self, messages: list[BaseMessage]) -> AIMessage:
-        kind = "title" if is_title_request(messages) else "route" if is_route_request(messages) else "plan"
+        kind = "title" if is_title_request(messages) else "route" if is_route_request(messages) else "summary" if is_summary_request(messages) else "plan"
         calls, script = {"title": (self.title_calls, self.title_responses), "route": (self.route_calls, self.route_responses),
-                         "plan": (self.calls, self.responses)}[kind]
+                         "summary": (self.summary_calls, self.summary_responses), "plan": (self.calls, self.responses)}[kind]
         calls.append(list(messages))
         if not script:
             msg = f"{kind} script exhausted"
@@ -220,7 +227,7 @@ class FlakyChatModel(ScriptedChatModel):
     attempts: int = 0
 
     def _next(self, messages: list[BaseMessage]) -> AIMessage:
-        if not (is_title_request(messages) or is_route_request(messages)):
+        if not (is_title_request(messages) or is_route_request(messages) or is_summary_request(messages)):
             self.attempts += 1
             if self.failures:
                 raise self.failures.pop(0)
@@ -286,4 +293,22 @@ class FaultyRouteChatModel(ScriptedChatModel):
                 await asyncio.sleep(60)
             if self.route_error is not None:
                 raise self.route_error
+        return await super()._agenerate(messages, stop, run_manager, **kwargs)
+
+
+class FaultySummaryChatModel(ScriptedChatModel):
+    """The summary request raises ``summary_error``, or never comes back in time when ``summary_stalls``; the plan calls follow the script."""
+
+    summary_error: Any = None
+    summary_stalls: bool = False
+    summary_attempts: int = 0
+
+    async def _agenerate(self, messages: list[BaseMessage], stop: list[str] | None = None,
+                         run_manager: AsyncCallbackManagerForLLMRun | None = None, **kwargs: Any) -> ChatResult:
+        if is_summary_request(messages):
+            self.summary_attempts += 1
+            if self.summary_stalls:
+                await asyncio.sleep(60)
+            if self.summary_error is not None:
+                raise self.summary_error
         return await super()._agenerate(messages, stop, run_manager, **kwargs)
