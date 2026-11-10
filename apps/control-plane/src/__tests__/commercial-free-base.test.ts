@@ -921,6 +921,23 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: lapsedTrial.subscription })
       expect(await rate()).toBeLessThan(before!)
     })
+    it('F4: a renewal that is deliberately skipped or owes nothing is not listed as missed or soon', async () => {
+      const kinds = async (customer: string) => (await attention(pool, true)).items.filter(i => i.customer_id === customer).map(i => i.kind)
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await pool.query("UPDATE subscriptions SET renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
+      expect(await kinds(f.customer)).not.toContain('renewal_missed')
+      // Locked on the free base: it owes nothing at renewal.
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      const order = await lapseOrder(f.subscription)
+      await applyReceipt(pool, { order_id: order.id, receipt: (await pushed(f.tenant, order.id)).receipt })
+      expect(await kinds(f.customer)).not.toContain('renewal_missed')
+      const owing = await endedTrial()
+      await pool.query('UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1', [owing.subscription, new Date(now.getTime() + 5 * day)])
+      await convertTrial(pool, { customer_id: owing.customer, now, adapter, returnOrigin: origin })
+      await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [owing.subscription])
+      expect(await kinds(owing.customer)).toContain('renewal_missed')
+    })
     it('D: a storage ceiling pinned at off-step usage stays a ceiling: branch add, archive and restore quote and accept', async () => {
       const f = await endedTrial({ requested_storage_mb: 30720 })
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })

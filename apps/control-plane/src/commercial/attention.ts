@@ -2,6 +2,7 @@ import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
 import { EXPIRY_CLEARING_REASON, expiryClearingJob } from './expiry-push.js'
+import { holdsTrialAfterLapseSql, owesAtRenewalSql } from './free-base.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
@@ -11,14 +12,16 @@ export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 const businessToday = `(now() AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date`
 const renewalInstant = `(renewal_at::timestamp AT TIME ZONE '${BUSINESS_TIME_ZONE}')`
 // Due soon or already missed: a renewal date that passed without renewing stays here until it is dealt with.
-const renewalDue = `state IN ('active','trialing') AND renewal_at <= ${businessToday} + $2::int`
+// A renewal that is deliberately skipped (an unresolved lapse) or owes nothing (the free base) is never due.
+const renewalSkipped = `(${holdsTrialAfterLapseSql('s')} OR NOT ${owesAtRenewalSql(`(SELECT r.snapshot->'pricing' FROM subscription_revisions r WHERE r.id=s.applied_revision_id)`)})`
+const renewalDue = `state IN ('active','trialing') AND renewal_at <= ${businessToday} + $2::int AND NOT renewal_skipped`
 
 const iso = (column: string) => `to_char(${column} AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"')`
 
 // The latest unresolved order mirrors the customers list: stalled means failed, or still queued/applying after STALLED_HOURS.
 const subjectsSql = `WITH latest AS (
   SELECT c.id AS customer_id, c.name, c.tenant_id, c.commercial_setup_required, c.created_at AS customer_created_at,
-    s.id AS subscription_id, s.state, s.renewal_at, s.billing_blocked_at, o.fulfillment_state, o.created_at AS order_created_at
+    s.id AS subscription_id, s.state, s.renewal_at, s.billing_blocked_at, ${renewalSkipped} AS renewal_skipped, o.fulfillment_state, o.created_at AS order_created_at
   FROM customers c
   LEFT JOIN subscriptions s ON s.customer_id=c.id
   LEFT JOIN LATERAL (
@@ -125,7 +128,7 @@ const countsSql = `SELECT
    WHERE o.fulfillment_state IN ('failed','needs_intervention')
      OR (o.fulfillment_state IN ('queued','applying') AND o.created_at < now() - make_interval(hours => $1::int))) AS stalled,
   (SELECT count(*)::int FROM customers c LEFT JOIN subscriptions s ON s.customer_id=c.id WHERE c.commercial_setup_required OR s.id IS NULL) AS setup_required,
-  (SELECT count(*)::int FROM subscriptions WHERE ${renewalDue}) AS renewals`
+  (SELECT count(*)::int FROM (SELECT s.*, ${renewalSkipped} AS renewal_skipped FROM subscriptions s) s WHERE ${renewalDue}) AS renewals`
 
 /** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today. Overdue invoices are billing detail: only `includeBilling` callers get them. */
 export async function attention(pool: Pool, includeBilling: boolean) {

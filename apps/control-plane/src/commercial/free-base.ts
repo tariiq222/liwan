@@ -4,7 +4,7 @@ import { addCadence, initialOrderStates, type Quote } from '@liwan/commercial-co
 import { compileEntitlements, computeQuote, sealEntitlement } from '@liwan/commercial-contracts/server'
 import { digestOf } from './lifecycle.js'
 import { loadRelease } from './bundles.js'
-import { loadQuoteSources, pricingBaseline } from './quotes.js'
+import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
 import { enqueueOutbox } from './outbox.js'
 
 type Pricing = {
@@ -38,6 +38,13 @@ export async function unresolvedLapse(client: Pick<PoolClient, 'query'>, subscri
     [subscription.id, subscription.applied_revision_id])).rows[0]
   return lapse ?? null
 }
+
+/** `owesAtRenewal` as SQL over a pricing jsonb expression, for lists that cannot call the function. */
+export const owesAtRenewalSql = (pricing: string) => `(${pricing} IS NULL OR (
+  COALESCE((SELECT sum(value::bigint) FROM jsonb_each_text(${pricing}->'bundle_minor')), 0) + COALESCE((${pricing}->>'base_minor')::bigint, 0)
+  + COALESCE((${pricing}->>'paid_extra_branches')::bigint * (${pricing}->>'branch_unit_minor')::bigint, 0)
+  + COALESCE((${pricing}->>'paid_users')::bigint * (${pricing}->>'user_unit_minor')::bigint, 0)
+  + COALESCE((${pricing}->>'paid_storage_gb')::bigint * (${pricing}->>'storage_unit_minor')::bigint, 0)) > 0)`
 
 /** The free base of one trial: the pinned plan with only its included bundles, at the plan's included quantities. */
 export type FreeBase = { quote: Quote; entitlement: ReturnType<typeof compileEntitlements>; start: string; end: string }
