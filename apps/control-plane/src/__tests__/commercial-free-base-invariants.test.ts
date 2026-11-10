@@ -345,4 +345,40 @@ suite('free base invariants (issue 491)', () => {
     }
   })
 
+
+  describe('F1: an order that applies after the end date but before the lapse runs (apply first, then expire)', () => {
+    /** The trial end date has passed for the database clock too, which is what the receipt compares against. */
+    const endNow = (f: F) => pool.query("UPDATE subscriptions SET trial_ends_at=now() - interval '1 hour',revision=revision+1 WHERE id=$1", [f.subscription])
+    for (const paid of [false, true]) {
+      it(`${paid ? 'a PAID' : 'a zero-due'} order applied first does not end the trial; the lapse then ${paid ? 'converts it' : 'locks the new revision'}`, async () => {
+        const f = await endedTrial()
+        const quote = await quoteChange(f, paid ? { requested_users: 4 } : {}, new Date(now.getTime() - 5 * day), [bundle.id])
+        expect(quote.due_now.minor > 0).toBe(paid)
+        const order = await accept(f, quote)
+        if (paid) await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='queued' WHERE id=$1", [order.id])
+        await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload) VALUES($1,'fulfillment.enqueue',$2,$3,$4) ON CONFLICT DO NOTHING", [randomUUID(), order.id, order.target_revision_id, JSON.stringify({ order_id: order.id })])
+        await endNow(f)
+        await applyOrder(f, order.id)
+        // The receipt only changes what is applied: the trial is ended by the lapse (or the conversion), never by the receipt.
+        expect(await row(f.subscription)).toMatchObject({ state: 'trialing', applied_revision_id: order.target_revision_id })
+        expect((await row(f.subscription)).trial_ends_at).not.toBeNull()
+        const ended = await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+        if (paid) {
+          expect(await lapseRow(f.subscription)).toBeUndefined()
+          expect(await row(f.subscription)).toMatchObject({ state: 'past_due' })
+          expect(ended.orders).toHaveLength(1)
+          expect(ended.orders[0]!.due_now.minor).toBeGreaterThan(19900)
+        } else {
+          expect(await lapseRow(f.subscription)).toMatchObject({ state: 'pending' })
+          await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+          const lock = (await lapseOrders(f.subscription)).at(-1)
+          expect(lock.expected_applied_revision_id, 'the lock is built on the revision the zero-due order applied').toBe(order.target_revision_id)
+          const job = await applyOrder(f, lock.id)
+          for (const key of PAID_KEYS) expect(job.authority.entitlement.features[key], key).toBe(false)
+          expect(await generateRenewals(pool, { now: at(1), adapter, returnOrigin: origin, subscription_id: f.subscription })).toEqual([])
+        }
+      })
+    }
+  })
+
 })

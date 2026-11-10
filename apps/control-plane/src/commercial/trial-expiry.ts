@@ -56,7 +56,10 @@ export async function endTrialOn(client: PoolClient, id: string, input: { now: D
   if (!row) return null
   const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [row.applied_revision_id])).rows[0].snapshot
   const start = riyadhDate(new Date(row.trial_ends_at))
-  const free = input.convert ? null : await freeBaseOf(client, { subscription: row, snapshot, start })
+  // A customer who PAID for the configuration that is applied is a converted customer (owner decision 2026-11-10): nothing they
+  // bought is locked, and the first invoice is issued as for a converted trial.
+  const paidApplied = (await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND target_revision_id=$2 AND kind='change' AND payment_state='paid' AND due_now_minor>0 AND NOT cancelled", [id, row.applied_revision_id])).rowCount === 1
+  const free = input.convert || paidApplied ? null : await freeBaseOf(client, { subscription: row, snapshot, start })
   if (!free) {
     await client.query("UPDATE subscriptions SET state='past_due',renewal_at=$2,revision=revision+1 WHERE id=$1", [id, start])
     return 'expired'

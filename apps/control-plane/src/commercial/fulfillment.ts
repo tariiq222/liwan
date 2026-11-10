@@ -50,7 +50,11 @@ const PERMANENT_CODES = ['renewal_missing', 'order_not_found', 'enrollment_base_
 /** 1 minute doubling to a 60 minute cap: about four hours before a transient error becomes permanent. */
 export const FULFILLMENT_MAX_ATTEMPTS = 10
 
-/** Receipt application is atomic with branch activation and the commercial revision. */
+/**
+ * Receipt application is atomic with branch activation and the commercial revision. A receipt never ends a trial: while the
+ * subscription is `trialing` it only changes what is applied, and the transition out of the trial belongs to `endTrialOn` (lapse
+ * or conversion), so an order applying after the end date but before that runs cannot turn the trial into a paid subscription.
+ */
 export async function applyReceipt(pool: Pool, input: { order_id: string; receipt: SubscriptionReceipt }) {
   try { return await transaction(pool, async client => {
     const result = await client.query(`SELECT o.*,s.tenant_id,s.applied_revision_id,s.target_revision_id AS subscription_target,
@@ -68,8 +72,8 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     const next = nextOrderState(started, { type: 'fulfillment_applied', receipt, target_revision_id: order.target_revision_id })
     await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
     await client.query(`UPDATE subscriptions SET applied_revision_id=$2,target_revision_id=NULL,
-      state=CASE WHEN manual_suspension THEN state WHEN $3='change' AND trial_ends_at>now() THEN 'trialing' WHEN $3='change' THEN 'active' WHEN trial_ends_at>now() THEN 'trialing' ELSE 'active' END,
-      trial_ends_at=CASE WHEN $3='renewal' OR ($3='change' AND trial_ends_at<=now()) THEN NULL ELSE trial_ends_at END,
+      state=CASE WHEN manual_suspension THEN state WHEN state='trialing' AND $3<>'renewal' THEN 'trialing' WHEN $3='change' AND trial_ends_at>now() THEN 'trialing' WHEN $3='change' THEN 'active' WHEN trial_ends_at>now() THEN 'trialing' ELSE 'active' END,
+      trial_ends_at=CASE WHEN $3='renewal' OR ($3='change' AND state<>'trialing' AND trial_ends_at<=now()) THEN NULL ELSE trial_ends_at END,
       renewal_at=CASE WHEN applied_revision_id IS NULL OR $3='renewal' THEN COALESCE((SELECT period_end FROM renewals WHERE order_id=$5),$4::date,renewal_at) ELSE renewal_at END,
       revision=revision+1 WHERE id=$1`, [order.subscription_id, order.target_revision_id, order.kind, order.snapshot.period_end??null, order.id])
     if(!order.applied_revision_id){
