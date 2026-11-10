@@ -126,6 +126,20 @@ class TestDocumentDownloads(DocumentHttpCase):
         self.assertEqual((response.status_code, response.json().get('code')), (403, 'storage_excess_blocked'))
         self.assertNotIn(b'private download bytes', response.content)
 
+    def test_storage_inventory_returns_only_readable_canonical_documents_as_owner_refs(self):
+        group = self.env.ref('liwan_core.group_access_admin')
+        (self.manager | self.other).write({'group_ids': [Command.link(group.id)]})
+        self.authenticate('docs_manager', 'docs_manager')
+        response = self.api('GET', '/api/v1/settings/storage')
+        self.assertEqual(response.status_code, 200, response.text)
+        entries = {row['id']: row for row in response.json()['items']}
+        self.assertEqual(entries[self.attachment.id]['record'], {'kind': 'document', 'id': self.document.id})
+        self.authenticate('docs_other', 'docs_other')
+        response = self.api('GET', '/api/v1/settings/storage')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertNotIn(self.attachment.id, [row['id'] for row in response.json()['items']])
+        self.assertNotIn('download.txt', response.text)
+
     def test_arabic_file_name_keeps_a_readable_ascii_fallback(self):
         self.authenticate('docs_manager', 'docs_manager')
         arabic = self.env['dms.file'].create({

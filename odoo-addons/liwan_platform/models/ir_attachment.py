@@ -38,6 +38,10 @@ class LiwanPlatformIrAttachment(models.Model):
     db_datas = StorageProtectedBinary()
     liwan_storage_blocked = fields.Boolean(default=False, readonly=True, copy=False)
 
+    def _liwan_storage_record_ref(self):
+        """Applications can supply an owner ref after the attachment's ordinary read checks."""
+        return False
+
     def _liwan_storage_system_file(self):
         self.ensure_one()
         if self.res_model == 'res.company' and self.res_id and self.res_field in ('logo', 'logo_web'):
