@@ -318,6 +318,18 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(rows).toEqual([{ order_id: oldOrder!.id, status: 'void' }, { order_id: conversion.order!.id, status: 'issued' }])
   })
 
+  it('returns the cutoff-day invoice when conversion occurs after Riyadh midnight', async () => {
+    const f = await endedTrial()
+    const paid = await change(f, { requested_users: 5 }, beforeEnd)
+    expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
+
+    const conversion = await convertTrial(pool, { customer_id: f.customer, now, adapter, returnOrigin: origin })
+    expect(conversion.pending).toBe(false)
+    expect(conversion.attempt?.redirect_url).toBeTruthy()
+    const renewal = (await pool.query('SELECT period_start::text FROM renewals WHERE order_id=$1', [conversion.order!.id])).rows[0]
+    expect(renewal.period_start).toBe('2026-11-19')
+  })
+
   it('cancels an unpaid order so the lock can proceed; a late paid receipt does not reopen the trial (L5)', async () => {
     const f = await endedTrial()
     const pending = await change(f, { requested_users: 5 }, beforeEnd, false)

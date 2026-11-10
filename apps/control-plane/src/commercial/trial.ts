@@ -69,21 +69,22 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
   if (!sub.applied_revision_id) throw new CommercialHttpError('trial_not_applied', 409)
   // The end date and the move out of `trialing` are one commit: the intent to pay is the state itself, so a scheduler run or a
   // crash between the two can never lapse the trial onto the free base and lock what the customer chose to buy.
-  await transaction(pool, async client => {
+  const periodStart = await transaction(pool, async client => {
     const ended = await endTrialOn(client, sub.id, { now: input.now, convert: true })
     if (ended === 'deferred') throw new CommercialHttpError('tenant_upgrade_required', 409)
     if (ended !== 'expired') throw new CommercialHttpError('trial_not_active', 409)
+    const converted = (await client.query('SELECT renewal_at::text AS period_start,trial_ended_at FROM subscriptions WHERE id=$1', [sub.id])).rows[0]
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
-    await pushCommercialExpiry(client, sub.id, input.now.toISOString())
-
+    await pushCommercialExpiry(client, sub.id, new Date(converted.trial_ended_at).toISOString())
+    return converted.period_start as string
   })
   // The first invoice is generated after the commit; a crash before it leaves a past_due subscription the renewal run picks up.
   await generateRenewals(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id })
   // The renewal run may also create other due renewals: read this subscription's own first order, never index 0.
   const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
     WHERE r.subscription_id=$1 AND r.period_start=$2 AND r.kind='renewal' AND r.status<>'superseded' AND NOT o.cancelled
-    LIMIT 1`, [sub.id, riyadhDate(input.now)])).rows[0]
+    LIMIT 1`, [sub.id, periodStart])).rows[0]
   const order = row ? orderView(row) : null
   const attempt = order ? (await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1', [order.id])).rows[0] : null
   return { order, attempt: attempt ? paymentAttemptView(attempt) : null, pending: !order }
