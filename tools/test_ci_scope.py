@@ -127,6 +127,28 @@ class PullRequestTest(unittest.TestCase):
                 stages = ci_scope.pull_request_stages(paths, self.affected(*paths))
                 self.assertFalse(set(stages) & set(self.DEFERRED))
 
+    def test_a_pull_request_that_changes_an_image_build_input_runs_the_image_stage(self):
+        for path in ('deploy/proxy/Dockerfile', 'apps/web/Dockerfile', 'apps/ai-service/Dockerfile', 'deploy/odoo/Dockerfile',
+                     'deploy/Dockerfile.guard', 'deploy/docker-compose.yml', 'deploy/docker-compose.production.yml',
+                     'deploy/shared/compose.shared.yml', '.dockerignore', 'apps/web/.dockerignore', 'deploy/ci/image.sh',
+                     'apps/ai-service/requirements.txt', 'deploy/odoo/requirements-python312-linux.txt'):
+            with self.subTest(path=path):
+                stages = ci_scope.pull_request_stages([path], self.affected(path))
+                self.assertIn('image', stages)
+                self.assertFalse({'upgrade', 'restore-drill'} & set(stages))
+
+    def test_other_deploy_files_do_not_pull_the_image_stage_into_a_pull_request(self):
+        for path in ('deploy/ci/odoo.sh', 'deploy/provision.sh', 'deploy/security/odoo_secure.py', 'apps/ai-service/pyproject.toml',
+                     'apps/web/app/a.vue', 'docs/DockerNotes.md'):
+            with self.subTest(path=path):
+                self.assertNotIn('image', ci_scope.pull_request_stages([path], self.affected(path)))
+
+    def test_a_dockerfile_change_in_a_mixed_pull_request_keeps_the_stage_order(self):
+        paths = ['apps/web/app/a.vue', 'deploy/proxy/Dockerfile']
+        stages = ci_scope.pull_request_stages(paths, self.affected(*paths))
+        self.assertEqual(stages, tuple(stage for stage in ALL if stage in stages))
+        self.assertIn('image', stages)
+
     def test_a_pull_request_keeps_the_other_stages_of_a_path(self):
         stages = ci_scope.pull_request_stages(['apps/web/app/a.vue'], None)
         self.assertEqual(stages, ('static', 'control-plane', 'e2e-mock', 'e2e-odoo', 'rtl-stories'))
