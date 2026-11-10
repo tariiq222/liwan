@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
 import { addCadence, initialOrderStates, type Quote } from '@liwan/commercial-contracts'
-import { compileEntitlements, computeQuote } from '@liwan/commercial-contracts/server'
+import { compileEntitlements, computeQuote, sealEntitlement } from '@liwan/commercial-contracts/server'
 import { digestOf } from './lifecycle.js'
 import { loadRelease } from './bundles.js'
 import { loadQuoteSources, pricingBaseline } from './quotes.js'
@@ -54,20 +54,32 @@ export async function freeBaseOf(client: Pick<PoolClient, 'query'>, input: { sub
 }
 
 /**
+ * The free base held at the limits current usage already exceeds (owner decision 2026-11-10, #491). Every paid application
+ * stays closed and every base key open, exactly as in the full base; a limit that usage exceeds is kept at `ceilings[key]`
+ * (the usage itself, so the host's downgrade check passes and Odoo refuses any addition), and a limit that cannot be judged
+ * keeps its previous value. Limits usage fits drop to the free value as usual.
+ */
+export function freeBaseAtCeilings(free: FreeBase, ceilings: Record<string, number | null>): FreeBase['entitlement'] {
+  return sealEntitlement({ catalog_release_id: free.entitlement.catalog_release_id, modules: free.entitlement.modules,
+    features: { ...free.entitlement.features, ...ceilings } as Record<string, boolean | number | null> })
+}
+
+/**
  * Orders the lowering to the free base as an ordinary zero-due change order, so the shared worker pushes it through the
  * same reconfigure job as every other entitlement change: the closed applications and the free limits. The caller holds
  * the subscription row lock and has checked that no other order is pending; the order key (one per attempt) makes a
  * repeated call a no-op. Returns the order id, or null when this attempt was already ordered.
  */
-export async function orderFreeBase(client: PoolClient, input: { subscription: Record<string, any>; snapshot: Record<string, any>; free: FreeBase; attempt: number }): Promise<string | null> {
+export async function orderFreeBase(client: PoolClient, input: { subscription: Record<string, any>; snapshot: Record<string, any>; free: FreeBase; attempt: number; entitlement?: FreeBase['entitlement'] }): Promise<{ orderId: string; revisionId: string } | null> {
   const { subscription, snapshot, free } = input
+  const entitlement = input.entitlement ?? free.entitlement
   const { quote } = free
   const key = `trial-lapse:${subscription.id}:${input.attempt}`
   if ((await client.query('SELECT 1 FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [subscription.customer_id, key])).rowCount) return null
   const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...kept } = snapshot
   const plan = (await client.query('SELECT included_users,included_storage_mb FROM plan_revisions WHERE id=$1', [snapshot.plan_revision_id])).rows[0]
   const next = { ...kept, bundle_revision_ids: quote.bundle_revision_ids, terms_revision_id: null, period_start: free.start, period_end: free.end,
-    extra_branch_count: quote.requested_extra_branches, entitlement: free.entitlement, quote_id: quote.id,
+    extra_branch_count: quote.requested_extra_branches, entitlement, quote_id: quote.id, free_base: true,
     pricing: pricingBaseline(quote, { extra_branches: snapshot.included_extra_branches, users: plan.included_users, storage_mb: plan.included_storage_mb }) }
   const revisionId = randomUUID()
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)',
@@ -83,9 +95,9 @@ export async function orderFreeBase(client: PoolClient, input: { subscription: R
     `${free.start}T00:00:00+03:00`, key, digestOf({ subscription_id: subscription.id, applied_revision_id: subscription.applied_revision_id, attempt: input.attempt }), quote.due_now.currency, quote.due_now.exponent])).rows[0]
   await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: revisionId,
     payload: { order_id: order.id, subscription_id: subscription.id, target_revision_id: revisionId } })
-  const closed = Object.entries(free.entitlement.features).filter(([, value]) => value === false).map(([name]) => name)
+  const closed = Object.entries(entitlement.features).filter(([, value]) => value === false).map(([name]) => name)
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
     [randomUUID(), 'system:trial-expiry', 'trial.free_base_ordered', subscription.id, 'The subscription is being lowered to the free base',
       JSON.stringify({ from_revision_id: subscription.applied_revision_id, to_revision_id: revisionId, attempt: input.attempt, closed_feature_count: closed.length })])
-  return order.id as string
+  return { orderId: order.id as string, revisionId }
 }

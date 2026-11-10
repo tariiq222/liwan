@@ -62,7 +62,13 @@ const subjectsSql = `WITH latest AS (
   -- cleared); \`reason\` is the machine reason of the last attempt.
   SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.reason FROM trial_lapses l
   JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
-  WHERE l.state IN ('pending','ordered') AND l.reason IS NOT NULL
+  WHERE l.state IN ('pending','ordered','limits_pending') AND l.reason IS NOT NULL
+), limits_waiting AS (
+  -- The settled over-limit state: the paid applications are locked, existing data is untouched, and only some limits wait for
+  -- usage to fit. Nothing needs the vendor; \`detail\` says what exceeds.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.limits_note FROM trial_lapses l
+  JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
+  WHERE l.state='limits_pending' AND l.reason IS NULL
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -81,6 +87,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lowering
+  UNION ALL SELECT 9,'free_base_limits_pending', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, limits_note, lapsed_at FROM limits_waiting
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup

@@ -53,10 +53,10 @@ async function noticesOf(pool: Pool, row: Record<string, any>, input: { now: Dat
       const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [row.snapshot.quote_id])).rows[0]?.payload
       const amount = onFreeBase ? null : quote?.next_renewal
       const ar = `تنتهي تجربتك في ${trialEnds} (${daysLeft} يومًا متبقيًا).`
-        + (onFreeBase ? ' بعدها تنتقل شركتك إلى القاعدة المجانية، وتُقيَّد التطبيقات المدفوعة حتى تشترك فيها. أي طلب ترقية لم تدفعه حتى ذلك الوقت يُلغى، ويمكنك طلب ترقية جديدة في أي وقت.' : '')
+        + (onFreeBase ? ' بعدها تنتقل شركتك إلى القاعدة المجانية، وتُقفل التطبيقات المدفوعة فورًا للقراءة والتصدير فقط حتى تشترك فيها. إن كان استخدامك يتجاوز حدود القاعدة (مستخدمون أو تخزين أو فروع) تبقى بياناتك ومستخدموك كما هي دون حذف أو أرشفة، ويُمنع فقط إضافة المزيد، وسنخبرك بما يتجاوز. أي طلب ترقية لم تدفعه حتى ذلك الوقت يُلغى، ويمكنك طلب ترقية جديدة في أي وقت.' : '')
         + (amount ? ` قيمة أول فاتورة بعد التجربة: ${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}.` : '')
       const en = `Your trial ends on ${trialEnds} (${daysLeft} days left).`
-        + (onFreeBase ? ' After that your company moves to the free base and the paid applications are restricted until you subscribe to them. Any upgrade order you have not paid by then is cancelled, and you can request a new upgrade at any time.' : '')
+        + (onFreeBase ? ' After that your company moves to the free base and the paid applications are locked immediately to read and export only until you subscribe to them. If your usage is above the free base limits (users, storage or branches), your users and data stay as they are and nothing is deleted or archived; only adding more is prevented, and we will tell you what exceeds. Any upgrade order you have not paid by then is cancelled, and you can request a new upgrade at any time.' : '')
         + (amount ? ` The first invoice after the trial is ${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}.` : '')
       const text = `${ar}\n${en}`
       await input.mail.send({ to: row.admin_login, subject: 'تجربتك في LiwanOS على وشك الانتهاء', text, message_id: `trial-${row.id}-${dedupe}@liwan` })

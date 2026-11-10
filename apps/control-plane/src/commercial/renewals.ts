@@ -84,7 +84,8 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       sources.policy = policyWire(policy)
       const limits = snapshot.entitlement?.features ?? {}
       const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,requested_extra_branches:snapshot.extra_branch_count,
-        requested_users: Number(limits['users.limit'] ?? 0), requested_storage_mb: Number(limits['storage.limit_mb'] ?? 0),
+        // The free base held above its free limits is still free: its quantities are the plan's included ones, never the ceiling it keeps.
+        requested_users: snapshot.free_base ? sources.plan.included_users : Number(limits['users.limit'] ?? 0), requested_storage_mb: snapshot.free_base ? sources.plan.included_storage_mb : Number(limits['storage.limit_mb'] ?? 0),
         effective_date:start,period:{start,end},ids:{ id:randomUUID(),customer_id:sub.customer_id,subscription_id:sub.id,expected_subscription_revision:sub.revision },
         expires_at:new Date(now.getTime()+30*60_000).toISOString(),entitlement_digest:snapshot.entitlement.digest })
       await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id,sub.customer_id,JSON.stringify(quote),quote.digest,quote.expires_at])
