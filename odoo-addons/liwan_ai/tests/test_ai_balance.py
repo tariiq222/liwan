@@ -329,6 +329,16 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.assertEqual({key: policy[key] for key in keys}, dict.fromkeys(keys))
         self.assertEqual(policy['spend_this_month'], 0)
 
+    def test_a_ceiling_is_reported_only_while_a_balance_exists(self):
+        # The ceiling caps what the balance pays: a tenant without one (customer-hosted, or nothing granted yet) has none.
+        self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 700
+        self._set_features({GRANTED: None})
+        policy = self.env['liwan.ai.tool.registry'].with_user(self.manager)._liwan_ai_policy()
+        self.assertIsNone(policy['spend_ceiling'])
+        self._set_features({GRANTED: 10_000})
+        policy = self.env['liwan.ai.tool.registry'].with_user(self.manager)._liwan_ai_policy()
+        self.assertEqual(policy['spend_ceiling'], 700)
+
     def test_an_allowance_of_zero_has_no_reset_time(self):
         self.assertIsNone(self.env['liwan.ai.tool.registry']._liwan_ai_policy()['allowance_resets_at'])
 

@@ -150,9 +150,11 @@ class LiwanAiBalance(models.AbstractModel):
         this month's deductions with the instant the month ends (``spend_resets_at``), and the runs in flight."""
         month_start, month_reset = month_window(fields.Datetime.now())
         state = self._liwan_ai_balance_state()
+        ceiling = self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling or None
         return {
             **state,
-            'spend_ceiling': self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling or None,
+            # A ceiling governs the balance: a tenant without one (customer-hosted, or no granted total yet) has nothing to cap.
+            'spend_ceiling': ceiling if state['balance_granted'] is not None else None,
             'spend_this_month': self._liwan_ai_paid_between(month_start, month_reset),
             'spend_resets_at': month_reset,
             'in_flight': self._liwan_ai_in_flight() if state['balance_granted'] is not None else 0,
