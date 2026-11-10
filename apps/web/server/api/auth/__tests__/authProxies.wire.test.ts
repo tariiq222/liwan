@@ -23,7 +23,10 @@ beforeAll(async () => {
     for await (const chunk of req) chunks.push(Buffer.from(chunk))
     calls.push({ path: req.url!, method: req.method!, headers: req.headers, body: Buffer.concat(chunks).toString() })
     res.setHeader('content-type', 'application/json')
-    res.setHeader('set-cookie', 'liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax')
+    res.setHeader('set-cookie', [
+      'liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax',
+      'already_secure=synthetic; sEcUrE; Path=/',
+    ])
     res.writeHead(answer.status)
     res.end(JSON.stringify(answer.body))
   })
@@ -110,14 +113,14 @@ describe('the second sign-in step on the wire', () => {
   it('forwards a Set-Cookie from Odoo, and adds Secure only when the browser reached us over https', async () => {
     answer = { status: 200, body: {} }
     const plain = await request('/device')
-    expect(plain.headers.getSetCookie()).toEqual(['liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax'])
+    expect(plain.headers.getSetCookie()).toEqual(['liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax', 'already_secure=synthetic; sEcUrE; Path=/'])
     configuredHeader = 'x-liwan-client-ip'
     const secure = await request('/device', { headers: {
       'x-liwan-client-ip': '203.0.113.7',
       'x-liwan-client-host': 'liwan.example.test',
       'x-liwan-client-proto': 'https',
     } })
-    expect(secure.headers.getSetCookie()).toEqual(['liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax; Secure'])
+    expect(secure.headers.getSetCookie()).toEqual(['liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax; Secure', 'already_secure=synthetic; sEcUrE; Path=/'])
   })
 
   it('passes the machine code and the cooldown seconds, never Odoo prose', async () => {
