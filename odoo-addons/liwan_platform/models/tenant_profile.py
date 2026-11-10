@@ -588,7 +588,8 @@ class LiwanTenantProfile(models.Model):
         """Bring an archived branch back: same company and data, active again.
 
         Operator-only and idempotent; an active branch is left as it is, and the
-        extra-branch limit is checked before the company is reactivated.
+        extra-branch limit is checked before the company is reactivated. A branch
+        the settle made read-only is made full again; a customer's choice is kept.
         """
         self._liwan_require_operator()
         self._liwan_lock()
@@ -604,6 +605,9 @@ class LiwanTenantProfile(models.Model):
         )
         branch.company_id.write({'active': True})
         branch.write({'state': 'active', 'operation_id': operation_id})
+        if branch.read_only and branch.seat_choice == 'auto':
+            # The purchased seat is the restored branch's own; only the customer's own read-only choice survives.
+            self.env['liwan.entitlement.service']._liwan_apply_flags(branch, {'read_only': False})
         return branch.company_id
 
     def _liwan_bind_user_to_branch(self, user, branch_uid):

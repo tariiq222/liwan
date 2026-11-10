@@ -115,6 +115,31 @@ class TestBranchService(TransactionCase):
 
         self.assertEqual((full.state, archived.state, archived.read_only, extra.read_only), ('archived', 'active', False, True))
 
+    def test_paid_restore_of_an_automatic_read_only_branch_beats_an_earlier_competitor(self):
+        self._apply(['full', 'early', 'late'])
+        self.env.flush_all()
+        self._set_limit(1)
+        Branch = self.env['liwan.tenant.branch']
+        full, early, late = [Branch.search([('branch_uid', '=', uid)]) for uid in ('full', 'early', 'late')]
+        self.assertEqual((early.read_only, late.read_only, late.seat_choice), (True, True, 'auto'))
+        operator = self._op()
+        operator._liwan_archive_branch('archive', 'late')
+        defer = operator._liwan_defer_branch_reopening
+        with defer():
+            self._set_limit(2)
+            operator._liwan_restore_branch('restore', 'late')
+        self.assertEqual((late.state, late.read_only), ('active', False))
+        self.assertEqual((full.read_only, early.read_only), (False, True))
+
+    def test_paid_restore_keeps_a_customer_read_only_choice(self):
+        self._apply(['full', 'chosen'])
+        self.env.flush_all()
+        chosen = self.env['liwan.tenant.branch'].search([('branch_uid', '=', 'chosen')])
+        chosen.write({'read_only': True, 'seat_choice': 'customer'})
+        self._op()._liwan_archive_branch('archive', 'chosen')
+        self._op()._liwan_restore_branch('restore', 'chosen')
+        self.assertEqual((chosen.state, chosen.read_only), ('active', True))
+
     def test_paid_new_branch_uses_the_purchased_seat_before_automatic_reopening(self):
         self._apply(['full', 'extra'])
         self._set_limit(1)
