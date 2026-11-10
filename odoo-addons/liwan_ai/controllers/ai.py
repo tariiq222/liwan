@@ -102,12 +102,16 @@ class AiController(http.Controller):
     def record_usage_service(self, **payload):
         """Record the usage rows of a finished run for the user who made the calls, without that user's session.
 
-        Only the technical recorder account (``liwan_ai.user_ai_usage``) holds ``ai.usage.record``, so only its API key,
-        the one the deployment holds for the Nuxt server, passes; the browser never reaches this route. The rows belong to ``user_id`` in
-        ``user_company_id``, validated by the model. The company has its own field name because ``company_id`` in a
-        payload is the platform's "which company do you write in" guard, which the recorder (a member of every company)
-        must not be pinned by.
+        Two checks, both required: the caller holds ``ai.usage.record`` AND is the recorder account itself
+        (``liwan_ai.user_ai_usage``). The capability alone is not enough, because liwan_core gives the superuser and
+        vendor support every capability and liwan_core must not name an application's capability; the identity check
+        is what keeps any other key (an administrator's, a vendor-support user's) out. The browser never reaches this
+        route. The rows belong to ``user_id`` in ``user_company_id``, validated by the model. The company has its own
+        field name because ``company_id`` in a payload is the platform's "which company do you write in" guard,
+        which the recorder (a member of every company) must not be pinned by.
         """
+        if request.env.user.id != request.env['liwan.access.service']._liwan_usage_recorder_id():
+            raise ApiError(403, 'forbidden', 'this route is for the usage recorder account only')
         unknown = sorted(set(payload) - {'items', 'user_id', 'user_company_id'})
         if unknown:
             raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
