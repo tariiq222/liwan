@@ -63,7 +63,7 @@ const subjectsSql = `WITH latest AS (
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), lock_blocked AS (
-  -- A trial that lapsed onto the free base but could not be lowered yet: the tenant is usable (its hard expiry is already
+  -- A trial that lapsed onto the free base whose lock is not applied yet: the tenant is usable (its hard expiry is already
   -- cleared); reason is the machine reason of the last attempt. It clears the moment the customer's own order is applied.
   -- Until the lock is applied the trial's hard expiry in Odoo must also be cleared, or Odoo locks the WHOLE company after the
   -- grace period: a clearing job that needs intervention (or was closed after a refusal) is shown from the job itself, so it

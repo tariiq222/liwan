@@ -137,7 +137,7 @@ export function compileEntitlements(input: {
 
 /**
  * Sorts the feature map and stamps the digest. The one place a digest is made, so an entitlement a caller adjusts after
- * compiling (the free base that keeps a limit at current usage) is sealed exactly as a compiled one.
+ * compiling (the free-base lock that keeps every limit as it was) is sealed exactly as a compiled one.
  */
 export function sealEntitlement(input: { catalog_release_id: string; modules: string[]; features: Record<string, boolean | number | null> }): EntitlementSnapshot {
   const sorted = Object.fromEntries(Object.keys(input.features).sort().map(k => [k, input.features[k] as boolean | number | null]))

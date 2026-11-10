@@ -27,14 +27,14 @@ import type { PaymentAdapter } from './payment-adapter.js'
  * Each subscription ends in its own transaction, so one that cannot be moved never blocks the others; the first such
  * failure is rethrown after the rest are done.
  */
-export async function expireTrials(pool: Pool, input: { now: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; subscription_id?: string }) {
+export async function expireTrials(pool: Pool, input: { now: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; subscription_id?: string; clearExpiry?: boolean }) {
   const expired: string[] = [], lapsed: string[] = [], failures: unknown[] = []
   const due = (await pool.query(`SELECT id FROM subscriptions
     WHERE state='trialing' AND applied_revision_id IS NOT NULL AND trial_ends_at IS NOT NULL AND trial_ends_at <= $1
       AND ($2::uuid IS NULL OR id=$2) ORDER BY id`, [input.now, input.subscription_id ?? null])).rows as { id: string }[]
   for (const { id } of due) {
     try {
-      const ended = await transaction(pool, client => endTrialOn(client, id, { now: input.now, convert: false }))
+      const ended = await transaction(pool, client => endTrialOn(client, id, { now: input.now, convert: false, clearExpiry: input.clearExpiry }))
       if (ended === 'lapsed') lapsed.push(id)
       else if (ended === 'expired') expired.push(id)
     } catch (error) { failures.push(error) }
@@ -50,7 +50,7 @@ export async function expireTrials(pool: Pool, input: { now: Date; adapter: Paym
  * decision and the transition and lapse a trial the customer chose to pay for. Returns what happened, or null when the
  * subscription was not due (or is being ended by another transaction).
  */
-export async function endTrialOn(client: PoolClient, id: string, input: { now: Date; convert: boolean }): Promise<'lapsed' | 'expired' | null> {
+export async function endTrialOn(client: PoolClient, id: string, input: { now: Date; convert: boolean; clearExpiry?: boolean }): Promise<'lapsed' | 'expired' | null> {
   const row = (await client.query(`SELECT * FROM subscriptions WHERE id=$1 AND state='trialing' AND applied_revision_id IS NOT NULL
     AND trial_ends_at IS NOT NULL AND trial_ends_at <= $2 FOR UPDATE SKIP LOCKED`, [id, input.now])).rows[0]
   if (!row) return null
@@ -62,6 +62,7 @@ export async function endTrialOn(client: PoolClient, id: string, input: { now: D
   const free = input.convert || paidApplied ? null : await freeBaseOf(client, { subscription: row, snapshot, start })
   if (!free) {
     await client.query("UPDATE subscriptions SET state='past_due',renewal_at=$2,revision=revision+1 WHERE id=$1", [id, start])
+    if (input.clearExpiry) await pushCommercialExpiry(client, id, null)
     return 'expired'
   }
   await client.query(`UPDATE subscriptions SET state='active',trial_ends_at=NULL,renewal_at=$2::date,grace_ends_at=NULL,billing_blocked_at=NULL,revision=revision+1 WHERE id=$1`, [id, free.end])

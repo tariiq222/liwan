@@ -16,7 +16,9 @@ import { getSubscription } from '../commercial/subscriptions.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import { applyDunning } from '../commercial/renewals.js'
-import { attention } from '../commercial/attention.js'
+import { attention, STALLED_HOURS } from '../commercial/attention.js'
+import { createCommercialScheduler } from '../commercial/scheduler.js'
+import type { Config } from '../config.js'
 import { syncTenantStatus } from '../commercial/suspension.js'
 
 /**
@@ -128,14 +130,21 @@ suite('free base invariants (issue 491)', () => {
       await locked(f)
       expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
       expect((await applied(f.subscription)).held_ceilings).toMatchObject({ 'users.limit': { held: 10, target: 3 } })
+      // Every job of the real scheduler runs on each tick, with usage far below the held quantity: none may lower it.
+      const scheduler = createCommercialScheduler({ pool, config: {} as Config, env: {}, clock: () => at(clockHours).getTime(), paymentAdapter: adapter, log: () => undefined })
+      let clockHours = 2
+      const ordersBefore = (await pool.query('SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1', [f.subscription])).rows[0].n
       for (const hours of [2, 30, 60, 100]) {
+        clockHours = hours
         await freshUsage(f, at(hours), { 'users.limit': 1 })
+        await scheduler.tick()
         await processTrialLapses(pool, { now: at(hours), adapter, subscription_id: f.subscription })
       }
+      expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1', [f.subscription])).rows[0].n).toBe(ordersBefore)
       expect(await lapseOrders(f.subscription)).toHaveLength(1)
       expect((await applied(f.subscription)).entitlement.features['users.limit']).toBe(10)
     })
-    it('a change that does not name the quantity carries it, still without any lowering (a ceiling on a paid-base plan is simply carried)', async () => {
+    it('a change that does not name the quantity carries it, and nothing re-derives or lowers it', async () => {
       const f = await endedTrial({ requested_users: 4 })
       await locked(f)
       const branch = randomUUID()
@@ -259,26 +268,38 @@ suite('free base invariants (issue 491)', () => {
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
       await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
       const order = (await lapseOrders(f.subscription)).at(-1)
-      await pool.query("UPDATE orders SET created_at=now() - interval '25 hours' WHERE id=$1", [order.id])
       await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id<>$1", [f.subscription])
+      const listed = async () => (await attention(pool, true)).items.filter(i => i.customer_id === f.customer).map(i => i.kind)
+      // Visible exactly when the real interval (STALLED_HOURS) is over: not before, and not later.
+      await pool.query("UPDATE orders SET created_at=now() - make_interval(hours => $2::int) + interval '10 minutes' WHERE id=$1", [order.id, STALLED_HOURS])
+      expect(await listed()).not.toContain('stalled_activation')
+      await pool.query("UPDATE orders SET created_at=now() - make_interval(hours => $2::int) - interval '10 minutes' WHERE id=$1", [order.id, STALLED_HOURS])
       const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
       expect(items).toContainEqual(expect.objectContaining({ kind: 'stalled_activation' }))
     })
   })
 
   describe('I5: one failing subscription never stops another trial from lapsing or locking', () => {
-    it('a poisoned snapshot fails alone in the expiry loop and in the lock loop', async () => {
-      const broken = await endedTrial(), healthy = await endedTrial()
-      await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
-      await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(snapshot,'{entitlement,catalog_release_id}','\"not-a-uuid\"') WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)", [broken.subscription])
-      await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
-      await expireTrials(pool, { now, adapter, returnOrigin: origin }).catch(() => undefined)
+    it('a poisoned trial fails alone in the expiry loop, and a poisoned lapse row fails alone in the lock loop', async () => {
+      const poisonSnapshot = async (id: string) => {
+        await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
+        await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(snapshot,'{entitlement,catalog_release_id}','\"not-a-uuid\"') WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)", [id])
+        await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
+      }
+      const brokenTrial = await endedTrial(), brokenLapse = await endedTrial(), healthy = await endedTrial()
+      // The lock loop: a lapse row that exists and then cannot be processed.
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: brokenLapse.subscription })
+      expect(await lapseRow(brokenLapse.subscription)).toMatchObject({ state: 'pending' })
+      await poisonSnapshot(brokenLapse.subscription)
+      // The expiry loop: a due trial that cannot be ended.
+      await poisonSnapshot(brokenTrial.subscription)
+      await expect(expireTrials(pool, { now, adapter, returnOrigin: origin })).rejects.toThrow()
       expect(await lapseRow(healthy.subscription)).toMatchObject({ state: 'pending' })
-      await processTrialLapses(pool, { now, adapter }).catch(() => undefined)
-      expect(await lapseOrders(healthy.subscription)).toHaveLength(1)
-      // The broken one is parked: leave it out of every later tick of the suite.
-      await pool.query("UPDATE subscriptions SET trial_ends_at=now() + interval '400 days',revision=revision+1 WHERE id=$1 AND state='trialing'", [broken.subscription])
-      await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id=$1", [broken.subscription])
+      await expect(processTrialLapses(pool, { now, adapter })).rejects.toThrow()
+      expect(await lapseOrders(healthy.subscription), 'the healthy lapse is locked although another row failed').toHaveLength(1)
+      // Park the broken ones so they do not fail the rest of the suite.
+      for (const b of [brokenTrial, brokenLapse]) await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id=$1", [b.subscription])
+      await pool.query("UPDATE subscriptions SET trial_ends_at=now() + interval '400 days',revision=revision+1 WHERE id=$1 AND state='trialing'", [brokenTrial.subscription])
     })
   })
 

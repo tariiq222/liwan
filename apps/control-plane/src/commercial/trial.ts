@@ -13,7 +13,6 @@ import { commercialExpiryDate } from './fulfillment.js'
 import { paymentAttemptView } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { getSubscription } from './subscriptions.js'
-import { freeBaseOf } from './free-base.js'
 import { pushCommercialExpiry } from './expiry-push.js'
 
 /** A customer has one trial, so its order key is fixed per customer (RFC 9562 version 8): a resent start replays it. */
@@ -113,15 +112,10 @@ export async function endTrial(pool: Pool, input: { subscription_id: string; rea
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), input.actor, 'trial.ended', input.subscription_id, input.reason, JSON.stringify({ ended_at: input.now.toISOString() })])
-    // A trial that lapses onto the free base has its hard expiry cleared by `expireTrials` in the lapse transaction, so it must
-    // not be pushed twice; only a trial that ends in an invoice has it lifted here. Both sides decide with `freeBaseOf` on the
-    // same inputs, so they always agree.
-    const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [owner.applied_revision_id])).rows[0].snapshot
-    const subscription = (await client.query('SELECT * FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
-    if (!await freeBaseOf(client, { subscription, snapshot, start: riyadhDate(new Date(subscription.trial_ends_at)) })) await pushCommercialExpiry(client, input.subscription_id, null)
     return updated.rows[0].customer_id as string
   })
-  await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: input.subscription_id })
+  // The one decision (lapse onto the free base, or invoice) is `endTrialOn`'s; a trial that ends in an invoice has the vendor's early end clear its hard expiry there.
+  await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: input.subscription_id, clearExpiry: true })
   return { customer_id: ended }
 }
 

@@ -26,7 +26,7 @@ import { EXPIRY_CLEARING_REASON, expiryClearingJob, pushCommercialExpiry } from 
  */
 const SYSTEM_PRINCIPAL = { actor_id: 'system:trial-expiry', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage'] } as unknown as Principal
 /** Refusals the host raises before it writes anything to Odoo (`validate_reconfigure`, the expiry-revision guard and `check_downgrade` all run before the journal begins): the job can be closed and the order tried again. */
-export const PRE_WRITE_REFUSALS = ['downgrade_below_usage', 'tenant_upgrade_required', 'stale_target', 'tenant_binding_mismatch', 'order_not_released', 'shared_adapter_unavailable',
+const PRE_WRITE_REFUSALS = ['downgrade_below_usage', 'tenant_upgrade_required', 'stale_target', 'tenant_binding_mismatch', 'order_not_released', 'shared_adapter_unavailable',
   'entitlement_invalid', 'features_invalid', 'commercial_expiry_revision_stale', 'input_invalid'] as const
 const RETRY_HOURS = 1
 const later = (now: Date, hours: number) => new Date(now.getTime() + hours * 3_600_000)

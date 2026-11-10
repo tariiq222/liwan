@@ -168,7 +168,7 @@ export function createQuoteForCustomer(pool: Pool, value: QuoteInput, now = new 
 
 /**
  * The billing period a change is priced and recorded against. It is the applied snapshot's own, except for a trial that
- * lapsed onto the free base and has not been lowered yet: its snapshot still carries the trial's elapsed period, while
+ * lapsed onto the free base and whose lock is not applied yet: its snapshot still carries the trial's elapsed period, while
  * the subscription already lives in the free-base cycle (`trial_lapses.period_start` to `renewal_at`).
  */
 export async function appliedPeriod(client: Pick<PoolClient, 'query'>, subscription: { id: string; applied_revision_id: string; renewal_at: unknown }, applied: { period_start: string; period_end: string }) {

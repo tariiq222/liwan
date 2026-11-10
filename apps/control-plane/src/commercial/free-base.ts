@@ -89,9 +89,9 @@ export function lockEntitlement(free: FreeBase, previous: Features): FreeBase['e
   return sealEntitlement({ catalog_release_id: free.entitlement.catalog_release_id, modules: free.entitlement.modules, features })
 }
 
-/** A quantity the customer holds above what is purchased, kept from the trial (owner decision 2026-11-10): `held` is what the entitlement carries, `target` what is purchased. It ends only when the customer names a quantity. */
 /** The quantities a customer can name in a request, and so the only held keys the customer, the notice and the vendor list ever see. */
 export const HELD_QUANTITY_KEYS = ['users.limit', 'storage.limit_mb'] as const
+/** A quantity the customer holds above what is purchased, kept from the trial (owner decision 2026-11-10): `held` is what the entitlement carries, `target` what is purchased. It ends only when the customer names a quantity. */
 export type HeldCeilings = Record<string, { held: number; target: number }>
 type Features = Record<string, boolean | number | null>
 
