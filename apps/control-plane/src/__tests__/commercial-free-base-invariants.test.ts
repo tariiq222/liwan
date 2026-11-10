@@ -203,4 +203,22 @@ suite('free base invariants (issue 491)', () => {
       } finally { vi.useRealTimers() }
     })
   })
+
+  describe('I15: branch pricing follows the kept slots (D2)', () => {
+    it('archive-only keeps the remaining kept branches free with a non-zero branch price; buying one prices every active branch', async () => {
+      const f = await endedTrial({}, plans.priced)
+      const names = ['one', 'two', 'three']
+      const ids: string[] = []
+      for (const name of names) { const id = randomUUID(); ids.push(id); await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,$4,'extra','paid','active')", [id, f.subscription, f.tenant, name]) }
+      await locked(f)
+      vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(now)
+      try {
+        const archive = await createBranchQuote(pool, f.customer, JSON.stringify({ archive: [ids[0]] }))
+        expect(archive.due_now.minor, 'archiving never charges for the branches that stay').toBe(0)
+        const add = await createBranchQuote(pool, f.customer, JSON.stringify({ add: [{ name: 'fourth' }] }))
+        expect(add.due_now.minor).toBeGreaterThan(0)
+        expect(add.lines.filter(l => l.kind === 'branch').map(l => l.quantity)).toContain(3)
+      } finally { vi.useRealTimers() }
+    })
+  })
 })

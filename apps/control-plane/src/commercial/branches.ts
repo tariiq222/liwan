@@ -38,10 +38,16 @@ export async function listBranches(pool: Db, subscription_id: string): Promise<B
   }
 }
 
+/**
+ * The number of extra branches a branch change is PRICED at: the one rule for add, archive and restore. A change that
+ * activates a branch (add, restore) is a purchase, and every active extra branch above the included ones is priced. A change
+ * that only archives buys nothing, so it can never raise the bill: it is priced at what the subscription is billed now, capped
+ * by what is left. Branches kept free from the trial (more active than billed) therefore stay free until the customer buys one.
+ */
 export async function requestedExtraBranches(pool: Db, input: { subscription_id: string; add: number; archive: string[]; restore?: string[] }): Promise<number> {
   // Between the lapse and the applied lock the customer's applied configuration is still the paid trial, which a branch change
   // would be priced and recorded against. It waits for the lock, whose zero-value order is already on its way.
-  const sub = (await pool.query('SELECT id,applied_revision_id FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
+  const sub = (await pool.query('SELECT s.id,s.applied_revision_id,r.snapshot FROM subscriptions s LEFT JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.id=$1', [input.subscription_id])).rows[0]
   if (sub?.applied_revision_id && await unresolvedLapse(pool, sub)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
   const rows = await subscriptionBranches(pool, input.subscription_id)
   const restoring = [...new Set(input.restore ?? [])]
@@ -58,7 +64,11 @@ export async function requestedExtraBranches(pool: Db, input: { subscription_id:
   }
   const archiving = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending') && new Set(input.archive).has(b.id)).length
   const current = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending')).length
-  return current + input.add - archiving + restoring.length
+  const after = current + input.add - archiving + restoring.length
+  if (input.add > 0 || restoring.length > 0) return after
+  const pricing = sub?.snapshot?.pricing
+  const billed = pricing ? Number(sub.snapshot.included_extra_branches ?? 0) + Number(pricing.paid_extra_branches ?? 0) : current
+  return Math.min(after, billed)
 }
 
 export async function reserveBranchesForOrder(client: PoolClient, input: {
