@@ -34,7 +34,7 @@ export type FreeBase = { quote: Quote; entitlement: ReturnType<typeof compileEnt
  * drop to the plan's included quantities. A subscription on negotiated customer terms has a paid agreement, so it is
  * never moved onto a base the customer did not choose.
  */
-export async function freeBaseOf(client: PoolClient, input: { subscription: Record<string, any>; snapshot: Record<string, any> }): Promise<FreeBase | null> {
+export async function freeBaseOf(client: Pick<PoolClient, 'query'>, input: { subscription: Record<string, any>; snapshot: Record<string, any> }): Promise<FreeBase | null> {
   const { subscription, snapshot } = input
   if (snapshot.terms_revision_id) return null
   const sources = await loadQuoteSources(client, subscription.customer_id, { plan_revision_id: snapshot.plan_revision_id, bundle_revision_ids: [] }, false)

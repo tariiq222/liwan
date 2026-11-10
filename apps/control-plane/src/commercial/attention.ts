@@ -1,8 +1,9 @@
 import type { Pool } from 'pg'
+import { RENEWAL_NOTICE_DAYS } from './notice-timings.js'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
 
-export const RENEWAL_WINDOW_DAYS = 7
+export const RENEWAL_WINDOW_DAYS = RENEWAL_NOTICE_DAYS
 export const STALLED_HOURS = 24
 /** Renewal dates are calendar dates of the business, so "today" and the renewal instant are read in this zone, never the session's. */
 export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'

@@ -10,6 +10,7 @@ import { expireTrials } from './trial-expiry.js'
 import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
+import { sendRenewalNotices } from './renewal-notices.js'
 import * as settlements from './settlements.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
@@ -100,6 +101,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
+        await job('renewal-notices', () => sendRenewalNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
       }
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) {

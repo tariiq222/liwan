@@ -41,10 +41,23 @@ async function convertTrial() {
 const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
 const appLabel = (app: string) => (te(`subscription.apps.${app}`) ? t(`subscription.apps.${app}`) : humanizeId(app))
 const arBusy = ref(false); const arError = ref<unknown>(null)
-async function setAutoRenew(enabled: boolean) {
+async function turnOffAutoRenew() {
   if (arBusy.value || !can('subscription.manage')) return
   arBusy.value = true; arError.value = null
-  try { await api.setAutoRenew(enabled); await refresh() } catch (cause) { arError.value = cause } finally { arBusy.value = false }
+  try { await api.turnOffAutoRenew(); await refresh() } catch (cause) { arError.value = cause } finally { arBusy.value = false }
+}
+// Turning it on is a payment the customer makes with the consent: the invoice that is due now is paid and its method kept.
+const payableOrder = computed(() => (display.value === 'awaiting_payment' ? data.value?.sub?.pending_order ?? null : null))
+async function payAndKeepMethod() {
+  const order = payableOrder.value
+  if (arBusy.value || !order || !can('subscription.manage')) return
+  arBusy.value = true; arError.value = null
+  try {
+    const attempt = await api.payment(order.id, `auto-renew:${order.id}`, true)
+    const url = attempt.redirect_url ? safePaymentRedirect(attempt.redirect_url, window.location.origin) : null
+    if (url) { window.location.assign(url); return }
+    await navigateTo({ path: '/subscription/status', query: { order: order.id } })
+  } catch (cause) { arError.value = cause } finally { arBusy.value = false }
 }
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
@@ -99,7 +112,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           <ul v-else class="divide-y divide-default"><li v-for="inv in data.invoices.items.slice(0, 3)" :key="inv.id" class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink><span class="tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></li></ul>
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.autoRenew.title')">
-          <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
+          <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :can-enable="Boolean(payableOrder)" :pending="arBusy" :hydrated="hydrated" @enable="payAndKeepMethod" @disable="turnOffAutoRenew" />
           <UAlert v-if="arError" class="mt-3" color="error" variant="subtle" :title="t('errors.generic')" />
         </SharedRecordSection>
       </div>

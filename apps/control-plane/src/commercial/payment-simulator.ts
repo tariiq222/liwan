@@ -18,7 +18,9 @@ export type SimulatorConfig = {
   webhookSecret?: string
   defaultOutcome?: SimOutcome
 }
-type SimAttempt = { input: CreateAttemptInput; ref: string; payment_id: string; status: ProviderEventStatus; outcome: SimOutcome; refunded: number }
+type SimAttempt = { input: CreateAttemptInput; ref: string; payment_id: string; status: ProviderEventStatus; outcome: SimOutcome; refunded: number; save: boolean }
+/** A token this simulator issued. The database, not this process, is the source of truth for whether it is still kept. */
+const ISSUED_TOKEN = /^sim_tok_[0-9a-f]{8}_\d+$/
 export type WebhookOverrides = {
   status?: ProviderEventStatus; amount?: Money; merchant?: string; secret?: string; eventId?: string; live?: boolean
 }
@@ -30,6 +32,7 @@ const FINAL: Record<SimOutcome, ProviderEventStatus> = { succeed: 'succeeded', f
 export class SimulatorAdapter implements PaymentAdapter {
   readonly provider = 'simulator'
   readonly mode = 'simulator' as const
+  readonly storesPaymentMethod = true
   readonly merchantAccount: string
   readonly webhookSecret: string
   private readonly outcomes = new Map<string, SimOutcome>()
@@ -61,7 +64,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     const n = ++this.seq
     const a: SimAttempt = {
       input: i, ref: `sim_inv_${this.instance}_${n}`, payment_id: `sim_pay_${this.instance}_${n}`, status: 'pending',
-      outcome: this.outcomes.get(i.attempt_id) ?? this.defaultOutcome, refunded: 0,
+      outcome: this.outcomes.get(i.attempt_id) ?? this.defaultOutcome, refunded: 0, save: i.save_payment_method === true,
     }
     this.attempts.set(a.ref, a); this.byAttempt.set(i.attempt_id, a)
     if (a.outcome === 'timeout') throw new PaymentError('timeout', 'simulated timeout (attempt recorded)')
@@ -72,7 +75,7 @@ export class SimulatorAdapter implements PaymentAdapter {
    * Rebuild an attempt this process no longer remembers (the API restarted after the attempt row was
    * written). Only the ref the simulator itself issued is accepted, so a foreign ref is never adopted.
    */
-  adopt(row: { id: string; order_id: string; provider_ref: string; amount_minor: number | string; currency: string; exponent: number }): boolean {
+  adopt(row: { id: string; order_id: string; provider_ref: string; amount_minor: number | string; currency: string; exponent: number; save_payment_method?: boolean }): boolean {
     const ref = row.provider_ref
     const known = this.byAttempt.get(row.id)
     if (known) return known.ref === ref
@@ -82,7 +85,7 @@ export class SimulatorAdapter implements PaymentAdapter {
         attempt_id: row.id, order_id: row.order_id, amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
         description: `LiwanOS order ${row.order_id}`, success_url: '', back_url: '', callback_url: '', expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       },
-      ref, payment_id: ref.replace('sim_inv_', 'sim_pay_'), status: 'pending', outcome: this.defaultOutcome, refunded: 0,
+      ref, payment_id: ref.replace('sim_inv_', 'sim_pay_'), status: 'pending', outcome: this.defaultOutcome, refunded: 0, save: row.save_payment_method === true,
     }
     this.attempts.set(ref, a); this.byAttempt.set(row.id, a)
     return true
@@ -101,7 +104,14 @@ export class SimulatorAdapter implements PaymentAdapter {
     return a
   }
 
+  /** The token a paid attempt that asked to save its method hands back. */
+  private tokenOf(a: SimAttempt, status: ProviderEventStatus): string | undefined {
+    return a.save && status === 'succeeded' ? a.payment_id.replace('sim_pay_', 'sim_tok_') : undefined
+  }
+
   private eventFor(a: SimAttempt, status: ProviderEventStatus, o: WebhookOverrides = {}): ProviderEvent {
+    const token = this.tokenOf(a, status)
+    if (token && !this.tokens.has(token)) this.tokens.set(token, 'active')
     return {
       provider: 'simulator', event_id: o.eventId ?? `sim_evt_${a.ref}_${status}`,
       provider_ref: a.ref, payment_id: a.payment_id, attempt_id: a.input.attempt_id,
@@ -109,7 +119,7 @@ export class SimulatorAdapter implements PaymentAdapter {
       amount: o.amount ?? a.input.amount,
       // Like the provider, a refunded payment always states how much was refunded so far (the whole payment before any partial refund).
       ...(status === 'refunded' ? { refunded: { ...a.input.amount, minor: a.refunded > 0 ? a.refunded : a.input.amount.minor } } : {}), occurred_at: new Date(Date.UTC(2026, 0, 1, 0, 0, this.seq)).toISOString(),
-      raw_type: TYPE[status], simulated: true,
+      raw_type: TYPE[status], simulated: true, ...(token ? { payment_method_token: token } : {}),
     }
   }
 
@@ -121,7 +131,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     return toBytes(JSON.stringify({
       id: ev.event_id, type: ev.raw_type, created_at: ev.occurred_at, secret_token: o.secret ?? this.webhookSecret,
       account_name: ev.merchant_account, live: ev.live, simulated: true,
-      data: { id: a.payment_id, invoice_id: a.ref, status, amount: ev.amount.minor, currency: ev.amount.currency, ...(ev.refunded ? { refunded: ev.refunded.minor } : {}), metadata: { attempt_id: a.input.attempt_id } },
+      data: { id: a.payment_id, invoice_id: a.ref, status, amount: ev.amount.minor, currency: ev.amount.currency, ...(ev.refunded ? { refunded: ev.refunded.minor } : {}), ...(ev.payment_method_token ? { source: { token: ev.payment_method_token } } : {}), metadata: { attempt_id: a.input.attempt_id } },
     }))
   }
 
@@ -146,6 +156,7 @@ export class SimulatorAdapter implements PaymentAdapter {
       status: d.status as ProviderEventStatus,
       amount: { currency: d.currency, exponent: 2, minor: d.amount },
       ...(Number.isInteger(d.refunded) ? { refunded: { currency: d.currency, exponent: 2, minor: d.refunded } } : {}), occurred_at: p.created_at, raw_type: p.type, simulated: true,
+      ...(typeof d.source?.token === 'string' ? { payment_method_token: d.source.token } : {}),
     }
   }
 
@@ -193,8 +204,13 @@ export class SimulatorAdapter implements PaymentAdapter {
   }
 
   async getToken(id: string): Promise<TokenInfo> {
-    const s = this.tokens.get(id)
-    if (!s) throw new PaymentError('not_found', id)
+    // A token is never echoed into an error: errors reach logs.
+    const s = this.tokens.get(id) ?? (ISSUED_TOKEN.test(id) ? 'active' : undefined)
+    if (!s) throw new PaymentError('not_found', 'token')
     return { id, status: s, active: s === 'active' }
+  }
+
+  async deleteToken(id: string): Promise<void> {
+    this.tokens.set(id, 'revoked')
   }
 }

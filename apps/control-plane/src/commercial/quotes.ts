@@ -84,7 +84,7 @@ export async function getQuote(pool: Pool, id: string): Promise<Quote> {
 export { planIssues }
 
 /** Shared quote/acceptance loader: customer-specific terms can never cross customer boundaries. */
-export async function loadQuoteSources(client: PoolClient, customerId: string, input: { plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id?: string | null }, sellable = true) {
+export async function loadQuoteSources(client: Pick<PoolClient, 'query'>, customerId: string, input: { plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id?: string | null }, sellable = true) {
   const p = await client.query('SELECT * FROM plan_revisions WHERE id=$1 FOR SHARE', [input.plan_revision_id])
   if (!p.rowCount) throw bad('not_found', 'plan_revision_id', 404)
   const row = p.rows[0]

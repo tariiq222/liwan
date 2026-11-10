@@ -1,13 +1,9 @@
-import type { Pool, PoolClient } from 'pg'
+import type { Pool } from 'pg'
 import { daysBetween, riyadhDate } from '@liwan/commercial-contracts'
 import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, enqueueOutbox, failOutbox } from './outbox.js'
 import { freeBaseOf } from './free-base.js'
-
-async function withClient<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect()
-  try { return await work(client) } finally { client.release() }
-}
+import { TRIAL_NOTICE_DAYS } from './notice-timings.js'
 
 /**
  * One email per notice threshold and subscription. The in-app banner is always available from
@@ -24,11 +20,11 @@ export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: Mai
   for (const row of rows) {
     const daysLeft = daysBetween(riyadhDate(input.now), riyadhDate(new Date(row.trial_ends_at)))
     // On a plan with a free base nothing is invoiced when the trial ends: the notice says what locks instead of an amount.
-    const onFreeBase = await withClient(pool, client => freeBaseOf(client, { subscription: row, snapshot: row.snapshot }))
+    const onFreeBase = await freeBaseOf(pool, { subscription: row, snapshot: row.snapshot })
     const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [row.snapshot.quote_id])).rows[0]?.payload
     // Day 11 and day 13 of a 14-day trial: <= so a missed scheduler day catches up; the threshold,
     // not the current day, is the dedupe key, so a late run still sends each notice once.
-    for (const threshold of [3, 1].filter(days => days < Number(row.trial_days))) {
+    for (const threshold of TRIAL_NOTICE_DAYS.filter(days => days < Number(row.trial_days))) {
       if (daysLeft > threshold) continue
       if (input.signal?.aborted) return sent
       const dedupe = `trial-notice:${row.id}:${threshold}`

@@ -42,7 +42,7 @@ describe('worker shutdown during a scheduler tick', () => {
     const controller = new AbortController()
     const now = new Date('2026-11-10T09:00:00Z')
     const row = (id: string) => ({ id, trial_ends_at: new Date(now.getTime() + 86_400_000), customer_id: 'c', trial_days: 14,
-      snapshot: { quote_id: 'q' }, admin_login: `${id}@x.test` })
+      snapshot: { quote_id: 'q', terms_revision_id: 'negotiated' }, admin_login: `${id}@x.test` })
     const { pool, calls } = recordingPool(sql => {
       if (sql.includes('FROM subscriptions s')) return { rows: [row('s1'), row('s2')] }
       if (sql.includes('INSERT INTO commercial_outbox')) return { rows: [{ id: 'new' }] }

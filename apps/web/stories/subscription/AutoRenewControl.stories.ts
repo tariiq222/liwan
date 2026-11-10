@@ -5,6 +5,7 @@ const meta = { title: 'Subscription/AutoRenewControl', component: AutoRenewContr
 export default meta
 type Story = StoryObj<typeof meta>
 export const Off: Story = {}
+export const OffWithInvoiceDue: Story = { args: { canEnable: true } }
 export const On: Story = { args: { enabled: true } }
 export const ReadOnly: Story = { args: { canManage: false } }
 export const Saving: Story = { args: { enabled: true, pending: true } }

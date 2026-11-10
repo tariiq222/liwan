@@ -1,6 +1,9 @@
 <script setup lang="ts">
-const props = defineProps<{ enabled: boolean; canManage: boolean; pending?: boolean; hydrated?: boolean }>()
-const emit = defineEmits<{ change: [enabled: boolean] }>()
+// Turning it on is a payment made with the customer's consent (the page pays the open invoice and keeps the method);
+// turning it off forgets the stored method. Nothing here ever shows or sends the method itself.
+defineProps<{ enabled: boolean; canManage: boolean; canEnable?: boolean; pending?: boolean; hydrated?: boolean }>()
+const emit = defineEmits<{ enable: []; disable: [] }>()
+import { RENEWAL_NOTICE_DAYS } from '@liwan/commercial-contracts'
 const { t } = useI18n()
 const consent = ref(false)
 </script>
@@ -9,9 +12,15 @@ const consent = ref(false)
     <p><SharedStatusBadge :tone="enabled ? 'success' : 'neutral'" variant="subtle" :label="t(enabled ? 'subscription.autoRenew.on' : 'subscription.autoRenew.off')" /></p>
     <p v-if="!canManage" class="text-sm text-muted">{{ t('subscription.autoRenew.readOnly') }}</p>
     <template v-else-if="!enabled">
-      <UCheckbox v-model="consent" :label="t('subscription.autoRenew.consent')" :disabled="hydrated === false" />
-      <UButton :disabled="!consent || pending || hydrated === false" :loading="pending" @click="emit('change', true)">{{ t('subscription.autoRenew.enable') }}</UButton>
+      <template v-if="canEnable">
+        <UCheckbox v-model="consent" :label="t('subscription.autoRenew.consent', { days: RENEWAL_NOTICE_DAYS })" :disabled="hydrated === false" />
+        <UButton :disabled="!consent || pending || hydrated === false" :loading="pending" @click="emit('enable')">{{ t('subscription.autoRenew.enable') }}</UButton>
+      </template>
+      <p v-else class="text-sm text-muted">{{ t('subscription.autoRenew.enableHint') }}</p>
     </template>
-    <UButton v-else color="neutral" variant="outline" :disabled="pending || hydrated === false" :loading="pending" @click="emit('change', false)">{{ t('subscription.autoRenew.disable') }}</UButton>
+    <template v-else>
+      <p class="text-sm text-muted">{{ t('subscription.autoRenew.notice', { days: RENEWAL_NOTICE_DAYS }) }}</p>
+      <UButton color="neutral" variant="outline" :disabled="pending || hydrated === false" :loading="pending" @click="emit('disable')">{{ t('subscription.autoRenew.disable') }}</UButton>
+    </template>
   </div>
 </template>
