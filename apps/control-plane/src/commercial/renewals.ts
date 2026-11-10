@@ -31,16 +31,20 @@ export async function onRenewalPaid(client: PoolClient, order_id: string) {
 }
 
 /**
- * Generates every due renewal. Each customer's return origin is resolved before anything is written, so a
- * customer without a usable one is skipped untouched (it is picked up again once fixed) while the rest are
- * processed; the run then fails with `return_url_forbidden` so the skip is never silent.
+ * Generates every due renewal. Each customer's return origin is resolved before anything is invoiced, so a
+ * customer without a usable one is skipped (it is picked up again once fixed) while the rest are processed. The
+ * skipped subscription is marked billing-blocked, which the vendor attention list shows until an order is generated
+ * for it, and the run then fails with `return_url_forbidden` so the skip is never silent.
  */
 export async function generateRenewals(pool: Pool, { now = new Date(), adapter, returnOrigin, subscription_id }: {
   now?: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; subscription_id?: string
 }) {
   const today = riyadhDate(now)
-  const candidates = (await pool.query(`SELECT id,customer_id FROM subscriptions WHERE state IN ('active','past_due')
-    AND applied_revision_id IS NOT NULL AND renewal_at <= $1::date AND ($2::uuid IS NULL OR id=$2) ORDER BY id`, [today, subscription_id ?? null])).rows
+  // `has_renewal`: the period already has its renewal (an unpaid invoice may be waiting); nothing is left to generate for it.
+  const candidates = (await pool.query(`SELECT s.id,s.customer_id,EXISTS (SELECT 1 FROM renewals r WHERE r.subscription_id=s.id
+      AND r.period_start=s.renewal_at AND r.kind='renewal') AS has_renewal
+    FROM subscriptions s WHERE s.state IN ('active','past_due')
+    AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND ($2::uuid IS NULL OR s.id=$2) ORDER BY s.id`, [today, subscription_id ?? null])).rows
   let unusableOrigins = 0
   const generated: ReturnType<typeof orderView>[] = []
   for (const candidate of candidates) {
@@ -48,7 +52,15 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     try { origin = await returnOrigin(candidate.customer_id) }
     catch (error) {
       if ((error as { code?: string }).code !== 'return_url_forbidden') throw error
+      // A period that already has its renewal blocks nothing, so an outage must not flag it.
+      if (candidate.has_renewal) continue
+      await pool.query('UPDATE subscriptions SET billing_blocked_at=COALESCE(billing_blocked_at,now()) WHERE id=$1', [candidate.id])
       unusableOrigins++
+      continue
+    }
+    if (candidate.has_renewal) {
+      // A usable origin and an existing renewal: nothing is blocked any more, whatever an earlier outage flagged.
+      await pool.query('UPDATE subscriptions SET billing_blocked_at=NULL WHERE id=$1 AND billing_blocked_at IS NOT NULL', [candidate.id])
       continue
     }
     const result = await transaction(pool, async client => {
@@ -86,6 +98,9 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
         await enqueueOutbox(client,{kind:'fulfillment.enqueue',aggregate_id:order.id,dedupe_key:order.target_revision_id,
           payload:{order_id:order.id,subscription_id:sub.id,target_revision_id:order.target_revision_id}})
       }
+      // The block ends with the order it was blocking, in the same transaction: a run that fails or finds nothing to
+      // generate leaves the flag for the vendor.
+      await client.query('UPDATE subscriptions SET billing_blocked_at=NULL WHERE id=$1 AND billing_blocked_at IS NOT NULL', [sub.id])
       return { order,sub,invoice }
     })
     if (!result) continue

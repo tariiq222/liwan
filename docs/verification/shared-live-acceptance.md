@@ -13,6 +13,12 @@ Readiness remains `not ready`: this is local runtime evidence for one machine an
 tenants, not production authorization, and it does not satisfy the remaining gates listed
 at the end.
 
+> **Note, 2026-11-10 (PR #631):** later sections mention a control-plane `initial_policy` activation gate (the 7-check
+> `provision-readiness.ts`). That gate was never called in production and has been deleted. Tenant activation is
+> `reconcileOdooOnboardings` in `apps/control-plane/src/shared/odoo-adapter.ts`, which reads the provision effect back
+> through `observe` before publishing the route. The run records below are unchanged: they say what this stack did and
+> did not exercise on 2026-09/10, and none of them proved any control-plane activation gate.
+
 ## 1. Date, revision and dirty state
 
 | Item | Value |
@@ -164,7 +170,7 @@ healthcheck there, or drop `odoo` from the `service_healthy` conditions.
 
 ### F2b — a freshly installed tenant has NO feature policy, so every pillar API 403s `feature_not_included`
 
-**Status: harness path verified live in the r3 rerun (§ r3b); the control-plane provision worker itself is not exercised by the live stack** — shared provisioning now writes and verifies the initial tenant policy itself from the server-derived catalog policy (control-plane `initial_policy` activation gate, revision >= 1, backup/restore carry it), and the live harness seeds through the repository's canonical `deploy/seed_legacy_policy.py` with a readback instead of granting the policy inline. The description below is of the pre-fix state.
+**Status: harness path verified live in the r3 rerun (§ r3b); the control-plane provision worker itself is not exercised by the live stack** — shared provisioning now writes and verifies the initial tenant policy itself from the server-derived catalog policy (initial policy revision >= 1; backup/restore carry it), and the live harness seeds through the repository's canonical `deploy/seed_legacy_policy.py` with a readback instead of granting the policy inline. The description below is of the pre-fix state.
 
 Installing the addons on a fresh database leaves `nasq.tenant.profile` at
 `policy_revision = 0` with `features = {}`. Nothing in the install path grants the

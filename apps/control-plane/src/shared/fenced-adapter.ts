@@ -18,7 +18,6 @@ import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import { businessKey, payloadDigest } from './provisioning.js'
 import type { SharedFencedAdapter } from './job-worker.js'
 import { restoreBackupToNewTarget } from './shared-backup.js'
-import { ensureAdminBindingSchema } from './provision-readiness.js'
 
 export class StaleFenceError extends Error {
   constructor(public code: string) { super(code) }
@@ -63,8 +62,8 @@ export async function ensureTenantStorageSchema(storage: TenantStorage): Promise
   )`)
   // Initial tenant feature policy, written ONLY by the verified provision
   // effect from the job payload's server-side catalog policy (never from a
-  // caller). The activation gate refuses a tenant without revision >= 1 and
-  // non-empty features, so a fresh tenant cannot be active before policy.
+  // caller). Activation (`reconcileOdooOnboardings`) needs a verified provision
+  // job, so a fresh tenant cannot be active before policy.
   await storage.pool.query(`CREATE TABLE IF NOT EXISTS shared_tenant_policy (
     tenant_id text PRIMARY KEY,
     policy_revision bigint NOT NULL CHECK (policy_revision >= 0),
@@ -87,16 +86,14 @@ async function observeRestore(control: Pool, connect: FencedStorageAdapterOption
   const storage = await connect(row.target_database)
   try {
     await ensureTenantStorageSchema(storage)
-    await ensureAdminBindingSchema(storage)
     const fencing = await storage.pool.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
     const effects = await storage.pool.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
-    const admin = await storage.pool.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
     const policy = await storage.pool.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
-    if (!fencing.rowCount && !effects.rowCount && !admin.rowCount && !policy.rowCount) return { state: 'absent' as const }
+    if (!fencing.rowCount && !effects.rowCount && !policy.rowCount) return { state: 'absent' as const }
     // Same readback shape and digest as restoreBackupToNewTarget: the digest
     // mirrors the stored snapshot's own key shape, so a pre-policy backup
     // (snapshot without a `policy` key) is compared without a policy key.
-    const applied: Record<string, unknown> = { schemaVersion: 1, tenantId: row.snapshot?.tenantId ?? null, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+    const applied: Record<string, unknown> = { schemaVersion: 1, tenantId: row.snapshot?.tenantId ?? null, fencing: fencing.rows, effects: effects.rows }
     if (row.snapshot && typeof row.snapshot === 'object' && 'policy' in row.snapshot) applied.policy = policy.rows
     const appliedDigest = createHash('sha256').update(JSON.stringify(applied)).digest('hex')
     if (appliedDigest === row.database_sha256) {

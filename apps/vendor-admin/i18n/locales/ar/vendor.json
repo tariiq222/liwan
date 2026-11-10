@@ -65,6 +65,8 @@
       "duration": "أقل من يوم | يوم واحد | يومان | {count} أيام | {count} يومًا | {count} يوم",
       "kinds": {
         "past_due": "متأخر في السداد منذ {duration}",
+        "refund_rejected": "تعذّر تسجيل استرداد من المزود ({operation}): المال خرج ولا يوجد إشعار دائن",
+        "billing_blocked": "تعذّر إصدار الفاتورة منذ {duration}: لا عنوان عودة صالح للدفع",
         "stalled_failed": "فشل التفعيل ويحتاج تدخلك",
         "stalled_waiting": "التفعيل متعثر منذ {duration}",
         "operation_failed": "فشلت عملية: {operation}",
@@ -72,8 +74,17 @@
         "renewal_missed": "تاريخ التجديد مضى منذ {duration} ولم يتجدد",
         "renewal_soon": "يتجدد خلال {duration}"
       },
+      "refundReasons": {
+        "refund_exceeds_payment": "المبلغ المسترد أكبر من المدفوع",
+        "refund_currency_mismatch": "عملة الاسترداد تختلف عن عملة الدفعة",
+        "refund_amount_missing": "لم يذكر المزود المبلغ المسترد",
+        "payment_attempt_missing": "محاولة الدفع غير موجودة",
+        "attempt_id_missing": "لا معرّف لمحاولة الدفع"
+      },
       "actions": {
         "past_due": "افتح الفاتورة",
+        "refund_rejected": "افتح الفاتورة",
+        "billing_blocked": "افتح الاشتراك",
         "stalled_activation": "افتح مساحة العمل",
         "operation_failed": "افتح العملية",
         "setup_required": "افتح الاشتراك",

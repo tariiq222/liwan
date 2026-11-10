@@ -1,5 +1,6 @@
 import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
+import { creditedMinorSql } from './refund-credit.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
@@ -16,7 +17,7 @@ const iso = (column: string) => `to_char(${column} AT TIME ZONE 'UTC','YYYY-MM-D
 // The latest unresolved order mirrors the customers list: stalled means failed, or still queued/applying after STALLED_HOURS.
 const subjectsSql = `WITH latest AS (
   SELECT c.id AS customer_id, c.name, c.tenant_id, c.commercial_setup_required, c.created_at AS customer_created_at,
-    s.id AS subscription_id, s.state, s.renewal_at, o.fulfillment_state, o.created_at AS order_created_at
+    s.id AS subscription_id, s.state, s.renewal_at, s.billing_blocked_at, o.fulfillment_state, o.created_at AS order_created_at
   FROM customers c
   LEFT JOIN subscriptions s ON s.customer_id=c.id
   LEFT JOIN LATERAL (
@@ -29,6 +30,32 @@ const subjectsSql = `WITH latest AS (
     OR (fulfillment_state IN ('queued','applying') AND order_created_at < now() - make_interval(hours => $1::int))
 ), setup AS (
   SELECT * FROM latest WHERE commercial_setup_required OR subscription_id IS NULL
+), rejected_refunds AS (
+  -- A refund the worker closed as failed. It leaves the list once the invoice's credit covers it, by the same
+  -- definition of "credited" the worker uses (any non-void note, any origin): the figure the provider gave when it is
+  -- valid (at most the payment), otherwise any credit at all, or when a later event for the attempt was processed.
+  -- A row with no attempt has no invoice to be covered on and stays; no operator action dismisses it.
+  SELECT DISTINCT ON (r.aggregate_id) r.aggregate_id, r.processed_at, r.payload->>'error' AS reason, r.invoice_id,
+    o.customer_id, COALESCE(c.name, r.aggregate_id) AS name, c.tenant_id
+  FROM (
+    SELECT ob.aggregate_id, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id,
+      a.amount_minor AS paid_minor,
+      CASE WHEN a.currency = ob.payload#>>'{refunded,currency}' AND ob.payload#>>'{refunded,minor}' ~ '^[0-9]{1,15}$'
+        THEN (ob.payload#>>'{refunded,minor}')::bigint END AS refunded_minor,
+      CASE WHEN a.id IS NOT NULL THEN ${creditedMinorSql('a.invoice_id')} END AS credited_minor
+    FROM commercial_outbox ob
+    LEFT JOIN payment_attempts a ON a.id::text = ob.payload->>'attempt_id'
+    WHERE ob.kind IN ('payment.intervention','reconcile.refund') AND ob.status='failed' AND ob.payload ? 'error'
+  ) r
+  LEFT JOIN orders o ON o.id::text = r.aggregate_id
+  LEFT JOIN customers c ON c.id = o.customer_id
+  WHERE r.attempt_id IS NULL OR NOT (
+    COALESCE(r.credited_minor >= CASE WHEN r.refunded_minor > 0 THEN LEAST(r.refunded_minor, r.paid_minor) ELSE 1 END, false)
+    OR EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind = 'payment.intervention' AND later.status = 'done'
+      AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at))
+  ORDER BY r.aggregate_id, r.processed_at DESC
+), blocked AS (
+  SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -44,11 +71,13 @@ const subjectsSql = `WITH latest AS (
   ORDER BY op.tenant_id, op.created_at DESC, op.id
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
-  UNION ALL SELECT 2,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
-  UNION ALL SELECT 3,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
-  UNION ALL SELECT 4,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
-  UNION ALL SELECT 5,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
-  UNION ALL SELECT 6,'renewal_soon', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at >= ${businessToday}
+  UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
+  UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
+  UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
+  UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
+  UNION ALL SELECT 7,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
+  UNION ALL SELECT 8,'renewal_soon', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at >= ${businessToday}
 )`
 
 const countsSql = `SELECT
