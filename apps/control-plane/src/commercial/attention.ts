@@ -67,7 +67,9 @@ const subjectsSql = `WITH latest AS (
   -- grace period: a clearing job that needs intervention (or was closed after a refusal) is shown from the job itself, so it
   -- disappears the moment the job is verified.
   SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, COALESCE(l.reason, stuck.reason) AS reason FROM trial_lapses l
-  JOIN subscriptions s ON s.id=l.subscription_id AND s.applied_revision_id=l.trial_revision_id JOIN customers c ON c.id=s.customer_id
+  -- After the base was applied a later change moves the applied revision off the lapse's own (the held limits are lowered on top
+  -- of it), so for limits_pending the lapse row, not the revision equality, says it is still open.
+  JOIN subscriptions s ON s.id=l.subscription_id JOIN subscription_revisions ar ON ar.id=s.applied_revision_id AND (s.applied_revision_id=l.trial_revision_id OR (l.state='limits_pending' AND ar.snapshot ? 'held_ceilings')) JOIN customers c ON c.id=s.customer_id
   LEFT JOIN LATERAL (
     SELECT '${EXPIRY_CLEARING_REASON}:' || COALESCE(latest_job.journal->>'error_code', latest_job.state) AS reason FROM (
       SELECT j.state, j.journal FROM shared_jobs j
@@ -85,12 +87,12 @@ const subjectsSql = `WITH latest AS (
   -- usage to fit, or extra branches above the plan's included ones stay active (the leak is accepted; the vendor can follow up
   -- commercially). Nothing here needs the vendor; detail says what exceeds.
   SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at,
-    concat_ws(',', CASE WHEN l.state='limits_pending' AND l.reason IS NULL AND s.applied_revision_id=l.trial_revision_id THEN l.limits_note END,
+    concat_ws(',', CASE WHEN l.state='limits_pending' AND l.reason IS NULL AND (s.applied_revision_id=l.trial_revision_id OR r.snapshot ? 'held_ceilings') THEN l.limits_note END,
       CASE WHEN b.n > (r.snapshot->>'included_extra_branches')::int THEN 'branches.extra:'||b.n||'>'||(r.snapshot->>'included_extra_branches') END) AS detail
   FROM trial_lapses l JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
   JOIN subscription_revisions r ON r.id=s.applied_revision_id
   CROSS JOIN LATERAL (SELECT count(*)::int AS n FROM commercial_branches cb WHERE cb.subscription_id=s.id AND cb.kind='extra' AND cb.state IN ('active','pending')) b
-  WHERE (l.state='limits_pending' AND s.applied_revision_id=l.trial_revision_id) OR (l.state IN ('limits_pending','done') AND r.snapshot->>'free_base'='true')
+  WHERE (l.state='limits_pending' AND (s.applied_revision_id=l.trial_revision_id OR r.snapshot ? 'held_ceilings')) OR (l.state IN ('limits_pending','done') AND r.snapshot->>'free_base'='true')
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (

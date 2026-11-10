@@ -751,6 +751,23 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
           expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
         })
       }
+      it('R4: a blocked lowering after an unrelated change is shown to the vendor', async () => {
+        const f = await endedTrial({ requested_users: 4 })
+        await locked(f)
+        const lowering = await judge(f, { 'users.limit': 4 }, at(1))
+        if (lowering) await applyOrder(f, lowering.id)
+        await processTrialLapses(pool, { now: at(2), adapter, subscription_id: f.subscription })
+        await branchChange(f, now)
+        const lapse = await lapseRow(f.subscription)
+        expect((await row(f.subscription)).applied_revision_id).not.toBe(lapse.trial_revision_id)
+        // The reason a blocked lowering records (the lapse row is the record; the revision equality no longer holds).
+        await pool.query("UPDATE trial_lapses SET reason='free_base_unavailable' WHERE subscription_id=$1", [f.subscription])
+        // The list is bounded: let the other tests' customers step aside.
+        await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id<>$1", [f.subscription])
+        const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
+        expect(items).toContainEqual(expect.objectContaining({ kind: 'free_base_blocked', detail: 'free_base_unavailable' }))
+        await pool.query("UPDATE trial_lapses SET state='superseded',reason=NULL WHERE subscription_id=$1", [f.subscription])
+      })
       it('R5: a fractional value in the pricing never breaks the attention query and still counts as owing', async () => {
         const base = (await attention(pool, true)).counts.renewals
         const f = await endedTrial()
