@@ -1,53 +1,46 @@
-# LiwanOS AI plans, trial allowance, task router and conversation cost
+# LiwanOS AI prepaid balance, free allowance, task router and conversation cost
 
-Status: owner decisions taken in discussion on 2026-11-10, then reviewed against the code the same day and corrected. Nothing in this document is implemented in any branch. Cost figures in §4 are one local measurement plus estimates, and each is marked.
+Status: owner decisions taken in discussion on 2026-11-10 and reviewed against the code the same day. The owner first chose four fixed message plans, then replaced them with a prepaid balance charged at provider cost plus a margin; this document describes only the final model. Nothing here is implemented in any branch. Cost figures in §4 are one local measurement plus estimates, and each is marked.
 
-Builds on: [2026-11-04 LiwanOS AI agents](2026-11-04-liwan-ai-agents-design.md). It replaces that spec's monthly token limit (§6.8) and its deferred model routing (§6.14); see §9.
+Builds on: [2026-11-04 LiwanOS AI agents](2026-11-04-liwan-ai-agents-design.md). It replaces that spec's monthly limits (§6.8) and its deferred model routing (§6.14); see §9.
 
 ## 1. Intent
 
-Tenants get three ways to use the assistant, and the vendor keeps the cost of each under control:
+Tenants get three ways to use the assistant, and the vendor carries no usage risk on the paid one:
 
 1. Free help and setup agents on the vendor's provider (exists; budget `ai.assist.monthly`).
-2. Paid AI plans on the vendor's provider, sold as a number of messages with a weekly and a monthly limit.
-3. The tenant's own provider key (exists). Its messages must not consume plan messages; today they still count against the monthly limit, which §5.4 changes.
+2. A prepaid balance on the vendor's provider: the tenant tops up, and each request is charged what it cost the vendor plus a margin.
+3. The tenant's own provider key (exists). It never touches the balance.
 
-A task router sends each message to the cheapest model that suits it, and long conversations stop resending their whole history.
+A task router sends each message to the cheapest model that suits it, and long conversations stop resending their whole history. Both now lower the customer's bill directly.
 
 ## 2. Owner decisions (2026-11-10)
 
 | # | Decision |
 | --- | --- |
-| D1 | Build both the paid plans and the tenant's own key. Own key stays as it is. |
-| D2 | Paid plans ship before the launch target (2026-12-06). |
-| D3 | The customer sees messages only: no currency amount and no "credit" wording in the usage display. One user message counts as one. |
-| D4 | One pool per tenant, with a monthly allowance and a weekly limit inside it. |
-| D5 | The AI plan is not part of the packages shown at sign-up or on the plan-change page. It is bought from inside the product. |
-| D6 | When a limit is reached the paid assistant stops until the window resets or the tenant upgrades. Help and setup agents keep working; the tenant's own key remains an alternative. |
-| D7 | Four plans named Start, Pro, Max and Ultra (ستارت، برو، ماكس، ألترا). |
-| D8 | A trial allowance during the trial that renews every 5 days, so a new tenant can try the strong models. After the trial the tenant falls back to the permanent free allowance, which the vendor sets and may set to zero. |
+| D1 | Keep both paths: paid use of the vendor's provider and the tenant's own key. |
+| D2 | Paid use ships before the launch target (2026-12-06). |
+| D3 | No fixed plans. The tenant pays for what it uses: provider cost plus a vendor-set margin of 15 to 25%. |
+| D4 | Prepaid: the tenant tops up a balance, usage is deducted from it, and the assistant stops at zero until the next top-up. |
+| D5 | The customer sees the balance and the usage in US dollars and in riyals, switched by a control on the display. Payment is in riyals. |
+| D6 | One balance per tenant. It is bought from inside the product, not with the packages shown at sign-up. |
+| D7 | When the balance and the free allowance are used up, the paid assistant stops. Help and setup agents keep working; the tenant's own key remains an alternative. |
+| D8 | A free allowance during the trial that renews every 5 days, so a new tenant can try the strong models. After the trial there is a permanent free allowance, which the vendor sets and may set to zero. |
 | D9 | Build the full task router now, controlled from the vendor's provider panel. |
 | D10 | Long conversations are handled by summarising old history, shortening old tool results, provider prompt caching and a "start a new conversation" prompt. |
-| D11 | An upgrade inside a period gives messages in proportion to the days left. A downgrade takes effect at renewal. |
-| D12 | An unpaid AI plan returns the tenant to the free allowance. It never suspends the tenant's account. |
-| D13 | A message is not counted when the request fails on LiwanOS's side. |
-| D14 | A plan replaces the free allowance: the number the customer buys is the number the customer gets. |
 
-Defaults chosen by the design author, open to the owner (§7): annual billing rule, weekly share, cost unit.
+Defaults chosen by the design author, open to the owner (§7): the exact margin, top-up amounts, expiry and refund of unused balance.
 
 ## 3. Current state (verified 2026-11-10)
 
-- Limits `ai.messages.monthly`, `ai.tokens.monthly`, `ai.assist.monthly`, `ai.tool_calls.per_run` are registered in `odoo-addons/liwan_ai/models/feature_registry.py`. Enforcement is hand-written with a UTC calendar month in `ai_audit.py` and `ai_usage.py`, repeated in `liwan_ai_notify/models/limit_warning.py`. No weekly or other window exists.
-- The message counter counts every `kind='message'` audit row in the tenant database, across companies and across provider modes. The audit row carries no provider mode, so own-key messages count against `ai.messages.monthly` today (`ai_audit.py`, the check and `_liwan_ai_count_messages`).
-- A message is counted in `apps/web/server/api/ai/runs/index.post.ts` before the AI service is reached, so it is counted when the provider or the service fails. A handoff or a resume after an approval adds no count.
+- Limits `ai.messages.monthly`, `ai.tokens.monthly`, `ai.assist.monthly`, `ai.tool_calls.per_run` are registered in `odoo-addons/liwan_ai/models/feature_registry.py`. Enforcement is hand-written with a UTC calendar month in `ai_audit.py` and `ai_usage.py`, repeated in `liwan_ai_notify/models/limit_warning.py`.
+- The message counter counts every `kind='message'` audit row in the tenant database, across provider modes, so own-key messages count against `ai.messages.monthly` today. Per-call rows in `liwan.ai.usage` do carry `billing` (`platform`, `setup`, `tenant_key`).
+- A message is counted in `apps/web/server/api/ai/runs/index.post.ts` before the AI service is reached, so it is counted even when the provider fails.
 - The platform provider is one provider and one model: `apps/ai-service/src/liwan_ai_service/platform_provider.py`, table `ai_platform_provider` (`apps/control-plane/src/schema_032.sql`), page `apps/vendor-admin/app/pages/ai-provider.vue`.
 - The model is chosen once per request in `run_model_for` (`service.py`) and invoked in one place, the `plan` node (`graph.py`). Call kinds are `plan` and `title`.
 - No price or cost exists anywhere. No provider prompt caching. The service never shortens history; the only guard is the per-request input ceiling, which stops the run.
 - Chat attachments are not supported (2026-11-04 spec §6.9 keeps them out until the malware scanner exists).
-- Commerce: one subscription per customer with one cadence (`subscriptions.customer_id` unique). Priced quantities (users, storage, branches) are hard-wired on `plan_revisions`, quoted in `packages/commercial-contracts/src/commercial/quotes.ts`, compiled to entitlements in `entitlements.ts`, and delivered to `liwan.tenant.profile.features`. AI limits are plan-level values no customer can buy.
-- A lowered quantity reaches the tenant at once; only its price waits for renewal (`quotes.ts` renewal-timed delta, `orders.ts` compiling the entitlement from the requested values). The usage guard on downgrades sees 0 for AI messages, so it never blocks one.
-- A renewal re-quotes from the subscription's pinned snapshot and never selects a newer plan revision (`renewals.ts`). Whatever sits on the plan revision is frozen for existing subscribers.
-- Non-payment suspends the whole tenant after grace (`renewals.ts` `applyDunning`), while the trial-end rule locks only paid applications and keeps the free base usable (`liwan_platform/tests/test_free_base_after_trial.py`).
+- Commerce: one subscription per customer with one cadence. Everything sold is a recurring line; the only one-time line is the onboarding fee. There is no prepaid balance and no top-up. Limits reach the tenant as entitlement values in `liwan.tenant.profile.features`.
 - A zero-priced base plan revision is valid and can be quoted and ordered.
 - `liwan.tenant.profile` has no creation or trial-start field. Commercial trials are started and extended in the control plane.
 - The development database holds no AI usage rows, so there is no real usage to measure yet.
@@ -64,108 +57,95 @@ Measured locally on 2026-11-10 from the tool registry of the development databas
 
 Other providers tokenize differently, and the prefix grows as applications add tools.
 
-Estimated, not measured: a conversation of 30 messages with a 10-page document (about 8,000 tokens) kept in history, 60% of messages using one tool, about one million input tokens in total. Prices were read on 2026-11-10 from the providers' own pricing pages through a page summariser, so they are second-hand readings: a cheap model at 0.10 / 0.50 USD per million input / output tokens, a mid model at 2 / 10 with cached input at 0.10, and 3.75 SAR per USD.
+Estimated, not measured: a conversation of 30 messages with a 10-page document (about 8,000 tokens) kept in history, 60% of messages using one tool, about one million input tokens in total. Prices were read on 2026-11-10 from the providers' own pricing pages through a page summariser, so they are second-hand readings: a cheap model at 0.10 / 0.50 USD per million input / output tokens, a mid model at 2 / 10 with cached input at 0.10, and 3.75 SAR per USD. The customer columns add a 20% margin.
 
-| Case | Conversation cost | Per message |
-| --- | --- | --- |
-| Cheap model, nothing applied | 0.40 SAR | 0.013 |
-| Cheap model with §5.7 | 0.14 SAR | 0.005 |
-| Mid model, nothing applied | 7.97 SAR | 0.27 |
-| Mid model with §5.7, no caching | 2.84 SAR | 0.095 |
-| Mid model with §5.7 and caching | 1.65 SAR | 0.055 |
-| One isolated message, mid model | 0.07 SAR | 0.07 |
+| Case | Vendor cost per message | Customer pays per message | 30-message conversation, customer |
+| --- | --- | --- | --- |
+| Cheap model, nothing applied | 0.013 SAR | 0.016 | 0.48 SAR |
+| Cheap model with §5.7 | 0.005 | 0.006 | 0.17 SAR |
+| Mid model, nothing applied | 0.27 | 0.32 | 9.56 SAR |
+| Mid model with §5.7, no caching | 0.095 | 0.11 | 3.41 SAR |
+| Mid model with §5.7 and caching | 0.055 | 0.066 | 1.98 SAR |
 
-Pro plan (1,500 messages for 99 SAR) with 80% of messages on the cheap model and 20% on the mid model:
+What 100 SAR of balance buys with 80% of messages on the cheap model and 20% on the mid model:
 
-| Case | Provider cost | Share of price |
-| --- | --- | --- |
-| Nothing applied | 96 SAR | 97% |
-| With §5.7 | 35 SAR | 35% |
-| With §5.7 and caching | 21 SAR | 21% |
+| Case | Messages |
+| --- | --- |
+| Nothing applied | about 1,300 |
+| With §5.7 | about 3,600 |
+| With §5.7 and caching | about 5,900 |
 
 Consequences for the design:
 
-- The mid model costs about 20 times the cheap one, so the share of messages the router sends to the cheap model decides the margin more than any other number.
-- Without §5.7 a message inside a long conversation costs about four times an isolated one. Counting plain messages (D3) is only safe once §5.7 exists.
-- Every plan in §5.1 sells a message for 0.058 to 0.066 SAR. With §5.7 and caching, even a tenant whose every message reaches the mid model costs less than it pays. Without §5.7 the plans have no margin.
-- Not counted here: payment gateway fees (no official rate card was found), the annual discount (pay 10 months, get 12, which lowers revenue per message by 17%), and the trial and free allowances.
+- The vendor's margin no longer depends on the mix of models: it is the margin rate on whatever was used. The router and §5.7 now decide how far the customer's money goes, which decides whether customers keep topping up.
+- A long conversation on the mid model with nothing applied costs the customer about 10 SAR. §5.7 is still launch scope, for the customer's bill rather than the vendor's margin.
+- Charging real cost needs real numbers: a model whose provider reports no token counts cannot be used for charged runs, and the cached-input price must be known before caching is switched on.
+- The margin has to cover what is given away: payment gateway fees (not verified; commonly quoted at 1 to 2.5% plus a fixed fee per transaction), the trial and free allowances, and the free help and setup agents.
 
 ## 5. Design
 
-### 5.1 Plans
+### 5.1 Balance and charging
 
-Vendor-editable values, never hard-coded. Starting values:
+- Every model call on the vendor's provider in an ordinary conversation is charged: planning calls, the classification call, titles and summaries. Help and setup conversations are never charged. Own-key calls are never charged.
+- Charge per call = the call's cost (§5.6) plus the margin in force when the call ran, rounded up to the cost unit. The margin is one vendor-set rate (20% to start, D3 allows 15 to 25%).
+- A provider attempt that fails reports no tokens and is not charged, so a request that fails on LiwanOS's side costs the customer nothing.
+- The balance is a ledger in the tenant database: grants (top-ups, delivered by the control plane as one cumulative total) minus charges (the usage rows). The tenant enforces it locally; nothing asks the control plane at run time (R5).
+- A run starts only when the tenant has free allowance or balance left. A run in progress may overdraw by at most its own cost, which the per-request output cap, input ceiling and tool-call limit bound.
+- The administrator's per-user monthly message cap stays as the way to share the balance between users. `ai.messages.monthly` and `ai.tokens.monthly` as tenant-wide limits are removed.
+- The customer sees the balance, this month's spend, an estimate of messages left based on the tenant's own average, and the top-up history. Amounts show in USD or SAR by a switch on the display (D5), converted at a vendor-set rate that starts at the 3.75 peg.
 
-| Plan | Monthly price | Messages per month | Weekly limit (35%) |
-| --- | --- | --- | --- |
-| Start | 29 SAR | 500 | 175 |
-| Pro | 99 SAR | 1,500 | 525 |
-| Max | 249 SAR | 4,000 | 1,400 |
-| Ultra | 499 SAR | 8,500 | 2,975 |
+### 5.2 Free allowance
 
-- Prices are fixed for launch. Message counts are provisional until the measurement in slice 12.
-- The weekly limit is derived: one vendor-set share of the monthly allowance (35% at launch), rounded down. It is never typed per plan.
-- A plan replaces the permanent free allowance (D14). The monthly allowance of a subscribed tenant is the plan's message count.
-- The pool is per tenant database. Splitting it between users is the administrator's existing per-user monthly cap; no new tenant setting is added.
-- A plan counts only messages of ordinary conversations on the platform provider. Help and setup messages keep their own budget. Messages on the tenant's own key are limited only by the administrator's per-user cap.
-- A message whose run ends in a service or provider failure is not counted (D13). A run the user cancels or a limit stops is counted.
-- The customer sees the plan name, its price, its message count, and two usage bars (this week, this month) with reset times.
-
-### 5.2 Trial allowance
-
-- During the trial the tenant gets a vendor-set number of messages per 5-day window, counted from the trial start.
-- One clock: the control plane pushes the trial start and end into the tenant profile through the existing revisioned delivery, and the limit check reads only that (R5). A vendor extension of the trial extends the allowance with it.
-- During the trial the trial window replaces the weekly and monthly checks, so a permanent free allowance of zero does not block the trial.
-- The trial runs on the same router as paid plans. Buying a plan during the trial replaces the trial allowance.
+- The free allowance is a value, not a message count, in the same cost unit as the balance. It is used before the balance and does not accumulate: what is left when a window ends is gone.
+- During the trial: a vendor-set allowance per 5-day window, counted from the trial start. After the trial: a vendor-set allowance per calendar month, which may be zero.
+- One clock: the control plane pushes the trial start and end into the tenant profile through the existing revisioned delivery, and the check reads only that. A vendor extension of the trial extends the allowance with it.
+- The free allowance runs on the same router as paid use, so a new tenant sees the strong models.
 - The seeded free plan carries no commercial trial today. Whether sign-up always opens a trial, or the delivery carries an AI trial period of its own, is settled in slice 6 (§7).
 
-### 5.3 Selling
+### 5.3 Selling a top-up
 
-- The plan is a priced selection on the plan revision, bought through the existing quote, order, invoice and fulfilment chain. A second subscription object is rejected: it would duplicate invoices, renewals, dunning and suspension.
-- On the plan revision: the weekly share and the list of steps (code, Arabic and English name, messages, price per cadence). The AI step is added to the quote computation, the current-quote shape, the renewal lines and the subscription snapshot.
-- Outside the plan revision: the permanent free allowance and the trial allowance are a vendor-level setting, delivered with the entitlement. A renewal reuses the pinned revision, so anything on the revision cannot be changed for existing subscribers.
-- Changing message counts for existing subscribers is a vendor action that moves them to a newer revision. It never lowers the count inside a period the customer already paid for; an annual subscriber keeps its count until renewal.
-- Because a subscription has one cadence, the AI plan follows the main subscription's cadence. An annual subscriber pays the annual AI price up front under the existing catalog rule (pay 10 months, get 12); the allowance still resets monthly and weekly.
-- Upgrade (D11): charged for the remaining period by the existing proration, and the first allowance is prorated the same way. Without this, a tenant could raise to Ultra with one day left for about 16 SAR, use up to two weekly limits (about 6,000 messages), and lower the plan again every month.
-- Downgrade (D11): recorded as pending and applied at renewal. Today a lowered quantity reaches the tenant at once, so the subscription needs a pending AI step.
-- Non-payment (D12): an unpaid AI renewal drops the AI step from the entitlement and the tenant returns to the free allowance. The tenant is suspended only for its main subscription, never for the AI step alone.
-- Purchase page: `apps/web/app/pages/subscription/ai.vue`, the only location rule R5 allows for customer commerce. `/ai`, the AI settings page and the limit notice link to it and import nothing commercial.
-- A tenant with no paid subscription buys through a zero-priced base plan revision that carries the AI steps. Slice 7 tests an AI-only first order on such a tenant, including the rule that a paid first order needs a reachable manager.
+- A top-up is a one-time line in the existing quote, order, invoice and payment chain, like the onboarding fee. It is not a recurring line and takes no part in renewals, proration or cadence.
+- The vendor sets the top-up amounts on offer and a minimum (to start: 25, 50, 100, 250 and 500 SAR). The customer pays in SAR.
+- On payment, the control plane adds the amount to the customer's cumulative granted total and delivers the new total to the tenant with the entitlement. A refunded top-up lowers the total.
+- Purchase page: `apps/web/app/pages/subscription/ai.vue`, the only location rule R5 allows for customer commerce. `/ai`, the AI settings page and the stopped notice link to it and import nothing commercial.
+- A tenant with no paid subscription buys through a zero-priced base plan revision. Slice 7 tests a top-up as the first order on such a tenant, including the rule that a paid first order needs a reachable manager.
+- The free and trial allowances and the margin are vendor-level settings, not plan-revision fields, because a renewal reuses the pinned revision and they must be changeable for every tenant.
 
-### 5.4 Limits and enforcement (Odoo)
+### 5.4 Enforcement and warnings (Odoo)
 
-- Remove `ai.tokens.monthly` everywhere. Add `ai.messages.weekly` and the trial allowance key. `ai.messages.monthly` becomes a value derived by the entitlement compiler, like `users.limit`. In `non_saas` the operator's local policy sets these keys directly.
-- The message audit row stores the provider mode it ran under. Plan limits count platform rows only; a mid-month switch of provider mode changes which rows count from that message on.
-- A message row whose run fails on the service or provider side is removed from the count (D13).
-- One window helper in `liwan_platform` returns the start and reset time of the month, the week and the trial window in the timezone of the tenant's root company. Month starts on the 1st. Week starts on Sunday and is clipped to the month start, so a weekly stop does not carry into the next month. The clipped week keeps the full weekly limit: at a month boundary up to two weekly limits can be used within a few days, which the monthly allowance still bounds.
-- The pre-run check in `ai_audit.create` tests the applicable windows. A refusal carries which window stopped the run and when it resets.
-- The policy sent with each run and the limits route drop the token fields and carry the message counts, limits and reset times.
-- Warnings at 80% and 95% cover both windows, with the window start in the dedupe key.
-- Per-request guards stay: output cap, input ceiling, tool calls per run. The administrator's per-user monthly cap stays.
+- Remove `ai.tokens.monthly` and the tenant-wide `ai.messages.monthly`. Add the delivered keys: granted total, trial allowance, monthly free allowance, trial start and end. In `non_saas` the operator's local policy sets them directly; unset means unlimited.
+- One window helper in `liwan_platform` returns the start and reset time of the current free-allowance window (5-day trial window or calendar month) in the timezone of the tenant's root company. The hand-written month starts are replaced by it.
+- The pre-run check in `ai_audit.create` tests the free allowance of the current window, then the balance. A refusal says the balance is used up and, when a free allowance exists, when it renews.
+- Charges come from `liwan.ai.usage` rows with `billing='platform'`. Those rows are the ledger and are kept for the life of the tenant.
+- The policy sent with each run and the limits route drop the token and message fields and carry the balance, the free allowance left and its reset time.
+- Warnings: a bell and an e-mail to the administrators when the balance falls below a threshold, and again when it reaches zero. The tenant may set a monthly spend ceiling in the AI settings (scope: tenant; default: none; changed by `ai.settings.manage`); reaching it stops the assistant like an empty balance.
+- Per-request guards stay: output cap, input ceiling, tool calls per run.
 
 ### 5.5 Task router
 
 - Unit: one classification per user message. The whole tool loop of that message stays on one model, so a tool call and its result never cross providers.
-- Capabilities, each tied to what the agents do: `quick` (greetings, simple lookups, help and setup, titles, classification), `standard` (ordinary multi-tool work; also the fallback), `analysis` (numbers, comparisons, reports), `writing` (long Arabic or English text, translation).
+- Capabilities, each tied to what the agents do: `quick` (greetings, simple lookups, help and setup, titles, classification, summaries), `standard` (ordinary multi-tool work; also the fallback), `analysis` (numbers, comparisons, reports), `writing` (long Arabic or English text, translation).
 - Classifier: one `route` call on the `quick` model with the last user message, the active agent and the previous capability; no history and no tools. One attempt with a short timeout. Any failure selects `standard`, never a failed run.
 - No classification call when it cannot change the outcome: setup and help runs use `quick`, titles use `quick`, own-key runs have one model, and a vendor who maps only a default model gets no extra call. The last case is the kill switch and the shape of a dedicated single-model install.
 - The capability is stored in the run state as a plain string and reset on each new message. A resume after a tool result or an approval reads it from state and never classifies again. The model object never enters state. New state keys are read with defaults; whether `AI_STATE_VERSION` changes is decided in slice 3.
-- Vendor mapping: several providers with their keys, a list of models with input and output price per million tokens, and a map from capability to model with a required default. The singleton table, the single-model file and the single-model page are replaced in place. An invalid model entry is dropped and its routes fall to the default; only a structural error or a bad default rejects the file, and then the last valid configuration stays.
+- Vendor mapping: several providers with their keys, a list of models with input, cached-input and output price per million tokens, and a map from capability to model with a required default. A model can be mapped for charged runs only after a test call that reports token counts. The singleton table, the single-model file and the single-model page are replaced in place. An invalid model entry is dropped and its routes fall to the default; only a structural error or a bad default rejects the file, and then the last valid configuration stays.
 - Fallback: when the routed model exhausts its retries on a transient provider error, one attempt runs on the default model and the rest of that message stays on the default.
 - Egress: the hosts of every configured provider are published for the allowlist proxy.
 - History portability: a pure function normalises checkpointed history before every model call (plain text plus tool calls, provider metadata dropped, tool-call ids remapped where a provider would refuse them). The checkpoint is not rewritten. This is the riskiest part of the design and is built first.
 
-### 5.6 Cost recording (vendor only)
+### 5.6 Cost and charge per call
 
-- Every model call records its capability and an integer cost computed in the AI service from the vendor's prices. One cost unit is 0.00001 USD. A price entered in USD per million tokens is first converted to units per million tokens (`price × 100,000`, an integer), then `cost = ceil((input_tokens × input_units + output_tokens × output_units) / 1,000,000)`. Example: 1,000 input tokens at 3 USD per million cost 0.003 USD and are stored as 300 units. A call with no reported tokens or no price stores no cost.
-- The cost is for the vendor: what each tenant cost against what it paid, and calls, tokens and cost per capability and model. It never appears to the customer and takes no part in limits.
+- One unit is 0.00001 USD. A price entered in USD per million tokens is first converted to units per million tokens (`price × 100,000`, an integer), then `cost = ceil((input_tokens × input_units + cached_tokens × cached_units + output_tokens × output_units) / 1,000,000)`. Example: 1,000 input tokens at 3 USD per million cost 0.003 USD and are stored as 300 units.
+- `charge = ceil(cost × (1 + margin))`. Both values are computed in the AI service, which holds the prices and the margin, and both are stored on the usage row with the capability.
+- A call with no reported tokens stores no cost and no charge.
+- The vendor sees cost against charge per tenant, capability and model. The customer sees charges only.
 - Wire changes reach all three strict contract copies (service, `packages/contracts`, Odoo `liwan.ai.usage`) in one release.
 
 ### 5.7 Long conversations
 
 1. Rolling summary. The last few exchanges stay verbatim; older ones are replaced by a short summary written by the `quick` model. It runs in batches (about every 10 messages), not on every message, so the cached prefix survives between batches. The summary is stored in the run state; the checkpointed messages stay complete.
 2. Old tool results are replaced by a one-line stub in what is sent to the model, once the model has answered from them. Tool-call ids stay paired. The model reads again through the tool when it needs the data, which the existing rule "you know nothing except through tools" already requires.
-3. Provider prompt caching: rules and tools first in a stable order, then the summary, then the volatile parts, with cache markers where the provider needs them. The cost formula in §5.6 needs the cached-input price before caching is switched on, or it overstates cost.
+3. Provider prompt caching: rules and tools first in a stable order, then the summary, then the volatile parts, with cache markers where the provider needs them.
 4. After a set length the conversation offers "start a new conversation", carrying the summary over.
 
 Security rules for the summary:
@@ -177,8 +157,8 @@ Attachments, when they are built, do not enter history: the file text is extract
 
 ### 5.8 Customer-hosted and dedicated (`non_saas`)
 
-- Limits come from the operator's local policy; an unset limit is unlimited.
-- The purchase page and every upgrade action are hidden. The stopped state says to contact the administrator.
+- There is no balance: the operator pays its own provider. Limits come from the operator's local policy; an unset limit is unlimited.
+- The top-up page and every purchase action are hidden. The stopped state says to contact the administrator.
 - A single-model platform file stays valid: every capability falls to the default.
 
 ## 6. Delivery slices
@@ -188,47 +168,49 @@ One owner per file; a slice that shares a file with an earlier one merges after 
 | # | Slice | Depends on | Launch |
 | --- | --- | --- | --- |
 | 1 | Portable history, with a cross-provider test matrix and one live two-provider check | none | yes, first |
-| 2 | Usage wire: capability and cost on every call (service, web, Odoo) | none | yes |
-| 3 | Platform file with several models, per-request model map, egress hosts | 2 | yes |
+| 2 | Usage wire: capability, cost and charge on every call (service, web, Odoo) | none | yes |
+| 3 | Platform file with several models, prices and margin; per-request model map; egress hosts | 2 | yes |
 | 4 | Classifier and fallback | 1, 3 | yes |
-| 5 | Control plane provider tables and routes; vendor provider page | 3 | yes |
-| 6 | Odoo message limits: provider mode on the message row, weekly and trial windows, window helper, failed messages not counted, policy, warnings; `ai.tokens.monthly` removed | none | yes |
-| 7 | Commerce: AI steps in quote, snapshot and renewal; prorated first allowance; pending downgrade; AI-only lapse; vendor-level free and trial allowances; trial dates delivered to the tenant | none | yes |
-| 8 | Vendor plan form: weekly share, steps and prices; allowances setting; move subscribers to a revision | 7 | yes |
-| 9 | Customer UI: purchase page, usage bars, stopped state | 6, 7 | yes |
+| 5 | Control plane provider tables and routes; vendor provider page with prices and margin | 3 | yes |
+| 6 | Odoo ledger: balance and free-allowance check, window helper, spend ceiling setting, warnings, policy; tenant-wide message and token limits removed | 2 | yes |
+| 7 | Commerce: one-time top-up line, cumulative granted total, refund, delivery to the tenant; vendor-level allowances and trial dates | none | yes |
+| 8 | Vendor console: top-up amounts, allowances, conversion rate | 7 | yes |
+| 9 | Customer UI: top-up page, balance with the USD and SAR switch, usage, stopped state | 6, 7 | yes |
 | 10 | Rolling summary, tool-result stubs, new-conversation prompt, with the security rules of §5.7 | 4 | yes |
 | 11 | Prompt caching and the cached-input price | 10 | yes |
-| 12 | Cost measurement on the chosen models with long conversations; final message counts | 4, 10, 11 | yes, owner gate |
-| 13 | Vendor cost report per tenant, capability and model | 2 | after launch |
+| 12 | Measurement on the chosen models with long conversations, to publish what a top-up buys | 4, 10, 11 | yes |
+| 13 | Vendor report: cost against charge per tenant, capability and model | 2 | after launch |
 | 14 | Attachments through retrieval | scanner | after launch |
 
-Slices 1, 2, 6 and 7 start in parallel. If time runs short, the router ships with only a default model mapped and the mapping is switched on afterwards with no code change. Slice 10 cannot be dropped: §4 shows the plans have no margin without it.
+Slices 1, 2 and 7 start in parallel. If time runs short, the router ships with only a default model mapped and the mapping is switched on afterwards with no code change.
 
 ## 7. Open items
 
 | Item | Default in this document |
 | --- | --- |
-| Annual subscribers and the AI plan | Follows the subscription cadence, pay 10 months and get 12 |
-| Weekly share | 35%, one value for all plans |
-| Cost unit | USD, as providers publish prices |
-| Final message counts | Set after slice 12 |
+| Margin | 20%, one rate for every model, vendor-editable |
+| Top-up amounts | 25, 50, 100, 250, 500 SAR |
+| Unused balance | Does not expire while the tenant is active; refunded only inside the existing 14-day window and only if untouched |
+| Conversion rate | 3.75 SAR per USD, vendor-editable |
+| Automatic top-up from a saved card | Not at launch |
+| A tenant choice between cheaper and stronger answers | Not at launch; the router decides |
 | Trial clock for a tenant that signs up on the free plan | To settle in slice 6 |
-| Payment gateway fee on a 29 SAR charge | Not verified; to confirm with the chosen gateway |
+| Payment gateway fee | Not verified; to confirm with the chosen gateway before fixing the minimum top-up |
 | Arabic quality and tool calling of the cheap models | To verify in the evaluation before any mapping is switched on |
-| Large tenants | Ultra gives 85 messages per user a month at 100 users; a larger step or "contact us" may be needed |
 
 ## 8. Risks
 
 - Switching provider between messages on provider-shaped history has no tests today. Slice 1 exists to remove this risk before anything depends on it.
 - A cheap model may call tools badly across a growing catalog. An offline evaluation on real prompts per capability comes before any mapping is switched on.
-- A summary can drop a number or a name. The tool-first rule limits the damage; slice 10 tests that the model reads again instead of answering from the summary.
-- A summary carries untrusted text forward. §5.7 keeps it framed as data and keeps history guards on the full record.
-- Plan prices assume most messages reach the cheap model and §5.7 works. If slice 12 shows otherwise, the message counts change for new periods, not the prices.
+- Charging errors are now billing errors. A wrong price in the vendor panel, a provider that changes prices, or a miscounted cached token overcharges or undercharges every tenant. The vendor report in slice 13 compares charges with the provider's own invoice; until it exists the check is manual.
+- A variable bill is harder to sell to a small company than a fixed plan. The balance display, the estimate of messages left and the spend ceiling are what make it predictable.
+- A summary can drop a number or a name, and it carries untrusted text forward. The tool-first rule and §5.7's security rules limit both.
 - Twelve slices before 2026-12-06 next to the rest of the launch scope. The kill switch in §5.5 keeps the launch independent of the router mapping.
 
 ## 9. Amendments to the 2026-11-04 spec
 
-- §6.8: the monthly token limit `ai.tokens.monthly` is replaced by the message limits of §5.4 here. The per-run output cap and the input ceiling stay.
+- §6.8: the monthly token limit `ai.tokens.monthly` and the tenant-wide monthly message limit are replaced by the prepaid balance and the free allowance here. The per-run output cap and the input ceiling stay.
 - §6.7: the administrator's monthly messages per user stays as it is.
+- §6.13: the free help and setup agents and their `ai.assist.monthly` budget are unchanged.
 - §6.14: model routing is no longer deferred; §5.5 here is the design. Routing is per message, with four capabilities, instead of per step.
 - §6.9, chat attachments: unchanged, with the added rule in §5.7 that an attachment never enters conversation history.

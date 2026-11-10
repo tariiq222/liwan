@@ -186,7 +186,7 @@ What may reach a model provider, the same for every provider and every key. Enfo
 
 ### 6.14 Routing models by kind of task
 
-No longer deferred (owner decision 2026-11-10). The design is [2026-11-10 AI plans and task router](2026-11-10-liwan-ai-plans-and-router-design.md) §5.5: one classification per user message, four capabilities, and a vendor map from capability to model in the provider panel. That document also replaces the monthly token limit of §6.8 with message limits; §6.8 is edited in the change that implements them.
+No longer deferred (owner decision 2026-11-10). The design is [2026-11-10 AI prepaid balance and task router](2026-11-10-liwan-ai-plans-and-router-design.md) §5.5: one classification per user message, four capabilities, and a vendor map from capability to model in the provider panel. That document also replaces the monthly limits of §6.8 with a prepaid balance charged at provider cost plus a margin; §6.8 is edited in the change that implements it.
 
 ### 6.15 Deferred: more free assistance (owner decision 2026-11-06)
 
