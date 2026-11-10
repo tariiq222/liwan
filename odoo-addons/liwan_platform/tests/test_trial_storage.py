@@ -1,11 +1,17 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from base64 import b64encode
 from datetime import datetime, timedelta
+from io import BytesIO
+from unittest import TestCase
+
+from PIL import Image
 
 from odoo import fields
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .test_read_only_excess import ExcessCase
+from odoo.addons.base.models.assetsbundle import AssetsBundle
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -20,7 +26,7 @@ FALLBACK_DIGEST = 'b' * 64
 class TestTrialStorage(ExcessCase):
 
     def _files(self):
-        baseline = sum(self.env['ir.attachment'].search([('type', '=', 'binary')]).mapped('file_size'))
+        baseline = self.service._liwan_count_storage_bytes()
         limit = -(-baseline // MIB) + 2
         values = [
             {'name': f'F{index}.txt', 'raw': bytes([65 + index]) * FILE_BYTES, 'mimetype': 'text/plain',
@@ -57,16 +63,80 @@ class TestTrialStorage(ExcessCase):
         self.assertEqual(len(newest.raw), FILE_BYTES)
         self.assertTrue(self.service._liwan_excess_is_settled())
 
-    def test_branding_bytes_reserve_capacity_without_being_blocked(self):
-        logo = self.env['ir.attachment'].create({
-            'name': 'Brand logo', 'raw': b'X' * MIB, 'mimetype': 'text/plain',
-            'res_model': 'res.company', 'res_field': 'logo', 'res_id': self.record.root_company_id.id,
-        })
-        upload = self.env['ir.attachment'].create({'name': 'customer data', 'raw': b'user'})
+    def test_canonical_company_logo_survives_zero_quota_but_private_avatar_does_not(self):
+        stream = BytesIO()
+        Image.new('RGB', (24, 24), (10, 100, 240)).save(stream, format='PNG')
+        logo = b64encode(stream.getvalue())
+        company = self.record.root_company_id
+        company.write({'logo': logo})
+        avatar = self.env['res.partner'].create({'name': 'Personal avatar', 'image_1920': logo})
+        Attachment = self.env['ir.attachment']
+        backing = Attachment.search([
+            ('res_model', '=', 'res.partner'), ('res_field', '=', 'image_1920'),
+            ('res_id', '=', company.partner_id.id),
+        ])
+        personal = Attachment.search([
+            ('res_model', '=', 'res.partner'), ('res_field', '=', 'image_1920'),
+            ('res_id', '=', avatar.id),
+        ])
+        self.assertGreater(backing.file_size, 0)
+        self.assertGreater(personal.file_size, 0)
         self._set_limit('storage.limit_mb', 0)
-        self.assertFalse(logo.liwan_storage_blocked)
-        self.assertEqual(len(logo.raw), MIB)
-        self.assertTrue(upload.liwan_storage_blocked)
+        self.assertFalse(backing.liwan_storage_blocked)
+        self.assertTrue(personal.liwan_storage_blocked)
+        company.invalidate_recordset(['logo'])
+        company.partner_id.invalidate_recordset(['image_1920'])
+        self.assertTrue(company.logo)
+        self.assertTrue(self.service._liwan_excess_is_settled())
+
+    def test_native_language_flags_remain_available_when_storage_is_exhausted(self):
+        flags = self.env['ir.attachment'].search([
+            ('res_model', '=', 'res.lang'), ('res_field', '=', 'flag_image'), ('file_size', '>', 0),
+        ])
+        self.assertTrue(flags)
+        self._set_limit('storage.limit_mb', 0)
+        self.assertFalse(any(flags.mapped('liwan_storage_blocked')))
+        languages = self.env['res.lang'].browse(flags.mapped('res_id'))
+        languages.invalidate_recordset(['flag_image', 'flag_image_url'])
+        self.assertTrue(any(languages.mapped('flag_image_url')))
+
+    def test_native_generated_web_asset_can_be_saved_at_zero_quota(self):
+        self._set_limit('storage.limit_mb', 0)
+        gross = self.service._liwan_count_storage_bytes()
+        asset = AssetsBundle('liwan.storage.fixture', [], env=self.env).save_attachment('css', 'body { color: red; }')
+        self.assertEqual(asset.raw, b'body { color: red; }')
+        self.assertFalse(asset.liwan_storage_blocked)
+        self.assertGreater(self.service._liwan_count_storage_bytes(), gross)
+        with self.assertRaises(LiwanAccessRule):
+            self.env['ir.attachment'].create({'name': 'root private file', 'raw': b'data'})
+
+    def test_attachment_rejects_direct_storage_fields_and_url_with_existing_bytes(self):
+        Attachment = self.env['ir.attachment']
+        attachment = Attachment.create({'name': 'content.txt', 'raw': b'first payload', 'mimetype': 'text/plain'})
+        with self.assertRaises(ValidationError):
+            Attachment.create({'name': 'database input', 'db_datas': b'unsupported'})
+        with self.assertRaises(ValidationError):
+            Attachment.create({'name': 'noncanonical raw input', 'raw': memoryview(b'unsupported')})
+        with self.assertRaises(ValidationError):
+            attachment.write({'db_datas': b'unsupported'})
+        with self.assertRaises(ValidationError):
+            attachment.write({'type': 'url', 'url': 'https://example.test/file'})
+        self.assertEqual((attachment.type, attachment.raw, attachment.file_size), ('binary', b'first payload', 13))
+        attachment.write({'type': 'url', 'url': 'https://example.test/file', 'raw': False})
+        self.assertEqual((attachment.type, attachment.file_size), ('url', 0))
+        self.assertFalse(attachment.raw)
+
+    def test_storage_planning_visits_every_batch_and_keeps_total_exact(self):
+        Attachment = self.env['ir.attachment']
+        files = Attachment.create([
+            {'name': f'Batch file {index}', 'raw': b'xx', 'mimetype': 'text/plain'}
+            for index in range(260)
+        ])
+        self._set_limit('storage.limit_mb', 0)
+        blocked, _close, _reopen, total = self.service._liwan_storage_plan()
+        self.assertTrue(set(files.ids) <= blocked)
+        self.assertGreaterEqual(total, 520)
+        self.assertTrue(all(files.mapped('liwan_storage_blocked')))
         self.assertTrue(self.service._liwan_excess_is_settled())
 
     def test_storage_proof_checks_flags_before_advertising_settlement(self):
@@ -131,6 +201,45 @@ class TestAutonomousTrialExpiry(ExcessCase):
             attachment.raw
         self.assertEqual(caught.exception.code, 'storage_excess_blocked')
         self.assertEqual(self.record.trial_ends_at, CUTOFF)
+
+    def test_overdue_binary_and_host_reads_share_one_projection_until_metadata_changes(self):
+        Attachment = self.env['ir.attachment']
+        first, second = Attachment.create([
+            {'name': 'cached-1.txt', 'raw': b'first', 'mimetype': 'text/plain'},
+            {'name': 'cached-2.txt', 'raw': b'second', 'mimetype': 'text/plain'},
+        ])
+        self.assertEqual(first.raw, b'first')
+        self.assertTrue(second.datas)
+        fallback = {**self.record.features, 'storage.limit_mb': 0}
+        self._trial(fallback)
+        scans = []
+        original = type(Attachment).search_fetch
+
+        def track(attachments, domain, field_names, *args, **kwargs):
+            if 'liwan_storage_blocked' in field_names and 'file_size' in field_names:
+                scans.append(1)
+            return original(attachments, domain, field_names, *args, **kwargs)
+
+        self.patch(type(Attachment), 'search_fetch', track)
+        self.clock = CUTOFF
+        # These reads are pure; an Odoo savepoint rollback would intentionally clear the cursor cache.
+        with TestCase.assertRaises(self, LiwanAccessRule):
+            first.raw
+        batches = len(scans)
+        self.assertGreater(batches, 0)
+        for row in (first, second):
+            for field in ('raw', 'datas'):
+                with TestCase.assertRaises(self, LiwanAccessRule):
+                    row[field]
+        before = self.service._liwan_blocked_storage_bytes()
+        self.service._liwan_excess_counts()
+        self.assertEqual(len(scans), batches)
+        first.unlink()
+        self.assertEqual(self.service._liwan_blocked_storage_bytes(), before - len(b'first'))
+        self.operator.write({'post_trial_features': {**fallback, 'storage.limit_mb': None}})
+        self.assertEqual(second.raw, b'second')
+        second.write({'raw': b'new content'})
+        self.assertEqual(second.raw, b'new content')
 
     def test_cronless_branch_write_obeys_fallback_before_flags_are_materialized(self):
         company_id = self.operator._liwan_apply_branches(

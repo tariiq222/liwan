@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 from odoo.exceptions import AccessError, MissingError
+from odoo.fields import Domain
 
 from .entitlement_service_seats import BRANCH_LIMIT, USER_LIMIT
 from .read_only_guard import _owner_path
@@ -9,40 +10,74 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 STORAGE_LIMIT = 'storage.limit_mb'
 BYTES_PER_MIB = 1048576
 STORAGE_FLAG = 'liwan_storage_blocked'
-STORAGE_METADATA = ('file_size', 'type', 'res_model', 'res_field', 'res_id', 'url', 'create_uid', STORAGE_FLAG)
+STORAGE_METADATA = ('file_size', 'type', 'res_model', 'res_field', 'res_id', 'url', 'public', 'mimetype', 'create_uid', STORAGE_FLAG)
+PLAN_KEY = 'liwan_platform.storage_plan'
+STORAGE_BATCH_SIZE = 250
 
 
 class LiwanEntitlementStorage(models.AbstractModel):
     _inherit = 'liwan.entitlement.service'
 
     @api.model
+    def _liwan_invalidate_storage_plan(self):
+        self.env.cr.cache.pop(PLAN_KEY, None)
+
+    @api.model
     def _liwan_storage_plan(self):
-        """Return the expected blocked ids and the records whose persisted flags need changing."""
+        """One allocation per transaction snapshot and effective storage limit."""
         limit = self._liwan_limit_value(STORAGE_LIMIT)
         if limit is not None and (type(limit) is not int or limit < 0):
             msg = 'tenant_configuration_invalid'
             raise LiwanAccessRule(msg, 'tenant storage limit is invalid', status=503)
-        # File ownership rules must not hide bytes from tenant-wide storage accounting. Only
-        # metadata leaves this search; content and record identities never leave this service.
-        attachments_sudo = self.env['ir.attachment'].sudo()
-        domain = [(STORAGE_FLAG, '=', True)] if limit is None else [
-            '|', (STORAGE_FLAG, '=', True), '&', ('type', '=', 'binary'), ('file_size', '>', 0),
-        ]
-        tracked = attachments_sudo.search_fetch(domain, STORAGE_METADATA, order='create_date, id')
+        cache = self.env.cr.cache
+        cached = cache.get(PLAN_KEY)
+        if cached is None or cached[0] != limit:
+            cached = (limit, *self._liwan_scan_storage_plan(limit))
+            cache[PLAN_KEY] = cached
+        return cached[1:]
+
+    @api.model
+    def _liwan_scan_storage_plan(self, limit):
+        # The global quota includes files hidden by parent or company rules. This search reads metadata only.
+        attachments_sudo = self.env['ir.attachment'].sudo().with_context(skip_res_field_check=True)
+        flagged_domain = Domain(STORAGE_FLAG, '=', True)
+        binary = Domain('type', '=', 'binary') & Domain('file_size', '>', 0)
+        tracked = flagged_domain if limit is None else flagged_domain | binary
+        company_partners = self.env['res.company']._liwan_company_partner_ids() if limit is not None else set()
+        available = limit * BYTES_PER_MIB if limit is not None else 0
+        candidates = []
+        flagged = set()
+        after = Domain.TRUE
+        while True:
+            rows = attachments_sudo.search_fetch(
+                tracked & after, STORAGE_METADATA + ('create_date',),
+                order='create_date, id', limit=STORAGE_BATCH_SIZE,
+            )
+            for row in rows:
+                if row.liwan_storage_blocked:
+                    flagged.add(row.id)
+                if limit is None or row.type != 'binary' or not row.file_size:
+                    continue
+                if row._liwan_storage_system_file(company_partners):
+                    available -= row.file_size
+                else:
+                    candidates.append((row.id, row.file_size))
+            if len(rows) < STORAGE_BATCH_SIZE:
+                break
+            last = rows[-1]
+            same_date = Domain('create_date', '=', last.create_date) & Domain('id', '>', last.id)
+            after = same_date
+            if last.create_date:
+                after |= Domain('create_date', '>', last.create_date) | Domain('create_date', '=', False)
+
         blocked = set()
-        if limit is not None:
-            eligible = tracked.filtered(lambda row: row.type == 'binary' and row.file_size > 0)
-            system = eligible.filtered(lambda row: row._liwan_storage_system_file())
-            available = limit * BYTES_PER_MIB - sum(system.mapped('file_size'))
-            for attachment in eligible - system:
-                available -= attachment.file_size
-                if available < 0:
-                    blocked.add(attachment.id)
-        return (
-            tracked.browse(blocked),
-            tracked.filtered(lambda row: row.id in blocked and not row.liwan_storage_blocked),
-            tracked.filtered(lambda row: row.id not in blocked and row.liwan_storage_blocked),
-        )
+        blocked_bytes = 0
+        for row_id, size in candidates:
+            available -= size
+            if available < 0:
+                blocked.add(row_id)
+                blocked_bytes += size
+        return frozenset(blocked), frozenset(blocked - flagged), frozenset(flagged - blocked), blocked_bytes
 
     @api.model
     def _liwan_storage_inventory(self, limit, offset, *, blocked):
@@ -55,9 +90,10 @@ class LiwanEntitlementStorage(models.AbstractModel):
             # owners may grant an attachment record read without exposing the underlying field.
             ('res_field', '=', False),
         ]
-        projected = set(self._liwan_storage_plan()[0].ids) if self._liwan_post_trial_due() else None
+        projected = self._liwan_storage_plan()[0] if self._liwan_post_trial_due() else None
         if projected is None and blocked is not None:
             domain.append((STORAGE_FLAG, '=', blocked))
+        company_partners = self.env['res.company']._liwan_company_partner_ids()
         visible = []
         total = 0
         batch_size = 200
@@ -71,7 +107,7 @@ class LiwanEntitlementStorage(models.AbstractModel):
                 is_blocked = row.liwan_storage_blocked if projected is None else row.id in projected
                 if blocked is not None and is_blocked != blocked:
                     continue
-                if not self._liwan_storage_inventory_visible(row, company):
+                if not self._liwan_storage_inventory_visible(row, company, company_partners):
                     continue
                 if offset <= total < offset + limit:
                     visible.append((row, is_blocked))
@@ -81,9 +117,9 @@ class LiwanEntitlementStorage(models.AbstractModel):
             after_id = batch[-1].id
 
     @api.model
-    def _liwan_storage_inventory_visible(self, attachment, company):
+    def _liwan_storage_inventory_visible(self, attachment, company, company_partners):
         try:
-            if attachment._liwan_storage_system_file():
+            if attachment._liwan_storage_system_file(company_partners):
                 return False
             if not attachment.res_id:
                 return attachment.create_uid == attachment.env.user and bool(attachment.read(['id']))
@@ -109,9 +145,10 @@ class LiwanEntitlementStorage(models.AbstractModel):
     def _liwan_settle_storage(self):
         profile = self._liwan_profile()
         profile._liwan_lock()
-        _blocked, close, reopen = self._liwan_storage_plan()
-        self._liwan_apply_flags(close, {STORAGE_FLAG: True})
-        self._liwan_apply_flags(reopen, {STORAGE_FLAG: False})
+        _blocked, close, reopen, _bytes = self._liwan_storage_plan()
+        Attachment = self.env['ir.attachment']
+        self._liwan_apply_flags(Attachment.browse(close), {STORAGE_FLAG: True})
+        self._liwan_apply_flags(Attachment.browse(reopen), {STORAGE_FLAG: False})
         return bool(close or reopen)
 
     @api.model
@@ -125,15 +162,14 @@ class LiwanEntitlementStorage(models.AbstractModel):
             for limit in (self._liwan_limit_value(key) for key in self._liwan_excess_capabilities())
         ):
             return False
-        _blocked, close, reopen = self._liwan_storage_plan()
+        _blocked, close, reopen, _bytes = self._liwan_storage_plan()
         users = self._liwan_user_flag_changes()
         branches = self._liwan_branch_flag_changes()
         return not (close or reopen or any(users) or any(branches))
 
     @api.model
     def _liwan_blocked_storage_bytes(self):
-        blocked, _close, _reopen = self._liwan_storage_plan()
-        return sum(blocked.mapped('file_size'))
+        return self._liwan_storage_plan()[3]
 
     @api.model
     def _liwan_excess_counts(self):

@@ -22,7 +22,7 @@
     },
     "odoo-addons/liwan_core/models/res_company.py": {
       "count": 1,
-      "reason": "liwan_core company-partner existence check: `self.sudo().with_context(active_test=False).search_count([('partner_id','in',partner_ids)], limit=1)` in `_liwan_has_company_partner`; blocked by Odoo base `res_company_rule_employee` (/Users/tariq/code/odoo/addons/base/security/base_security.xml:113-120, `[('id','in',company_ids)]`) — the ACL grants read but the record rule hides every other company, and `active_test=False` must additionally see archived companies; loosening the rule would break multi-company isolation, which is the larger exposure."
+      "reason": "liwan_core company-partner metadata check: `self.sudo().with_context(active_test=False)` in `_liwan_company_partner_ids`, which returns only partner ids for identity and storage classification; blocked by Odoo base `res_company_rule_employee` (/Users/tariq/code/odoo/addons/base/security/base_security.xml:113-120, `[('id','in',company_ids)]`) — the ACL grants read but the record rule hides every other company, and `active_test=False` must additionally see archived companies; loosening the rule would break multi-company isolation, which is the larger exposure."
     },
     "odoo-addons/liwan_finance/controllers/finance_partners.py": {
       "count": 1,
@@ -218,7 +218,7 @@
     },
     "odoo-addons/liwan_platform/models/entitlement_service_storage.py": {
       "count": 1,
-      "reason": "liwan_platform storage plan: attachments_sudo = self.env['ir.attachment'].sudo() in _liwan_storage_plan reads the tenant-wide file_size and eligibility metadata. The stock ir.attachment rule checks access to the linked resource, and a caller deleting their own file cannot read files attached to other private records or companies. No attachment ids or bytes are returned by the public API, and flags are changed only by the existing protected settle operation."
+      "reason": "liwan_platform storage plan: attachments_sudo = self.env['ir.attachment'].sudo() in _liwan_scan_storage_plan reads the tenant-wide file_size and eligibility metadata. The stock ir.attachment rule checks access to the linked resource, and a caller deleting their own file cannot read files attached to other private records or companies. No attachment ids or bytes are returned by the public API, and flags are changed only by the existing protected settle operation."
     },
     "odoo-addons/liwan_platform/models/read_only_guard.py": {
       "count": 2,

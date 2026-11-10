@@ -257,7 +257,7 @@ class TestDocumentDownloads(DocumentHttpCase):
 
     def test_external_attachment_never_redirects_from_private_or_native_download(self):
         self.attachment.write(
-            {'type': 'url', 'url': 'https://example.invalid/private-reference'},
+            {'type': 'url', 'url': 'https://example.invalid/private-reference', 'raw': False},
         )
         self.authenticate('docs_manager', 'docs_manager')
         for url, expected_status in (
