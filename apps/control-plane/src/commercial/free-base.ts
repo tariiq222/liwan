@@ -41,10 +41,10 @@ export async function unresolvedLapse(client: Pick<PoolClient, 'query'>, subscri
 
 /** `owesAtRenewal` as SQL over a pricing jsonb expression, for lists that cannot call the function. */
 export const owesAtRenewalSql = (pricing: string) => `(${pricing} IS NULL OR (
-  COALESCE((SELECT sum(value::bigint) FROM jsonb_each_text(${pricing}->'bundle_minor')), 0) + COALESCE((${pricing}->>'base_minor')::bigint, 0)
-  + COALESCE((${pricing}->>'paid_extra_branches')::bigint * (${pricing}->>'branch_unit_minor')::bigint, 0)
-  + COALESCE((${pricing}->>'paid_users')::bigint * (${pricing}->>'user_unit_minor')::bigint, 0)
-  + COALESCE((${pricing}->>'paid_storage_gb')::bigint * (${pricing}->>'storage_unit_minor')::bigint, 0)) > 0)`
+  COALESCE((SELECT sum(value::numeric) FROM jsonb_each_text(${pricing}->'bundle_minor')), 0) + COALESCE((${pricing}->>'base_minor')::numeric, 0)
+  + COALESCE((${pricing}->>'paid_extra_branches')::numeric * (${pricing}->>'branch_unit_minor')::numeric, 0)
+  + COALESCE((${pricing}->>'paid_users')::numeric * (${pricing}->>'user_unit_minor')::numeric, 0)
+  + COALESCE((${pricing}->>'paid_storage_gb')::numeric * (${pricing}->>'storage_unit_minor')::numeric, 0)) > 0)`
 
 /** The free base of one trial: the pinned plan with only its included bundles, at the plan's included quantities. */
 export type FreeBase = { quote: Quote; entitlement: ReturnType<typeof compileEntitlements>; start: string; end: string }

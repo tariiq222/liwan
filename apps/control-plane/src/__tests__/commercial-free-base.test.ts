@@ -751,6 +751,16 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
           expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
         })
       }
+      it('R5: a fractional value in the pricing never breaks the attention query and still counts as owing', async () => {
+        const base = (await attention(pool, true)).counts.renewals
+        const f = await endedTrial()
+        await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
+        await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(jsonb_set(snapshot,'{pricing,paid_extra_branches}','1'),'{pricing,branch_unit_minor}','12.5') WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)", [f.subscription])
+        await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
+        await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
+        expect((await attention(pool, true)).counts.renewals).toBe(base + 1)
+        await pool.query("UPDATE subscriptions SET renewal_at='2099-01-01',revision=revision+1 WHERE id=$1", [f.subscription])
+      })
       it('R3: a permanently failing renewal never stops the trial expiry of the same tick, and its flag clears when it leaves the candidates', async () => {
         const poison = async () => {
           const f = await endedTrial()
