@@ -517,14 +517,27 @@ class StaticGateTest(unittest.TestCase):
         self.assertTrue(policy.overlay_errors({self.PAGES + "x.vue": "<template><Dialog /></template>"}))
         self.assertTrue(policy.overlay_errors({self.COMPONENTS + "x.vue": 'if (confirm("sure")) {}'}))
 
-    def test_header_search_keeps_its_approved_dialog(self):
-        search = self.COMPONENTS + "shell/GlobalSearch.vue"
-        self.assertEqual(policy.overlay_errors({search: "<template><Dialog /></template>"}), [])
+    def test_nuxt_overlays_are_reported_outside_their_approved_owners(self):
+        for tag in ("UModal", "USlideover", "UDialog", "LazyUModal", "LazyUSlideover", "LazyUDialog",
+                    "u-modal", "u-slideover", "u-dialog", "lazy-u-modal", "lazy-u-slideover", "lazy-u-dialog"):
+            with self.subTest(tag=tag):
+                self.assertTrue(policy.overlay_errors({self.PAGES + "x.vue": f"<template><{tag} /></template>"}))
+
+    def test_approved_overlay_owners_keep_their_overlays(self):
+        owners = {
+            self.COMPONENTS + "shell/GlobalSearch.vue": "<UModal />",
+            self.COMPONENTS + "shell/AppDrawer.vue": "<USlideover />",
+            policy.UI_COMPONENTS + "shared/layout/CreatePanel.vue": "<USlideover />",
+            policy.UI_COMPONENTS + "shared/form/UnsavedChanges.vue": "<UModal />",
+            policy.VENDOR_ADMIN_COMPONENTS + "AdminMobileNav.vue": "<USlideover />",
+        }
+        self.assertEqual(policy.overlay_errors(owners), [])
 
     def test_command_palette_and_define_shortcuts_have_one_owner(self):
         palette = "<template><UCommandPalette :groups='g' /></template>"
         self.assertEqual(policy.keyboard_layer_errors({self.COMPONENTS + "shell/GlobalSearch.vue": palette}), [])
         self.assertTrue(policy.keyboard_layer_errors({self.PAGES + "x.vue": palette}))
+        self.assertTrue(policy.keyboard_layer_errors({self.COMPONENTS + "shell/AppDrawer.vue": palette}))
         for tag in ("UDashboardSearch", "u-dashboard-search", "UContentSearch", "u-content-search",
                     "LazyUCommandPalette", "lazy-u-command-palette", "LazyUDashboardSearch", "lazy-u-content-search"):
             other = f"<template><{tag} :groups='g' /></template>"
