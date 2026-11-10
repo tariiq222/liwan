@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import type { Principal } from '@liwan/commercial-contracts'
@@ -9,7 +9,7 @@ import { routesB } from '../commercial/routes-b.js'
 import { createPaymentAttempt, handleProviderEvent } from '../commercial/payments.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
-import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
+import { applyReceipt, failFulfillment, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { generateRenewals } from '../commercial/renewals.js'
 import { customerCatalog } from '../commercial/customer-http.js'
 import { deliveredEntitlement, grantedUnits } from '../commercial/ai-ledger.js'
@@ -468,6 +468,59 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       await runSubscriptionReconfigure(pool, next[0]!, runner)
       expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: true, features: { 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 } })
       expect(await stuck(id)).toBe(0)
+    })
+
+    it('a refund skipped for a pending change is delivered when that change fails', async () => {
+      const { id, o } = await appliedTopup()
+      const change = await paidChange(id)
+      await providerRefund(o.id)
+      expect(await queued(id)).toHaveLength(0)
+      await failFulfillment(pool, { order_id: change.id, code: 'retries_exhausted' })
+      const pending = await queued(id)
+      expect(pending).toHaveLength(1)
+      await runSubscriptionReconfigure(pool, pending[0]!, runner)
+      expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('a failed AI push does not block the next paid order, and is logged', async () => {
+      const { id, o } = await appliedTopup()
+      await patchSettings({ trial_allowance_minor: 1000 })
+      const push = await jobId(o.id, true)
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+      await expect(runSubscriptionReconfigure(pool, push!, async () => { throw new Error('observed_mismatch') })).rejects.toThrow('observed_mismatch')
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('AI balance push'))
+      log.mockRestore()
+      expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [push])).rows[0].state).toBe('failed')
+      expect(await stuck(id)).toBe(0)
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      await expect(runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)).resolves.toMatchObject({ state: 'verified' })
+      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, features: { 'ai.allowance.trial': 266_666 } })
+    })
+
+    it('a push whose subscription is gone is superseded, not left in needs_intervention', async () => {
+      const { id, o } = await appliedTopup()
+      await patchSettings({ trial_allowance_minor: 1000 })
+      const push = await jobId(o.id, true)
+      // The revision-conflict trigger guards the row; detach the tenant for the duration of this one statement.
+      await pool.query('ALTER TABLE subscriptions DISABLE TRIGGER USER')
+      try { await pool.query('UPDATE subscriptions SET tenant_id=NULL WHERE customer_id=$1', [id]) } finally { await pool.query('ALTER TABLE subscriptions ENABLE TRIGGER USER') }
+      await expect(runSubscriptionReconfigure(pool, push!, runner)).resolves.toMatchObject({ state: 'verified', receipt: { superseded: true } })
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('refuses an AI push naming another revision of the subscription, or an order of another tenant', async () => {
+      const { id, o } = await appliedTopup()
+      const other = await appliedTopup()
+      const change = await paidChange(id)
+      await providerRefund(o.id)
+      await failFulfillment(pool, { order_id: change.id, code: 'retries_exhausted' })
+      const base = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [await jobId(o.id, true)])).rows[0].payload
+      const check = (patch: (job: any) => void) => { const job = structuredClone(base); patch(job); return transaction(pool, c => assertReconfigureAuthority(c, job)) }
+      await expect(check(() => {})).resolves.toBeUndefined()
+      await expect(check(job => { job.authority.target_revision_id = change.target_revision_id; job.authority.previous_revision_id = change.target_revision_id })).rejects.toThrow('stale_target')
+      await expect(check(job => { job.authority.order_id = other.o.id })).rejects.toThrow('order_not_released')
     })
 
     it('values that change after a fulfilment job was queued are delivered when it runs', async () => {

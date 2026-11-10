@@ -12,7 +12,7 @@ import { onboardSharedTenant } from '../shared/onboarding.js'
 import { commercialEnrollmentActor } from '../shared/commercial-enrollment-authority.js'
 import { enqueueOutbox } from './outbox.js'
 import { hasReachableManager } from './orders.js'
-import { deliveredEntitlement, markTopupRefunded } from './ai-ledger.js'
+import { deliveredEntitlement, markTopupRefunded, pushAiEntitlement } from './ai-ledger.js'
 
 /** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
 export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: number): string {
@@ -114,6 +114,8 @@ export async function failFulfillmentOn(client: PoolClient, input: { order_id: s
     // The money is credited back, so the AI balance it bought must stop counting.
     await markTopupRefunded(client,order.id,'system',`fulfillment failed: ${input.code}`)
   }
+  // A balance push skipped while this order was pending is owed to the applied revision now that it is not.
+  await pushAiEntitlement(client,order.customer_id)
 }
 
 /** Worker-only runtime configuration; omit actor to use paid-subscription service authority.

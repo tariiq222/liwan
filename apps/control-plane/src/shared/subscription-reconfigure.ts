@@ -17,7 +17,7 @@ export interface SubscriptionAdapter {
 }
 function digest(job:SharedReconfigureJob) {return createHash('sha256').update(JSON.stringify(job)).digest('hex')}
 /** What an AI push that a newer revision overtook records instead of a tenant receipt. */
-type SupersededReceipt = Partial<SubscriptionReceipt> & { superseded: true; applied_revision_id: string }
+type SupersededReceipt = Partial<SubscriptionReceipt> & { superseded: true; applied_revision_id: string | null }
 async function assertCurrentBinding(client:PoolClient,job:SharedReconfigureJob) {
   const binding=await client.query('SELECT * FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true FOR SHARE',[job.controlTenantId])
   const b=binding.rows[0]
@@ -88,10 +88,10 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
       // superseded. It completes without touching the tenant, and the current revision gets a fresh push in case its
       // delivery was built before the change that queued this one.
       const current=(await client.query('SELECT customer_id,applied_revision_id FROM subscriptions WHERE tenant_id=$1 FOR SHARE',[job.controlTenantId])).rows[0]
-      if(current && current.applied_revision_id!==job.authority.target_revision_id){
-        const receipt:SupersededReceipt={superseded:true,applied_revision_id:current.applied_revision_id}
+      if(!current || current.applied_revision_id!==job.authority.target_revision_id){
+        const receipt:SupersededReceipt={superseded:true,applied_revision_id:current?.applied_revision_id??null}
         await client.query("UPDATE shared_jobs SET state='verified',receipt=$2,lease_until=NULL,journal=$3 WHERE id=$1",[id,receipt,{stage:'verified',operation_id:job.authority.operation_id,superseded:true}])
-        await pushAiEntitlement(client,current.customer_id)
+        if(current)await pushAiEntitlement(client,current.customer_id)
         return {superseded:receipt}
       }
     }
@@ -134,9 +134,13 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     const code=error instanceof Error?error.message:'shared_effect_unverified'
     if(code!=='shared_lease_lost'){
       await transaction(pool,async client=>{
-        const refused=await client.query(`UPDATE shared_jobs SET state='needs_intervention',lease_until=NULL,journal=$4
+        // An AI push carries no order and the next delivery re-sends the same values, so its failure is closed as `failed`:
+        // unlike needs_intervention it does not block the tenant's paid orders. It stays on the operation feed, and is logged.
+        const terminal=claim.job.authority.ai_push?'failed':'needs_intervention'
+        if(claim.job.authority.ai_push)console.error(`[control-plane] AI balance push ${id} for tenant ${claim.job.controlTenantId} failed: ${code}`)
+        const refused=await client.query(`UPDATE shared_jobs SET state=$5,lease_until=NULL,journal=$4
           WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id`,
-        [id,claim.attemptId,claim.fence,{stage:'needs_intervention',operation_id:claim.job.authority.operation_id,error_code:code}])
+        [id,claim.attemptId,claim.fence,{stage:terminal,operation_id:claim.job.authority.operation_id,error_code:code},terminal])
         if(!refused.rowCount)throw Error('shared_lease_lost')
         if(!claim.job.restore && !claim.job.authority.ai_push)await failFulfillmentOn(client,{order_id:claim.job.authority.order_id,code})
         if(!claim.job.restore && code==='tenant_upgrade_required'){
