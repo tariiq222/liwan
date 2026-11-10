@@ -132345,7 +132345,7 @@
     },
     "/api/v1/inbox/hooks/tiktok": {
       "post": {
-        "description": "Provider webhook (machine to machine, no session). Authorized by the provider's signed delivery, not by a cookie or API key; a bad signature answers 403.",
+        "description": "Authorized by the provider's webhook protocol, not by a LiwanOS session.",
         "operationId": "liwan_inbox.TikTokHookController.receive.post",
         "responses": {
           "200": {
@@ -132381,7 +132381,7 @@
     },
     "/api/v1/inbox/hooks/whatsapp": {
       "get": {
-        "description": "Provider webhook (machine to machine, no session). Authorized by the provider's signed delivery, not by a cookie or API key; a bad signature answers 403.",
+        "description": "Authorized by the provider's webhook protocol, not by a LiwanOS session.",
         "operationId": "liwan_inbox.WhatsAppHookController.verify.get",
         "responses": {
           "200": {
@@ -132415,7 +132415,7 @@
         }
       },
       "post": {
-        "description": "Provider webhook (machine to machine, no session). Authorized by the provider's signed delivery, not by a cookie or API key; a bad signature answers 403.",
+        "description": "Authorized by the provider's webhook protocol, not by a LiwanOS session.",
         "operationId": "liwan_inbox.WhatsAppHookController.receive.post",
         "responses": {
           "200": {
