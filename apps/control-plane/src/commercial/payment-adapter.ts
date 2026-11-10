@@ -32,15 +32,15 @@ export type ProviderEvent = {
   live: boolean
   status: ProviderEventStatus
   amount: Money
-  /** Total the provider has refunded on this payment so far (cumulative, never a single refund). Absent means the provider gave no figure. */
+  /** Total the provider has refunded on this payment so far (cumulative, never a single refund). Absent means the provider gave no figure, and a refund without one is rejected for the operator, not assumed whole. */
   refunded?: Money
   occurred_at: string
   raw_type: string
   simulated?: boolean
 }
 
-/** What a `refunded` event refunded: the provider's cumulative figure, or the whole payment when it gave none. */
-export const refundedAmount = (event: ProviderEvent): Money => event.refunded ?? event.amount
+/** What a `refunded` event refunded: the provider's cumulative figure, or null when it gave none (never assumed to be the whole payment). */
+export const refundedAmount = (event: ProviderEvent): Money | null => event.refunded ?? null
 
 export type CreateAttemptInput = {
   attempt_id: string

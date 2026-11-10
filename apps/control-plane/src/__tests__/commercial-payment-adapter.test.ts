@@ -103,10 +103,17 @@ describe('MoyasarAdapter', () => {
   it('carries the cumulative refunded figure of a payment, and none when the provider gave none', async () => {
     const refunded = (await mk({}, [{ id: 'pay_1', status: 'refunded', amount: 5000, refunded: 2000, currency: 'SAR' }]).a.lookupPayment('pay_1'))
     expect(refunded.refunded).toEqual({ currency: 'SAR', exponent: 2, minor: 2000 })
-    expect(refundedAmount(refunded).minor).toBe(2000)
+    expect(refundedAmount(refunded)?.minor).toBe(2000)
     const whole = await mk({}, [{ id: 'pay_2', status: 'refunded', amount: 5000, currency: 'SAR' }]).a.lookupPayment('pay_2')
     expect(whole.refunded).toBeUndefined()
-    expect(refundedAmount(whole).minor).toBe(5000)
+    // No figure (or a zero one) is never read as a full refund.
+    expect(refundedAmount(whole)).toBeNull()
+    const zero = await mk({}, [{ id: 'pay_3', status: 'refunded', amount: 5000, refunded: 0, currency: 'SAR' }]).a.lookupPayment('pay_3')
+    expect(zero.refunded).toBeUndefined()
+    expect(refundedAmount(zero)).toBeNull()
+    const hook3 = mk({}).a.verifyEvent(hook({ type: 'payment_refunded', data: { id: 'pay_4', invoice_id: 'inv_1', amount: 5000, currency: 'SAR', refunded: 1500 } }), {})
+    expect(refundedAmount(hook3)?.minor).toBe(1500)
+    expect(refundedAmount(mk({}).a.verifyEvent(hook({ type: 'payment_refunded' }), {}))).toBeNull()
   })
   it('refund and chargeToken shapes', async () => {
     const r = mk({}, [{ id: 'pay_1', status: 'refunded', amount: 5000, refunded: 2000, currency: 'SAR' }])
@@ -191,6 +198,16 @@ describe('SimulatorAdapter scenarios', () => {
     expect(() => s.verifyEvent(s.webhookBody(r, { merchant: 'evil' }), {})).toThrow(/merchant_mismatch/)
     expect(() => s.verifyEvent(s.webhookBody(r, { secret: 'bad' }), {})).toThrow(/signature_invalid/)
     expect(() => s.verifyEvent(s.webhookBody(r, { live: true }), {})).toThrow(/mode_mismatch/)
+  })
+  it('a refunded simulator payment always states the refunded figure, whole before any partial refund', async () => {
+    const s = sim(); const { provider_ref: r } = await s.createAttempt(attempt)
+    const paid = s.settle(r)
+    expect(refundedAmount(paid)).toBeNull()
+    const whole = s.verifyEvent(s.webhookBody(r, { status: 'refunded', eventId: 'e-whole' }), {})
+    expect(refundedAmount(whole)?.minor).toBe(5000)
+    await s.refund(paid.payment_id!, { ...attempt.amount, minor: 1200 })
+    expect(refundedAmount(await s.lookupAttempt(r))?.minor).toBe(1200)
+    expect(refundedAmount(s.verifyEvent(s.webhookBody(r, { eventId: 'e-part' }), {}))?.minor).toBe(1200)
   })
   it('refund and idempotent token charge', async () => {
     const s = sim().addToken('tok'); const { provider_ref: r } = await s.createAttempt(attempt)

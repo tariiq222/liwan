@@ -107,7 +107,8 @@ export class SimulatorAdapter implements PaymentAdapter {
       provider_ref: a.ref, payment_id: a.payment_id, attempt_id: a.input.attempt_id,
       merchant_account: o.merchant ?? this.merchantAccount, live: o.live ?? false, status,
       amount: o.amount ?? a.input.amount,
-      ...(status === 'refunded' && a.refunded > 0 ? { refunded: { ...a.input.amount, minor: a.refunded } } : {}), occurred_at: new Date(Date.UTC(2026, 0, 1, 0, 0, this.seq)).toISOString(),
+      // Like the provider, a refunded payment always states how much was refunded so far (the whole payment before any partial refund).
+      ...(status === 'refunded' ? { refunded: { ...a.input.amount, minor: a.refunded > 0 ? a.refunded : a.input.amount.minor } } : {}), occurred_at: new Date(Date.UTC(2026, 0, 1, 0, 0, this.seq)).toISOString(),
       raw_type: TYPE[status], simulated: true,
     }
   }

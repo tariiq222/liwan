@@ -118,10 +118,11 @@ async function flagRefundAfterFulfillment(client: PoolClient, order: any, attemp
   if (order.fulfillment_state !== 'applied') return
   const refunded = refundedAmount(event)
   const reason = 'Payment refunded after fulfillment — manual review'
+  // A refund the provider gave no figure for is still queued, so the refund worker rejects it visibly (`refund_amount_missing`).
   const inserted = await enqueueOutbox(client, { kind: 'payment.intervention', aggregate_id: order.id,
-    dedupe_key: `${attempt.id}:${refunded.minor}`, payload: { order_id: order.id, attempt_id: attempt.id, reason, refunded } })
+    dedupe_key: `${attempt.id}:${refunded?.minor ?? 'unknown'}`, payload: { order_id: order.id, attempt_id: attempt.id, reason, refunded } })
   if (inserted) await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-    [randomUUID(),'system','payment.intervention',order.id,reason,JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id, refunded_minor: refunded.minor })])
+    [randomUUID(),'system','payment.intervention',order.id,reason,JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id, refunded_minor: refunded?.minor ?? null })])
 }
 
 /** Only authoritative adapter-fetched events may enter this settlement boundary. */
