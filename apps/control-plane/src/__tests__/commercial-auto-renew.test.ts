@@ -6,7 +6,7 @@ import type { Principal } from '@liwan/commercial-contracts'
 import { createApp } from '../http.js'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { convertTrial, startTrial } from '../commercial/trial.js'
-import { applyConfirmedEvent, createPaymentAttempt, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
+import { applyConfirmedEvent, createPaymentAttempt, lookup, reconcileUnknownAttempts, TOKEN_CHARGE_MAX_AGE_MS, verifyReturnedAttempt } from '../commercial/payments.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
 import { attention } from '../commercial/attention.js'
 import { renewalNoticeKey, sendRenewalNotices } from '../commercial/renewal-notices.js'
@@ -329,6 +329,90 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
       expect(await paidOrders(f)).toBe(before + 1)
       expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1 AND token_charge', [(await attemptOf(f)).order_id])).rows[0].n).toBe(1)
     })
+    describe('bounded and terminal', () => {
+      const unknownAttempt = async (token: string) => {
+        const { f, adapter, before } = await ready(token)
+        const original = adapter.chargeToken.bind(adapter)
+        const charge = vi.spyOn(adapter, 'chargeToken').mockRejectedValue(new PaymentError('timeout', 'no answer'))
+        await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+        const attempt = await attemptOf(f)
+        expect(attempt.status).toBe('unknown')
+        return { f, adapter, before, charge, original, attempt }
+      }
+      const age = (id: string, hours: number) => pool.query("UPDATE payment_attempts SET created_at=now()-make_interval(hours => $2::int) WHERE id=$1", [id, hours])
+      const reconcile = (adapter: SimulatorAdapter) => reconcileUnknownAttempts(pool, adapter, { limit: 100, clock: () => Date.now() + 10 * 60_000 })
+
+      it('a definitive refusal (token no longer active) closes the attempt failed at once; hosted payment and revocation are unblocked', async () => {
+        const { f, adapter, charge, original, attempt } = await unknownAttempt('sim_tok_0a0b0c0d_71')
+        charge.mockImplementation(original)
+        await adapter.deleteToken(f.token)
+        await reconcile(adapter)
+        expect(await attemptOf(f)).toMatchObject({ status: 'failed', closed_reason: 'refused' })
+        expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.token_charge_refused' AND subject=$1", [attempt.order_id])).rows[0].n).toBe(1)
+        const hostedAttempt = await createPaymentAttempt(pool, { order_id: attempt.order_id, customer_id: f.customer, adapter, returnOrigin: origin })
+        expect(hostedAttempt.status).toBe('redirected')
+        // The revocation after a turn-off is no longer held back.
+        await pool.query("INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,'simulator',$3)", [randomUUID(), f.subscription.id, f.token])
+        const revoke = vi.spyOn(adapter, 'deleteToken')
+        await processTokenRevocations(pool, adapter)
+        expect(revoke).toHaveBeenCalledWith(f.token)
+      })
+
+      it('a transient error is chased until the age bound, then closed failed with an audit event and a vendor attention item', async () => {
+        const { f, adapter, attempt } = await unknownAttempt('sim_tok_0a0b0c0d_72')
+        expect(TOKEN_CHARGE_MAX_AGE_MS).toBe(24 * 3_600_000)
+        await age(attempt.id, 23)
+        await reconcile(adapter)
+        expect((await attemptOf(f)).status).toBe('unknown')
+        await age(attempt.id, 25)
+        await reconcile(adapter)
+        expect(await attemptOf(f)).toMatchObject({ status: 'failed', closed_reason: 'abandoned' })
+        expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.token_charge_abandoned' AND subject=$1", [attempt.order_id])).rows[0].n).toBe(1)
+        await pool.query("UPDATE payment_attempts SET closed_reason=NULL WHERE closed_reason='abandoned' AND id<>$1", [attempt.id])
+        const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
+        expect(items).toContainEqual(expect.objectContaining({ kind: 'token_charge_abandoned' }))
+        expect((await createPaymentAttempt(pool, { order_id: attempt.order_id, customer_id: f.customer, adapter, returnOrigin: origin })).status).toBe('redirected')
+      })
+
+      it('a charge the provider reports pending forever is bounded the same way', async () => {
+        const { f, adapter } = await ready('sim_tok_0a0b0c0d_73')
+        await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+        const attempt = await attemptOf(f)
+        const settled = await adapter.lookupPayment(attempt.provider_ref)
+        vi.spyOn(adapter, 'lookupPayment').mockResolvedValue({ ...settled, status: 'pending' })
+        await pool.query("UPDATE payment_attempts SET status='pending' WHERE id=$1", [attempt.id])
+        await age(attempt.id, 2)
+        await lookup(pool, adapter, await attemptOf(f))
+        expect((await attemptOf(f)).status).toBe('pending')
+        await age(attempt.id, 25)
+        await lookup(pool, adapter, await attemptOf(f))
+        expect(await attemptOf(f)).toMatchObject({ status: 'failed', closed_reason: 'abandoned' })
+      })
+
+      it('a charge younger than the reconciler guard is never replayed from the payment page', async () => {
+        const { f, adapter } = await ready('sim_tok_0a0b0c0d_74')
+        const charge = vi.spyOn(adapter, 'chargeToken').mockRejectedValue(new PaymentError('timeout', 'in flight'))
+        await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+        const attempt = await attemptOf(f)
+        await pool.query("UPDATE payment_attempts SET status='created' WHERE id=$1", [attempt.id])
+        charge.mockClear()
+        await expect(createPaymentAttempt(pool, { order_id: attempt.order_id, customer_id: f.customer, adapter, returnOrigin: origin })).rejects.toMatchObject({ status: 409, code: 'payment_charge_unresolved' })
+        expect(charge).not.toHaveBeenCalled()
+      })
+
+      it('a replay is single flight: two workers at once send one charge, and an interrupted outcome write does not multiply replays', async () => {
+        const { f, adapter, charge, original, attempt } = await unknownAttempt('sim_tok_0a0b0c0d_75')
+        charge.mockClear()
+        charge.mockImplementation(async input => { await new Promise(r => setTimeout(r, 80)); return original(input) })
+        const row = await attemptOf(f)
+        const results = await Promise.allSettled([lookup(pool, adapter, { ...row }), lookup(pool, adapter, { ...row })])
+        expect(charge).toHaveBeenCalledTimes(1)
+        expect(results.filter(r => r.status === 'rejected')).toHaveLength(1)
+        expect((await pool.query('SELECT replay_lease_until FROM payment_attempts WHERE id=$1', [attempt.id])).rows[0].replay_lease_until).toBeNull()
+        expect(await paidOrders(f)).toBeGreaterThan(0)
+      })
+    })
+
     it('a replayed run, and the same idempotency key, never charge twice', async () => {
       const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_55')
       const charge = vi.spyOn(adapter, 'chargeToken')

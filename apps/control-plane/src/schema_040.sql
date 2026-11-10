@@ -7,6 +7,10 @@ ALTER TABLE payment_attempts
   ADD COLUMN save_payment_method_consent_at timestamptz,
   -- A token charge's callback, kept so that replaying an unconfirmed charge sends exactly what the first call sent.
   ADD COLUMN charge_callback_url text,
+  -- Single flight for the replay of an unconfirmed token charge across workers (a lease, released on the outcome).
+  ADD COLUMN replay_lease_until timestamptz,
+  -- Why a token attempt was closed without a settlement event: refused (a definitive provider refusal) or abandoned (the age bound).
+  ADD COLUMN closed_reason text CHECK(closed_reason IN ('refused','abandoned')),
   ADD CONSTRAINT payment_attempt_save_consent CHECK(NOT save_payment_method OR (save_payment_method_actor IS NOT NULL AND save_payment_method_consent_at IS NOT NULL));
 
 -- A stored payment method the provider still has to forget: written in the same transaction that stopped using it
