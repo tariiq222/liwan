@@ -1,8 +1,9 @@
-"""The one conversation graph: route → plan → request one tool (interrupt) → plan … → answer.
+"""The one conversation graph: route → summarize → plan → request one tool (interrupt) → plan … → answer.
 
 The graph executes nothing. A tool request is an ``interrupt`` whose value is the
-request payload; the caller resumes with a ``ToolResult``. ``route`` classifies a new user message once; a resume re-enters
-at the interrupted ``request_tool``, so it never classifies again. Limits come from the
+request payload; the caller resumes with a ``ToolResult``. ``route`` classifies a new user message once and ``summarize``
+refreshes the rolling summary of a long conversation when a batch is due; a resume re-enters at the interrupted
+``request_tool``, so it never does either again. Limits come from the
 run request and stop the graph with ``outcome = 'limit_reached'``.
 
 One agent is active at a time (spec 2026-11-04 §6.5): the coordinator ``core`` or a specialist. A specialist sees its
@@ -28,13 +29,22 @@ from langgraph.types import interrupt
 from liwan_ai_service.contracts import CORE_AGENT, AgentSpec, RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
 from liwan_ai_service.embeddings import Embedder
 from liwan_ai_service.errors import is_transient_provider_error
+from liwan_ai_service.history_view import conversation, model_history, recent_start, view_start
 from liwan_ai_service.knowledge import KnowledgeStore
 from liwan_ai_service.memory import MemoryFull, MemoryStore
 from liwan_ai_service.portable_history import portable_history
 from liwan_ai_service.prompts import frame_record_text, system_prompt, tool_summary
 from liwan_ai_service.router import DEFAULT_CAPABILITY, ROUTE_TIMEOUT_SECONDS, parse_capability, route_messages
 from liwan_ai_service.routing import RunModels
-from liwan_ai_service.usage import Emit, invoke_planned, invoke_route, tokens_of
+from liwan_ai_service.summary import (
+    SUMMARY_BATCH_USER_MESSAGES,
+    SUMMARY_MAX_CHARS,
+    SUMMARY_RETRY_AFTER_USER_MESSAGES,
+    SUMMARY_TIMEOUT_SECONDS,
+    fit_transcript,
+    summary_messages,
+)
+from liwan_ai_service.usage import Emit, invoke_once, invoke_planned, tokens_of
 
 
 class AgentState(TypedDict):
@@ -59,6 +69,9 @@ class AgentState(TypedDict):
     capability: str  # the kind of task this message's plan calls serve, set by ``route``; the model is picked from it, never stored
     on_default_model: bool  # a routed model failed transiently for this message: its remaining plan calls run on the default model
     knowledge: dict[str, list[dict[str, Any]]]  # the references found for the pending knowledge search: {call_id: refs}, never text
+    summary: str  # the rolling summary of the messages before ``summary_covers`` (untrusted text); absent until the first one is written
+    summary_covers: int  # how many stored messages (system messages aside) the summary covers; the checkpointed messages stay complete
+    summary_failed_users: int | None  # the user-message count at the last failed summary attempt, until a summary succeeds
 
 
 REMEMBER = "liwan_remember"
@@ -392,12 +405,45 @@ def build_graph(checkpointer):
         quick = run_models.for_capability("quick")
         request = route_messages(text_of(message.content), state.get("agent", CORE_AGENT), state.get("capability", DEFAULT_CAPABILITY))
         try:
-            reply = await invoke_route(quick.model, request, quick.identity, get_stream_writer(), ROUTE_TIMEOUT_SECONDS,
-                                       config["configurable"].get(DEADLINE_KEY))
+            reply = await invoke_once("route", quick.model, request, quick.identity, get_stream_writer(), ROUTE_TIMEOUT_SECONDS,
+                                      config["configurable"].get(DEADLINE_KEY))
         except Exception as error:  # noqa: BLE001 - classification is best effort; the cause is logged by class only, never its text
             log.warning("classification failed: %s", type(error).__name__)
             return {"capability": DEFAULT_CAPABILITY, "on_default_model": False}
         return {"capability": parse_capability(text_of(reply.content)), "on_default_model": False}
+
+    async def summarize(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
+        """Refresh the rolling summary once a batch of user messages has left the recent window.
+
+        One attempt on the ``quick`` model, outside ``max_steps`` and the per-run token caps like ``route``. It reads at most
+        ``SUMMARY_TRANSCRIPT_CHARS`` of the oldest uncovered messages and covers exactly those. Any problem keeps the previous summary
+        (what it does not cover stays in the view verbatim) and waits for ``SUMMARY_RETRY_AFTER_USER_MESSAGES`` more user messages
+        before the next attempt. The cause is logged by class only, never any text.
+        """
+        messages = conversation(state["messages"])
+        users = sum(isinstance(message, HumanMessage) for message in messages)
+        failed_at = state.get("summary_failed_users")
+        if failed_at is not None and users - failed_at < SUMMARY_RETRY_AFTER_USER_MESSAGES:
+            return {}
+        start = view_start(messages, state.get("summary_covers", 0))
+        leaving = messages[start:recent_start(messages)]
+        if sum(isinstance(message, HumanMessage) for message in leaving) < SUMMARY_BATCH_USER_MESSAGES:
+            return {}
+        included = fit_transcript(leaving)
+        if not included:
+            return {}
+        quick = config["configurable"][RUN_MODELS_KEY].for_capability("quick")
+        try:
+            reply = await invoke_once("summary", quick.model, summary_messages(state.get("summary", ""), included), quick.identity,
+                                      get_stream_writer(), SUMMARY_TIMEOUT_SECONDS, config["configurable"].get(DEADLINE_KEY))
+            summary = text_of(reply.content).strip()[:SUMMARY_MAX_CHARS]
+        except Exception as error:  # noqa: BLE001 - the summary is best effort; the cause is logged by class only, never its text
+            log.warning("summary failed: %s", type(error).__name__)
+            return {"summary_failed_users": users}
+        if not summary:
+            log.warning("summary failed: empty reply")
+            return {"summary_failed_users": users}
+        return {"summary": summary, "summary_covers": start + len(included), "summary_failed_users": None}
 
     async def plan(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         if state["steps"] >= state["limits"]["max_steps"]:
@@ -421,8 +467,12 @@ def build_graph(checkpointer):
         prompt = SystemMessage(system_prompt(
             state["locale"], specs, context, agents.get(current), [agents[key] for key in targets if key in agents], notes,
         ))
-        # The model sees a provider-neutral copy of the history; the guards above read the stored messages.
-        history = portable_history([message for message in state["messages"] if not isinstance(message, SystemMessage)])
+        # The model sees a bounded, provider-neutral copy of the history (summary, recent window, old tool results stubbed); the
+        # guards (``has_read_data``, ``memory_tools``, the caps) read the complete stored messages. The view comes first, on the
+        # stored messages, because ``summary_covers`` counts them and ``portable_history`` may drop some.
+        read_tools = frozenset(encode_tool_name(tool["name"]) for tool in state["tools"] if tool["kind"] == "read")
+        stored = conversation(state["messages"])
+        history = portable_history(model_history(stored, state.get("summary", ""), state.get("summary_covers", 0), read_tools))
         tool_defs = [*_openai_tools(visible), *([handoff_tool(targets)] if targets else []), *memory_tools(state, config)]
         response, on_default = await invoke_with_fallback(
             config["configurable"][RUN_MODELS_KEY], state.get("capability", DEFAULT_CAPABILITY), state.get("on_default_model", False),
@@ -573,12 +623,14 @@ def build_graph(checkpointer):
 
     builder = StateGraph(AgentState)
     builder.add_node("route", route)
+    builder.add_node("summarize", summarize)
     builder.add_node("plan", plan)
     builder.add_node("retrieve", retrieve)
     builder.add_node("request_tool", request_tool)
     builder.add_node("answer", answer)
     builder.add_edge(START, "route")
-    builder.add_edge("route", "plan")
+    builder.add_edge("route", "summarize")
+    builder.add_edge("summarize", "plan")
     builder.add_conditional_edges("plan", route_after_plan, {"retrieve": "retrieve", "answer": "answer", END: END})
     builder.add_conditional_edges("retrieve", route_after_retrieve, {"request_tool": "request_tool", "plan": "plan"})
     builder.add_conditional_edges("request_tool", route_after_tool, {"plan": "plan", END: END})
