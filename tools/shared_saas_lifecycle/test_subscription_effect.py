@@ -652,6 +652,122 @@ class RestoreRuntimeTests(unittest.TestCase):
                 se.ComposeRunner(request)
 
 
+class TrialEndEffectTests(Base):
+    def request(self, **over):
+        return make_request(**{
+            'trial_ends_at': '2026-12-01T00:00:00Z',
+            'post_trial_features': {'users.limit': 3, 'storage.limit_mb': 20, 'branches.extra_limit': 0},
+            'post_trial_modules': ['liwan_core', 'liwan_platform', 'liwan_api'],
+            'post_trial_digest': 'd' * 64, **over,
+        })
+
+    def test_system_settle_accepts_excess_platform_capacity(self):
+        request = make_request(excess_settle=True)
+        seen = observation(excess_supported=True, features=LOWERABLE,
+                           usage={'users.limit': 30, 'storage.limit_mb': 300, 'branches.extra_limit': 3},
+                           branches=[dict(OptionalTrialEndKeysTest.BRANCH, branch_id=str(i)) for i in range(3)])
+        se.check_downgrade(request, seen)
+
+    def test_system_settle_requires_observed_capability(self):
+        with self.assertRaisesRegex(EffectError, 'tenant_upgrade_required'):
+            se.check_downgrade(make_request(excess_settle=True), observation())
+
+    def test_system_settle_never_bypasses_application_limits(self):
+        seen = observation(excess_supported=True, features={**LOWERABLE, 'pmo.enabled': True},
+                           usage={'users.limit': 30, 'storage.limit_mb': 300,
+                                  'branches.extra_limit': 3, 'projects.max_projects': 21})
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            se.check_downgrade(make_request(excess_settle=True), seen)
+
+    def test_customer_downgrade_counts_only_full_branches(self):
+        request = make_request()
+        request['entitlement']['features']['branches.extra_limit'] = 0
+        se.check_downgrade(request, observation(branches=[dict(OptionalTrialEndKeysTest.BRANCH, read_only=True)]))
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            se.check_downgrade(request, observation(branches=[OptionalTrialEndKeysTest.BRANCH]))
+
+    def test_apply_payload_carries_expiry_and_settlement(self):
+        request = self.request(excess_settle=True)
+        values = _script_values(se.build_apply_script(request))
+        for key in ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest', 'excess_settle'):
+            self.assertEqual(values.get(key), request[key], key)
+
+    def test_applied_revision_does_not_skip_a_changed_trial_policy(self):
+        request = self.request()
+        seen = applied_state(request, post_trial_supported=True, trial_ends_at='2026-11-30T00:00:00Z',
+                             post_trial_features=request['post_trial_features'], post_trial_modules=request['post_trial_modules'],
+                             post_trial_digest=request['post_trial_digest'])
+        self.assertFalse(se.verify(request, seen))
+        seen['trial_ends_at'] = request['trial_ends_at']
+        self.assertTrue(se.verify(request, seen))
+        seen['post_trial_digest'] = 'e' * 64
+        self.assertFalse(se.verify(request, seen))
+
+    def test_trial_policy_requires_supported_tenant_before_mutation(self):
+        request = self.request()
+        runner = FakeRunner(observation(), apply_state=applied_state(request))
+        with self.assertRaisesRegex(EffectError, 'tenant_upgrade_required'):
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 0)
+        self.assertEqual(runner.installed, [])
+
+    def test_receipt_reports_capabilities_and_read_only_branches(self):
+        request = make_request()
+        seen = applied_state(request, post_trial_supported=True, excess_supported=True,
+                             excess={'users.limit': 2, 'branches.extra_limit': 1})
+        seen['branches'] = [dict(OptionalTrialEndKeysTest.BRANCH, read_only=True)]
+        receipt = self.effect(FakeRunner(seen)).reconfigure(request)
+        self.assertIs(receipt.get('post_trial_supported'), True)
+        self.assertIs(receipt.get('excess_supported'), True)
+        self.assertEqual(receipt.get('excess'), seen['excess'])
+        self.assertEqual(receipt.get('branch_read_only'), [{'branch_id': B1, 'read_only': True}])
+
+    def test_late_apply_verifies_only_exact_post_trial_target(self):
+        request = self.request(trial_ends_at='2026-01-01T00:00:00Z')
+        seen = applied_state(request, post_trial_supported=True, excess_supported=True,
+                             excess={'users.limit': 0, 'branches.extra_limit': 0})
+        seen.update(commercial_digest=request['post_trial_digest'], features=request['post_trial_features'], trial_ends_at=None)
+        self.assertTrue(se.verify(request, seen, now='2026-01-02T00:00:00Z'))
+        seen['commercial_digest'] = 'e' * 64
+        self.assertFalse(se.verify(request, seen, now='2026-01-02T00:00:00Z'))
+        seen['commercial_digest'] = request['post_trial_digest']
+        self.assertFalse(se.verify(request, seen, now='2025-12-31T00:00:00Z'))
+
+    def test_equivalent_trial_instants_do_not_reapply(self):
+        request = self.request(trial_ends_at='2026-12-01T03:00:00+03:00')
+        seen = applied_state(request, post_trial_supported=True, trial_ends_at='2026-12-01T00:00:00Z',
+                             post_trial_features=request['post_trial_features'], post_trial_modules=request['post_trial_modules'],
+                             post_trial_digest=request['post_trial_digest'])
+        self.assertTrue(se.verify(request, seen, now='2026-11-01T00:00:00Z'))
+
+    def test_matching_revision_without_settlement_is_not_a_receipt(self):
+        request = make_request(excess_settle=True)
+        seen = applied_state(request, excess_supported=True, excess={'users.limit': 0, 'branches.extra_limit': 0})
+        seen['usage']['users.limit'] = 11
+        self.assertFalse(se.verify(request, seen))
+        seen['usage']['users.limit'] = 10
+        self.assertTrue(se.verify(request, seen))
+        seen['modules'].remove('liwan_pmo')
+        self.assertFalse(se.verify(request, seen))
+
+    def test_expired_fallback_still_requires_materialization(self):
+        request = self.request(trial_ends_at='2026-01-01T00:00:00Z')
+        seen = applied_state(request, post_trial_supported=True, excess_supported=True,
+                             excess={'users.limit': 0, 'branches.extra_limit': 0})
+        seen.update(commercial_digest=request['post_trial_digest'], features=request['post_trial_features'],
+                    trial_ends_at=request['trial_ends_at'])
+        self.assertFalse(se.verify(request, seen, now='2026-01-02T00:00:00Z'))
+        seen['trial_ends_at'] = None
+        self.assertTrue(se.verify(request, seen, now='2026-01-02T00:00:00Z'))
+
+    def test_null_trial_clear_is_noop_on_an_older_tenant(self):
+        request = make_request(trial_ends_at=None)
+        runner = FakeRunner(observation(), apply_state=applied_state(request))
+        self.effect(runner).reconfigure(request)
+        values = _script_values(next(script for stage, _mutate, script in runner.scripts if stage == 'apply'))
+        self.assertNotIn('trial_ends_at', values)
+
+
 class OptionalTrialEndKeysTest(unittest.TestCase):
     """New optional keys are type-checked when present and ignored otherwise."""
 
@@ -708,15 +824,16 @@ class OptionalTrialEndKeysTest(unittest.TestCase):
     def test_request_still_ignores_other_unknown_keys(self):
         se.validate_reconfigure(make_request(unrelated_key=object()))
 
-    def test_new_keys_change_neither_apply_script_nor_verify(self):
+    def test_new_keys_are_applied_and_verified(self):
         plain, extended = make_request(), make_request(**self.VALID_REQUEST)
-        self.assertEqual(se.build_apply_script(plain), se.build_apply_script(extended))
+        self.assertNotEqual(se.build_apply_script(plain), se.build_apply_script(extended))
         matching = observation(commercial_revision_id=TARGET, commercial_digest=DIGEST,
-                               features=plain['entitlement']['features'])
-        for seen in (matching, observation()):
-            with self.subTest(matches=seen is matching):
-                self.assertEqual(se.verify(plain, seen), se.verify(extended, seen))
-        self.assertTrue(se.verify(extended, matching))
+                               features=plain['entitlement']['features'], modules=plain['entitlement']['modules'],
+                               excess_supported=True, excess={'users.limit': 0, 'branches.extra_limit': 0})
+        self.assertTrue(se.verify(plain, matching))
+        self.assertFalse(se.verify(extended, matching))
+        matching.update({key: value for key, value in self.VALID_REQUEST.items() if key != 'excess_settle'})
+        self.assertTrue(se.verify(extended, matching, now='2026-11-01T00:00:00Z'))
 
     def test_observation_accepts_each_valid_key(self):
         for over in ({'post_trial_supported': True}, {'excess_supported': False},
