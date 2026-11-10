@@ -707,6 +707,34 @@ class TestFinanceZatcaRetryThrottle(LiwanZatcaCase):
                 self.authenticate(login, 'finance_write_pass_123')
                 self.assertRefused(self._keyed_retry(invoice), 502, 'zatca_unavailable')
 
+    def test_a_resubmit_after_a_failed_send_is_throttled_and_counted_like_a_retry(self):
+        invoice = self._failed()
+        document = self._document(invoice)
+        self.assertRefused(self.submit(invoice), 422, 'retry_too_soon')
+        self.assertEqual(document.liwan_zatca_retry_count, 0)
+        self.elapse_retry_spacing(invoice)
+        self.assertRefused(self.submit(invoice), 502, 'zatca_unavailable')
+        self.assertEqual(document.liwan_zatca_retry_count, 1)
+        self.assertRefused(self.submit(invoice), 422, 'retry_too_soon')
+        self.elapse_retry_spacing(invoice)
+        self.zatca.answers.clear()
+        self.assertEqual(self.submit(invoice).json()['state'], 'accepted')
+        self.assertEqual(document.liwan_zatca_retry_count, 2)
+
+    def test_the_first_send_is_not_throttled(self):
+        self.onboarded_journal()
+        invoice = self.sale_invoice()
+        self.assertEqual(self.submit(invoice).json()['state'], 'accepted')
+        self.assertEqual(self._document(invoice).liwan_zatca_retry_count, 0)
+
+    def test_the_concurrent_send_guard_still_wins_after_the_spacing(self):
+        invoice = self._failed()
+        self.elapse_retry_spacing(invoice)
+        busy = UserError('This document is being sent by another process already. ')
+        with patch.object(type(self.env['account.move']), 'action_process_edi_web_services', side_effect=busy):
+            self.assertRefused(self.submit(invoice), 422, 'invalid_state')
+        self.assertEqual(self._document(invoice).liwan_zatca_retry_count, 0)
+
     def test_the_retry_stays_sandbox_only(self):
         invoice = self._failed()
         self.elapse_retry_spacing(invoice)

@@ -592,7 +592,7 @@ There is no route that changes the mode.
   by stock only in the chatter, so they are read from the newest alert box of the invoice (best effort).
 - `POST /invoices/<id>/zatca/submit` and `/retry`: send that one posted invoice now (no waiting for the cron).
   `submit` refuses a rejected document (`invalid_state`: correct it and retry); `retry` clears the stock error first.
-  Every manual send stamps `last_attempt_at` on the document; `retry` also adds one to `retry_count` and is spaced by an
+  Every manual send stamps `last_attempt_at` on the document; sending a document that was already sent by hand once (`retry`, or `submit` after a failed send) also adds one to `retry_count` and is spaced by an
   escalating wait after the previous send, 30 s, 2 min, 5 min, 15 min and then 1 h (`RETRY_SPACING_SECONDS`, the last value is
   the cap). An earlier retry is 422 `retry_too_soon` with `details.next_retry_at` and nothing is sent or counted. `retry` honours
   `Idempotency-Key`; the web client sends `zatca-retry-<invoice id>-<retry_count>`.

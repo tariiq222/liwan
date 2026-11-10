@@ -117,7 +117,8 @@ class LiwanFinanceZatca(models.AbstractModel):
     def _liwan_submit(self, move_id, retry):
         """Send one posted Saudi sale document of the current company to ZATCA now (sandbox only).
 
-        ``retry`` first clears the stock error of a rejected or failed document. Stock persists the
+        ``retry`` first clears the stock error of a rejected or failed document. A document that was already sent by
+        hand once is spaced and counted as a retry on either route (the first manual send is never throttled). Stock persists the
         outcome on the document (it keeps the chain index only when ZATCA may have received the document,
         and resets it on a definite answer), so the caller reads the state back and the request must
         commit even when ZATCA said no.
@@ -136,7 +137,9 @@ class LiwanFinanceZatca(models.AbstractModel):
             raise ApiError(422, 'invalid_state', 'the document was already accepted by ZATCA')
         if not retry and document.blocking_level == 'error':
             raise ApiError(422, 'invalid_state', 'ZATCA rejected the document; correct it and retry')
-        if retry:
+        # Whichever route sends it, a document already sent by hand once is a retry: spaced and counted.
+        repeat = retry or bool(document.liwan_zatca_last_attempt_at)
+        if repeat:
             allowed_at = retry_allowed_at(document)
             if allowed_at and fields.Datetime.now() < allowed_at:
                 raise ApiError(
@@ -144,7 +147,7 @@ class LiwanFinanceZatca(models.AbstractModel):
                     details={'next_retry_at': iso(allowed_at), 'retry_count': document.liwan_zatca_retry_count},
                 )
         elevated_move = self.sudo().with_context(lang='en_US').env['account.move'].browse(move.id)
-        self._liwan_record_attempt(zatca_document(elevated_move), retry)
+        self._liwan_record_attempt(zatca_document(elevated_move), repeat)
         if retry:
             self._liwan_retry_zatca_document(elevated_move)
         try:
@@ -164,10 +167,10 @@ class LiwanFinanceZatca(models.AbstractModel):
         return move
 
     @api.model
-    def _liwan_record_attempt(self, document, retry):
-        """Stamp a manual send on the document and count it when it is a retry; a send that raises rolls this back with it."""
+    def _liwan_record_attempt(self, document, repeat):
+        """Stamp a manual send on the document and count it when it repeats an earlier one; a send that raises rolls this back with it."""
         values = {'liwan_zatca_last_attempt_at': fields.Datetime.now()}
-        if retry:
+        if repeat:
             values['liwan_zatca_retry_count'] = document.liwan_zatca_retry_count + 1
         document.write(values)
 
