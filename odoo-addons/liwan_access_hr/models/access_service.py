@@ -218,6 +218,9 @@ class LiwanAccessHrService(models.AbstractModel):
         # ``resource.resource.user_id``. Update both columns so the private
         # bridge preserves the stock HR relation and its search index.
         company_id = self.env.company.id
+        # The SQL below skips the ORM write fence, so a read-only branch or account is refused here.
+        # No record is read: the actor may lack employee read access, and the company is the one the SQL is scoped to.
+        self.env['hr.employee']._liwan_assert_lifecycle_writable({'company_id': company_id, 'user_id': user_id})
         self.env.cr.execute(
             """
             UPDATE resource_resource
