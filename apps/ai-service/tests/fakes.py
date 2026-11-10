@@ -15,6 +15,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.graph import RUN_MODELS_KEY, build_graph
 from liwan_ai_service.platform_provider import PlatformModel, PlatformProvider
+from liwan_ai_service.router import ROUTE_RULES
 from liwan_ai_service.routing import RunModels
 from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
@@ -140,11 +141,18 @@ def is_title_request(messages: list[BaseMessage]) -> bool:
     return bool(messages) and isinstance(messages[0], SystemMessage) and messages[0].content == TITLE_RULES
 
 
+def is_route_request(messages: list[BaseMessage]) -> bool:
+    return bool(messages) and isinstance(messages[0], SystemMessage) and messages[0].content == ROUTE_RULES
+
+
 class ScriptedChatModel(BaseChatModel):
-    """The tests script the run's turns in ``responses``; the title requests are answered apart from ``title_responses`` (none: the call fails)."""
+    """The tests script the run's turns in ``responses``; the title and classification requests are answered apart, from
+    ``title_responses`` and ``route_responses`` (none left: the call fails)."""
 
     responses: list[AIMessage]
     title_responses: list[AIMessage] = []
+    route_responses: list[AIMessage] = []
+    route_calls: list[list[BaseMessage]] = []
     bound_tools: list[Any] = []
     bound_history: list[list[str]] = []  # the tool names bound for each plan call, in order
     calls: list[list[BaseMessage]] = []
@@ -163,11 +171,12 @@ class ScriptedChatModel(BaseChatModel):
         return self
 
     def _next(self, messages: list[BaseMessage]) -> AIMessage:
-        title = is_title_request(messages)
-        (self.title_calls if title else self.calls).append(list(messages))
-        script = self.title_responses if title else self.responses
+        kind = "title" if is_title_request(messages) else "route" if is_route_request(messages) else "plan"
+        calls, script = {"title": (self.title_calls, self.title_responses), "route": (self.route_calls, self.route_responses),
+                         "plan": (self.calls, self.responses)}[kind]
+        calls.append(list(messages))
         if not script:
-            msg = "title script exhausted" if title else "script exhausted"
+            msg = f"{kind} script exhausted"
             raise RuntimeError(msg)
         return script.pop(0)
 
@@ -210,7 +219,7 @@ class FlakyChatModel(ScriptedChatModel):
     attempts: int = 0
 
     def _next(self, messages: list[BaseMessage]) -> AIMessage:
-        if not is_title_request(messages):
+        if not (is_title_request(messages) or is_route_request(messages)):
             self.attempts += 1
             if self.failures:
                 raise self.failures.pop(0)
@@ -261,3 +270,19 @@ class RenamingChatModel(ScriptedChatModel):
             await self.on_title()
         async for chunk in super()._astream(messages, stop, None, **kwargs):
             yield chunk
+
+
+class FaultyRouteChatModel(ScriptedChatModel):
+    """The classification request raises ``route_error``, or never comes back in time when ``route_stalls``; the plan calls follow the script."""
+
+    route_error: Any = None
+    route_stalls: bool = False
+
+    async def _agenerate(self, messages: list[BaseMessage], stop: list[str] | None = None,
+                         run_manager: AsyncCallbackManagerForLLMRun | None = None, **kwargs: Any) -> ChatResult:
+        if is_route_request(messages):
+            if self.route_stalls:
+                await asyncio.sleep(60)
+            if self.route_error is not None:
+                raise self.route_error
+        return await super()._agenerate(messages, stop, run_manager, **kwargs)

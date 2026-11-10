@@ -16,7 +16,7 @@ from odoo.addons.liwan_ai.models.ai_audit import (
 
 # The one route the usage recorder's API key may reach (models/ir_http.py registers it with the platform guard).
 USAGE_SERVICE_PATH = '/api/v1/ai/usage/service'
-USAGE_KINDS = ('plan', 'title')
+USAGE_KINDS = ('plan', 'title', 'route')
 # What kind of task a call served (the AI service's ``Capability`` and the zod ``AiCapabilitySchema``).
 USAGE_CAPABILITIES = ('quick', 'standard', 'analysis', 'writing')
 USAGE_OUTCOMES = ('ok', 'failed', 'retried', 'aborted')

@@ -73,30 +73,32 @@ def decorator_name(dec: ast.expr) -> str:
     return ""
 
 
-def module_constants(tree: ast.Module) -> dict[str, str | tuple[str, ...]]:
+def module_constants(tree: ast.Module, known: dict[str, str | tuple[str, ...]] | None = None) -> dict[str, str | tuple[str, ...]]:
     """The top-level string constants of a module.
 
     A single ``NAME = 'text'`` is a route prefix such as ``RUN``; a tuple of
     strings such as ``FEATURES = ('crm.enabled', 'crm.import')`` is what a
-    controller spreads into ``requires_feature(*FEATURES)``.
+    controller spreads into ``requires_feature(*FEATURES)``. A tuple may also
+    be built from names of string constants, such as
+    ``PICK = (REPLY, MANAGE_FLOWS)``; those names resolve against the constants
+    defined earlier in the module and ``known`` (the ones it imports). A tuple
+    with any element that does not resolve is left out, never half-filled.
     """
     found: dict[str, str | tuple[str, ...]] = {}
+    scope = dict(known or {})
     for node in tree.body:
         if not isinstance(node, ast.Assign):
             continue
-        if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-            value: str | tuple[str, ...] | None = node.value.value
-        elif isinstance(node.value, (ast.Tuple, ast.List)) and all(
-            isinstance(element, ast.Constant) and isinstance(element.value, str) for element in node.value.elts
-        ):
-            value = tuple(element.value for element in node.value.elts)
+        if isinstance(node.value, (ast.Tuple, ast.List)):
+            elements = [resolved_string(element, scope) for element in node.value.elts]
+            value = None if any(element is None for element in elements) else tuple(elements)
         else:
-            value = None
+            value = resolved_string(node.value, scope)
         if value is None:
             continue
         for target in node.targets:
             if isinstance(target, ast.Name):
-                found[target.id] = value
+                found[target.id] = scope[target.id] = value
     return found
 
 
@@ -140,8 +142,8 @@ def resolvable_constants(path: Path, tree: ast.Module, _seen: frozenset[Path] = 
     equal to the gate the controller enforces (issue #470). Only string constants
     are followed; a name that resolves to nothing is left out, never guessed.
     """
-    constants = dict(module_constants(tree))
     seen = _seen | {path}
+    imported: dict[str, str | tuple[str, ...]] = {}
     for node in tree.body:
         if not isinstance(node, ast.ImportFrom):
             continue
@@ -153,11 +155,9 @@ def resolvable_constants(path: Path, tree: ast.Module, _seen: frozenset[Path] = 
             continue
         resolved = resolvable_constants(target, other, seen)
         for alias in node.names:
-            name = alias.name
-            source_name = alias.asname or name
-            if name in resolved:
-                constants[source_name] = resolved[name]
-    return constants
+            if alias.name in resolved:
+                imported[alias.asname or alias.name] = resolved[alias.name]
+    return {**module_constants(tree, imported), **imported}
 
 
 def resolved_string(node: ast.expr, constants: dict[str, str | tuple[str, ...]]) -> str | None:

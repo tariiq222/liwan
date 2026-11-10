@@ -146,10 +146,32 @@ def retry_wait(error: BaseException, attempt: int) -> float:
     return wait * (1 + random.uniform(0, JITTER))  # noqa: S311 - jitter, not security
 
 
+async def invoke_route(
+    model: BaseChatModel, messages: list[BaseMessage], identity: ModelIdentity, emit: Emit, timeout_seconds: float, deadline_at: float | None = None,
+) -> AIMessage:
+    """The classification call: one attempt, reported as a ``route`` call (``aborted`` when it outlasts ``timeout_seconds`` or the run deadline).
+
+    A failure is reported and then raised; the caller decides what a failed classification means.
+    """
+    call_id = new_call_id()
+    emit(call_event(call_id, "route", identity))
+    seconds = timeout_seconds if deadline_at is None else min(timeout_seconds, deadline_at - asyncio.get_running_loop().time())
+    timeout = asyncio.timeout(seconds)
+    try:
+        async with timeout:
+            response = await model.ainvoke(messages)
+    except Exception as error:
+        emit(usage_event(call_id, "aborted" if isinstance(error, TimeoutError) and timeout.expired() else "failed", identity))
+        raise
+    emit(usage_event(call_id, "ok", identity, tokens_of([response])))
+    return response
+
+
 async def invoke_planned(
     model: Runnable, messages: list[BaseMessage], identity: ModelIdentity, emit: Emit, deadline_at: float | None = None,
+    attempts: int = PLAN_ATTEMPTS,
 ) -> AIMessage:
-    """The planning call: up to ``PLAN_ATTEMPTS`` attempts, each reported.
+    """The planning call: up to ``attempts`` attempts (``PLAN_ATTEMPTS`` unless the caller bounds it), each reported.
 
     A wait honours the provider's ``Retry-After`` and is jittered; one that would not end before ``deadline_at`` (the run deadline, on
     the event loop clock; None: unbounded) is not started: the failure is final instead.
@@ -157,13 +179,13 @@ async def invoke_planned(
     Only a failure that comes before any output is retried: the transient classes (408/409/429/5xx answers, connections that
     could not be made) are all raised when the request is answered, before the first token streams.
     """
-    for attempt in range(PLAN_ATTEMPTS):
+    for attempt in range(attempts):
         call_id = new_call_id()
         emit(call_event(call_id, "plan", identity))
         try:
             response = await model.ainvoke(messages)
         except Exception as error:
-            wait = retry_wait(error, attempt) if attempt < PLAN_ATTEMPTS - 1 and is_transient_provider_error(error) else None
+            wait = retry_wait(error, attempt) if attempt < attempts - 1 and is_transient_provider_error(error) else None
             if wait is not None and deadline_at is not None and wait >= deadline_at - asyncio.get_running_loop().time():
                 wait = None  # the run deadline comes first: no point waiting for an attempt it would cut
             emit(usage_event(call_id, "failed" if wait is None else "retried", identity))
