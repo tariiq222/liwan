@@ -85,7 +85,12 @@ count stays at `0`.
    `main` can be stale. Resolve policy conflicts with the current owner decision.
 2. **Prepare one candidate.** Work in an isolated, claimed worktree. Bring the
    latest remote `main` into the candidate without rebasing another owner's
-   branch. An independent task uses its own PR. A coupled batch uses
+   branch. Small changes made in one session or one area share one PR: each is
+   its own commit on one task branch, and the PR stays in draft until the batch is
+   complete, then goes ready once (one CI run, one review). A change that needs an
+   independent review or an owner decision (authentication, authorization, tenant
+   isolation, migrations, the CI rules that decide what must pass) gets its own PR
+   so it does not hold the others back. A coupled batch uses
    `<prefix>/tools-integrate-<slug>`, merging only its agreed branches with merge
    commits and one PR to `main`. Preserve incoming commits and approved behavior;
    do not replace entire files, use blanket `ours`/`theirs`, reset `main` to an
