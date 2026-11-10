@@ -5,9 +5,12 @@ import inspect
 import io
 import json
 import signal
+import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from tools.shared_saas_lifecycle import subscription_effect as se
@@ -95,6 +98,8 @@ def applied_state(request, **over):
                  'active': True, 'parent_is_root': True} for i, b in enumerate(request['branches']['apply'])]
     base = dict(commercial_valid_until=request.get('commercial_valid_until'),
                 commercial_valid_until_revision=request.get('commercial_valid_until_revision', 0))
+    if over.get('excess_supported') is True:
+        base['excess_settled'] = True
     base.update(over)
     return observation(commercial_revision_id=TARGET, commercial_digest=ent['digest'],
                        features=dict(ent['features']), branches=branches,
@@ -255,6 +260,7 @@ class ReconfigureTests(Base):
 
     def test_ai_push_is_refused_unless_the_tenant_is_on_the_target_revision_with_its_digest(self):
         for label, state in [('no revision', observation(commercial_revision_id=None, commercial_digest=None)),
+                             ('target without digest', observation(commercial_revision_id=TARGET, commercial_digest=None)),
                              ('another revision', observation(commercial_revision_id=PREV)),
                              ('the target with another digest', observation(commercial_revision_id=TARGET, commercial_digest='c' * 64))]:
             runner = FakeRunner(state)
@@ -710,6 +716,76 @@ class RestoreRuntimeTests(unittest.TestCase):
 
 
 class TrialEndEffectTests(Base):
+    def execute_apply(self, request, *, current=PREV, digest='c' * 64, pending=None):
+        """Execute the generated Odoo code against an isolated protocol double, including write ordering."""
+        events = []
+        clock = datetime(2026, 1, 2)
+
+        class Profile:
+            commercial_revision_id = current
+            commercial_digest = digest
+            commercial_valid_until_revision = 0
+            features = {'users.limit': 10, 'pmo.enabled': False, 'ai.balance.granted': 1}
+            trial_ends_at = None
+            post_trial_features = pending or {}
+            post_trial_modules = []
+            post_trial_digest = None
+
+            def _liwan_lock(self):
+                return self
+
+            def with_context(self, **_context):
+                return self
+
+            def write(self, values):
+                events.append('write')
+                for key, value in values.items():
+                    setattr(self, key, value)
+
+            def _liwan_grant_opened_admin_roles(self, _login, before):
+                events.append(('roles', tuple(service._liwan_entitled_admin_roles()), tuple(before)))
+                return True
+
+            def _liwan_apply_post_trial(self):
+                if self.trial_ends_at and self.trial_ends_at <= clock:
+                    self.features = dict(self.post_trial_features)
+                    self.commercial_digest = self.post_trial_digest
+                    self.trial_ends_at = False
+                    events.append('materialized')
+                    service._liwan_settle_excess()
+
+            def _liwan_apply_branches(self, *_args):
+                if self.trial_ends_at and self.trial_ends_at <= clock:
+                    raise RuntimeError('unsettled_due_branch_quota')
+                events.append('branches')
+
+        profile = Profile()
+        service = SimpleNamespace(
+            _liwan_entitled_admin_roles=lambda: ['pmo'] if profile.features.get('pmo.enabled') else [],
+            _liwan_close_unlisted_features=lambda values: dict(values),
+            _liwan_settle_excess=lambda: events.append('settled'),
+        )
+
+        class Env:
+            su = True
+            cr = SimpleNamespace(dbname=DB, commit=lambda: events.append('commit'), rollback=lambda: events.append('rollback'))
+            registry = SimpleNamespace(signal_changes=lambda: events.append('signal'))
+
+            def __getitem__(self, model):
+                if model == 'liwan.entitlement.service':
+                    return service
+                raise AssertionError(model)
+
+        fields = SimpleNamespace(Datetime=SimpleNamespace(now=lambda: clock), Date=SimpleNamespace(to_date=lambda value: value))
+        namespace = {'env': Env()}
+        values = _script_values(se.build_apply_script(request))
+        exec(se._prefix(values) + se._COMMON, namespace)
+        namespace['read_profile'] = lambda: profile
+        with mock.patch.dict(sys.modules, {'odoo': SimpleNamespace(fields=fields),
+                                           'odoo.addons.liwan_platform.models.entitlement_service': SimpleNamespace(OPERATOR_CONTEXT='operator')}):
+            exec(se._APPLY_BODY, namespace)
+        return namespace['result'], profile, events
+
     def request(self, **over):
         return make_request(**{
             'trial_ends_at': '2026-12-01T00:00:00Z',
@@ -824,6 +900,94 @@ class TrialEndEffectTests(Base):
         values = _script_values(next(script for stage, _mutate, script in runner.scripts if stage == 'apply'))
         self.assertNotIn('trial_ends_at', values)
 
+    def test_generated_apply_grants_only_after_the_effective_policy_write(self):
+        request = make_request(admin_login='owner@example.test')
+        request['entitlement']['features']['pmo.enabled'] = True
+        result, _profile, events = self.execute_apply(request)
+        self.assertEqual(result, {'applied': True})
+        self.assertIn(('roles', ('pmo',), ()), events)
+        self.assertLess(events.index('write'), events.index(('roles', ('pmo',), ())))
+
+    def test_generated_late_apply_settles_before_paid_branch_binding(self):
+        request = self.request(trial_ends_at='2026-01-01T00:00:00Z', excess_settle=True,
+                               branches={'apply': [{'branch_id': B1, 'name': 'Paid branch'}], 'archive': []})
+        result, profile, events = self.execute_apply(request)
+        self.assertEqual(result, {'applied': True})
+        self.assertEqual(profile.features, request['post_trial_features'])
+        self.assertLess(events.index('materialized'), events.index('branches'))
+        self.assertLess(events.index('settled'), events.index('branches'))
+        self.assertLess(events.index('branches'), events.index('commit'))
+
+    def test_generated_ai_delivery_updates_pending_policy_without_reopening_apps(self):
+        request = make_request(previous_revision_id=TARGET, ai_push=True)
+        request['entitlement']['features']['ai.balance.granted'] = 8
+        pending = {'pmo.enabled': False, 'ai.balance.granted': 1}
+        result, profile, _events = self.execute_apply(request, current=TARGET, digest=DIGEST, pending=pending)
+        self.assertEqual(result, {'applied': True})
+        self.assertEqual(profile.features['ai.balance.granted'], 8)
+        self.assertEqual(profile.post_trial_features, {'pmo.enabled': False, 'ai.balance.granted': 8})
+
+    def test_ai_delivery_on_materialized_policy_preserves_locked_apps(self):
+        request = make_request(previous_revision_id=TARGET, ai_push=True, ai_expected_post_trial_digest='d' * 64)
+        request['entitlement']['features'].update({'ai.balance.granted': 8, 'pmo.enabled': True})
+        result, profile, events = self.execute_apply(request, current=TARGET, digest='d' * 64)
+        self.assertEqual(result, {'applied': True})
+        self.assertFalse(profile.features['pmo.enabled'])
+        self.assertEqual(profile.commercial_digest, 'd' * 64)
+        self.assertEqual(profile.features['ai.balance.granted'], 8)
+        self.assertIn('commit', events)
+
+    def test_late_apply_checks_the_effective_application_limit_before_install(self):
+        request = self.request(trial_ends_at='2025-12-31T00:00:00Z')
+        request['post_trial_features'].update({'pmo.enabled': True, 'projects.max_projects': 1})
+        seen = observation(post_trial_supported=True, excess_supported=True,
+                           features={'pmo.enabled': True, 'projects.max_projects': 5, 'users.limit': 10})
+        seen['usage']['projects.max_projects'] = 2
+        runner = FakeRunner(seen)
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 0)
+        self.assertEqual(runner.installed, [])
+
+    def test_empty_or_non_integer_ai_ledger_is_refused(self):
+        for values in ({}, {'ai.balance.granted': True}):
+            request = make_request(ai_push=True)
+            request['entitlement']['features'] = values
+            with self.subTest(values=values), self.assertRaisesRegex(EffectError, 'input_invalid'):
+                se.validate_reconfigure(request)
+
+    def test_new_trial_policy_must_be_complete_before_module_install(self):
+        request = make_request(trial_ends_at='2026-12-01T00:00:00Z')
+        runner = FakeRunner(observation(post_trial_supported=True, excess_supported=True))
+        with self.assertRaisesRegex(EffectError, 'input_invalid'):
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 0)
+        self.assertEqual(runner.installed, [])
+
+    def test_unsettled_storage_cannot_be_acknowledged_even_when_full_seats_fit(self):
+        request = make_request(excess_settle=True)
+        seen = applied_state(request, excess_supported=True, excess_settled=False,
+                             excess={'users.limit': 0, 'branches.extra_limit': 0, 'storage.limit_mb': 20})
+        self.assertFalse(se.verify(request, seen))
+        seen['excess_settled'] = True
+        self.assertTrue(se.verify(request, seen))
+
+    def test_storage_bytes_are_exact_and_safely_typed(self):
+        seen = observation(storage_bytes=1048577)
+        self.assertEqual(se.validate_observation(seen)['storage_bytes'], 1048577)
+        for invalid in (True, -1, 1.5, 9007199254740992):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(EffectError, 'observation_invalid'):
+                se.validate_observation(observation(storage_bytes=invalid))
+
+    def test_settlement_preserves_the_proven_last_admin_floor_only(self):
+        request = make_request(excess_settle=True)
+        request['entitlement']['features']['users.limit'] = 0
+        seen = applied_state(request, excess_supported=True, excess_settled=True,
+                             excess={'users.limit': 3, 'branches.extra_limit': 0, 'storage.limit_mb': 0})
+        self.assertTrue(se.verify(request, seen))
+        seen['usage']['users.limit'] = 2
+        self.assertFalse(se.verify(request, seen))
+
 
 class OptionalTrialEndKeysTest(unittest.TestCase):
     """New optional keys are type-checked when present and ignored otherwise."""
@@ -886,7 +1050,7 @@ class OptionalTrialEndKeysTest(unittest.TestCase):
         self.assertNotEqual(se.build_apply_script(plain), se.build_apply_script(extended))
         matching = observation(commercial_revision_id=TARGET, commercial_digest=DIGEST,
                                features=plain['entitlement']['features'], modules=plain['entitlement']['modules'],
-                               excess_supported=True, excess={'users.limit': 0, 'branches.extra_limit': 0})
+                               excess_supported=True, excess_settled=True, excess={'users.limit': 0, 'branches.extra_limit': 0})
         self.assertTrue(se.verify(plain, matching))
         self.assertFalse(se.verify(extended, matching))
         matching.update({key: value for key, value in self.VALID_REQUEST.items() if key != 'excess_settle'})

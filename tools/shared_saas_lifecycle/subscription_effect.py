@@ -34,7 +34,7 @@ SCRIPT_ERRORS = frozenset({
 BRANCH_LIMIT = 'branches.extra_limit'
 TRIAL_POLICY_KEYS = ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest')
 EXCESS_LIMITS = frozenset({'users.limit', 'storage.limit_mb', BRANCH_LIMIT})
-OPTIONAL_OBSERVATION_KEYS = frozenset({'post_trial_supported', 'excess_supported', 'excess', *TRIAL_POLICY_KEYS})
+OPTIONAL_OBSERVATION_KEYS = frozenset({'post_trial_supported', 'excess_supported', 'excess_settled', 'excess', 'storage_bytes', *TRIAL_POLICY_KEYS})
 BRANCH_ITEM_KEYS = frozenset({'branch_id', 'state', 'odoo_company_id', 'active', 'parent_is_root'})
 
 
@@ -110,11 +110,20 @@ def validate_reconfigure(request):
         raise EffectError('entitlement_invalid')
     odoo_effect.validate_modules(ent['modules'])
     validate_features(ent['features'])
+    ai_post_digest = request.get('ai_expected_post_trial_digest')
+    if 'ai_expected_post_trial_digest' in request and (
+            request.get('ai_push') is not True or not isinstance(ai_post_digest, str)
+            or not DIGEST_RE.fullmatch(ai_post_digest)):
+        raise EffectError('input_invalid')
     if 'ai_push' in request:
         # The flag promises three AI values on the applied revision and nothing else.
         br = request['branches']
-        if (request['ai_push'] is not True or br.get('apply') or br.get('archive') or br.get('restore')
-                or 'commercial_valid_until' in request or 'commercial_valid_until_revision' in request):
+        if (request['ai_push'] is not True or not isinstance(br, dict) or br.get('apply') or br.get('archive') or br.get('restore')
+                or 'commercial_valid_until' in request or 'commercial_valid_until_revision' in request
+                or any(key in request for key in (*TRIAL_POLICY_KEYS, 'excess_settle'))):
+            raise EffectError('input_invalid')
+        ai = {key: value for key, value in ent['features'].items() if key.startswith(('ai.balance.', 'ai.allowance.'))}
+        if not ai or any(type(value) is not int for value in ai.values()):
             raise EffectError('input_invalid')
     login = request.get('admin_login')
     if login is not None and (not isinstance(login, str) or not 1 <= len(login) <= 254
@@ -224,9 +233,14 @@ def collect(profile):
             'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
     trial_keys = ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest')
     result['post_trial_supported'] = all(key in profile._fields for key in trial_keys) and hasattr(profile, '_liwan_apply_post_trial')
-    result['excess_supported'] = hasattr(service, '_liwan_settle_excess') and hasattr(service, '_liwan_excess_counts')
-    if result['excess_supported']:
+    excess_keys = {'users.limit', 'storage.limit_mb', 'branches.extra_limit'}
+    capabilities = service._liwan_excess_capabilities() if hasattr(service, '_liwan_excess_capabilities') else ()
+    result['excess_supported'] = excess_keys <= set(capabilities) and hasattr(service, '_liwan_excess_is_settled')
+    if hasattr(service, '_liwan_excess_counts'):
         result['excess'] = service._liwan_excess_counts()
+    result['excess_settled'] = result['excess_supported'] and service._liwan_excess_is_settled()
+    if hasattr(service, '_liwan_count_storage_bytes'):
+        result['storage_bytes'] = int(service._liwan_count_storage_bytes())
     if result['post_trial_supported']:
         from odoo import fields
         result.update({key: getattr(profile, key) for key in trial_keys})
@@ -271,12 +285,17 @@ try:
         refuse('target_mismatch')
     profile = read_profile()._liwan_lock()
     current = profile.commercial_revision_id or None
-    # An AI push never sets a revision: it applies only to a tenant already on the target revision with its digest.
-    if values.get('ai_push') and (current != values['target_revision_id'] or (profile.commercial_digest or None) != values['digest']):
+    # AI delivery changes only ledger keys on the exact applied revision, including its authorized materialized policy.
+    ai_digests = {values['digest']}
+    if values.get('ai_expected_post_trial_digest'):
+        ai_digests.add(values['ai_expected_post_trial_digest'])
+    if values.get('ai_push') and (current != values['target_revision_id'] or (profile.commercial_digest or None) not in ai_digests):
         refuse('stale_target')
     if current not in (None, values['previous_revision_id'], values['target_revision_id']):
         refuse('stale_target')
     accepted_digests = {values['digest']}
+    if values.get('ai_push'):
+        accepted_digests.update(ai_digests)
     if values.get('trial_ends_at') and values.get('post_trial_digest'):
         cutoff = datetime.fromisoformat(values['trial_ends_at'].replace('Z', '+00:00'))
         if datetime.now(timezone.utc) >= cutoff:
@@ -285,55 +304,63 @@ try:
         refuse('observed_mismatch')
     operator = profile.with_context(**{OPERATOR_CONTEXT: True})
     not_granted = None
-    expiry_vals = _commercial_expiry_vals(values, profile, refuse)
-    trial_vals = _trial_policy_vals(values, profile, refuse)
-    if current != values['target_revision_id']:
-        roles_before = env['liwan.entitlement.service']._liwan_entitled_admin_roles()
-        # Every application stays installed; keys the target omits close (booleans
-        # false, limits 0). Odoo still refuses a target without its platform keys.
-        features = env['liwan.entitlement.service']._liwan_close_unlisted_features(values['features'])
-        write_vals = {'features': features, 'commercial_revision_id': values['target_revision_id'],
-                      'commercial_digest': values['digest'],
-                      'commercial_applied_at': fields.Datetime.now()}
-        # Roles the policy newly opened go to the enrolment administrator only.
-        granted = operator._liwan_grant_opened_admin_roles(values['admin_login'], roles_before)
-        opened = [k for k in env['liwan.entitlement.service']._liwan_entitled_admin_roles() if k not in set(roles_before or ())]
-        if opened and not granted:
-            admin = values['admin_login'] and env['res.users'].search(
-                [('login', '=', values['admin_login']), ('active', '=', True), ('share', '=', False)], limit=1)
-            if not values['admin_login']:
-                not_granted = 'no_admin_login'
-            elif not admin:
-                not_granted = 'admin_not_found'
-            else:
-                not_granted = 'roles_missing'
-    else:
-        # The same revision is delivered again for an expiry change, a restore repair or a changed AI balance. The
-        # revision and digest stay; only the derived AI keys (a ledger, not a revision) are rewritten when they differ.
-        ai = dict((k, v) for k, v in values['features'].items() if k.startswith(('ai.balance.', 'ai.allowance.')))
-        write_vals = {'features': dict(profile.features, **ai)} if any(profile.features.get(k) != v for k, v in ai.items()) else {}
-    write_vals.update(expiry_vals)
-    write_vals.update(trial_vals)
-    if write_vals:
-        # Reusing the applied revision (a trial extension or a paid renewal) still moves the
-        # independently versioned expiry; one write either way.
-        operator.write(write_vals)
-    # Archive first so a swap never trips branches.extra_limit; data is kept.
-    for uid in values['archive']:
-        branch = env['liwan.tenant.branch'].search([('branch_uid', '=', uid)])
-        if branch and branch.state == 'active':
-            operator._liwan_archive_branch(values['operation_id'], uid)
-    for uid in values['restore']:
-        operator._liwan_restore_branch(values['operation_id'], uid)
-    if values['apply']:
-        operator._liwan_apply_branches(values['operation_id'], values['target_revision_id'], values['apply'])
-    if hasattr(operator, '_liwan_apply_post_trial'):
-        operator._liwan_apply_post_trial()
-    service = env['liwan.entitlement.service']
-    if values.get('excess_settle'):
-        if not hasattr(service, '_liwan_settle_excess'):
-            refuse('tenant_upgrade_required')
-        service._liwan_settle_excess()
+    from contextlib import nullcontext
+    batch = operator._liwan_defer_branch_reopening() if hasattr(operator, '_liwan_defer_branch_reopening') else nullcontext()
+    with batch:
+        expiry_vals = _commercial_expiry_vals(values, profile, refuse)
+        trial_vals = _trial_policy_vals(values, profile, refuse)
+        if current != values['target_revision_id']:
+            roles_before = env['liwan.entitlement.service']._liwan_entitled_admin_roles()
+            # Every application stays installed; keys the target omits close (booleans
+            # false, limits 0). Odoo still refuses a target without its platform keys.
+            features = env['liwan.entitlement.service']._liwan_close_unlisted_features(values['features'])
+            write_vals = {'features': features, 'commercial_revision_id': values['target_revision_id'],
+                          'commercial_digest': values['digest'],
+                          'commercial_applied_at': fields.Datetime.now()}
+
+        else:
+            # The same revision is delivered again for an expiry change, a restore repair or a changed AI balance. The
+            # revision and digest stay; only the derived AI keys (a ledger, not a revision) are rewritten when they differ.
+            ai = dict((k, v) for k, v in values['features'].items() if k.startswith(('ai.balance.', 'ai.allowance.')))
+            write_vals = {'features': dict(profile.features, **ai)} if any(profile.features.get(k) != v for k, v in ai.items()) else {}
+            pending = getattr(profile, 'post_trial_features', None)
+            if isinstance(pending, dict) and pending and any(pending.get(k) != v for k, v in ai.items()):
+                write_vals['post_trial_features'] = dict(pending, **ai)
+        write_vals.update(expiry_vals)
+        write_vals.update(trial_vals)
+        if write_vals:
+            # Reusing the applied revision (a trial extension or a paid renewal) still moves the
+            # independently versioned expiry; one write either way.
+            operator.write(write_vals)
+        if hasattr(operator, '_liwan_apply_post_trial'):
+            operator._liwan_apply_post_trial()
+        if current != values['target_revision_id']:
+            # Roles the policy newly opened go to the enrolment administrator only.
+            granted = operator._liwan_grant_opened_admin_roles(values['admin_login'], roles_before)
+            opened = [k for k in env['liwan.entitlement.service']._liwan_entitled_admin_roles() if k not in set(roles_before or ())]
+            if opened and not granted:
+                admin = values['admin_login'] and env['res.users'].search(
+                    [('login', '=', values['admin_login']), ('active', '=', True), ('share', '=', False)], limit=1)
+                if not values['admin_login']:
+                    not_granted = 'no_admin_login'
+                elif not admin:
+                    not_granted = 'admin_not_found'
+                else:
+                    not_granted = 'roles_missing'
+        # Archive first so a swap never trips branches.extra_limit; data is kept.
+        for uid in values['archive']:
+            branch = env['liwan.tenant.branch'].search([('branch_uid', '=', uid)])
+            if branch and branch.state == 'active':
+                operator._liwan_archive_branch(values['operation_id'], uid)
+        for uid in values['restore']:
+            operator._liwan_restore_branch(values['operation_id'], uid)
+        if values['apply']:
+            operator._liwan_apply_branches(values['operation_id'], values['target_revision_id'], values['apply'])
+        service = env['liwan.entitlement.service']
+        if values.get('excess_settle'):
+            if not hasattr(service, '_liwan_settle_excess'):
+                refuse('tenant_upgrade_required')
+            service._liwan_settle_excess()
     result = {'applied': True}
     if not_granted:
         result.update({'roles_not_granted': True, 'roles_not_granted_reason': not_granted})
@@ -374,6 +401,8 @@ def build_apply_script(request):
     values.update({key: request[key] for key in (*TRIAL_POLICY_KEYS, 'excess_settle') if key in request})
     if request.get('ai_push') is True:
         values['ai_push'] = True
+        if 'ai_expected_post_trial_digest' in request:
+            values['ai_expected_post_trial_digest'] = request['ai_expected_post_trial_digest']
     return _prefix(values) + _COMMON + _APPLY_BODY + _TAIL
 
 
@@ -398,9 +427,11 @@ def validate_observation(value):
             'commercial_valid_until', 'commercial_valid_until_revision', 'commercial_expiry_supported', 'features', 'modules', 'branches', 'usage', 'limit_gates'}
     if not keys <= set(value) <= keys | OPTIONAL_OBSERVATION_KEYS:
         raise EffectError('observation_invalid')
-    for flag in ('post_trial_supported', 'excess_supported'):
+    for flag in ('post_trial_supported', 'excess_supported', 'excess_settled'):
         if flag in value and type(value[flag]) is not bool:
             raise EffectError('observation_invalid')
+    if 'storage_bytes' in value and (type(value['storage_bytes']) is not int or not 0 <= value['storage_bytes'] <= 9007199254740991):
+        raise EffectError('observation_invalid')
     trial_policy = {key: value[key] for key in TRIAL_POLICY_KEYS if key in value}
     if trial_policy:
         if trial_policy.get('post_trial_digest') is None:
@@ -511,19 +542,49 @@ def _effective_entitlement(request, now=None):
     return request['entitlement'], False
 
 
+def _complete_trial_policy(request, observed):
+    """A date-only extension may reuse the exact applied revision's already-delivered fallback."""
+    if not request.get('trial_ends_at'):
+        return request
+    policy = dict(request)
+    for key in TRIAL_POLICY_KEYS[1:]:
+        if key not in policy and observed['commercial_revision_id'] == request['target_revision_id']:
+            policy[key] = observed.get(key)
+    if (not isinstance(policy.get('post_trial_features'), dict)
+            or not isinstance(policy.get('post_trial_modules'), list)
+            or not isinstance(policy.get('post_trial_digest'), str)):
+        raise EffectError('input_invalid')
+    validate_trial_end_keys(policy)
+    return policy
+
+
 def verify(request, observed, now=None):
     """True when the observation proves the target; raises nothing."""
     ent, expired = _effective_entitlement(request, now)
     br = request['branches']
+    if request.get('ai_push') is True:
+        digests = {ent['digest']}
+        if 'ai_expected_post_trial_digest' in request:
+            digests.add(request['ai_expected_post_trial_digest'])
+        if observed['commercial_revision_id'] != request['target_revision_id'] or observed['commercial_digest'] not in digests:
+            return False
+        ai = {key: value for key, value in ent['features'].items() if key.startswith(('ai.balance.', 'ai.allowance.'))}
+        targets = [observed['features']]
+        if observed.get('post_trial_features'):
+            targets.append(observed['post_trial_features'])
+        return all(all(key in target and type(target[key]) is type(value) and target[key] == value
+                       for key, value in ai.items()) for target in targets)
     if not set(ent['modules']) <= set(observed['modules']):
         return False
     if expired and observed.get('trial_ends_at') is not None:
         return False  # effective reads alone do not prove that seat/storage flags were settled
     if expired or request.get('excess_settle') is True:
-        if observed.get('excess_supported') is not True or 'excess' not in observed:
+        if observed.get('excess_supported') is not True or observed.get('excess_settled') is not True or 'excess' not in observed:
             return False
         for key in ('users.limit', BRANCH_LIMIT):
             limit = ent['features'].get(key)
+            if key == 'users.limit' and type(limit) is int and limit == 0:
+                limit = 1  # the authoritative settlement proof protects exactly the last full HQ administrator
             if type(limit) is int and observed['usage'].get(key, limit + 1) > limit:
                 return False
         if any('read_only' not in branch for branch in observed['branches'] if branch['state'] == 'active'):
@@ -617,7 +678,7 @@ class SubscriptionEffect:
     def receipt(self, request, observed, installed, not_granted=None):
         by_id = {b['branch_id']: b for b in observed['branches']}
         extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
-        extra.update({key: observed[key] for key in ('post_trial_supported', 'excess_supported', 'excess') if key in observed})
+        extra.update({key: observed[key] for key in ('post_trial_supported', 'excess_supported', 'excess', 'storage_bytes') if key in observed})
         if observed.get('excess_supported') is True:
             extra['branch_read_only'] = [{'branch_id': branch['branch_id'], 'read_only': branch['read_only']}
                                        for branch in observed['branches'] if 'read_only' in branch]
@@ -641,6 +702,7 @@ class SubscriptionEffect:
         validate_reconfigure(request)
         database, target = request['tenant']['database'], request['target_revision_id']
         observed = self._observe(database)
+        request = _complete_trial_policy(request, observed)
         if any(key in request for key in TRIAL_POLICY_KEYS) and observed.get('post_trial_supported') is not True:
             if request.get('trial_ends_at') is not None or any(key in request for key in TRIAL_POLICY_KEYS[1:]):
                 raise EffectError('tenant_upgrade_required')
@@ -657,22 +719,31 @@ class SubscriptionEffect:
             request = {key: value for key, value in request.items()
                        if key not in ('commercial_valid_until', 'commercial_valid_until_revision')}
         current = observed['commercial_revision_id']
-        if request.get('ai_push') and (current != target or observed['commercial_digest'] != request['entitlement']['digest']):
+        ai_digests = {request['entitlement']['digest']}
+        if 'ai_expected_post_trial_digest' in request:
+            ai_digests.add(request['ai_expected_post_trial_digest'])
+        if request.get('ai_push') and (current != target or observed['commercial_digest'] not in ai_digests):
             raise EffectError('stale_target')
         if current not in (None, request['previous_revision_id'], target):
             raise EffectError('stale_target')
-        effective, _expired = _effective_entitlement(request, self.clock())
-        if current == target and observed['commercial_digest'] not in {request['entitlement']['digest'], effective['digest']}:
+        effective, expired = _effective_entitlement(request, self.clock())
+        accepted_digests = {request['entitlement']['digest'], effective['digest']}
+        if request.get('ai_push') is True:
+            accepted_digests.update(ai_digests)
+        if current == target and observed['commercial_digest'] not in accepted_digests:
             raise EffectError('observed_mismatch')
         journal = Journal(self.journal_dir, database, request['operation_id'], target)
         if verify(request, observed, now=self.clock()):
             journal.begin()
             journal.done()
             return self.receipt(request, observed, [])
-        if current != target:
-            check_downgrade(request, observed)
+        if current != target or expired:
+            checked = {**request, 'entitlement': effective}
+            if expired:
+                checked['excess_settle'] = True
+            check_downgrade(checked, observed)
         journal.begin()
-        missing = [m for m in request['entitlement']['modules'] if m not in observed['modules']]
+        missing = [] if request.get('ai_push') is True else [m for m in effective['modules'] if m not in observed['modules']]
         if missing:
             self.runner.install_modules(missing)
         applied = parse_output(self.runner.run_script(build_apply_script(request), 'apply', mutate=True))
