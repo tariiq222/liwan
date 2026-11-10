@@ -47,6 +47,9 @@ async function rejectOutboxRow(client: PoolClient, row: { id: string; kind: stri
   console.error(`[settlements] refund outbox row ${row.id} (${row.kind}) rejected: ${reason}`)
 }
 
+/** The reason prefix of the credit notes the worker writes for a provider refund after fulfillment. */
+export const PROVIDER_REFUND_REASON = 'payment refunded after fulfillment — manual review'
+
 /** Writes one pending system credit note on an invoice. */
 async function insertSystemCreditNote(client: PoolClient, invoice: { id: string; customer_id: string }, reason: string, amount: { minor: number | string; currency: string; exponent: number }) {
   await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin) VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending','system','system')`,
@@ -86,8 +89,12 @@ async function creditRefundedAfterFulfillment(client: PoolClient, payload: any):
   if (!refunded || !Number.isSafeInteger(refunded.minor) || refunded.minor <= 0) return 'refund_amount_missing'
   if (refunded.currency !== attempt.currency || refunded.exponent !== attempt.exponent) return 'refund_currency_mismatch'
   if (refunded.minor > Number(attempt.amount_minor)) return 'refund_exceeds_payment'
-  const reason = `payment refunded after fulfillment — manual review (attempt ${attempt.id})`
-  const credited = Number((await client.query("SELECT COALESCE(sum(amount_minor),0) AS total FROM invoice_adjustments WHERE invoice_id=$1 AND reason=$2 AND status<>'void'", [attempt.invoice_id, reason])).rows[0].total)
+  const reason = `${PROVIDER_REFUND_REASON} (attempt ${attempt.id})`
+  // Every credit note of the invoice counts, the vendor's own included: when the operator refunded this money through
+  // `requestInvoiceRefund` first, the provider's event is that same money and adds nothing. Only a note for a duplicate
+  // charge is other money (a different attempt's payment).
+  const credited = Number((await client.query(`SELECT COALESCE(sum(amount_minor),0) AS total FROM invoice_adjustments
+    WHERE invoice_id=$1 AND kind='credit_note' AND status<>'void' AND reason NOT LIKE 'duplicate payment%'`, [attempt.invoice_id])).rows[0].total)
   const part = refunded.minor - credited
   if (part > 0) {
     await insertSystemCreditNote(client, attempt.invoice, reason, { minor: part, currency: attempt.currency, exponent: attempt.exponent })
@@ -177,6 +184,15 @@ export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reas
     // settlement path (invoice, then note) so neither can deadlock with a concurrent refund.
     const invoice = (await client.query('SELECT * FROM invoices WHERE id=$1 FOR UPDATE', [invoice_id])).rows[0]
     if (!invoice) throw new CommercialHttpError('not_found', 404)
+    // The provider may have refunded this money first: its note is the obligation, so the operator attaches to it (and
+    // records the provider's reference on it) instead of opening a second one for the same refund.
+    const providerNotes = (await client.query(`SELECT * FROM invoice_adjustments WHERE invoice_id=$1 AND kind='credit_note' AND origin='system'
+      AND status<>'void' AND reason LIKE $2 ORDER BY created_at,id`, [invoice_id, `${PROVIDER_REFUND_REASON}%`])).rows
+    if (providerNotes.length) {
+      const open = providerNotes.find(note => note.status === 'pending')
+      if (!open) throw new CommercialHttpError('refund_already_requested', 409)
+      return adjustmentView(open)
+    }
     if (invoice.status !== 'paid') throw new CommercialHttpError('invoice_not_paid', 409)
     const already = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND origin='vendor' AND kind='credit_note' AND status<>'void'", [invoice_id])
     if (already.rowCount) throw new CommercialHttpError('refund_already_requested', 409)
