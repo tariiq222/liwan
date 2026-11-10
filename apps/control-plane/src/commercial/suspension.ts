@@ -1,3 +1,4 @@
+import { overdueInvoiceSql } from './token-charge.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { transaction } from '../db.js'
@@ -35,7 +36,7 @@ export async function suspendSubscription(pool: Pool, input: { subscription_id: 
  */
 export async function resumeSubscription(pool: Pool, input: { subscription_id: string; reason: string; actor: string }) {
   await transaction(pool, async client => {
-    const row = (await client.query(`SELECT s.id,p.grace_days,s.suspended_from,s.trial_ends_at IS NOT NULL AND s.trial_outcome IS NULL AS has_expiry,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
+    const row = (await client.query(`SELECT s.id,p.grace_days,s.suspended_from,s.trial_ends_at IS NOT NULL AND s.trial_outcome IS NULL AS has_expiry,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND ${overdueInvoiceSql('i')}) AS overdue
       FROM subscriptions s LEFT JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
       LEFT JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
       WHERE s.id=$1 AND s.state='suspended' FOR UPDATE OF s`, [input.subscription_id])).rows[0]

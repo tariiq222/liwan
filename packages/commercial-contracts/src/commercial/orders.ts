@@ -6,13 +6,19 @@ export const paymentStateSchema = z.enum(['not_required', 'awaiting_payment', 'p
 export const fulfillmentStateSchema = z.enum(['not_started', 'queued', 'applying', 'applied', 'failed', 'needs_intervention'])
 export const orderKindSchema = z.enum(['new', 'change', 'renewal', 'branch_add', 'branch_archive', 'branch_restore'])
 
+export const storedChargeCollectionSchema = z.strictObject({
+  state: z.enum(['in_progress', 'declined', 'closed']),
+  resolve_by: z.iso.datetime().nullable(),
+})
+export type StoredChargeCollection = z.infer<typeof storedChargeCollectionSchema>
+
 export const orderSchema = z.strictObject({
   id: z.string().min(1), customer_id: z.string().min(1), subscription_id: z.string().min(1),
   kind: orderKindSchema, quote_id: z.string().min(1),
   target_revision_id: revisionIdSchema, expected_applied_revision_id: revisionIdSchema.nullable(),
   payment_state: paymentStateSchema, fulfillment_state: fulfillmentStateSchema,
   effective_at: z.string().nullable(), idempotency_key: z.string().min(1), request_digest: z.string().min(1),
-  due_now: moneySchema, created_at: z.string(),
+  due_now: moneySchema, created_at: z.string(), collection: storedChargeCollectionSchema.optional(),
 })
 // Accepting a quote: ids only. Prices/totals never come from the caller.
 export const acceptQuoteRequestSchema = z.strictObject({

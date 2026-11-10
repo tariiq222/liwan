@@ -65,6 +65,19 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     expect((await call('/v1/customer/trial/retry', { body: { customer_id: ownCustomer }, capabilities: ['subscription.manage'] })).status).toBe(400)
     expect((await call('/v1/customer/trial/end-preview', { capabilities: ['subscription.read'] })).status).toBe(404)
   })
+  it('refuses to activate stored-method charging before setup is available', async () => {
+    const path = '/v1/customer/auto-renew'
+    const body = { enabled: true, consent: true }
+    const before = (await pool.query('SELECT revision FROM subscriptions WHERE id=$1', [ownSubscription])).rows[0]
+    expect((await call(path, { body, capabilities: ['subscription.read'] })).status).toBe(403)
+    const denied = await call(path, { body, capabilities: ['subscription.manage'] })
+    expect(denied.status).toBe(409)
+    expect(await denied.json()).toMatchObject({ code: 'stored_payment_unavailable' })
+    const off = await call(path, { body: { enabled: false }, capabilities: ['subscription.manage'] })
+    expect(off.status).toBe(200)
+    expect(await off.json()).toMatchObject({ auto_renew: { state: 'off' } })
+    expect((await pool.query('SELECT revision FROM subscriptions WHERE id=$1', [ownSubscription])).rows[0]).toEqual(before)
+  })
   it('resolves a shared web registry tenant id through its enabled binding only',async()=>{
     const slug=`t${tenant.replaceAll('-','')}`
     expect((await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})).status).toBe(404)

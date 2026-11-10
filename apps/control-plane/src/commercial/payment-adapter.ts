@@ -14,7 +14,7 @@ export type PaymentErrorCode =
   | 'not_found' | 'key_mode_mismatch'
 
 export class PaymentError extends Error {
-  constructor(readonly code: PaymentErrorCode, message?: string) {
+  constructor(readonly code: PaymentErrorCode, message?: string, readonly httpStatus?: number) {
     super(message ? `${code}: ${message}` : code)
     this.name = 'PaymentError'
   }
@@ -54,7 +54,7 @@ export type CreateAttemptInput = {
 }
 export type CreateAttemptResult = { provider_ref: string; redirect_url: string; status: ProviderEventStatus }
 export type RefundResult = { payment_id: string; status: ProviderEventStatus; refunded: Money }
-export type ChargeTokenInput = { given_id: string; token: string; amount: Money; description: string; callback_url: string }
+export type ChargeTokenInput = { attempt_id: string; token: string; amount: Money; description: string; callback_url: string }
 export type TokenInfo = { id: string; status: string; active: boolean }
 export type AdapterHeaders = Record<string, string | string[] | undefined>
 

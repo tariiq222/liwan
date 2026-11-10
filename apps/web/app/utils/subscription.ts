@@ -170,9 +170,9 @@ export function storageUnlisted(options: StorageOption[], storageMb: number): bo
  * What the invoice page shows for the transfer section. One decision, taken from the outcome, so the page cannot render
  * an error where there is only an unconfigured account (or the reverse).
  */
-export function transferNotice(outcome: BankTransferOutcome<BankTransferInstructionsLike>): 'none' | 'unavailable' | 'failed' {
+export function transferNotice(outcome: BankTransferOutcome<BankTransferInstructionsLike>): 'none' | 'unavailable' | 'charge_in_progress' | 'failed' {
   if (outcome.kind === 'failed') return 'failed'
-  if (outcome.kind === 'unavailable') return 'unavailable'
+  if (outcome.kind === 'unavailable' || outcome.kind === 'charge_in_progress') return outcome.kind
   return 'none'
 }
 
@@ -269,10 +269,10 @@ export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => st
   }
 }
 
-export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payment_failed' | 'processing' | 'recovering' | 'activation_failed' | 'refund'
+export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payment_failed' | 'processing' | 'charging' | 'recovering' | 'activation_failed' | 'refund'
 
 /** What the customer should see for an order, whether it is still open or already closed. */
-export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_state'> & { cancelled?: boolean }): OrderOutcome {
+export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_state' | 'collection'> & { cancelled?: boolean }): OrderOutcome {
   // A refund can follow activation and leaves fulfillment_state as it was, so the payment outcome wins.
   if (order.payment_state === 'refund_pending' || order.payment_state === 'refunded') return 'refund'
   if (order.fulfillment_state === 'applied') return 'applied'
@@ -281,7 +281,7 @@ export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_s
   }
   if (order.cancelled) return 'cancelled'
   if (order.payment_state === 'failed') return 'payment_failed'
-  if (order.payment_state === 'awaiting_payment') return 'awaiting_payment'
+  if (order.payment_state === 'awaiting_payment') return order.collection?.state === 'in_progress' ? 'charging' : 'awaiting_payment'
   return 'processing'
 }
 
@@ -310,13 +310,19 @@ export interface BankTransferInstructionsLike {
 export type BankTransferOutcome<T extends BankTransferInstructionsLike> =
   | { kind: 'not_requested' }
   | { kind: 'unavailable' }
+  | { kind: 'charge_in_progress' }
   | { kind: 'failed'; cause: unknown }
   | { kind: 'instructions'; instructions: T }
 
 /** `cause` is absent when the request resolved: then `instructions` is what it answered, or null when it answered nothing. */
 export function bankTransferOutcome<T extends BankTransferInstructionsLike>(wanted: boolean, result: { instructions?: T | null; cause?: unknown }): BankTransferOutcome<T> {
   if (!wanted) return { kind: 'not_requested' }
-  if (result.cause !== undefined) return refusalCode(result.cause) === 'bank_account_unavailable' ? { kind: 'unavailable' } : { kind: 'failed', cause: result.cause }
+  if (result.cause !== undefined) {
+    const code = refusalCode(result.cause)
+    if (code === 'bank_account_unavailable') return { kind: 'unavailable' }
+    if (code === 'payment_charge_in_progress') return { kind: 'charge_in_progress' }
+    return { kind: 'failed', cause: result.cause }
+  }
   return result.instructions ? { kind: 'instructions', instructions: result.instructions } : { kind: 'unavailable' }
 }
 

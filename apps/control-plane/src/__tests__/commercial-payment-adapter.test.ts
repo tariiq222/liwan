@@ -121,15 +121,19 @@ describe('MoyasarAdapter', () => {
     expect(r.calls[0].url).toBe('https://api.moyasar.com/v1/payments/pay_1/refund')
     expect(JSON.parse(r.calls[0].init.body)).toEqual({ amount: 2000 })
     expect(out.refunded.minor).toBe(2000)
-    const c = mk({}, [{ id: 'tok_1', status: 'active' }, { id: 'pay_2', status: 'paid', amount: 3000, currency: 'SAR' }])
-    const ev = await c.a.chargeToken({ given_id: 'g-1', token: 'tok_1', amount: { currency: 'SAR', exponent: 2, minor: 3000 }, description: 'renew', callback_url: `${ORIGIN}/hook` })
-    expect(c.calls[0].url).toContain('/tokens/tok_1')
-    expect(c.calls[1].url).toBe('https://api.moyasar.com/v1/payments')
-    expect(JSON.parse(c.calls[1].init.body)).toMatchObject({ given_id: 'g-1', amount: 3000, source: { type: 'token', token: 'tok_1' } })
+    const c = mk({}, [{ id: 'pay_2', status: 'paid', amount: 3000, currency: 'SAR' }])
+    const ev = await c.a.chargeToken({ attempt_id: 'g-1', token: 'tok_1', amount: { currency: 'SAR', exponent: 2, minor: 3000 }, description: 'renew', callback_url: `${ORIGIN}/hook` })
+    expect(c.calls).toHaveLength(1)
+    expect(c.calls[0].url).toBe('https://api.moyasar.com/v1/payments')
+    expect(JSON.parse(c.calls[0].init.body)).toMatchObject({ given_id: 'g-1', amount: 3000, metadata: { attempt_id: 'g-1' }, source: { type: 'token', token: 'tok_1' } })
     expect(ev.status).toBe('succeeded')
-    const bad = mk({}, [{ id: 'tok_1', status: 'inactive' }])
-    expect(await code(bad.a.chargeToken({ given_id: 'g', token: 'tok_1', amount: { currency: 'SAR', exponent: 2, minor: 3000 }, description: 'x', callback_url: `${ORIGIN}/h` }))).toBe('provider_error')
-    expect(bad.calls).toHaveLength(1)
+  })
+  it('keeps stored-method identifiers and provider error bodies out of errors', async () => {
+    const secret = 'synthetic-stored-method-sentinel'
+    const c = mk({}, [{ http: 404 }, { http: 422, body: { message: secret } }])
+    await expect(c.a.getToken(secret)).rejects.toMatchObject({ message: 'not_found', httpStatus: 404 })
+    await expect(c.a.chargeToken({ attempt_id: 'g-1', token: secret, amount: attempt.amount,
+      description: 'x', callback_url: `${ORIGIN}/h` })).rejects.toMatchObject({ message: 'provider_error', httpStatus: 422 })
   })
   it('return url allowlist', async () => {
     expect(() => assertReturnUrl('http://evil.com/x', [ORIGIN])).toThrow(/return_url_forbidden/)
@@ -213,7 +217,7 @@ describe('SimulatorAdapter scenarios', () => {
     const s = sim().addToken('tok'); const { provider_ref: r } = await s.createAttempt(attempt)
     const ev = s.settle(r)
     expect((await s.refund(ev.payment_id!)).refunded.minor).toBe(5000)
-    const args = { given_id: 'g1', token: 'tok', amount: attempt.amount, description: 'x', callback_url: `${ORIGIN}/h` }
+    const args = { attempt_id: 'g1', token: 'tok', amount: attempt.amount, description: 'x', callback_url: `${ORIGIN}/h` }
     expect(await s.chargeToken(args)).toBe(await s.chargeToken(args))
   })
 })

@@ -186,7 +186,6 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | المكوّن | القصة | مكونات الأساس المستخدمة فعليًا |
 | --- | --- | --- |
 | `packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue` | `apps/web/stories/shared/CommercePriceBreakdown.stories.ts` | `UAlert`, `UButton` |
-| `apps/web/app/components/subscription/AutoRenewControl.vue` | `apps/web/stories/subscription/AutoRenewControl.stories.ts` | `UBadge`, `UButton`, `UCheckbox` |
 | `apps/web/app/components/subscription/BranchSummary.vue` | `apps/web/stories/subscription/BranchSummary.stories.ts` | `UBadge` |
 | `apps/web/app/components/subscription/UsagePanel.vue` | `apps/web/stories/subscription/UsagePanel.stories.ts` | `SharedMetricTile` (مقياس بشريط `progress` ونبرة)، `SharedStatusBadge` |
 | `apps/web/app/components/subscription/TrialEndPanel.vue` | `apps/web/stories/subscription/TrialEndPanel.stories.ts` | `SharedRecordSection`، `SharedPropertyRow`، `SharedInvoiceLines`، `SharedSegmentedControl`، `SharedStatusBadge`، `UAlert`، `UButton` |

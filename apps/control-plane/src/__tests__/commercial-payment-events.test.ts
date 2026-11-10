@@ -9,9 +9,8 @@ import { recordFulfillmentFailure, processRefundOutbox } from '../commercial/set
 import { cancelOrder } from '../commercial/orders.js'
 import { routesB } from '../commercial/routes-b.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { url } from './commercial-helpers.js'
 
-const url = process.env.CONTROL_TEST_DATABASE_URL
-if (url && new URL(url).pathname !== '/liwan_control_scratch_payfinal') throw new Error('payment tests require own scratch DB')
 const suite = url ? describe : describe.skip
 suite('simulated payment settlement on live PostgreSQL', () => {
   const pool = new Pool({connectionString:url,max:8})
@@ -225,27 +224,6 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     await reconcileUnknownAttempts(pool,f.adapter)
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('canceled')
     expect((await f.adapter.lookupAttempt(created.provider_ref)).status).toBe('canceled')
-  })
-  it('closes a token charge the provider does not know so the renewal can be paid by hand',async()=>{
-    const f=await fixture(),order=await state(f.order_id)
-    const insert=(ref:string)=>pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,token_charge)
-      SELECT $1,$2,$3,'simulator','simulator',$2::uuid::text,$4,11500,'SAR',2,'unknown',true`,[randomUUID(),f.order_id,f.invoice,ref])
-    // A payment id the provider answered 404 for is authoritative.
-    await insert(`pay_gone_${randomUUID()}`)
-    const next=await createPaymentAttempt(pool,f.input)
-    expect(next.status).toBe('redirected')
-    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'failed'}])
-    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.token_charge_missing' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
-    expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
-    // Only our own order id as the reference proves nothing yet: it waits out a grace period.
-    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE order_id=$1 AND NOT token_charge",[f.order_id])
-    await pool.query('DELETE FROM payment_attempts WHERE order_id=$1 AND token_charge',[f.order_id])
-    await insert(order.id)
-    await expect(createPaymentAttempt(pool,f.input)).rejects.toBeTruthy()
-    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'unknown'}])
-    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '2 hours' WHERE order_id=$1 AND token_charge",[f.order_id])
-    expect((await createPaymentAttempt(pool,f.input)).status).toBe('redirected')
-    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'failed'}])
   })
   it('never closes a hosted invoice attempt because the provider says it is missing',async()=>{
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)

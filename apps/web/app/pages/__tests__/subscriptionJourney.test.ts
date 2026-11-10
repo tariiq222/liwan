@@ -44,7 +44,7 @@ describe('permission gating', () => {
   it('pages gate on customer capabilities and use hydration', () => {
     expect(page('change.vue')).toContain("can('subscription.manage')"); expect(page('change.vue')).toContain('useHydrated')
     expect(page('branches/new.vue')).toContain("can('branches.manage')"); expect(page('invoices/index.vue')).toContain("can('billing.read')")
-    expect(read('app/components/subscription/AutoRenewControl.vue')).toContain('consent')
+    expect(page('index.vue')).not.toContain('AutoRenewControl')
     expect(deriveCustomerCapabilities(['access.users.read'])).not.toContain('subscription.manage')
   })
   it('uses shared structure: page state, create panel, unsaved changes, the shared price breakdown', () => {
@@ -63,7 +63,7 @@ describe('permission gating', () => {
     const s = page('status.vue')
     expect(s).toContain('api.order(orderId.value)'); expect(s).toContain('order-settled'); expect(s).toContain('order-empty'); expect(s).toContain('orderOutcome')
     expect(s).not.toContain('status.missing')
-    expect(s).toMatch(/catch \{ payError/); expect(s).toContain('else payError.value')
+    expect(s).toMatch(/catch \(cause\) \{\s*payError/); expect(s).toContain('else payError.value')
   })
   it('subscription page formats dates and reports failed sections', () => {
     const s = page('index.vue')

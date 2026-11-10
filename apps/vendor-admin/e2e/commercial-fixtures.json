@@ -117,9 +117,7 @@
           "renewal_at": "2026-12-01",
           "order_cancelled": false,
           "auto_renew": {
-            "enabled": false,
-            "consent_at": null,
-            "token_ref_present": false
+            "state": "off"
           },
           "trial_ends_at": null,
           "grace_ends_at": null
@@ -199,9 +197,7 @@
           "renewal_at": null,
           "order_cancelled": false,
           "auto_renew": {
-            "enabled": false,
-            "consent_at": null,
-            "token_ref_present": false
+            "state": "off"
           },
           "trial_ends_at": null,
           "grace_ends_at": null
@@ -1596,9 +1592,7 @@
       "renewal_at": "2026-12-01",
       "order_cancelled": false,
       "auto_renew": {
-        "enabled": false,
-        "consent_at": null,
-        "token_ref_present": false
+        "state": "off"
       },
       "trial_ends_at": null,
       "grace_ends_at": null
@@ -1672,9 +1666,7 @@
       "renewal_at": null,
       "order_cancelled": false,
       "auto_renew": {
-        "enabled": false,
-        "consent_at": null,
-        "token_ref_present": false
+        "state": "off"
       },
       "trial_ends_at": null,
       "grace_ends_at": null

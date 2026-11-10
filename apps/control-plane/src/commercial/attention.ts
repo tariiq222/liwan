@@ -1,3 +1,4 @@
+import { overdueInvoiceSql } from './token-charge.js'
 import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
@@ -85,7 +86,7 @@ const subjectsSql = `WITH latest AS (
 ), overdue AS (
   SELECT DISTINCT ON (i.customer_id) i.customer_id, i.id AS invoice_id, i.due_at, c.name, c.tenant_id
   FROM invoices i JOIN customers c ON c.id=i.customer_id
-  WHERE i.status='issued' AND i.due_at < now()
+  WHERE ${overdueInvoiceSql('i')}
   ORDER BY i.customer_id, i.due_at, i.id
 ), failed_ops AS (
   SELECT DISTINCT ON (op.tenant_id) op.id, op.tenant_id, op.type, op.updated_at, t.name, c.id AS customer_id
@@ -112,7 +113,7 @@ const subjectsSql = `WITH latest AS (
 const countsSql = `SELECT
   (SELECT count(*)::int FROM subscriptions WHERE state IN ('active','trialing')) AS subscriptions_active,
   (SELECT count(*)::int FROM subscriptions WHERE state='pending') AS subscriptions_pending,
-  (SELECT CASE WHEN $3::boolean THEN count(DISTINCT customer_id)::int END FROM invoices WHERE status='issued' AND due_at < now()) AS past_due,
+  (SELECT CASE WHEN $3::boolean THEN count(DISTINCT customer_id)::int END FROM invoices i WHERE ${overdueInvoiceSql('i')}) AS past_due,
   (SELECT count(*)::int FROM customers c JOIN subscriptions s ON s.customer_id=c.id JOIN LATERAL (
      SELECT fulfillment_state,created_at FROM orders WHERE subscription_id=s.id AND NOT cancelled AND fulfillment_state<>'applied'
      ORDER BY created_at DESC,id DESC LIMIT 1) o ON true

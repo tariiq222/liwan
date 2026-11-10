@@ -1,17 +1,16 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { setup, client, money, monthly } from './commercial-helpers.js'
+import { setup, client, money, monthly, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { generateRenewals, applyDunning, trialEndsAt } from '../commercial/renewals.js'
-import { verifyReturnedAttempt } from '../commercial/payments.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { attention } from '../commercial/attention.js'
+import { claimForSend, reconcileTokenCharges } from '../commercial/token-charge.js'
 
-const url=process.env.CONTROL_TEST_DATABASE_URL
-if(url && new URL(url).pathname!=='/liwan_control_scratch_payfinal') throw new Error('renewal tests require own scratch DB')
 const suite=url?describe:describe.skip
 suite('live PostgreSQL pinned subscription renewals',()=>{
   const pool=new Pool({connectionString:url,max:8}),api=client(pool)
@@ -38,7 +37,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const {order}=await acceptQuote(pool,{quote_id:quote.id,expected_subscription_revision:0,idempotency_key:randomUUID()},vendor)
     await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1",[order.id])
     await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE order_id=$1",[order.id])
-    await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1",[order.subscription_id])
+    await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1",[order.subscription_id])
     return {customer,id:order.subscription_id}
   }
   const args=(adapter:SimulatorAdapter)=>({now,adapter,returnOrigin: fixedReturnOrigin('https://liwan.test')})
@@ -75,29 +74,16 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     await generateRenewals(pool,args(new SimulatorAdapter()))
     expect((await pool.query('SELECT subscription_id FROM renewals ORDER BY subscription_id')).rows.map(r=>r.subscription_id).sort()).toEqual([renewed.id,skipped.id].sort())
   })
-  it('no consent never charges; charge response waits for lookup and paid renewal waits for receipt',async()=>{
-    const no=await subscription(),yes=await subscription()
-    await pool.query('UPDATE subscriptions SET provider_token_ref=$2,revision=revision+1 WHERE id=$1',[no.id,'token'])
-    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,provider_token_ref=$3,revision=revision+1 WHERE id=$1',[yes.id,now,'token'])
-    const adapter=new SimulatorAdapter().addToken('token'),charge=vi.spyOn(adapter,'chargeToken')
-    await generateRenewals(pool,args(adapter))
-    expect(charge).toHaveBeenCalledTimes(1)
-    expect((await pool.query('SELECT status FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.subscription_id=$1 AND o.kind=\'renewal\'',[no.id])).rows[0].status).toBe('redirected')
-    const renewal=(await pool.query('SELECT o.id,o.payment_state,a.status FROM orders o JOIN payment_attempts a ON a.order_id=o.id WHERE o.subscription_id=$1 AND o.kind=\'renewal\'',[yes.id])).rows[0]
-    expect(renewal).toMatchObject({payment_state:'awaiting_payment',status:'pending'})
-    expect((await pool.query('SELECT status FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].status).toBe('charging')
-    const attempt=(await pool.query('SELECT id FROM payment_attempts WHERE order_id=$1',[renewal.id])).rows[0]
-    await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[attempt.id])
-    expect(charge.mock.calls[0]![0].callback_url).toBe(`https://liwan.test/api/commercial/payment-callback?attempt=${attempt.id}`)
-    expect((await pool.query('SELECT token_charge FROM payment_attempts WHERE id=$1',[attempt.id])).rows[0].token_charge).toBe(true)
-    const byInvoice=vi.spyOn(adapter,'lookupAttempt'),byPayment=vi.spyOn(adapter,'lookupPayment')
-    await verifyReturnedAttempt(pool,{attempt_id:attempt.id,customer_id:yes.customer,adapter})
-    expect(byPayment).toHaveBeenCalledTimes(1);expect(byInvoice).not.toHaveBeenCalled() // a payment id is not an invoice id
-    const paid=(await pool.query("SELECT state,renewal_at::text FROM subscriptions WHERE id=$1",[yes.id])).rows[0]
-    expect(paid).toEqual({state:'active',renewal_at:'2026-10-01'})
-    expect((await pool.query('SELECT status FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].status).toBe('paid')
-    expect(await generateRenewals(pool,args(adapter))).toHaveLength(0)
-    expect((await pool.query('SELECT count(*)::int AS n FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].n).toBe(1)
+  it('does not send stored-method charges until the notice gate and setup are available', async () => {
+    const { id } = await subscription()
+    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
+      VALUES($1,$2,'simulator','active',$3,'fixture-key',now(),'fixture','fixture')`, [randomUUID(),id,Buffer.from([1])])
+    const adapter = new SimulatorAdapter()
+    const charge = vi.spyOn(adapter, 'chargeToken')
+    await generateRenewals(pool, args(adapter))
+    expect(charge).not.toHaveBeenCalled()
+    expect((await pool.query(`SELECT a.status,a.token_charge FROM payment_attempts a JOIN orders o ON o.id=a.order_id
+      WHERE o.subscription_id=$1 AND o.kind='renewal'`, [id])).rows).toEqual([{ status:'redirected', token_charge:false }])
   })
   it('dunning marks past_due then suspends only when pinned auto_suspend allows',async()=>{
     const yes=await subscription(suspend),no=await subscription(keep)
@@ -109,6 +95,32 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     await applyDunning(pool,{now:new Date(new Date(issued).getTime()+3*86400000)})
     expect((await pool.query('SELECT state FROM subscriptions WHERE id=$1',[yes.id])).rows[0].state).toBe('suspended')
     expect((await pool.query('SELECT state FROM subscriptions WHERE id=$1',[no.id])).rows[0].state).toBe('past_due')
+  })
+  it('holds dunning and vendor overdue attention until the stored charge is closed', async () => {
+    const { id, customer } = await subscription(suspend)
+    const adapter = new SimulatorAdapter()
+    vi.stubEnv('LIWAN_INVOICE_DUE_DAYS', '0')
+    try { await generateRenewals(pool,args(adapter)) } finally { vi.unstubAllEnvs() }
+    const issued = (await pool.query(`SELECT i.id,i.order_id,i.due_at,a.id AS attempt_id FROM invoices i
+      JOIN payment_attempts a ON a.invoice_id=i.id WHERE i.subscription_id=$1 AND i.kind='renewal'`, [id])).rows[0]
+    const method = randomUUID(), attempt = randomUUID()
+    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
+      VALUES($1,$2,'simulator','active',$3,'fixture-key',now(),'fixture','fixture')`, [method,id,Buffer.from([1])])
+    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE id=$1", [issued.attempt_id])
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,created_at,token_charge,method_id)
+      SELECT $1,i.order_id,i.id,'simulator','simulator',i.total_minor,i.currency,i.exponent,i.due_at,true,$2 FROM invoices i WHERE i.id=$3`,
+    [attempt,method,issued.id])
+    await claimForSend(pool, attempt, issued.due_at)
+    const afterGrace = new Date(issued.due_at.getTime() + 3 * 86_400_000)
+    const state = async () => (await pool.query('SELECT state FROM subscriptions WHERE id=$1',[id])).rows[0].state
+    await applyDunning(pool, { now: afterGrace })
+    expect(await state()).toBe('active')
+    const pastDue = async () => (await attention(pool, true)).items.some(item => item.kind === 'past_due' && item.customer_id === customer)
+    expect(await pastDue()).toBe(false)
+    await reconcileTokenCharges(pool, adapter, afterGrace)
+    expect(await pastDue()).toBe(true)
+    await applyDunning(pool, { now: afterGrace })
+    expect(await state()).toBe('suspended')
   })
   it('trial duration is computed from the supplied instant',()=>{
     expect(trialEndsAt(2,'2026-10-01T21:00:00Z')).toBe('2026-10-03T21:00:00.000Z')

@@ -4,14 +4,13 @@ import { orderSchema, trialEndPreviewSchema, type SubscriptionView } from '@liwa
 import { expectNoSecondH1, fitsWidth, login, mobileRows, open, rows } from './tasmim6-commercial-helpers'
 test.beforeEach(async ({ page }) => { await login(page) })
 
-test('subscription settings keep plan usage branches invoices and explicit auto renew consent', async ({ page }) => {
+test('subscription settings keep plan usage branches invoices while stored-method setup is unavailable', async ({ page }) => {
  await open(page,'/subscription'); await expectNoSecondH1(page)
- await expect(page.locator('[data-slot="record-section"]')).toHaveCount(7)
+ await expect(page.locator('[data-slot="record-section"]')).toHaveCount(6)
  await expect(page.getByTestId('usage-metric')).toHaveCount(2); await expect(page.getByTestId('usage-metric').filter({has:page.locator('[data-known="false"]')})).toHaveCount(0)
  await expect(page.locator('[data-testid="usage-metric"][data-known="false"]')).toHaveCount(1)
  await expect(page.getByTestId('branch-row')).toHaveCount(1); await expect(page.locator('a[href^="/subscription/invoices/inv-"]')).toHaveCount(2)
- const control=page.locator('[data-slot="auto-renew"]'); await expect(control.getByRole('button')).toBeDisabled()
- await control.getByRole('checkbox').check(); await expect(control.getByRole('button')).toBeEnabled()
+ await expect(page.locator('[data-slot="auto-renew"]')).toHaveCount(0)
 })
 test('an order that is no longer pending shows its note and never posts an order', async ({ page }) => {
  const orders:string[]=[]; page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/commercial/v1/orders'))orders.push(r.url())})
@@ -94,4 +93,31 @@ test('a paid order in automatic recovery polls for its updated status', async ({
   allowRefundResponse = true
   await expect(outcome).toHaveAttribute('data-outcome', 'refund', { timeout: 10_000 })
   expect(updates).toBeGreaterThan(0)
+})
+
+test('a stored-method charge shows the deadline and blocks hosted payment until closed', async ({ page }) => {
+  await open(page, '/subscription/branches')
+  const { subscription } = JSON.parse(readFileSync(new URL('./commercial-fixtures.json', import.meta.url), 'utf8')) as { subscription: SubscriptionView }
+  const order = orderSchema.parse({
+    id: 'order-collecting', customer_id: subscription.customer_id, subscription_id: subscription.id,
+    kind: 'renewal', quote_id: 'quote-collecting', target_revision_id: subscription.applied?.id,
+    expected_applied_revision_id: subscription.applied?.id ?? null,
+    payment_state: 'awaiting_payment', fulfillment_state: 'not_started', effective_at: null,
+    idempotency_key: 'charge-fixture', request_digest: 'charge-fixture',
+    due_now: { currency: 'SAR', exponent: 2, minor: 1000 }, created_at: '2026-12-01T21:00:00Z',
+    collection: { state: 'in_progress', resolve_by: '2026-12-02T21:00:00Z' },
+  })
+  let closed = false
+  await page.route('**/api/commercial/v1/subscription', route => route.fulfill({ json: {
+    ...subscription, pending_order: closed ? { ...order, collection: { state: 'declined', resolve_by: null } } : order,
+  } }))
+  await page.getByTestId('context-link-subscription-status').click()
+  const outcome = page.getByTestId('order-outcome')
+  await expect(outcome).toHaveAttribute('data-outcome', 'charging')
+  await expect(page.getByRole('main').getByText('03/12/2026 00:00')).toBeVisible()
+  const payment = page.getByRole('button', { name: 'إكمال الدفع' })
+  await expect(payment).toHaveCount(0)
+  closed = true
+  await expect(outcome).toHaveAttribute('data-outcome', 'awaiting_payment', { timeout: 10_000 })
+  await expect(payment).toBeVisible()
 })

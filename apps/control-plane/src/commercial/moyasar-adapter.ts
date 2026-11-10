@@ -75,7 +75,7 @@ export class MoyasarAdapter implements PaymentAdapter {
     return s.split(this.cfg.secretKey).join('[redacted]').split(this.cfg.webhookSecret).join('[redacted]')
   }
 
-  private async call(method: string, path: string, body?: unknown): Promise<Json> {
+  private async call(method: string, path: string, body?: unknown, sensitive = false): Promise<Json> {
     const ctl = new AbortController()
     const timer = setTimeout(() => ctl.abort(), this.timeoutMs)
     try {
@@ -88,13 +88,13 @@ export class MoyasarAdapter implements PaymentAdapter {
       const text = await res.text()
       let json: Json = {}
       try { json = text ? JSON.parse(text) : {} } catch { /* non-json */ }
-      if (res.status === 404) throw new PaymentError('not_found', path)
-      if (!res.ok) throw new PaymentError('provider_error', this.redact(`http ${res.status} ${String(json.message ?? json.type ?? '')}`.trim()))
+      if (res.status === 404) throw new PaymentError('not_found', sensitive ? undefined : path, res.status)
+      if (!res.ok) throw new PaymentError('provider_error', sensitive ? undefined : this.redact(`http ${res.status} ${String(json.message ?? json.type ?? '')}`.trim()), res.status)
       return json
     } catch (e) {
       if (e instanceof PaymentError) throw e
-      if ((e as Error)?.name === 'AbortError') throw new PaymentError('timeout', path)
-      throw new PaymentError('provider_unreachable', this.redact(String((e as Error)?.message ?? e)))
+      if ((e as Error)?.name === 'AbortError') throw new PaymentError('timeout', sensitive ? undefined : path)
+      throw new PaymentError('provider_unreachable', sensitive ? undefined : this.redact(String((e as Error)?.message ?? e)))
     } finally { clearTimeout(timer) }
   }
 
@@ -174,7 +174,7 @@ export class MoyasarAdapter implements PaymentAdapter {
   }
 
   async lookupPayment(paymentId: string): Promise<ProviderEvent> {
-    return this.fromPayment(await this.call('GET', `/payments/${encodeURIComponent(paymentId)}`))
+    return this.fromPayment(await this.call('GET', `/payments/${encodeURIComponent(paymentId)}`, undefined, true))
   }
 
   async lookupByAttemptId(attemptId: string): Promise<ProviderEvent | null> {
@@ -196,22 +196,20 @@ export class MoyasarAdapter implements PaymentAdapter {
   }
 
   async chargeToken(i: ChargeTokenInput): Promise<ProviderEvent> {
-    const tok = await this.getToken(i.token)
-    if (!tok.active) throw new PaymentError('provider_error', 'token not active')
     const callback_url = assertReturnUrl(i.callback_url, this.cfg.allowedReturnOrigins)
     const p = await this.call('POST', '/payments', {
       amount: i.amount.minor, currency: i.amount.currency.toUpperCase(), callback_url,
-      given_id: i.given_id, description: i.description, source: { type: 'token', token: i.token },
-    })
+      given_id: i.attempt_id, description: i.description, metadata: { attempt_id: i.attempt_id }, source: { type: 'token', token: i.token },
+    }, true)
     return this.fromPayment(p)
   }
 
   async getToken(id: string): Promise<TokenInfo> {
-    const t = await this.call('GET', `/tokens/${encodeURIComponent(id)}`)
+    const t = await this.call('GET', `/tokens/${encodeURIComponent(id)}`, undefined, true)
     return { id: String(t.id ?? id), status: String(t.status), active: t.status === 'active' }
   }
 
-  async deleteToken(id: string): Promise<void> { await this.call('DELETE', `/tokens/${encodeURIComponent(id)}`) }
+  async deleteToken(id: string): Promise<void> { await this.call('DELETE', `/tokens/${encodeURIComponent(id)}`, undefined, true) }
 }
 
 /** Authoritative re-check of a verified webhook; returns provider-fetched state. */

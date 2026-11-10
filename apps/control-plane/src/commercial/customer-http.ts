@@ -1,3 +1,4 @@
+import { getStoredChargeCollection } from './token-charge.js'
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
@@ -141,7 +142,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     // Unknown, malformed and another customer's id all answer the same 404.
     const row=z.uuid().safeParse(orderRead[1]).success?(await pool.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2',[orderRead[1],customerId])).rows[0]:undefined
     if(!row)throw new CommercialHttpError('not_found',404)
-    return {status:200,data:customerOrderStatusView(row)}
+    return {status:200,data:{...customerOrderStatusView(row),collection:await getStoredChargeCollection(pool,row.id)}}
   }
   const payment=/^\/orders\/([^/]+)\/payment-attempts$/.exec(path)
   if(m==='POST'&&payment){
@@ -176,12 +177,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(m==='POST'&&path==='/auto-renew'){
     requireCapability(principal,'subscription.manage')
     const body=parseBody(input.raw,z.strictObject({enabled:z.boolean(),consent:z.boolean().optional()}))
-    await transaction(pool,async client=>{
-      const r=await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE',[customerId]);if(!r.rowCount)throw new CommercialHttpError('not_found',404)
-      const s=r.rows[0];if(body.enabled&&(!body.consent||!s.provider_token_ref))throw new CommercialHttpError('token_required',409)
-      if(s.auto_renew_enabled===body.enabled)return
-      await client.query('UPDATE subscriptions SET auto_renew_enabled=$1,auto_renew_consent_at=CASE WHEN $1 THEN now() ELSE auto_renew_consent_at END,revision=revision+1 WHERE id=$2',[body.enabled,s.id])
-    })
+    if (body.enabled) throw new CommercialHttpError('stored_payment_unavailable',409)
     return {status:200,data:await getSubscription(pool,customerId)}
   }
   throw new CommercialHttpError('not_found',404)

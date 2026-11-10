@@ -68,6 +68,8 @@ export const paymentAttemptSchema = z.strictObject({
   id: z.string().min(1), order_id: z.string().min(1), invoice_id: z.string().min(1),
   provider: paymentProviderSchema, mode: paymentModeSchema, provider_ref: z.string().nullable(),
   amount: moneySchema, status: paymentAttemptStatusSchema, redirect_url: z.string().nullable(),
+  collection: z.enum(['hosted', 'stored_method']).optional(),
+  closed_reason: z.enum(['token_inactive','method_off','unsent_expired','abandoned','refused','superseded','provider_closed','declined']).nullable().optional(),
   created_at: z.string(), updated_at: z.string(),
 })
 /** Provider event ledger: (provider, provider_event_id) is unique; a verified signature alone never confirms payment. */

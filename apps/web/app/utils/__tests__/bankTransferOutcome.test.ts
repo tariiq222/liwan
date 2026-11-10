@@ -54,6 +54,7 @@ describe('bank-transfer instructions on an invoice', () => {
     // The page renders `transferNotice(outcome)`, so this is the decision itself, not a reading of the page's source.
     expect(transferNotice(bankTransferOutcome(true, { instructions }))).toBe('none')
     expect(transferNotice(bankTransferOutcome(true, { cause: refuse('bank_account_unavailable') }))).toBe('unavailable')
+    expect(transferNotice(bankTransferOutcome(true, { cause: refuse('payment_charge_in_progress') }))).toBe('charge_in_progress')
     expect(transferNotice(bankTransferOutcome(true, { cause: refuse('forbidden') }))).toBe('failed')
     expect(transferNotice(bankTransferOutcome(true, { cause: new Error('network') }))).toBe('failed')
     expect(transferNotice(bankTransferOutcome(false, {}))).toBe('none')

@@ -8,7 +8,8 @@ import { policyWire } from './policies.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { orderView } from './orders.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
-import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
+import { createPaymentAttempt } from './payments.js'
+import { overdueInvoiceSql } from './token-charge.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -151,29 +152,8 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
         continue
       }
     }
-    let activeToken = false
-    if (sub.auto_renew_enabled && sub.auto_renew_consent_at && sub.provider_token_ref) {
-      try { activeToken = (await adapter.getToken(sub.provider_token_ref)).active } catch { /* use hosted payment instead */ }
-    }
-    if (!activeToken) {
-      await createPaymentAttempt(pool,{order_id:order.id,customer_id:sub.customer_id,adapter,returnOrigin:async()=>origin})
-      continue
-    }
-    const attemptId = randomUUID()
-    await transaction(pool, async client => {
-      await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,token_charge)
-        VALUES($1,$2,$3,$4,$5,$2::uuid::text,$2::uuid::text,$6,$7,$8,true)`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
-      await client.query("UPDATE renewals SET status='charging' WHERE order_id=$1", [order.id])
-    })
-    try {
-      const event = await adapter.chargeToken({given_id:order.id,token:sub.provider_token_ref,amount:invoice.total,
-        description:`LiwanOS renewal ${order.id}`,callback_url:paymentReturnUrls(origin,attemptId)})
-      // A charge response only identifies the attempt; settlement requires provider lookup.
-      await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,event.provider_ref])
-    } catch {
-      await pool.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1 AND status='created'", [attemptId])
-      // The committed invoice/order survive; uncertain charges must be reconciled, never blindly retried.
-    }
+    // Stored-method attempts are inert until a later phase installs the notice and consent gate.
+    await createPaymentAttempt(pool, { order_id: order.id, customer_id: sub.customer_id, adapter, returnOrigin: async () => origin })
     } catch (error) {
       await recordRenewalFailure(pool, candidate.id, error)
       failures.push(error)
@@ -196,7 +176,7 @@ async function recordRenewalFailure(pool: Pool, subscriptionId: string, error: u
 export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Date } = {}) {
   const due = (await pool.query(`SELECT s.id FROM subscriptions s WHERE s.state IN ('active','past_due')
     AND NOT s.manual_suspension AND NOT ${holdsTrialAfterLapseSql('s')}
-    AND EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < $1)
+    AND EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND ${overdueInvoiceSql('i', '$1')})
     ORDER BY s.id`, [now])).rows
   const results: { subscription_id: string; state: string }[] = []
   for (const { id } of due) {
@@ -208,7 +188,7 @@ export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Dat
           WHERE s.id=$1 AND s.state IN ('active','past_due') AND NOT s.manual_suspension
           AND NOT ${holdsTrialAfterLapseSql('s')} FOR UPDATE OF s SKIP LOCKED`, [id])).rows[0]
         if (!row || !owesAtRenewal(row.snapshot.pricing)) return
-        const due = (await client.query("SELECT min(due_at) AS due_at FROM invoices WHERE subscription_id=$1 AND status='issued' AND due_at<$2", [id, now])).rows[0].due_at
+        const due = (await client.query(`SELECT min(i.due_at) AS due_at FROM invoices i WHERE i.subscription_id=$1 AND ${overdueInvoiceSql('i', '$2')}`, [id, now])).rows[0].due_at
         if (!due) return
         const grace = row.grace_ends_at ?? new Date(new Date(due).getTime() + Number(row.grace_days) * 86_400_000)
         const elapsed = new Date(grace).getTime() <= now.getTime()

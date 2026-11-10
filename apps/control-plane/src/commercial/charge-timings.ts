@@ -1,0 +1,2 @@
+export const STORED_CHARGE_UNSENT_MS = 60 * 60_000
+export const STORED_CHARGE_UNRESOLVED_MS = 24 * 60 * 60_000

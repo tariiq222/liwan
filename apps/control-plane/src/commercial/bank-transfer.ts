@@ -1,3 +1,4 @@
+import { closeStoredCharge, storedChargeDeadline, storedChargeInProgress } from './token-charge.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
@@ -119,7 +120,9 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
     // A2: `payment_attempts_one_live` allows one open attempt per order, and a customer who abandoned a card checkout
     // leaves a `created`/`redirected` row behind. The transfer is reserved `pending`, so those stale attempts are closed
     // first — in this transaction, so a failure below puts them back.
-    await client.query("UPDATE payment_attempts SET status='failed', updated_at=now() WHERE order_id=$1 AND status IN ('created','redirected','unknown')", [order.id])
+    const stored = (await client.query("SELECT id FROM payment_attempts WHERE order_id=$1 AND token_charge AND status IN ('created','unknown','pending')", [order.id])).rows[0]
+    if (stored) await closeStoredCharge(client, stored.id, 'superseded')
+    await client.query("UPDATE payment_attempts SET status='failed', updated_at=now() WHERE order_id=$1 AND NOT token_charge AND status IN ('created','redirected','unknown')", [order.id])
     // The attempt is reserved NOT settled: apply (below) is what flips it to succeeded and pays the order.
     // succeeded_at is the value date: the day the money reached the account, not the day it was recorded. apply()
     // keeps the first value it finds, so this survives the settlement that follows.
@@ -202,6 +205,8 @@ export async function bankTransferInstructions(pool: Pool, input: { invoice_id: 
   if (input.customer_id) { args.push(input.customer_id); where += ' AND customer_id=$2' }
   const invoice = (await pool.query(`SELECT * FROM invoices WHERE ${where}`, args)).rows[0]
   if (!invoice) throw new CommercialHttpError('not_found', 404)
+  const stored = (await pool.query("SELECT * FROM payment_attempts WHERE invoice_id=$1 AND token_charge AND status IN ('created','unknown','pending')", [invoice.id])).rows[0]
+  if (stored && storedChargeDeadline(stored) > new Date()) throw storedChargeInProgress(stored)
   const account = bankAccountOf(await billingSettings(pool))
   if (!account) throw new CommercialHttpError('bank_account_unavailable', 409)
   return { invoice_id: invoice.id as string, status: invoice.status as string, reference: (invoice.number ?? invoice.id) as string,

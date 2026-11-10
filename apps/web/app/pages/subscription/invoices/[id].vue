@@ -36,6 +36,7 @@ definePageMeta({ middleware: 'customer-commercial' })
       <SharedInvoiceLines layout="list" v-bind="view" />
       <UAlert v-if="transferState === 'failed'" color="error" variant="subtle" :title="t('subscription.bankTransfer.error')" data-testid="bank-transfer-error" />
       <p v-else-if="transferState === 'unavailable'" class="text-sm text-muted" data-testid="bank-transfer-unavailable">{{ t('subscription.bankTransfer.unavailable') }}</p>
+      <UAlert v-else-if="transferState === 'charge_in_progress'" color="info" variant="subtle" :title="t('subscription.status.outcomes.charging.title')" />
       <SharedRecordSection v-if="transfer" :title="t('subscription.bankTransfer.title')" data-testid="bank-transfer">
         <p class="text-sm text-muted">{{ t('subscription.bankTransfer.hint') }}</p>
         <p v-if="instructions" class="text-sm">{{ instructions }}</p>

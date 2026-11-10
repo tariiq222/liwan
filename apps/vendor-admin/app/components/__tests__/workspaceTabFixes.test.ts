@@ -82,7 +82,7 @@ describe('provisioning poll', () => {
 describe('customer glance', () => {
   const glance = loadSfc('components/vendor/CustomerGlance.vue', { useI18n, cadenceLabel, formatCommercialMoney, invoiceStatusBadge, formatLiwanDate, customerDisplayBadge, ...subscriptions })
   const base = { setupRequired: false, subscription: null, hasWorkspace: true, workspaceBadge: null, provisioningFailed: false, operationFailed: false, workspaceUnreadable: false, invoicesOffered: true, loginUrl: null, tabTo: (tab: string) => `/c?tab=${tab}` }
-  const pastDue = { id: 's', state: 'past_due', applied: null, target: null, pending_order: null, revision: 1, auto_renew: { enabled: false } }
+  const pastDue = { id: 's', state: 'past_due', applied: null, target: null, pending_order: null, revision: 1, auto_renew: { state: 'off' } }
   it('never says there are no problems while the workspace state could not be read, and offers a retry', async () => {
     const html = await glance.html({ ...base, workspaceUnreadable: true })
     expect(html).not.toContain('vendor.customers.glance.noIssues')

@@ -10,6 +10,7 @@ import {
   type Money, type PaymentAdapter, type ProviderEvent, type ProviderEventStatus, type RefundResult, type TokenInfo,
 } from './payment-adapter.js'
 
+export type SimChargeOutcome = 'succeed' | 'decline' | 'pending' | 'refuse' | 'unavailable' | 'lose_response'
 export type SimOutcome = 'succeed' | 'fail' | 'cancel' | 'timeout'
 export type SimulatorConfig = {
   env?: Record<string, string | undefined>
@@ -36,6 +37,7 @@ export class SimulatorAdapter implements PaymentAdapter {
   private readonly attempts = new Map<string, SimAttempt>()
   private readonly byAttempt = new Map<string, SimAttempt>()
   private readonly tokens = new Map<string, string>()
+  private readonly chargeOutcomes = new Map<string, SimChargeOutcome>()
   private readonly charges = new Map<string, ProviderEvent>()
   private seq = 0
   // References must stay unique across restarts: payment_attempts keeps every earlier ref.
@@ -53,6 +55,7 @@ export class SimulatorAdapter implements PaymentAdapter {
 
   /** Script the outcome for an attempt_id before createAttempt. */
   script(attemptId: string, outcome: SimOutcome): this { this.outcomes.set(attemptId, outcome); return this }
+  scriptCharge(attemptId: string, outcome: SimChargeOutcome): this { this.chargeOutcomes.set(attemptId, outcome); return this }
   addToken(id: string, status = 'active'): this { this.tokens.set(id, status); return this }
 
   async createAttempt(i: CreateAttemptInput): Promise<CreateAttemptResult> {
@@ -180,15 +183,19 @@ export class SimulatorAdapter implements PaymentAdapter {
   }
 
   async chargeToken(i: ChargeTokenInput): Promise<ProviderEvent> {
-    const prior = this.charges.get(i.given_id)
+    const prior = this.charges.get(i.attempt_id)
     if (prior) return prior
-    if (!(await this.getToken(i.token)).active) throw new PaymentError('provider_error', 'token not active')
+    const outcome = this.chargeOutcomes.get(i.attempt_id) ?? 'succeed'
+    if (outcome === 'refuse') throw new PaymentError('provider_error', 'simulated refusal', 422)
+    if (outcome === 'unavailable') throw new PaymentError('provider_error', 'simulated unavailable', 503)
+    const status = outcome === 'decline' ? 'failed' : outcome === 'pending' ? 'pending' : 'succeeded'
     const ev: ProviderEvent = {
-      provider: 'simulator', event_id: `sim_charge_${i.given_id}`, provider_ref: `sim_pay_${i.given_id}`, payment_id: `sim_pay_${i.given_id}`,
-      attempt_id: null, merchant_account: this.merchantAccount, live: false, status: 'succeeded', amount: i.amount,
-      occurred_at: new Date(0).toISOString(), raw_type: 'payment_paid', simulated: true,
+      provider: 'simulator', event_id: `sim_charge_${i.attempt_id}`, provider_ref: i.attempt_id, payment_id: i.attempt_id,
+      attempt_id: i.attempt_id, merchant_account: this.merchantAccount, live: false, status, amount: i.amount,
+      occurred_at: new Date(0).toISOString(), raw_type: TYPE[status], simulated: true,
     }
-    this.charges.set(i.given_id, ev)
+    this.charges.set(i.attempt_id, ev)
+    if (outcome === 'lose_response') throw new PaymentError('timeout', 'simulated lost charge response')
     return ev
   }
 

@@ -7,7 +7,7 @@ import { actorLabel } from '../admin-auth/grants.js'
 
 export type CommercialActor = { issuer: string; actorUid: number }
 export class CommercialHttpError extends Error {
-  constructor(public code: string, public status: number, public field?: string, public issues: CommercialIssue[] = []) { super(code) }
+  constructor(public code: string, public status: number, public field?: string, public issues: CommercialIssue[] = [], public details?: { resolve_by: string }) { super(code) }
 }
 export const toIssue = (e: unknown): CommercialIssue => {
   if (e instanceof CommercialError) return e.field ? { code: e.code, field: e.field } : { code: e.code }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
-import { orderOutcome, safePaymentRedirect, subscriptionStateBadge } from '@/utils/subscription'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { orderOutcome, refusalCode, safePaymentRedirect, subscriptionStateBadge } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
@@ -42,11 +43,11 @@ onMounted(() => {
   const stopAt = Date.now() + POLL_LIMIT_MS
   timer = setInterval(() => {
     if (Date.now() > stopAt) return clearInterval(timer)
-    if (!pending.value && (outcome.value === 'processing' || outcome.value === 'recovering' || outcome.value === 'awaiting_payment')) void refresh()
+    if (!pending.value && (outcome.value === 'processing' || outcome.value === 'charging' || outcome.value === 'recovering' || outcome.value === 'awaiting_payment')) void refresh()
   }, POLL_INTERVAL_MS)
 })
 onBeforeUnmount(() => clearInterval(timer))
-const OUTCOME_COLOR = { applied: 'success', processing: 'info', recovering: 'info', awaiting_payment: 'warning', cancelled: 'neutral', payment_failed: 'error', activation_failed: 'error', refund: 'error' } as const
+const OUTCOME_COLOR = { applied: 'success', processing: 'info', charging: 'info', recovering: 'info', awaiting_payment: 'warning', cancelled: 'neutral', payment_failed: 'error', activation_failed: 'error', refund: 'error' } as const
 const payBusy = ref(false); const payError = ref<string | undefined>()
 async function continuePayment() {
   if (!hydrated.value || !canRetry.value || !order.value || payBusy.value) return
@@ -56,7 +57,9 @@ async function continuePayment() {
     const url = safePaymentRedirect(attempt.redirect_url, window.location.origin)
     if (url) window.location.assign(url)
     else payError.value = t('subscription.status.paymentFailed')
-  } catch { payError.value = t('subscription.status.paymentFailed') } finally { payBusy.value = false }
+  } catch (cause) {
+    payError.value = t(refusalCode(cause) === 'payment_charge_in_progress' ? 'subscription.status.outcomes.charging.title' : 'subscription.status.paymentFailed')
+  } finally { payBusy.value = false }
 }
 // Owner decision 2026-10-29: a customer cancels only its own unpaid first order.
 const canCancel = computed(() => outcome.value === 'awaiting_payment' && order.value?.kind === 'new' && can('subscription.manage'))
@@ -83,6 +86,9 @@ definePageMeta({ middleware: 'customer-commercial' })
             :color="OUTCOME_COLOR[outcome]"
             :title="t(`subscription.status.outcomes.${outcome}.title`)" :description="t(`subscription.status.outcomes.${outcome}.description`)"
           />
+          <p v-if="outcome === 'charging' && order?.collection?.resolve_by" role="status" class="text-sm text-muted">
+            {{ t('subscription.status.chargeResolveBy', { date: formatDateTime(order.collection.resolve_by, 'Asia/Riyadh') }) }}
+          </p>
           <SharedPropertiesPanel v-if="order && outcome !== 'applied'" data-testid="order-status">
             <SharedPropertyRow :label="t('subscription.status.payment')" :value="t(`subscription.status.payments.${order.payment_state}`)" />
             <SharedPropertyRow :label="t('subscription.status.fulfillment')" :value="t(`subscription.status.fulfillments.${order.fulfillment_state}`)" />

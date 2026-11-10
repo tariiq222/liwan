@@ -26,7 +26,7 @@ export const subscriptionViewSchema = z.strictObject({
   order_cancelled: z.boolean(),
   revision: z.number().int().min(0), // aggregate version used for optimistic locking
   renewal_at: isoDate.nullable(),
-  auto_renew: z.strictObject({ enabled: z.boolean(), consent_at: z.string().nullable(), token_ref_present: z.boolean() }),
+  auto_renew: z.strictObject({ state: z.literal('off') }),
   trial_ends_at: z.string().nullable(), grace_ends_at: z.string().nullable(),
   trial_outcome: trialOutcomeSchema.nullable().optional(),
   trial_reopenable: z.boolean().optional(),

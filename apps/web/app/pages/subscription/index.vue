@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
-import { formatDate } from '@liwan/ui/app/utils/formatDate'
+import { formatDate, formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { formatSubscriptionMoney, orderOutcome, refusalCode, refusalKey, safePaymentRedirect, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@liwan/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
@@ -31,7 +31,8 @@ const display = computed(() => {
   return sub.pending_order && orderOutcome(sub.pending_order) === 'recovering' ? 'activating' : subscriptionDisplayState(sub)
 })
 // The one action block: only when the customer must act on an order (payment due or activation failed).
-const needsAction = computed(() => display.value === 'awaiting_payment' || display.value === 'failed')
+const collection = computed(() => data.value?.sub?.pending_order?.collection)
+const needsAction = computed(() => (display.value === 'awaiting_payment' && collection.value?.state !== 'in_progress') || display.value === 'failed')
 const entitlement = computed(() => data.value?.sub?.applied?.entitlement ?? null)
 const trialEndsAt = computed(() => data.value?.sub?.trial_ends_at ?? null)
 const trialDaysLeft = computed(() => trialDaysRemaining(trialEndsAt.value))
@@ -69,12 +70,6 @@ async function convertTrial() {
 }
 const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
 const appLabel = (app: string) => (te(`subscription.apps.${app}`) ? t(`subscription.apps.${app}`) : humanizeId(app))
-const arBusy = ref(false); const arError = ref<unknown>(null)
-async function setAutoRenew(enabled: boolean) {
-  if (!hydrated.value || arBusy.value || !can('subscription.manage')) return
-  arBusy.value = true; arError.value = null
-  try { await api.setAutoRenew(enabled); await refresh() } catch (cause) { arError.value = cause } finally { arBusy.value = false }
-}
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
@@ -120,8 +115,12 @@ definePageMeta({ middleware: 'customer-commercial' })
         <UAlert v-if="convertError" color="error" variant="subtle" :title="convertError" />
         <SharedRecordSection
           v-if="data.sub.pending_order || data.sub.target" :variant="needsAction ? 'action' : 'tinted'" data-testid="pending-change"
-          :title="t('subscription.summary.pending')" :description="t('subscription.summary.pendingHint')"
+          :title="t(collection?.state === 'in_progress' ? 'subscription.status.outcomes.charging.title' : 'subscription.summary.pending')"
+          :description="t('subscription.summary.pendingHint')"
         >
+          <p v-if="collection?.state === 'in_progress' && collection.resolve_by" role="status" class="text-sm text-muted">
+            {{ t('subscription.status.chargeResolveBy', { date: formatDateTime(collection.resolve_by, 'Asia/Riyadh') }) }}
+          </p>
           <template v-if="data.sub.pending_order" #actions><UButton size="sm" :color="needsAction ? 'primary' : 'neutral'" :variant="needsAction ? 'solid' : 'outline'" :to="{ path: '/subscription/status', query: { order: data.sub.pending_order.id } }">{{ t('subscription.summary.viewStatus') }}</UButton></template>
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.summary.plan')"><template #actions><SharedStatusBadge v-if="display" data-slot="subscription-state" :data-state="display" :tone="subscriptionStateBadge(display).tone" :label="t(subscriptionStateBadge(display).labelKey)" /></template>
@@ -147,10 +146,6 @@ definePageMeta({ middleware: 'customer-commercial' })
           <UAlert v-if="!data.invoices" class="m-(--liwan-card-pad)" color="warning" variant="subtle" role="status" :title="t('subscription.sectionError')" />
           <p v-else-if="!data.invoices.items.length" class="p-(--liwan-card-pad) text-sm text-muted">{{ t('subscription.invoices.empty') }}</p>
           <ul v-else class="divide-y divide-default"><li v-for="inv in data.invoices.items.slice(0, 3)" :key="inv.id" class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink><span class="tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></li></ul>
-        </SharedRecordSection>
-        <SharedRecordSection variant="panel" :title="t('subscription.autoRenew.title')">
-          <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
-          <UAlert v-if="arError" class="mt-3" color="error" variant="subtle" :title="t('errors.generic')" />
         </SharedRecordSection>
       </div>
     </SharedPageState>

@@ -80,6 +80,10 @@ describe('sameQuoteEconomics', () => {
 describe('order outcome on the payment return page', () => {
   it('maps every open order state to what the customer should see', () => {
     expect(orderOutcome({ payment_state: 'awaiting_payment', fulfillment_state: 'not_started' })).toBe('awaiting_payment')
+    expect(orderOutcome({ payment_state: 'awaiting_payment', fulfillment_state: 'not_started',
+      collection: { state: 'in_progress', resolve_by: '2026-11-11T21:00:00Z' } })).toBe('charging')
+    expect(orderOutcome({ payment_state: 'awaiting_payment', fulfillment_state: 'not_started',
+      collection: { state: 'declined', resolve_by: null } })).toBe('awaiting_payment')
     expect(orderOutcome({ payment_state: 'failed', fulfillment_state: 'not_started' })).toBe('payment_failed')
     expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'queued' })).toBe('processing')
     expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'applying' })).toBe('processing')

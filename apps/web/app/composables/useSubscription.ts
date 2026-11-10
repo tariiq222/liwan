@@ -5,7 +5,7 @@ import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect
 export type SubscriptionList<T> = { items: T[]; total: number }
 export type CustomerCatalog = { plans: Array<Record<string, any>>; bundles: Array<Record<string, any>>; release?: Record<string, any> | null }
 /** Read-only order status; the control plane answers 404 for an order that is not this customer's. */
-export type CustomerOrderStatus = Pick<Order, 'id' | 'kind' | 'payment_state' | 'fulfillment_state' | 'due_now' | 'created_at'> & { cancelled: boolean }
+export type CustomerOrderStatus = Pick<Order, 'id' | 'kind' | 'payment_state' | 'fulfillment_state' | 'due_now' | 'created_at' | 'collection'> & { cancelled: boolean }
 export type CustomerOrderResult = { order: NonNullable<SubscriptionView['pending_order']> }
 /** What the customer needs to make a bank transfer for one unpaid invoice (the vendor sets the account). */
 export type BankTransferInstructions = {
@@ -54,7 +54,6 @@ export function useSubscriptionApi() {
     payment: (orderId: string, action: string) =>
       request<PaymentAttempt>(`orders/${encodeURIComponent(orderId)}/payment-attempts`, { method: 'POST', body: { idempotency_key: idempotencyKey(store(), `${action}:pay`) } }),
     done: (action: string) => { forgetIdempotencyKey(store(), action); forgetIdempotencyKey(store(), `${action}:pay`) },
-    setAutoRenew: (enabled: boolean) => request<SubscriptionView>('auto-renew', { method: 'POST', body: { enabled, consent: true } }),
   }
 }
 
