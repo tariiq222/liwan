@@ -17,5 +17,6 @@ def dump_usage(row):
         'output_tokens': row.output_tokens if row.tokens_reported else None,
         'cost': row.cost if row.cost_reported else None,
         'charge': row.charge if row.charge_reported else None,
+        'charge_paid': row.charge_paid,
         'called_at': iso(row.called_at),
     }

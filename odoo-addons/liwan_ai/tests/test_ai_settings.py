@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from odoo.tests import new_test_user, tagged
 
@@ -178,24 +178,12 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         with self.assertRaises(Exception):
             consent.write({'text_version': 'other'})
 
-    def test_platform_tokens_count_this_month_only_and_never_the_tenant_key(self):
-        Usage = self.env['liwan.ai.usage']
-        last_month = self.env['liwan.ai.audit']._liwan_ai_month_start() - timedelta(seconds=1)
-        self._raw_usage('platform', 100, None)
-        self._raw_usage('tenant_key', 40, None)
-        self._raw_usage('platform', 7, last_month)
-        self.assertEqual(Usage._liwan_platform_tokens_used(), 100)
-
-    def test_the_token_limit_stops_a_platform_run_at_the_limit_only(self):
+    def test_the_retired_token_limit_no_longer_stops_a_platform_run(self):
+        # The balance replaced the monthly token limit (spec 2026-11-10 §5.4): the key stays registered, nothing enforces it.
         self.authenticate('api_emp', 'api_emp_pass_123')
+        self._set_feature('ai.balance.granted', None)
         self._raw_usage('platform', 100, None)
-        self._set_feature('ai.tokens.monthly', 101)
-        self.assertEqual(self.api('POST', '/api/v1/ai/audit', MESSAGE).status_code, 200)
         self._set_feature('ai.tokens.monthly', 100)
-        refused = self.api('POST', '/api/v1/ai/audit', MESSAGE)
-        self.assertEqual(refused.status_code, 403, refused.text)
-        self.assertEqual(refused.json()['details']['limit_key'], 'ai.tokens.monthly')
-        self.env['liwan.ai.settings']._liwan_current().provider_mode = 'tenant_key'
         self.assertEqual(self.api('POST', '/api/v1/ai/audit', MESSAGE).status_code, 200)
 
     def test_the_usage_block_shows_the_free_agents_budget_apart_from_the_package_messages(self):

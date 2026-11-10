@@ -161,14 +161,14 @@ function aiAgentSetting(key) {
   }
 }
 const AI_SETTINGS = {
-  provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
+  provider_mode: 'platform', messages_per_user_monthly: 0, monthly_spend_ceiling: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
   consent: {
     required_version: '2026-11-05-draft-2',
     text_ar: 'مسودة بانتظار المراجعة القانونية.\n\nإقرار استخدام الذكاء الاصطناعي وإخلاء المسؤولية.',
     text_en: 'Draft pending legal review.\n\nAI use acknowledgement and liability disclaimer.',
     text_hash: 'a'.repeat(64), signed: null,
   },
-  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, assist_used: 0, assist_limit: 300, tokens_used: 1620000, tokens_limit: 2000000, output_tokens_per_run: 8000, input_tokens_per_run: 100000 },
+  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, assist_used: 0, assist_limit: 300, output_tokens_per_run: 8000, input_tokens_per_run: 100000 },
 }
 
 // Charter approval fixtures. Their charters live in CHARTER_STATE (project id -> charter + write token) so the
@@ -519,7 +519,7 @@ async function handle(req, res) {
       { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null, draft_model: null, requires_approval: AI_AGENT_SETTINGS.pmo.tools['pmo.list_my_tasks'] === 'approval', platform: false },
       ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', draft_model: 'project.project', requires_approval: true, platform: false }] : []),
     ]
-    return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: [] })
+    return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, output_tokens_per_run: null, input_tokens_per_run: null, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: null, blocked: null, blocked_resets_at: null, spend_ceiling: null, spend_this_month: null } }, blocked_fields: [] })
   }
   // The AI settings of the tenant (ai.settings.manage): provider mode, the AI acknowledgement and this month's use.
   if (path === '/api/v1/ai/settings' || path === '/api/v1/ai/consent' || path === '/api/v1/ai/consent/revoke') {

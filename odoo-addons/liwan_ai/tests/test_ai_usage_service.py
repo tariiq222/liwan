@@ -64,7 +64,7 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         self.assertEqual(response.json()['total'], 1)
         row = self.Usage.browse(response.json()['items'][0]['id'])
         self.assertEqual((row.user_id, row.company_id), (self.employee, self.employee.company_id))
-        self.assertEqual(self.env['liwan.ai.usage']._liwan_platform_tokens_used(), 165)
+        self.assertEqual((row.input_tokens, row.output_tokens), (120, 45))
 
     def test_a_re_sent_batch_is_counted_once(self):
         first = self._post(self._batch()).json()
@@ -72,7 +72,8 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         self.assertEqual(again.status_code, 200)
         self.assertEqual([item['id'] for item in again.json()['items']], [item['id'] for item in first['items']])
         self.assertEqual(self.Usage.search_count([]), 1)
-        self.assertEqual(self.env['liwan.ai.usage']._liwan_platform_tokens_used(), 165)
+        rows = self.Usage.search([])
+        self.assertEqual((sum(rows.mapped('input_tokens')), sum(rows.mapped('output_tokens'))), (120, 45))
 
     def test_the_same_call_of_another_user_is_its_own_row(self):
         other = new_test_user(self.env, login='usage_other', groups='liwan_core.group_employee')

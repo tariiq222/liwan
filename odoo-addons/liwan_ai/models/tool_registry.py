@@ -276,7 +276,8 @@ class LiwanAiToolRegistry(models.AbstractModel):
     @api.model
     def _liwan_ai_policy(self):
         """What the Nuxt server passes with every run: whose provider runs it, whether the tenant signed the current AI
-        acknowledgement (no run on any provider without it, spec 2026-11-04 §6.8), and what the run may spend.
+        acknowledgement (no run on any provider without it, spec 2026-11-04 §6.8), and what the run may spend: the balance,
+        the free allowance and the spend ceiling.
 
         ``input_tokens_per_run`` is the tenant's own ceiling on the input tokens of one request (issue #554), in both
         provider modes; null means no ceiling. The package's ``ai.output_tokens.per_run`` stays the platform run's cap."""
@@ -285,8 +286,9 @@ class LiwanAiToolRegistry(models.AbstractModel):
         return {
             'provider_mode': settings.provider_mode,
             'consent_signed': bool(self.env['liwan.ai.consent']._liwan_valid()),
-            'tokens_monthly': entitlement._liwan_limit_value('ai.tokens.monthly'),
-            'tokens_used': self.env['liwan.ai.usage']._liwan_platform_tokens_used(),
             'output_tokens_per_run': entitlement._liwan_limit_value('ai.output_tokens.per_run'),
             'input_tokens_per_run': settings.input_tokens_per_run or None,
+            # The prepaid balance, the free allowance of the current window and the monthly spend ceiling, in cost units; null
+            # means unlimited (spec 2026-11-10 §5.4). A run on the vendor's provider starts only while something is left.
+            **self.env['liwan.ai.balance']._liwan_ai_policy_fields(),
         }

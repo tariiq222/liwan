@@ -56,7 +56,7 @@ export const DraftRejected: Story = {
 
 export const LimitMonthly: Story = {
   name: 'حد: الرسائل الشهرية',
-  render: wrap({ AiLimitNotice }, '<AiLimitNotice limit="messages_monthly" :used="500" :max="500" />'),
+  render: wrap({ AiLimitNotice }, '<AiLimitNotice limit="messages_monthly" />'),
 }
 export const LimitToolCalls: Story = {
   name: 'حد: عدد الأدوات',
@@ -69,6 +69,10 @@ export const LimitSteps: Story = {
 export const LimitTimeout: Story = {
   name: 'حد: المهلة',
   render: wrap({ AiLimitNotice }, '<AiLimitNotice limit="timeout" />'),
+}
+export const LimitBalanceEmpty: Story = {
+  name: 'حد: نفاد الرصيد',
+  render: wrap({ AiLimitNotice }, '<AiLimitNotice limit="balance_empty" resets-at="2026-12-01T00:00:00Z" />'),
 }
 
 const records = [

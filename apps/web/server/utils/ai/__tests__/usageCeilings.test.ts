@@ -46,4 +46,15 @@ describe('the usage service size rules', () => {
   it('no longer carries a per-row or per-request ceiling derived from a run setting', () => {
     expect(usage).not.toMatch(/SERVICE_MAX_(INPUT|OUTPUT|BATCH)_TOKENS/)
   })
+
+  it('keeps the in-flight reservation window equal to the timeout the server sends the AI service', () => {
+    // Odoo reserves a run's cost for `RUN_TIMEOUT_SECONDS` because a message younger than the run's timeout may still be running
+    // and uncharged (`liwan.ai.balance._liwan_ai_in_flight`); a shorter reserve would undercount the runs in flight and let a
+    // tenant overdraw further than the bound allows.
+    const balance = read('odoo-addons/liwan_ai/models/ai_balance.py')
+    const session = read('apps/web/server/utils/ai/session.ts')
+    const timeout = /^const TIMEOUT_SECONDS = ([0-9_]+)$/m.exec(session)
+    if (!timeout) throw new Error('TIMEOUT_SECONDS is not a plain integer constant')
+    expect(number(balance, 'RUN_TIMEOUT_SECONDS')).toBe(Number(timeout[1]!.replaceAll('_', '')))
+  })
 })

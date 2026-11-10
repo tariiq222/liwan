@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
@@ -10,13 +10,13 @@ from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.models.agent_registry import CORE_AGENT
 from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS, TOOL_KINDS
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_platform.models.usage_window import month_label, month_window
 
 # A user message of an ordinary conversation, or of a setup or help conversation (counted against the vendor's assistance budget).
 MESSAGE_KINDS = ('message', *ASSIST_KINDS)
 AUDIT_KINDS = (*MESSAGE_KINDS, *TOOL_KINDS)
 MONTHLY_MESSAGES = 'ai.messages.monthly'
 ASSIST_MONTHLY = 'ai.assist.monthly'
-MONTHLY_TOKENS = 'ai.tokens.monthly'
 PER_USER_MESSAGES = 'ai.messages.per_user_monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
 DRAFT_RESULTS = ('proposed', 'approved', 'rejected')
@@ -98,9 +98,9 @@ class LiwanAiAudit(models.Model):
     _order = 'id desc'
     _liwan_scope = 'company'
 
-    company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',
+    company_id = fields.Many2one('res.company', required=True, index=True, ondelete='restrict',
                                  default=lambda self: self.env.company)
-    user_id = fields.Many2one('res.users', required=True, index=True, ondelete='cascade',
+    user_id = fields.Many2one('res.users', required=True, index=True, ondelete='restrict',
                               default=lambda self: self.env.user)
     conversation_id = fields.Char(required=True, index=True)
     kind = fields.Selection([(kind, kind) for kind in AUDIT_KINDS], required=True, index=True)
@@ -113,6 +113,9 @@ class LiwanAiAudit(models.Model):
     draft = fields.Json()
     approved = fields.Json()
     attested_at = fields.Datetime()
+
+    # The runs in flight are the message rows of the last minutes (`liwan.ai.balance._liwan_ai_in_flight`), and the monthly counts read them by month.
+    _kind_created_idx = models.Index('(kind, create_date)')
 
     @api.model
     def _liwan_ai_invalid(self, field, message, code='invalid'):
@@ -295,10 +298,12 @@ class LiwanAiAudit(models.Model):
             entitlement = self.env['liwan.entitlement.service']
             settings = self.env['liwan.ai.settings']._liwan_current()
             platform_run = settings.provider_mode == 'platform'
-            capped = bool(settings.messages_per_user_monthly) or entitlement._liwan_limit_value(MONTHLY_MESSAGES) is not None or (
-                platform_run and entitlement._liwan_limit_value(MONTHLY_TOKENS) is not None
-            )
-            if capped:
+            capped = bool(settings.messages_per_user_monthly) or entitlement._liwan_limit_value(MONTHLY_MESSAGES) is not None
+            # A run on the vendor's provider reserves its worst-case cost while it is in flight (`liwan.ai.balance`): counting the
+            # runs in flight and adding this one must be one step, so the quota fence is taken for it too.
+            balance = self.env['liwan.ai.balance']
+            reserving = platform_run and balance._liwan_ai_granted() is not None
+            if capped or reserving:
                 # An exact cap. Odoo runs REPEATABLE READ, so a lock alone would let a sender that waited count
                 # from a snapshot older than the winner's commit. Writing the tenant's quota fence before the
                 # count makes such a sender fail serialization instead; Odoo then retries its whole request on
@@ -316,9 +321,9 @@ class LiwanAiAudit(models.Model):
                     details={'reason': 'limit', 'limit_key': PER_USER_MESSAGES},
                 )
             if platform_run:
-                # A run starts only while the month's platform tokens are below the limit, so a tenant passes it by
-                # at most the one run that crossed it (spec 2026-11-04 §6.8). A tenant key pays its own provider.
-                entitlement.require_within_limit(MONTHLY_TOKENS, self.env['liwan.ai.usage']._liwan_platform_tokens_used() + 1)
+                # A run on the vendor's provider starts only while the spend ceiling is not reached and the free allowance or the
+                # balance covers the reserve of every run in flight and this one (spec 2026-11-10 §5.4); a tenant on its own key pays its provider.
+                balance._liwan_ai_require_runnable(messages)
         return super().create(rows)
 
     @api.model
@@ -343,13 +348,18 @@ class LiwanAiAudit(models.Model):
 
     @api.model
     def _liwan_ai_month_start(self):
-        now = datetime.now(timezone.utc)
-        return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        """Start of the current calendar month in the billing timezone (Asia/Riyadh), as naive UTC: the one place that decides it."""
+        return month_window(fields.Datetime.now())[0]
+
+    @api.model
+    def _liwan_ai_month_label(self):
+        """``YYYY-MM`` of the current month in the billing timezone."""
+        return month_label(fields.Datetime.now())
 
     @api.model
     def _liwan_ai_count_messages(self, user=None, kinds=('message',)):
         """Message rows (``message``, or ``kinds`` such as the free agents' ``setup`` and ``help``) of the whole tenant
-        since the start of this UTC month.
+        since the start of this month (billing timezone).
 
         The monthly limit belongs to the one tenant profile, so the count spans every company and
         user. It is plain SQL on this table (no ORM read access to other users' rows). It feeds

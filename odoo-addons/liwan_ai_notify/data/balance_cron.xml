@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- The balance warnings (below a fifth of the granted total, and at zero) go to the AI settings managers. The usage recorder
+         that deducts the charges cannot read them, so a cron running as the superuser delivers them; a warning is keyed by the
+         granted total, so running it often changes nothing until a threshold is crossed. -->
+    <record id="ir_cron_ai_balance_warning" model="ir.cron">
+        <field name="name">liwan AI: warn the managers when the balance runs low</field>
+        <field name="model_id" ref="liwan_ai.model_liwan_ai_usage"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_cron_warn_balance()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

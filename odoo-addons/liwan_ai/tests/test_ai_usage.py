@@ -63,8 +63,8 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         first_id, second_id = (item['id'] for item in body['items'])
         self.assertEqual(body, {
             'items': [
-                {**ITEM, 'id': first_id, 'called_at': '2026-10-27T06:30:00Z'},
-                {**second, 'id': second_id, 'called_at': '2026-10-27T06:31:00Z'},
+                {**ITEM, 'id': first_id, 'called_at': '2026-10-27T06:30:00Z', 'charge_paid': 0},
+                {**second, 'id': second_id, 'called_at': '2026-10-27T06:31:00Z', 'charge_paid': 0},
             ],
             'total': 2,
         })

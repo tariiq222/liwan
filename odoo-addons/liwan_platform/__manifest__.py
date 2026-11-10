@@ -2,7 +2,7 @@
 {
     'name': 'liwan Platform',
     'summary': 'liwan platform: tenant profile, entitlements and feature registry',
-    'version': '19.0.1.10.0',
+    'version': '19.0.1.11.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

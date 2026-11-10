@@ -64,9 +64,12 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
             'tool_calls_per_run': 5, 'messages_monthly': None, 'messages_used': 0, 'assist_monthly': None, 'assist_used': 0,
             'policy': {
                 'provider_mode': 'platform', 'consent_signed': False,
-                'tokens_monthly': None, 'tokens_used': 0, 'output_tokens_per_run': None,
+                'output_tokens_per_run': None,
                 # The tenant's own ceiling on the input tokens of one request (issue #554); the default applies until set.
                 'input_tokens_per_run': DEFAULT_INPUT_TOKENS_PER_RUN,
+                # The prepaid balance (spec 2026-11-10 §5.4): this tenant lists no granted total, so it has none.
+                'balance_granted': None, 'balance_left': None, 'allowance': None, 'allowance_left': None,
+                'allowance_resets_at': None, 'blocked': None, 'blocked_resets_at': None, 'spend_ceiling': None, 'spend_this_month': None,
             },
         })
 

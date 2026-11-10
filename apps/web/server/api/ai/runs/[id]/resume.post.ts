@@ -55,7 +55,10 @@ export default defineEventHandler(async (event) => {
   // The pending call's agent names the conversation's mode.
   const session = await runSession(event, modeForAgent(pending.agent))
   // Before any tool runs: a write must not happen for a run the service will refuse to continue.
-  await assertRunnable(event, session)
+  // A resumed run is one already counted and let through: the balance is not asked again, so it may overdraw it. The bound is the
+  // run's own: the same run state keeps `max_steps`, the tool-call count and the per-request token caps across the resume (a
+  // resume never opens a new message row), so one run's overdraw is limited by them. `resuming` is this route's, never a body field.
+  await assertRunnable(event, session, { resuming: true })
 
   let result: Record<string, unknown>
   let auditFailed = false

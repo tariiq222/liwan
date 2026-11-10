@@ -7,7 +7,10 @@ from odoo import api, models
 from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE, AI_USE
 from odoo.addons.liwan_ai.models.ai_settings import EXTERNAL_SEND_MODES
 from odoo.addons.liwan_ai.models.tool_registry import SETUP_AGENT_KEY
-from odoo.addons.liwan_ai.serializers.settings import MAX_MESSAGES_PER_USER
+from odoo.addons.liwan_ai.serializers.settings import (
+    MAX_MESSAGES_PER_USER,
+    MAX_SPEND_CEILING,
+)
 
 OWNER = 'liwan_ai'
 SETTING_KEY_SCHEMA = {'type': 'string', 'pattern': r'^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$'}
@@ -96,6 +99,13 @@ AI_SETTINGS = (
         ('يحد استخدام كل موظف للمساعد داخل حد الباقة؛ صفر يعني أن حد الباقة وحده يسري.',
          "Caps each employee's use of the assistant within the plan; zero leaves only the plan limit."),
         min=0, max=MAX_MESSAGES_PER_USER,
+    ),
+    _setting(
+        'monthly_spend_ceiling', 'integer', ('سقف الإنفاق الشهري على المساعد', 'Monthly spending ceiling for the assistant'),
+        ('يوقف المساعد عن بدء محادثات جديدة حين يبلغ ما سُحب من الرصيد هذا الشهر هذا السقف، بوحدة 0.00001 دولار؛ صفر يعني بلا سقف.',
+         ("Stops the assistant from starting new runs once this month's deductions from the balance reach the ceiling, in units of "
+          '0.00001 USD; zero means no ceiling.')),
+        min=0, max=MAX_SPEND_CEILING,
     ),
     _setting(
         'external_send', 'selection', ('التواصل مع جهات خارجية', 'Contact with outside parties'),

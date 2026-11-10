@@ -9,7 +9,7 @@ const NO_KEY = { configured: false, provider: null, model: null, last4: null, up
 const KEY = { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z', base_url: null }
 
 function session(policy: Record<string, unknown>, mode: 'assistant' | 'setup' | 'help' = 'assistant') {
-  return { owner: OWNER, mode, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000, input_tokens_per_run: 100000, ...policy } } as any
+  return { owner: OWNER, mode, policy: { provider_mode: 'platform', consent_signed: true, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: null, blocked: null, blocked_resets_at: null, spend_ceiling: null, spend_this_month: null, output_tokens_per_run: 8000, input_tokens_per_run: 100000, ...policy } } as any
 }
 function serviceConfig(key: object) {
   // A body is read once: each call gets its own response.
@@ -55,5 +55,34 @@ describe('assertRunnable', () => {
     await expect(assertRunnable({} as any, session({ provider_mode: 'tenant_key' }))).rejects.toMatchObject({ statusCode: 409, data: { code: 'ai_tenant_key_missing' } })
     serviceConfig(KEY)
     await expect(assertRunnable({} as any, session({ provider_mode: 'tenant_key' }))).resolves.toBeUndefined()
+  })
+})
+
+describe('assertRunnable and the prepaid balance', () => {
+  const EMPTY = { blocked: 'ai_balance_empty', blocked_resets_at: '2026-11-15T21:00:00Z', allowance_resets_at: '2026-11-15T21:00:00Z' }
+  const CEILING = { blocked: 'ai_spend_ceiling', blocked_resets_at: '2026-12-01T00:00:00Z' }
+
+  it('lets a new run start when the policy says nothing blocks it, with or without the figures', async () => {
+    const { assertRunnable } = await import('../policy')
+    await assertRunnable({} as any, session({}))
+    // An ordinary user's policy carries no figures at all, only the verdict.
+    await assertRunnable({} as any, session({ balance_granted: null, balance_left: null, spend_this_month: null, blocked: null }))
+    await assertRunnable({} as any, session({ balance_granted: 5_000_000, balance_left: 10, allowance_left: 0, blocked: null }))
+  })
+
+  it('refuses a new run from `blocked` alone, in the shape Odoo refuses with', async () => {
+    const { assertRunnable } = await import('../policy')
+    await expect(assertRunnable({} as any, session(EMPTY))).rejects.toMatchObject({ statusCode: 403, data: { code: 'ai_balance_empty', details: { resets_at: '2026-11-15T21:00:00Z' } } })
+    await expect(assertRunnable({} as any, session({ ...EMPTY, blocked_resets_at: null }))).rejects.toMatchObject({ statusCode: 403, data: { code: 'ai_balance_empty', details: { resets_at: null } } })
+    await expect(assertRunnable({} as any, session(CEILING))).rejects.toMatchObject({ statusCode: 403, data: { code: 'ai_spend_ceiling', details: { resets_at: '2026-12-01T00:00:00Z' } } })
+  })
+
+  it('never stops a resumed run, a free agent run or a tenant-key run, and consent is asked first', async () => {
+    const { assertRunnable } = await import('../policy')
+    await assertRunnable({} as any, session(EMPTY), { resuming: true })
+    for (const mode of ['setup', 'help'] as const) await assertRunnable({} as any, session(EMPTY, mode))
+    serviceConfig(KEY)
+    await assertRunnable({} as any, session({ ...EMPTY, provider_mode: 'tenant_key' }))
+    await expect(assertRunnable({} as any, session({ ...EMPTY, consent_signed: false }))).rejects.toMatchObject({ data: { code: 'ai_consent_required' } })
   })
 })

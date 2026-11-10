@@ -44,7 +44,7 @@ def dump_monitoring(env):
     )
     agent_items = [{'agent': key, 'calls': count} for key, count in agents]
     return {
-        'month': month_start.strftime('%Y-%m'),
+        'month': audit._liwan_ai_month_label(),
         'totals': {
             'messages': sum(messages.values()),
             'input_tokens': sum(spent_in for spent_in, _ in tokens.values()),
