@@ -869,7 +869,6 @@
         "refund_already_requested": "A refund note already exists for this invoice. Record its provider reference from the invoice's adjustments list instead of opening a second one.",
         "storage_step_invalid": "Extra storage is bought in the plan's steps. Lower the requested storage, or raise the plan's storage step.",
           "storage_step_misaligned": "The storage steps do not line up: the threshold must be a multiple of the small step, and the large step must not be smaller than it.",
-          "trial_on_free_plan": "A plan that costs nothing cannot offer a trial: a free customer has no payment to make, and the trial would only end in a past-due state.",
         "onboarding_first_order_only": "The onboarding fee applies to a paid first order only. Take the change or renewal without it, and record it as a separate order if it is due.",
         "onboarding_unavailable": "No onboarding fee is set. Set it in Billing settings before quoting onboarding.",
         "catalog_source_not_publishable": "Only the current catalog source can be published. Rebuild the catalog from the release source, then validate and publish it again.",

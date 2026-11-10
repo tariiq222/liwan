@@ -12,6 +12,7 @@ import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
+import { owesAtRenewal } from './free-base.js'
 
 const date = (v: any): string => v instanceof Date ? riyadhDate(v) : String(v).slice(0,10)
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
@@ -41,15 +42,17 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
 }) {
   const today = riyadhDate(now)
   // `has_renewal`: the period already has its renewal (an unpaid invoice may be waiting); nothing is left to generate for it.
+  // `owes`: the applied pricing owes something at renewal. A renewal that owes nothing needs no return origin and is never billing-blocked.
   const candidates = (await pool.query(`SELECT s.id,s.customer_id,EXISTS (SELECT 1 FROM renewals r WHERE r.subscription_id=s.id
-      AND r.period_start=s.renewal_at AND r.kind='renewal') AS has_renewal
-    FROM subscriptions s WHERE s.state IN ('active','past_due')
+      AND r.period_start=s.renewal_at AND r.kind='renewal') AS has_renewal,sr.snapshot->'pricing' AS pricing
+    FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id WHERE s.state IN ('active','past_due')
     AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND ($2::uuid IS NULL OR s.id=$2) ORDER BY s.id`, [today, subscription_id ?? null])).rows
   let unusableOrigins = 0
   const generated: ReturnType<typeof orderView>[] = []
   for (const candidate of candidates) {
-    let origin: string
-    try { origin = await returnOrigin(candidate.customer_id) }
+    const owes = owesAtRenewal(candidate.pricing)
+    let origin = ''
+    if (owes) try { origin = await returnOrigin(candidate.customer_id) }
     catch (error) {
       if ((error as { code?: string }).code !== 'return_url_forbidden') throw error
       // A period that already has its renewal blocks nothing, so an outage must not flag it.
@@ -107,6 +110,16 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     const {order,sub,invoice} = result
     generated.push(order)
     if (!invoice) continue
+    // Pricing that owed nothing but produced an invoice anyway still needs its payment page: resolve the origin now.
+    if (!owes) {
+      try { origin = await returnOrigin(candidate.customer_id) }
+      catch (error) {
+        if ((error as { code?: string }).code !== 'return_url_forbidden') throw error
+        await pool.query('UPDATE subscriptions SET billing_blocked_at=COALESCE(billing_blocked_at,now()) WHERE id=$1', [candidate.id])
+        unusableOrigins++
+        continue
+      }
+    }
     let activeToken = false
     if (sub.auto_renew_enabled && sub.auto_renew_consent_at && sub.provider_token_ref) {
       try { activeToken = (await adapter.getToken(sub.provider_token_ref)).active } catch { /* use hosted payment instead */ }
@@ -145,6 +158,9 @@ export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Dat
       ORDER BY s.id FOR UPDATE OF s`, [now])).rows
     const results: { subscription_id: string; state: string }[] = []
     for (const row of rows) {
+      // A subscription whose pricing owes nothing is on the free base (or a free plan): an unpaid upgrade invoice never
+      // lapses it, because the base stays usable and only the paid applications it asks for stay closed.
+      if (!owesAtRenewal(row.snapshot.pricing)) continue
       const due = (await client.query("SELECT min(due_at) AS due_at FROM invoices WHERE subscription_id=$1 AND status='issued' AND due_at<$2", [row.id,now])).rows[0].due_at
       const grace = row.grace_ends_at ?? new Date(new Date(due).getTime()+Number(row.grace_days)*86_400_000)
       const state = row.auto_suspend && new Date(grace).getTime() <= now.getTime() ? 'suspended' : 'past_due'

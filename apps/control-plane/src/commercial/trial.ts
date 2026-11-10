@@ -12,6 +12,7 @@ import { commercialExpiryDate } from './fulfillment.js'
 import { paymentAttemptView } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { getSubscription } from './subscriptions.js'
+import { freeBaseOf } from './free-base.js'
 
 /** A customer has one trial, so its order key is fixed per customer (RFC 9562 version 8): a resent start replays it. */
 function trialOrderKey(customerId: string) {
@@ -97,7 +98,7 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
       [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
     await pushCommercialExpiry(client, sub.id, null)
   })
-  await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id })
+  await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id, convert: true })
   // The expiry run may also create other due renewals: read this subscription's own first order, never index 0.
   const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
     WHERE r.subscription_id=$1 ORDER BY r.created_at DESC,o.id DESC LIMIT 1`, [sub.id])).rows[0]
@@ -132,7 +133,11 @@ export async function endTrial(pool: Pool, input: { subscription_id: string; rea
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), input.actor, 'trial.ended', input.subscription_id, input.reason, JSON.stringify({ ended_at: input.now.toISOString() })])
-    await pushCommercialExpiry(client, input.subscription_id, null)
+    // A trial that lapses onto the free base clears the hard expiry in the order that applies the base; only a trial that
+    // ends in an invoice needs the expiry lifted on its own.
+    const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [owner.applied_revision_id])).rows[0].snapshot
+    const subscription = (await client.query('SELECT * FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
+    if (!await freeBaseOf(client, { subscription, snapshot })) await pushCommercialExpiry(client, input.subscription_id, null)
     return updated.rows[0].customer_id as string
   })
   await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: input.subscription_id })
