@@ -145,12 +145,32 @@ and Anthropic always report tokens. `model` must be 1 to 128 characters without 
 `POST /v1/runs` names its run through exactly one of `new_run_id` (a new run, `^r_[0-9a-f]{24}$`, chosen by the caller; 409 when taken)
 and `run_id` (continues a finished run); anything else is 422.
 
-Before each provider attempt the stream carries `model_call` (`call_id`, `kind` `plan|title`, `provider`, `model`, `called_at`) and after it
+Before each provider attempt the stream carries `model_call` (`call_id`, `kind` `plan|title|route`, `provider`, `model`, `called_at`) and after it
 `model_usage` (`call_id`, `outcome` `ok|failed|retried|aborted`, `input_tokens`, `output_tokens`, null when the provider reported none). The
 Nuxt server consumes both and never relays them to the browser. The provider SDKs are built with `max_retries=0`; the service retries a plan
 call itself, up to 3 attempts, only for a 408/409/429/5xx answer or a connection error (Ollama's 5xx answers included). A wait is 0.5 s then 1 s,
 or the provider's `Retry-After` when longer, plus 0 to 25 % jitter; a wait that would not end before the run deadline is not started and the failure is
 final. Titles are never retried.
+
+**Task router.** Each new user message (not a resume after a tool result or an approval, which re-enters at the interrupted tool
+step and keeps the capability already in the state) is classified once by the graph's `route` node, before its first plan call. It is one
+`route` call on the `quick` model with a fixed English instruction, the last user message cut to 1,500 characters, the active agent and the
+previous capability; no history and no tools. The reply is read leniently (the first word that names a capability, case and punctuation
+ignored); the result is stored in the state as `capability`, and every plan call of that message, tool loop included, runs on the model
+the run's map names for it. There is one attempt with a 5 second timeout (also bounded by the run deadline). An error, a timeout or an
+unreadable reply selects `standard` and the run goes on; failures are logged by exception class only. The call is reported like every
+other: `model_call` with kind `route` and a `model_usage` with outcome `ok`, `failed` or `aborted` (the timeout), its tokens, cost and
+charge from the `quick` model's identity. No call is made, and no event is sent, when the request's models cannot differ by capability
+(fewer than two distinct models across the four capabilities): a single-model map and a pinned `setup` or help run never classify.
+
+**Fallback.** When a plan call on a routed model (not the default model) fails with a transient error (408/409/429/5xx or a connection
+error) on every one of its 3 attempts, one more attempt runs on the default model, reported as its own `model_call`/`model_usage` pair,
+bounded by the time left before the run deadline (none left: the original error is raised). The state then carries `on_default_model`, and the
+rest of that message runs on the default model directly, still reporting the capability it was classified as; the next message's `route`
+clears it. Non-transient errors, and a default model that is itself the failing one, propagate as before.
+
+**History.** Before every plan call the checkpointed history goes through `portable_history` (plain text plus tool calls, ids every
+provider accepts); the stored messages are not rewritten.
 
 ## Tenant policy, own key and acknowledgement
 
