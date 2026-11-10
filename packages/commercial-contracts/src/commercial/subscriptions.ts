@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { cadenceSchema, entitlementSnapshotSchema, quoteSchema, revisionIdSchema } from './schemas.js'
+import { cadenceSchema, entitlementSnapshotSchema, moneySchema, quoteSchema, revisionIdSchema } from './schemas.js'
 import { orderSchema, type Order } from './orders.js'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -17,6 +17,18 @@ export const subscriptionRevisionSchema = z.strictObject({
   entitlement: entitlementSnapshotSchema, quote_id: z.string().min(1), created_at: z.string(),
 })
 export const trialOutcomeSchema = z.enum(['converted', 'kept_subset', 'free_base'])
+export const AUTO_RENEW_CONSENT_VERSION = 'liwan-auto-renew-v1'
+const renewalAvailability = { available: z.boolean().optional() }
+export const autoRenewSettingsSchema = z.discriminatedUnion('state', [
+  z.strictObject({ state: z.literal('off'), ...renewalAvailability }),
+  z.strictObject({ state: z.literal('needs_new_method'), ...renewalAvailability }),
+  z.strictObject({ state: z.literal('setup'), ...renewalAvailability,
+    setup_id: z.uuid(), setup_expires_at: z.iso.datetime(), consent_at: z.iso.datetime() }),
+  z.strictObject({ state: z.literal('on'), ...renewalAvailability, consent_at: z.iso.datetime(), method_label: z.literal('simulator'),
+    next_charge: z.strictObject({ date: isoDate, amount: moneySchema, notice_sent_at: z.iso.datetime().nullable() }).nullable() }),
+])
+export type AutoRenewSettings = z.infer<typeof autoRenewSettingsSchema>
+
 export const subscriptionViewSchema = z.strictObject({
   id: z.string().min(1), customer_id: z.string().min(1), tenant_id: z.string().nullable(),
   state: subscriptionStateSchema,
@@ -26,7 +38,7 @@ export const subscriptionViewSchema = z.strictObject({
   order_cancelled: z.boolean(),
   revision: z.number().int().min(0), // aggregate version used for optimistic locking
   renewal_at: isoDate.nullable(),
-  auto_renew: z.strictObject({ state: z.literal('off') }),
+  auto_renew: autoRenewSettingsSchema,
   trial_ends_at: z.string().nullable(), grace_ends_at: z.string().nullable(),
   trial_outcome: trialOutcomeSchema.nullable().optional(),
   trial_reopenable: z.boolean().optional(),

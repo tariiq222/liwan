@@ -3,21 +3,26 @@
 // State is process-local: the worker's reconcileUnknownAttempts uses its own
 // adapter and cannot see API-side attempts/settlement. Local acceptance settles
 // synchronously through the API's shared adapter and normal webhook handler.
-import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import {
   PaymentError, toBytes,
   type AdapterHeaders, type ChargeTokenInput, type CreateAttemptInput, type CreateAttemptResult,
-  type Money, type PaymentAdapter, type ProviderEvent, type ProviderEventStatus, type RefundResult, type TokenInfo,
+  type Money, type PaymentAdapter, type ProviderEvent, type ProviderEventStatus, type RefundResult, type StoredMethodProvider, type TokenInfo,
 } from './payment-adapter.js'
 
 export type SimChargeOutcome = 'succeed' | 'decline' | 'pending' | 'refuse' | 'unavailable' | 'lose_response'
 export type SimOutcome = 'succeed' | 'fail' | 'cancel' | 'timeout'
+export type SimulatorMethodOptions = {
+  signingKey: Buffer
+  state(id: string): Promise<string | null>
+}
 export type SimulatorConfig = {
   env?: Record<string, string | undefined>
   live?: boolean
   merchantAccount?: string
   webhookSecret?: string
   defaultOutcome?: SimOutcome
+  methods?: SimulatorMethodOptions
 }
 type SimAttempt = { input: CreateAttemptInput; ref: string; payment_id: string; status: ProviderEventStatus; outcome: SimOutcome; refunded: number }
 export type WebhookOverrides = {
@@ -33,6 +38,8 @@ export class SimulatorAdapter implements PaymentAdapter {
   readonly mode = 'simulator' as const
   readonly merchantAccount: string
   readonly webhookSecret: string
+  readonly storedMethods?: StoredMethodProvider
+  readonly #methods?: SimulatorMethodOptions
   private readonly outcomes = new Map<string, SimOutcome>()
   private readonly attempts = new Map<string, SimAttempt>()
   private readonly byAttempt = new Map<string, SimAttempt>()
@@ -51,6 +58,16 @@ export class SimulatorAdapter implements PaymentAdapter {
     this.merchantAccount = cfg.merchantAccount ?? 'sim-merchant'
     this.webhookSecret = cfg.webhookSecret ?? 'sim-webhook-secret'
     this.defaultOutcome = cfg.defaultOutcome ?? 'succeed'
+    this.#methods = cfg.methods
+    if (cfg.methods) this.storedMethods = {
+      beginSetup: async id => { await this.requireSetup(id) },
+      completeSetup: async id => { await this.requireSetup(id); return `sim-method.${id}.${this.methodSignature(id)}` },
+      deleteToken: async token => {
+        const state = await this.methodState(token)
+        if (state === 'closed') throw new PaymentError('not_found')
+        if (state !== 'revoking') throw new PaymentError('provider_error')
+      },
+    }
   }
 
   /** Script the outcome for an attempt_id before createAttempt. */
@@ -199,9 +216,25 @@ export class SimulatorAdapter implements PaymentAdapter {
     return ev
   }
 
+  private methodSignature(id: string) {
+    return createHmac('sha256', this.#methods!.signingKey).update(`${this.merchantAccount}|${id}`).digest('base64url')
+  }
+
+  private async requireSetup(id: string) {
+    if (await this.#methods?.state(id) !== 'setup') throw new PaymentError('not_found')
+  }
+
+  private async methodState(token: string) {
+    const parsed = /^sim-method\.([0-9a-f-]{36})\.([A-Za-z0-9_-]{43})$/.exec(token)
+    if (!parsed || !this.#methods || !timingSafeEqual(Buffer.from(parsed[2]!), Buffer.from(this.methodSignature(parsed[1]!))))
+      throw new PaymentError('not_found')
+    const state = await this.#methods.state(parsed[1]!)
+    if (!state) throw new PaymentError('not_found')
+    return state
+  }
+
   async getToken(id: string): Promise<TokenInfo> {
-    const s = this.tokens.get(id)
-    if (!s) throw new PaymentError('not_found', id)
-    return { id, status: s, active: s === 'active' }
+    const state = this.tokens.get(id) ?? await this.methodState(id)
+    return { id, status: state, active: state === 'active' }
   }
 }

@@ -55,6 +55,8 @@ describe('customer commercial BFF', () => {
   it.each([
     { method: 'GET', path: 'trial/end-preview', needs: 'subscription.read' },
     { method: 'POST', path: 'trial/retry', needs: 'subscription.manage' },
+    { method: 'POST', path: 'auto-renew', needs: 'subscription.manage' },
+    { method: 'POST', path: 'auto-renew/complete', needs: 'subscription.manage' },
   ])('forwards $method $path with its server-owned capability', async ({ method, path, needs }) => {
     expect(customerRoute(method, path)).toEqual({ upstream: `/v1/customer/${path}`, needs })
     const raw = setup({ method, url: `https://acme.example/api/commercial/v1/${path}`, body: method === 'POST' ? '{}' : undefined })
@@ -70,6 +72,19 @@ describe('customer commercial BFF', () => {
     vi.mocked($fetch).mockResolvedValueOnce({ ...me(['access.users.read']), read_only: true })
     expect(await forwardCustomerRequest({} as never)).toEqual({ ok: true })
     expect(reads).toHaveBeenCalledOnce()
+  })
+  it('requires CSRF and an unrestricted manager to complete stored-method setup', async () => {
+    const url = 'https://acme.example/api/commercial/v1/auto-renew/complete'
+    const options = { method: 'POST', url, body: '{}' }
+    const readOnly = setup(options)
+    vi.mocked($fetch).mockResolvedValueOnce({ ...me(['settings.branding.manage']), read_only: true })
+    await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'user_read_only' } })
+    expect(readOnly).not.toHaveBeenCalled()
+    const crossSite = setup({ ...options, headers: { 'x-liwan-csrf': 'z'.repeat(40) } })
+    await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'csrf_failed' } })
+    expect(crossSite).not.toHaveBeenCalled()
+    expect(customerRoute('GET','auto-renew/complete')).toBeNull()
+    expect(customerRoute('POST','auto-renew/complete/extra')).toBeNull()
   })
   it('requires subscription management for trial retry', async () => {
     const raw = setup({ method: 'POST', url: 'https://acme.example/api/commercial/v1/trial/retry', body: '{}', caps: ['access.users.read'] })

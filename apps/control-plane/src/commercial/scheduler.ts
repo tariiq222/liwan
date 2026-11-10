@@ -11,7 +11,8 @@ import { processTrialLapses } from './trial-lapse.js'
 import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendRenewalNotices } from './renewal-notices.js'
-import { reconcileTokenCharges } from './token-charge.js'
+import { expireStoredMethodSetups, processStoredMethodRevocations, type StoredMethodRuntime } from './payment-methods.js'
+import { reconcileTokenCharges, sendReservedStoredCharges } from './token-charge.js'
 import { sendTrialNotices } from './trial-notices.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
 import { processRefundOutbox } from './settlements.js'
@@ -26,7 +27,7 @@ import { collectUsage, FRESH_MS, type UsageObserveRunner } from './usage-collect
 type Env = Record<string, string | undefined>
 export type CommercialSchedulerOptions = {
   pool: Pool; config: Config; env: Env; clock?: () => number
-  paymentAdapter?: PaymentAdapter; mailAdapter?: MailAdapter
+  paymentAdapter?: PaymentAdapter; storedMethod?: StoredMethodRuntime; mailAdapter?: MailAdapter
   subscriptionRunner?: Parameters<typeof recoverInterrupted>[1] extends infer O ? (O extends { runner?: infer R } ? R : never) : never
   usageRunner?: UsageObserveRunner
   /** Pushes a tenant's suspended or active status to Odoo; without it a suspension changes the control plane only. */
@@ -146,13 +147,19 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('trial-expiry', () => expireTrials(pool, { now: new Date(now) }))
         const adapter = o.paymentAdapter
         await job('trial-lapse', () => processTrialLapses(pool, { now: new Date(now), adapter }))
-        if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), clock, adapter, returnOrigin }))
+        const storedMethod = o.storedMethod
+        if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), clock, adapter,
+          storedMethodKeyId: storedMethod?.key.id, returnOrigin }))
+        await job('stored-method-setup-expiry', () => expireStoredMethodSetups(pool, new Date(now)))
+        if (storedMethod) await job('stored-method-revocations', () => processStoredMethodRevocations(pool, { runtime: storedMethod, clock, signal: o.signal }))
         const mail = o.mailAdapter
-        if (mail && adapter?.mode === 'simulator')
-          await job('renewal-notices', () => sendRenewalNotices(pool, { adapter, mail, clock, signal: o.signal }))
+        if (mail && storedMethod)
+          await job('renewal-notices', () => sendRenewalNotices(pool, { adapter: storedMethod.adapter, keyId: storedMethod.key.id, mail, clock, signal: o.signal }))
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
       }
+      const storedMethod = o.storedMethod
+      if (storedMethod) await job('send-stored-charges', () => sendReservedStoredCharges(pool, { runtime: storedMethod, returnOrigin, clock, signal: o.signal }))
       console.debug(JSON.stringify({ event: 'commercial_scheduler_tick', tick: ticks, jobs: jobCounts }))
     },
   }

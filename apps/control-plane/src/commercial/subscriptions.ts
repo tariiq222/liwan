@@ -3,14 +3,15 @@ import type { Pool } from 'pg'
 import { subscriptionViewSchema, subscriptionRevisionSchema, subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 import { settledTrialReopenSource } from './trial-reopen.js'
+import { storedMethodView } from './payment-methods.js'
 import { orderView } from './orders.js'
 
 const iso = (value: Date | string | null): string | null => value === null ? null : value instanceof Date ? value.toISOString() : value
 const date = (value: Date | string | null): string | null => iso(value)?.slice(0, 10) ?? null
 
 /** The applied snapshot is the only source of effective customer entitlements. */
-export async function getSubscription(pool: Pool, customerId: string) {
-  const result = await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [customerId])
+export async function getSubscription(pool: Pool, customerId: string, paymentMethodKeyId?: string) {
+  const result = await pool.query('SELECT *,renewal_at::text FROM subscriptions WHERE customer_id=$1', [customerId])
   if (!result.rowCount) throw new CommercialHttpError('not_found', 404)
   const row = result.rows[0]
   const revisions = await pool.query('SELECT * FROM subscription_revisions WHERE id=ANY($1::uuid[])', [[row.applied_revision_id, row.target_revision_id].filter(Boolean)])
@@ -27,7 +28,7 @@ export async function getSubscription(pool: Pool, customerId: string) {
     id: row.id, customer_id: row.customer_id, tenant_id: row.tenant_id, state: row.state,
     applied: revision(row.applied_revision_id), target: revision(row.target_revision_id), pending_order: pendingOrder ? { ...orderView(pendingOrder), collection: await getStoredChargeCollection(pool, pendingOrder.id) } : null, order_cancelled: cancelled,
     revision: row.revision, renewal_at: date(row.renewal_at),
-    auto_renew: { state: 'off' },
+    auto_renew: await storedMethodView(pool,row,paymentMethodKeyId),
     trial_reopenable: Boolean(await settledTrialReopenSource(pool, row)), trial_outcome: row.trial_outcome, trial_ends_at: iso(row.trial_ends_at), grace_ends_at: iso(row.grace_ends_at),
   })
   // Consumers derive the display state without confusing paid with applied.

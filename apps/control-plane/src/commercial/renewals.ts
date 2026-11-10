@@ -36,8 +36,8 @@ export async function onRenewalPaid(client: PoolClient, order_id: string) {
  * skipped subscription is marked billing-blocked, which the vendor attention list shows until an order is generated
  * for it, and the run then fails with `return_url_forbidden` so the skip is never silent.
  */
-export async function generateRenewals(pool: Pool, { now = new Date(), clock = Date.now, adapter, returnOrigin, subscription_id }: {
-  now?: Date; clock?: () => number; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; subscription_id?: string
+export async function generateRenewals(pool: Pool, { now = new Date(), clock = Date.now, adapter, storedMethodKeyId, returnOrigin, subscription_id }: {
+  now?: Date; clock?: () => number; adapter: PaymentAdapter; storedMethodKeyId?: string; returnOrigin: ReturnOrigin; subscription_id?: string
 }) {
   const today = riyadhDate(now)
   // `has_renewal`: the period already has its renewal (an unpaid invoice may be waiting); nothing is left to generate for it.
@@ -108,8 +108,8 @@ export async function generateRenewals(pool: Pool, { now = new Date(), clock = D
         FROM subscriptions s WHERE s.id=$1`, [sub.id, start])).rows[0].first
       const invoice = await issueInvoiceFromQuote(client, { order, quote, dueDays: immediate ? 0 : undefined })
       await client.query('UPDATE renewals SET order_id=$2,invoice_id=$3 WHERE id=$1', [renewalId,order.id,invoice?.id ?? null])
-      const stored = Boolean(invoice && !immediate && autoRenewAllowed && await reserveNoticedCharge(client,
-        { adapter, subscription: sub.id, order: order.id, invoice: invoice.id, date: start, amount: invoice.total, cadence: quote.cadence, clock }))
+      const stored = Boolean(invoice && !immediate && autoRenewAllowed && storedMethodKeyId && await reserveNoticedCharge(client,
+        { adapter, subscription: sub.id, order: order.id, invoice: invoice.id, date: start, amount: invoice.total, cadence: quote.cadence, keyId: storedMethodKeyId, clock }))
       if (!invoice) {
         await onRenewalPaid(client, order.id)
         await enqueueOutbox(client,{kind:'fulfillment.enqueue',aggregate_id:order.id,dedupe_key:order.target_revision_id,

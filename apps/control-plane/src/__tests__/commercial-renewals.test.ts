@@ -76,8 +76,8 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   })
   it('does not send stored-method charges until the notice gate and setup are available', async () => {
     const { id } = await subscription()
-    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
-      VALUES($1,$2,'simulator','active',$3,'fixture-key',now(),'fixture','fixture')`, [randomUUID(),id,Buffer.from([1])])
+    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version,activated_at)
+      VALUES($1,$2,'simulator','active',$3,'fixture-key',now(),'fixture','fixture',now())`, [randomUUID(),id,Buffer.from([1])])
     const adapter = new SimulatorAdapter()
     const charge = vi.spyOn(adapter, 'chargeToken')
     await generateRenewals(pool, args(adapter))
@@ -104,8 +104,8 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const issued = (await pool.query(`SELECT i.id,i.order_id,i.due_at,i.period_start::text,a.id AS attempt_id FROM invoices i
       JOIN payment_attempts a ON a.invoice_id=i.id WHERE i.subscription_id=$1 AND i.kind='renewal'`, [id])).rows[0]
     const method = randomUUID(), notice = randomUUID(), attempt = randomUUID()
-    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
-      VALUES($1,$2,'simulator','active',$3,'fixture-key','2026-09-01','fixture','fixture')`, [method,id,Buffer.from([1])])
+    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version,activated_at)
+      VALUES($1,$2,'simulator','active',$3,'fixture-key','2026-09-01','fixture','fixture',now())`, [method,id,Buffer.from([1])])
     await pool.query(`INSERT INTO renewal_notices(id,subscription_id,method_id,renewal_date,cadence_unit,cadence_count,
       amount_minor,currency,exponent,state,sent_at)
       SELECT $1,i.subscription_id,$2,i.period_start,'month',1,i.total_minor,i.currency,i.exponent,'sent','2026-09-20'

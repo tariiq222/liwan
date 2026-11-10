@@ -66,11 +66,11 @@ suite('stored-method renewal notice and collection gate', () => {
     await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE order_id=$1", [order.id])
     const subscription = order.subscription_id
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',renewal_at=$2,revision=revision+1 WHERE id=$1", [subscription,renewalDate])
-    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
-      VALUES($1,$2,'simulator','active',$3,'fixture-key','2026-11-01T00:00:00Z','fixture','fixture')`, [method,subscription,Buffer.from([1])])
+    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version,activated_at)
+      VALUES($1,$2,'simulator','active',$3,'fixture-key','2026-11-01T00:00:00Z','fixture','fixture',now())`, [method,subscription,Buffer.from([1])])
     const adapter = new SimulatorAdapter()
     const run = (date = `${renewalDate}T08:00:00Z`) => generateRenewals(pool, {
-      subscription_id: subscription, now: new Date(date), clock: () => Date.parse(date), adapter, returnOrigin,
+      subscription_id: subscription, now: new Date(date), clock: () => Date.parse(date), adapter, storedMethodKeyId: 'fixture-key', returnOrigin,
     })
     const notices = async () => (await pool.query(`SELECT id,state,sent_at,void_reason,amount_minor,currency,exponent,method_id,renewal_date::text,cadence_unit,cadence_count
       FROM renewal_notices WHERE subscription_id=$1 ORDER BY id`, [subscription])).rows
@@ -95,7 +95,7 @@ suite('stored-method renewal notice and collection gate', () => {
     const f = await fixture()
     let now = day10 - 1
     const send = vi.fn(async (_message: MailMessage) => ({ accepted: true, provider_message_id: 'fixture' }))
-    const job = () => sendRenewalNotices(pool, { adapter: f.adapter, mail: { send }, clock: () => now })
+    const job = () => sendRenewalNotices(pool, { adapter: f.adapter, keyId: 'fixture-key', mail: { send }, clock: () => now })
     await job()
     expect(await f.notices()).toEqual([])
     now = day10
@@ -118,7 +118,7 @@ suite('stored-method renewal notice and collection gate', () => {
       if (outcome === 'accepted_late') now += 1_000
       return { accepted: outcome === 'accepted_late', provider_message_id: 'fixture' }
     })
-    await sendRenewalNotices(pool, { adapter: f.adapter, mail: { send }, clock: () => now })
+    await sendRenewalNotices(pool, { adapter: f.adapter, keyId: 'fixture-key', mail: { send }, clock: () => now })
     expect(await f.notices()).toMatchObject([{ state: outcome === 'accepted_late' ? 'void' : 'due', sent_at: null }])
     await f.run()
     expect(await f.attempts()).toMatchObject([{ token_charge: false, status: 'redirected', notice_id: null }])
@@ -133,7 +133,7 @@ suite('stored-method renewal notice and collection gate', () => {
   it('mails the exact digits of a safe-integer charge and issues that same amount', async () => {
     const f = await fixture(await plan(7_832_347_178_035_634, true))
     const send = vi.fn(async (_message: MailMessage) => ({ accepted: true, provider_message_id: 'fixture' }))
-    await sendRenewalNotices(pool, { adapter: f.adapter, mail: { send }, clock: () => day10 })
+    await sendRenewalNotices(pool, { adapter: f.adapter, keyId: 'fixture-key', mail: { send }, clock: () => day10 })
     expect(send.mock.calls[0]?.[0].text).toContain('90071992547409.79 SAR')
     await f.run()
     expect(await f.attempts()).toMatchObject([{ token_charge: true, total_minor: '9007199254740979' }])
@@ -152,7 +152,7 @@ suite('stored-method renewal notice and collection gate', () => {
     const send = vi.fn()
       .mockResolvedValueOnce({ accepted: false, provider_message_id: 'fixture' })
       .mockResolvedValueOnce({ accepted: true, provider_message_id: 'fixture' })
-    const job = () => sendRenewalNotices(pool, { adapter: f.adapter, mail: { send }, clock: () => now })
+    const job = () => sendRenewalNotices(pool, { adapter: f.adapter, keyId: 'fixture-key', mail: { send }, clock: () => now })
     await job()
     expect(await f.notices()).toMatchObject([{ state: 'due', sent_at: null }])
     now += 60 * 60_000 - 1
@@ -169,7 +169,7 @@ suite('stored-method renewal notice and collection gate', () => {
     await seed(f)
     Object.defineProperty(f.adapter, 'mode', { value: mode })
     const send = vi.fn()
-    await sendRenewalNotices(pool, { adapter: f.adapter, mail: { send }, clock: () => day10 })
+    await sendRenewalNotices(pool, { adapter: f.adapter, keyId: 'fixture-key', mail: { send }, clock: () => day10 })
     await f.run()
     expect(send).not.toHaveBeenCalled()
     expect(await f.attempts()).toMatchObject([{ token_charge: false, status: 'redirected', notice_id: null }])
@@ -180,8 +180,8 @@ suite('stored-method renewal notice and collection gate', () => {
       const f = await fixture(scenario === 'plan_off' ? disabledPlan : paidPlan)
       if (scenario === 'old_method') {
         const old = randomUUID()
-        await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,consent_at,consent_actor,consent_version)
-          VALUES($1,$2,'simulator','closed','2026-11-01T00:00:00Z','fixture','fixture')`, [old,f.subscription])
+        await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,consent_at,consent_actor,consent_version,closed_reason)
+          VALUES($1,$2,'simulator','closed','2026-11-01T00:00:00Z','fixture','fixture','revoked')`, [old,f.subscription])
         await seed(f, { method: old })
       } else if (scenario !== 'none') await seed(f, {
         sentAt: scenario === 'late' ? new Date(day7End + 1_000) : scenario === 'queued' ? null : undefined,
@@ -253,7 +253,7 @@ suite('stored-method renewal notice and collection gate', () => {
   it('does not notify or reserve payment for a zero-due renewal', async () => {
     const f = await fixture(freePlan)
     const send = vi.fn(async (_message: MailMessage) => ({ accepted: true, provider_message_id: 'fixture' }))
-    await sendRenewalNotices(pool, { adapter: f.adapter, mail: { send }, clock: () => day10 })
+    await sendRenewalNotices(pool, { adapter: f.adapter, keyId: 'fixture-key', mail: { send }, clock: () => day10 })
     expect(await f.notices()).toEqual([])
     expect(await f.run()).toMatchObject([{ payment_state: 'not_required' }])
     expect(await f.attempts()).toEqual([])

@@ -1,4 +1,4 @@
-import { trialEndPreviewSchema, type Branch, type Order, type BranchSummary, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { AUTO_RENEW_CONSENT_VERSION, subscriptionViewSchema, trialEndPreviewSchema, type Branch, type Order, type BranchSummary, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
 import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
@@ -45,6 +45,12 @@ export function useSubscriptionApi() {
     retryTrialEnd: async () => trialEndPreviewSchema.parse(await request<unknown>('trial/retry', { method: 'POST', body: {} })),
     startTrial: (body: unknown) => request<{ order: NonNullable<SubscriptionView['pending_order']>; subscription: SubscriptionView }>('trial', { method: 'POST', body }),
     convertTrial: () => request<{ order: NonNullable<SubscriptionView['pending_order']> | null; attempt: PaymentAttempt | null; pending: boolean }>('trial/convert', { method: 'POST', body: {} }),
+    setAutoRenew: async (enabled: boolean) => subscriptionViewSchema.parse(await request<unknown>('auto-renew', {
+      method: 'POST', body: enabled ? { enabled, consent: true, consent_version: AUTO_RENEW_CONSENT_VERSION } : { enabled },
+    })),
+    completeAutoRenew: async (setupId: string) => subscriptionViewSchema.parse(await request<unknown>('auto-renew/complete', {
+      method: 'POST', body: { setup_id: setupId },
+    })),
     branchQuote: (body: unknown) => request<Quote & { branches?: Branch[] }>('branch-quotes', { method: 'POST', body }),
     /** Accepting reuses the stored key for `action` until `done()` so refresh/retry cannot create a second order. */
     accept: (action: string, body: { quote_id: string; expected_subscription_revision: number }) =>

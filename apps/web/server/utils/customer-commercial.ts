@@ -77,10 +77,11 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^branch-quotes$/ },
   { method: 'GET', pattern: /^usage$/ },
   { method: 'POST', pattern: /^auto-renew$/ },
+  { method: 'POST', pattern: /^auto-renew\/complete$/ },
 ]
 /** Capability each route needs (authoritative check also repeats in the control plane). */
 const NEEDS: Array<[RegExp, string, CustomerCommercialCapability]> = [
-  [/^quotes$|^orders|^auto-renew$|^trial(\/(convert|retry))?$/, 'POST', 'subscription.manage'],
+  [/^quotes$|^orders|^auto-renew(\/complete)?$|^trial(\/(convert|retry))?$/, 'POST', 'subscription.manage'],
   [/^preview$/, 'POST', 'subscription.read'],
   [/^branch-quotes$/, 'POST', 'branches.manage'],
   [/^invoices/, 'GET', 'billing.read'],

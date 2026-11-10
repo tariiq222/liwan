@@ -7,7 +7,7 @@ import { policyWire } from './policies.js'
 import { loadQuoteSources, pricingOf } from './quote-sources.js'
 
 /** Notices and invoice creation price the same cycle with the same pinned sources. */
-export async function quoteRenewal(client: PoolClient, sub: Record<string, any>, snapshot: Record<string, any>, period: { start: string; end: string }, now: Date) {
+export async function quoteRenewal(client: Pick<PoolClient, 'query'>, sub: Record<string, any>, snapshot: Record<string, any>, period: { start: string; end: string }, now: Date) {
   const sources = await loadQuoteSources(client, sub.customer_id, {
     plan_revision_id: snapshot.plan_revision_id,
     bundle_revision_ids: snapshot.bundle_revision_ids,

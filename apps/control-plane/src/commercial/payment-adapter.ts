@@ -3,7 +3,7 @@
 // authoritative provider fetch (see confirmEvent in moyasar-adapter.ts).
 // Types are local; the coordinator aligns them with shared contracts later.
 import { MoyasarAdapter } from './moyasar-adapter.js'
-import { SimulatorAdapter } from './payment-simulator.js'
+import { SimulatorAdapter, type SimulatorMethodOptions } from './payment-simulator.js'
 
 export type Money = { currency: string; exponent: number; minor: number }
 
@@ -58,10 +58,17 @@ export type ChargeTokenInput = { attempt_id: string; token: string; amount: Mone
 export type TokenInfo = { id: string; status: string; active: boolean }
 export type AdapterHeaders = Record<string, string | string[] | undefined>
 
+export type StoredMethodProvider = {
+  beginSetup(methodId: string): Promise<void>
+  completeSetup(methodId: string): Promise<string>
+  deleteToken(token: string): Promise<void>
+}
+
 export interface PaymentAdapter {
   readonly provider: string
   readonly merchantAccount: string
   readonly mode: 'test' | 'live' | 'simulator'
+  readonly storedMethods?: StoredMethodProvider
   createAttempt(input: CreateAttemptInput): Promise<CreateAttemptResult>
   verifyEvent(rawBody: Uint8Array, headers: AdapterHeaders): ProviderEvent
   lookupAttempt(providerRef: string): Promise<ProviderEvent>
@@ -105,7 +112,7 @@ export function toBytes(raw: Uint8Array | string): Uint8Array {
   return typeof raw === 'string' ? new TextEncoder().encode(raw) : raw
 }
 
-export function paymentAdapterFromEnv(env: Record<string, string | undefined>): PaymentAdapter {
+export function paymentAdapterFromEnv(env: Record<string, string | undefined>, methods?: SimulatorMethodOptions): PaymentAdapter {
   const provider = env.LIWAN_PAYMENT_PROVIDER
   const need = (k: string): string => {
     const v = env[k]
@@ -114,7 +121,7 @@ export function paymentAdapterFromEnv(env: Record<string, string | undefined>): 
   }
   if (provider === 'simulator') {
     if (env.NODE_ENV === 'production') throw new PaymentError('provider_forbidden', 'simulator disabled in production')
-    return new SimulatorAdapter({ env })
+    return new SimulatorAdapter({ env, methods })
   }
   if (provider === 'moyasar') {
     const mode = need('MOYASAR_MODE')

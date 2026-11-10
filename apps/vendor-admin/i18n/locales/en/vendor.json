@@ -991,6 +991,7 @@
       "sub": {
         "period": "Current period",
         "autoRenew": "Auto-renew",
+        "autoRenewStates": {"off": "Manual renewal", "setup": "Setup incomplete", "on": "Simulated auto-renewal", "needs_new_method": "New method needed"},
         "trialEnds": "Trial ends",
         "graceEnds": "Grace ends",
         "pendingOrder": "Order in progress",
@@ -1114,8 +1115,6 @@
         "renewalIn": "In {days} days",
         "renewalToday": "Today",
         "renewalLate": "{days} days overdue",
-        "autoRenewOn": "Auto-renews",
-        "autoRenewOff": "Manual renewal",
         "noRenewal": "No renewal scheduled",
         "lastInvoice": "Last invoice",
         "noInvoices": "No invoices yet",

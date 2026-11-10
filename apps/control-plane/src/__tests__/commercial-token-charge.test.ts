@@ -33,8 +33,8 @@ suite('stored-method charge engine', () => {
       VALUES($1,$2,$3,'renewal',$4,$5,$5,'awaiting_payment','not_started',$6,'fixture',1000,'SAR',2)`, [order,customer,subscription,quote,revision,order])
     await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
       VALUES($1,$2,$3,$4,'renewal','SAR',2,1000,0,1000,$5,$6,now()-interval '1 day')`, [invoice,customer,subscription,order,collectionDate,periodEnd])
-    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
-      VALUES($1,$2,'simulator','active',$3,'fixture-key',$4,'fixture','fixture')`, [method,subscription,Buffer.from([1]),consentAt])
+    await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version,activated_at)
+      VALUES($1,$2,'simulator','active',$3,'fixture-key',$4,'fixture','fixture',now())`, [method,subscription,Buffer.from([1]),consentAt])
     await pool.query(`INSERT INTO renewal_notices(id,subscription_id,method_id,renewal_date,cadence_unit,cadence_count,
       amount_minor,currency,exponent,state,sent_at)
       VALUES($1,$2,$3,$4,'month',1,1000,'SAR',2,'sent',$5)`, [notice,subscription,method,collectionDate,noticeSent])

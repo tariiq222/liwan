@@ -991,6 +991,7 @@
       "sub": {
         "period": "الفترة الحالية",
         "autoRenew": "التجديد التلقائي",
+        "autoRenewStates": {"off": "تجديد يدوي", "setup": "الإعداد غير مكتمل", "on": "تجديد تجريبي تلقائي", "needs_new_method": "تحتاج إلى وسيلة جديدة"},
         "trialEnds": "نهاية التجربة",
         "graceEnds": "نهاية فترة السماح",
         "pendingOrder": "طلب قيد المعالجة",
@@ -1114,8 +1115,6 @@
         "renewalIn": "بعد {days} يومًا",
         "renewalToday": "اليوم",
         "renewalLate": "متأخر {days} يومًا",
-        "autoRenewOn": "تجديد تلقائي",
-        "autoRenewOff": "تجديد يدوي",
         "noRenewal": "لا تجديد مجدول",
         "lastInvoice": "آخر فاتورة",
         "noInvoices": "لا فواتير بعد",

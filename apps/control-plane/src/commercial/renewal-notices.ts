@@ -24,7 +24,7 @@ const eligible = `s.state='active' AND NOT s.manual_suspension AND s.target_revi
   AND s.trial_ends_at IS NULL AND NOT ${holdsTrialAfterLapseSql('s')}
   AND NOT ${firstLapseRenewalSql('s', 's.renewal_at')}
   AND s.renewal_at BETWEEN $1::date + $2::int AND $1::date + $3::int
-  AND m.state='active' AND m.provider=$4
+  AND m.state='active' AND m.provider=$4 AND m.key_id=$5
   AND ${owesAtRenewalSql("sr.snapshot->'pricing'")}`
 const candidates = `FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
   JOIN payment_methods m ON m.subscription_id=s.id JOIN customers c ON c.id=s.customer_id`
@@ -33,12 +33,12 @@ type ClaimedNotice = {
   id: string; login: string; date: string; amount: Money; lease: Date
 }
 
-async function claimNotice(pool: Pool, subscriptionId: string, provider: string, clock: () => number): Promise<ClaimedNotice | null> {
+async function claimNotice(pool: Pool, subscriptionId: string, provider: string, keyId: string, clock: () => number): Promise<ClaimedNotice | null> {
   return transaction(pool, async client => {
     const now = new Date(clock()), today = riyadhDate(now)
     const sub = (await client.query(`SELECT s.*,s.renewal_at::text,sr.snapshot,m.id AS method_id,m.consent_at,c.admin_login ${candidates}
-      WHERE ${eligible} AND s.id=$5 FOR SHARE OF s,m`, [
-      today, RENEWAL_NOTICE_MIN_DAYS, RENEWAL_NOTICE_LEAD_DAYS, provider, subscriptionId,
+      WHERE ${eligible} AND s.id=$6 FOR SHARE OF s,m`, [
+      today, RENEWAL_NOTICE_MIN_DAYS, RENEWAL_NOTICE_LEAD_DAYS, provider, keyId, subscriptionId,
     ])).rows[0]
     if (!sub?.admin_login || new Date(sub.consent_at) > now) return null
     const start = sub.renewal_at as string
@@ -84,7 +84,7 @@ async function deliver(pool: Pool, notice: ClaimedNotice, mail: MailAdapter, clo
 
 /** Uses the notice row as its durable outbox. Only accepted mail records a qualifying delivery. */
 export async function sendRenewalNotices(pool: Pool, input: {
-  adapter: PaymentAdapter; mail: MailAdapter; clock?: () => number; signal?: AbortSignal
+  adapter: PaymentAdapter; keyId: string; mail: MailAdapter; clock?: () => number; signal?: AbortSignal
 }): Promise<number> {
   if (input.adapter.mode !== 'simulator' || input.signal?.aborted) return 0
   const clock = input.clock ?? Date.now
@@ -94,13 +94,13 @@ export async function sendRenewalNotices(pool: Pool, input: {
     FROM payment_methods m WHERE m.id=n.method_id AND n.state='due'
       AND (n.renewal_date < $1::date + $2::int OR m.state<>'active')`, [today, RENEWAL_NOTICE_MIN_DAYS])
   const { rows } = await pool.query(`SELECT s.id ${candidates} WHERE ${eligible} ORDER BY s.renewal_at,s.id`, [
-    today, RENEWAL_NOTICE_MIN_DAYS, RENEWAL_NOTICE_LEAD_DAYS, input.adapter.provider,
+    today, RENEWAL_NOTICE_MIN_DAYS, RENEWAL_NOTICE_LEAD_DAYS, input.adapter.provider, input.keyId,
   ])
   let sent = 0
   for (const { id } of rows) {
     if (input.signal?.aborted) break
     try {
-      const notice = await claimNotice(pool, id, input.adapter.provider, clock)
+      const notice = await claimNotice(pool, id, input.adapter.provider, input.keyId, clock)
       if (notice && !input.signal?.aborted && await deliver(pool, notice, input.mail, clock)) sent++
     } catch (error) {
       console.error(`[renewal-notices] subscription ${id} skipped: ${error instanceof Error ? error.name : 'error'}`)
@@ -111,15 +111,15 @@ export async function sendRenewalNotices(pool: Pool, input: {
 
 /** Called within the renewal transaction, after the issued invoice fixes the exact money. */
 export async function reserveNoticedCharge(client: PoolClient, input: {
-  adapter: PaymentAdapter; subscription: string; order: string; invoice: string; date: string; amount: Money; cadence: Cadence; clock: () => number
+  adapter: PaymentAdapter; subscription: string; order: string; invoice: string; date: string; amount: Money; cadence: Cadence; keyId: string; clock: () => number
 }) {
-  const { adapter, subscription, order, invoice, date, amount, cadence, clock } = input
+  const { adapter, subscription, order, invoice, date, amount, cadence, keyId, clock } = input
   if (adapter.mode !== 'simulator' || amount.minor <= 0) return false
   const evidence = (await client.query(`SELECT n.id,n.method_id FROM renewal_notices n JOIN payment_methods m ON m.id=n.method_id
-    WHERE m.subscription_id=$1 AND m.state='active' AND m.provider=$2 AND n.renewal_date=$3
+    WHERE m.subscription_id=$1 AND m.state='active' AND m.provider=$2 AND m.key_id=$9 AND n.renewal_date=$3
       AND (n.amount_minor,n.currency,n.exponent)=($4::bigint,$5::text,$6::integer)
       AND n.cadence_unit=$7 AND n.cadence_count=$8 AND ${timelyRenewalNoticeSql}
-    FOR SHARE OF m,n`, [subscription,adapter.provider,date,amount.minor,amount.currency,amount.exponent,cadence.unit,cadence.count])).rows[0]
+    FOR SHARE OF m,n`, [subscription,adapter.provider,date,amount.minor,amount.currency,amount.exponent,cadence.unit,cadence.count,keyId])).rows[0]
   if (!evidence) return false
   const reservedAt = new Date(clock())
   if (riyadhDate(reservedAt) !== date) return false

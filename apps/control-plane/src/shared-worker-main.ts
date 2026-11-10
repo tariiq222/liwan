@@ -5,6 +5,8 @@ import { attachPoolErrorHandler,migrate } from './db.js'
 import { createOdooAdapter,reconcileOdooOnboardings } from './shared/odoo-adapter.js'
 import { sharedOnboardingEnabled } from './shared/onboarding.js'
 import { createCommercialScheduler } from './commercial/scheduler.js'
+import { paymentMethodKeyFromEnv } from './commercial/payment-method-crypto.js'
+import { simulatorMethodOptions, type StoredMethodRuntime } from './commercial/payment-methods.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
 import { mailAdapterFromEnv,SCHEDULED_MAIL_SEND_TIMEOUT_MS } from './commercial/mail-adapter.js'
 import { createAdminPasswordRunner } from './shared/admin-password-runner.js'
@@ -25,8 +27,13 @@ try{
   await migrate(pool)
   const adapter=createOdooAdapter(pool,config,controller.signal)
   let paymentAdapter:ReturnType<typeof paymentAdapterFromEnv>|undefined
+  let storedMethod:StoredMethodRuntime|undefined
   let mailAdapter:ReturnType<typeof mailAdapterFromEnv>|undefined
-  try{paymentAdapter=paymentAdapterFromEnv(process.env)}catch(e){console.error('commercial payment adapter unavailable:',e instanceof Error?e.message:e)}
+  try{
+    const key=paymentMethodKeyFromEnv(process.env)
+    paymentAdapter=paymentAdapterFromEnv(process.env,key?simulatorMethodOptions(pool,key):undefined)
+    if(key&&paymentAdapter.storedMethods)storedMethod={adapter:paymentAdapter,key}
+  }catch(e){console.error('commercial payment adapter unavailable:',e instanceof Error?e.message:e)}
   try{mailAdapter=mailAdapterFromEnv(process.env,SCHEDULED_MAIL_SEND_TIMEOUT_MS)}catch(e){console.error('commercial mail adapter unavailable:',e instanceof Error?e.message:e)}
   const effect=config.internalEffect
   // The password effect runs here because only the worker may reach Docker; control-api calls it over authenticated HTTPS.
@@ -42,6 +49,6 @@ try{
         }},controller.signal)
     }
   }catch{console.error('internal_effect_unavailable','start_failed')}
-  scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,signal:controller.signal})
+  scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,storedMethod,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,signal:controller.signal})
   await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{if(controller.signal.aborted)return;const log=(message:string,error?:unknown)=>console.error(message,error instanceof Error?error.message:error);await processJobRecoveries(pool,adapter,{log});await processJobAbandonments(pool,adapter,{log});await reconcileOdooOnboardings(pool,config,adapter);await scheduler!.tick();if(controller.signal.aborted)return;await dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})}})
 }finally{await scheduler?.usageIdle().catch(()=>{});await pool.end()}

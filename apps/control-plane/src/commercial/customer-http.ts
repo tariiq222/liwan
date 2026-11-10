@@ -24,9 +24,10 @@ import { retryTrialLapse } from './trial-lapse.js'
 import { getUsage } from './usage.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import { aiTopupCatalog } from './ai-billing-settings.js'
+import { beginStoredMethodSetup, completeStoredMethodSetup, turnOffStoredMethod, type StoredMethodRuntime } from './payment-methods.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { ReturnOrigin } from './return-origin.js'
-export type PaymentRuntime = {adapter: PaymentAdapter | null; returnOrigin: ReturnOrigin | null}
+export type PaymentRuntime = {adapter: PaymentAdapter | null; returnOrigin: ReturnOrigin | null; storedMethod?: StoredMethodRuntime}
 export function needPayment(runtime?: PaymentRuntime): {adapter:PaymentAdapter;returnOrigin:ReturnOrigin} {
   if(!runtime?.adapter||!runtime.returnOrigin)throw new CommercialHttpError('payment_unavailable',503)
   return {adapter:runtime.adapter,returnOrigin:runtime.returnOrigin}
@@ -112,7 +113,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   assertNoCustomerIdentity(Object.fromEntries(url.searchParams))
   if(input.raw) { let body:unknown; try{body=JSON.parse(input.raw)}catch{throw new CommercialHttpError('invalid',400,'body')} assertNoCustomerIdentity(body) }
   const path=url.pathname.slice('/v1/customer'.length),m=input.method,customerId=principal.customer_id!
-  if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
+  if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId,runtime?.storedMethod?.key.id)}}
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
   if (m==='GET' && path==='/trial/end-preview') {
     requireCapability(principal,'subscription.read')
@@ -174,11 +175,21 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(m==='GET'&&path==='/branches'){requireCapability(principal,'subscription.read');const view=await getSubscription(pool,customerId);return {status:200,data:await listBranches(pool,view.id)}}
   if(m==='POST'&&path==='/branch-quotes'){requireCapability(principal,'branches.manage');return {status:201,data:await createBranchQuote(pool,customerId,input.raw)}}
   if(m==='GET'&&path==='/usage'){requireCapability(principal,'subscription.read');const view=await getSubscription(pool,customerId);const features=view.applied?.entitlement.features??{};const limits=Object.fromEntries(Object.entries(features).filter(([,v])=>v===null||typeof v==='number')) as Record<string,number|null>;return {status:200,data:await getUsage(pool,{tenant_id:principal.tenant_id!,limits})}}
-  if(m==='POST'&&path==='/auto-renew'){
+  if(m==='POST'&&(path==='/auto-renew'||path==='/auto-renew/complete')){
     requireCapability(principal,'subscription.manage')
-    const body=parseBody(input.raw,z.strictObject({enabled:z.boolean(),consent:z.boolean().optional()}))
-    if (body.enabled) throw new CommercialHttpError('stored_payment_unavailable',409)
-    return {status:200,data:await getSubscription(pool,customerId)}
+    const owner = { customerId, tenantId: principal.tenant_id!, actor: principal.actor_id }
+    const storedMethod = runtime?.storedMethod ?? null
+    if (path === '/auto-renew/complete') {
+      const body = parseBody(input.raw,z.strictObject({setup_id:z.uuid()}))
+      await completeStoredMethodSetup(pool,{ ...owner, methodId: body.setup_id, runtime: storedMethod })
+    } else {
+      const body = parseBody(input.raw,z.strictObject({enabled:z.boolean(),consent:z.boolean().optional(),consent_version:z.string().max(80).optional()}))
+      if (body.enabled) {
+        if (!storedMethod) throw new CommercialHttpError('stored_payment_unavailable',409)
+        await beginStoredMethodSetup(pool,{ ...owner, consentVersion: body.consent === true ? body.consent_version ?? '' : '', runtime: storedMethod })
+      } else await turnOffStoredMethod(pool,owner)
+    }
+    return {status:200,data:await getSubscription(pool,customerId,storedMethod?.key.id)}
   }
   throw new CommercialHttpError('not_found',404)
 }

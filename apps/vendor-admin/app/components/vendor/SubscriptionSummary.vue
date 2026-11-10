@@ -20,7 +20,7 @@ const order = computed(() => props.subscription.pending_order)
       <SharedPropertyRow :label="t('commercial.pricing.quote.cadence')" :value="subscription.applied ? cadenceLabel(subscription.applied.cadence, t) : null" />
       <SharedPropertyRow :label="t('vendor.customers.sub.period')" :value="subscription.applied ? t('vendor.customers.sub.periodRange', { from: date(subscription.applied.period_start), to: date(subscription.applied.period_end) }) : null" />
       <SharedPropertyRow :label="t('vendor.customers.renewal')" :value="date(subscription.renewal_at)" />
-      <SharedPropertyRow :label="t('vendor.customers.sub.autoRenew')" :value="t('vendor.common.no')" />
+      <SharedPropertyRow :label="t('vendor.customers.sub.autoRenew')" :value="t('vendor.customers.sub.autoRenewStates.' + subscription.auto_renew.state)" />
       <SharedPropertyRow v-if="subscription.trial_ends_at" :label="t('vendor.customers.sub.trialEnds')" :value="date(subscription.trial_ends_at)" />
       <SharedPropertyRow v-if="subscription.grace_ends_at" :label="t('vendor.customers.sub.graceEnds')" :value="date(subscription.grace_ends_at)" />
       <slot />

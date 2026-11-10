@@ -7,6 +7,8 @@ import { commercialHttp } from './commercial/http.js'
 import { customerHttp, type PaymentRuntime } from './commercial/customer-http.js'
 import { returnOriginFromEnv } from './commercial/return-origin.js'
 import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
+import { paymentMethodKeyFromEnv } from './commercial/payment-method-crypto.js'
+import { simulatorMethodOptions } from './commercial/payment-methods.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
 import { CommercialHttpError } from './commercial/lifecycle.js'
 import { invitationPublicHttp, invitationVendorHttp } from './commercial/invitation-http.js'
@@ -319,7 +321,12 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
   // Dedicated: the first LIWAN_PAYMENT_RETURN_ORIGINS entry. Shared: each customer's own tenant host, checked against that allowlist.
   const paymentRuntime: PaymentRuntime = {adapter:null,returnOrigin:returnOriginFromEnv(pool,process.env)}
-  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
+  try {
+    const key = paymentMethodKeyFromEnv(process.env)
+    const adapter = paymentAdapterFromEnv(process.env,key ? simulatorMethodOptions(pool,key) : undefined)
+    paymentRuntime.adapter = adapter
+    if (key && adapter.storedMethods) paymentRuntime.storedMethod = { adapter,key }
+  } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
   const effect = config.internalEffect
   const setPassword: SetPassword | undefined = process.env.LIWAN_TENANCY_MODE === 'shared' && effect?.url && effect.ca

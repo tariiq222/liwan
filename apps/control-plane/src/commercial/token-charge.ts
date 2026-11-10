@@ -1,11 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { riyadhDate } from '@liwan/commercial-contracts'
-import { transaction } from '../db.js'
+import { transaction, transactionOn } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
-import { applyConfirmedEvent, closeOtherAttempts } from './payments.js'
+import { applyConfirmedEvent, closeOtherAttempts, paymentReturnUrls } from './payments.js'
 import { PaymentError, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { timelyRenewalNoticeSql } from './renewal-notices.js'
+import { openMethodToken } from './payment-method-crypto.js'
+import { markStoredMethodInvalid, storedMethodLockKey, type StoredMethodRuntime } from './payment-methods.js'
+import type { ReturnOrigin } from './return-origin.js'
 import { STORED_CHARGE_UNSENT_MS, STORED_CHARGE_UNRESOLVED_MS } from './charge-timings.js'
 
 type Query = Pick<PoolClient, 'query'>
@@ -14,7 +17,9 @@ type StoredAttempt = {
   status: string; collection_date: string; created_at: Date; sent_at: Date | null; amount_minor: string; currency: string; exponent: number
 }
 type CloseReason = 'token_inactive' | 'unsent_expired' | 'abandoned' | 'refused' | 'superseded' | 'provider_closed' | 'declined'
-type OpenToken = (ciphertext: Buffer, keyId: string) => Promise<string> | string
+type MethodIdentity = { id: string; subscription_id: string; provider: string }
+type OpenToken = (ciphertext: Buffer, keyId: string, method: MethodIdentity) => Promise<string> | string
+type ClaimConnection = { client: PoolClient; expected: { method_id: string; key_id: string; token_ciphertext: Buffer } }
 
 const live = (status: string) => ['created', 'unknown', 'pending'].includes(status)
 
@@ -46,17 +51,18 @@ export async function expireStoredCharge(client: PoolClient, attempt: StoredAtte
   return Boolean(result.rowCount)
 }
 
-async function withStoredOrder<T>(pool: Pool, attemptId: string, work: (client: PoolClient) => Promise<T>) {
-  return transaction(pool, async client => {
+async function withStoredOrder<T>(pool: Pool, attemptId: string, work: (client: PoolClient) => Promise<T>, connection?: PoolClient) {
+  const action = async (client: PoolClient) => {
     const found = (await client.query('SELECT order_id FROM payment_attempts WHERE id=$1 AND token_charge', [attemptId])).rows[0]
     if (!found) return null
     await client.query('SELECT id FROM orders WHERE id=$1 FOR UPDATE', [found.order_id])
     return work(client)
-  })
+  }
+  return connection ? transactionOn(connection,action) : transaction(pool,action)
 }
 
 /** The only transition that authorizes a provider send. Its commit precedes the call. */
-export async function claimForSend(pool: Pool, attemptId: string, clock = Date.now) {
+export async function claimForSend(pool: Pool, attemptId: string, clock = Date.now, connection?: ClaimConnection) {
   return withStoredOrder(pool, attemptId, async client => {
     const row = (await client.query(`SELECT a.*,n.renewal_date::text AS collection_date,m.token_ciphertext,m.key_id
       FROM payment_attempts a JOIN payment_methods m ON m.id=a.method_id
@@ -75,13 +81,15 @@ export async function claimForSend(pool: Pool, attemptId: string, clock = Date.n
         AND n.cadence_count::text=sr.snapshot#>>'{cadence,count}'
       FOR UPDATE OF a FOR SHARE OF m,n`, [attemptId])).rows[0]
     if (!row) return null
+    const expected = connection?.expected
+    if (expected && (row.method_id !== expected.method_id || row.key_id !== expected.key_id || !row.token_ciphertext.equals(expected.token_ciphertext))) return null
     // Both locks can block. Measure the unsent window at the actual dispatch fence.
     const claimedAt = new Date(clock())
     if (riyadhDate(claimedAt) !== row.collection_date || storedChargeDeadline(row) <= claimedAt) return null
     const claimed = await client.query(`UPDATE payment_attempts SET status='unknown',sent_at=$2,updated_at=$2
       WHERE id=$1 AND status='created'`, [attemptId,claimedAt])
-    return claimed.rowCount ? { ...row, sent_at: claimedAt } as StoredAttempt & { token_ciphertext: Buffer; key_id: string } : null
-  })
+    return claimed.rowCount ? { ...row, sent_at: claimedAt } as StoredAttempt : null
+  }, connection?.client)
 }
 
 function matchesStoredCharge(row: StoredAttempt, event: ProviderEvent, adapter: PaymentAdapter, lookupRef: string) {
@@ -114,55 +122,113 @@ async function recordOutcome(pool: Pool, adapter: PaymentAdapter, row: StoredAtt
     await closeOtherAttempts(pool, adapter, confirmed)
 }
 
-/** Simulator-only in this inert slice. A later phase supplies the production notice gate and key opener. */
+type Invocation = { response: ProviderEvent } | { error: unknown }
+
+async function beginDispatch(pool: Pool, input: {
+  adapter: PaymentAdapter; attemptId: string; clock: () => number; callbackUrl: string; token: string
+  method: MethodIdentity; expected: ClaimConnection['expected']
+}) {
+  const client = await pool.connect()
+  const lock = storedMethodLockKey(input.method.subscription_id)
+  let held = false, discard = false
+  try {
+    await client.query('SELECT pg_advisory_lock(hashtextextended($1,0))', [lock])
+    held = true
+    const row = await claimForSend(pool,input.attemptId,input.clock,{ client, expected: input.expected })
+    if (!row) return null
+    if (riyadhDate(new Date(input.clock())) !== row.collection_date) {
+      // The day changed after the claim committed but before invoking the provider.
+      await withStoredOrder(pool,row.id,db => db.query(`UPDATE payment_attempts
+        SET status='canceled',closed_reason='unsent_expired',sent_at=NULL,resolved_at=now(),updated_at=now()
+        WHERE id=$1 AND token_charge AND status='unknown' AND sent_at=$2 AND provider_ref IS NULL`, [row.id,row.sent_at]),client)
+      return null
+    }
+    let outcome: Promise<Invocation>
+    try {
+      // This synchronous start and off are ordered by the same session fence.
+      // Do not return the bare promise: off may run while its outcome is pending.
+      outcome = input.adapter.chargeToken({ attempt_id: row.id, token: input.token,
+        amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
+        description: `LiwanOS order ${row.order_id}`, callback_url: input.callbackUrl,
+      }).then(response => ({ response }), error => ({ error }))
+    } catch (error) { outcome = Promise.resolve({ error }) }
+    return { row, outcome }
+  } finally {
+    if (held) {
+      try { await client.query('SELECT pg_advisory_unlock(hashtextextended($1,0))', [lock]) }
+      catch { discard = true }
+    }
+    client.release(discard)
+  }
+}
+
+/** The only stored-method dispatch entry point. Real providers remain disabled. */
 export async function sendTokenCharge(pool: Pool, input: {
   attemptId: string; adapter: PaymentAdapter; openToken: OpenToken; callbackUrl: string; clock?: () => number
+  onInactive?: (method: MethodIdentity, keyId: string, now: Date) => Promise<void>
 }) {
   const { adapter } = input
   if (adapter.mode !== 'simulator') return false
-  const existing = (await pool.query(`SELECT a.*,m.token_ciphertext,m.key_id
+  const clock = input.clock ?? Date.now
+  const existing = (await pool.query(`SELECT a.*,m.subscription_id,m.token_ciphertext,m.key_id
     FROM payment_attempts a JOIN payment_methods m ON m.id=a.method_id
     WHERE a.id=$1 AND a.token_charge AND a.status='created' AND m.state='active'`, [input.attemptId])).rows[0]
   if (!existing || existing.provider !== adapter.provider || existing.mode !== adapter.mode) return false
+  const method = { id: existing.method_id, subscription_id: existing.subscription_id, provider: existing.provider }
   let token: string
-  try { token = await input.openToken(existing.token_ciphertext, existing.key_id) } catch { return false }
-  try {
-    if (!(await adapter.getToken(token)).active) {
-      await withStoredOrder(pool, input.attemptId, client => closeStoredCharge(client, input.attemptId, 'token_inactive', 'created'))
-      return false
-    }
-  } catch (error) {
-    if (error instanceof PaymentError && error.code === 'not_found')
-      await withStoredOrder(pool, input.attemptId, client => closeStoredCharge(client, input.attemptId, 'token_inactive', 'created'))
+  try { token = await input.openToken(existing.token_ciphertext, existing.key_id, method) } catch { return false }
+  let active: boolean
+  try { active = (await adapter.getToken(token)).active }
+  catch (error) {
+    if (!(error instanceof PaymentError) || error.code !== 'not_found') return false
+    active = false
+  }
+  if (!active) {
+    await input.onInactive?.(method,existing.key_id,new Date(clock()))
+    await withStoredOrder(pool,input.attemptId,client => closeStoredCharge(client,input.attemptId,'token_inactive','created'))
     return false
   }
-  const row = await claimForSend(pool, input.attemptId, input.clock)
-  if (!row) return false
-  if (row.key_id !== existing.key_id || !row.token_ciphertext.equals(existing.token_ciphertext)) return true
-  if (riyadhDate(new Date((input.clock ?? Date.now)())) !== row.collection_date) {
-    // The day changed after the claim committed but before invoking the provider.
-    // Keep this invoice's sole reservation and release its hold as never sent.
-    await withStoredOrder(pool, row.id, client => client.query(`UPDATE payment_attempts
-      SET status='canceled',closed_reason='unsent_expired',sent_at=NULL,resolved_at=now(),updated_at=now()
-      WHERE id=$1 AND token_charge AND status='unknown' AND sent_at=$2 AND provider_ref IS NULL`, [row.id,row.sent_at]))
-    return false
-  }
-  let response: ProviderEvent
-  try {
-    response = await adapter.chargeToken({ attempt_id: row.id, token,
-      amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
-      description: `LiwanOS order ${row.order_id}`, callback_url: input.callbackUrl })
-  } catch (error) {
+  const dispatch = await beginDispatch(pool,{ adapter, attemptId: input.attemptId, clock, callbackUrl: input.callbackUrl,
+    token, method, expected: existing })
+  if (!dispatch) return false
+  const { row } = dispatch
+  const outcome = await dispatch.outcome
+  if ('error' in outcome) {
+    const { error } = outcome
     if (error instanceof PaymentError && error.httpStatus !== undefined && error.httpStatus >= 400 && error.httpStatus < 500)
-      await withStoredOrder(pool, row.id, client => closeStoredCharge(client, row.id, 'refused', 'unknown'))
+      await withStoredOrder(pool,row.id,client => closeStoredCharge(client,row.id,'refused','unknown'))
     return true
   }
-  if (matchesStoredCharge(row, response, adapter, response.provider_ref)) {
-    // The response can identify the payment, but only a read can settle it.
-    await pinStoredReference(pool, row.id, response.provider_ref)
-    await recordOutcome(pool, adapter, { ...row, provider_ref: response.provider_ref })
+  const { response } = outcome
+  if (matchesStoredCharge(row,response,adapter,response.provider_ref)) {
+    await pinStoredReference(pool,row.id,response.provider_ref)
+    await recordOutcome(pool,adapter,{ ...row, provider_ref: response.provider_ref })
   }
   return true
+}
+
+export async function sendReservedStoredCharges(pool: Pool, input: {
+  runtime: StoredMethodRuntime; returnOrigin: ReturnOrigin; clock?: () => number; signal?: AbortSignal
+}) {
+  const { adapter,key } = input.runtime
+  if (adapter.mode !== 'simulator' || !adapter.storedMethods) return 0
+  const rows = (await pool.query(`SELECT a.id,o.customer_id FROM payment_attempts a JOIN orders o ON o.id=a.order_id
+    JOIN payment_methods m ON m.id=a.method_id WHERE a.token_charge AND a.status='created' AND m.state='active'
+      AND a.provider=$1 AND a.mode='simulator' AND m.key_id=$2 ORDER BY a.created_at,a.id LIMIT 20`, [adapter.provider,key.id])).rows
+  let sent = 0
+  for (const { id,customer_id } of rows) {
+    if (input.signal?.aborted) break
+    try {
+      const callbackUrl = paymentReturnUrls(await input.returnOrigin(customer_id),id)
+      if (await sendTokenCharge(pool,{ attemptId: id,adapter,callbackUrl,clock: input.clock,
+        openToken: (ciphertext,keyId,method) => openMethodToken(key,{ ...method, key_id: keyId, token_ciphertext: ciphertext }),
+        onInactive: (method,keyId,now) => markStoredMethodInvalid(pool,method.id,keyId,now),
+      })) sent++
+    } catch (error) {
+      console.error(`[stored-charge] dispatch ${id} deferred: ${error instanceof Error ? error.name : 'error'}`)
+    }
+  }
+  return sent
 }
 
 export async function reconcileTokenCharges(pool: Pool, adapter: PaymentAdapter, now = new Date()) {

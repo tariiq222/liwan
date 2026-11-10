@@ -129,6 +129,10 @@ definePageMeta({ middleware: 'customer-commercial' })
             <SharedPropertyRow :label="t('subscription.summary.cadence')" :value="data.sub.applied.cadence.count === 1 ? t(`subscription.cadence.${data.sub.applied.cadence.unit}.one`) : t(`subscription.cadence.${data.sub.applied.cadence.unit}.many`, { count: data.sub.applied.cadence.count })" />
             <SharedPropertyRow v-if="data.sub.renewal_at" :label="t('subscription.summary.renewal')">{{ formatDate(data.sub.renewal_at) }}</SharedPropertyRow><SharedPropertyRow v-else :label="t('subscription.summary.renewal')" :value="null" />
           </SharedPropertiesPanel>
+          <UButton v-if="data.sub.auto_renew.available || data.sub.auto_renew.state !== 'off'"
+            to="/subscription/payment-method" color="neutral" variant="outline" size="sm" class="mt-3">
+            {{ t('subscription.autoRenew.title') }}
+          </UButton>
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.summary.services')">
           <p v-if="!entitledApps.length" class="text-sm text-muted">{{ t('subscription.summary.noServices') }}</p>

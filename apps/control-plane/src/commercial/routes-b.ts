@@ -226,7 +226,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(m==='POST'&&path==='/renewals/run'){
     need(input,'vendor.billing.manage');const body=parseBody(input.raw||'{}',z.strictObject({now:z.iso.datetime().optional()}));if(body.now&&process.env.NODE_ENV==='production')throw new CommercialHttpError('forbidden',403)
     const now=body.now?new Date(body.now):new Date(),paymentRuntime=needPayment(runtime)
-    const generated=await generateRenewals(pool,{now,...paymentRuntime});const dunning=await applyDunning(pool,{now});return {status:200,data:{generated,dunning}}
+    const generated=await generateRenewals(pool,{now,...paymentRuntime,storedMethodKeyId:runtime?.storedMethod?.key.id});const dunning=await applyDunning(pool,{now});return {status:200,data:{generated,dunning}}
   }
   return null
 }
