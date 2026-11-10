@@ -256,6 +256,14 @@ test.describe('the booking page', () => {
     errors = withoutRefusals(errors)
   })
 
+  test('a 502 from the edge admission buffer reads as busy, not as unavailable', async ({ page }) => {
+    await page.route(`**${PUBLIC}/bookings/1?*`, route => route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ code: 'tenant_upstream_unavailable' }) }))
+    await page.goto(BOOK(1))
+    await expect(page.getByTestId('book-unavailable')).toContainText('الخدمة مشغولة حاليًا')
+    await expect(page.getByRole('button', { name: 'إعادة المحاولة' })).toBeVisible()
+    errors = errors.filter(message => !message.includes('502'))
+  })
+
   test('fits a 375px phone with no horizontal scroll and a full-width button', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 })
     await openBooking(page, 1)

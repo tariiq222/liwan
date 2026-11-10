@@ -15,7 +15,9 @@ const { link, data: booking, error, isLoading, isError, refetch } = useGuestBook
 const actions = useGuestActions()
 
 const invalidLink = computed(() => !link.value || isInvalidBookingLink(error.value))
-const busy = computed(() => refusalStatus(error.value) === 429)
+// 429 is the rate limit; 502 is the shared edge's admission buffer giving up after its wait. Both mean "try again shortly".
+const isBusy = (cause: unknown) => [429, 502].includes(refusalStatus(cause) ?? 0)
+const busy = computed(() => isBusy(error.value))
 const changeable = computed(() => booking.value !== undefined && canChange(booking.value))
 const scheduledAt = computed(() => (booking.value?.start ? formatMoment(booking.value.start, locale.value) : null))
 const stateTone = { pending: 'warning', scheduled: 'info', confirmed: 'success', canceled: 'destructive' } as const
@@ -34,7 +36,7 @@ function failureText(cause: unknown): string {
   const status = refusalStatus(cause)
   if (status === 409) return t('appointments.book.errors.taken')
   if (status === 422) return t('appointments.book.errors.notAllowed')
-  if (status === 429) return t('appointments.book.states.busy.title')
+  if (isBusy(cause)) return t('appointments.book.states.busy.title')
   return t('appointments.book.errors.failed')
 }
 
