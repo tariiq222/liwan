@@ -315,6 +315,21 @@ class ReconfigureTests(Base):
             self.assertEqual((runner.applies, runner.installed), (0, []))
         self.assertFalse(self.dir.exists())
 
+    def test_restore_reconcile_with_excess_settles_instead_of_refusing(self):
+        # An older backup restores 8 users under a revision whose limit is now 5.
+        seen = observation(features={'users.limit': 10}, usage={**observation()['usage'], 'users.limit': 8},
+                           excess_supported=True)
+        request = make_request()
+        request['entitlement']['features']['users.limit'] = 5
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            self.effect(FakeRunner(seen)).reconfigure(request)
+        request['excess_settle'] = True
+        runner = FakeRunner(seen, apply_state=applied_state(request, excess_supported=True,
+                                                            excess={'users.limit': 3, 'branches.extra_limit': 0}))
+        receipt = self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+        self.assertIs(receipt.get('excess_supported'), True)
+
     def test_limit_equal_to_usage_is_accepted(self):
         request = make_request()
         usage = {**observation()['usage'], 'users.limit': 10, 'projects.max_projects': 5, 'storage.limit_mb': 100}

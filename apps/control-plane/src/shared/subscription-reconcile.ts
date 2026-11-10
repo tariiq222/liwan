@@ -82,7 +82,10 @@ export async function reconcileAfterRestore(pool: Pool, input: {tenant_id:string
     const order=await client.query("SELECT id FROM orders WHERE subscription_id=$1 AND target_revision_id=$2 AND fulfillment_state='applied' ORDER BY created_at DESC LIMIT 1",[row.id,row.applied_revision_id])
     if(!order.rowCount)return {ready:false,reason:'applied_order_missing'}
     const branches=await listBranches(client,row.id)
-    const authority={...fallback,order_id:order.rows[0].id,operation_id:randomUUID(),previous_revision_id:observed.commercial_revision_id,target_revision_id:row.applied_revision_id,
+    // An older backup can hold more users or storage than the current revision allows. A revision change settles that excess to
+    // read-only (verify() then requires it settled) instead of refusing with downgrade_below_usage on every retry.
+    const settleExcess=observed.commercial_revision_id!==row.applied_revision_id
+    const authority={...fallback,...(settleExcess?{excess_settle:true as const}:{}),order_id:order.rows[0].id,operation_id:randomUUID(),previous_revision_id:observed.commercial_revision_id,target_revision_id:row.applied_revision_id,
       entitlement:await deliveredEntitlement(client,row.snapshot.customer_id,{modules:row.snapshot.entitlement.modules,features:row.snapshot.entitlement.features,digest:row.snapshot.entitlement.digest,compiler_version:row.snapshot.entitlement.compiler_version}),branches:{apply:branches.items.filter(b=>b.state==='active' && b.kind==='extra').map(b=>({branch_id:b.id,name:b.name})),archive:branches.items.filter(b=>b.state==='archived').map(b=>b.id)}}
     const job=await enqueueReconfigureJob(client,{schemaVersion:1,operation:'reconfigure',requestId:authority.operation_id,controlTenantId:input.tenant_id,host:input.target?.host??row.host,
       binding:{tenantId:row.tenant_id,database:input.target?.database??row.database_name,filestore:input.target?.filestore??row.filestore,registryRevision:Number(row.registry_revision)},authority,restore:true,restoreId:input.restore_id??order.rows[0].id},{unique:aiOnly})
