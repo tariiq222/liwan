@@ -1,0 +1,192 @@
+{
+  "not_run": [
+    {
+      "reason": "needs the built Storybook (apps/web/storybook-static, served by e2e/support/storybookServer); the e2e-mock stage builds no Storybook and rtl-stories runs only the e2e-rtl suite",
+      "files": [
+        "apps/web/e2e/storybook-density.spec.ts",
+        "apps/web/e2e/storybook-display-templates.spec.ts",
+        "apps/web/e2e/storybook-shell.spec.ts",
+        "apps/web/e2e/storybook-smoke.spec.ts",
+        "apps/web/e2e/storybook-templates.spec.ts",
+        "apps/web/e2e/storybook-visual.spec.ts",
+        "apps/web/e2e/ux-foundations-visual.spec.ts"
+      ]
+    },
+    {
+      "reason": "plain mock-stack Playwright spec with no guard, not yet in e2e/ci-mock-specs.txt; a later change moves it into that list",
+      "files": [
+        "apps/web/e2e/header-toolbar-overlap.spec.ts",
+        "apps/web/e2e/list-toolbar-layout.spec.ts",
+        "apps/web/e2e/responsive-widths.spec.ts",
+        "apps/web/e2e/shell-persistence.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_PROJECT_POPUPS=1 (isolated synthetic project API); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/documents-library.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_BASE_URL=http://127.0.0.1:4387 with INTERNAL_UI_AUDIT_SHOTS set (internal-ui-audit-with-server.py starts the mock API); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/internal-ui-audit.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_MEETINGS_LIVE_DB naming one of the three scratch meetings databases (a live scratch Odoo); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/meetings-ux-live.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_MEETINGS_UX=1 (isolated synthetic meetings fixture); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/meetings-ux.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_MODULE_UI=1 (isolated synthetic module preview); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/module-ui-rollout.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_MY_TASKS=1 (isolated e2e/my-tasks-mock.mjs server); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/my-tasks-detail.spec.ts",
+        "apps/web/e2e/my-tasks-list.spec.ts",
+        "apps/web/e2e/my-tasks-new.spec.ts",
+        "apps/web/e2e/tasmim6-my-tasks-list.spec.ts",
+        "apps/web/e2e/tasmim6-my-tasks-record.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_MY_TASKS_STATEFUL=1 (isolated in-memory my-tasks preview); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/my-tasks-preview.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_BASE_URL=http://127.0.0.1:3985 (isolated project-charts fixture); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/project-dashboard.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_PHASE_LIVE_DB naming the disposable phase-review database (a live scratch Odoo); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/project-phase-live.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_PHASE1_ISOLATED=1 (isolated phase-one runtime); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/projects-phase1.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_PHASES_ISOLATED=1 (isolated phases integration runtime); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/projects-phases-integration.spec.ts"
+      ]
+    },
+    {
+      "reason": "skipped unless E2E_SELF_SERVICE=1 (isolated fixture with an unlinked admin account); no CI stage sets it",
+      "files": [
+        "apps/web/e2e/self-service.spec.ts"
+      ]
+    },
+    {
+      "reason": "serves the built Storybook (apps/web/storybook-static) for the my-tasks stories and writes screenshots to E2E_MY_TASKS_VISUAL_DIR; no CI stage builds Storybook for it",
+      "files": [
+        "apps/web/e2e/my-tasks-visual.spec.ts"
+      ]
+    },
+    {
+      "reason": "vendor-admin Playwright prod project (npm run e2e in apps/vendor-admin builds Nuxt and drives a mock control plane); deploy/ci/vendor-admin.sh runs only lint, vitest and the build, so no stage runs them",
+      "files": [
+        "apps/vendor-admin/e2e/auth.spec.ts",
+        "apps/vendor-admin/e2e/bundles.spec.ts",
+        "apps/vendor-admin/e2e/clients.spec.ts",
+        "apps/vendor-admin/e2e/commercial-date-hydration.spec.ts",
+        "apps/vendor-admin/e2e/commercial-smoke.spec.ts",
+        "apps/vendor-admin/e2e/customers.spec.ts",
+        "apps/vendor-admin/e2e/invoices.spec.ts",
+        "apps/vendor-admin/e2e/operations.spec.ts",
+        "apps/vendor-admin/e2e/overview.spec.ts",
+        "apps/vendor-admin/e2e/pages-smoke.spec.ts",
+        "apps/vendor-admin/e2e/plans.spec.ts",
+        "apps/vendor-admin/e2e/price-breakdown.spec.ts",
+        "apps/vendor-admin/e2e/screens.spec.ts",
+        "apps/vendor-admin/e2e/team.spec.ts"
+      ]
+    },
+    {
+      "reason": "vendor-admin Playwright dev project (E2E_TARGET=dev against nuxt dev); no CI stage starts the dev server",
+      "files": [
+        "apps/vendor-admin/e2e/step-up.dev.spec.ts"
+      ]
+    },
+    {
+      "reason": "live by design: needs LIVE_ADMIN_ORIGIN, LIVE_BOOTSTRAP_LINK and a scratch control-plane LIVE_DATABASE_URL, started by tools/vendor_admin_local_check.mjs",
+      "files": [
+        "apps/vendor-admin/e2e/live-control.spec.ts"
+      ]
+    },
+    {
+      "reason": "agentic e2e runner tests (npm run e2e, e2e/tests) that need the isolated mock stack and a model provider; the runner is local-only and no CI stage calls it",
+      "files": [
+        "e2e/tests/access-matrix.e2e.ts",
+        "e2e/tests/chat-journey.e2e.ts",
+        "e2e/tests/crm-journey.e2e.ts",
+        "e2e/tests/hr-journey.e2e.ts",
+        "e2e/tests/hr-leave-journey.e2e.ts",
+        "e2e/tests/inbox.e2e.ts",
+        "e2e/tests/meetings-journey.e2e.ts",
+        "e2e/tests/operations-approval-journey.e2e.ts",
+        "e2e/tests/personas.setup.e2e.ts",
+        "e2e/tests/pmo-journey.e2e.ts",
+        "e2e/tests/smoke.e2e.ts"
+      ]
+    },
+    {
+      "reason": "repro tests under e2e/tests/bugs for the scratch Odoo stack seeded by tools/e2e_seed.py; run by hand with npm run e2e:odoo, no CI stage calls them",
+      "files": [
+        "e2e/tests/bugs/auth.setup.e2e.ts",
+        "e2e/tests/bugs/roles-builtin-descriptions-english.e2e.ts"
+      ]
+    },
+    {
+      "reason": "live by design: Chromium proof against the live acceptance edge on 127.0.0.1:443 (Caddy local CA), run by hand from tools/shared_acceptance_live",
+      "files": [
+        "tools/shared_acceptance_live/proof8.spec.mjs"
+      ]
+    },
+    {
+      "reason": "needs a built Nuxt server (apps/web/.output/server/index.mjs), which the static stage does not build; it fails with ERR_MODULE_NOT_FOUND without it",
+      "files": [
+        "tools/shared_isolation_acceptance/isolation-matrix.test.mjs",
+        "tools/shared_isolation_acceptance/operational-ssr.test.mjs"
+      ]
+    },
+    {
+      "reason": "hard-pinned to the macOS developer workstation (/opt/homebrew/opt/node@22 and the /Users/tariq/code/odoo venv); passes there, fails on the Linux runner by design",
+      "files": [
+        "deploy/control-plane/test_actual_reservation_caller.py",
+        "deploy/control-plane/test_actual_runtime_lifecycle.py",
+        "deploy/control-plane/test_dead_recovery.py",
+        "deploy/control-plane/test_partial_runtime_stop.py",
+        "deploy/control-plane/test_reservation_recovery.py"
+      ]
+    },
+    {
+      "reason": "drives the local-runtime bash scripts and BSD ps lstart output of the control-plane local runtime; passes on macOS, not verified on the Linux runner, so not wired blind",
+      "files": [
+        "deploy/control-plane/test_run_local_ordering.py",
+        "deploy/control-plane/test_startup_publication.py",
+        "deploy/control-plane/test_stop_protocol.py"
+      ]
+    }
+  ]
+}
