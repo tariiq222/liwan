@@ -1,0 +1,340 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { Pool } from 'pg'
+import { randomUUID } from 'node:crypto'
+import type { Principal } from '@liwan/commercial-contracts'
+import { url, setup, client, money, monthly } from './commercial-helpers.js'
+import { createQuoteForCustomer } from '../commercial/quotes.js'
+import { acceptQuote } from '../commercial/orders.js'
+import { routesB } from '../commercial/routes-b.js'
+import { createPaymentAttempt, handleProviderEvent } from '../commercial/payments.js'
+import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
+import { generateRenewals } from '../commercial/renewals.js'
+import { customerCatalog } from '../commercial/customer-http.js'
+import { deliveredEntitlement, grantedUnits } from '../commercial/ai-ledger.js'
+import { requestInvoiceRefund } from '../commercial/settlements.js'
+import { extendTrial, pushCommercialExpiry } from '../commercial/trial.js'
+import { transaction } from '../db.js'
+import { reconcileAfterRestore, fakeObserveRunner } from '../shared/subscription-reconcile.js'
+
+const suite = url ? describe : describe.skip
+const POLICY_NO_TAX = '6f1c3d8e-0000-4000-8000-000000000002'
+const caps = ['vendor.subscriptions.manage', 'vendor.tenants.manage', 'vendor.pricing.manage', 'vendor.billing.manage', 'vendor.read'] as any
+const KEYS = ['ai.balance.granted', 'ai.allowance.trial', 'ai.allowance.monthly']
+
+suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
+  const pool = new Pool({ connectionString: url, max: 6 })
+  const api = client(pool)
+  const adapter = new SimulatorAdapter()
+  const runtime = { adapter, returnOrigin: fixedReturnOrigin('https://liwan.test') }
+  const vendor = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage'] } as unknown as Principal
+  let free: any, paid: any
+
+  async function publishPlan(price: number, limits: Record<string, number | null> = {}) {
+    const draft = await api('POST', '/plans', { name: `Topup ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
+      prices: [{ cadence: monthly, amount: money(price) }], platform_limits: limits, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
+      included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null, included_users: 3, included_storage_mb: 20480,
+      storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }],
+      storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: POLICY_NO_TAX, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
+    expect(draft.status, JSON.stringify(draft.body)).toBe(201)
+    const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'AI top-up tests' })
+    expect(validated.status, JSON.stringify(validated.body)).toBe(200)
+    return (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'AI top-up tests' })).body
+  }
+  beforeAll(async () => {
+    const { version } = await setup(pool)
+    await api('POST', '/catalog/releases', { catalog_version: version, reason: 'AI top-up tests' })
+    free = await publishPlan(0)
+    paid = await publishPlan(9900)
+  })
+  beforeEach(async () => {
+    await pool.query('TRUNCATE customers CASCADE')
+    await pool.query('TRUNCATE commercial_outbox')
+    await pool.query("UPDATE ai_billing_settings SET topup_amounts_minor='{2500,5000,10000,25000,50000}',topup_minimum_minor=2500,usd_rate=3.75,trial_allowance_minor=500,monthly_allowance_minor=0")
+    await pool.query('UPDATE billing_settings SET refund_window_days=14 WHERE singleton')
+  })
+  afterAll(async () => { await pool.end() })
+
+  async function customer(adminLogin: string | null = 'owner@example.test') {
+    const tenant = randomUUID(), id = randomUUID(), slug = `t${tenant.replaceAll('-', '')}`
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Topup','saas','dedicated_managed',$2,true)", [tenant, slug])
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.topup.test`, `liwan_scratch_${tenant.replaceAll('-', '')}`])
+    await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [id, 'Topup customer', tenant, 'Owner', adminLogin])
+    return id
+  }
+  const newRequest = (plan: any, topup?: number) => ({ kind: 'new' as const, plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
+    requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480, ...(topup ? { ai_topup_minor: topup } : {}) })
+  const order = async (customer_id: string, request: any, revision = 0) => {
+    const quote = await createQuoteForCustomer(pool, { customer_id, request })
+    return { quote, ...(await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: quote.expected_subscription_revision ?? revision, idempotency_key: randomUUID() }, vendor)) }
+  }
+  /** Pays the order's invoice through the real settlement path (hosted attempt settled by the simulator). */
+  async function pay(customer_id: string, order_id: string) {
+    const attempt = await createPaymentAttempt(pool, { order_id, customer_id, adapter, returnOrigin: runtime.returnOrigin })
+    const res = await routesB(pool, { method: 'POST', pathname: `/v1/commercial/payment-simulator/${attempt.id}/settle`, raw: JSON.stringify({ outcome: 'succeeded' }), issuer: 't', actor: 1, capabilities: caps, stepUpFresh: true },
+      new URL('http://localhost/v1/commercial'), runtime)
+    expect(res).toMatchObject({ data: { outcome: 'accepted' } })
+    return attempt
+  }
+  const jobs = async (customer_id: string) => (await pool.query(`SELECT j.payload FROM shared_jobs j JOIN customers c ON c.tenant_id=j.control_tenant_id WHERE c.id=$1 AND j.payload->>'operation'='reconfigure' ORDER BY j.created_at`, [customer_id])).rows.map((r: any) => r.payload)
+  async function apply(order_id: string) {
+    await processFulfillmentOutbox(pool, { limit: 1000 })
+    const o = (await pool.query('SELECT o.*,r.snapshot FROM orders o JOIN subscription_revisions r ON r.id=o.target_revision_id WHERE o.id=$1', [order_id])).rows[0]
+    const job = (await pool.query("SELECT payload FROM shared_jobs WHERE payload->'authority'->>'order_id'=$1", [order_id])).rows[0].payload
+    await applyReceipt(pool, { order_id, receipt: { order_id, tenant_id: job.binding.database, database: job.binding.database, target_revision_id: o.target_revision_id, observed_entitlement_digest: o.snapshot.entitlement.digest,
+      observed_at: new Date().toISOString(), branch_bindings: [], modules_installed: [], root_company_id: 1 } as never })
+    return job
+  }
+
+  it('quotes a top-up alone on a zero-priced first order: one charge-now line, nothing recurring', async () => {
+    const id = await customer()
+    const quote = await createQuoteForCustomer(pool, { customer_id: id, request: newRequest(free, 2500) })
+    expect(quote.lines.filter(l => l.kind === 'ai_topup')).toHaveLength(1)
+    expect(quote.due_now.minor).toBe(2500)
+    expect(quote.next_renewal.minor).toBe(0)
+    expect(quote.lines.filter(l => l.kind === 'ai_topup' && l.timing === 'renewal')).toHaveLength(0)
+  })
+
+  it('adds the top-up to other lines and keeps it out of the renewal', async () => {
+    const id = await customer()
+    const quote = await createQuoteForCustomer(pool, { customer_id: id, request: newRequest(paid, 10000) })
+    expect(quote.due_now.minor).toBe(9900 + 10000)
+    expect(quote.next_renewal.minor).toBe(9900)
+  })
+
+  it('refuses an amount the vendor does not offer, and a top-up on the anonymous preview', async () => {
+    const id = await customer()
+    await expect(createQuoteForCustomer(pool, { customer_id: id, request: newRequest(free, 3000) })).rejects.toMatchObject({ code: 'ai_topup_amount_not_offered', status: 422 })
+    const preview = await api('POST', '/quotes', newRequest(free, 2500))
+    expect(preview.status).toBe(422)
+  })
+
+  it('a paid first order on the free plan with only a top-up is accepted, paid once, and delivered with the three keys', async () => {
+    const id = await customer()
+    const { order: o } = await order(id, newRequest(free, 2500))
+    expect(o).toMatchObject({ kind: 'new', payment_state: 'awaiting_payment' })
+    const attempt = await pay(id, o.id)
+    expect(await grantedUnits(pool, id)).toBe(666_666)
+    // A repeated provider event for the same payment grants nothing more.
+    const ref = (await pool.query('SELECT provider_ref FROM payment_attempts WHERE id=$1', [attempt.id])).rows[0].provider_ref
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(ref), headers: {}, adapter })
+    expect((await pool.query('SELECT count(*)::int AS n FROM ai_topups WHERE customer_id=$1', [id])).rows[0].n).toBe(1)
+    expect(await grantedUnits(pool, id)).toBe(666_666)
+    const job = await apply(o.id)
+    const features = job.authority.entitlement.features
+    expect(features).toMatchObject({ 'ai.balance.granted': 666_666, 'ai.allowance.trial': 133_333, 'ai.allowance.monthly': 0 })
+    // The immutable snapshot never carries them, so nothing can go stale in it.
+    const snapshot = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [o.target_revision_id])).rows[0].snapshot
+    for (const key of KEYS) expect(snapshot.entitlement.features).not.toHaveProperty(key)
+    expect(job.authority.entitlement.digest).toBe(snapshot.entitlement.digest)
+  })
+
+  it('a first order with a top-up still needs a reachable manager', async () => {
+    const id = await customer(null)
+    await pool.query('UPDATE customers SET tenant_id=NULL WHERE id=$1', [id])
+    const quote = await createQuoteForCustomer(pool, { customer_id: id, request: newRequest(free, 2500) })
+    await expect(acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)).rejects.toMatchObject({ code: 'admin_login_required' })
+  })
+
+  it('a second top-up accumulates, and a later delivery carries the live total, never a stale one', async () => {
+    const id = await customer()
+    const first = (await order(id, newRequest(free, 2500))).order
+    await pay(id, first.id); await apply(first.id)
+    const sub = (await pool.query('SELECT id,revision FROM subscriptions WHERE customer_id=$1', [id])).rows[0]
+    const second = (await order(id, { ...newRequest(free, 5000), kind: 'change', subscription_id: sub.id, expected_subscription_revision: sub.revision })).order
+    expect(second.kind).toBe('change')
+    await pay(id, second.id)
+    expect(await grantedUnits(pool, id)).toBe(666_666 + 1_333_333)
+    const job = await apply(second.id)
+    expect(job.authority.entitlement.features['ai.balance.granted']).toBe(666_666 + 1_333_333)
+    // A renewal or reconcile re-delivers the applied snapshot: the helper reads the ledger, not the snapshot.
+    const applied = (await pool.query('SELECT r.snapshot FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.customer_id=$1', [id])).rows[0].snapshot
+    const redelivered = await deliveredEntitlement(pool, id, applied.entitlement)
+    expect(redelivered.features['ai.balance.granted']).toBe(666_666 + 1_333_333)
+    expect(redelivered.digest).toBe(applied.entitlement.digest)
+  })
+
+  it('a renewal never charges the top-up again', async () => {
+    const id = await customer()
+    const o = (await order(id, newRequest(paid, 2500))).order
+    await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1", [o.id])
+    await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE order_id=$1", [o.id])
+    await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',renewal_at='2026-11-01',revision=revision+1 WHERE customer_id=$1", [id])
+    await generateRenewals(pool, { now: new Date('2026-11-06T08:00:00Z'), adapter, returnOrigin: runtime.returnOrigin })
+    const kinds = (await pool.query(`SELECT l.kind FROM invoice_lines l JOIN invoices i ON i.id=l.invoice_id JOIN orders o ON o.id=i.order_id WHERE o.kind='renewal' AND o.customer_id=$1`, [id])).rows.map((r: any) => r.kind)
+    expect(kinds).toContain('base')
+    expect(kinds).not.toContain('ai_topup')
+  })
+
+  describe('refund', () => {
+    const refund = (order_id: string, body: unknown) => routesB(pool, { method: 'POST', pathname: `/v1/commercial/ai-topups/${order_id}/refund`, raw: JSON.stringify(body), issuer: 't', actor: 7, capabilities: caps, stepUpFresh: true },
+      new URL(`http://localhost/v1/commercial/ai-topups/${order_id}/refund`), runtime)
+    async function paidTopup(plan = free, amount = 2500, applied = false) {
+      const id = await customer()
+      const o = (await order(id, newRequest(plan, amount))).order
+      await pay(id, o.id)
+      if (applied) await apply(o.id)
+      return { id, o }
+    }
+    const actor = { issuer: 't', actorUid: 7 }
+    const lastJobGranted = async (id: string) => (await jobs(id)).at(-1).authority.entitlement.features['ai.balance.granted']
+
+    it('inside the window and unused: lowers the total, opens one credit note and reaches the tenant without any other order', async () => {
+      const { id, o } = await paidTopup(free, 2500, true)
+      expect(await lastJobGranted(id)).toBe(666_666)
+      const r = await refund(o.id, { reason: 'Customer asked', units_used: 0 })
+      expect(r!.data).toMatchObject({ units: 666_666, granted_units: 0 })
+      expect(await grantedUnits(pool, id)).toBe(0)
+      expect((await pool.query("SELECT amount_minor,origin,status FROM invoice_adjustments WHERE customer_id=$1", [id])).rows).toEqual([{ amount_minor: '2500', origin: 'vendor', status: 'pending' }])
+      expect(await lastJobGranted(id)).toBe(0)
+      expect((await jobs(id))).toHaveLength(2)
+      await expect(refund(o.id, { reason: 'Again', units_used: 0 })).rejects.toMatchObject({ code: 'refund_already_requested' })
+    })
+    it('the generic invoice refund lowers the ledger too, and a second refund of either kind is refused', async () => {
+      const { id, o } = await paidTopup(free, 2500, true)
+      const invoice = (await pool.query('SELECT id FROM invoices WHERE order_id=$1', [o.id])).rows[0]
+      await requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Generic refund' })
+      expect(await grantedUnits(pool, id)).toBe(0)
+      expect(await lastJobGranted(id)).toBe(0)
+      await expect(refund(o.id, { reason: 'Second way', units_used: 0 })).rejects.toMatchObject({ code: 'refund_already_requested' })
+      await expect(requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Generic again' })).rejects.toMatchObject({ code: 'refund_already_requested' })
+    })
+    it('the top-up refund refuses when a credit note already exists on the invoice', async () => {
+      const { o } = await paidTopup()
+      const invoice = (await pool.query('SELECT id,customer_id FROM invoices WHERE order_id=$1', [o.id])).rows[0]
+      await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin) VALUES($1,$2,$3,'credit_note','Provider refund',2500,'SAR',2,'pending','system','system')`, [randomUUID(), invoice.id, invoice.customer_id])
+      await expect(refund(o.id, { reason: 'Over a note', units_used: 0 })).rejects.toMatchObject({ code: 'refund_already_requested' })
+    })
+    it('a provider refund or chargeback of the top-up order lowers the ledger and the tenant hears of it', async () => {
+      const { id, o } = await paidTopup(free, 2500, true)
+      const ref = (await pool.query('SELECT provider_ref FROM payment_attempts WHERE order_id=$1', [o.id])).rows[0].provider_ref
+      await adapter.refund(ref.replace('sim_inv_', 'sim_pay_'))
+      await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(ref), headers: {}, adapter })
+      expect(await grantedUnits(pool, id)).toBe(0)
+      expect(await lastJobGranted(id)).toBe(0)
+    })
+    it('refuses once any of it was used', async () => {
+      const { id, o } = await paidTopup()
+      await expect(refund(o.id, { reason: 'Used some', units_used: 5 })).rejects.toMatchObject({ code: 'ai_topup_used', status: 409 })
+      expect(await grantedUnits(pool, id)).toBe(666_666)
+    })
+    it('refuses outside the window', async () => {
+      const { id, o } = await paidTopup()
+      await pool.query("UPDATE payment_attempts SET succeeded_at=now()-interval '20 days' WHERE order_id=$1", [o.id])
+      await expect(refund(o.id, { reason: 'Too late', units_used: 0 })).rejects.toMatchObject({ code: 'refund_window_closed' })
+      expect(await grantedUnits(pool, id)).toBe(666_666)
+    })
+    it('refuses an order that bought more than the top-up, and a body without the used units', async () => {
+      const { o } = await paidTopup(paid, 2500)
+      await expect(refund(o.id, { reason: 'Mixed', units_used: 0 })).rejects.toMatchObject({ code: 'ai_topup_refund_mixed_order' })
+      await expect(refund(o.id, { reason: 'No units' })).rejects.toMatchObject({ code: 'invalid' })
+    })
+  })
+
+  it('a plan revision cannot set an AI key', async () => {
+    for (const key of KEYS) {
+      const draft = await api('POST', '/plans', { name: `Bad ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(0) }],
+        platform_limits: { [key]: 5 }, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [], extra_branches_limit: null, included_users: 3,
+        included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [], storage_prices: [], policy_revision_id: POLICY_NO_TAX,
+        trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
+      const validated = draft.status === 201 ? await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'AI key' }) : draft
+      expect(JSON.stringify(validated.body)).toContain('platform_limit_derived')
+      expect(validated.status).toBe(422)
+    }
+  })
+
+  it('refuses a total the entitlement cannot carry', async () => {
+    const id = await customer()
+    await pool.query("UPDATE ai_billing_settings SET usd_rate=0.01")
+    const o = (await order(id, newRequest(free, 2500))).order
+    await pool.query("INSERT INTO ai_topups(id,customer_id,order_id,amount_minor,currency,usd_rate,units) VALUES($1,$2,$3,2500,'SAR',3.75,999999000)", [randomUUID(), id, o.id])
+    await expect(createQuoteForCustomer(pool, { customer_id: id, request: newRequest(free, 2500) })).rejects.toMatchObject({ code: 'ai_balance_limit_exceeded' })
+  })
+
+  it('the top-up grants what the quote showed even when the rate changes before payment', async () => {
+    const id = await customer()
+    const o = (await order(id, newRequest(free, 2500))).order
+    await pool.query('UPDATE ai_billing_settings SET usd_rate=5')
+    await pay(id, o.id)
+    expect(await grantedUnits(pool, id)).toBe(666_666)
+    expect((await pool.query('SELECT usd_rate::text AS r FROM ai_topups WHERE order_id=$1', [o.id])).rows[0].r).toBe('3.750000')
+  })
+
+  it('a payment that would pass the cap is acknowledged, credited back, and never throws', async () => {
+    const id = await customer(), other = await customer('other@example.test')
+    const o = (await order(id, newRequest(free, 2500))).order
+    const filler = (await order(other, newRequest(free, 2500))).order
+    // Another purchase landed first (two quotes were open at once): the ledger already holds almost the cap.
+    await pool.query("INSERT INTO ai_topups(id,customer_id,order_id,amount_minor,currency,usd_rate,units) VALUES($1,$2,$3,2500,'SAR',3.75,999999000)", [randomUUID(), id, filler.id])
+    await pay(id, o.id)
+    expect(await grantedUnits(pool, id)).toBe(999_999_000)
+    expect((await pool.query('SELECT payment_state,fulfillment_state FROM orders WHERE id=$1', [o.id])).rows[0]).toEqual({ payment_state: 'paid', fulfillment_state: 'failed' })
+    expect((await pool.query("SELECT a.status FROM invoice_adjustments a JOIN invoices i ON i.id=a.invoice_id WHERE i.order_id=$1", [o.id])).rows).toEqual([{ status: 'pending' }])
+    expect((await pool.query("SELECT 1 FROM commercial_outbox WHERE aggregate_id=$1 AND kind='fulfillment.enqueue'", [o.id])).rowCount).toBe(0)
+    // A ledger over the cap still delivers, clamped.
+    await pool.query('UPDATE ai_topups SET units=1500000000 WHERE customer_id=$1', [id])
+    expect((await deliveredEntitlement(pool, id, { features: {} as Record<string, unknown> })).features['ai.balance.granted']).toBe(1_000_000_000)
+  })
+
+  it('trial extension, a repeated expiry push and a resumed subscription still deliver the granted total', async () => {
+    const id = await customer()
+    const o = (await order(id, newRequest(free, 2500))).order
+    await pay(id, o.id); await apply(o.id)
+    const sub = (await pool.query('SELECT id FROM subscriptions WHERE customer_id=$1', [id])).rows[0].id
+    await transaction(pool, c => pushCommercialExpiry(c, sub, '2027-01-01'))
+    let last = (await jobs(id)).at(-1)
+    expect(last.authority.commercial_valid_until).toBe('2027-01-01')
+    expect(last.authority.entitlement.features).toMatchObject({ 'ai.balance.granted': 666_666, 'ai.allowance.trial': 133_333 })
+    await pool.query("UPDATE subscriptions SET state='trialing',trial_ends_at=now()+interval '3 days',revision=revision+1 WHERE id=$1", [sub])
+    await extendTrial(pool, { subscription_id: sub, days: 5, reason: 'Extend after top-up', actor: 'vendor:7' })
+    last = (await jobs(id)).at(-1)
+    expect(last.authority.entitlement.features['ai.balance.granted']).toBe(666_666)
+  })
+
+  it('a changed trial allowance reaches an existing tenant without any order', async () => {
+    const id = await customer()
+    const o = (await order(id, newRequest(free, 2500))).order
+    await pay(id, o.id); await apply(o.id)
+    const before = (await jobs(id)).length
+    const r = await routesB(pool, { method: 'PATCH', pathname: '/v1/commercial/ai-billing-settings', raw: JSON.stringify({ trial_allowance_minor: 1000, reason: `Allowance ${randomUUID()}` }), issuer: 't', actor: 7, capabilities: caps, stepUpFresh: true },
+      new URL('http://localhost/v1/commercial/ai-billing-settings'))
+    expect((r!.data as any).pushed_tenants).toBeGreaterThanOrEqual(1)
+    const jobsNow = await jobs(id)
+    expect(jobsNow).toHaveLength(before + 1)
+    expect(jobsNow.at(-1).authority.entitlement.features).toMatchObject({ 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 })
+  })
+
+  it('a restore from a backup older than the top-up is repaired, and a current tenant is ready', async () => {
+    const id = await customer()
+    const o = (await order(id, newRequest(free, 2500))).order
+    await pay(id, o.id); await apply(o.id)
+    const row = (await pool.query('SELECT s.tenant_id,s.applied_revision_id,r.snapshot FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.customer_id=$1', [id])).rows[0]
+    const observed = (features: Record<string, number>) => fakeObserveRunner({ commercial_revision_id: row.applied_revision_id, commercial_digest: row.snapshot.entitlement.digest, status: 'active', commercial_valid_until: null, branches: [], features })
+    const live = { 'ai.balance.granted': 666_666, 'ai.allowance.trial': 133_333, 'ai.allowance.monthly': 0 }
+    expect(await reconcileAfterRestore(pool, { tenant_id: row.tenant_id, runner: observed(live) })).toEqual({ ready: true })
+    const stale = await reconcileAfterRestore(pool, { tenant_id: row.tenant_id, runner: observed({ ...live, 'ai.balance.granted': 0 }) })
+    expect(stale.ready).toBe(false)
+    expect(stale.job_id).toBeTruthy()
+  })
+
+  describe('vendor settings and the customer catalog', () => {
+    const settings = (method: string, body?: unknown, c = caps) => routesB(pool, { method, pathname: '/v1/commercial/ai-billing-settings', raw: body === undefined ? '' : JSON.stringify(body), issuer: 't', actor: 7, capabilities: c, stepUpFresh: true },
+      new URL('http://localhost/v1/commercial/ai-billing-settings'))
+    it('reads, updates with an audit row, and rejects invalid merges', async () => {
+      expect((await settings('GET'))!.data).toEqual({ topup_amounts_minor: [2500, 5000, 10000, 25000, 50000], topup_minimum_minor: 2500, usd_rate: '3.750000', trial_allowance_minor: 500, monthly_allowance_minor: 0 })
+      const reason = `Rate review ${randomUUID()}`
+      const updated = await settings('PATCH', { usd_rate: '3.80', monthly_allowance_minor: 250, reason })
+      expect(updated!.data).toMatchObject({ usd_rate: '3.800000', monthly_allowance_minor: 250 })
+      expect((await pool.query("SELECT 1 FROM audit_events WHERE action='ai_billing.settings_updated' AND reason=$1", [reason])).rowCount).toBe(1)
+      await expect(settings('PATCH', { topup_minimum_minor: 99999, reason: 'Too high' })).rejects.toMatchObject({ code: 'invalid', status: 422 })
+      await expect(settings('PATCH', { usd_rate: 'abc', reason: 'Bad rate' })).rejects.toMatchObject({ code: 'invalid' })
+      await expect(settings('PATCH', { usd_rate: '3.7' })).rejects.toMatchObject({ code: 'invalid' })
+      await expect(settings('PATCH', { usd_rate: '3.7', reason: 'No grant' }, ['vendor.read'] as any)).rejects.toMatchObject({ code: 'forbidden', status: 403 })
+    })
+    it('the customer catalog carries the offer, the minimum and the rate', async () => {
+      const id = await customer()
+      expect((await customerCatalog(pool, id)).ai_topup).toEqual({ currency: 'SAR', exponent: 2, amounts_minor: [2500, 5000, 10000, 25000, 50000], minimum_minor: 2500, usd_rate: '3.750000' })
+    })
+  })
+})

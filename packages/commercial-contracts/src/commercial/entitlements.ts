@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { canonicalJson } from './calendar.js'
+import { AI_ENTITLEMENT_KEYS } from './ai-topup.js'
 import { admitsRequiredAdmin, fitsStorageSteps, USERS_LIMIT_KEY, usersWithinCap } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, CustomerTermsRevision, EntitlementSnapshot, PlanRevision } from './types.js'
@@ -93,13 +94,15 @@ export function compileEntitlements(input: {
 
   const domain: CapacityMap = {}
   for (const b of bundles) for (const [k, v] of Object.entries(b.domain_limits)) {
+    if (AI_ENTITLEMENT_KEYS.includes(k)) throw new CommercialError('platform_limit_derived', 'domain_limits')
     if (platformKeys.has(k)) throw new CommercialError('invalid_limit_scope', 'domain_limits')
     if (!domainKeys.has(k)) throw new CommercialError('limit_not_supported', 'domain_limits')
     if (k in domain && domain[k] !== v) throw new CommercialError('ambiguous_limit', 'domain_limits')
     domain[k] = v
   }
   // Users and storage are customer-chosen quantities, never plan limits: one source of truth.
-  const derived = new Set([USERS_LIMIT_KEY, 'storage.limit_mb', 'branches.extra_limit'])
+  // The AI keys are derived too: the control plane delivers them from its ledger and vendor settings (ai-topup.ts).
+  const derived = new Set([USERS_LIMIT_KEY, 'storage.limit_mb', 'branches.extra_limit', ...AI_ENTITLEMENT_KEYS])
   for (const k of Object.keys(plan.platform_limits)) {
     if (derived.has(k)) throw new CommercialError('platform_limit_derived', 'platform_limits')
     if (!platformKeys.has(k)) throw new CommercialError('limit_not_supported', 'platform_limits')

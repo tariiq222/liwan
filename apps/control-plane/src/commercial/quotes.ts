@@ -12,6 +12,7 @@ import { bundleRevision, loadRelease } from './bundles.js'
 import { planIssues, planRevision } from './plans.js'
 import { getPolicy } from './policies.js'
 import { assertDowngradeFitsUsage } from './usage.js'
+import { resolveTopupAmount } from './ai-topup.js'
 
 const TTL_MS = 30 * 60 * 1000
 const bad = (code: string, field: string, status = 422) => new CommercialHttpError(code, status, field, [{ code, field }])
@@ -32,6 +33,7 @@ export async function previewQuote(pool: Pool, value: unknown, now: Date = new D
   if (input.kind !== 'new') throw bad('customer_required', 'customer_id')
   if (input.terms_revision_id) throw bad('customer_required', 'customer_id')
   if (input.subscription_id) throw bad('invalid', 'subscription_id')
+  if (input.ai_topup_minor !== undefined) throw bad('customer_required', 'customer_id')
   const customer = input.customer_id ?? 'preview'
   return transaction(pool, async client => {
     const p = await client.query('SELECT * FROM plan_revisions WHERE id=$1', [input.plan_revision_id])
@@ -146,6 +148,8 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
     sources.terms = value.previewTerms
   }
+  // A one-time AI balance top-up: validated against the vendor's offer, charged now, never part of a renewal.
+  const ai_topup = input.ai_topup_minor === undefined ? null : await resolveTopupAmount(client, value.customer_id, input.ai_topup_minor, sources.plan)
   const entitlement = compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } }))
   if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
     tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
@@ -155,7 +159,7 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
       requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
       current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
-      expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding })
+      expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding, ai_topup })
     if (persist && !value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
     return quoteSchema.parse(quote)
   } catch (e) {

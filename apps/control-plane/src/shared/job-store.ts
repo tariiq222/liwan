@@ -45,12 +45,13 @@ export async function requireJobAuthority(client: PoolClient, controlTenantId: s
   if (!tenant.rowCount) throw new Error('tenant_operations_unavailable')
 }
 /** Internal paid-order path: authority comes from locked commercial records, not a vendor/browser actor. */
-export async function enqueueReconfigureJob(client: PoolClient, value: unknown) {
+export async function enqueueReconfigureJob(client: PoolClient, value: unknown, opts: { unique?: boolean } = {}) {
   const { sharedReconfigureJobSchema } = await import('@liwan/commercial-contracts/shared')
   const { createHash } = await import('node:crypto')
   const job = sharedReconfigureJobSchema.parse(value)
   const expiry = Object.hasOwn(job.authority, 'commercial_valid_until') ? `:commercial:${job.authority.commercial_valid_until ?? 'none'}:order:${job.authority.order_id}` : ''
-  const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId : ''}${expiry}`
+  // `unique`: a push of live state (not an order's one-time effect) must never be swallowed as a replay of an earlier one.
+  const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId : ''}${expiry}${opts.unique ? ':push:'+job.authority.operation_id : ''}`
   const digest = createHash('sha256').update(JSON.stringify(job)).digest('hex')
   await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [job.controlTenantId])
   const existing = await client.query('SELECT id,state,payload FROM shared_jobs WHERE control_tenant_id=$1 AND business_key=$2', [job.controlTenantId,key])

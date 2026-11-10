@@ -399,6 +399,11 @@ class ReconfigureTests(Base):
         self.assertIn("._liwan_close_unlisted_features(values['features'])", script)
         self.assertNotIn("item['type'] == 'boolean' and key not in features", script)
 
+    def test_apply_script_rewrites_only_the_ai_keys_when_the_revision_is_delivered_again(self):
+        script = se.build_apply_script(make_request())
+        self.assertIn("k.startswith(('ai.balance.', 'ai.allowance.'))", script)
+        self.assertIn("dict(profile.features, **ai)", script)
+
     def test_apply_script_grants_newly_opened_roles_to_the_enrolment_admin_only(self):
         script = se.build_apply_script(make_request(admin_login='boss@acme.test'))
         self.assertIn("values = json.loads(", script)

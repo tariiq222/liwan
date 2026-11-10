@@ -225,7 +225,10 @@ try:
             else:
                 not_granted = 'roles_missing'
     else:
-        write_vals = {}
+        # The same revision is delivered again for an expiry change, a restore repair or a changed AI balance. The
+        # revision and digest stay; only the derived AI keys (a ledger, not a revision) are rewritten when they differ.
+        ai = dict((k, v) for k, v in values['features'].items() if k.startswith(('ai.balance.', 'ai.allowance.')))
+        write_vals = {'features': dict(profile.features, **ai)} if any(profile.features.get(k) != v for k, v in ai.items()) else {}
     write_vals.update(expiry_vals)
     if write_vals:
         # Reusing the applied revision (a trial extension or a paid renewal) still moves the
