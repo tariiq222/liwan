@@ -5536,6 +5536,122 @@
         ],
         "type": "object"
       },
+      "AiUsageServiceBatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "billing": {
+                  "enum": [
+                    "platform",
+                    "tenant_key",
+                    "setup"
+                  ],
+                  "type": "string"
+                },
+                "call_id": {
+                  "pattern": "^[0-9a-f]{16}$",
+                  "type": "string"
+                },
+                "called_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                  "type": "string"
+                },
+                "conversation_id": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "input_tokens": {
+                  "anyOf": [
+                    {
+                      "maximum": 100000000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "enum": [
+                    "plan",
+                    "title"
+                  ],
+                  "type": "string"
+                },
+                "model": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "outcome": {
+                  "enum": [
+                    "ok",
+                    "failed",
+                    "retried",
+                    "aborted"
+                  ],
+                  "type": "string"
+                },
+                "output_tokens": {
+                  "anyOf": [
+                    {
+                      "maximum": 100000000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "provider": {
+                  "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "conversation_id",
+                "call_id",
+                "kind",
+                "billing",
+                "provider",
+                "model",
+                "outcome",
+                "input_tokens",
+                "output_tokens",
+                "called_at"
+              ],
+              "type": "object"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "type": "array"
+          },
+          "user_company_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "user_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "user_company_id",
+          "items"
+        ],
+        "type": "object"
+      },
       "ApiErrorSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -104636,6 +104752,46 @@
           ],
           "feature_operation": "write",
           "handler": "record_usage",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/usage/service": {
+      "post": {
+        "operationId": "liwan_ai.AiController.record_usage_service.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record the usage rows of a finished run for the user who made the calls, without that user's session.",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "bearer",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiController",
+          "feature_keys": [
+            "ai.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "record_usage_service",
           "readonly": false,
           "route_type": "json2"
         }

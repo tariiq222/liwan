@@ -7773,6 +7773,20 @@
       "handler": "record_usage",
       "no_capability_reason": null
     },
+    "POST /api/v1/ai/usage/service": {
+      "addon": "liwan_ai",
+      "auth": "bearer",
+      "capability_keys": [
+        "ai.usage.record"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "ai.enabled"
+      ],
+      "handler": "record_usage_service",
+      "no_capability_reason": null
+    },
     "POST /api/v1/appointments/bookings": {
       "addon": "liwan_appointments",
       "auth": "user",
