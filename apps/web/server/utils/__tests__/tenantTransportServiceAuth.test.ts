@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { tenantTransport } from '../tenantTransport'
+import { legacyTenantResponse, tenantTransport } from '../tenantTransport'
 
 // Issue #557: the AI usage report carries the deployment's recorder key; nothing else the server sends to Odoo may carry an Authorization header.
 const token = 'synthetic-wire-token'.repeat(3)
@@ -68,5 +68,27 @@ describe('tenantTransport authorization (recorder key)', () => {
       await tenantTransport(event, base, usagePath, { method: 'POST', body: '{}', headers: { authorization: key } })
       expect(seen[0]!.authorization).toBeUndefined()
     })
+  })
+})
+
+describe('legacyTenantResponse (dedicated browser proxy)', () => {
+  it('drops the Authorization and Proxy-Authorization headers of the browser on every path and keeps the cookie', async () => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated'); vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '')
+    const seen: http.IncomingHttpHeaders[] = []
+    const server = http.createServer((req, res) => { seen.push(req.headers); req.resume(); res.setHeader('content-type', 'application/json'); res.end('{}') })
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+    const event = { node: { req: Object.assign(new EventEmitter(), { headers: {} }), res: new EventEmitter() } } as never
+    try {
+      for (const path of ['/api/v1/me', '/api/v1/tasks?x=1', usagePath]) {
+        await legacyTenantResponse(event, base, path, { method: 'POST', body: Buffer.from('{}'), headers: { cookie: 'session_id=s1', authorization: 'Bearer browser-supplied', 'proxy-authorization': 'Basic abc', 'content-type': 'application/json' } })
+      }
+      expect(seen).toHaveLength(3)
+      for (const headers of seen) {
+        expect(headers.authorization).toBeUndefined()
+        expect(headers['proxy-authorization']).toBeUndefined()
+        expect(headers.cookie).toBe('session_id=s1')
+      }
+    } finally { await new Promise(resolve => server.close(resolve)) }
   })
 })

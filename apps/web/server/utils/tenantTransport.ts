@@ -263,7 +263,9 @@ export async function legacyTenantResponse(event: H3Event, configuredUpstream: s
       const headers = new Headers(options.headers)
       const hop = ['connection', 'keep-alive', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']
       const nominated = (value: string | null | undefined) => (value ?? '').toLowerCase().split(',').map(name => name.trim()).filter(Boolean)
-      for (const name of ['host', 'content-length', ...hop, ...nominated(getHeader(event, 'connection'))]) headers.delete(name)
+      // The browser's own credentials header never reaches Odoo on this path: h3's proxy headers keep it, and the one request
+      // allowed to carry a key (the AI usage report) is built by the server and never goes through here.
+      for (const name of ['host', 'content-length', 'authorization', ...hop, ...nominated(getHeader(event, 'connection'))]) headers.delete(name)
       const response = await fetch(new URL(path, base), { method: options.method, body: options.body ? new Uint8Array(options.body) : undefined, headers, signal, redirect: 'manual' })
       if (response.status >= 300 && response.status < 400 && response.status !== 304 && !isCallbackRedirect(path, response.status, response.headers.get('location'))) { await response.body?.cancel(); throw failure() }
       const forwarded = new Headers(response.headers)
