@@ -587,7 +587,7 @@ jobs:
             | ["upgrade", "restore-drill", "image"] | map(select(. as $stage | $selected | index($stage) | not)) | join(", ")')
           if [ -n "$not_run" ]; then
             echo "::notice::Deferred stages not run on this ${GITHUB_EVENT_NAME}: ${not_run}. They run on the push to main."
-            printf '### Deferred stages not run\n\n%s: left to the push to main, the nightly run and a full dispatch.\n' "$not_run" >> "$GITHUB_STEP_SUMMARY"
+            printf '### Deferred stages not run\n\n%s: left to the push to main, the nightly run and a full dispatch.\n' "$not_run" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           fi
           # Only stages outside the selected scope may be skipped. Fail closed on
           # missing jobs or malformed scope; a green aggregate must prove the selection ran.

@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CiResultTest(unittest.TestCase):
-    def gate(self, selected, results=None, scope='success', *, draft=False):
+    def gate(self, selected, results=None, scope='success', *, draft=False, extra_env=None):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         step = workflow.split('- name: Require every selected stage to pass\n', 1)[1]
         block = step.split('        run: |\n', 1)[1]
@@ -31,10 +31,19 @@ class CiResultTest(unittest.TestCase):
             needs[name] = {'result': result, 'outputs': {}}
         return subprocess.run(
             ['bash', '-e', '-o', 'pipefail', '-c', command], cwd=ROOT,
-            env={**os.environ, 'NEEDS': json.dumps(needs), 'IS_DRAFT': str(draft).lower()}, capture_output=True, text=True, check=False)
+            env={**os.environ, 'NEEDS': json.dumps(needs), 'IS_DRAFT': str(draft).lower(), **(extra_env or {})}, capture_output=True, text=True, check=False)
 
     def test_unselected_stage_can_be_skipped(self):
         self.assertEqual(self.gate(['static']).returncode, 0)
+
+    def test_the_summary_names_the_deferred_stages_a_run_left_out(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            summary = Path(folder) / 'summary.md'
+            result = self.gate(['static', 'upgrade'], {'upgrade': 'success'}, extra_env={'GITHUB_STEP_SUMMARY': str(summary)})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('restore-drill, image: left to the push to main', summary.read_text())
+            self.assertIn('Deferred stages not run on this', result.stdout)
 
     def test_selected_stage_must_not_be_skipped(self):
         self.assertNotEqual(self.gate(['static', 'e2e-mock']).returncode, 0)
