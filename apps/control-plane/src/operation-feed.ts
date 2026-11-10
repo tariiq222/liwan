@@ -1,4 +1,4 @@
-import { restorePublicationSchema } from '@liwan/commercial-contracts'
+import { operationStatusesOf, restorePublicationSchema } from '@liwan/commercial-contracts'
 import type { Pool } from 'pg'
 
 // This is a read projection only. Never copy shared jobs into the legacy queue.
@@ -24,15 +24,20 @@ export async function withTenantLabels<T extends { tenant_id: string }>(pool: Po
   return rows.map(row => ({ ...row, tenant_name: byTenant.get(row.tenant_id)?.name ?? null, customer_id: byTenant.get(row.tenant_id)?.customer_id ?? null }))
 }
 
+/**
+ * The overview counters and the `pending`/`attention` list filters they link to use the same statuses
+ * (`operationStatusesOf`), so a counter and its list cannot drift apart. An abandoned shared job is `failed` and stays
+ * in `attention` like any other failed operation: nothing in the model marks an operation as acknowledged.
+ */
 export async function allOperationCounts(pool: Pool) {
   const result = await pool.query(`SELECT
     (SELECT count(*)::int FROM tenants) AS tenants,
     (SELECT count(*)::int FROM tenants WHERE status='active') AS active,
-    ((SELECT count(*) FROM operations WHERE status IN ('queued','running')) +
-      (SELECT count(*) FROM shared_jobs WHERE state IN ('queued','running')))::int AS pending_operations,
-    ((SELECT count(*) FROM operations WHERE status IN ('failed','needs_intervention')) +
-      (SELECT count(*) FROM shared_jobs WHERE state='needs_intervention'))::int AS failed_operations,
-    (SELECT max(health_checked_at) FROM tenants) AS last_health_at`)
+    ((SELECT count(*) FROM operations WHERE status=ANY($1)) +
+      (SELECT count(*) FROM shared_jobs WHERE state=ANY($1)))::int AS pending_operations,
+    ((SELECT count(*) FROM operations WHERE status=ANY($2)) +
+      (SELECT count(*) FROM shared_jobs WHERE state=ANY($2)))::int AS failed_operations,
+    (SELECT max(health_checked_at) FROM tenants) AS last_health_at`, [operationStatusesOf('pending'), operationStatusesOf('attention')])
   return result.rows[0]
 }
 

@@ -489,7 +489,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (method === 'GET' && pathname === '/v1/overview') {
         requireCapability(auth, 'vendor.read')
         if (operationSource(url, ['legacy', 'all']) === 'all') return respond(res, 200, await allOperationCounts(pool))
-        const counts = await pool.query(`SELECT (SELECT count(*)::int FROM tenants) AS tenants, (SELECT count(*)::int FROM tenants WHERE status='active') AS active, (SELECT count(*)::int FROM operations WHERE status IN ('queued','running')) AS pending_operations, (SELECT count(*)::int FROM operations WHERE status IN ('failed','needs_intervention')) AS failed_operations, (SELECT max(health_checked_at) FROM tenants) AS last_health_at`)
+        const counts = await pool.query(`SELECT (SELECT count(*)::int FROM tenants) AS tenants, (SELECT count(*)::int FROM tenants WHERE status='active') AS active, (SELECT count(*)::int FROM operations WHERE status=ANY($1)) AS pending_operations, (SELECT count(*)::int FROM operations WHERE status=ANY($2)) AS failed_operations, (SELECT max(health_checked_at) FROM tenants) AS last_health_at`, [operationStatusesOf('pending'), operationStatusesOf('attention')])
         return respond(res, 200, counts.rows[0])
       }
       if (method === 'GET' && pathname === '/v1/targets') {
