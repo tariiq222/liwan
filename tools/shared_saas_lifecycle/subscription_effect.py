@@ -580,6 +580,19 @@ def _complete_trial_policy(request, observed):
     return policy
 
 
+def _matches_trial_features(actual, expected):
+    """Odoo fills omitted installed application keys with closed values."""
+    if not isinstance(actual, dict) or not expected.keys() <= actual.keys():
+        return False
+    for key, value in actual.items():
+        if key in expected:
+            if type(value) is not type(expected[key]) or value != expected[key]:
+                return False
+        elif value is not False and not (type(value) is int and value == 0):
+            return False
+    return True
+
+
 def verify(request, observed, now=None):
     """True when the observation proves the target; raises nothing."""
     ent, expired = _effective_entitlement(request, now)
@@ -630,8 +643,14 @@ def verify(request, observed, now=None):
                 continue  # materialized atomically by Odoo
             if _instant(actual) != _instant(request[key]):
                 return False
-        elif not expired and observed.get(key) != request[key]:
-            return False
+        elif not expired:
+            if key == 'post_trial_features':
+                if not _matches_trial_features(observed.get(key), request[key]):
+                    return False
+            elif observed.get(key) != request[key]:
+                return False
+    if expired and not _matches_trial_features(observed['features'], ent['features']):
+        return False
     if not all(k in observed['features'] and type(observed['features'][k]) is type(v)
                and observed['features'][k] == v for k, v in ent['features'].items()):
         return False

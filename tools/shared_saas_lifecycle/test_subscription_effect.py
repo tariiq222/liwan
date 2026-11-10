@@ -836,6 +836,17 @@ class TrialEndEffectTests(Base):
         seen['post_trial_digest'] = 'e' * 64
         self.assertFalse(se.verify(request, seen))
 
+    def test_trial_policy_accepts_only_closed_unlisted_feature_defaults(self):
+        request = self.request()
+        seen = applied_state(request, post_trial_supported=True, trial_ends_at=request['trial_ends_at'],
+                             post_trial_features={**request['post_trial_features'], 'ai.messages.monthly': 0, 'crm.enabled': False},
+                             post_trial_modules=request['post_trial_modules'], post_trial_digest=request['post_trial_digest'])
+        self.assertTrue(se.verify(request, seen, now='2026-11-01T00:00:00Z'))
+        for key, value in [('crm.enabled', True), ('ai.messages.monthly', 1), ('users.limit', True)]:
+            with self.subTest(key=key):
+                invalid = {**seen, 'post_trial_features': {**seen['post_trial_features'], key: value}}
+                self.assertFalse(se.verify(request, invalid, now='2026-11-01T00:00:00Z'))
+
     def test_trial_policy_requires_supported_tenant_before_mutation(self):
         request = self.request()
         runner = FakeRunner(observation(), apply_state=applied_state(request))
