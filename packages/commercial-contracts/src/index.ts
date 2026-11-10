@@ -44,6 +44,14 @@ export const operationRequestSchema = z.discriminatedUnion('type', [
 ])
 export const retryRequestSchema = z.strictObject({ request_id: z.uuid(), reason })
 export const reasonRequestSchema = z.strictObject({ reason })
+/** Abandoning a stuck shared job closes it for good, so the request repeats the job's id as the operator's confirmation. */
+export const abandonJobRequestSchema = z.strictObject({ reason, confirm_job_id: z.uuid() })
+/** Operations whose stuck shared job may be abandoned; the control plane documents why each one is safe (shared/job-abandon.ts). */
+export const ABANDONABLE_OPERATIONS = ['backup', 'restore'] as const
+export const abandonmentSchema = z.strictObject({
+  state: z.enum(['pending', 'abandoned', 'effect_present', 'failed']), error: z.string().nullable(), requested_at: z.iso.datetime(),
+})
+export type Abandonment = z.infer<typeof abandonmentSchema>
 
 export const tenantSchema = z.strictObject({
   id: z.uuid(), name: z.string(), commercial_mode: commercialModeSchema, hosting_model: hostingModelSchema,
@@ -94,9 +102,11 @@ export const restorePublicationSchema = z.strictObject({
 export const sharedOperationFeedSchema = operationSchema.extend({
   source: z.literal('shared'),
   type: z.enum(['provision', 'backup', 'restore', 'unknown']),
-  status: z.enum(['queued', 'running', 'verified', 'needs_intervention']),
-  stage: z.enum(['queued', 'running', 'prepared', 'started', 'verified', 'needs_intervention']),
-  reason: z.enum(['shared_execution_pending', 'shared_execution_verified', 'shared_execution_needs_attention']),
+  status: z.enum(['queued', 'running', 'verified', 'needs_intervention', 'failed']),
+  stage: z.enum(['queued', 'running', 'prepared', 'started', 'verified', 'needs_intervention', 'failed']),
+  reason: z.enum(['shared_execution_pending', 'shared_execution_verified', 'shared_execution_needs_attention', 'shared_execution_abandoned']),
+  /** The operator's latest request to abandon the job, when there was one. */
+  abandonment: abandonmentSchema.nullable().optional(),
   restore_publication:restorePublicationSchema.optional(),
   result: z.null(), updated_at: z.null(), last_event_at: z.iso.datetime().nullable(),
 })
