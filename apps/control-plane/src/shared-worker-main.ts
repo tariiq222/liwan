@@ -11,6 +11,7 @@ import { createAdminPasswordRunner } from './shared/admin-password-runner.js'
 import { loadSharedRuntimeConfig } from './shared/runtime-config.js'
 import { startInternalEffectServer } from './shared/internal-effect-server.js'
 import { runSharedWorker } from './shared/job-runner.js'
+import { processJobRecoveries } from './shared/job-recovery.js'
 import { onShutdownSignal } from './shutdown.js'
 const config=getConfig()
 if(!await sharedOnboardingEnabled(config))throw Error('shared_adapter_unavailable')
@@ -41,5 +42,5 @@ try{
     }
   }catch{console.error('internal_effect_unavailable','start_failed')}
   scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,signal:controller.signal})
-  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{if(controller.signal.aborted)return;await reconcileOdooOnboardings(pool,config,adapter);await scheduler!.tick();if(controller.signal.aborted)return;await dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})}})
+  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{if(controller.signal.aborted)return;await processJobRecoveries(pool,adapter,{log:(message,error)=>console.error(message,error instanceof Error?error.message:error)});await reconcileOdooOnboardings(pool,config,adapter);await scheduler!.tick();if(controller.signal.aborted)return;await dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})}})
 }finally{await scheduler?.usageIdle().catch(()=>{});await pool.end()}

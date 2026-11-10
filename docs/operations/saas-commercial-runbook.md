@@ -168,6 +168,7 @@ npm -w apps/vendor-admin run dev -- --port 3100
 **النهاية.**
 - خطأ دائم (`renewal_missing`، `order_not_found`، `enrollment_base_catalog_missing`، `enrollment_link_conflict`، `idempotency_conflict`، `shared_replay_forbidden`) أو استنفاد المحاولات: الطلب `failed`، والفاتورة `credit_pending`، وإشعار دائن `pending` واحد، والصف `failed`.
 - `stale_target` و`observed_mismatch` و`provision_needs_intervention` (مهمة تجهيز المستأجر انتهت إلى `needs_intervention`): الطلب `needs_intervention` بلا إشعار دائن؛ المشغّل يعالج المهمة أو يقرأ Odoo ويقرر.
+- مهمة مشتركة في `needs_intervention` (مثل عامل سقط وانتهى lease) تمنع كل أمر آخر لنفس المستأجر بـ`shared_reconciliation_required`. الاسترداد: `POST /v1/shared/tenants/<tenant>/jobs/<job>/recover` بجسم `{"reason":"..."}`، ويتطلب `vendor.operations.run` وstep-up حديثًا؛ يردّ 202 (أو 200 لطلب معلّق مكرر) و409 `shared_job_not_recoverable` إن لم تكن المهمة في `needs_intervention`. يُسجَّل الطلب في `shared_job_recoveries` وينفّذه العامل المشترك (وحده يصل إلى Odoo): يقرأ الأثر ولا يعيد تنفيذه أبدًا. إن وجد الأثر الدقيق صارت المهمة `verified` ويُقبل أمر جديد؛ وإلا تبقى موقوفة والنتيجة `still_needs_intervention` في الجدول وفي حدث التدقيق `shared_job.recovery_completed`. حالة الأثر الغائب تنتظر قرار المالك.
 - إن فشلت معالجة الفشل نفسها (مثل استرداد وصل بين المحاولة والخطوة النهائية) يبقى الصف `pending` ويُسجَّل السبب في `payload.error` بالصيغة `failure_handling_failed: ...` وفي سجل `control-api`.
 - `order_not_released` (الطلب مُسترد أو مُلغى): يُغلق الصف ولا يُمس الطلب؛ المال يعالجه `refund_pending`.
 
