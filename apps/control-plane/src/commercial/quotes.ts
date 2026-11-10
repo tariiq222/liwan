@@ -155,8 +155,8 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     sources.terms = value.previewTerms
   }
   const held = input.kind === 'change' ? applied : null
-  const quantities = purchasedQuantities(held, sources.plan, { users: input.requested_users, storage_mb: input.requested_storage_mb })
-  const entitlement = carryHeldCeilings(compileOrRefuse(() => compileEntitlements({ ...sources, quantities })), held)
+  const quantities = purchasedQuantities(held, { users: input.requested_users, storage_mb: input.requested_storage_mb })
+  const { entitlement } = carryHeldCeilings(compileOrRefuse(() => compileEntitlements({ ...sources, quantities })), held)
   if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
     tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
     previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,

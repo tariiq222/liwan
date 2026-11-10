@@ -37,6 +37,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
     case 'free_base_blocked':
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-arrow-down-to-line', actionKey: action(item.kind) }
+    case 'renewal_failed':
+      return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-refresh-cw-off', actionKey: action(item.kind) }
     case 'free_base_limits_pending':
       return { to: customerTab(item, 'subscription'), tone: 'info', icon: 'i-lucide-gauge', actionKey: action(item.kind) }
     case 'stalled_activation':
@@ -61,6 +63,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'refund_rejected': return { key: 'refund_rejected', days: null, operation: item.detail }
     case 'billing_blocked': return { key: 'billing_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'free_base_blocked': return { key: 'free_base_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: item.detail }
+    case 'renewal_failed': return { key: 'renewal_failed', days: null, operation: item.detail }
     case 'free_base_limits_pending': return { key: 'free_base_limits_pending', days: null, operation: item.detail }
     case 'stalled_activation':
       return FAILED_FULFILLMENT.includes(item.detail ?? '')

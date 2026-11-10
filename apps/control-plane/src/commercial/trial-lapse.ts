@@ -5,7 +5,8 @@ import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { cancelOrder } from './orders.js'
 import { usageAgainstFreeLimits } from './usage.js'
-import { freeBaseAtCeilings, freeBaseOf, orderFreeBase } from './free-base.js'
+import { freeBaseAtCeilings, freeBaseOf, heldCeilingsOf, orderFreeBase, type HeldCeilings } from './free-base.js'
+import { sealEntitlement } from '@liwan/commercial-contracts/server'
 import { enqueueOutbox } from './outbox.js'
 import type { OverLimit } from './over-limit-notices.js'
 import { FREE_BASE_ORDER_WAIT_DAYS } from './notice-timings.js'
@@ -144,8 +145,66 @@ async function resumeExpiryClearing(pool: Pool, lapse: Lapse): Promise<string | 
   })
 }
 
+/**
+ * Once the base is applied, a change that is not the free base (a branch change, say) keeps the limits still held above what
+ * was purchased as a typed marker (`held_ceilings`). The lapse keeps lowering exactly those limits on top of the changed
+ * subscription as usage fits: it never re-derives the subscription from the free base, so prices, applications and branches
+ * the customer has stay as they are. With no marker left there is nothing more to lower.
+ */
+async function lowerHeldCeilings(pool: Pool, lapse: Lapse, now: Date) {
+  const sub = (await pool.query('SELECT * FROM subscriptions WHERE id=$1', [lapse.subscription_id])).rows[0]
+  if (sub.target_revision_id) {
+    await pool.query("UPDATE trial_lapses SET next_attempt_at=$2 WHERE subscription_id=$1 AND state='limits_pending'", [lapse.subscription_id, later(now, 1)])
+    return
+  }
+  try {
+    await transaction(pool, async client => {
+      const locked = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [lapse.subscription_id])).rows[0]
+      if (locked.target_revision_id) throw new CommercialHttpError('order_in_flight', 409)
+      const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [locked.applied_revision_id])).rows[0].snapshot
+      const held = heldCeilingsOf(snapshot)
+      const keys = Object.keys(held)
+      if (!keys.length) {
+        await client.query("UPDATE trial_lapses SET state=CASE WHEN trial_revision_id=$2 THEN 'done' ELSE 'superseded' END,reason=NULL,limits_note=NULL WHERE subscription_id=$1 AND state='limits_pending'", [lapse.subscription_id, locked.applied_revision_id])
+        return
+      }
+      const targets = Object.fromEntries(keys.map(key => [key, held[key]!.target]))
+      const usage = await usageAgainstFreeLimits(client, { tenant_id: locked.tenant_id, previous: snapshot.entitlement.features, target: targets, now })
+      const usedBy = new Map(usage.over.map(o => [o.key, o.used]))
+      const features = { ...snapshot.entitlement.features } as Record<string, boolean | number | null>
+      const remaining: HeldCeilings = {}
+      for (const key of keys) {
+        const current = features[key] as number, target = held[key]!.target
+        if (usedBy.has(key)) { const ceiling = Math.min(usedBy.get(key)!, current); features[key] = ceiling; remaining[key] = { held: ceiling, target } }
+        else if (usage.unavailable.includes(key)) remaining[key] = { held: current, target }
+        else features[key] = target
+      }
+      const desired = sealEntitlement({ catalog_release_id: snapshot.entitlement.catalog_release_id, modules: snapshot.entitlement.modules, features })
+      if (desired.digest === snapshot.entitlement.digest) {
+        await client.query("UPDATE trial_lapses SET limits_note=$2,reason=NULL,attempts=attempts+1,next_attempt_at=$3 WHERE subscription_id=$1 AND state='limits_pending'",
+          [lapse.subscription_id, describeLimits(usage.over, usage.unavailable), later(now, backoffHours(lapse.attempts + 1, 'limits_pending'))])
+        return
+      }
+      const free = await freeBaseOf(client, { subscription: locked, snapshot, start: lapse.period_start })
+      if (!free) throw new CommercialHttpError('free_base_unavailable', 409)
+      const ordered = await orderFreeBase(client, { subscription: locked, snapshot, free, attempt: lapse.order_seq + 1, entitlement: desired, lowering: { held: remaining } })
+      if (!ordered) throw new CommercialHttpError('free_base_already_ordered', 409)
+      await client.query("UPDATE trial_lapses SET state='ordered',trial_revision_id=$2,order_id=$3,reason=NULL,partial=$4,from_limits=true,limits_note=$5,order_seq=order_seq+1,next_attempt_at=$6 WHERE subscription_id=$1",
+        [lapse.subscription_id, locked.applied_revision_id, ordered.orderId, Object.keys(remaining).length > 0, Object.keys(remaining).length ? describeLimits(usage.over, usage.unavailable) : null, now])
+    })
+  } catch (error) {
+    if (!(error instanceof CommercialHttpError)) throw error
+    await blocked(pool, lapse, now, error.field ? `${error.code}:${error.field}` : error.code)
+  }
+}
+
+const freeBaseApplied = async (pool: Pool, sub: { applied_revision_id: string }) =>
+  (await pool.query("SELECT snapshot->>'free_base' = 'true' AS free FROM subscription_revisions WHERE id=$1", [sub.applied_revision_id])).rows[0]?.free === true
+
 async function attempt(pool: Pool, lapse: Lapse, now: Date, adapter?: PaymentAdapter) {
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE id=$1', [lapse.subscription_id])).rows[0]
+  // A change after the base was applied (a branch change, say) is not the free base: its held limits are lowered on their own.
+  if (lapse.state === 'limits_pending' && !(await freeBaseApplied(pool, sub))) return lowerHeldCeilings(pool, lapse, now)
   // The customer changed plan after the trial: there is nothing left to lower.
   if (sub.applied_revision_id !== lapse.trial_revision_id) {
     await pool.query("UPDATE trial_lapses SET state='superseded',reason=NULL,limits_note=NULL WHERE subscription_id=$1 AND state IN ('pending','limits_pending')", [lapse.subscription_id])

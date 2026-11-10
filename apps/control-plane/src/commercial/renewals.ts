@@ -14,6 +14,18 @@ import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { holdsTrialAfterLapseSql, owesAtRenewal } from './free-base.js'
 
+/**
+ * What the subscription PURCHASED, from the pricing baseline its accepted quote recorded (included plus paid units), never from
+ * the entitlement: a limit the entitlement holds as a ceiling pinned at usage is not a purchase and is never billed. A snapshot
+ * that records no pricing falls back to its entitlement limits.
+ */
+function purchasedOf(snapshot: Record<string, any>, plan: { included_users: number; included_storage_mb: number }) {
+  const pricing = snapshot.pricing
+  if (pricing) return { users: plan.included_users + Number(pricing.paid_users ?? 0), storage_mb: plan.included_storage_mb + Number(pricing.paid_storage_gb ?? 0) * 1024 }
+  const limits = snapshot.entitlement?.features ?? {}
+  return { users: Number(limits['users.limit'] ?? 0), storage_mb: Number(limits['storage.limit_mb'] ?? 0) }
+}
+
 const date = (v: any): string => v instanceof Date ? riyadhDate(v) : String(v).slice(0,10)
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
   const instant = new Date(at).getTime()
@@ -50,7 +62,10 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     AND NOT ${holdsTrialAfterLapseSql('s')} ORDER BY s.id`, [today, subscription_id ?? null])).rows
   let unusableOrigins = 0
   const generated: ReturnType<typeof orderView>[] = []
+  const failures: unknown[] = []
   for (const candidate of candidates) {
+    // One subscription that cannot renew is recorded (log + vendor attention) and never stops the ones after it.
+    try {
     const owes = owesAtRenewal(candidate.pricing)
     let origin = ''
     if (owes) try { origin = await returnOrigin(candidate.customer_id) }
@@ -85,10 +100,9 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       const policy = (await client.query('SELECT * FROM pricing_policy_revisions WHERE id=$1', [snapshot.policy_revision_id])).rows[0]
       if (!policy) throw new Error('pinned_policy_missing')
       sources.policy = policyWire(policy)
-      const limits = snapshot.entitlement?.features ?? {}
+      const bought = purchasedOf(snapshot, sources.plan)
       const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,requested_extra_branches:snapshot.free_base ? Math.min(snapshot.extra_branch_count, sources.plan.included_extra_branches) : snapshot.extra_branch_count,
-        // The free base held above its free limits is still free: its quantities are the plan's included ones, never the ceiling it keeps.
-        requested_users: snapshot.free_base ? sources.plan.included_users : Number(limits['users.limit'] ?? 0), requested_storage_mb: snapshot.free_base ? sources.plan.included_storage_mb : Number(limits['storage.limit_mb'] ?? 0),
+        requested_users: bought.users, requested_storage_mb: bought.storage_mb,
         effective_date:start,period:{start,end},ids:{ id:randomUUID(),customer_id:sub.customer_id,subscription_id:sub.id,expected_subscription_revision:sub.revision },
         expires_at:new Date(now.getTime()+30*60_000).toISOString(),entitlement_digest:snapshot.entitlement.digest })
       await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id,sub.customer_id,JSON.stringify(quote),quote.digest,quote.expires_at])
@@ -108,7 +122,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       }
       // The block ends with the order it was blocking, in the same transaction: a run that fails or finds nothing to
       // generate leaves the flag for the vendor.
-      await client.query('UPDATE subscriptions SET billing_blocked_at=NULL WHERE id=$1 AND billing_blocked_at IS NOT NULL', [sub.id])
+      await client.query('UPDATE subscriptions SET billing_blocked_at=NULL,renewal_failure=NULL,renewal_failed_at=NULL WHERE id=$1 AND (billing_blocked_at IS NOT NULL OR renewal_failure IS NOT NULL)', [sub.id])
       return { order,sub,invoice }
     })
     if (!result) continue
@@ -148,9 +162,21 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       await pool.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1 AND status='created'", [attemptId])
       // The committed invoice/order survive; uncertain charges must be reconciled, never blindly retried.
     }
+    } catch (error) {
+      await recordRenewalFailure(pool, candidate.id, error)
+      failures.push(error)
+    }
   }
+  if (failures.length) throw failures[0]
   if (unusableOrigins) throw new CommercialHttpError('return_url_forbidden', 422)
   return generated
+}
+
+/** Explicit log and a durable mark the vendor attention list shows (`renewal_failed`) until a renewal is generated for the subscription. */
+async function recordRenewalFailure(pool: Pool, subscriptionId: string, error: unknown) {
+  const code = String((error as { code?: string })?.code ?? (error instanceof Error ? error.message : 'renewal_failed')).slice(0, 200)
+  console.error(JSON.stringify({ event: 'commercial_renewal_failed', subscription_id: subscriptionId, error: code }))
+  await pool.query('UPDATE subscriptions SET renewal_failure=$2,renewal_failed_at=COALESCE(renewal_failed_at,now()) WHERE id=$1', [subscriptionId, code])
 }
 
 export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Date } = {}) {

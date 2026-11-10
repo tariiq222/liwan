@@ -73,6 +73,10 @@ const subjectsSql = `WITH latest AS (
     ) latest_job WHERE latest_job.state IN ('needs_intervention','failed')
   ) stuck ON true
   WHERE l.state IN ('pending','ordered','limits_pending') AND COALESCE(l.reason, stuck.reason) IS NOT NULL
+), renewal_failures AS (
+  -- A renewal that failed for this subscription alone (the others kept renewing): the machine reason of the last failure.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, s.renewal_failed_at, s.renewal_failure FROM subscriptions s JOIN customers c ON c.id=s.customer_id
+  WHERE s.renewal_failure IS NOT NULL
 ), limits_waiting AS (
   -- The settled over-limit state: the paid applications are locked, existing data is untouched, and only some limits wait for
   -- usage to fit, or extra branches above the plan's included ones stay active (the leak is accepted; the vendor can follow up
@@ -102,6 +106,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lowering
+  UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
   UNION ALL SELECT 9,'free_base_limits_pending', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, detail, lapsed_at FROM limits_waiting WHERE detail <> ''
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops

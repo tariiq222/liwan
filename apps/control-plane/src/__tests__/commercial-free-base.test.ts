@@ -641,7 +641,11 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       await applyReceipt(pool, { order_id: upgrade.id, receipt: paid.receipt })
       expect((await attention(pool, true)).items.filter(i => i.customer_id === f.customer)).toEqual([])
       await processTrialLapses(pool, { now: at(60), adapter, subscription_id: f.subscription })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'superseded' })
+      // The pinned user ceiling is still held (the upgrade repeated it), so the lapse keeps lowering only that limit and never
+      // closes what the customer paid for.
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending' })
+      const reopened = (await pool.query('SELECT snapshot->\'entitlement\'->\'features\' AS features FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].features
+      for (const key of PAID_KEYS) expect(reopened[key], key).toBe(true)
     })
 
     it('is never invoiced, dunned or suspended; an unpaid renewal invoice of the old configuration is voided unless money could still arrive for it', async () => {
@@ -695,7 +699,88 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       for (const key of PAID_KEYS) expect(paid.job.authority.entitlement.features[key], key).toBe(true)
       await applyReceipt(pool, { order_id: upgrade.id, receipt: paid.receipt })
       await processTrialLapses(pool, { now: at(24), adapter, subscription_id: f.subscription })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'superseded' })
+      // The pinned user ceiling is still held (the upgrade repeated it), so the lapse keeps lowering only that limit and never
+      // closes what the customer paid for.
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending' })
+      const reopened = (await pool.query('SELECT snapshot->\'entitlement\'->\'features\' AS features FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].features
+      for (const key of PAID_KEYS) expect(reopened[key], key).toBe(true)
+    })
+
+    describe('a held ceiling after an unrelated change (review F1)', () => {
+      /** The customer archives an extra branch: a change that neither buys the pinned quantity nor touches the applications. */
+      async function branchChange(f: F, when: Date) {
+        const branch = randomUUID()
+        await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,$4,'extra','paid','active')", [branch, f.subscription, f.tenant, `b-${branch}`])
+        vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(when)
+        try {
+          const quote = await createBranchQuote(pool, f.customer, JSON.stringify({ archive: [branch] }))
+          const sub = await getSubscription(pool, f.customer)
+          const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)
+          expect(order.payment_state).toBe('not_required')
+          await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE id=$1', [f.subscription])
+          await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1", [order.id])
+          await pool.query("UPDATE commercial_outbox SET status='done' WHERE kind='fulfillment.enqueue' AND aggregate_id=$1", [order.id])
+          return order
+        } finally { vi.useRealTimers() }
+      }
+      const appliedSnapshot = async (f: F) => (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].snapshot
+      const renewNow = async (f: F, on = '2026-11-01') => {
+        await pool.query('UPDATE subscriptions SET renewal_at=$2,revision=revision+1 WHERE id=$1', [f.subscription, on])
+        return generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      }
+      for (const [label, usageKey, held, requested] of [['users', 'users.limit', 4, { requested_users: 10 }], ['off-step storage', 'storage.limit_mb', 25000, { requested_storage_mb: 30720 }]] as const) {
+        it(`${label}: the change keeps the ceiling marked, renewal bills only what was purchased, and the lowering continues`, async () => {
+          const f = await endedTrial(requested)
+          await locked(f)
+          const second = await judge(f, { [usageKey]: held }, at(1))
+          await applyOrder(f, second.id)
+          await processTrialLapses(pool, { now: at(2), adapter, subscription_id: f.subscription })
+          await branchChange(f, now)
+          const kept = await appliedSnapshot(f)
+          expect(kept.entitlement.features[usageKey]).toBe(held)
+          expect(kept.held_ceilings).toMatchObject({ [usageKey]: { held } })
+          const renewals = await renewNow(f)
+          expect(renewals).toHaveLength(1)
+          expect(renewals[0]).toMatchObject({ payment_state: 'not_required', due_now: { minor: 0 } })
+          expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending' })
+          // Usage falls: the held ceiling is lowered on top of the changed subscription, whatever the change was.
+          await freshUsage(f, at(30), { [usageKey]: 1 })
+          await processTrialLapses(pool, { now: at(30), adapter, subscription_id: f.subscription })
+          const lowering = await lapseOrder(f.subscription)
+          expect(lowering.id).not.toBe(second.id)
+          await applyOrder(f, lowering.id)
+          await processTrialLapses(pool, { now: at(31), adapter, subscription_id: f.subscription })
+          await processTrialLapses(pool, { now: at(31), adapter, subscription_id: f.subscription })
+          const done = await appliedSnapshot(f)
+          expect(done.entitlement.features[usageKey]).toBe(usageKey === 'users.limit' ? 3 : 20480)
+          expect(done.held_ceilings ?? {}).toEqual({})
+          expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
+        })
+      }
+      it('one renewal that fails never stops the others, and the vendor sees which one', async () => {
+        const made = []
+        for (let i = 0; i < 3; i++) {
+          const f = await endedTrial()
+          await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+          await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+          const order = await lapseOrder(f.subscription)
+          await applyReceipt(pool, { order_id: order.id, receipt: (await pushed(f.tenant, order.id)).receipt })
+          await pool.query("UPDATE subscriptions SET renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
+          made.push(f)
+        }
+        made.sort((a, b) => a.subscription.localeCompare(b.subscription))
+        const [broken, ...others] = made
+        // The broken one points at a pricing policy that no longer exists.
+        await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
+        await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(snapshot,'{policy_revision_id}',to_jsonb(gen_random_uuid()::text)) WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)", [broken!.subscription])
+        await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
+        await expect(generateRenewals(pool, { now, adapter, returnOrigin: origin })).rejects.toThrow('pinned_policy_missing')
+        for (const f of others) expect((await pool.query('SELECT count(*)::int AS n FROM renewals WHERE subscription_id=$1', [f.subscription])).rows[0].n).toBe(1)
+        const items = (await attention(pool, true)).items.filter(i => i.customer_id === broken!.customer)
+        expect(items).toContainEqual(expect.objectContaining({ kind: 'renewal_failed', detail: 'pinned_policy_missing' }))
+        // The poisoned fixture must not break the other suites' renewal runs.
+        await pool.query("UPDATE subscriptions SET renewal_at='2099-01-01',revision=revision+1 WHERE id=$1", [broken!.subscription])
+      })
     })
   })
 

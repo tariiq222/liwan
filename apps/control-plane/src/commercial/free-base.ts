@@ -79,32 +79,45 @@ export function freeBaseAtCeilings(free: FreeBase, ceilings: ReadonlyMap<string,
   return sealEntitlement({ catalog_release_id: free.entitlement.catalog_release_id, modules: free.entitlement.modules, features })
 }
 
-const HELD_LIMITS = [['users.limit', 'included_users'], ['storage.limit_mb', 'included_storage_mb']] as const
+/** A limit held above what is purchased: `held` is what the entitlement carries now, `target` what it falls to once usage fits. */
+export type HeldCeilings = Record<string, { held: number; target: number }>
+type Features = Record<string, boolean | number | null>
 
-/**
- * What a change request really buys. A free-base snapshot may hold a limit above the plan's included quantity only as a
- * temporary ceiling pinned at usage, never as something purchased. A request that merely repeats that ceiling (the customer's
- * branch changes echo the entitlement they hold) asks for no purchase: it is priced and compiled at the included quantity,
- * and the ceiling is carried unchanged by `carryHeldCeilings`.
- */
-export function purchasedQuantities(previous: Record<string, any> | null, plan: { included_users: number; included_storage_mb: number }, requested: { users: number; storage_mb: number }) {
-  if (!previous?.free_base) return requested
-  const features = previous.entitlement.features
-  const quantity = (key: string, included: number, wanted: number) => typeof features[key] === 'number' && features[key] > included && wanted === features[key] ? included : wanted
-  return { users: quantity('users.limit', plan.included_users, requested.users), storage_mb: quantity('storage.limit_mb', plan.included_storage_mb, requested.storage_mb) }
+/** The typed marker a snapshot carries for its held ceilings; the entitlement's own limits are never read as purchases. */
+export const heldCeilingsOf = (snapshot: Record<string, any> | null | undefined): HeldCeilings => snapshot?.held_ceilings ?? {}
+
+/** The numeric limits of `features` that sit above their `targets`: the ceilings an entitlement holds. */
+export function heldAgainst(features: Features, targets: Features): HeldCeilings {
+  const held: HeldCeilings = {}
+  for (const [key, value] of Object.entries(features)) {
+    const target = targets[key]
+    if (typeof value === 'number' && typeof target === 'number' && value > target) held[key] = { held: value, target }
+  }
+  return held
 }
 
-/** A ceiling the free base holds above what the new quantities give stays until the lapse worker lowers it (usage fits). */
-export function carryHeldCeilings(entitlement: FreeBase['entitlement'], previous: Record<string, any> | null): FreeBase['entitlement'] {
-  if (!previous?.free_base) return entitlement
-  const held = previous.entitlement.features as Record<string, boolean | number | null>
-  const features = { ...entitlement.features } as Record<string, boolean | number | null>
-  let carried = false
-  for (const [key] of HELD_LIMITS) {
-    const value = features[key], ceiling = held[key]
-    if (typeof value === 'number' && typeof ceiling === 'number' && ceiling > value) { features[key] = ceiling; carried = true }
+/**
+ * What a change request really buys. A held ceiling is a temporary limit pinned at usage, never something purchased. A request
+ * that merely repeats it (the customer's branch changes echo the entitlement they hold) asks for no purchase: it is priced and
+ * compiled at the purchased quantity the marker records, and the ceiling is carried unchanged by `carryHeldCeilings`.
+ */
+export function purchasedQuantities(previous: Record<string, any> | null, requested: { users: number; storage_mb: number }) {
+  const held = heldCeilingsOf(previous)
+  const quantity = (key: string, wanted: number) => held[key] && previous!.entitlement.features[key] === wanted ? held[key]!.target : wanted
+  return { users: quantity('users.limit', requested.users), storage_mb: quantity('storage.limit_mb', requested.storage_mb) }
+}
+
+/** A ceiling the previous snapshot holds above what the new quantities give stays, and stays marked, until the lapse worker lowers it (usage fits). */
+export function carryHeldCeilings(entitlement: FreeBase['entitlement'], previous: Record<string, any> | null): { entitlement: FreeBase['entitlement']; held: HeldCeilings } {
+  const before = heldCeilingsOf(previous)
+  const features = { ...entitlement.features } as Features
+  const held: HeldCeilings = {}
+  for (const key of Object.keys(before)) {
+    const value = features[key], ceiling = previous!.entitlement.features[key]
+    if (typeof value === 'number' && typeof ceiling === 'number' && ceiling > value) { features[key] = ceiling; held[key] = { held: ceiling, target: value } }
   }
-  return carried ? sealEntitlement({ catalog_release_id: entitlement.catalog_release_id, modules: entitlement.modules, features }) : entitlement
+  if (!Object.keys(held).length) return { entitlement, held }
+  return { entitlement: sealEntitlement({ catalog_release_id: entitlement.catalog_release_id, modules: entitlement.modules, features }), held }
 }
 
 /** The pricing baseline of the free base: what a change is priced from while the subscription is (or is about to be) on it. */
@@ -119,17 +132,22 @@ export async function freeBasePricing(client: Pick<PoolClient, 'query'>, snapsho
  * the subscription row lock and has checked that no other order is pending; the order key (one per attempt) makes a
  * repeated call a no-op. Returns the order id, or null when this attempt was already ordered.
  */
-export async function orderFreeBase(client: PoolClient, input: { subscription: Record<string, any>; snapshot: Record<string, any>; free: FreeBase; attempt: number; entitlement?: FreeBase['entitlement'] }): Promise<{ orderId: string; revisionId: string } | null> {
+export async function orderFreeBase(client: PoolClient, input: { subscription: Record<string, any>; snapshot: Record<string, any>; free: FreeBase; attempt: number; entitlement?: FreeBase['entitlement']; lowering?: { held: HeldCeilings } }): Promise<{ orderId: string; revisionId: string } | null> {
   const { subscription, snapshot, free } = input
   const entitlement = input.entitlement ?? free.entitlement
   const { quote } = free
   const key = `trial-lapse:${subscription.id}:${input.attempt}`
   if ((await client.query('SELECT 1 FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [subscription.customer_id, key])).rowCount) return null
   const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...kept } = snapshot
-  const next = { ...kept, bundle_revision_ids: quote.bundle_revision_ids, terms_revision_id: null, period_start: free.start, period_end: free.end,
+  const { held_ceilings: _held, ...unheld } = kept
+  // `lowering` keeps the applied subscription exactly as it is (apps, prices, branches) and changes only the held limits; the
+  // base order replaces it with the free base.
+  const held = input.lowering?.held ?? heldAgainst(entitlement.features as Features, free.entitlement.features as Features)
+  const marker = Object.keys(held).length ? { held_ceilings: held } : {}
+  const next = input.lowering ? { ...unheld, entitlement, quote_id: quote.id, ...marker } : { ...unheld, bundle_revision_ids: quote.bundle_revision_ids, terms_revision_id: null, period_start: free.start, period_end: free.end,
     // The real number of extra branches, whatever the free base prices: later branch calculations start from the real set.
     extra_branch_count: (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [subscription.id])).rows[0].n,
-    entitlement, quote_id: quote.id, free_base: true,
+    entitlement, quote_id: quote.id, free_base: true, ...marker,
     pricing: await freeBasePricing(client, snapshot, free) }
   const revisionId = randomUUID()
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)',

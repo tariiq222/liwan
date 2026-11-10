@@ -203,7 +203,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   // Null terms in a persisted quote means no terms, not the newest later revision.
   if (!quote.terms_revision_id) sources.terms = null
   const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
-  const entitlement = carryHeldCeilings(compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } }), previous)
+  const { entitlement, held: heldCeilings } = carryHeldCeilings(compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } }), previous)
   if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)
   const revisionId = randomUUID()
   if (previous) await assertDowngradeFitsUsage(client, {
@@ -221,7 +221,8 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     term_start: previous?.term_start ?? periodStart,
     term_end: previous?.term_end ?? addCadence(periodStart, { unit: 'month', count: sources.terms?.term_months ?? sources.plan.term_months }, 1),
     period_start: periodStart, period_end: periodEnd, included_extra_branches: included, extra_branch_count: quote.requested_extra_branches,
-    entitlement, quote_id: quote.id, pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
+    entitlement, quote_id: quote.id, ...(Object.keys(heldCeilings).length ? { held_ceilings: heldCeilings } : {}),
+    pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
     ...(branchRequest ? { branch_archive_ids: branchRequest.archive, ...(branchRequest.restore.length ? { branch_restore_ids: branchRequest.restore } : {}) } : {}),
   }
   await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)', [revisionId, subscription.id, subscription.revision + 1, JSON.stringify(snapshot), quote.id])
