@@ -21,20 +21,23 @@ suite('stored-method charge engine', () => {
 
   async function fixture() {
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID(), quote = randomUUID()
-    const order = randomUUID(), invoice = randomUUID(), method = randomUUID(), attempt = randomUUID()
+    const order = randomUUID(), invoice = randomUUID(), method = randomUUID(), notice = randomUUID(), attempt = randomUUID()
     await pool.query("INSERT INTO customers(id,name) VALUES($1,'Stored-method fixture')", [customer])
     await pool.query("INSERT INTO subscriptions(id,customer_id,state) VALUES($1,$2,'active')", [subscription,customer])
-    await pool.query("INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,'{}',$3)", [revision,subscription,quote])
+    await pool.query(`INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,'{"cadence":{"unit":"month","count":1}}',$3)`, [revision,subscription,quote])
     await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,
       payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
       VALUES($1,$2,$3,'renewal',$4,$5,$5,'awaiting_payment','not_started',$6,'fixture',1000,'SAR',2)`, [order,customer,subscription,quote,revision,order])
     await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
       VALUES($1,$2,$3,$4,'renewal','SAR',2,1000,0,1000,'2026-10-01','2026-11-01',now()-interval '1 day')`, [invoice,customer,subscription,order])
     await pool.query(`INSERT INTO payment_methods(id,subscription_id,provider,state,token_ciphertext,key_id,consent_at,consent_actor,consent_version)
-      VALUES($1,$2,'simulator','active',$3,'fixture-key',now(),'fixture','fixture')`, [method,subscription,Buffer.from([1])])
+      VALUES($1,$2,'simulator','active',$3,'fixture-key','2026-09-01','fixture','fixture')`, [method,subscription,Buffer.from([1])])
+    await pool.query(`INSERT INTO renewal_notices(id,subscription_id,method_id,renewal_date,cadence_unit,cadence_count,
+      amount_minor,currency,exponent,state,sent_at)
+      VALUES($1,$2,$3,'2026-10-01','month',1,1000,'SAR',2,'sent','2026-09-20')`, [notice,subscription,method])
     const reserve = (id: string, methodId: string | null = method) => pool.query(`INSERT INTO payment_attempts
-      (id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,token_charge,method_id)
-      VALUES($1,$2,$3,'simulator','simulator',1000,'SAR',2,true,$4)`, [id,order,invoice,methodId])
+      (id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,token_charge,method_id,notice_id)
+      VALUES($1,$2,$3,'simulator','simulator',1000,'SAR',2,true,$4,$5)`, [id,order,invoice,methodId,notice])
     await reserve(attempt)
     const adapter = new SimulatorAdapter().addToken('fixture-token')
     const send = (clock?: () => number) => sendTokenCharge(pool, { attemptId: attempt, adapter, clock, openToken: () => 'fixture-token', callbackUrl: 'https://liwan.test/api/commercial/payment-callback' })

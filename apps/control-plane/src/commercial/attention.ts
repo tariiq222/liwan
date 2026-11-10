@@ -60,6 +60,11 @@ const subjectsSql = `WITH latest AS (
     OR EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind = 'payment.intervention' AND later.status = 'done'
       AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at))
   ORDER BY r.aggregate_id, r.processed_at DESC
+), abandoned_charges AS (
+  SELECT c.id AS customer_id,c.name,c.tenant_id,a.invoice_id,a.resolved_at FROM payment_attempts a
+  JOIN orders o ON o.id=a.order_id JOIN customers c ON c.id=o.customer_id
+  WHERE a.token_charge AND a.status='canceled' AND a.closed_reason='abandoned'
+    AND o.payment_state='awaiting_payment' AND NOT o.cancelled
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), lock_blocked AS (
@@ -96,6 +101,7 @@ const subjectsSql = `WITH latest AS (
   ORDER BY op.tenant_id, op.created_at DESC, op.id
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
+  UNION ALL SELECT 2,'charge_abandoned', customer_id, tenant_id, NULL, invoice_id, name, ${iso('resolved_at')}, NULL, resolved_at FROM abandoned_charges WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered

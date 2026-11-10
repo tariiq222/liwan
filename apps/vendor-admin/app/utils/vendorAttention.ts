@@ -31,6 +31,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
   switch (item.kind) {
     case 'past_due':
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-alarm-clock', actionKey: action(item.kind) }
+    case 'charge_abandoned':
+      return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'warning', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
     case 'refund_rejected':
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
     case 'billing_blocked':
@@ -62,6 +64,7 @@ const FAILED_FULFILLMENT = ['failed', 'needs_intervention']
 export function attentionMessage(item: AttentionItem, now: Date): { key: string, days: number | null, operation: string | null } {
   switch (item.kind) {
     case 'past_due': return { key: 'past_due', days: Math.max(0, daysBetween(item.since, now)), operation: null }
+    case 'charge_abandoned': return { key: 'charge_abandoned', days: null, operation: null }
     case 'refund_rejected': return { key: 'refund_rejected', days: null, operation: item.detail }
     case 'billing_blocked': return { key: 'billing_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'free_base_blocked': return { key: 'free_base_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: item.detail }

@@ -9,6 +9,7 @@ describe('attentionPresentation', () => {
   it('opens the exact place for every kind', () => {
     expect(attentionPresentation(item({ kind: 'past_due', invoice_id: 'i1' })).to).toEqual({ path: '/invoices/i1' })
     expect(attentionPresentation(item({ kind: 'past_due' })).to).toEqual({ path: '/customers/c1', query: { tab: 'invoices' } })
+    expect(attentionPresentation(item({ kind: 'charge_abandoned', invoice_id: 'i8' })).to).toEqual({ path: '/invoices/i8' })
     expect(attentionPresentation(item({ kind: 'refund_rejected', invoice_id: 'i9' })).to).toEqual({ path: '/invoices/i9' })
     expect(attentionPresentation(item({ kind: 'refund_rejected' })).to).toEqual({ path: '/customers/c1', query: { tab: 'invoices' } })
     expect(attentionPresentation(item({ kind: 'suspension_undelivered' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })

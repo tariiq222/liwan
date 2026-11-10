@@ -10,6 +10,8 @@ import { expireTrials } from './trial-expiry.js'
 import { processTrialLapses } from './trial-lapse.js'
 import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
+import { sendRenewalNotices } from './renewal-notices.js'
+import { reconcileTokenCharges } from './token-charge.js'
 import { sendTrialNotices } from './trial-notices.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
 import { processRefundOutbox } from './settlements.js'
@@ -109,6 +111,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) {
           const adapter = o.paymentAdapter
+          if (adapter.mode === 'simulator') await job('reconcile-stored-charges', () => reconcileTokenCharges(pool, adapter, new Date(clock())))
           await job('reconcile-payments', async () => {
             const results = await reconcileUnknownAttempts(pool, adapter, { clock })
             const failures: Record<string, number> = {}
@@ -144,6 +147,9 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         const adapter = o.paymentAdapter
         await job('trial-lapse', () => processTrialLapses(pool, { now: new Date(now), adapter }))
         if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
+        const mail = o.mailAdapter
+        if (mail && adapter?.mode === 'simulator')
+          await job('renewal-notices', () => sendRenewalNotices(pool, { adapter, mail, clock, signal: o.signal }))
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
       }

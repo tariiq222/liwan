@@ -4,6 +4,7 @@ import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { applyConfirmedEvent, closeOtherAttempts } from './payments.js'
 import { PaymentError, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
+import { timelyRenewalNoticeSql } from './renewal-notices.js'
 import { STORED_CHARGE_UNSENT_MS, STORED_CHARGE_UNRESOLVED_MS } from './charge-timings.js'
 
 type Query = Pick<PoolClient, 'query'>
@@ -59,12 +60,18 @@ export async function claimForSend(pool: Pool, attemptId: string, clock = Date.n
       FROM payment_attempts a JOIN payment_methods m ON m.id=a.method_id
       JOIN orders o ON o.id=a.order_id JOIN invoices i ON i.id=a.invoice_id
       JOIN subscriptions s ON s.id=o.subscription_id
+      JOIN subscription_revisions sr ON sr.id=o.target_revision_id
+      JOIN renewal_notices n ON n.id=a.notice_id AND n.method_id=m.id
       WHERE a.id=$1 AND a.token_charge AND a.status='created'
         AND m.subscription_id=s.id AND m.provider=a.provider AND m.state='active'
         AND o.kind='renewal' AND o.payment_state='awaiting_payment' AND NOT o.cancelled AND NOT s.manual_suspension
         AND i.order_id=o.id AND i.status='issued' AND i.total_minor=a.amount_minor
         AND i.currency=a.currency AND i.exponent=a.exponent
-      FOR UPDATE OF a FOR SHARE OF m`, [attemptId])).rows[0]
+        AND n.renewal_date=i.period_start AND ${timelyRenewalNoticeSql}
+        AND (n.amount_minor,n.currency,n.exponent)=(i.total_minor,i.currency,i.exponent)
+        AND n.cadence_unit=sr.snapshot#>>'{cadence,unit}'
+        AND n.cadence_count::text=sr.snapshot#>>'{cadence,count}'
+      FOR UPDATE OF a FOR SHARE OF m,n`, [attemptId])).rows[0]
     if (!row) return null
     // Both locks can block. Measure the unsent window at the actual dispatch fence.
     const claimedAt = new Date(clock())

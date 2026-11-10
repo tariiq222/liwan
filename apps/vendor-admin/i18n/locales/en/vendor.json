@@ -65,6 +65,7 @@
       "duration": "less than a day | one day | {count} days",
       "kinds": {
         "past_due": "Overdue for {duration}",
+        "charge_abandoned": "The saved-method charge stayed unresolved after the deadline. Manual payment is available.",
         "refund_rejected": "A provider refund could not be recorded ({operation}): the money left and there is no credit note",
         "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
         "free_base_blocked": "The trial ended {duration} ago but locking onto the free base is blocked ({operation}); the company is not locked",
@@ -87,6 +88,7 @@
       },
       "actions": {
         "past_due": "Open the invoice",
+        "charge_abandoned": "Open the invoice",
         "refund_rejected": "Open the invoice",
         "billing_blocked": "Open the subscription",
         "free_base_blocked": "Open the subscription",
