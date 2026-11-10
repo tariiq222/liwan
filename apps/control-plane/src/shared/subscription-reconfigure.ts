@@ -4,7 +4,7 @@ import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import { applyReceipt, failFulfillmentOn, type SubscriptionReceipt } from '../commercial/fulfillment.js'
-import { deliveredEntitlement, pushAiIfStale } from '../commercial/ai-ledger.js'
+import { deliveredEntitlement, observeTenantNext, pushAiIfStale } from '../commercial/ai-ledger.js'
 import { findBlockingJob, lockTenantJobs } from './job-store.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 
@@ -161,7 +161,8 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
         // An AI push carries no order and the next delivery re-sends the same values, so its failure is closed as `failed`:
         // unlike needs_intervention it does not block the tenant's paid orders. It stays on the operation feed, and is logged.
         const terminal=claim.job.authority.ai_push?'failed':'needs_intervention'
-        if(claim.job.authority.ai_push)console.error(`[control-plane] AI balance push ${id} for tenant ${claim.job.controlTenantId} failed: ${code}`)
+        if(claim.job.authority.ai_push)console.error('[control-plane] AI balance push %s for tenant %s failed: %s',id,claim.job.controlTenantId,code)
+        if(claim.job.authority.ai_push)await observeTenantNext(client,claim.job.controlTenantId)
         const refused=await client.query(`UPDATE shared_jobs SET state=$5,lease_until=NULL,journal=$4
           WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id`,
         [id,claim.attemptId,claim.fence,{stage:terminal,operation_id:claim.job.authority.operation_id,error_code:code},terminal])

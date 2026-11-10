@@ -248,6 +248,43 @@ class ReconfigureTests(Base):
         self.assertEqual(str(ctx.exception), 'stale_target')
         self.assertEqual(runner.applies, 0)
 
+    def ai_request(self, **over):
+        request = make_request(previous_revision_id=TARGET, ai_push=True, **over)
+        request['entitlement']['features'].update({'ai.balance.granted': 5, 'ai.allowance.trial': 6, 'ai.allowance.monthly': 0})
+        return request
+
+    def test_ai_push_is_refused_unless_the_tenant_is_on_the_target_revision_with_its_digest(self):
+        for label, state in [('no revision', observation(commercial_revision_id=None, commercial_digest=None)),
+                             ('another revision', observation(commercial_revision_id=PREV)),
+                             ('the target with another digest', observation(commercial_revision_id=TARGET, commercial_digest='c' * 64))]:
+            runner = FakeRunner(state)
+            with self.subTest(label), self.assertRaises(EffectError) as ctx:
+                self.effect(runner).reconfigure(self.ai_request())
+            self.assertEqual(str(ctx.exception), 'stale_target')
+            self.assertEqual(runner.applies, 0)
+
+    def test_ai_push_on_the_target_revision_rewrites_only_the_ai_keys_and_carries_the_guard(self):
+        request = self.ai_request()
+        held = dict(request['entitlement']['features'], **{'ai.balance.granted': 1, 'ai.allowance.trial': 1})
+        runner = FakeRunner(observation(commercial_revision_id=TARGET, commercial_digest=DIGEST, features=held),
+                            apply_state=observation(commercial_revision_id=TARGET, commercial_digest=DIGEST, features=request['entitlement']['features']))
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+        script = next(script for stage, _, script in runner.scripts if stage == 'apply')
+        values = _script_values(script)
+        self.assertIs(values['ai_push'], True)
+        # The same guard runs under the profile lock in Odoo, whatever the payload says.
+        self.assertIn("values.get('ai_push') and (current != values['target_revision_id']", script)
+        self.assertLess(script.index("values.get('ai_push')"), script.index("if current != values['target_revision_id']:"))
+
+    def test_ai_push_may_not_carry_branches_expiry_or_a_false_flag(self):
+        for over in [{'branches': {'apply': [{'branch_id': B1, 'name': 'x'}], 'archive': []}}, {'commercial_valid_until': '2030-01-01', 'commercial_valid_until_revision': 1}]:
+            with self.subTest(over), self.assertRaises(EffectError) as ctx:
+                se.validate_reconfigure(self.ai_request(**over))
+            self.assertEqual(str(ctx.exception), 'input_invalid')
+        with self.assertRaises(EffectError):
+            se.validate_reconfigure(make_request(ai_push=False))
+
     def test_first_revision_from_null(self):
         request = make_request(previous_revision_id=None)
         runner = FakeRunner(observation(commercial_revision_id=None), apply_state=applied_state(request))

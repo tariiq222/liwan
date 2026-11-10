@@ -2,6 +2,7 @@ import type { Pool } from 'pg'
 import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { recordUsage } from './usage.js'
 import { sweepAi } from './ai-ledger.js'
+import { tenantStatusSql } from './suspension.js'
 
 /** `ai` is the three derived AI values the tenant holds, when its profile carries them (an older tenant does not). */
 export type UsageObservation = { database: string; observed_at: string; usage: Record<string, number>; limit_gates: Record<string, string[]>; ai?: Record<string, number> }
@@ -22,7 +23,6 @@ export const USAGE_LOCK_CLASS = 1397969235
 export const USAGE_LOCK_OBJECT = 1
 // Same set as the Python validate_observation: a sample without these is partial.
 const REQUIRED = ['users.limit', 'storage.limit_mb', 'branches.extra_limit']
-const LIVE_STATES = ['trialing', 'active', 'past_due']
 
 /** The observation, when it is fresh usage of DATABASE keyed by limit keys with a gate list for every metric; otherwise null. */
 export function acceptObservation(observed: unknown, database: string, now: Date): UsageObservation | null {
@@ -73,7 +73,7 @@ async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: nu
   try { return await Promise.race([work(controller.signal), timeout, stopped]) } finally { clearTimeout(timer); stop?.removeEventListener('abort', onStop) }
 }
 
-/** Persist Odoo's observed usage for live shared tenants (trialing/active/past_due, operations enabled), the
+/** Persist Odoo's observed usage for every shared tenant that can still be used (any state but suspended, operations enabled), the
  * least recently ATTEMPTED first, at most LIMIT tenants and BUDGET_MS per run (each observation bounded and
  * cancelled on timeout), so a run is short and a failing tenant cannot starve the others. Only one run
  * collects at a time across workers (advisory lock; a second caller returns { locked: true }).
@@ -95,10 +95,10 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
           FROM subscriptions s
           JOIN tenants t ON t.id=s.tenant_id AND t.operations_enabled=true
           JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
-          WHERE s.applied_revision_id IS NOT NULL AND s.state = ANY($2::text[])
+          WHERE s.applied_revision_id IS NOT NULL AND ${tenantStatusSql('s')}='active'
           ORDER BY b.control_tenant_id, s.id) x
         LEFT JOIN usage_collection_attempts a ON a.tenant_id=x.tenant_id
-        ORDER BY a.attempted_at ASC NULLS FIRST, x.tenant_id LIMIT $1`, [input.limit ?? DEFAULT_LIMIT, LIVE_STATES])).rows as Array<{ tenant_id: string; database_name: string; registry_revision: string }>
+        ORDER BY a.attempted_at ASC NULLS FIRST, x.tenant_id LIMIT $1`, [input.limit ?? DEFAULT_LIMIT])).rows as Array<{ tenant_id: string; database_name: string; registry_revision: string }>
       const deadline = clock() + (input.budget_ms ?? BUDGET_MS)
       for (const target of targets) {
         if (clock() >= deadline || input.signal?.aborted) break

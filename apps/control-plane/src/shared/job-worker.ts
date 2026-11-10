@@ -7,6 +7,7 @@ import { z } from 'zod'
 import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import { isTransientDatabaseError, transaction } from '../db.js'
 import { resolveProvisionTarget } from './onboarding.js'
+import { observeTenantNext } from '../commercial/ai-ledger.js'
 import { findBlockingJob, lockTenantJobs, requireJobAuthority } from './job-store.js'
 import { bindJob, businessKey, payloadDigest, reconcileSharedJob, verifiedReceipt } from './provisioning.js'
 import { commercialRestoreGate, finalizeVerifiedRestore, revalidateCommercialRestorePublication } from './shared-backup.js'
@@ -59,6 +60,7 @@ export async function expireSharedLeases(pool: Pool): Promise<number> {
       'Lease expired; ' || CASE WHEN state='failed' THEN 'failed AI push' ELSE 'quarantined' END || ' attempt ' || attempt_id::text || ' at fence ' || fence::text
     FROM expired RETURNING 1
   ) SELECT id,control_tenant_id,state FROM expired`)
+  for (const row of result.rows) if (row.state === 'failed') await observeTenantNext(pool, row.control_tenant_id)
   for (const row of result.rows) if (row.state === 'failed') console.error('[control-plane] AI balance push %s for tenant %s failed: lease expired; the sweep re-sends', row.id, row.control_tenant_id)
   return result.rows.length
 }

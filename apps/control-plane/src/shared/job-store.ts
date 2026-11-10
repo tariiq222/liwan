@@ -54,6 +54,8 @@ export async function lockTenantJobs(client: Pick<PoolClient, 'query'>, controlT
  * applied revision and must not wait for an operator. SQL fragment over the blocking row alias and a boolean SQL
  * expression that says whether the candidate job is an AI push.
  */
+// Safe by construction: the tenant effect refuses an `ai_push` (stale_target) unless the tenant is already on the target
+// revision with its digest, and then rewrites only the three AI keys (tools/shared_saas_lifecycle/subscription_effect.py).
 export const blockingJobSql = (blocker: string, candidateIsAiPush: string) =>
   `(${blocker}.state='running' OR (${blocker}.state='needs_intervention' AND NOT COALESCE(${candidateIsAiPush},false)))`
 /** The id of a job that blocks the candidate (null when none does). `exceptId` is the candidate itself. */

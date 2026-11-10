@@ -584,6 +584,39 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
         expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 666_666 } })
       })
 
+      it('a refund for a customer whose subscription is cancelled but whose tenant is still usable is corrected by the sweep', async () => {
+        const { id, o } = await appliedTopup()
+        await pool.query("UPDATE subscriptions SET state='cancelled',revision=revision+1 WHERE customer_id=$1", [id])
+        await refundTopup(o.id)
+        await pool.query("UPDATE shared_jobs SET state='failed' WHERE id = ANY($1::uuid[])", [await aiPushes(id)])
+        await sweep({ [await databaseOf(id)]: live })
+        const [push] = await aiPushes(id)
+        expect(push).toBeTruthy()
+        await runSubscriptionReconfigure(pool, push!, runner)
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+      })
+
+      it('among 60 tenants, the one whose push failed is observed first in the next pass and corrected', async () => {
+        const target = await appliedTopup()
+        const others = []
+        for (let i = 0; i < 59; i++) others.push((await appliedTopup()).id)
+        // Everyone was visited a moment ago; then the target's push fails.
+        await pool.query('INSERT INTO usage_collection_attempts(tenant_id,attempted_at) SELECT tenant_id,now() FROM subscriptions ON CONFLICT (tenant_id) DO UPDATE SET attempted_at=now()')
+        await refundTopup(target.o.id)
+        const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+        await expect(runSubscriptionReconfigure(pool, (await aiPushes(target.id))[0]!, async () => { throw new Error('runtime_timeout') })).rejects.toThrow('runtime_timeout')
+        log.mockRestore()
+        const seen: string[] = []
+        const database = await databaseOf(target.id)
+        await collectUsage(pool, { limit: 1, runner: async ({ database: db }) => { seen.push(db); return db === database ? observation(db, live) : null } })
+        expect(seen).toEqual([database])
+        const [push] = await aiPushes(target.id)
+        expect(push).toBeTruthy()
+        await runSubscriptionReconfigure(pool, push!, runner)
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+        expect(others).toHaveLength(59)
+      }, 180000)
+
       it('queues nothing, and logs nothing, when the tenant already holds the live values', async () => {
         const { id } = await appliedTopup()
         const lines: string[] = []
@@ -678,6 +711,32 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
         const [push] = await aiPushes(id)
         await expect(dispatchSharedOnce(pool, adapter)).resolves.toMatchObject({ state: 'idle' })
         await expect(runSubscriptionReconfigure(pool, push!, runner)).rejects.toThrow('shared_reconciliation_required')
+      })
+
+      it('an AI push behind a quarantined plan change is refused by a tenant already on the new revision, ends failed, and the resolved change delivers the lowered balance', async () => {
+        const { id, o } = await appliedTopup()
+        await pool.query("UPDATE shared_jobs SET state='failed' WHERE state='queued' AND control_tenant_id NOT IN (SELECT tenant_id FROM customers WHERE id=$1)", [id])
+        const change = await paidChange(id)
+        await processFulfillmentOutbox(pool, { limit: 1000 })
+        const quarantined = (await jobId(change.id, false))!
+        // The tenant already moved to the change's revision, but the control plane lost the receipt and quarantined the job.
+        await pool.query("UPDATE shared_jobs SET state='needs_intervention' WHERE id=$1", [quarantined])
+        const tenantRevision = change.target_revision_id
+        const tenantRunner = async (input: { job: any }) => {
+          if (input.job.authority.ai_push && input.job.authority.target_revision_id !== tenantRevision) throw new Error('stale_target')
+          return runner(input)
+        }
+        await refundTopup(o.id)
+        const deliveriesBefore = delivered.length
+        const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+        await expect(dispatchSharedOnce(pool, { subscriptionRunner: tenantRunner } as never)).rejects.toThrow('stale_target')
+        log.mockRestore()
+        expect(delivered.length).toBe(deliveriesBefore)
+        const push = (await pool.query("SELECT state FROM shared_jobs WHERE payload->'authority'->>'ai_push'='true' AND control_tenant_id=(SELECT tenant_id FROM customers WHERE id=$1) ORDER BY created_at DESC LIMIT 1", [id])).rows[0]
+        expect(push.state).toBe('failed')
+        // The operator resolves the change: it is re-run, and it delivers the live (lowered) values.
+        await runSubscriptionReconfigure(pool, quarantined, tenantRunner as never, true)
+        expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: false, features: { 'ai.balance.granted': 0 } })
       })
 
       it('a queued push for a stale registry revision does not stand in for a new one', async () => {
@@ -776,7 +835,7 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       const push = await jobId(o.id, true)
       const log = vi.spyOn(console, 'error').mockImplementation(() => {})
       await expect(runSubscriptionReconfigure(pool, push!, async () => { throw new Error('observed_mismatch') })).rejects.toThrow('observed_mismatch')
-      expect(log).toHaveBeenCalledWith(expect.stringContaining('AI balance push'))
+      expect(log.mock.calls.some(call => String(call[0]).includes('AI balance push'))).toBe(true)
       log.mockRestore()
       expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [push])).rows[0].state).toBe('failed')
       expect(await stuck(id)).toBe(0)

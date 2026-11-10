@@ -108,6 +108,12 @@ def validate_reconfigure(request):
         raise EffectError('entitlement_invalid')
     odoo_effect.validate_modules(ent['modules'])
     validate_features(ent['features'])
+    if 'ai_push' in request:
+        # The flag promises three AI values on the applied revision and nothing else.
+        br = request['branches']
+        if (request['ai_push'] is not True or br.get('apply') or br.get('archive') or br.get('restore')
+                or 'commercial_valid_until' in request or 'commercial_valid_until_revision' in request):
+            raise EffectError('input_invalid')
     login = request.get('admin_login')
     if login is not None and (not isinstance(login, str) or not 1 <= len(login) <= 254
                               or any(ord(c) < 32 for c in login)):
@@ -229,6 +235,9 @@ try:
         refuse('target_mismatch')
     profile = read_profile()._liwan_lock()
     current = profile.commercial_revision_id or None
+    # An AI push never sets a revision: it applies only to a tenant already on the target revision with its digest.
+    if values.get('ai_push') and (current != values['target_revision_id'] or (profile.commercial_digest or None) != values['digest']):
+        refuse('stale_target')
     if current not in (None, values['previous_revision_id'], values['target_revision_id']):
         refuse('stale_target')
     if current == values['target_revision_id'] and (profile.commercial_digest or None) != values['digest']:
@@ -312,6 +321,8 @@ def build_apply_script(request):
         values['commercial_valid_until'] = request['commercial_valid_until']
     if 'commercial_valid_until_revision' in request:
         values['commercial_valid_until_revision'] = request['commercial_valid_until_revision']
+    if request.get('ai_push') is True:
+        values['ai_push'] = True
     return _prefix(values) + _COMMON + _APPLY_BODY + _TAIL
 
 
@@ -532,6 +543,8 @@ class SubscriptionEffect:
             request = {key: value for key, value in request.items()
                        if key not in ('commercial_valid_until', 'commercial_valid_until_revision')}
         current = observed['commercial_revision_id']
+        if request.get('ai_push') and (current != target or observed['commercial_digest'] != request['entitlement']['digest']):
+            raise EffectError('stale_target')
         if current not in (None, request['previous_revision_id'], target):
             raise EffectError('stale_target')
         if current == target and observed['commercial_digest'] != request['entitlement']['digest']:

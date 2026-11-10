@@ -184,13 +184,13 @@ suite('usage collector (scratch control database)', () => {
     expect(await latest(moved.id)).toBeUndefined()
   })
 
-  it('observes only live subscriptions of operational tenants', async () => {
+  it('observes every usable tenant (any state but suspended) of operational tenants', async () => {
     const live = await tenant(true, { state: 'past_due' }), suspended = await tenant(true, { state: 'suspended' }),
       cancelled = await tenant(true, { state: 'cancelled' }), off = await tenant(true, { ops: false })
     const seen: string[] = []
     await collectUsage(pool, { runner: async ({ tenant_id }) => { seen.push(tenant_id); throw Error('x') }, now: () => NOW, limit: 1000, log: () => {} })
-    expect(seen).toContain(live.id)
-    for (const t of [suspended, cancelled, off]) expect(seen).not.toContain(t.id)
+    for (const t of [live, cancelled]) expect(seen).toContain(t.id)
+    for (const t of [suspended, off]) expect(seen).not.toContain(t.id)
   })
 
   it('orders by last attempt, oldest first, and a tenant that always fails does not stay at the head', async () => {

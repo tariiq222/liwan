@@ -46,6 +46,11 @@ export async function deliveredEntitlement<E extends { features: Record<string, 
   return { ...entitlement, features: Object.fromEntries(ordered) }
 }
 
+/** Puts the tenant first in the usage collector's order (its "last attempted" time is back-dated), so the next pass observes it. */
+export async function observeTenantNext(client: Q, tenantId: string) {
+  await client.query('INSERT INTO usage_collection_attempts(tenant_id,attempted_at) VALUES($1,to_timestamp(0)) ON CONFLICT (tenant_id) DO UPDATE SET attempted_at=to_timestamp(0)', [tenantId])
+}
+
 /**
  * Queues an AI-only push (`ai_push`) of the live AI keys to the customer's tenant, authorised by the order that applied
  * its current revision. Returns false only when there is nothing to push to (no tenant, applied revision, binding or
@@ -58,7 +63,11 @@ export async function pushAiEntitlement(client: PoolClient, customerId: string):
   if (!subscription?.tenant_id) return false
   await lockTenantJobs(client, subscription.tenant_id)
   const target = await appliedDeliveryTarget(client, subscription.id, 'applied')
-  if (!target?.binding || !target.order) return false
+  if (!target?.binding || !target.order) {
+    // Nothing can be queued now; the collector must look at this tenant first as soon as it can be observed.
+    await observeTenantNext(client, subscription.tenant_id)
+    return false
+  }
   const { binding } = target
   const queued = await client.query(`SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1 AND state='queued' AND payload->'authority'->>'ai_push'='true'
     AND payload->'authority'->>'target_revision_id'=$2
