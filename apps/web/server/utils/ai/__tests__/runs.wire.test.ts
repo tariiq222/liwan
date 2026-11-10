@@ -51,8 +51,8 @@ const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 const CALL_A = '00000000000000a1', CALL_B = '00000000000000b2', CALL_C = '00000000000000c3', CALL_D = '00000000000000d4'
 // The policy every resume sends: the tools response's, with the platform output cap and the tenant's input ceiling.
 const POLICY = { provider_mode: 'platform', consent_signed: true, max_output_tokens: 8000, max_input_tokens: 100000 }
-const modelCall = (id: string, kind = 'plan'): [string, unknown] => ['model_call', { call_id: id, kind, billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }]
-const modelUsage = (id: string, outcome: string, input: number | null, output: number | null): [string, unknown] => ['model_usage', { call_id: id, outcome, input_tokens: input, output_tokens: output }]
+const modelCall = (id: string, kind = 'plan'): [string, unknown] => ['model_call', { call_id: id, kind, capability: 'standard', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }]
+const modelUsage = (id: string, outcome: string, input: number | null, output: number | null): [string, unknown] => ['model_usage', { call_id: id, outcome, input_tokens: input, output_tokens: output, cost: input === null ? null : 4, charge: input === null ? null : 5 }]
 const MODEL_PLAN_RETRIED = [modelCall(CALL_A), modelUsage(CALL_A, 'retried', null, null)]
 const MODEL_PLAN_OK = [modelCall(CALL_B), modelUsage(CALL_B, 'ok', 120, 7)]
 const MODEL_PLAN_OK_2 = [modelCall(CALL_C), modelUsage(CALL_C, 'ok', 200, 15)]
