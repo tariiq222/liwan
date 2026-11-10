@@ -49,9 +49,9 @@ class TestAiSettings(AiProbe, LiwanApiCase):
     def _raw_usage(self, billing, tokens, called_at):
         # create() validates the wire shape of the Nuxt executor; a fixture row is written directly.
         self.env.cr.execute(
-            "INSERT INTO liwan_ai_usage (company_id, user_id, conversation_id, call_id, kind, billing, provider, model, outcome,"
+            "INSERT INTO liwan_ai_usage (company_id, user_id, conversation_id, call_id, kind, capability, billing, provider, model, outcome,"
             " input_tokens, output_tokens, tokens_reported, called_at)"
-            " VALUES (%s, %s, 'r_usage', %s, 'plan', %s, 'acme-ai', 'acme-1', 'ok', %s, 0, true, %s) RETURNING id",
+            " VALUES (%s, %s, 'r_usage', %s, 'plan', 'standard', %s, 'acme-ai', 'acme-1', 'ok', %s, 0, true, %s) RETURNING id",
             [self.env.company.id, self.employee.id, self._call_id(), billing, tokens, called_at or datetime.now()],
         )
         return self.env.cr.fetchone()[0]

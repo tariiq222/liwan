@@ -361,7 +361,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         except Exception as error:  # noqa: BLE001 - a missing title is not a failed run: the provisional title stays, the cause is logged
             outcome = "aborted" if isinstance(error, TimeoutError) and timeout.expired() else "failed"
             log_title_failure(run_id, error)
-        yield format_event(*_pair(usage_event(call_id, outcome, generated.tokens if generated else (None, None))))
+        yield format_event(*_pair(usage_event(call_id, outcome, run_model.identity, generated.tokens if generated else (None, None))))
         if generated is None:
             return
         if generated.title is None:

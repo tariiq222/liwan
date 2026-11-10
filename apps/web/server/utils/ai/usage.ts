@@ -10,7 +10,7 @@ type Attempt = { call: AiModelCallEvent; usage: AiModelUsageEvent | null }
 class MalformedUsageEvent extends Error {}
 const skipped = (name: string) => logFailure(`skipped a malformed ${name} event`, new MalformedUsageEvent())
 
-const abortedUsage = (callId: string): AiModelUsageEvent => ({ call_id: callId, outcome: 'aborted', input_tokens: null, output_tokens: null })
+const abortedUsage = (callId: string): AiModelUsageEvent => ({ call_id: callId, outcome: 'aborted', input_tokens: null, output_tokens: null, cost: null, charge: null })
 
 /** Odoo answered the usage report with a non-200 status. */
 class UsageRefused extends Error {
@@ -349,7 +349,7 @@ export function createUsageLedger() {
   }
 
   const records = (conversationId: string): AiUsageRecord[] => [...attempts.values()].flatMap(({ call, usage }) => usage
-    ? [{ conversation_id: conversationId, call_id: call.call_id, kind: call.kind, billing: call.billing, provider: call.provider, model: call.model, outcome: usage.outcome, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, called_at: call.called_at }]
+    ? [{ conversation_id: conversationId, call_id: call.call_id, kind: call.kind, capability: call.capability, billing: call.billing, provider: call.provider, model: call.model, outcome: usage.outcome, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, cost: usage.cost, charge: usage.charge, called_at: call.called_at }]
     : [])
 
   /**
@@ -382,7 +382,8 @@ export function createUsageLedger() {
         }
         return
       }
-      if (rows.length) spoolRows(rows, sessionKey(event))
+      // The session route refuses cost and charge (any user with ai.use reaches it); only the recorder key may report them.
+      if (rows.length) spoolRows(rows.map(row => ({ ...row, cost: null, charge: null })), sessionKey(event))
       await retryPending(event, '')
     } catch (error) {
       // Bookkeeping never touches the user's turn, and this call is the last link of a chain nobody awaits: a request that
