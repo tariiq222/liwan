@@ -1,7 +1,8 @@
 import { getCookie, getHeader, type H3Event } from 'h3'
 import { createHash } from 'node:crypto'
 import { AI_USAGE_BATCH_MAX, AiModelCallEventSchema, AiModelUsageEventSchema, type AiModelCallEvent, type AiModelUsageEvent, type AiUsageRecord } from '@liwan/contracts'
-import { logFailure, odooJson } from './upstream'
+import { BEARER_KEY } from '../serviceAuthorization'
+import { logFailure, odooJson, odooServiceUsageJson } from './upstream'
 
 type Attempt = { call: AiModelCallEvent; usage: AiModelUsageEvent | null }
 
@@ -13,7 +14,7 @@ const abortedUsage = (callId: string): AiModelUsageEvent => ({ call_id: callId, 
 
 /** Odoo answered the usage report with a non-200 status. */
 class UsageRefused extends Error {
-  constructor(status: number) { super(`status ${status}`) }
+  constructor(readonly status: number) { super(`status ${status}`) }
 }
 
 /** Logged by count only: the spool reached its row bound, so its oldest rows were dropped. */
@@ -24,6 +25,12 @@ class UsageSessionOverflow extends Error {}
 class UsageUnattributed extends Error {}
 /** Logged by count only: spooled rows waited past the age bound without Odoo accepting them. */
 class UsageSpoolExpired extends Error {}
+/** Logged by count only: the recorder key is set but is not an Odoo API key, so the report falls back to the user's session. */
+class UsageKeyMalformed extends Error {}
+/** Logged by count only: the run's user or company is not a usable id, so its rows could not be reported as that user. */
+class UsageOwnerInvalid extends Error {}
+/** Logged by count only: Odoo refused the batch as invalid (422); a retry cannot succeed, so the rows are dropped, never retried forever. */
+class UsageRejected extends Error {}
 
 /**
  * Rows kept for a retry: at most 2048 in the process, oldest dropped first, none older than an hour. A busy tenant must not
@@ -40,13 +47,41 @@ const SPOOL_MAX_AGE_MS = 60 * 60 * 1000
  */
 const SPOOL_RETRY_AFTER_MS = 60 * 1000
 
+/** The user and company a service-reported run belongs to: the batch names them, a row never does. */
+type ServiceOwner = { user: number; company: number }
+/** What the ledger needs of the run's session to report as its user: the caller's id and current company, as `runSession` knows them. */
+export type ReportingRun = { owner: { user: string }; company: string }
+
 /**
- * A row this process observed and Odoo has not accepted yet, with the hash of the session that observed it. Odoo derives the
- * owner of a usage row from the session that sends it, so a row is retried only under the session that produced it and is never
- * billed to whoever happens to flush next. Neither the session cookie nor the host is ever retained in clear or logged.
+ * A row this process observed and Odoo has not accepted yet. `session` is the key its retries are grouped and bounded by: the hash
+ * of the session that observed it (Odoo derives the owner of a cookie-reported row from the session that sends it, so such a row
+ * is retried only under that session and is never billed to whoever happens to flush next), or `service:<user>:<company>` for a
+ * row reported with the deployment's recorder key, which is retried by any later flush because the key, not a session, speaks for
+ * it. Neither the session cookie, the recorder key nor the host is ever retained in clear or logged. The spool is memory only:
+ * rows not yet accepted by Odoo are lost when this process restarts (residual window, `deploy/OPERATIONS.md`).
  */
-type SpooledRow = { row: AiUsageRecord; session: string; observedAt: number; dueAt: number }
+type SpooledRow = { row: AiUsageRecord; session: string; service: ServiceOwner | null; observedAt: number; dueAt: number }
 const spool: SpooledRow[] = []
+
+/**
+ * The deployment's recorder key (an Odoo API key of the tenant's technical usage account), or '' when this process reports as the
+ * user. Only a dedicated deployment has one: a shared process serves many tenants and no single key can speak for them (the
+ * shared-SaaS key is a later step of issue #557), so there it keeps reporting with the user's session. Read from the server's
+ * own environment on every call, never from runtime config the client could reach.
+ */
+function recorderKey(): string {
+  if ((process.env.LIWAN_TENANCY_MODE ?? 'dedicated') !== 'dedicated') return ''
+  const key = process.env.LIWAN_AI_USAGE_KEY ?? ''
+  if (!key) return ''
+  if (!BEARER_KEY.test(`Bearer ${key}`)) {
+    logFailure('LIWAN_AI_USAGE_KEY is set but is not an Odoo API key; reporting usage as the user instead', new UsageKeyMalformed())
+    return ''
+  }
+  return key
+}
+
+const serviceKeyOf = (owner: ServiceOwner): string => `service:${owner.user}:${owner.company}`
+const positiveId = (value: string): number => /^[1-9][0-9]{0,9}$/.test(value) ? Number(value) : 0
 
 /**
  * The reporting identity of one request: its tenant host and its Odoo session cookie, hashed. A shared process never mixes two
@@ -83,14 +118,14 @@ function enforceSessionBound(session: string): void {
  * then the process's. A row of no session is never spooled: it could only be retried under that empty key, and Odoo bills a
  * usage row to the session that sends it (issue #557).
  */
-function spoolRows(rows: readonly AiUsageRecord[], session: string): void {
+function spoolRows(rows: readonly AiUsageRecord[], session: string, service: ServiceOwner | null = null): void {
   if (!session) {
     logFailure(`dropped ${rows.length} usage rows of a request with no session`, new UsageUnattributed())
     return
   }
   const now = Date.now()
   expireSpooled(now)
-  for (const row of rows) spool.push({ row, session, observedAt: now, dueAt: now })
+  for (const row of rows) spool.push({ row, session, service, observedAt: now, dueAt: now })
   enforceSessionBound(session)
   const excess = spool.length - SPOOL_MAX_ROWS
   if (excess <= 0) return
@@ -112,7 +147,7 @@ function removeSpooled(accepted: readonly SpooledRow[]): void {
  */
 async function sendSpooled(event: H3Event, session: string): Promise<void> {
   const now = Date.now()
-  const due = spool.filter(entry => entry.session === session && entry.dueAt <= now)
+  const due = spool.filter(entry => !entry.service && entry.session === session && entry.dueAt <= now)
   for (let start = 0; start < due.length; start += AI_USAGE_BATCH_MAX) {
     const batch = due.slice(start, start + AI_USAGE_BATCH_MAX)
     try {
@@ -129,6 +164,42 @@ async function sendSpooled(event: H3Event, session: string): Promise<void> {
 }
 
 /**
+ * Reports every due row of the service owners with the recorder key, one batch per user and company in the order the rows were
+ * observed (at most `AI_USAGE_BATCH_MAX` each). A batch leaves the spool only once Odoo answered 200. A refusal that a retry
+ * cannot fix (401/403: the key is wrong or revoked, so nothing else would pass either) defers every due row and stops; an
+ * invalid batch (422) is dropped and logged by count; a timeout, a 5xx or a dead connection keeps the batch and the rows behind
+ * it of the same owner for the retry window. A re-sent batch is settled by the `call_id` Odoo holds once per user and conversation.
+ */
+async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
+  const now = Date.now()
+  const groups = new Map<string, SpooledRow[]>()
+  for (const entry of spool) if (entry.service && entry.dueAt <= now) groups.set(entry.session, [...(groups.get(entry.session) ?? []), entry])
+  for (const due of groups.values()) {
+    const owner = due[0]!.service!
+    for (let start = 0; start < due.length; start += AI_USAGE_BATCH_MAX) {
+      const batch = due.slice(start, start + AI_USAGE_BATCH_MAX)
+      try {
+        const receipt = await odooServiceUsageJson(event, key, { user_id: owner.user, user_company_id: owner.company, items: batch.map(entry => entry.row) })
+        if (receipt.status === 422) {
+          logFailure(`usage report of ${batch.length} rows was refused as invalid (422) and dropped`, new UsageRejected())
+          removeSpooled(batch)
+          continue
+        }
+        if (receipt.status !== 200) throw new UsageRefused(receipt.status)
+      } catch (error) {
+        logFailure(`usage report of ${batch.length} rows failed${error instanceof UsageRefused ? ` with status ${error.status}` : ''}`, error)
+        const retryAt = Date.now() + SPOOL_RETRY_AFTER_MS
+        const stop = error instanceof UsageRefused && (error.status === 401 || error.status === 403)
+        for (const entry of stop ? spool.filter(item => item.service && item.dueAt <= now) : due.slice(start)) entry.dueAt = retryAt
+        if (stop) return
+        break
+      }
+      removeSpooled(batch)
+    }
+  }
+}
+
+/**
  * One report at a time per session: two runs finishing together in the same session can never send the same spooled row twice,
  * while one session's slow report never holds another session or tenant back. An entry is dropped as soon as its chain settles.
  */
@@ -140,16 +211,25 @@ const reporting = new Map<string, Promise<void>>()
  * request that still carries the reporting session's cookie (a usage row is billed to the session that sends it), so no timer
  * can do it alone. Serialized per session, and it never throws: a failure stays spooled for the next attempt.
  */
-function retryPending(event: H3Event): Promise<void> {
+function retryPending(event: H3Event, key: string): Promise<void> {
+  if (key) return chain(SERVICE_CHAIN, () => sendServiceSpooled(event, key))
   const session = sessionKey(event)
   // A request with no session gives the rows no owner to be reported under, so it neither sends nor waits.
   if (!session) return Promise.resolve()
   expireSpooled(Date.now())
-  const report = (reporting.get(session) ?? Promise.resolve())
-    .then(() => sendSpooled(event, session))
+  return chain(session, () => sendSpooled(event, session))
+}
+
+/** The one chain every service-reported row goes through: the recorder key speaks for all of them, so two reports never overlap. */
+const SERVICE_CHAIN = 'service'
+
+function chain(name: string, send: () => Promise<void>): Promise<void> {
+  expireSpooled(Date.now())
+  const report = (reporting.get(name) ?? Promise.resolve())
+    .then(send)
     .catch(error => logFailure('usage spool retry failed', error))
-  reporting.set(session, report)
-  void report.finally(() => { if (reporting.get(session) === report) reporting.delete(session) })
+  reporting.set(name, report)
+  void report.finally(() => { if (reporting.get(name) === report) reporting.delete(name) })
   return report
 }
 
@@ -198,24 +278,37 @@ export function createUsageLedger() {
     : [])
 
   /**
-   * Hands this run's attempts to the process spool once per ledger, in order, then reports what the spool holds for this
-   * session. A batch Odoo refuses (a non-200, a timeout, a dead connection) stays spooled for the next flush of any ledger,
-   * instead of dying with the session that observed it. A run whose request carried no session cookie has no owner for its
-   * rows: they are dropped and logged by count, never spooled under an empty key (issue #557). The call is shielded from the
-   * browser (`signal: null`) and runs after the browser stream closed, so a slow or failing report never holds the UI busy.
+   * Hands this run's attempts to the process spool once per ledger, in order, then reports what the spool holds. With the
+   * deployment's recorder key and the run's user (`run`), the rows are reported as that user by the key, so a session that ended
+   * mid-run (logout, an expired cookie, a revoked `ai.use`) no longer loses them; any flush retries every due service row. Without
+   * a key (a shared deployment, until its per-tenant key exists) they are reported with the request's session as before: a batch
+   * Odoo refuses stays spooled for the next flush of that session, and a run whose request carried no session cookie has no owner
+   * for its rows, which are dropped and logged by count, never spooled under an empty key. Every failure to record is logged by
+   * class and count, never silently dropped. The call is shielded from the browser (`signal: null`) and runs after the browser
+   * stream closed, so a slow or failing report never holds the UI busy.
    *
-   * Residual limit, stated rather than hidden: the report still runs as the user, so a session that ended mid-run (logout
-   * elsewhere, revoked `ai.use`) is refused with 401/403. Those rows are never sent under another session, because Odoo would
-   * bill that session's owner; they wait for the spool's age bound and are then reported by count. Counting them exactly needs
-   * a server credential that reports without a user session, which is a separate owner decision.
+   * Residual limits, stated rather than hidden: the spool is in memory, so rows Odoo has not yet accepted are lost if this process
+   * restarts, and a spooled row is retried only when some later run ends (no timer, because a retry needs a live request for the
+   * release and tenant binding) and is given up after the age bound. On a cookie-reported run, a session that ended mid-run is
+   * refused with 401/403 and its rows are never sent under another session, because Odoo would bill that session's owner.
    */
-  async function flush(event: H3Event, conversationId: string): Promise<void> {
+  async function flush(event: H3Event, conversationId: string, run?: ReportingRun): Promise<void> {
     if (flushed) return
     flushed = true
     try {
       const rows = records(conversationId)
+      const key = run ? recorderKey() : ''
+      if (key && run) {
+        const owner = { user: positiveId(run.owner.user), company: positiveId(run.company) }
+        if (!owner.user || !owner.company) logFailure(`dropped ${rows.length} usage rows of a run with no usable user or company`, new UsageOwnerInvalid())
+        else {
+          if (rows.length) spoolRows(rows, serviceKeyOf(owner), owner)
+          await retryPending(event, key)
+        }
+        return
+      }
       if (rows.length) spoolRows(rows, sessionKey(event))
-      await retryPending(event)
+      await retryPending(event, '')
     } catch (error) {
       // Bookkeeping never touches the user's turn, and this call is the last link of a chain nobody awaits: a request that
       // cannot even name its session is logged, not thrown into an unhandled rejection.

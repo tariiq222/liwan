@@ -217,6 +217,6 @@ export function relay(event: H3Event, session: RunSession, stream: EventStream, 
     .finally(() => stream.close())
     .catch(error => logFailure('stream close failed', error))
     // The browser stream is closed before the usage report, so a slow or failing Odoo write never holds the UI busy.
-    .finally(() => usage.flush(event, options.runId))
+    .finally(() => usage.flush(event, options.runId, session))
   return stream.send()
 }

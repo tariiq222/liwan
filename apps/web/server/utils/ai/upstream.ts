@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { createError, getHeader } from 'h3'
 import { joinURL, withQuery, type QueryObject } from 'ufo'
+import { SERVICE_AUTHORIZED_PATH } from '../serviceAuthorization'
 import { tenantTransport } from '../tenantTransport'
 import { tenantUpstreamHeaders } from '../tenantRequest'
 import { upstreamError } from './executor'
@@ -94,6 +95,31 @@ export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH',
     return { status: response.status, body: parsed }
   }
   return method === 'GET' ? dispatch() : withReleaseWritePermit(event, dispatch)
+}
+
+/**
+ * The AI usage report as the deployment's technical recorder, not as the user: the credential is the server-held API key, so the
+ * report no longer depends on the user's session still being valid when a run ends (issue #557). Nothing the browser sent is
+ * forwarded: no cookie, no `Authorization` header of the request. The key is read by the caller from the server's own
+ * environment, never from runtime config the client bundle could reach, and appears only in the `Authorization` header of this
+ * one request (path and method are checked again by `tenantTransport` and by the shared guard).
+ */
+export async function odooServiceUsageJson(event: H3Event, key: string, body: unknown): Promise<Upstream> {
+  const dispatch = async (): Promise<Upstream> => {
+    const { odooUrl } = useRuntimeConfig(event)
+    const authorization = `Bearer ${key}`
+    const headers: Record<string, string> = { accept: 'application/json', 'content-type': 'application/json', cookie: '' }
+    const payload = JSON.stringify(body)
+    const tenantHeaders = tenantUpstreamHeaders(event)
+    const response = Object.keys(tenantHeaders).length
+      ? await tenantTransport(event, odooUrl, SERVICE_AUTHORIZED_PATH, { method: 'POST', body: payload, headers, authorization, signal: undefined, ignoreClientClose: true })
+      : await fetch(joinURL(odooUrl, SERVICE_AUTHORIZED_PATH), { method: 'POST', body: payload, headers: { accept: headers.accept!, 'content-type': headers['content-type']!, authorization }, redirect: 'error', signal: AbortSignal.timeout(ODOO_TIMEOUT_MS) })
+    const text = await response.text()
+    let parsed: unknown = text
+    try { parsed = text ? JSON.parse(text) : null } catch { parsed = text }
+    return { status: response.status, body: parsed }
+  }
+  return withReleaseWritePermit(event, dispatch)
 }
 
 /** One call to the LiwanOS AI service. It gets no cookie and no bearer: the owner headers (plus the shared service token, when set) are all it sees. */
