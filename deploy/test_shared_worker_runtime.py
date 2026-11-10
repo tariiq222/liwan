@@ -106,6 +106,29 @@ setInterval(() => {}, 1000);
 '''
 
 
+class LockDescriptorScan(unittest.TestCase):
+    """`process_lock.py --fds` names the inherited descriptors that are the lifecycle lock.
+
+    `local-process.sh` closes exactly these in every child it launches; a missed one is
+    held for the child's lifetime and blocks every later start, stop and status.
+    """
+
+    def test_only_descriptors_on_the_lock_file_are_named(self):
+        with tempfile.TemporaryDirectory(prefix='liwan-lock-fds-') as home:
+            lock, other = Path(home, 'processes.lock'), Path(home, 'other')
+            lock.touch(); other.touch()
+            fds = [os.open(lock, os.O_RDWR), os.open(other, os.O_RDWR), os.open(lock, os.O_RDONLY)]
+            try:
+                done = subprocess.run(
+                    [sys.executable, str(HERE / 'process_lock.py'), '--fds'], pass_fds=fds,
+                    env={**os.environ, 'LIWAN_CONTROL_HOME': home}, capture_output=True, text=True, timeout=30)
+            finally:
+                for fd in fds:
+                    os.close(fd)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertEqual(done.stdout.split(), [str(fds[0]), str(fds[2])])
+
+
 @unittest.skipIf(NODE22 is None, 'Node 22 is required by the control-plane runtime scripts')
 class SharedModeRuntime(unittest.TestCase):
     maxDiff = None
@@ -210,6 +233,15 @@ class SharedModeRuntime(unittest.TestCase):
             time.sleep(.05)
         self.fail('run-local never reported readiness')
 
+    def wait_for_entries(self, *names, timeout=15):
+        """The supervisor reports readiness before a freshly exec'd node has written its record."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if all(self.entry(name) for name in names):
+                return
+            time.sleep(.05)
+        self.fail(f'{names} did not record their identity within {timeout}s')
+
     def run_script(self, name, timeout=60):
         return subprocess.run(['bash', str(self.root / 'deploy/control-plane' / name)],
                               cwd=str(self.root), env=self.env(),
@@ -226,6 +258,7 @@ class SharedModeRuntime(unittest.TestCase):
             f'export LIWAN_TENANT_REGISTRY_PATH={self.base / "registry.json"}\n')
         supervisor, ready = self.start_runtime()
         self.assertIn('shared worker (commercial scheduler) running', ready)
+        self.wait_for_entries('api', 'worker', 'shared-worker')
 
         api, worker, shared = self.entry('api'), self.entry('worker'), self.entry('shared-worker')
         for name, record in (('api', api), ('worker', worker), ('shared-worker', shared)):
@@ -269,6 +302,7 @@ class SharedModeRuntime(unittest.TestCase):
         supervisor, ready = self.start_runtime()
         self.assertIn('worker running', ready)
         self.assertNotIn('shared worker', ready)
+        self.wait_for_entries('api', 'worker')
         self.assertIsNone(self.entry('shared-worker'), 'dedicated mode must not start the shared worker')
         self.assertEqual(self.records(), sorted([
             'generation', 'runtime.pid', 'runtime.start',

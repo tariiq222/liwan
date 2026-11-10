@@ -43,16 +43,14 @@ runtime_command_ok() {
  [[ ${#argv[@]} -eq 2 || "${argv[2]}" == runtime ]] || return 1
 }
 # bash may duplicate the held lock to a high descriptor, so closing only fd 3 in a
-# child subshell does not release it. Close every descriptor that is the lifecycle
-# lock file (inode-verified, bounded scan) and drop the inherited capability.
+# child subshell does not release it. Close every inherited descriptor that is the
+# lifecycle lock file (process_lock.py compares device and inode with fstat, which
+# `stat -f` and `-ef` cannot do the same way on macOS and Linux) and drop the
+# inherited capability.
 close_lock_descriptors() {
- local lock="$HOME_DIR/processes.lock" ino n fdino
+ local n
  unset LIWAN_PROCESS_LOCK_FD
- [[ -e "$lock" ]] || return 0
- ino="$(/usr/bin/stat -f '%i' "$lock" 2>/dev/null || true)"; [[ -n "$ino" ]] || return 0
- for n in $(seq 3 63); do
-  fdino="$(/usr/bin/stat -f '%i' "/dev/fd/$n" 2>/dev/null || true)"
-  [[ -n "$fdino" && "$fdino" == "$ino" ]] || continue
+ for n in $(python3 "$(dirname "$0")/process_lock.py" --fds); do
   eval "exec ${n}>&-"
  done
 }
