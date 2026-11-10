@@ -117,7 +117,7 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
     def test_a_tenant_without_a_balance_and_the_tenant_key_never_warn_about_the_balance(self):
         self._set_feature('ai.balance.granted', None)
         self._record(10_000)
-        self._set_feature('ai.balance.granted', 100)
+        self._set_feature('ai.balance.granted', 100_000)
         self._record(None, billing='tenant_key', cost=None)
         self.assertEqual(self._balance_bells(), [])
 
