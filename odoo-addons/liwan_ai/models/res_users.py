@@ -25,7 +25,8 @@ class LiwanAiResUsers(models.Model):
         Its API key authenticates only through the bearer path, which never calls this method.
         """
         recorder = self.env['ir.model.data']._xmlid_to_res_id(USAGE_RECORDER, raise_if_not_found=False)
-        if recorder and recorder in self.ids:
+        # Base Odoo verifies the password of the environment's user, so both the record and the acting user are checked.
+        if recorder and (recorder in self.ids or recorder == self.env.user.id):
             raise AccessDenied()
         return super()._check_credentials(credential, env)
 

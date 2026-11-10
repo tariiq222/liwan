@@ -1,9 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import http.client
+import json
 from datetime import datetime, timedelta, timezone
 
 from odoo.exceptions import AccessDenied
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
+from odoo.tests.common import HOST, TEST_CURSOR_COOKIE_NAME
+from odoo.tools import config
 
 from odoo.addons.liwan_ai.models.access_service import AI_USAGE_RECORD
 from odoo.addons.liwan_ai.models.ai_usage import USAGE_SERVICE_PATH
@@ -126,33 +130,93 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         self.assertEqual(response.json()['code'], 'forbidden')
         self.assertFalse(self.Usage.search([]))
 
-    def test_the_key_reaches_this_one_path_only(self):
-        near = (
-            USAGE_SERVICE_PATH + '/', USAGE_SERVICE_PATH.upper(), USAGE_SERVICE_PATH + '/x', '/api/v1/ai/usage',
-            '/api/v1/ai/usage/../tools', '/api/v1/ai/audit', '/api/v1/ai/tools', '/api/v1/me',
-            '/json/2/res.users/search_read', '/json/2/liwan.ai.usage/search_read', '/web/dataset/call_kw', '/doc/index.json',
-        )
-        for path in near:
+    def _post_raw(self, path, key, method='POST'):
+        return self.url_open(path, json=self._batch(), headers={'Content-Type': 'application/json', 'Authorization': f'bearer {key}'}, method=method)
+
+    def _post_unnormalized(self, path, key):
+        """The request target exactly as written: an HTTP client library would resolve the dot segments first."""
+        body = json.dumps(self._batch())
+        self.cr.flush()
+        self.cr.clear()
+        with self.allow_requests():
+            connection = http.client.HTTPConnection(HOST, config['http_port'], timeout=30)
+            try:
+                connection.putrequest('POST', path)
+                for name, value in (('Content-Type', 'application/json'), ('Authorization', f'bearer {key}'), ('Content-Length', str(len(body))),
+                                    ('Cookie', f'{TEST_CURSOR_COOKIE_NAME}={self.http_request_key}')):
+                    connection.putheader(name, value)
+                connection.endheaders(body.encode())
+                response = connection.getresponse()
+                return response.status, response.read().decode()
+            finally:
+                connection.close()
+
+    def test_a_key_is_refused_with_404_on_every_bearer_route_the_platform_does_not_list(self):
+        """The platform guard answers before it reads the key: a wrong key and the real one get the same 404.
+
+        A wrong key is the discriminating input: without the guard Odoo's own bearer check answers it with a 401.
+        """
+        for path in ('/json/2/res.users/search_read', '/json/2/liwan.ai.usage/create', '/json/2/ir.config_parameter/get_param'):
+            for key in (self.key, 'a' * 40):
+                with self.subTest(path=path, wrong=key != self.key):
+                    response = self._post_raw(path, key)
+                    self.assertEqual(response.status_code, 404, response.text)
+                    self.assertFalse(self.Usage.search([]))
+
+    def test_the_service_path_matches_exactly_and_its_variants_are_404(self):
+        # An encoded slash is decoded before routing and a doubled slash is redirected (308) to the exact path, so both ARE the
+        # exact path by the time Odoo matches it; the Nuxt proxy and the shared guard compare the raw target and refuse them.
+        for path in (USAGE_SERVICE_PATH + '/', USAGE_SERVICE_PATH.upper(), USAGE_SERVICE_PATH.replace('service', 'Service'),
+                     USAGE_SERVICE_PATH + '/x', USAGE_SERVICE_PATH + '/../service', '/api/v1/ai/usage/./service',
+                     '/api/v1/ai/x/../usage/service'):
+            for key in (self.key, 'a' * 40):
+                with self.subTest(path=path, wrong=key != self.key):
+                    status, text = self._post_unnormalized(path, key)
+                    self.assertEqual(status, 404, (path, text))
+                    self.assertFalse(self.Usage.search([]))
+
+    def test_the_key_means_nothing_on_the_session_routes(self):
+        """These routes never read a bearer key: the key is not a password, a token or a session."""
+        for path, status in (('/api/v1/ai/usage', 401), ('/api/v1/ai/audit', 401), ('/api/v1/ai/tools', 401), ('/api/v1/me', 401)):
             with self.subTest(path=path):
-                self.Usage.search([]).unlink()
-                response = self._post(self._batch(), path=path)
-                self.assertNotIn('"items"', response.text)
-                self.assertNotIn('"result"', response.text)
-                self.assertFalse(self.Usage.search([]))
+                response = self._post_raw(path, self.key, method='GET' if path.endswith(('tools', '/me')) else 'POST')
+                self.assertEqual(response.status_code, status, (path, response.text))
+                self.assertEqual(response.json()['code'], 'session_required')
+        for path in ('/xmlrpc/2/object', '/xmlrpc/2/common'):
+            with self.subTest(path=path):
+                self.assertEqual(self._post_raw(path, self.key).status_code, 404)
+        # Odoo answers a closed JSON-RPC route with HTTP 200 and an error body carrying the 404.
+        closed = self._post_raw('/jsonrpc', self.key)
+        self.assertEqual((closed.status_code, closed.json()['error']['code']), (200, 404))
+        self.assertNotIn('result', closed.json())
+        self.assertFalse(self.Usage.search([]))
 
     def test_bearer_authentication_is_refused_on_any_route_the_platform_does_not_list(self):
         listed = type(self.env['ir.http'])._liwan_bearer_routes()
         self.assertEqual(listed, frozenset({USAGE_SERVICE_PATH}))
         self.assertEqual(LiwanPlatformIrHttp._liwan_bearer_routes(), frozenset())
 
-    def test_nobody_signs_in_as_the_recorder(self):
-        self.assertFalse(self.recorder.password)
+    def test_nobody_signs_in_as_the_recorder_even_with_a_password(self):
+        """Base Odoo would accept this password; the override is what refuses it."""
+        password = 'recorder-pass-123456'
+        self.recorder.write({'password': password})
+        self.employee.write({'password': password})
+        as_recorder = self.env['res.users'].with_user(self.recorder)
+        for credential, env in (
+            ({'type': 'password', 'password': password}, {'interactive': True}),
+            ({'type': 'password', 'password': password}, {'interactive': False}),
+        ):
+            with self.subTest(interactive=env['interactive']):
+                with self.assertRaises(AccessDenied):
+                    as_recorder.browse(self.recorder.id)._check_credentials(credential, env)
+        # The key is not a password either, and the refusal is the recorder's alone: the same call works for an employee.
         with self.assertRaises(AccessDenied):
-            self.recorder._check_credentials({'type': 'password', 'password': ''}, {'interactive': True})
-        response = self.url_open('/web/session/authenticate', json={
-            'jsonrpc': '2.0', 'method': 'call', 'params': {'db': self.env.cr.dbname, 'login': 'liwan_ai_usage', 'password': self.key},
-        }, headers={'Content-Type': 'application/json'})
-        self.assertNotIn('"uid": ' + str(self.recorder.id), response.text)
+            as_recorder.browse(self.recorder.id)._check_credentials({'type': 'password', 'password': self.key}, {'interactive': False})
+        as_employee = self.env['res.users'].with_user(self.employee)
+        info = as_employee.browse(self.employee.id)._check_credentials({'type': 'password', 'password': password}, {'interactive': False})
+        self.assertEqual(info['uid'], self.employee.id)
+        with self.assertRaises(AccessDenied):
+            self.authenticate('liwan_ai_usage', password)
 
     def test_the_recorder_is_not_a_seat_and_holds_one_capability_only_as_itself(self):
         self.assertTrue(self.recorder.active and self.recorder.share)
