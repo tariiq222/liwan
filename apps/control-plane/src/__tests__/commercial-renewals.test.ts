@@ -110,7 +110,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,created_at,token_charge,method_id)
       SELECT $1,i.order_id,i.id,'simulator','simulator',i.total_minor,i.currency,i.exponent,i.due_at,true,$2 FROM invoices i WHERE i.id=$3`,
     [attempt,method,issued.id])
-    await claimForSend(pool, attempt, issued.due_at)
+    await claimForSend(pool, attempt, () => issued.due_at.getTime())
     const afterGrace = new Date(issued.due_at.getTime() + 3 * 86_400_000)
     const state = async () => (await pool.query('SELECT state FROM subscriptions WHERE id=$1',[id])).rows[0].state
     await applyDunning(pool, { now: afterGrace })

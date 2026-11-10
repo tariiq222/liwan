@@ -53,36 +53,52 @@ async function withStoredOrder<T>(pool: Pool, attemptId: string, work: (client: 
 }
 
 /** The only transition that authorizes a provider send. Its commit precedes the call. */
-export async function claimForSend(pool: Pool, attemptId: string, now = new Date()) {
+export async function claimForSend(pool: Pool, attemptId: string, clock = Date.now) {
   return withStoredOrder(pool, attemptId, async client => {
     const row = (await client.query(`SELECT a.*,m.token_ciphertext,m.key_id
       FROM payment_attempts a JOIN payment_methods m ON m.id=a.method_id
       JOIN orders o ON o.id=a.order_id JOIN invoices i ON i.id=a.invoice_id
       JOIN subscriptions s ON s.id=o.subscription_id
-      WHERE a.id=$1 AND a.token_charge AND a.status='created' AND a.created_at>$2
+      WHERE a.id=$1 AND a.token_charge AND a.status='created'
         AND m.subscription_id=s.id AND m.provider=a.provider AND m.state='active'
         AND o.kind='renewal' AND o.payment_state='awaiting_payment' AND NOT o.cancelled AND NOT s.manual_suspension
         AND i.order_id=o.id AND i.status='issued' AND i.total_minor=a.amount_minor
         AND i.currency=a.currency AND i.exponent=a.exponent
-      FOR UPDATE OF a FOR SHARE OF m`, [attemptId, new Date(now.getTime() - STORED_CHARGE_UNSENT_MS)])).rows[0]
+      FOR UPDATE OF a FOR SHARE OF m`, [attemptId])).rows[0]
     if (!row) return null
-    await client.query("UPDATE payment_attempts SET status='unknown',sent_at=$2,updated_at=$2 WHERE id=$1 AND status='created'", [attemptId, now])
-    return row as StoredAttempt & { token_ciphertext: Buffer; key_id: string }
+    // Both locks can block. Measure the unsent window at the actual dispatch fence.
+    const claimedAt = new Date(clock())
+    if (storedChargeDeadline(row) <= claimedAt) return null
+    const claimed = await client.query(`UPDATE payment_attempts SET status='unknown',sent_at=$2,updated_at=$2
+      WHERE id=$1 AND status='created'`, [attemptId,claimedAt])
+    return claimed.rowCount ? row as StoredAttempt & { token_ciphertext: Buffer; key_id: string } : null
   })
 }
 
 function matchesStoredCharge(row: StoredAttempt, event: ProviderEvent, adapter: PaymentAdapter, lookupRef: string) {
   return event.provider === row.provider && event.provider === adapter.provider
     && event.merchant_account === adapter.merchantAccount && event.live === (row.mode === 'live')
-    && event.provider_ref === lookupRef && (!event.attempt_id || event.attempt_id === row.id)
+    && Boolean(event.provider_ref) && event.provider_ref === lookupRef && (!event.attempt_id || event.attempt_id === row.id)
     && (!row.provider_ref || row.provider_ref === event.provider_ref)
     && (row.provider_ref !== null || event.attempt_id === row.id || event.provider_ref === row.id)
     && event.amount.minor === Number(row.amount_minor) && event.amount.currency === row.currency && event.amount.exponent === row.exponent
 }
 
+async function pinStoredReference(pool: Pool, attemptId: string, ref: string) {
+  return withStoredOrder(pool, attemptId, client => client.query(`UPDATE payment_attempts
+    SET status='pending',provider_ref=$2,updated_at=now()
+    WHERE id=$1 AND status='unknown' AND provider_ref IS NULL`, [attemptId,ref]))
+}
+
 /** Confirm with a read. A missing or mismatched lookup never authorizes a send. */
-async function recordOutcome(pool: Pool, adapter: PaymentAdapter, row: StoredAttempt, ref = row.provider_ref ?? row.id) {
-  const event = await adapter.lookupPayment?.(ref)
+async function recordOutcome(pool: Pool, adapter: PaymentAdapter, row: StoredAttempt) {
+  const ref = row.provider_ref ?? row.id
+  let event: ProviderEvent | undefined
+  try { event = await adapter.lookupPayment?.(ref) }
+  catch (error) {
+    if (error instanceof PaymentError) return
+    throw error
+  }
   if (!event || !matchesStoredCharge(row, event, adapter, ref)) return
   const confirmed = { ...event, attempt_id: row.id }
   if (await applyConfirmedEvent(pool, confirmed) === 'accepted' && confirmed.status === 'succeeded')
@@ -91,7 +107,7 @@ async function recordOutcome(pool: Pool, adapter: PaymentAdapter, row: StoredAtt
 
 /** Simulator-only in this inert slice. A later phase supplies the production notice gate and key opener. */
 export async function sendTokenCharge(pool: Pool, input: {
-  attemptId: string; adapter: PaymentAdapter; openToken: OpenToken; callbackUrl: string; now?: Date
+  attemptId: string; adapter: PaymentAdapter; openToken: OpenToken; callbackUrl: string; clock?: () => number
 }) {
   const { adapter } = input
   if (adapter.mode !== 'simulator') return false
@@ -111,7 +127,7 @@ export async function sendTokenCharge(pool: Pool, input: {
       await withStoredOrder(pool, input.attemptId, client => closeStoredCharge(client, input.attemptId, 'token_inactive', 'created'))
     return false
   }
-  const row = await claimForSend(pool, input.attemptId, input.now)
+  const row = await claimForSend(pool, input.attemptId, input.clock)
   if (!row) return false
   if (row.key_id !== existing.key_id || !row.token_ciphertext.equals(existing.token_ciphertext)) return true
   let response: ProviderEvent
@@ -124,7 +140,11 @@ export async function sendTokenCharge(pool: Pool, input: {
       await withStoredOrder(pool, row.id, client => closeStoredCharge(client, row.id, 'refused', 'unknown'))
     return true
   }
-  if (matchesStoredCharge(row, response, adapter, response.provider_ref)) await recordOutcome(pool, adapter, row, response.provider_ref)
+  if (matchesStoredCharge(row, response, adapter, response.provider_ref)) {
+    // The response can identify the payment, but only a read can settle it.
+    await pinStoredReference(pool, row.id, response.provider_ref)
+    await recordOutcome(pool, adapter, { ...row, provider_ref: response.provider_ref })
+  }
   return true
 }
 

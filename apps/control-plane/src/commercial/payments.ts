@@ -43,7 +43,7 @@ const matches = (a: any, e: ProviderEvent) => a.provider === e.provider
   && (!e.attempt_id || e.attempt_id === a.id) && Number(a.amount_minor) === e.amount.minor
   && a.currency === e.amount.currency && a.exponent === e.amount.exponent && (a.mode === 'live') === e.live
 
-async function findAttempt(client: PoolClient, event: ProviderEvent) {
+async function findAttempt(client: Pick<PoolClient, 'query'>, event: ProviderEvent) {
   const fallback = z.uuid().safeParse(event.attempt_id)
   return (await client.query(`SELECT id,order_id,token_charge FROM payment_attempts WHERE provider=$1
     AND (provider_ref=$2 OR (id=$3 AND token_charge AND sent_at IS NOT NULL AND provider_ref IS NULL))
@@ -56,13 +56,16 @@ function markAttemptSucceeded(client: PoolClient, attempt: { id: string }, event
     closed_reason=NULL,updated_at=now() WHERE id=$1`, [attempt.id, event.provider_ref])
 }
 
-async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepted' | 'ignored' | 'rejected'> {
+type StoredWebhookBinding = { id: string; order_id: string }
+
+async function apply(client: PoolClient, event: ProviderEvent, binding?: StoredWebhookBinding | 'hosted'): Promise<'accepted' | 'ignored' | 'rejected'> {
   const found = await findAttempt(client, event)
-  if (!found) return 'rejected'
+  if (!found || (binding === 'hosted' && found.token_charge)
+    || (binding && binding !== 'hosted' && (!found.token_charge || found.id !== binding.id || found.order_id !== binding.order_id))) return 'rejected'
   // Order-first lock order matches attempt creation and serializes separate attempts.
   const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [found.order_id])).rows[0]
   const attempt = (await client.query('SELECT * FROM payment_attempts WHERE id=$1 FOR UPDATE', [found.id])).rows[0]
-  if (!attempt || !matches(attempt, event) || (attempt.token_charge && !attempt.sent_at)) return 'rejected'
+  if (!attempt || attempt.order_id !== order.id || !matches(attempt, event) || (attempt.token_charge && !attempt.sent_at)) return 'rejected'
   if (attempt.token_charge) {
     if (event.status === 'canceled' || event.status === 'failed') {
       const closed = await closeStoredCharge(client, attempt.id, event.status === 'failed' ? 'declined' : 'provider_closed', undefined, event.provider_ref)
@@ -183,6 +186,14 @@ export async function closeOtherAttempts(pool: Pool, adapter: PaymentAdapter, pa
   return closeSiblingAttempts(pool, adapter, paid)
 }
 
+async function confirmWebhook(adapter: PaymentAdapter, event: ProviderEvent, tokenCharge: boolean) {
+  try { return await confirmEvent(adapter, event, { tokenCharge }) }
+  catch (error) {
+    if ((error as { code?: string }).code === 'event_mismatch') return null
+    throw error
+  }
+}
+
 export async function handleProviderEvent(pool: Pool, input: { provider: string; rawBody: Uint8Array | string; headers: AdapterHeaders; adapter: PaymentAdapter }) {
   let event: ProviderEvent
   try {
@@ -191,20 +202,29 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
       || !['pending','succeeded','failed','refunded','canceled'].includes(event.status)
       || !Number.isSafeInteger(event.amount.minor) || event.amount.minor < 0) throw new Error('invalid_event')
   } catch { return { status: 401, outcome: 'rejected' as const } }
+  const located = await findAttempt(pool, event)
+  const storedBinding = located?.token_charge === true ? { id: located.id, order_id: located.order_id } : null
+  let storedConfirmation: ProviderEvent | null = null
+  if (storedBinding) {
+    const seen = await pool.query('SELECT 1 FROM payment_events WHERE provider=$1 AND provider_event_id=$2', [event.provider,event.event_id])
+    if (seen.rowCount) return { status: 200, outcome: 'duplicate' as const }
+    // Do the provider read before acquiring any write lock. Competing redeliveries
+    // can read concurrently; only the transaction that inserts the event settles it.
+    storedConfirmation = await confirmWebhook(input.adapter, event, true)
+  }
   const result = await transaction(pool, async client => {
     const id = randomUUID()
     const inserted = await client.query(`INSERT INTO payment_events(id,provider,provider_event_id,status,amount_minor,currency,exponent,verified,confirmed,outcome)
       VALUES($1,$2,$3,$4,$5,$6,$7,true,false,'accepted') ON CONFLICT DO NOTHING RETURNING id`,
     [id,event.provider,event.event_id,event.status,event.amount.minor,event.amount.currency,event.amount.exponent])
     if (!inserted.rowCount) return { status: 200, outcome: 'duplicate' as const }
-    let confirmed: ProviderEvent
-    const tokenCharge = (await findAttempt(client, event))?.token_charge === true
-    try { confirmed = await confirmEvent(input.adapter, event, { tokenCharge }) } catch (e) {
-      if ((e as { code?: string }).code !== 'event_mismatch') throw e // transient fetch failure rolls back for redelivery
+    const confirmed = storedBinding ? storedConfirmation : await confirmWebhook(input.adapter, event, false)
+    if (!confirmed) {
       await client.query("UPDATE payment_events SET outcome='rejected',reason='event_mismatch' WHERE id=$1", [id])
       return { status: 200, outcome: 'rejected' as const }
     }
-    const outcome = await apply(client, { ...confirmed, event_id: event.event_id })
+    const verifiedAttempt = storedBinding ? confirmed.attempt_id ?? event.attempt_id : confirmed.attempt_id
+    const outcome = await apply(client, { ...confirmed, attempt_id: verifiedAttempt, event_id: event.event_id }, storedBinding ?? 'hosted')
     await client.query(`UPDATE payment_events SET confirmed=true,outcome=$2,reason=$3,
       attempt_id=(SELECT id FROM payment_attempts WHERE provider=$4 AND provider_ref=$5) WHERE id=$1`,
     [id,outcome === 'rejected' ? 'rejected' : 'accepted',outcome === 'rejected' ? 'attempt_mismatch' : null,event.provider,event.provider_ref])

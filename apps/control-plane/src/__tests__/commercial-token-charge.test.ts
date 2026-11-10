@@ -4,9 +4,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
 import { riyadhDate } from '@liwan/commercial-contracts'
 import { migrate } from '../db.js'
-import { applyConfirmedEvent, createPaymentAttempt, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
+import { applyConfirmedEvent, createPaymentAttempt, handleProviderEvent, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
 import { bankTransferInstructions, confirmBankTransfer } from '../commercial/bank-transfer.js'
 import { processRefundOutbox } from '../commercial/settlements.js'
+import { PaymentError, type ProviderEvent } from '../commercial/payment-adapter.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { claimForSend, getStoredChargeCollection, reconcileTokenCharges, sendTokenCharge } from '../commercial/token-charge.js'
 import { url } from './commercial-helpers.js'
@@ -36,9 +37,9 @@ suite('stored-method charge engine', () => {
       VALUES($1,$2,$3,'simulator','simulator',1000,'SAR',2,true,$4)`, [id,order,invoice,methodId])
     await reserve(attempt)
     const adapter = new SimulatorAdapter().addToken('fixture-token')
-    const send = () => sendTokenCharge(pool, { attemptId: attempt, adapter, openToken: () => 'fixture-token', callbackUrl: 'https://liwan.test/api/commercial/payment-callback' })
+    const send = (clock?: () => number) => sendTokenCharge(pool, { attemptId: attempt, adapter, clock, openToken: () => 'fixture-token', callbackUrl: 'https://liwan.test/api/commercial/payment-callback' })
     const hosted = () => createPaymentAttempt(pool, { order_id: order, customer_id: customer, adapter, returnOrigin: async () => 'https://liwan.test' })
-    const state = async () => (await pool.query('SELECT status,sent_at,resolved_at,closed_reason FROM payment_attempts WHERE id=$1',[attempt])).rows[0]
+    const state = async () => (await pool.query('SELECT status,sent_at,resolved_at,closed_reason,provider_ref FROM payment_attempts WHERE id=$1',[attempt])).rows[0]
     const orderState = async () => (await pool.query('SELECT payment_state,paid_attempt_id FROM orders WHERE id=$1',[order])).rows[0]
     return { order, invoice, customer, attempt, adapter, reserve, send, hosted, state, orderState }
   }
@@ -79,11 +80,112 @@ suite('stored-method charge engine', () => {
       expect(await f.state()).toMatchObject({ status: 'unknown', sent_at: expect.any(Date) })
       return realCharge(input)
     })
-    expect((await Promise.all(Array.from({ length: 5 }, f.send))).filter(Boolean)).toHaveLength(1)
+    expect((await Promise.all(Array.from({ length: 5 }, () => f.send()))).filter(Boolean)).toHaveLength(1)
     expect(charge).toHaveBeenCalledTimes(1)
     expect(await f.state()).toMatchObject({ status: 'succeeded', resolved_at: expect.any(Date) })
     expect(await f.orderState()).toEqual({ payment_state: 'paid', paid_attempt_id: f.attempt })
     expect(await f.send()).toBe(false)
+  })
+
+  it('does not claim an attempt that expires while waiting for the order lock', async () => {
+    const f = await fixture()
+    const createdAt = (await pool.query('SELECT created_at FROM payment_attempts WHERE id=$1',[f.attempt])).rows[0].created_at as Date
+    const deadline = createdAt.getTime() + 60 * 60_000
+    let now = deadline - 1
+    const charge = vi.spyOn(f.adapter, 'chargeToken')
+    const holder = await pool.connect()
+    let sending: Promise<boolean> | undefined
+    try {
+      await holder.query('BEGIN')
+      await holder.query('SELECT id FROM orders WHERE id=$1 FOR UPDATE', [f.order])
+      const holderPid = (await holder.query('SELECT pg_backend_pid() AS pid')).rows[0].pid
+      sending = f.send(() => now)
+      await expect.poll(async () => (await pool.query(`SELECT count(*)::int AS waiting FROM pg_stat_activity
+        WHERE $1::integer=ANY(pg_blocking_pids(pid))`, [holderPid])).rows[0].waiting).toBe(1)
+      now = deadline
+    } finally {
+      await holder.query('ROLLBACK')
+      holder.release()
+      if (sending) await Promise.allSettled([sending])
+    }
+    await expect(sending).resolves.toBe(false)
+    expect(charge).not.toHaveBeenCalled()
+    expect(await f.state()).toMatchObject({ status: 'created', sent_at: null })
+  })
+
+  function providerEvent(f: Awaited<ReturnType<typeof fixture>>): ProviderEvent {
+    const providerRef = randomUUID()
+    return { provider: f.adapter.provider, merchant_account: f.adapter.merchantAccount, live: false, event_id: randomUUID(),
+      attempt_id: f.attempt, provider_ref: providerRef, payment_id: providerRef, status: 'succeeded',
+      amount: { minor: 1000, currency: 'SAR', exponent: 2 }, occurred_at: new Date().toISOString(), raw_type: 'payment_paid' }
+  }
+
+  it('keeps a correlated provider reference after a failed authoritative read without paying', async () => {
+    const f = await fixture()
+    const event = providerEvent(f)
+    const charge = vi.spyOn(f.adapter, 'chargeToken').mockResolvedValue({ ...event, status: 'pending' })
+    const lookup = vi.spyOn(f.adapter, 'lookupPayment')
+      .mockRejectedValueOnce(new PaymentError('provider_unreachable')).mockResolvedValue({ ...event, attempt_id: null })
+    await f.send()
+    expect(await f.state()).toMatchObject({ status: 'pending', provider_ref: event.provider_ref })
+    expect(await f.orderState()).toEqual({ payment_state: 'awaiting_payment', paid_attempt_id: null })
+    await reconcileTokenCharges(pool, f.adapter)
+    expect(lookup.mock.calls.filter(([ref]) => ref === event.provider_ref)).toHaveLength(2)
+    expect(await f.orderState()).toEqual({ payment_state: 'paid', paid_attempt_id: f.attempt })
+    expect(await f.send()).toBe(false)
+    expect(charge).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps no payment-event write lock during the stored webhook lookup and settles once', async () => {
+    const f = await fixture()
+    await claimForSend(pool, f.attempt)
+    const event = providerEvent(f)
+    vi.spyOn(f.adapter, 'verifyEvent').mockReturnValue(event)
+    let release!: () => void
+    const waiting = new Promise<void>(resolve => { release = resolve })
+    const lookup = vi.spyOn(f.adapter, 'lookupPayment').mockImplementation(async () => {
+      await waiting
+      return { ...event, attempt_id: null }
+    })
+    const webhook = () => handleProviderEvent(pool, { provider: f.adapter.provider, rawBody: 'fixture', headers: {}, adapter: f.adapter })
+    const responses = [webhook()]
+    try {
+      await expect.poll(() => lookup.mock.calls.length).toBe(1)
+      const locks = (await pool.query(`SELECT count(*)::int AS writes FROM pg_locks
+        WHERE relation='payment_events'::regclass AND mode='RowExclusiveLock' AND granted`)).rows[0].writes
+      expect(locks).toBe(0)
+      responses.push(webhook())
+      await expect.poll(() => lookup.mock.calls.length).toBe(2)
+    } finally {
+      release()
+      await Promise.allSettled(responses)
+    }
+    expect((await Promise.all(responses)).map(result => result.outcome).sort()).toEqual(['accepted','duplicate'])
+    expect(await f.orderState()).toEqual({ payment_state: 'paid', paid_attempt_id: f.attempt })
+    const events = (await pool.query('SELECT attempt_id,confirmed FROM payment_events WHERE provider_event_id=$1',[event.event_id])).rows
+    expect(events).toEqual([{ attempt_id: f.attempt, confirmed: true }])
+  })
+
+  it('rejects a stored webhook when a different provider reference binds during its read', async () => {
+    const f = await fixture()
+    await claimForSend(pool, f.attempt)
+    const event = providerEvent(f)
+    vi.spyOn(f.adapter, 'verifyEvent').mockReturnValue(event)
+    let release!: () => void
+    const waiting = new Promise<void>(resolve => { release = resolve })
+    const lookup = vi.spyOn(f.adapter, 'lookupPayment').mockImplementation(async () => { await waiting; return event })
+    const response = handleProviderEvent(pool, { provider: f.adapter.provider, rawBody: 'fixture', headers: {}, adapter: f.adapter })
+    const other = { ...providerEvent(f), status: 'pending' as const }
+    try {
+      await expect.poll(() => lookup.mock.calls.length).toBe(1)
+      expect(await applyConfirmedEvent(pool, other)).toBe('accepted')
+    } finally {
+      release()
+      await Promise.allSettled([response])
+    }
+    expect(await response).toMatchObject({ status: 200, outcome: 'rejected' })
+    expect(await f.state()).toMatchObject({ status: 'pending', provider_ref: other.provider_ref })
+    expect(await f.orderState()).toEqual({ payment_state: 'awaiting_payment', paid_attempt_id: null })
   })
 
   it('reads back a lost response by attempt id without resending', async () => {
@@ -161,7 +263,7 @@ suite('stored-method charge engine', () => {
     const f = await fixture()
     const openedAt = new Date(Date.now() - 86_401_000)
     await pool.query('UPDATE payment_attempts SET created_at=$2 WHERE id=$1',[f.attempt,openedAt])
-    await claimForSend(pool, f.attempt, openedAt)
+    await claimForSend(pool, f.attempt, () => openedAt.getTime())
     const hosted = await f.hosted()
     if (!hosted.provider_ref) throw new Error('fixture has no provider reference')
     await applyConfirmedEvent(pool, f.adapter.settle(hosted.provider_ref))
