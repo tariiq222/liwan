@@ -909,6 +909,18 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
           await expect(createBranchQuote(pool, f.customer, JSON.stringify(body)), JSON.stringify(body)).rejects.toMatchObject({ code: 'lock_pending', status: 409 })
       } finally { vi.useRealTimers() }
     })
+    it('F3: a trial that fell to the free base stays in the conversion denominator', async () => {
+      const rate = async () => { const a = await getAnalytics(pool, { from: '2026-11-01', to: '2026-11-30' }, new Date(now.getTime() + day)); const r = a.current.customers.trial_conversion_rate; return r.available ? r.value : null }
+      const paid = await endedTrial()
+      await pool.query('UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1', [paid.subscription, new Date(now.getTime() + 5 * day)])
+      await convertTrial(pool, { customer_id: paid.customer, now, adapter, returnOrigin: origin })
+      await pool.query("UPDATE invoices SET status='paid',paid_at=$2 WHERE subscription_id=$1 AND status='issued'", [paid.subscription, new Date(now.getTime() + 3_600_000)])
+      const before = await rate()
+      expect(before).not.toBeNull()
+      const lapsedTrial = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: lapsedTrial.subscription })
+      expect(await rate()).toBeLessThan(before!)
+    })
     it('D: a storage ceiling pinned at off-step usage stays a ceiling: branch add, archive and restore quote and accept', async () => {
       const f = await endedTrial({ requested_storage_mb: 30720 })
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })

@@ -100,11 +100,16 @@ async function collection(db: Ask, unit: Money, period: Period) {
 
 async function trialConversion(db: Ask, period: Period, now: Date): Promise<AnalyticsFigure<number>> {
   const { start, end } = periodBounds(period)
+  // A trial that lapsed onto the free base has no end date any more (the lapse clears it); the lapse row dates its end.
   const row = (await db.query(
     `SELECT count(*) AS ended,
-            count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id = s.id AND i.status = 'paid'
-                                              AND i.subtotal_minor > 0 AND i.paid_at >= s.trial_ends_at)) AS converted
-       FROM subscriptions s WHERE s.trial_ends_at >= $1 AND s.trial_ends_at < LEAST($2::timestamptz, $3::timestamptz)`,
+            count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id = t.id AND i.status = 'paid'
+                                              AND i.subtotal_minor > 0 AND i.paid_at >= t.ended_at)) AS converted
+       FROM (SELECT s.id, s.trial_ends_at AS ended_at FROM subscriptions s
+              WHERE s.trial_ends_at >= $1 AND s.trial_ends_at < LEAST($2::timestamptz, $3::timestamptz)
+             UNION ALL
+             SELECT l.subscription_id, l.lapsed_at FROM trial_lapses l
+              WHERE l.lapsed_at >= $1 AND l.lapsed_at < LEAST($2::timestamptz, $3::timestamptz)) t`,
     [new Date(start), new Date(end), now])).rows[0]
   return orNoData(ratio(num(row.converted), num(row.ended)))
 }
