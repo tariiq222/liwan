@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { transaction } from '../db.js'
 import { routesB } from '../commercial/routes-b.js'
-import { recordFulfillmentFailure } from '../commercial/settlements.js'
+import { processRefundOutbox, recordFulfillmentFailure } from '../commercial/settlements.js'
+import { enqueueOutbox } from '../commercial/outbox.js'
 import { setup, url } from './commercial-helpers.js'
 
 const suite = url ? describe : describe.skip
@@ -14,14 +15,14 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
   afterAll(async () => { await pool.end() })
 
   /** A paid order whose fulfillment failed: the invoice is credit_pending with one pending credit note. */
-  async function failedOrder() {
+  async function failedOrder(fulfillment: 'failed' | 'applied' = 'failed') {
     const customer = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID()
     return transaction(pool, async c => {
       await c.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, 'Refund test'])
       await c.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [sub, customer])
       await c.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, sub, '{}', randomUUID()])
       await c.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
-        VALUES($1,$2,$3,'new',$4,$5,'paid','failed',$6,'fixture',11500,'SAR',2)`, [order, customer, sub, randomUUID(), revision, randomUUID()])
+        VALUES($1,$2,$3,'new',$4,$5,'paid',$7,$6,'fixture',11500,'SAR',2)`, [order, customer, sub, randomUUID(), revision, randomUUID(), fulfillment])
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','paid','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [invoice, customer, sub, order])
       // A paid order was paid: its successful attempt is what makes the payment refundable (W7).
@@ -29,8 +30,9 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
       await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status)
         VALUES($1,$2,$3,'moyasar','live',$4,11500,'SAR',2,'succeeded')`, [attempt, order, invoice, `moy-${attempt}`])
       await c.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [order, attempt])
+      if (fulfillment === 'applied') return { invoice, order, attempt, note: '' }
       const [note] = await recordFulfillmentFailure(c, { order_id: order, reason: 'Fulfillment failed permanently', actor: 'system' })
-      return { invoice, note: note! }
+      return { invoice, order, attempt, note: note! }
     })
   }
   const call = (note: string, body: unknown, options: { caps?: string[]; stepUp?: boolean; method?: string } = {}) => {
@@ -120,5 +122,22 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     const f = await failedOrder()
     const { getInvoice } = await import('../commercial/invoices.js')
     expect(Object.keys((await getInvoice(pool, f.invoice))!)).not.toContain('adjustments')
+  })
+  it('turns a refund after fulfillment into a pending credit note the operator can close', async () => {
+    const f = await failedOrder('applied')
+    await pool.query('INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload) VALUES($1,$2,$3,$4,$5)',
+      [randomUUID(), 'payment.intervention', f.order, f.attempt, JSON.stringify({ order_id: f.order, attempt_id: f.attempt, reason: 'Payment refunded after fulfillment — manual review' })])
+    expect(await processRefundOutbox(pool)).toBe(1)
+    const notes = (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id=$1', [f.invoice])).rows
+    expect(notes).toHaveLength(1)
+    expect(notes[0]).toMatchObject({ kind: 'credit_note', status: 'pending', origin: 'system', amount_minor: '11500', currency: 'SAR' })
+    expect((await pool.query('SELECT status FROM invoices WHERE id=$1', [f.invoice])).rows[0].status).toBe('credit_pending')
+    expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='payment.intervention' AND aggregate_id=$1", [f.order])).rows[0].status).toBe('done')
+    // The same event delivered again changes nothing, and the note closes with the provider's reference like any other.
+    expect(await processRefundOutbox(pool)).toBe(0)
+    await enqueueOutbox(pool as never, { kind: 'payment.intervention', aggregate_id: f.order, dedupe_key: `${f.attempt}-again`, payload: { order_id: f.order, attempt_id: f.attempt } })
+    expect(await processRefundOutbox(pool)).toBe(1)
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoice_adjustments WHERE invoice_id=$1', [f.invoice])).rows[0].n).toBe(1)
+    await expect(call(notes[0].id, ok)).resolves.toMatchObject({ status: 200, data: { status: 'refunded' } })
   })
 })

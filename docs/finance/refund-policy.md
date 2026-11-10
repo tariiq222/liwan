@@ -12,6 +12,9 @@ automatic refund path in this phase.
   (`invoice_adjustments`, `kind='credit_note'`, `status='pending'`) for the full invoice total.
 - A payment that arrives after the order was cancelled (`reconcile.refund`): the same pending credit note, reason
   "payment after cancellation — manual review".
+- A payment the provider refunds after the order was fulfilled (`payment.intervention`): the invoice becomes
+  `credit_pending` with a pending credit note, reason "payment refunded after fulfillment — manual review". The money
+  has already left, so the operator reviews the entitlement and records the provider's refund reference on the note.
 - `needs_intervention` orders get no credit note automatically; the operator decides after reading Odoo back.
 
 ## Procedure
@@ -35,5 +38,4 @@ automatic refund path in this phase.
 
 ## Known gaps
 
-- `payment.intervention` outbox rows are written but not consumed by any worker.
 - The retry budget is fixed in code (10 attempts, 1 to 60 minutes); it is not a customer setting.
