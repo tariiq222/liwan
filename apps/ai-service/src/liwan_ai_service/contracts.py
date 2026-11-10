@@ -286,8 +286,9 @@ class RunList(Strict):
     total: int
 
 
-ModelCallKind = Literal["plan", "title", "route"]
-# What kind of task a call served; the ``route`` call classifies each new message, the plan calls of that message follow it.
+ModelCallKind = Literal["plan", "title", "route", "summary"]
+# ``route`` classifies each new message and the plan calls of that message follow it; ``summary`` rewrites the rolling summary of a long conversation.
+# What kind of task a call served.
 Capability = Literal["quick", "standard", "analysis", "writing"]
 # Cost units are 0.00001 USD; the bound is the largest value of Odoo's integer column.
 MAX_COST_UNITS = 2_147_483_647

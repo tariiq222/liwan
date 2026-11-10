@@ -3,8 +3,8 @@
  * The dedicated edge sets these on its Nuxt route in `deploy/Caddyfile`; the shared
  * edge had no equivalent, so a tenant's pages were served without a CSP, HSTS or
  * frame protection (issue #480). The values are the dedicated ones, kept in one
- * place so the two edges cannot drift apart: `deploy/test_security_headers.py`
- * reads this object and compares it with the dedicated Caddyfile.
+ * place so the two edges cannot drift apart: `deploy/shared/securityHeaders.test.mjs`
+ * pins this object's header names to the set the dedicated Caddyfile sets.
  *
  * Only documents from the Nuxt upstream carry them. Odoo answers JSON, PDF reports
  * and binary downloads, where a document CSP breaks report and barcode rendering,

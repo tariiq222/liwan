@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { addCadence, canonicalJson, daysBetween, remainingDays } from './calendar.js'
-import { paidExtraBranches, paidStorageGb, paidUnits, prorateMinor, vat } from './pricing.js'
+import { paidExtraBranches, paidStorageGb, paidUnits, prorateOverCycleMinor, vat } from './pricing.js'
 import { fitsStorageSteps, MAX_USERS } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, Cadence, CustomerTermsRevision, Money, PlanRevision, Price, PricingPolicy, Quote, QuoteLine } from './types.js'
@@ -17,6 +17,12 @@ export type ComputeQuoteInput = {
   cadence: Cadence; requested_extra_branches: number; requested_users: number; requested_storage_mb: number; current?: QuoteCurrent
   effective_date: string; period: { start: string; end: string }; policy: PricingPolicy
   ids: QuoteIds; expires_at: string; entitlement_digest?: string
+  /**
+   * Days of the billing cycle a change is pro-rated over. Only a trialing subscription sets it: its period is the
+   * trial, so the default (the period length) would price the delta per trial day. Set to the length of the cadence
+   * cycle that follows the trial, the daily rate inside the trial equals the daily rate after it.
+   */
+  proration_cycle_days?: number
   /** A one-time assisted onboarding on a first order only, at the vendor's own fee; never on a renewal. */
   onboarding?: { amount: Money } | null
   /** A one-time AI balance top-up: charged now, never in a renewal, never prorated. */
@@ -79,6 +85,8 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
   const cycleDays = daysBetween(period.start, period.end)
   const remaining = kind === 'change' ? remainingDays(input.effective_date, period.end) : cycleDays
   if (cycleDays < 1 || remaining > cycleDays) throw new CommercialError('invalid_billing_period')
+  const prorationDays = input.proration_cycle_days ?? cycleDays
+  if (!Number.isInteger(prorationDays) || prorationDays < 1) throw new CommercialError('invalid_billing_period')
   const sourceId = (id: string) => id
   const lines: QuoteLine[] = []
   const nextPeriodEnd = addCadence(period.end, cadence, 1)
@@ -112,7 +120,7 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     dueNow = renewal
   } else {
     const cur = input.current as QuoteCurrent
-    const prorated = (m: number) => prorateMinor({ cycleMinor: m, remainingDays: remaining, cycleDays })
+    const prorated = (m: number) => prorateOverCycleMinor({ cycleMinor: m, remainingDays: remaining, cycleDays: prorationDays })
     const pushDelta = (k: string, kd: QuoteLine['kind'], d: string, q: number, delta: number, src: string, targetMinor: number) => {
       if (delta > 0) {
         const p = prorated(delta); dueNow += p

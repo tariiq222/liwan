@@ -146,15 +146,18 @@ def retry_wait(error: BaseException, attempt: int) -> float:
     return wait * (1 + random.uniform(0, JITTER))  # noqa: S311 - jitter, not security
 
 
-async def invoke_route(
-    model: BaseChatModel, messages: list[BaseMessage], identity: ModelIdentity, emit: Emit, timeout_seconds: float, deadline_at: float | None = None,
+async def invoke_once(
+    kind: ModelCallKind, model: BaseChatModel, messages: list[BaseMessage], identity: ModelIdentity, emit: Emit, timeout_seconds: float,
+    deadline_at: float | None = None,
 ) -> AIMessage:
-    """The classification call: one attempt, reported as a ``route`` call (``aborted`` when it outlasts ``timeout_seconds`` or the run deadline).
+    """A side call (``route`` or ``summary``): one attempt, reported as a ``kind`` call.
 
-    A failure is reported and then raised; the caller decides what a failed classification means.
+    The outcome is ``aborted`` when it outlasts ``timeout_seconds`` or the run deadline.
+
+    A failure is reported and then raised; the caller decides what a failed call means.
     """
     call_id = new_call_id()
-    emit(call_event(call_id, "route", identity))
+    emit(call_event(call_id, kind, identity))
     seconds = timeout_seconds if deadline_at is None else min(timeout_seconds, deadline_at - asyncio.get_running_loop().time())
     timeout = asyncio.timeout(seconds)
     try:
