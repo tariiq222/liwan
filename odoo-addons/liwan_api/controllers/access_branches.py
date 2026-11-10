@@ -3,7 +3,12 @@ from odoo import http
 from odoo.http import request
 
 from .access_admin import _target_user, require_exact
-from .common import api_handler, clear_security_caches_after_commit, requires_capability
+from .common import (
+    ApiError,
+    api_handler,
+    clear_security_caches_after_commit,
+    requires_capability,
+)
 
 
 class AccessBranchesController(http.Controller):
@@ -32,6 +37,41 @@ class AccessBranchesController(http.Controller):
         company = request.env['liwan.entitlement.service']._liwan_create_branch(payload['name'])
         clear_security_caches_after_commit(request.env)
         return {'id': company.id, 'name': company.name}
+
+    @http.route('/api/v1/admin/branches', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_capability('settings.company.manage')
+    def list_branches(self):
+        entitlement = request.env['liwan.entitlement.service']
+        branches = entitlement._liwan_branches()
+        return {
+            'items': [{
+                'id': branch.company_id.id, 'name': branch.company_id.name, 'read_only': branch.read_only,
+                'seat_choice': branch.seat_choice, 'restore_priority': branch.restore_priority,
+            } for branch in branches],
+            'total': len(branches),
+            'limit': entitlement._liwan_limit_value('branches.extra_limit'),
+            'read_only': entitlement._liwan_excess_counts()['branches.extra_limit'],
+        }
+
+    @http.route('/api/v1/admin/branches/<int:branch_id>/seat', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_capability('settings.company.manage')
+    def update_branch_seat(self, branch_id, **payload):
+        require_exact(payload, {'read_only', 'priority'})
+        read_only = payload.get('read_only')
+        priority = payload.get('priority')
+        if read_only is None and priority is None:
+            raise ApiError(422, 'invalid', 'read_only or priority is required', field='read_only')
+        if read_only is not None and not isinstance(read_only, bool):
+            raise ApiError(422, 'invalid', 'read_only must be a boolean', field='read_only')
+        if priority is not None and (isinstance(priority, bool) or not isinstance(priority, int) or priority < 0):
+            raise ApiError(422, 'invalid', 'priority must be a non-negative integer', field='priority')
+        branch = request.env['liwan.entitlement.service']._liwan_set_branch_seat(branch_id, read_only, priority)
+        return {
+            'id': branch_id, 'name': branch.company_id.name, 'read_only': branch.read_only,
+            'seat_choice': branch.seat_choice, 'restore_priority': branch.restore_priority,
+        }
 
     @http.route('/api/v1/admin/access/branches/preset', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

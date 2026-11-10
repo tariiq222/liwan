@@ -141,7 +141,11 @@ class AccessAdminUsersController(http.Controller):
     def seats(self):
         request.env['liwan.access.service']._liwan_require_capability('access.users.grant')
         entitlement = request.env['liwan.entitlement.service']
-        return {'used': entitlement._liwan_count_users(), 'limit': entitlement._liwan_limit_value('users.limit')}
+        return {
+            'used': entitlement._liwan_count_users(),
+            'limit': entitlement._liwan_limit_value('users.limit'),
+            'read_only': entitlement._liwan_excess_counts()['users.limit'],
+        }
 
     @http.route('/api/v1/admin/users', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -196,6 +200,23 @@ class AccessAdminUsersController(http.Controller):
         service._liwan_require_capability('access.users.grant')
         target = _target_user(user_id)
         service._liwan_cancel_invitation(target, payload['expected_version'])
+        return _dump(target, _extra(target))
+
+    @http.route('/api/v1/admin/users/<int:user_id>/seat', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    def seat(self, user_id, **payload):
+        require_exact(payload, {'expected_version', 'read_only', 'priority'}, {'expected_version'})
+        if payload.get('read_only') is None and payload.get('priority') is None:
+            raise ApiError(422, 'invalid', 'read_only or priority is required', field='read_only')
+        read_only = payload.get('read_only')
+        if read_only is not None and not isinstance(read_only, bool):
+            raise ApiError(422, 'invalid', 'read_only must be a boolean', field='read_only')
+        priority = payload.get('priority')
+        if priority is not None and (isinstance(priority, bool) or not isinstance(priority, int) or priority < 0):
+            raise ApiError(422, 'invalid', 'priority must be a non-negative integer', field='priority')
+        target = _target_user(user_id)
+        request.env['liwan.access.service']._liwan_set_seat(target, payload['expected_version'], read_only, priority)
+        clear_security_caches_after_commit(request.env)
         return _dump(target, _extra(target))
 
     @http.route('/api/v1/admin/users/<int:user_id>/reset-link', type='json2', auth='user', methods=['POST'], readonly=False)
