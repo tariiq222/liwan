@@ -1,5 +1,6 @@
 import type { Pool } from 'pg'
 import { riyadhDate, trialEndPreviewSchema, type TrialEndPreview } from '@liwan/commercial-contracts'
+import { pricingOf } from './quote-sources.js'
 import { keptAtTrialEnd } from './free-base.js'
 import { getUsage } from './usage.js'
 import { CommercialHttpError } from './lifecycle.js'
@@ -20,9 +21,19 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
   const start = row.lapse_start ?? riyadhDate(cutoff)
   const snapshot = row.before_lapse ?? row.snapshot
   const lock = await keptAtTrialEnd(pool, { subscription: row, snapshot, cutoff, start, forceEmpty: row.force_empty })
-  const kept = row.kept?.kept ?? lock.ledger.kept
+  const convertedApplied = row.trial_outcome === 'converted' && row.trial_ends_at === null
+  let kept = row.kept?.kept ?? lock.ledger.kept
+  let limits = { users: lock.quote.requested_users, storage_mb: lock.quote.requested_storage_mb, extra_branches: lock.quote.requested_extra_branches }
+  if (convertedApplied) {
+    const pricing = await pricingOf(pool, snapshot)
+    const plan = (await pool.query('SELECT included_bundle_revision_ids FROM plan_revisions WHERE id=$1', [snapshot.plan_revision_id])).rows[0]
+    kept = { bundle_revision_ids: snapshot.bundle_revision_ids.filter((id: string) => !plan.included_bundle_revision_ids.includes(id)),
+      paid_users: pricing.paid_users, paid_storage_gb: pricing.paid_storage_gb, paid_extra_branches: pricing.paid_extra_branches }
+    limits = { users: Number(snapshot.entitlement.features['users.limit']), storage_mb: Number(snapshot.entitlement.features['storage.limit_mb']),
+      extra_branches: Number(snapshot.included_extra_branches) + pricing.paid_extra_branches }
+  }
   const usage = await getUsage(pool, { tenant_id: row.tenant_id, now, limits: {
-    'users.limit': lock.quote.requested_users, 'storage.limit_mb': lock.quote.requested_storage_mb,
+    'users.limit': limits.users, 'storage.limit_mb': limits.storage_mb,
   } })
   const firstOrder = settled ? (await pool.query(`SELECT q.payload FROM renewals rr JOIN orders o ON o.id=rr.order_id
     JOIN commercial_quotes q ON q.id=o.quote_id WHERE rr.subscription_id=$1 AND rr.period_start=$2 AND NOT o.cancelled`,
@@ -38,12 +49,12 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
   const invoice = row.trial_outcome === 'converted' ? firstOrder : firstOrder ?? lock.quote
   return trialEndPreviewSchema.parse({
     status, trial_ends_at: new Date(cutoff).toISOString(), outcome: settled ? row.trial_outcome : null,
-    kept, locked_bundle_revision_ids: row.trial_outcome === 'converted' ? [] : snapshot.bundle_revision_ids.filter((id: string) => !lock.quote.bundle_revision_ids.includes(id)),
-    limits: { users: lock.quote.requested_users, storage_mb: lock.quote.requested_storage_mb, extra_branches: lock.quote.requested_extra_branches },
+    kept, locked_bundle_revision_ids: convertedApplied ? [] : snapshot.bundle_revision_ids.filter((id: string) => !lock.quote.bundle_revision_ids.includes(id)),
+    limits,
     excess: {
-      users: available && totalUsers != null ? Math.max(0, totalUsers - lock.quote.requested_users) : null,
-      storage_bytes: storageBytes == null ? null : Math.max(0, storageBytes - lock.quote.requested_storage_mb * MB),
-      extra_branches: Math.max(0, lock.liveBranches - lock.quote.requested_extra_branches),
+      users: available && totalUsers != null ? Math.max(0, totalUsers - limits.users) : null,
+      storage_bytes: storageBytes == null ? null : Math.max(0, storageBytes - limits.storage_mb * MB),
+      extra_branches: Math.max(0, lock.liveBranches - limits.extra_branches),
       sampled_at: usage.observed_at, source: available ? 'usage_snapshot' : 'unavailable', item_details: 'unavailable',
     },
     first_invoice: invoice?.due_now.minor ? invoice : null,

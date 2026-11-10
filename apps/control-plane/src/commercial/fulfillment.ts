@@ -73,7 +73,7 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     const next = nextOrderState(started, { type: 'fulfillment_applied', receipt, target_revision_id: order.target_revision_id })
     await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
     await client.query(`UPDATE subscriptions SET applied_revision_id=$2,target_revision_id=NULL,
-      state=CASE WHEN manual_suspension THEN state WHEN state='trialing' AND $3<>'renewal' THEN 'trialing' WHEN $3='change' AND trial_ends_at>now() THEN 'trialing' WHEN $3='change' THEN 'active' WHEN trial_ends_at>now() THEN 'trialing' ELSE 'active' END,
+      state=CASE WHEN manual_suspension THEN state WHEN $3='renewal' THEN 'active' WHEN state='trialing' THEN 'trialing' ELSE 'active' END,
       trial_paid_through=CASE WHEN $3='renewal' THEN NULL ELSE trial_paid_through END,
       trial_ends_at=CASE WHEN $3='renewal' THEN NULL ELSE trial_ends_at END,
       renewal_at=CASE WHEN applied_revision_id IS NULL OR $3='renewal' THEN COALESCE((SELECT period_end FROM renewals WHERE order_id=$5),$4::date,renewal_at) ELSE renewal_at END,

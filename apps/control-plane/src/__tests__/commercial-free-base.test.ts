@@ -224,9 +224,29 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const conversionAt = new Date('2026-11-15T09:00:00Z')
     const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, adapter, returnOrigin: origin })
     expect(converted.order?.due_now.minor).toBe(Math.round((19900 + Math.round(5800 * 26 / 30)) * 1.15))
-    const job = (await pool.query("SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0].payload
-    expect(job.authority).toMatchObject({ trial_ends_at: conversionAt.toISOString(), post_trial_features: { 'pmo.enabled': false, 'users.limit': 5 } })
+    const job = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
+    expect(job.payload.authority).toMatchObject({ trial_ends_at: conversionAt.toISOString(), post_trial_features: { 'pmo.enabled': false, 'users.limit': 5 } })
     expect((await getSubscription(pool, f.customer)).state).toBe('past_due')
+    const prior = (await getSubscription(pool, f.customer)).applied!.id
+    expect(converted.order!.target_revision_id).not.toBe(prior)
+    expect(converted.order!.expected_applied_revision_id).toBe(prior)
+    await runSubscriptionReconfigure(pool, job.id, async input => ({
+      ...await okRunner(input), observed_at: conversionAt.toISOString(), observed_entitlement_digest: job.payload.authority.post_trial_digest,
+    }))
+    adapter.settle(converted.attempt!.provider_ref, 'succeeded')
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(converted.attempt!.provider_ref), headers: {}, adapter })
+    expect(await runJob(converted.order!.id, async input => {
+      expect(input.job.authority).toMatchObject({ previous_revision_id: prior,
+        target_revision_id: converted.order!.target_revision_id, trial_ends_at: null,
+        entitlement: { features: { 'pmo.enabled': true } } })
+      return okRunner(input)
+    })).toMatchObject({ state: 'verified' })
+    expect(await getSubscription(pool, f.customer)).toMatchObject({ state: 'active', trial_ends_at: null })
+    expect(await trialEndPreview(pool, f.customer, conversionAt)).toMatchObject({
+      outcome: 'converted', kept: { bundle_revision_ids: [bundle.id], paid_users: 2 },
+      locked_bundle_revision_ids: [], limits: { users: 5 },
+    })
+
   })
 
   it('cancels an unpaid order so the lock can proceed; a late paid receipt does not reopen the trial (L5)', async () => {

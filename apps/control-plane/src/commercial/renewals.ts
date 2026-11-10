@@ -13,7 +13,8 @@ import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { rearmUnpaidTrialLock } from './trial-lapse.js'
-import { holdsTrialAfterLapseSql, owesAtRenewal } from './free-base.js'
+import { loadRelease } from './bundles.js'
+import { compilePurchasedEntitlement, holdsTrialAfterLapseSql, owesAtRenewal } from './free-base.js'
 
 const date = (v: any): string => v instanceof Date ? riyadhDate(v) : String(v).slice(0,10)
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
@@ -94,21 +95,35 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       if (!policy) throw new Error('pinned_policy_missing')
       sources.policy = policyWire(policy)
       const pricing = await pricingOf(client, snapshot)
+      const converting = sub.trial_ends_at !== null && sub.trial_outcome === 'converted'
+      const extraBranches = Number(snapshot.included_extra_branches) + pricing.paid_extra_branches
+      const quantities = { users: sources.plan.included_users + pricing.paid_users, storage_mb: sources.plan.included_storage_mb + pricing.paid_storage_gb * 1024 }
+      const entitlement = converting ? compilePurchasedEntitlement({ ...sources,
+        release: await loadRelease(client, snapshot.entitlement.catalog_release_id), quantities, extraBranches }) : snapshot.entitlement
       const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,
-        requested_extra_branches: Number(snapshot.included_extra_branches) + pricing.paid_extra_branches,
-        requested_users: sources.plan.included_users + pricing.paid_users, requested_storage_mb: sources.plan.included_storage_mb + pricing.paid_storage_gb * 1024,
+        requested_extra_branches: extraBranches, requested_users: quantities.users, requested_storage_mb: quantities.storage_mb,
         paid_through: sub.trial_paid_through ?? undefined,
         effective_date:start,period:{start,end},ids:{ id:randomUUID(),customer_id:sub.customer_id,subscription_id:sub.id,expected_subscription_revision:sub.revision },
-        expires_at:new Date(now.getTime()+30*60_000).toISOString(),entitlement_digest:snapshot.entitlement.digest })
+        expires_at:new Date(now.getTime()+30*60_000).toISOString(),entitlement_digest:entitlement.digest })
       await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id,sub.customer_id,JSON.stringify(quote),quote.digest,quote.expires_at])
+      // Odoo may already have materialized the restricted policy for the trial revision. A paid
+      // conversion advances the revision, so the host applies the whole purchased policy again.
+      const targetRevision = converting ? randomUUID() : sub.applied_revision_id
+      if (converting) {
+        const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...applied } = snapshot
+        const converted = { ...applied, period_start: start, period_end: end, entitlement, trial_end: true, quote_id: quote.id }
+        await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)',
+          [targetRevision, sub.id, sub.revision + 1, JSON.stringify(converted), quote.id])
+        await client.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [sub.id, targetRevision])
+      }
       const key = `renewal:${sub.id}:${start}`
       const row = (await client.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,
         payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
-        VALUES($1,$2,$3,'renewal',$4,$5,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [randomUUID(),sub.customer_id,sub.id,quote.id,sub.applied_revision_id,quote.due_now.minor ? 'awaiting_payment':'not_required',
+        VALUES($1,$2,$3,'renewal',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [randomUUID(),sub.customer_id,sub.id,quote.id,targetRevision,sub.applied_revision_id,quote.due_now.minor ? 'awaiting_payment':'not_required',
         quote.due_now.minor ? 'not_started':'queued',`${start}T00:00:00+03:00`,key,digestOf({subscription_id:sub.id,period_start:start,quote_digest:quote.digest}),quote.due_now.minor,quote.due_now.currency,quote.due_now.exponent])).rows[0]
       const order = orderView(row)
-      const immediate = sub.trial_ends_at !== null && sub.trial_outcome === 'converted'
+      const immediate = converting
         || (await client.query("SELECT 1 FROM trial_lapses WHERE subscription_id=$1 AND state='done' AND period_start=$2", [sub.id, start])).rowCount
       const invoice = await issueInvoiceFromQuote(client, { order, quote, dueDays: immediate ? 0 : undefined })
       await client.query('UPDATE renewals SET order_id=$2,invoice_id=$3 WHERE id=$1', [renewalId,order.id,invoice?.id ?? null])
