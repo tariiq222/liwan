@@ -1,5 +1,6 @@
 import { boundedTenantJson, tenantTransport, withTenantBody, withUpstreamSlot } from '../../utils/tenantTransport'
 import { tenantRequest } from '../../utils/tenantRequest'
+import { authCookiesAreSecure, forwardAuthCookies } from '../../utils/authCookies'
 import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
 import { uiLocaleHeaders } from '../../utils/uiLocale'
 
@@ -17,9 +18,10 @@ export default defineEventHandler(async (event) => {
     const tenant = tenantRequest(event)
 
     const send = tenant || process.env.LIWAN_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/authenticate', options) : (options: RequestInit) => withUpstreamSlot(signal => fetch(`${odooUrl}/web/session/authenticate`, { ...options, signal }), event)
+    const identityHeaders = authUpstreamHeaders(event, authProxyClientIpHeader)
     const upstream = await send({
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...uiLocaleHeaders(event), ...authUpstreamHeaders(event, authProxyClientIpHeader) },
+      headers: { 'Content-Type': 'application/json', ...uiLocaleHeaders(event), ...identityHeaders },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: tenant?.database ?? odooDb, login, password } }),
     })
     const body = await upstream.json() as { result?: { uid?: number | null }; error?: { data?: { name?: unknown } } }
@@ -37,12 +39,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, data: { code: 'invalid_credentials' } })
     }
 
-    // Odoo answers this hop over plain http and marks the cookie accordingly; when the
-    // browser reached us over https (directly or through Caddy) it must carry Secure.
-    const https = getRequestProtocol(event) === 'https' || getRequestHeader(event, 'x-forwarded-proto') === 'https'
-    for (const cookie of upstream.headers.getSetCookie()) {
-      appendResponseHeader(event, 'set-cookie', https && !/;\s*secure\b/i.test(cookie) ? `${cookie}; Secure` : cookie)
-    }
+    forwardAuthCookies(event, upstream.headers, authCookiesAreSecure(event, identityHeaders))
 
     if (body.result.uid === null) {
       // The second step is mandatory for every account: the cookie above now carries pre_uid/pre_login and no
