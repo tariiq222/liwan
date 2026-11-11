@@ -1,5 +1,6 @@
 import http from 'node:http'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import { createApp, createError, defineEventHandler, eventHandler, getHeader, readRawBody, setResponseHeader, toNodeListener } from 'h3'
 
 let upstream: http.Server
@@ -7,11 +8,13 @@ let app: http.Server
 let base: string
 let controlUrl = ''
 let calls: { path: string; body: string }[] = []
+let seen: http.IncomingHttpHeaders = {}
+const KEY = 'k'.repeat(40)
 const LIVE = 'live-token-'.repeat(3)
 
 beforeAll(async () => {
   for (const [name, value] of Object.entries({ createError, defineEventHandler, getHeader, readRawBody, setResponseHeader })) vi.stubGlobal(name, value)
-  vi.stubGlobal('useRuntimeConfig', () => ({ customerCommercialPublicOrigin: 'https://app.example.test', customerCommercialControlUrl: controlUrl }))
+  vi.stubGlobal('useRuntimeConfig', () => ({ customerCommercialPublicOrigin: 'https://app.example.test', customerCommercialControlUrl: controlUrl, customerCommercialIssuer: 'liwan-web', customerCommercialServiceKey: KEY }))
   vi.stubGlobal('$fetch', async (url: string, options: RequestInit) => {
     const res = await fetch(url, options)
     if (!res.ok) throw Object.assign(new Error('upstream'), { statusCode: res.status })
@@ -22,6 +25,7 @@ beforeAll(async () => {
     for await (const chunk of req) chunks.push(Buffer.from(chunk))
     const body = Buffer.concat(chunks).toString()
     calls.push({ path: req.url!, body })
+    seen = req.headers
     const token = JSON.parse(body).token as string
     res.setHeader('content-type', 'application/json')
     if (token === 'boom') { res.writeHead(500); res.end('{}'); return }
@@ -72,5 +76,17 @@ describe('POST /api/invitations/check', () => {
     expect((await post({ token: LIVE }, { 'sec-fetch-site': 'cross-site' })).status).toBe(403)
     expect((await post({ token: LIVE }, { 'content-type': 'text/plain' })).status).toBe(415)
     expect(calls).toEqual([])
+  })
+  it('signs the edge-derived visitor address for the control plane', async () => {
+    await post({ token: LIVE }, { 'x-liwan-client-ip': '203.0.113.7' })
+    expect(seen['x-liwan-client-ip']).toBe('203.0.113.7')
+    expect(verifyServiceRequest({ method: 'POST', path: '/v1/invitations/check', body: 'liwan-invitation-client:203.0.113.7\n', headers: seen, key: KEY, anonymous: true })).toMatchObject({ issuer: 'liwan-web' })
+  })
+  it('sends no address or signature when the edge supplied none or a malformed one', async () => {
+    for (const extra of [{}, { 'x-liwan-client-ip': 'not-an-ip' }]) {
+      await post({ token: LIVE }, extra)
+      expect(seen['x-liwan-client-ip']).toBeUndefined()
+      expect(seen['x-liwan-signature']).toBeUndefined()
+    }
   })
 })

@@ -311,6 +311,21 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   return response._data
 }
 
+/** The dedicated edge sets this from the socket peer (deploy/Caddyfile, deploy/releases/Caddyfile.dedicated); the shared
+ * guard strips it. The control plane reads the same name, with the signature, to key its invitation rate limit. */
+export const INVITATION_CLIENT_HEADER = 'x-liwan-client-ip'
+const MIN_SERVICE_KEY_LENGTH = 32
+
+/** Signed claim of the visitor's address for one control-plane invitation call. Empty when the edge supplied no valid
+ * address or the signing key is not configured, so the control plane falls back to the socket address as before. */
+export function invitationClientHeaders(event: H3Event, config: Pick<CustomerConfig, 'customerCommercialIssuer' | 'customerCommercialServiceKey'>, target: URL): Record<string, string> {
+  const ip = getHeader(event, INVITATION_CLIENT_HEADER)
+  const { customerCommercialIssuer: issuer, customerCommercialServiceKey: key } = config
+  if (!ip || !isIP(ip) || !issuer || !key || Buffer.byteLength(key) < MIN_SERVICE_KEY_LENGTH) return {}
+  const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: `liwan-invitation-client:${ip}\n`, actor: 'anonymous', anonymous: true, issuer, key })
+  return { ...signed, [INVITATION_CLIENT_HEADER]: ip }
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PAYMENT_RETURN_BODY = (tenantId: string) => `liwan-payment-return:${tenantId}\n`
 
