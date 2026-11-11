@@ -20,7 +20,7 @@ const House = 'i-lucide-house'
 /** Rail module id; applications declare theirs in their manifest, the foundation adds home and settings. */
 export type NavGroup = string
 export type ShellModule = string
-export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string; feature?: string }
+export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string; anyCapabilities?: string[]; feature?: string }
 
 /** Search-page and go-key shortcuts of the foundation settings pages, by path (unique with the applications' nav shortcuts). */
 const SETTINGS_KEYS: Readonly<Record<string, { shortcut: string; goKey?: string }>> = {
@@ -41,7 +41,9 @@ function settingsNavItems(): NavItem[] {
     const to = settingsPartPath(page, part)
     const keys = SETTINGS_KEYS[to]
     return {
-      to, labelKey: part.labelKey, icon: part.icon, capability: part.capability,
+      to: part.navTo ?? to,
+      labelKey: part.labelKey, icon: part.icon, capability: part.capability,
+      ...(part.anyCapabilities ? { anyCapabilities: part.anyCapabilities } : {}),
       shortcut: keys?.shortcut ?? '', ...(keys?.goKey ? { goKey: keys.goKey } : {}), group: 'settings', module: 'settings',
     }
   }))
@@ -89,7 +91,11 @@ export function useNav(identity: AccessIdentity): NavItem[] {
     const feature = featureForRailModule(item.module)
     return Array.isArray(identity?.capabilities) && feature !== undefined && hasFeature(identity, feature)
   }
-  return allNavItems().filter(item => (item.capability === 'liwan.internal' ? internalAccess(item) : navAllowed(identity, item.capability, item.to, item.feature)))
+  return allNavItems().filter((item) => {
+    if (item.capability === 'liwan.internal') return internalAccess(item)
+    return navAllowed(identity, item.capability, item.to, item.feature)
+      || (item.anyCapabilities ?? []).some(key => navAllowed(identity, key, item.to, item.feature))
+  })
 }
 
 export interface ShellModuleDefinition {

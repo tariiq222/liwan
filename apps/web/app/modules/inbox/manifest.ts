@@ -35,7 +35,7 @@ const manifest: AppManifest = {
       { id: 'campaigns', labelKey: 'inbox.campaigns.settings.title', icon: 'i-lucide-megaphone', capability: 'inbox.campaigns.manage' },
       // Channel administration, or the read-only reference list of the channels a templates, forms or automation
       // manager may work on; those roles never receive channel administration.
-      { id: 'channels', labelKey: 'inbox.settings.channels.title', icon: 'i-lucide-plug-zap', capability: 'inbox.channels.manage', anyCapabilities: ['inbox.templates.manage', 'inbox.flows.manage', 'inbox.automation.manage'], within: '/settings/apps/inbox/channels' },
+      { id: 'channels', labelKey: 'inbox.settings.channels.title', icon: 'i-lucide-plug-zap', capability: 'inbox.channels.manage', anyCapabilities: ['inbox.templates.manage', 'inbox.flows.manage', 'inbox.automation.manage'], within: '/settings/apps/inbox/channels', navTo: '/settings/apps/inbox#channels' },
     ],
     // The page's tabs; the presets sit above them, and the parts with a page of their own stay in the sidebar.
     groups: [

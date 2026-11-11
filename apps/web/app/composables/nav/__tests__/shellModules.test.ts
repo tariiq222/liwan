@@ -85,6 +85,10 @@ describe('contextual module links', () => {
     const links = contextLinksForModule('settings', templatesManager, '/settings/apps/inbox')
     expect(links.map(link => link.id)).toContain('settings-inbox')
     expect(links.find(link => link.id === 'settings-inbox')?.capability).toBe('inbox.templates.manage')
+    // The palette, search and rail read `useNav`: the same alternative capability must admit the card there, and the
+    // card's target is its page anchor, not the administrator-only channels directory.
+    expect(useNav(templatesManager).map(item => item.to)).toContain('/settings/apps/inbox#channels')
+    expect(visibleShellModules(templatesManager).map(module => module.id)).toContain('settings')
   })
 
   it('gates and pins meeting and chat creation links', () => {

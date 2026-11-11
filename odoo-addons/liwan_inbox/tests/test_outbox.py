@@ -186,6 +186,16 @@ class TestOutbox(LiwanInboxCase):
         self.assertEqual(mocked.call_count, 0)
         self.assertEqual((message.delivery_state, message.send_token, message.unconfirmed), ('queued', 'c' * 32, False))
 
+    def test_settling_an_interrupted_send_notifies_the_conversation(self):
+        message = self.queue(send_token='d' * 32, send_started_at=fields.Datetime.now() - timedelta(minutes=5))
+        conversation_model = type(self.env['liwan.inbox.conversation'])
+        with patch.object(conversation_model, '_liwan_notify_bus', autospec=True) as notify:
+            self.run_outbox(MagicMock())
+        self.assertEqual(
+            {call.args[0].id for call in notify.call_args_list if call.args and call.args[0]},
+            {message.conversation_id.id},
+        )
+
     def test_a_message_with_an_unsettled_send_token_is_never_sent_again(self):
         message = self.queue(send_token='b' * 32, send_started_at=fields.Datetime.now())
         mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.AGAIN'}]}))

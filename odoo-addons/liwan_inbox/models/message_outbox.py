@@ -8,7 +8,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from .abstract_interactive import COMMERCE_TYPES
-from .batch import process_each
+from .batch import attempt, process_each
 from .constants import BACKOFF_MINUTES, MAX_ATTEMPTS, OUTBOX_BATCH, TYPING_MAX_AGE
 from odoo.addons.liwan_inbox.adapters import errors, tiktok, whatsapp
 
@@ -134,6 +134,11 @@ class LiwanInboxMessageOutbox(models.Model):
                 'interrupted send of message %s could not be settled: %s', message.id, type(error).__name__,
             ),
         )
+        if stuck:
+            # The browser may still have a healthy bus: the settled messages must reach its open thread.
+            notify_error = attempt(self.env, stuck.conversation_id._liwan_notify_bus)
+            if notify_error:
+                _logger.warning('settled sends could not be announced: %s', type(notify_error).__name__)
 
     def _liwan_prepare_send(self):
         """The durable marker of one send attempt, written and committed before the provider is called."""
