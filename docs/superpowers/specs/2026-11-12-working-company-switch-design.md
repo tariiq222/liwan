@@ -33,7 +33,9 @@ Everything after that line is unchanged: the pin, the declared gates, the descen
 
 ### 3.2 Reads of the home company
 
-40 places in the addons, outside tests, read `user.company_id` directly (12 of them in `liwan_core/models/access_service.py`). Each one means either "where this person belongs" or "where this request acts". The first kind stays as it is. The second kind must read `env.company`. The plan lists all 40 with the kind of each before any code changes; the two read so far are of the first kind: seat holders and the employee account link in `liwan_access_hr/models/access_service.py:260`.
+21 lines in the addons, outside tests, read `user.company_id`, and three more use the field in a search or SQL. All but two of them mean the home company of a user who is being administered or counted, and stay as they are: user administration in `liwan_core/models/access_service.py`, the employee account in `liwan_access_hr/models/access_service.py:260`, and seats. The two that change are the request pin itself and `liwan_pmo/models/task_notifications.py:61`, which treats the stored company as membership and would drop a recipient who is a member of the working company but homed elsewhere.
+
+User administration keeps its rule: an administrator sees and manages the users homed in the company the request acts in (`liwan_api/controllers/access_admin.py:87`, `liwan_core/models/access_service.py:354`). After a switch that company is the working company, so an administrator who holds the capability in a branch manages that branch's users from inside it.
 
 ### 3.3 API
 
@@ -46,20 +48,26 @@ Both use `type='json2'`, `auth='user'` and the shared `api_handler`. The zod con
 
 ### 3.4 The stale page check
 
-Every `/api/v1` request from the web client carries `X-Liwan-Company` with the company id from the `me` it rendered. When the header is present and differs from the working company, the server answers `409 conflict` with code `company_changed` and writes nothing. A request without the header is served as today, so server-side callers keep working. The header is a guard for the person, never a selector and never a security boundary.
+The comparison already exists for one screen. Finance fiscal writes send `X-Liwan-Expected-User-Id` and `X-Liwan-Expected-Company-Id`, and the server answers `409 request_context_changed` when they differ from the session (`liwan_finance/controllers/finance_setup.py:47`). The Nuxt proxy and both edge guards already pass these two headers.
+
+The design moves that comparison into the shared request handler and reuses the same header and the same code. Every `/api/v1` request from the web client carries `X-Liwan-Expected-Company-Id` with the company id from the `me` it rendered. When the header is present and differs from the working company, the server answers `409 request_context_changed` and writes nothing. A request without the header is served as today, so server-side callers keep working. The fiscal write keeps its stricter form, which requires both headers. The header is a guard for the person, never a selector and never a security boundary.
 
 ### 3.5 Audit
 
 A switch is not recorded in the access audit. It changes no grant, it can happen many times a day, and every record it leads to already carries its company and its author.
 
+### 3.6 Personal routes
+
+Every HR self-service route finds the caller's employee in the request company, and stock `hr.employee` holds one employee per user and company. Under decision 6 these routes ask for the home company through one shared function before they read: own profile, leave, payslips, warnings, insurance, shifts, assets and employee documents. The four copies of the employee lookup in `liwan_hr` become one.
+
 ## 4. Web
 
 - The switch sits in the user menu and lists the companies from `me`. It is hidden for a user with one company. The component comes from the Storybook catalog under [DESIGN.md](../../../DESIGN.md).
 - A user with more than one company always sees the working company's name in the shell, so they know where their next save goes.
-- After a switch the client reloads `me`. The identity key already includes the company (`apps/web/app/utils/sessionExpiry.ts:17`), so the existing access refresh disposes the private query tree and builds a new one; no cached list of the old company survives. This is the rule the employee self-service plan already set for a company switch (`docs/superpowers/plans/2026-10-22-employee-self-service.md:39`).
+- After a switch the client reloads `me` and `branding`; the organisation logo is loaded per company and is not part of the query tree. The identity key already includes the company (`apps/web/app/utils/sessionExpiry.ts:17`), so the existing access refresh disposes the private query tree and builds a new one; no cached list of the old company survives. This is the rule the employee self-service plan already set for a company switch (`docs/superpowers/plans/2026-10-22-employee-self-service.md:39`).
 - The client then goes to the home page, because the record on screen may not exist in the new company.
-- A `company_changed` answer makes the client reload `me` and tell the user that the working company changed in another tab.
-- Live channels are opened again for the new company. The plan checks how `bus.client.ts` subscribes.
+- A `request_context_changed` answer makes the client reload `me` and tell the user that the working company changed in another tab.
+- The live socket is reconnected after a switch. It subscribes from the session and resubscribes only when it opens (`apps/web/app/composables/useBus.ts:396`).
 
 ## 5. What does not change
 
@@ -75,7 +83,7 @@ A switch is not recorded in the access audit. It changes no grant, it can happen
 | --- | --- | --- |
 | Where a session starts | The home company. Or the company the person last worked in, stored per user | The home company. It is predictable and matches where the person is employed and counted |
 | Personal pages after a switch | Follow the person: own leave, payslips and profile read in the home company. Or follow the working company, so they show nothing while the person is switched | Follow the person. An employee covering another branch should still find their own leave balance |
-| Notifications bell after a switch | All of the person's notifications across their companies. Or only those of the working company | Not decided. The plan first reads how the bell is scoped today |
+| Notifications bell after a switch | Show every company's notifications and offer to switch when one is opened. Or leave the bell as it is | Unchanged in this change. The bell has no company filter of its own; each application decides (CRM spans the user's companies, PMO follows the request company, `liwan_notify/models/notify_service.py:113`). A unified bell is a separate design |
 
 ## 7. What the pull request must prove
 
@@ -85,7 +93,7 @@ A switch is not recorded in the access audit. It changes no grant, it can happen
 - Removing the membership while the session is in B returns the next request to the home company.
 - In `isolated` mode a root administrator with no membership in the branch cannot switch into it.
 - Two sessions of one user work in two companies at the same time without affecting each other.
-- A write with a stale `X-Liwan-Company` is refused and writes nothing.
+- A write with a stale `X-Liwan-Expected-Company-Id` is refused and writes nothing, on a route outside finance.
 - Seat counts, the employee link and the user's stored company are the same before and after a switch.
 - After a switch the web client shows no row of the old company in any list it had open.
 - The switch works in `saas` and `non_saas`.
@@ -94,12 +102,12 @@ The change touches authorization and the session, so it takes the full path: imp
 
 ## 8. Open points
 
+The four points this file first left open were read on 2026-11-12 and are settled in sections 3 and 4. The implementation plan is [2026-11-12-working-company-switch.md](../plans/2026-11-12-working-company-switch.md). What remains:
+
 | Point | Needs |
 | --- | --- |
-| The 40 reads of `user.company_id`, classified as home or working | The plan, before code |
-| Which routes are personal under decision 6 | The plan, from the HR self-service routes |
-| How the bell and the live channels are scoped | A read of `liwan_notify` and `bus.client.ts` |
-| Whether any server-side cache in `apps/web/server` is keyed by session without the company | A read before code |
+| Whether the onboarding steps and the operations "my requests" routes need the home company; they filter by user with no company today | A read by the implementer |
+| Whether session rotation at sign-in carries a stored working company into a new sign-in | A test in the first server task |
 
 ## 9. Options rejected
 
