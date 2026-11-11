@@ -102,6 +102,20 @@ class TestVisibilityPolicy(LiwanInboxCase):
             {tuple(payload['ids']) for _partner, payload in notices}, {tuple(sorted(conversations.ids))},
         )
 
+    def test_a_mixed_batch_sends_each_reader_only_their_visible_ids(self):
+        self.set_policy('department')
+        self.everything._liwan_notify_bus()
+        self.env.cr.flush()
+        notices = dict(self.bus_notices())
+        self.assertEqual(
+            set(notices[self.agent.partner_id.id]['ids']),
+            {self.mine.id, self.in_department.id, self.unassigned.id},
+        )
+        self.assertEqual(
+            set(notices[self.agent2.partner_id.id]['ids']),
+            {self.others.id, self.unassigned.id},
+        )
+
     def test_the_reader_capability_is_checked_once_per_reader_not_once_per_conversation(self):
         self.set_policy('all')
         conversations = self.everything

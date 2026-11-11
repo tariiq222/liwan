@@ -28,6 +28,10 @@ class LiwanInboxContactConsent(models.Model):
     campaign_id = fields.Many2one('liwan.inbox.campaign', ondelete='set null')
     # A WhatsApp opt-out the customer later withdrew in WhatsApp: it no longer decides the state, and stays in the history.
     resumed = fields.Boolean(default=False)
+    # The provider timestamp of the decision that created this event, and of the resume that withdrew it. A delivery
+    # re-run after a partial failure applies its items again; these two values make that replay idempotent.
+    provider_at = fields.Datetime(copy=False, index=True)
+    resumed_at = fields.Datetime(copy=False)
 
 
 class LiwanInboxOptKeyword(models.Model):

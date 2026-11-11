@@ -179,6 +179,16 @@ class TestOutbox(LiwanInboxCase):
         self.run_outbox(mocked)
         self.assertEqual(mocked.call_count, 0)
 
+    def test_a_message_with_an_unsettled_send_token_is_never_sent_again(self):
+        message = self.queue(send_token='b' * 32, send_started_at=fields.Datetime.now())
+        mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.AGAIN'}]}))
+        message_model = type(self.env['liwan.inbox.message'])
+        # A settlement that could not write its failure must still keep the send query away from the token.
+        with patch.object(message_model, '_liwan_settle_interrupted_sends', lambda model: None):
+            self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 0)
+        self.assertEqual((message.delivery_state, message.send_token), ('queued', 'b' * 32))
+
     def test_a_run_cut_short_by_the_time_budget_does_not_ask_for_another_run(self):
         first, second = self.queue(), self.queue()
         # Both fit the batch, but the cron's budget ends after the first message.

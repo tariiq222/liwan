@@ -35,15 +35,24 @@ class LiwanInboxContactMarketing(models.Model):
             contact.marketing_consent_at = decisive.date or False
             contact.marketing_consent_source = decisive.source or False
 
-    def _liwan_record_consent(self, state, source, note=None, author=None, campaign=None):
-        """Add a consent event; an import never overrides an opt-out. Returns the event (empty when refused)."""
+    def _liwan_record_consent(self, state, source, note=None, author=None, campaign=None, provider_at=None):
+        """Add a consent event; an import never overrides an opt-out. Returns the event (empty when refused).
+
+        A delivery is re-run after a partial failure, so a channel decision carries the provider's own timestamp and is
+        recorded once: the replay finds the same decision and changes nothing.
+        """
         self.ensure_one()
         Consent = self.env['liwan.inbox.contact.consent']
+        if provider_at and self.consent_ids.filtered(
+            lambda event: event.source == source and event.state == state and event.provider_at == provider_at,
+        ):
+            return Consent
         if source == 'import' and state == 'opted_in' and self.marketing_consent == 'opted_out':
             return Consent
         return Consent.create({
             'contact_id': self.id, 'state': state, 'source': source, 'note': note or False,
             'author_id': author.id if author else False, 'campaign_id': campaign.id if campaign else False,
+            'provider_at': provider_at or False,
         })
 
     def _liwan_history(self):
@@ -62,21 +71,24 @@ class LiwanInboxContactMarketing(models.Model):
             return
         if item.value == 'stop':
             recipient = self.env['liwan.inbox.campaign.recipient']._liwan_latest_for_contact(contact)
-            contact._liwan_record_consent('opted_out', 'whatsapp', campaign=recipient.campaign_id)
+            contact._liwan_record_consent('opted_out', 'whatsapp', campaign=recipient.campaign_id, provider_at=item.at)
             recipient._liwan_mark_unsubscribed(item.at)
             return
-        contact._liwan_withdraw_opt_out('whatsapp')
+        contact._liwan_withdraw_opt_out('whatsapp', at=item.at)
 
-    def _liwan_withdraw_opt_out(self, source):
+    def _liwan_withdraw_opt_out(self, source, at=None):
         """Restore the state before the customer's own opt-out through `source`; True when there was one to withdraw.
 
         Only the newest decision can be withdrawn, and only an opt-out the customer made through the same channel: a later
         decision, an agent's opt-out or a delivery error is never undone this way, and nothing is ever opted in from unknown.
+        A replayed resume (same provider timestamp) is a no-op, so it never withdraws an older opt-out.
         """
         self.ensure_one()
+        if at and self.consent_ids.filtered(lambda event: event.resumed_at == at):
+            return True  # already applied by an earlier attempt of the same delivery
         newest = self.consent_ids.filtered(lambda event: not event.resumed).sorted(lambda event: (event.date, event.id))[-1:]
         if newest and (newest.source, newest.state) == (source, 'opted_out'):
-            newest.resumed = True
+            newest.write({'resumed': True, 'resumed_at': at or fields.Datetime.now()})
             return True
         return False
 

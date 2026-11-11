@@ -28,7 +28,8 @@ class LiwanInboxMessageOutbox(models.Model):
         full = False
         for campaign in (False, True):
             due = self.search([
-                ('direction', '=', 'out'), ('delivery_state', '=', 'queued'), ('next_attempt_at', '<=', fields.Datetime.now()),
+                ('direction', '=', 'out'), ('delivery_state', '=', 'queued'), ('send_token', '=', False),
+                ('next_attempt_at', '<=', fields.Datetime.now()),
                 *([('campaign_recipient_ids.campaign_id.state', '=', 'running')] if campaign else [('campaign_recipient_ids', '=', False)]),
             ], order='next_attempt_at, id', limit=OUTBOX_BATCH)
             drained = process_each(

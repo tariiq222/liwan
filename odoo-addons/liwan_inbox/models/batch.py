@@ -17,6 +17,13 @@ def attempt(env, work):
     return None
 
 
+def _report_failure(env, record, error, record_failure):
+    """Run the failure report in its own savepoint: a failing report must not stop the rest of the batch."""
+    report_error = attempt(env, lambda: record_failure(record, error))
+    if report_error:
+        _logger.warning('%s %s failure report failed: %s', record._name, record.id, type(report_error).__name__)
+
+
 def process_each(records, work, record_failure, prepare=None):
     """Run `work(record)` for each record of a cron batch, committing after every one.
 
@@ -43,13 +50,13 @@ def process_each(records, work, record_failure, prepare=None):
             if error:
                 # The marker could not be written (the record is gone): nothing is sent for it.
                 _logger.warning('%s %s could not be prepared: %s', record._name, record.id, type(error).__name__)
-                record_failure(record, error)
+                _report_failure(records.env, record, error, record_failure)
                 remaining_time = cron._commit_progress(1)
                 continue
             remaining_time = cron._commit_progress(0)
         error = attempt(records.env, lambda record=record: work(record))
         if error:
             _logger.warning('%s %s failed: %s', record._name, record.id, type(error).__name__)
-            record_failure(record, error)
+            _report_failure(records.env, record, error, record_failure)
         remaining_time = cron._commit_progress(1)
     return True
