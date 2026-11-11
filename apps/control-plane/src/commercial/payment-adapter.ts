@@ -105,6 +105,9 @@ export function toBytes(raw: Uint8Array | string): Uint8Array {
   return typeof raw === 'string' ? new TextEncoder().encode(raw) : raw
 }
 
+/** The floor every service key in config.ts already enforces; the webhook secret is the only defence of the public event route. */
+export const MIN_WEBHOOK_SECRET_BYTES = 32
+
 export function paymentAdapterFromEnv(env: Record<string, string | undefined>): PaymentAdapter {
   const provider = env.LIWAN_PAYMENT_PROVIDER
   const need = (k: string): string => {
@@ -119,9 +122,11 @@ export function paymentAdapterFromEnv(env: Record<string, string | undefined>): 
   if (provider === 'moyasar') {
     const mode = need('MOYASAR_MODE')
     if (mode !== 'test' && mode !== 'live') throw new PaymentError('provider_not_configured', 'MOYASAR_MODE must be test|live')
+    const webhookSecret = need('MOYASAR_WEBHOOK_SECRET')
+    if (Buffer.byteLength(webhookSecret) < MIN_WEBHOOK_SECRET_BYTES) throw new PaymentError('provider_not_configured', `MOYASAR_WEBHOOK_SECRET must contain at least ${MIN_WEBHOOK_SECRET_BYTES} bytes`)
     return new MoyasarAdapter({
       secretKey: need('MOYASAR_SECRET_KEY'),
-      webhookSecret: need('MOYASAR_WEBHOOK_SECRET'),
+      webhookSecret,
       merchantAccount: need('MOYASAR_ACCOUNT_NAME'),
       expectLive: mode === 'live',
       allowedReturnOrigins: need('LIWAN_PAYMENT_RETURN_ORIGINS').split(',').map(s => s.trim()).filter(Boolean),
