@@ -5,7 +5,7 @@ import type { Principal } from '@liwan/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { endTrialOn, expireTrials } from '../commercial/trial-expiry.js'
-import { processTrialLapses } from '../commercial/trial-lapse.js'
+import { LAPSE_RETRY_MS, processTrialLapses } from '../commercial/trial-lapse.js'
 import { attention } from '../commercial/attention.js'
 import { assertReconfigureAuthority, runSubscriptionReconfigure, type SubscriptionRunner } from '../shared/subscription-reconfigure.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
@@ -171,7 +171,9 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(job.authority.entitlement.features).toMatchObject({ 'users.limit': 3, 'storage.limit_mb': 20480, 'branches.extra_limit': 1, 'pmo.enabled': false })
     for (const key of PAID_KEYS) expect(job.authority.entitlement.features[key]).toBe(false)
     expect(await runJob(order.id, okRunner)).toMatchObject({ state: 'verified' })
-    await processTrialLapses(pool, { now, subscription_id: f.subscription })
+    // Of the two concurrent scans, the one that runs after the other has ordered the lock finds the order still in
+    // flight and postpones the lapse by LAPSE_RETRY_MS; which scan wins is timing. Settle after that window either way.
+    await processTrialLapses(pool, { now: new Date(now.getTime() + LAPSE_RETRY_MS), subscription_id: f.subscription })
     expect(await row(f.subscription)).toMatchObject({ state: 'active', trial_outcome: 'free_base', trial_ends_at: null })
     expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done', order_seq: 1 })
     expect((await pool.query('SELECT 1 FROM invoices WHERE customer_id=$1', [f.customer])).rowCount).toBe(0)

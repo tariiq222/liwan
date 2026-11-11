@@ -9,7 +9,6 @@ export const MEETING_REMINDER_HOURS_MIN = 1
 export const MEETING_REMINDER_HOURS_MAX = 168
 /** The first segment of a new meeting reference: A-Z and 0-9 only, as the server's CHECK states. */
 export const MEETING_REFERENCE_PREFIX_PATTERN = /^[A-Z0-9]{1,10}$/
-export const MEETING_REFERENCE_PREFIX_MAX_LENGTH = 10
 
 const MeetingReminderHoursSchema = z.number().int().min(MEETING_REMINDER_HOURS_MIN).max(MEETING_REMINDER_HOURS_MAX)
 const MeetingReferencePrefixSchema = z.string().regex(MEETING_REFERENCE_PREFIX_PATTERN)

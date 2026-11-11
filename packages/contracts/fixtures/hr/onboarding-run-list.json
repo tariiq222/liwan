@@ -1,8 +1,15 @@
 {
   "items": [
     {
-      "cancellation": null,
-      "done": 0,
+      "cancellation": {
+        "by": {
+          "id": 4,
+          "name": "Onboarding Manager"
+        },
+        "on": "2026-01-01T00:00:00Z",
+        "reason": "wrong employee"
+      },
+      "done": 1,
       "employee": {
         "id": 2,
         "name": "Onboarding Employee"
@@ -14,10 +21,10 @@
       },
       "plan": {
         "id": 3,
-        "name": "Onboarding plan"
+        "name": "Two steps"
       },
       "plan_date": "2026-11-02",
-      "state": "open",
+      "state": "cancelled",
       "total": 1
     }
   ],

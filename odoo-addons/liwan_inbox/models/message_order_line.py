@@ -5,7 +5,7 @@ from odoo import fields, models
 class LiwanInboxMessageOrderLine(models.Model):
     """One line of a customer's cart as WhatsApp sent it (the retailer id, quantity and the price the cart showed)."""
     _name = 'liwan.inbox.message.order.line'
-    _description = 'Customer Inbox cart line'
+    _description = 'Customer Messages cart line'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 

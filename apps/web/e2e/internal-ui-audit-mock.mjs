@@ -5,7 +5,7 @@ import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { financeGapsPreview } from './finance-documents-ui-preview-data.mjs'
-import { capabilitiesForRequest } from './mock-capabilities.mjs'
+import { capabilitiesForRequest, featuresOffForRequest } from './mock-capabilities.mjs'
 import { hrInsurancePreviewWrite, hrWarningsPreviewWrite } from './hr-areas-ui-preview-data.mjs'
 import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
@@ -638,10 +638,15 @@ async function handle(req, res) {
       const noCrmImport = /(?:^|;\s*)mock_features=no_crm_import(?:;|$)/.test(cookie)
       const base = { ...ME }
       if (noPolicy) delete base.platform
-      let platform = ME.platform
-      if (readOnlyPayroll) platform = { ...platform, writable_features: platform.writable_features.filter(key => key !== 'hr.payroll') }
-      if (noCrmImport) platform = { ...platform, readable_features: platform.readable_features.filter(key => key !== 'crm.import'), writable_features: platform.writable_features.filter(key => key !== 'crm.import') }
-      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, ...INBOX_CAPABILITIES]), AI_USE, 'ai.settings.manage'] })
+      const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
+      // `mock_feature_off=<key>` closes named sub-features for this request, like a tenant that did not buy them;
+      // the gate spec turns `crm.import` off to test a plan without the import sub-feature.
+      const off = featuresOffForRequest(req.headers.cookie)
+      const without = keys => keys.filter(key => !off.includes(key))
+      const closedPlatform = platform && off.length
+        ? { ...platform, readable_features: without(platform.readable_features), writable_features: without(platform.writable_features) }
+        : platform
+      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform: closedPlatform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, ...INBOX_CAPABILITIES]), AI_USE, 'ai.settings.manage'] })
     }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)

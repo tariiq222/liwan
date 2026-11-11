@@ -2,6 +2,8 @@
 """Retention of the marketing data: the company's retention window applies to campaigns' recipients and to contacts."""
 from odoo import api, models
 
+from .constants import PURGE_BATCH
+
 
 class LiwanInboxCampaignRetention(models.Model):
     _inherit = 'liwan.inbox.campaign'
@@ -10,18 +12,25 @@ class LiwanInboxCampaignRetention(models.Model):
     def _liwan_purge_marketing(self, company, cutoff):
         """Purge what is older than `cutoff`: finished campaigns lose their recipients (the campaign keeps its final
         statistics), and contacts with no conversation, no recipient and no recent consent decision are deleted, except an
-        opted-out contact, which stays as a bare suppression record (its number and the opt-out, nothing else)."""
+        opted-out contact, which stays as a bare suppression record (its number and the opt-out, nothing else).
+
+        Every query stays inside `company` and is capped at `PURGE_BATCH`, so one pass handles a batch of that company
+        and the next one continues; statistics are frozen once, before any recipient goes, so a purge never changes them.
+        """
         for campaign in self.search([
             ('company_id', '=', company.id), ('state', 'in', ('done', 'cancelled')), ('completed_at', '<', cutoff),
             ('stats_frozen', '=', False),
-        ]):
+        ], limit=PURGE_BATCH):
             stats = self._liwan_stats(campaign)[campaign.id]
             campaign.write({'stats_frozen': True, **{f'frozen_{key}': value for key, value in stats.items()}})
-            campaign.recipient_ids.unlink()
-        aged = self.env['liwan.inbox.contact'].search([
+        self.env['liwan.inbox.campaign.recipient'].search([
+            ('company_id', '=', company.id), ('campaign_id.state', 'in', ('done', 'cancelled')),
+            ('campaign_id.completed_at', '<', cutoff), ('campaign_id.stats_frozen', '=', True),
+        ], limit=PURGE_BATCH).unlink()
+        aged = [
             ('company_id', '=', company.id), ('conversation_ids', '=', False), ('recipient_ids', '=', False),
             ('last_activity_at', '<', cutoff), ('consent_ids', 'not any', [('date', '>=', cutoff)]),
-        ])
-        aged.filtered(lambda contact: contact.marketing_consent != 'opted_out').unlink()
-        for contact in aged.exists().filtered(lambda contact: contact.marketing_consent == 'opted_out'):
+        ]
+        self.env['liwan.inbox.contact'].search(aged + [('marketing_consent', '!=', 'opted_out')], limit=PURGE_BATCH).unlink()
+        for contact in self.env['liwan.inbox.contact'].search(aged + [('marketing_consent', '=', 'opted_out')], limit=PURGE_BATCH):
             contact._liwan_anonymize_suppression()

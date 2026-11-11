@@ -24,12 +24,11 @@ def parse_branding_vals(payload):
 
 
 def _logo_version(company):
-    timestamp = company.write_date.strftime('%Y%m%d%H%M%S%f') if company.write_date else '0'
+    # Only the logo bytes feed the version: the URL is public and must not reveal write times.
     logo = company.logo or b''
     if isinstance(logo, str):
         logo = logo.encode()
-    digest = hashlib.sha256(logo).hexdigest()[:12]
-    return f'{timestamp}-{digest}'
+    return hashlib.sha256(logo).hexdigest()[:12]
 
 
 def dump_logo_url(company):

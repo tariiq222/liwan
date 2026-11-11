@@ -257,6 +257,8 @@ function seed() {
         reply: null, resolve: false, department: null, assignee: null, tags: [{ id: 1, name: 'شكوى' }], priority: 'urgent' },
     ],
     departments, tags, channels, contacts, conversations, messages, templates, canned, flows, submissions, catalog,
+    // One delivery the worker stopped after its attempts: the health page offers the operator a re-run.
+    events: [{ id: 901, channel_id: 1, state: 'failed', attempts: 5, error: 'item 2: RuntimeError', created_at: ago(0.5) }],
     // Number-health timeline and business profile per channel (inbox-reports-preview-data.mjs).
     health: seedChannelExtras(channels.map(item => item.id), ago),
     ids: { department: 3, tag: 4, canned: 3, channel: 3, template: 9, rule: 3, flow: 4, submission: 2, field: nextFieldId, upload: 100, shortcut: 6, message: () => nextMessageId++ },
@@ -1169,7 +1171,25 @@ export function inboxPreviewData(method, path, url, body = {}) {
   if (resource === '__mock' && parts[4] === 'flow-answer' && method === 'POST') return answerFlow(body)
   if (resource === 'flows' && id !== undefined) return flowRoute(method, id, parts[5], body, url)
   if (resource === 'templates' && id !== undefined) return templateRoute(method, id, body)
+  if (resource === 'channels' && id !== undefined && parts[5] === 'events' && method === 'GET') {
+    const wanted = url.searchParams.get('state') ?? 'failed'
+    const items = state.events
+      .filter(event => event.channel_id === id && event.state === wanted)
+      .map(({ id: eventId, state: eventState, attempts, error, created_at }) => ({ id: eventId, state: eventState, attempts, error, created_at }))
+    return ok(list(items))
+  }
+  if (resource === 'events' && id !== undefined && parts[5] === 'retry' && method === 'POST') {
+    const event = state.events.find(candidate => candidate.id === id)
+    if (!event) return fail(404, 'not_found', 'not found')
+    if (event.state !== 'failed') return fail(422, 'invalid', 'only a failed delivery can be retried')
+    Object.assign(event, { state: 'pending', attempts: 0, error: null })
+    return ok({ id: event.id, state: event.state, attempts: event.attempts, error: event.error, created_at: event.created_at })
+  }
   if (resource === 'reports') return reportsRoute(mockContext(), method, parts, url)
+  // The minimal channel reference a templates, forms or automation manager may work on (no admin-only fields).
+  if (resource === 'channels' && parts[4] === 'work' && method === 'GET') {
+    return ok(list(state.channels.map(({ id, name, kind, department }) => ({ id, name, kind, department }))))
+  }
   if (resource === 'channels') return channelRoute(method, parts, body, url)
   return undefined
 }

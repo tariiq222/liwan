@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
+    "./canonical-json": "./src/canonical-json.ts",
     "./shared": "./src/shared/provisioning.ts"
   },
   "scripts": {

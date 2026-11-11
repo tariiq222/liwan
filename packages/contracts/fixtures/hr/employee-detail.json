@@ -3,7 +3,7 @@
     "active": true,
     "login": "status_visibility_user",
     "role": "employee",
-    "user_id": 16
+    "user_id": 630
   },
   "active": true,
   "contract": {
@@ -22,11 +22,8 @@
   "job_title": "",
   "manager": null,
   "name": "Separation Employee",
-  "nationality": {
-    "id": 192,
-    "name": "Saudi Arabia"
-  },
-  "user_id": 16,
+  "nationality": null,
+  "user_id": 630,
   "work_email": "s.s@example.com",
   "work_phone": ""
 }

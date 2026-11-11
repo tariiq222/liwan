@@ -4,6 +4,7 @@ import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxChannelActions from '@/components/inbox/InboxChannelActions.vue'
 import InboxChannelAlerts from '@/components/inbox/InboxChannelAlerts.vue'
+import InboxChannelFailedDeliveries from '@/components/inbox/InboxChannelFailedDeliveries.vue'
 import InboxChannelHealthCard from '@/components/inbox/InboxChannelHealthCard.vue'
 import InboxChannelSending from '@/components/inbox/campaigns/InboxChannelSending.vue'
 import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
@@ -70,6 +71,7 @@ function runRefresh() {
       <InboxChannelHealthCard :health="channel.health" />
       <InboxChannelSending v-if="campaignsOn" :channel-id="id" can-edit />
       <InboxChannelAlerts :channel-id="id" />
+      <InboxChannelFailedDeliveries v-if="channel.kind === 'whatsapp'" :channel-id="id" />
       <InboxWebhookFields />
       <InboxChannelActions :channel="channel" />
     </template>

@@ -1,35 +1,47 @@
 {
   "can_cancel": true,
   "cancellation": null,
-  "done": 0,
+  "done": 1,
   "employee": {
     "id": 2,
-    "name": "Onboarding Employee"
+    "name": "Steps Newcomer"
   },
   "id": 1,
   "launched_by": {
     "id": 4,
-    "name": "Onboarding Manager"
+    "name": "Steps HR"
   },
   "plan": {
     "id": 3,
-    "name": "Onboarding plan"
+    "name": "Steps plan"
   },
-  "plan_date": "2026-11-02",
+  "plan_date": "2026-11-11",
   "state": "open",
   "steps": [
     {
       "assignee": {
+        "id": 6,
+        "name": "Sara"
+      },
+      "can_complete": false,
+      "date_deadline": "2026-11-11",
+      "date_done": "2026-11-11",
+      "id": 5,
+      "state": "done",
+      "summary": "Sign the contract"
+    },
+    {
+      "assignee": {
         "id": 4,
-        "name": "Onboarding Manager"
+        "name": "Steps HR"
       },
       "can_complete": true,
-      "date_deadline": "2026-11-02",
+      "date_deadline": "2026-11-11",
       "date_done": null,
-      "id": 5,
-      "state": "planned",
+      "id": 7,
+      "state": "today",
       "summary": "Prepare the desk"
     }
   ],
-  "total": 1
+  "total": 2
 }

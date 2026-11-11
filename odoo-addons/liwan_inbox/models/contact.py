@@ -5,7 +5,7 @@ from odoo import api, fields, models
 class LiwanInboxContact(models.Model):
     """A customer of the company. Deliberately not a res.partner."""
     _name = 'liwan.inbox.contact'
-    _description = 'Customer Inbox contact'
+    _description = 'Customer Messages contact'
     _order = 'name, id'
     _liwan_scope = 'company'
 
@@ -26,7 +26,7 @@ class LiwanInboxContact(models.Model):
 class LiwanInboxContactIdentity(models.Model):
     """How a contact is addressed on one channel kind (the WhatsApp id)."""
     _name = 'liwan.inbox.contact.identity'
-    _description = 'Customer Inbox contact identity'
+    _description = 'Customer Messages contact identity'
     _liwan_scope = 'company'
 
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',

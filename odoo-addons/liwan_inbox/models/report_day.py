@@ -16,7 +16,7 @@ COUNTERS = (
 class LiwanInboxReportDay(models.Model):
     """The counters of one local day, channel, department and agent. Rebuilt from the messages and cycles, never incremented."""
     _name = 'liwan.inbox.report.day'
-    _description = 'Customer Inbox daily report row'
+    _description = 'Customer Messages daily report row'
     _order = 'day desc, id'
     _liwan_scope = 'company'
 

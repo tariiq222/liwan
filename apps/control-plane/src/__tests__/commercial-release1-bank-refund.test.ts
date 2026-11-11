@@ -469,8 +469,8 @@ suite('the 14-day refund window (W7)', () => {
     await pool.query("UPDATE invoices SET status='paid',paid_at=$2 WHERE id=$1", [invoice.id, paidAt])
     if (!withNote) return { customer_id: id, order, invoice, noteId: null as string | null }
     const noteId = randomUUID()
-    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-      VALUES($1,$2,$3,'credit_note','Refund request',$4,$5,$6,'pending','vendor:7',$7)`, [noteId, invoice.id, id, invoice.total_minor, invoice.currency, invoice.exponent, origin])
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+      VALUES($1,$2,$3,'credit_note','Refund request',$4,$5,$6,'pending','vendor:7',$7,$8)`, [noteId, invoice.id, id, invoice.total_minor, invoice.currency, invoice.exponent, origin, origin === 'vendor' ? 'vendor_refund' : 'duplicate_payment'])
     return { customer_id: id, order, invoice, noteId }
   }
   const ask = (noteId: string) => refundCreditNote(pool, { adjustment_id: noteId, actor, request: { external_reference: `MOY-${randomUUID().slice(0, 8)}`, reason: 'Customer asked within the window' } })
@@ -541,13 +541,13 @@ suite('the 14-day refund window (W7)', () => {
     await ask(first.id)
     // A4: the once-per-invoice rule is the customer-requested (vendor) refund. A second VENDOR note is refused...
     const secondVendor = randomUUID()
-    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-      VALUES($1,$2,$3,'credit_note','Second vendor note',$4,'SAR',2,'pending','vendor:7','vendor')`, [secondVendor, invoice.id, customer_id, invoice.total_minor])
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+      VALUES($1,$2,$3,'credit_note','Second vendor note',$4,'SAR',2,'pending','vendor:7','vendor','vendor_refund')`, [secondVendor, invoice.id, customer_id, invoice.total_minor])
     await expect(ask(secondVendor)).rejects.toMatchObject({ status: 409, code: 'invoice_already_refunded' })
     // ...while a system note (a duplicate charge) is keyed by its own charge and may be refunded.
     const systemNote = randomUUID()
-    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-      VALUES($1,$2,$3,'credit_note','Second note',$4,'SAR',2,'pending','system','system')`, [systemNote, invoice.id, customer_id, invoice.total_minor])
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+      VALUES($1,$2,$3,'credit_note','Second note',$4,'SAR',2,'pending','system','system','duplicate_payment')`, [systemNote, invoice.id, customer_id, invoice.total_minor])
     await expect(ask(systemNote)).resolves.toMatchObject({ status: 'refunded' })
   })
 
@@ -646,8 +646,8 @@ suite('the 14-day refund window (W7)', () => {
     const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false)
     const duplicate = async () => {
       const noteId = randomUUID()
-      await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-        VALUES($1,$2,$3,'credit_note','duplicate payment — manual review',$4,$5,$6,'pending','system','system')`,
+      await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+        VALUES($1,$2,$3,'credit_note','duplicate payment — manual review',$4,$5,$6,'pending','system','system','duplicate_payment')`,
       [noteId, paid.invoice.id, paid.customer_id, paid.invoice.total_minor, paid.invoice.currency, paid.invoice.exponent])
       return noteId
     }
@@ -660,8 +660,8 @@ suite('the 14-day refund window (W7)', () => {
     await expect(ask(vendorNote.id)).resolves.toMatchObject({ status: 'refunded' })
     void vendor
     const second = randomUUID()
-    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-      VALUES($1,$2,$3,'credit_note','Second vendor note',$4,$5,$6,'pending','vendor:7','vendor')`,
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+      VALUES($1,$2,$3,'credit_note','Second vendor note',$4,$5,$6,'pending','vendor:7','vendor','vendor_refund')`,
     [second, paid.invoice.id, paid.customer_id, paid.invoice.total_minor, paid.invoice.currency, paid.invoice.exponent])
     await expect(ask(second)).rejects.toMatchObject({ status: 409, code: 'invoice_already_refunded' })
   })
@@ -671,8 +671,8 @@ suite('the 14-day refund window (W7)', () => {
     const old = await paidWithCreditNote(new Date(Date.now() - 20 * 86_400_000).toISOString(), 'vendor', false)
     await expect(requestRefund(old.invoice.id)).rejects.toMatchObject({ code: 'refund_window_closed' })
     const system = randomUUID()
-    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-      VALUES($1,$2,$3,'credit_note','duplicate payment — manual review',$4,$5,$6,'pending','system','system')`,
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+      VALUES($1,$2,$3,'credit_note','duplicate payment — manual review',$4,$5,$6,'pending','system','system','duplicate_payment')`,
     [system, old.invoice.id, old.customer_id, old.invoice.total_minor, old.invoice.currency, old.invoice.exponent])
     await expect(ask(system)).resolves.toMatchObject({ status: 'refunded' })
   })

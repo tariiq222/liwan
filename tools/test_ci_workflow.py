@@ -134,5 +134,27 @@ class StaticStageTest(unittest.TestCase):
         self.assertIn('all) for each in "${PARTS[@]}"; do "$each"; done', self.script)
 
 
+class ContractFixturesJobTest(unittest.TestCase):
+    """The serializer-to-zod parity check is a nightly-only job: never a pull request, always part of ci-result."""
+    workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+
+    def job(self):
+        return re.search(r'(?ms)^  contract-fixtures:\n(.*?)(?=^  [a-z][a-z0-9-]*:\n)', self.workflow).group(1)
+
+    def test_it_runs_on_the_nightly_run_and_a_full_dispatch_only(self):
+        self.assertIn("    if: github.event_name == 'schedule' || inputs.full\n", self.job())
+
+    def test_it_runs_the_stage_script_on_the_odoo_toolchain(self):
+        job = self.job()
+        self.assertIn('run: deploy/ci/contract-fixtures.sh', job)
+        self.assertIn("odoo: 'true'", job)
+        self.assertIn('timeout-minutes:', job)
+        self.assertNotIn('continue-on-error', job)
+
+    def test_a_red_job_fails_the_aggregate(self):
+        aggregate = re.search(r'(?ms)^  ci-result:\n(.*?)(?=^  [a-z][a-z0-9-]*:\n)', self.workflow).group(1)
+        self.assertRegex(aggregate, r'needs: \[[^\]]*\bcontract-fixtures\b')
+
+
 if __name__ == '__main__':
     unittest.main()

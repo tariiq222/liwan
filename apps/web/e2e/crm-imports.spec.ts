@@ -193,7 +193,7 @@ test('the answers of the mock follow the contracts', async ({ page }) => {
 
 test('without the crm.import feature the nav entry and the create command are hidden and the direct routes are refused', async ({ page, baseURL }) => {
   // The mock drops crm.import from the identity of every request that carries this cookie, the server-side render included.
-  await page.context().addCookies([{ name: 'mock_features', value: 'no_crm_import', url: baseURL! }])
+  await page.context().addCookies([{ name: 'mock_feature_off', value: 'crm.import', url: baseURL! }])
   await page.goto('/crm')
   await expect(page.locator('main h1')).toHaveText('لوحة المتابعة')
   const menu = page.getByTestId('application-navigation')

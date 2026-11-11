@@ -13,7 +13,7 @@ KEYWORD_LENGTH = 64
 class LiwanInboxContactConsent(models.Model):
     """One consent decision about marketing messages: an opt-in with its proof, or an opt-out and where it came from."""
     _name = 'liwan.inbox.contact.consent'
-    _description = 'Customer Inbox marketing consent event'
+    _description = 'Customer Messages marketing consent event'
     _order = 'date desc, id desc'
     _liwan_scope = 'company'
 
@@ -28,12 +28,16 @@ class LiwanInboxContactConsent(models.Model):
     campaign_id = fields.Many2one('liwan.inbox.campaign', ondelete='set null')
     # A WhatsApp opt-out the customer later withdrew in WhatsApp: it no longer decides the state, and stays in the history.
     resumed = fields.Boolean(default=False)
+    # The provider timestamp of the decision that created this event, and of the resume that withdrew it. A delivery
+    # re-run after a partial failure applies its items again; these two values make that replay idempotent.
+    provider_at = fields.Datetime(copy=False, index=True)
+    resumed_at = fields.Datetime(copy=False)
 
 
 class LiwanInboxOptKeyword(models.Model):
     """A word that, sent alone by a customer, stops or resumes their marketing messages."""
     _name = 'liwan.inbox.opt.keyword'
-    _description = 'Customer Inbox opt-out keyword'
+    _description = 'Customer Messages opt-out keyword'
     _order = 'kind, id'
     _liwan_scope = 'company'
 

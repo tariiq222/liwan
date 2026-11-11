@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
+from odoo.exceptions import UserError
 from odoo.tests import tagged
 
 from .common import ACCESS_TOKEN, APP_SECRET, CHANNEL_KEYS, LiwanInboxCase
@@ -206,7 +207,7 @@ class TestChannelsApi(LiwanInboxCase):
         self.assertNotIn(APP_SECRET, secret_values['access_token_enc'])
         with patch.dict('os.environ', {'LIWAN_INBOX_SECRET_KEY': 'A' * 43 + '='}):
             self.channel.access_token_enc = secret_values['access_token_enc']
-            with self.assertRaisesRegex(Exception, 'cannot be decrypted'):
+            with self.assertRaisesRegex(UserError, 'cannot be decrypted'):
                 self.channel._liwan_credentials()
 
     def test_a_channels_only_role_reads_a_channel_that_has_a_department(self):
@@ -217,4 +218,56 @@ class TestChannelsApi(LiwanInboxCase):
         detail = self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}')
         self.assertEqual(detail.status_code, 200, detail.text)
         self.assertEqual(detail.json()['department']['id'], self.department.id)
-        self.assertError(self.api('GET', '/api/v1/inbox/departments'), 403, 'forbidden')
+        # The channel form's department picker: readable, never writable, for the channel manager.
+        departments = self.api('GET', '/api/v1/inbox/departments')
+        self.assertEqual(departments.status_code, 200, departments.text)
+        row = next(row for row in departments.json()['items'] if row['id'] == self.department.id)
+        self.assertEqual(row['members'], [], 'a channel-only role reads the picker, not the staff list')
+        self.assertError(self.api('POST', '/api/v1/inbox/departments', {'name': 'Z', 'member_ids': []}), 403, 'forbidden')
+        self.assertError(
+            self.api('PATCH', f'/api/v1/inbox/departments/{self.department.id}', {'name': 'Z'}), 403, 'forbidden',
+        )
+        self.assertError(self.api('DELETE', f'/api/v1/inbox/departments/{self.department.id}'), 403, 'forbidden')
+
+    def test_a_failed_delivery_is_listed_and_reprocessed_from_the_channel(self):
+        event = self.store_event(self.channel, '{"entry": "x"')
+        for _ in range(5):
+            self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((event.state, event.attempts), ('failed', 5))
+        self.login(self.manager)
+        listing = self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}/events')
+        self.assertEqual(listing.status_code, 200, listing.text)
+        item = listing.json()['items'][0]
+        self.assertEqual(set(item), {'id', 'state', 'attempts', 'error', 'created_at'})
+        self.assertEqual((item['id'], item['state'], item['attempts'], item['error']), (event.id, 'failed', 5, 'JSONDecodeError'))
+        retried = self.api('POST', f'/api/v1/inbox/events/{event.id}/retry')
+        self.assertEqual(retried.status_code, 200, retried.text)
+        self.assertEqual((retried.json()['state'], retried.json()['attempts'], retried.json()['error']), ('pending', 0, None))
+        self.assertEqual(self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}/events').json()['total'], 0)
+        # A delivery that is not failed is refused, and a channel this role does not administer is not found.
+        self.assertError(self.api('POST', f'/api/v1/inbox/events/{event.id}/retry'), 422, 'invalid')
+        # The route's channel capability is checked before the record: a role without it is refused, never told an id.
+        for user in (self.templates_only, self.agent, self.outsider):
+            self.login(user)
+            self.assertError(self.get(f'/api/v1/inbox/channels/{self.channel.id}/events'), 403, 'forbidden')
+            self.assertError(self.api('POST', f'/api/v1/inbox/events/{event.id}/retry', {}), 403, 'forbidden')
+
+    def test_the_work_channel_list_is_a_picker_of_the_work_capabilities_only(self):
+        self.channel.department_id = self.department
+        self.login(self.templates_only)
+        listing = self.api('GET', '/api/v1/inbox/channels/work')
+        self.assertEqual(listing.status_code, 200, listing.text)
+        body = listing.json()
+        self.assertEqual((body['total'], [row['id'] for row in body['items']]), (1, [self.channel.id]))
+        self.assertEqual(body['items'][0], {
+            'id': self.channel.id, 'name': self.channel.name, 'kind': 'whatsapp',
+            'department': {'id': self.department.id, 'name': self.department.name},
+        })
+        for user in (self.agent, self.reader_only, self.outsider):
+            self.login(user)
+            self.assertError(self.get('/api/v1/inbox/channels/work'), 403, 'forbidden')
+        # Automation is the third work right the picker serves: it sees the same channel without channel administration.
+        self.login(self._capability_user('inbox_automation_only', 'inbox.automation.manage'))
+        automation = self.get('/api/v1/inbox/channels/work')
+        self.assertEqual(automation.status_code, 200, automation.text)
+        self.assertEqual([row['id'] for row in automation.json()['items']], [self.channel.id])

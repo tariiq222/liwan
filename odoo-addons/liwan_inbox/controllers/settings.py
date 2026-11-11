@@ -23,6 +23,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
 from odoo.addons.liwan_inbox.models.access_service import (
     CAMPAIGNS,
     MANAGE_AUTOMATION,
+    MANAGE_CHANNELS,
     MANAGE_FLOWS,
     MANAGE_SETTINGS,
     READ,
@@ -123,9 +124,19 @@ class SettingsController(http.Controller):
     @http.route('/api/v1/inbox/departments', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, match='any')
+    @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, MANAGE_CHANNELS, match='any')
     def list_departments(self, **_):
-        return list_page('liwan.inbox.department', dump_department)
+        """The departments to pick from; a channel manager reads them for the channel form and writes none.
+
+        A channel-only role needs the id and name, not the staff list: the member references are returned only to a
+        reader with a settings, automation or conversation right.
+        """
+        include_members = any(
+            holds(capability, request.env.company) for capability in (READ, MANAGE_SETTINGS, MANAGE_AUTOMATION)
+        )
+        return list_page(
+            'liwan.inbox.department', lambda department: dump_department(department, members=include_members),
+        )
 
     @http.route('/api/v1/inbox/departments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

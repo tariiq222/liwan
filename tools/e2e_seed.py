@@ -69,7 +69,7 @@ CUSTOM_ROLES = {
     'e2e_payments_reader': ('قراءة المدفوعات فقط', ('finance.payments.read',)),
     'e2e_employee_no_ai': ('موظف بلا مساعد ذكي', None),
 }
-# The Customer Inbox application: without these three no seeded account holds any inbox.* capability, so every
+# The Customer Messages application: without these three no seeded account holds any inbox.* capability, so every
 # inbox scenario and its API routes were unreachable (finding 2026-11-07). Seeded after every other persona: see
 # mobile_of() below.
 INBOX_PERSONAS = (

@@ -10,6 +10,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 
 from .batch import process_each
+from .constants import PURGE_BATCH
 from .report_day import NIGHTLY_DAYS
 
 _logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ def utc_bounds(zone, date_from, date_to):
 
 class LiwanInboxReportBuild(models.AbstractModel):
     _name = 'liwan.inbox.report.build'
-    _description = 'Customer Inbox report builder'
+    _description = 'Customer Messages report builder'
     _liwan_scope = 'global'
 
     @api.model
@@ -163,10 +164,10 @@ class LiwanInboxReportBuild(models.AbstractModel):
 
     @api.model
     def _liwan_purge(self, company, now):
-        """Delete the company's report, cost and template analytics rows older than its retention."""
+        """Delete the company's report, cost and template analytics rows older than its retention (bounded per run)."""
         cutoff = fields.Date.to_date(now) - relativedelta(months=self.env['liwan.inbox.settings']._get_for_company(company).report_retention_months)
         for model, owner in (
             ('liwan.inbox.report.day', 'company_id'), ('liwan.inbox.cost.day', 'owner_company_id'),
             ('liwan.inbox.template.day', 'owner_company_id'),
         ):
-            self.env[model].search([(owner, '=', company.id), ('day', '<', cutoff)]).unlink()
+            self.env[model].search([(owner, '=', company.id), ('day', '<', cutoff)], limit=PURGE_BATCH).unlink()

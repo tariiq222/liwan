@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useMediaQuery } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import ChatInfoPanel from '@/components/chat/ChatInfoPanel.vue'
@@ -25,7 +24,6 @@ const route = useRoute()
 const router = useRouter()
 const hydrated = useHydrated()
 const qc = useQueryClient()
-const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const routeState = computed(() => parseChatListRoute(route.query))
 const { data, error } = useChatConversation(() => props.conversationId)
 const { data: conversations } = useChatConversations(() => routeState.value)
@@ -116,8 +114,8 @@ function updateRoute(next: ChatListRoute) {
       </template>
       <template v-if="composerOpen" #header>
         <header class="flex flex-wrap items-center gap-3 border-b-[1.5px] border-default bg-default px-[18px] py-3" data-testid="chat-thread-header">
-          <UTooltip v-if="!isDesktop" :text="t('app.back')">
-            <UButton color="neutral" variant="ghost" square :to="{ path: '/chat', query: listQuery }" :aria-label="t('app.back')">
+          <UTooltip :text="t('app.back')">
+            <UButton class="md:hidden" color="neutral" variant="ghost" square :to="{ path: '/chat', query: listQuery }" :aria-label="t('app.back')">
               <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
             </UButton>
           </UTooltip>

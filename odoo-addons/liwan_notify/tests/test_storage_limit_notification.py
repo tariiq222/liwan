@@ -4,6 +4,7 @@ import threading
 from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.tools import config
 
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_notify.models import notify_mail
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -192,7 +193,7 @@ class TestStorageLimitNotification(TransactionCase):
 
     def test_a_refused_claim_warns_nobody(self):
         self.used = LIMIT_MB * 1048576
-        with self.assertRaises(Exception):  # noqa: B017, PT027 - the platform's own refusal, tested in liwan_platform
+        with self.assertRaises(LiwanAccessRule):  # the platform's own refusal, tested in liwan_platform
             self.service.with_user(self.employee)._liwan_claim_storage(1)
         self.assertEqual(self._bell(self.admin), [])
 

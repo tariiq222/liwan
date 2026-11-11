@@ -8,7 +8,7 @@ from .constants import FREQUENCY_RETRY_AFTER, UNSUBSCRIBE_ATTRIBUTION
 
 class LiwanInboxCampaignRecipient(models.Model):
     _name = 'liwan.inbox.campaign.recipient'
-    _description = 'Customer Inbox campaign recipient'
+    _description = 'Customer Messages campaign recipient'
     _order = 'id'
     _liwan_scope = 'company'
 

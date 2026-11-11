@@ -176,7 +176,6 @@ export const HrLeaveCancellationSchema = z.object({
 }).strict()
 export const HrLeaveCancellationDecisionSchema = z.object({ revision: z.number().int().positive(), reason: z.string().optional() }).strict()
 export const HrLeaveCancellationRefusalSchema = z.object({ revision: z.number().int().positive(), reason: z.string().trim().min(1) }).strict()
-export const HrLeaveCancelSchema = z.object({ reason: z.string().optional(), revision: z.number().int().positive().optional() }).strict()
 export type HrLeaveCancellationPolicy = z.infer<typeof HrLeaveCancellationPolicySchema>
 export type HrLeaveSettings = z.infer<typeof HrLeaveSettingsSchema>
 export type HrLeaveSettingsPatch = z.infer<typeof HrLeaveSettingsPatchSchema>

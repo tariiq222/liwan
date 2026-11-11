@@ -26,3 +26,23 @@ export function channelTabPath(channelId: number, tab: InboxChannelTab): string 
   const base = `/settings/apps/inbox/channels/${channelId}`
   return tab === 'details' ? base : `${base}/${tab}`
 }
+
+/** What the viewer holds: a templates tab needs its sub-feature and one of its two capabilities; automation the same. */
+export interface InboxChannelTabAccess {
+  templates: boolean
+  automation: boolean
+  canTemplates: boolean
+  canChannels: boolean
+  canAutomation: boolean
+}
+
+/** The sections of a channel that both its kind and the viewer's capabilities and features offer. */
+export function visibleChannelTabs(kind: InboxChannelKind, access: InboxChannelTabAccess): readonly InboxChannelTab[] {
+  return channelTabs(kind).filter((tab) => {
+    if (tab === 'templates') return access.templates && (access.canTemplates || access.canChannels)
+    if (tab === 'automation') return access.automation && access.canAutomation
+    // The remaining sections belong to channel administration itself (the details is the page these tabs live on).
+    if (tab === 'details') return true
+    return access.canChannels
+  })
+}
