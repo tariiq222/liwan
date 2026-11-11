@@ -154,9 +154,10 @@ suite('vendor attention list on PostgreSQL', () => {
 
   describe('a rejected refund and the credit that covers it', () => {
     const listed = async (customerId: string) => (await get(BILLING)).items.some(i => i.kind === 'refund_rejected' && i.customer_id === customerId)
-    const credit = (fixture: { invoice: string }, customerId: string, reason: string, status: string, minor = 5000, origin = 'vendor') => pool.query(
-      `INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-       VALUES($1,$2,$3,'credit_note',$4,$5,'SAR',2,$6,'t',$7) RETURNING id`, [randomUUID(), fixture.invoice, customerId, reason, minor, status, origin])
+    const credit = (fixture: { invoice: string }, customerId: string, reason: string, status: string, minor = 5000, cause = 'vendor_refund') => pool.query(
+      `INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+       VALUES($1,$2,$3,'credit_note',$4,$5,'SAR',2,$6,'t',$7,$8) RETURNING id`,
+      [randomUUID(), fixture.invoice, customerId, reason, minor, status, cause === 'vendor_refund' ? 'vendor' : 'system', cause])
     const rejectedCustomer = async () => {
       const customer = randomUUID()
       await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, `${tag} rejected-extra`])
@@ -167,9 +168,10 @@ suite('vendor attention list on PostgreSQL', () => {
     it('is shown without credit, cleared by any non-void credit of the invoice, and shown again when that credit is voided', async () => {
       expect(await listed(id.rejected)).toBe(true)
       // A duplicate-charge note is another payment's money and covers nothing.
-      await credit(rejectedFixture, id.rejected, 'duplicate payment — manual review (attempt x)', 'pending', 11500, 'system')
+      await credit(rejectedFixture, id.rejected, 'duplicate payment — manual review (attempt x)', 'pending', 11500, 'duplicate_payment')
       expect(await listed(id.rejected)).toBe(true)
-      const vendor = (await credit(rejectedFixture, id.rejected, 'Customer asked for the money back', 'pending', 11500)).rows[0].id
+      // An operator's wording never changes how a note counts: only the typed cause does.
+      const vendor = (await credit(rejectedFixture, id.rejected, 'duplicate payment — manual review typed by the operator', 'pending', 11500)).rows[0].id
       expect(await listed(id.rejected)).toBe(false)
       await pool.query("UPDATE invoice_adjustments SET status='void' WHERE id=$1", [vendor])
       expect(await listed(id.rejected)).toBe(true)

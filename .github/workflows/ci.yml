@@ -420,6 +420,36 @@ jobs:
         with:
           stage: restore-drill
 
+  # Nightly (and a full manual dispatch) only, never a pull request or the push to main: one dedicated Odoo run of the
+  # fixture addons whose recorded response structure must still match packages/contracts/fixtures (about the cost of
+  # the odoo stage's share for those addons). It is not a scope stage; ci-result lists it in `needs`, so a red job fails
+  # the nightly run and reaches main-alert, and a skipped one (any other event) passes.
+  contract-fixtures:
+    needs: scope
+    if: github.event_name == 'schedule' || inputs.full
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          odoo: 'true'
+      - run: deploy/ci/contract-fixtures.sh
+
   image:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'image')
@@ -562,7 +592,7 @@ jobs:
     # A draft still fails closed. It must not publish the required check, even if it finishes after a ready run.
     name: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft && 'ci-draft' || 'ci-result' }}
     if: always()
-    needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-app-standalone, odoo-bridge, upgrade, restore-drill, image, e2e-mock, e2e-odoo, rtl-stories]
+    needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-app-standalone, odoo-bridge, upgrade, restore-drill, contract-fixtures, image, e2e-mock, e2e-odoo, rtl-stories]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

@@ -6,6 +6,8 @@ import { CommercialHttpError } from './lifecycle.js'
 type Features = Record<string, boolean | number | null>
 const BRANCH_LIMIT = 'branches.extra_limit'
 const FRESH_MS = 15 * 60 * 1000
+/** How long a tenant's older usage samples are kept. Every reader takes the latest sample only, and that one is never deleted. */
+export const USAGE_SNAPSHOT_RETENTION_DAYS = 30
 
 /** Gate booleans of a limit key come from the stored observation (Odoo's limit_gates), the same source as the
  * Odoo effect. An app is closed when it has gates and every one is false; an absent gate key is not false. */
@@ -105,5 +107,8 @@ export async function recordUsage(pool: Pool, input: { tenant_id: string; observ
     await client.query(
       `INSERT INTO usage_snapshots(tenant_id, observed_at, freshness, metrics, limit_gates, source, excess) VALUES($1,$2,'fresh',$3::jsonb,$4::jsonb,$5,$6::jsonb)`,
       [input.tenant_id, input.observed_at, JSON.stringify(input.metrics), input.limit_gates ? JSON.stringify(input.limit_gates) : null, input.source, input.excess ? JSON.stringify(input.excess) : null])
+    // The tenant row is locked, so this tenant's samples are pruned by one writer at a time.
+    await client.query(`DELETE FROM usage_snapshots WHERE tenant_id=$1 AND observed_at < now() - make_interval(days => $2)
+      AND id <> (SELECT id FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC, id DESC LIMIT 1)`, [input.tenant_id, USAGE_SNAPSHOT_RETENTION_DAYS])
   })
 }

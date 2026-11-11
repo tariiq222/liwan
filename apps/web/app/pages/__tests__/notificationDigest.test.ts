@@ -129,5 +129,22 @@ describe('notification digest page production template', () => {
   })
 
   it('catches fetchNextPage rejection in production source', () => {
+    const script = parse(source, { filename }).descriptor.scriptSetup?.content ?? ''
+    const file = ts.createSourceFile('digest.ts', script, ts.ScriptTarget.ES2020, true)
+    let awaitedInsideTryBody = false
+    const visit = (node: ts.Node) => {
+      if (ts.isTryStatement(node) && node.catchClause) {
+        const calls: string[] = []
+        const collect = (child: ts.Node) => {
+          if (ts.isAwaitExpression(child) && ts.isCallExpression(child.expression)) calls.push(child.expression.expression.getText(file))
+          ts.forEachChild(child, collect)
+        }
+        collect(node.tryBlock)
+        awaitedInsideTryBody ||= calls.includes('fetchNextPage')
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(file)
+    expect(awaitedInsideTryBody).toBe(true)
   })
 })

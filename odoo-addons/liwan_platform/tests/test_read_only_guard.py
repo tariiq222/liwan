@@ -302,10 +302,14 @@ class TestSeatToggleConcurrency(TransactionCase):
                     env_a = api.Environment(cursor_a, SUPERUSER_ID, {})
                     env_a['res.users'].browse(user_ids[0])._liwan_access_write({'liwan_read_only': False}, 'access.users.grant')
                     cursor_a.commit()
-                # B started before A committed: its claim fails to serialize or finds the seat taken.
-                with self.assertRaises(Exception) as caught:  # noqa: B017 - the two refusals below are both correct
+                # B started before A committed: it fails to serialize or finds the seat taken; both refusals are correct.
+                # Odoo's assertRaises takes one class, so the two accepted refusals are caught explicitly.
+                try:
                     env_b['res.users'].browse(user_ids[1])._liwan_access_write({'liwan_read_only': False}, 'access.users.grant')
-                self.assertIsInstance(caught.exception, (SerializationFailure, LiwanAccessRule))
+                except (SerializationFailure, LiwanAccessRule):
+                    pass
+                else:
+                    self.fail('the second claim must be refused')
             with self.registry.cursor() as cursor:
                 env = api.Environment(cursor, SUPERUSER_ID, {})
                 full = [user for user in env['res.users'].browse(user_ids) if not user.liwan_read_only]

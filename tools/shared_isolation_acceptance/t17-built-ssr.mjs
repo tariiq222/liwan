@@ -23,7 +23,7 @@ const mock = http.createServer((req, res) => {
   if (req.url === '/api/v1/redirect') { res.statusCode = 302; res.setHeader('location', 'http://external.invalid/'); res.end(); return }
   if (req.url === '/api/v1/binary') { res.setHeader('content-type', 'application/octet-stream'); res.setHeader('set-cookie', ['a=1; Path=/', 'b=2; Path=/']); res.end(Buffer.from([0,1,255,128])); return }
   if (req.url === '/api/v1/me') { res.statusCode = 403; res.end('{"code":"forbidden","message":"synthetic anonymous"}') }
-  else if (req.url === '/api/v1/branding') res.end(JSON.stringify({ name: 'T17 Synthetic Brand', logo_url: '/web/binary/company_logo?company=1&v=0-e3b0c44298fc', primary_color: '#18181b', font: 'test' }))
+  else if (req.url === '/api/v1/branding') res.end(JSON.stringify({ name: 'T17 Synthetic Brand', logo_url: '/web/binary/company_logo?company=1&v=e3b0c44298fc', primary_color: '#18181b', font: 'test' }))
   else { res.statusCode = 404; res.end('{}') }
 })
 mock.on('connection', s => { sockets.add(s); s.on('close', () => sockets.delete(s)) })

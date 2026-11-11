@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import UTC, datetime, time, timedelta
+from collections import defaultdict
+from datetime import UTC, datetime
 
 from odoo import fields, http
+from odoo.fields import Domain
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
@@ -47,6 +49,7 @@ from odoo.addons.liwan_appointments.serializers.appointment_settings import (
 )
 from odoo.addons.liwan_appointments.serializers.appointment_slot import (
     require_slot_alignment,
+    type_day_bounds,
 )
 from odoo.addons.liwan_appointments.serializers.payload import reject_unknown
 
@@ -240,6 +243,25 @@ class AppointmentBookingController(http.Controller):
         return dump_settings(request.env['liwan.appointment.settings']._liwan_current())
 
     @staticmethod
+    def _day_domain(first, last):
+        """The bookings starting on the days ``first``..``last`` of their own type's calendar timezone."""
+        types = request.env['resource.booking.type'].with_context(active_test=False).search(
+            [('company_id', '=', request.env.company.id)],
+        )
+        type_ids_by_bounds = defaultdict(list)
+        for booking_type in types:
+            type_ids_by_bounds[type_day_bounds(booking_type, first, last)].append(booking_type.id)
+        clauses = []
+        for (lower, upper), type_ids in type_ids_by_bounds.items():
+            clause = [('type_id', 'in', type_ids)]
+            if lower:
+                clause.append(('start', '>=', lower))
+            if upper:
+                clause.append(('start', '<', upper))
+            clauses.append(Domain(clause))
+        return Domain.OR(clauses)
+
+    @staticmethod
     def _list_domain(query):
         domain = [('type_id.company_id', '=', request.env.company.id)]
         if query['state']:
@@ -248,10 +270,8 @@ class AppointmentBookingController(http.Controller):
             domain.append(('type_id', '=', query['type_id']))
         if query['resource_id']:
             domain.append(('combination_id.resource_ids', 'in', [query['resource_id']]))
-        if query['first']:
-            domain.append(('start', '>=', datetime.combine(query['first'], time.min)))
-        if query['last']:
-            domain.append(('start', '<', datetime.combine(query['last'] + timedelta(days=1), time.min)))
+        if query['first'] or query['last']:
+            domain.append(AppointmentBookingController._day_domain(query['first'], query['last']))
         if query['mine']:
             user = request.env.user
             domain += ['|', ('partner_ids', 'in', user.partner_id.ids), ('combination_id.resource_ids.user_id', '=', user.id)]

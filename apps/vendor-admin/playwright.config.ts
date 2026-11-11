@@ -20,6 +20,8 @@ const bffEnv = {
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
+  // A stray test.only would make a CI stage run one test and pass.
+  forbidOnly: !!process.env.CI,
   // The first page of `nuxt dev` compiles on demand.
   expect: { timeout: target === 'dev' ? 30_000 : 5_000 },
   // One mock service with shared state: run serially.

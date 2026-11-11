@@ -19,7 +19,7 @@
     "budget_state": "unknown",
     "can_review": false,
     "closure": "",
-    "code": "PRJ-000013",
+    "code": "PRJ-000011",
     "constraints": "",
     "currency": {
       "decimal_places": 2,
@@ -74,12 +74,7 @@
   "phase_state": {
     "current": "initiating",
     "next": "planning",
-    "next_checks": [
-      {
-        "key": "charter_approved",
-        "ok": false
-      }
-    ],
+    "next_checks": [],
     "previous": null
   },
   "privacy_visibility": "employees",
@@ -135,5 +130,5 @@
       "policy": "enabled"
     }
   },
-  "updated_at": "v2"
+  "updated_at": "v3"
 }

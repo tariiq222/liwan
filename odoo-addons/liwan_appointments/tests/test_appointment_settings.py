@@ -1,8 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import UTC, datetime, timedelta
 
+from psycopg2 import IntegrityError
+
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from .common import LiwanAppointmentsCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
@@ -300,7 +303,7 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
             ('no_show_grace_minutes', -1), ('no_show_grace_minutes', 1441),
             ('reference_prefix', ''), ('reference_prefix', 'lower'), ('reference_prefix', 'ABCDEFGHIJK'), ('reference_prefix', 'A B'),
         ):
-            with self.assertRaises(Exception), self.cr.savepoint():  # noqa: B017 - psycopg2 CheckViolation
+            with mute_logger('odoo.sql_db'), self.assertRaises(IntegrityError), self.cr.savepoint():  # psycopg2 CheckViolation
                 self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, name: value})
 
     def test_another_company_row_is_neither_read_nor_written(self):

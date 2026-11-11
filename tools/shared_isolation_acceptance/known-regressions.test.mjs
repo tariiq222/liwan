@@ -21,7 +21,7 @@ test('T6-F02 repaired: actual serializer output including missing date reaches t
   assert.equal(requestPlan({ method: 'GET', url: '/api/v1/branding', headers: { host: tenant.host, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' } }, registry, token, codec).odoo, true, 'validated internal API returns to Odoo')
   assert.equal(logos[1], null, 'a company without its own logo exposes no logo URL')
   for (const logo of logos.filter(item => item !== null)) {
-    assert.match(logo, /^\/web\/binary\/company_logo\?company=1&v=(?:\d{20}|0)-[a-f0-9]{12}$/)
+    assert.match(logo, /^\/web\/binary\/company_logo\?company=1&v=[a-f0-9]{12}$/)
     for (const method of ['GET', 'HEAD']) for (const cookie of ['', `session_id=${codec.seal('synthetic_sid', tenant)}`]) {
       const result = plan(logo, method, cookie); assert.equal(result.odoo, true); assert.equal(result.headers.host, tenant.database)
     }

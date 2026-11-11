@@ -24,7 +24,6 @@ export const LoginCodeSentSchema = z.object({
 export type LoginCodeSent = z.infer<typeof LoginCodeSentSchema>
 
 /** Finishing a sign-in (POST /auth/verify). The code is six digits; the server normalizes Arabic-Indic ones. */
-export const LOGIN_CODE_LENGTH = 6
 export const LoginVerifySchema = z.object({
   code: z.string().min(1).max(16),
   remember: z.boolean().optional(),

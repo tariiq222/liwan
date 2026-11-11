@@ -14,6 +14,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_positive_int,
     require_capabilities,
     requires_feature,
+    transition_forbidden_error,
 )
 from odoo.addons.liwan_pmo.models.project_task import _validate_task_deliverables
 from odoo.addons.liwan_pmo.serializers.dates import parse_date
@@ -314,7 +315,7 @@ class TaskController(http.Controller):
         try:
             task._liwan_transition(API_TO_STATE[state])
         except AccessError as e:
-            raise ApiError(403, 'transition_forbidden', str(e)) from e
+            raise transition_forbidden_error(e) from e
         return dump_task_detail(task)
 
     @http.route('/api/v1/tasks/<int:task_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -336,7 +337,7 @@ class TaskController(http.Controller):
         try:
             task._liwan_request_completion()
         except AccessError as e:
-            raise ApiError(403, 'transition_forbidden', str(e)) from e
+            raise transition_forbidden_error(e) from e
         except UserError as e:
             raise ApiError(422, 'invalid', str(e)) from e
         return dump_task_detail(task)
@@ -352,7 +353,7 @@ class TaskController(http.Controller):
         try:
             task._liwan_accept_completion(revision)
         except AccessError as e:
-            raise ApiError(403, 'transition_forbidden', str(e)) from e
+            raise transition_forbidden_error(e) from e
         except UserError as e:
             raise ApiError(422, 'invalid', str(e), field='revision') from e
         return dump_task_detail(task)
@@ -368,7 +369,7 @@ class TaskController(http.Controller):
         try:
             task._liwan_return_completion(revision, note)
         except AccessError as e:
-            raise ApiError(403, 'transition_forbidden', str(e)) from e
+            raise transition_forbidden_error(e) from e
         except UserError as e:
             field = 'note' if not (isinstance(note, str) and note.strip()) else 'revision'
             raise ApiError(422, 'invalid', str(e), field=field) from e
@@ -385,7 +386,7 @@ class TaskController(http.Controller):
         try:
             task._liwan_withdraw_completion(revision)
         except AccessError as e:
-            raise ApiError(403, 'transition_forbidden', str(e)) from e
+            raise transition_forbidden_error(e) from e
         except UserError as e:
             raise ApiError(422, 'invalid', str(e), field='revision') from e
         return dump_task_detail(task)
