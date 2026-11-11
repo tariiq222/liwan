@@ -104,32 +104,6 @@
       ]
     },
     {
-      "reason": "vendor-admin Playwright prod project (npm run e2e in apps/vendor-admin builds Nuxt and drives a mock control plane); deploy/ci/vendor-admin.sh runs only lint, vitest and the build, so no stage runs them",
-      "files": [
-        "apps/vendor-admin/e2e/ai-provider.spec.ts",
-        "apps/vendor-admin/e2e/auth.spec.ts",
-        "apps/vendor-admin/e2e/bundles.spec.ts",
-        "apps/vendor-admin/e2e/clients.spec.ts",
-        "apps/vendor-admin/e2e/commercial-date-hydration.spec.ts",
-        "apps/vendor-admin/e2e/commercial-smoke.spec.ts",
-        "apps/vendor-admin/e2e/customers.spec.ts",
-        "apps/vendor-admin/e2e/invoices.spec.ts",
-        "apps/vendor-admin/e2e/operations.spec.ts",
-        "apps/vendor-admin/e2e/overview.spec.ts",
-        "apps/vendor-admin/e2e/pages-smoke.spec.ts",
-        "apps/vendor-admin/e2e/plans.spec.ts",
-        "apps/vendor-admin/e2e/price-breakdown.spec.ts",
-        "apps/vendor-admin/e2e/screens.spec.ts",
-        "apps/vendor-admin/e2e/team.spec.ts"
-      ]
-    },
-    {
-      "reason": "vendor-admin Playwright dev project (E2E_TARGET=dev against nuxt dev); no CI stage starts the dev server",
-      "files": [
-        "apps/vendor-admin/e2e/step-up.dev.spec.ts"
-      ]
-    },
-    {
       "reason": "live by design: needs LIVE_ADMIN_ORIGIN, LIVE_BOOTSTRAP_LINK and a scratch control-plane LIVE_DATABASE_URL, started by tools/vendor_admin_local_check.mjs",
       "files": [
         "apps/vendor-admin/e2e/live-control.spec.ts"

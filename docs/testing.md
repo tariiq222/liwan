@@ -339,7 +339,8 @@ with a 5xx. It checks the route surface, not bridge-specific fields inside a sid
 the bridge's own tests. Run one locally with the environment of `deploy/ci/odoo.sh` plus `ISOLATION_PORT`, for example
 `deploy/ci/odoo-app-standalone.sh liwan_hr` or `deploy/ci/odoo-bridge.sh liwan_tasks_pmo`. The
 control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
-`vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds every production image
+`vendor-admin` has its own prepare, types, tests and build checks, then runs its Playwright specs against that build and
+the mock control service. The `image` stage builds every production image
 (Odoo, web, vendor-admin, ai-service, proxy and guard) under owned `liwan-<name>:ci-<run id>` tags. It
 installs the release in the Odoo image and checks it is hardened, starts web, vendor-admin, ai-service
 and guard without external services (web answers `/login`, vendor-admin serves a built static asset because its pages need the control plane, ai-service `/healthz`, guard
@@ -607,7 +608,7 @@ scenario yet (`--check` exits 1 on a gap).
 | --- | --- |
 | `npm -w apps/vendor-admin run lint` | Type check (`vue-tsc --build --noEmit`); CI step `vendor-admin`. |
 | `npm -w apps/vendor-admin run test` | Unit tests (vitest); CI step `vendor-admin`. |
-| `npm -w apps/vendor-admin run e2e` | Playwright against the mock control service in `apps/vendor-admin/e2e`, on a production build; `e2e:dev` runs the `*.dev.spec.ts` specs on `nuxt dev`. Not a CI step. |
+| `npm -w apps/vendor-admin run e2e` | Playwright against the mock control service in `apps/vendor-admin/e2e`, on a production build (`apps/vendor-admin/e2e/live-control.spec.ts` excluded); CI step `vendor-admin`. |
 | `PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs` | Live proof: sign-in, enrollment and team management against the real control plane with real WebAuthn verification. Needs local Postgres; scratch database `liwan_control_scratch_p3live`. Details in `apps/vendor-admin/README.md`. Not a CI step. |
 
 Local evidence only; it does not establish deployment readiness.

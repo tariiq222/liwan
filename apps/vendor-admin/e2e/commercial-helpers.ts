@@ -1,12 +1,12 @@
 import { expect, type Page } from '@playwright/test'
 
 import { resetMock } from './support'
-import { ADMIN_PASSWORD, DEV_PORT, OWNER_EMAIL, PROD_PORT, SUPPORT_EMAIL, TOTP_CODE } from './mock-settings.mjs'
+import { ADMIN_PASSWORD, OWNER_EMAIL, PROD_PORT, SUPPORT_EMAIL, TOTP_CODE } from './mock-settings.mjs'
 
 // Shared helpers for the vendor console specs. The session comes from the BFF's password + TOTP
 // sign-in against the mock control service; the data comes from commercial-mock-routes.mjs.
 export const RESTRICTED_EMAIL = SUPPORT_EMAIL
-const BASE_ORIGIN = `http://localhost:${process.env.E2E_TARGET === 'dev' ? DEV_PORT : PROD_PORT}`
+const BASE_ORIGIN = `http://localhost:${PROD_PORT}`
 
 type NuxtAppHandle = { isHydrating: boolean, $router: { push: (to: string) => Promise<unknown> }, $i18n: { setLocale: (locale: string) => Promise<void> } }
 

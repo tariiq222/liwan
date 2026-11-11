@@ -232,11 +232,14 @@ class Runs:
         text = self.read(join(cwd, config)) if join(cwd, config) in self.files else ''
         directory = re.search(r"testDir:\s*'([^']+)'", text)
         match = re.search(r"testMatch:\s*'([^']+)'", text)
+        ignore = re.search(r"testIgnore:\s*/((?:\\/|[^/\n])+)/", text)
         base = join(cwd, directory.group(1) if directory else '.')
         matcher = glob_regex(match.group(1)) if match else None
+        ignored = re.compile(ignore.group(1).replace('\\/', '/')) if ignore else None
         for path in self.files:
             if path.startswith(base + '/') and (matcher.match(path[len(base) + 1:]) if matcher else PLAYWRIGHT_DEFAULT_MATCH.search(path)):
-                self.executed.add(path)
+                if not (ignored and ignored.search(path)):
+                    self.executed.add(path)
 
     def npm(self, args: list[str], cwd: str, depth: int):
         workspace, script = None, None
@@ -392,6 +395,13 @@ class InventoryLogicTest(unittest.TestCase):
             'apps/web/rtl.config.ts': "export default { testDir: './e2e-rtl', testMatch: '**/*.rtl.ts' }",
             'apps/web/e2e-rtl/a.rtl.ts': '', 'apps/web/e2e-rtl/b.spec.ts': ''})
         self.assertEqual(run, {'apps/web/e2e-rtl/a.rtl.ts'})
+
+    def test_playwright_config_run_honours_test_ignore(self):
+        run = self.run_of({
+            'deploy/ci/admin.sh': 'cd apps/admin\nnpx playwright test --project=prod\n',
+            'apps/admin/playwright.config.ts': "export default { testDir: './e2e', projects: [{ name: 'prod', testIgnore: /live-control\\.spec\\.ts$/ }] }",
+            'apps/admin/e2e/a.spec.ts': '', 'apps/admin/e2e/live-control.spec.ts': ''})
+        self.assertEqual(run, {'apps/admin/e2e/a.spec.ts'})
 
     def test_unaccounted_and_register_problems(self):
         files = {'a/test_run.py', 'a/test_reg.py', 'a/test_lost.py', 'a/test_both.py'}
