@@ -33,7 +33,7 @@ def new_image_token():
 class LiwanInboxCatalogItem(models.Model):
     """A product listed in a Meta catalog. The product stays the one source of the name, price and image."""
     _name = 'liwan.inbox.catalog.item'
-    _description = 'Customer Inbox catalog item'
+    _description = 'Customer Messages catalog item'
     _order = 'id'
     _liwan_scope = 'company'
 

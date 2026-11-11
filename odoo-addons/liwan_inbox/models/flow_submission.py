@@ -39,7 +39,7 @@ def _date_value(value):
 
 class LiwanInboxFlowSubmission(models.Model):
     _name = 'liwan.inbox.flow.submission'
-    _description = 'Customer Inbox form submission'
+    _description = 'Customer Messages form submission'
     _order = 'submitted_at desc, id desc'
     _liwan_scope = 'company'
 
@@ -158,7 +158,7 @@ class LiwanInboxFlowSubmission(models.Model):
 class LiwanInboxFlowAnswer(models.Model):
     """One answer of a submission. The label and choice titles are copied so a later copy of the form changes nothing."""
     _name = 'liwan.inbox.flow.answer'
-    _description = 'Customer Inbox form answer'
+    _description = 'Customer Messages form answer'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 
@@ -187,7 +187,7 @@ class LiwanInboxFlowAnswer(models.Model):
 class LiwanInboxFlowAnswerChoice(models.Model):
     """One chosen option of a dropdown, radio or checkbox answer."""
     _name = 'liwan.inbox.flow.answer.choice'
-    _description = 'Customer Inbox form answer choice'
+    _description = 'Customer Messages form answer choice'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 

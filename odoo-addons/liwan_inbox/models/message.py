@@ -32,7 +32,7 @@ class LiwanInboxMessage(models.Model):
     """A message of a conversation. Outbound rows in `queued` state are the outbox."""
     _name = 'liwan.inbox.message'
     _inherit = 'liwan.inbox.interactive'
-    _description = 'Customer Inbox message'
+    _description = 'Customer Messages message'
     _order = 'date, id'
     _liwan_scope = 'company'
 

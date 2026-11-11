@@ -39,7 +39,7 @@ def utc_bounds(zone, date_from, date_to):
 
 class LiwanInboxReportBuild(models.AbstractModel):
     _name = 'liwan.inbox.report.build'
-    _description = 'Customer Inbox report builder'
+    _description = 'Customer Messages report builder'
     _liwan_scope = 'global'
 
     @api.model

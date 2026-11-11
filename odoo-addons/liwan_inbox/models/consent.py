@@ -13,7 +13,7 @@ KEYWORD_LENGTH = 64
 class LiwanInboxContactConsent(models.Model):
     """One consent decision about marketing messages: an opt-in with its proof, or an opt-out and where it came from."""
     _name = 'liwan.inbox.contact.consent'
-    _description = 'Customer Inbox marketing consent event'
+    _description = 'Customer Messages marketing consent event'
     _order = 'date desc, id desc'
     _liwan_scope = 'company'
 
@@ -33,7 +33,7 @@ class LiwanInboxContactConsent(models.Model):
 class LiwanInboxOptKeyword(models.Model):
     """A word that, sent alone by a customer, stops or resumes their marketing messages."""
     _name = 'liwan.inbox.opt.keyword'
-    _description = 'Customer Inbox opt-out keyword'
+    _description = 'Customer Messages opt-out keyword'
     _order = 'kind, id'
     _liwan_scope = 'company'
 

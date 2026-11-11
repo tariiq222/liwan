@@ -1,6 +1,6 @@
 # liwan_inbox_payments
 
-Bridge (rank 5, `auto_install` on `liwan_inbox` and `liwan_payments`) between the Customer Inbox and the shared
+Bridge (rank 5, `auto_install` on `liwan_inbox` and `liwan_payments`) between the Customer Messages and the shared
 payments service. Feature `inbox.catalog`; capabilities `inbox.catalog.manage` (catalog, items, channel cart and
 catalog button) and `inbox.orders.manage` (edit a cart, create the order, send the pay link, cancel).
 

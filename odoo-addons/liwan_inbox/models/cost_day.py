@@ -15,7 +15,7 @@ PRICING_TYPES = [
 class LiwanInboxCostDay(models.Model):
     """Meta's approximate daily volume and cost of a channel's number (UTC days), pulled from the pricing analytics."""
     _name = 'liwan.inbox.cost.day'
-    _description = 'Customer Inbox Meta cost per day'
+    _description = 'Customer Messages Meta cost per day'
     _order = 'day desc, id'
     # Tenant scope with an owning company, like the channel it belongs to.
     _liwan_scope = 'tenant'

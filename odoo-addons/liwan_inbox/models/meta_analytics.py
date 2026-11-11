@@ -22,7 +22,7 @@ ERROR_TEXT_LENGTH = 200
 
 class LiwanInboxMetaAnalytics(models.AbstractModel):
     _name = 'liwan.inbox.meta.analytics'
-    _description = 'Customer Inbox Meta analytics sync'
+    _description = 'Customer Messages Meta analytics sync'
     _liwan_scope = 'global'
 
     @api.model

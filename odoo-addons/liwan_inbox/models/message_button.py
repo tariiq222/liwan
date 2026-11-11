@@ -7,7 +7,7 @@ from .template import BUTTON_KINDS
 class LiwanInboxMessageButton(models.Model):
     """A button of a template reply as it was sent, with the value the agent filled into it (if it takes one)."""
     _name = 'liwan.inbox.message.button'
-    _description = 'Customer Inbox template reply button'
+    _description = 'Customer Messages template reply button'
     _order = 'position, id'
     _liwan_scope = 'company'
 

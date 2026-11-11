@@ -32,7 +32,7 @@ class LiwanInboxEvent(models.Model):
     processed event for `PROCESSED_EVENT_DAYS`), which is the documented replay window.
     """
     _name = 'liwan.inbox.event'
-    _description = 'Customer Inbox webhook event'
+    _description = 'Customer Messages webhook event'
     _order = 'id'
     # Tenant scope with an owning company, for the same reason as the channel: the webhook identity
     # creates events for channels of any company.

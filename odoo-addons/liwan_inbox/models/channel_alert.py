@@ -13,7 +13,7 @@ from .health_constants import (
 class LiwanInboxChannelAlert(models.Model):
     """One meaningful change of a number's health (quality, limit, name, account), kept as a timeline."""
     _name = 'liwan.inbox.channel.alert'
-    _description = 'Customer Inbox channel health alert'
+    _description = 'Customer Messages channel health alert'
     _order = 'occurred_at desc, id desc'
     # Tenant scope with an owning company, like the channel it belongs to.
     _liwan_scope = 'tenant'

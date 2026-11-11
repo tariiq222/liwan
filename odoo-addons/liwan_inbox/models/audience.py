@@ -11,7 +11,7 @@ MAX_ACTIVE_DAYS = 3650
 
 class LiwanInboxAudience(models.Model):
     _name = 'liwan.inbox.audience'
-    _description = 'Customer Inbox audience'
+    _description = 'Customer Messages audience'
     _order = 'name, id'
     _liwan_scope = 'company'
 

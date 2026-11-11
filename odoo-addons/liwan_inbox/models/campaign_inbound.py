@@ -13,7 +13,7 @@ KEYWORD_KINDS = ('text', 'interactive')
 
 class LiwanInboxCampaignInbound(models.AbstractModel):
     _name = 'liwan.inbox.campaign.inbound'
-    _description = 'Customer Inbox campaign inbound handling'
+    _description = 'Customer Messages campaign inbound handling'
     _liwan_scope = 'global'
 
     @api.model

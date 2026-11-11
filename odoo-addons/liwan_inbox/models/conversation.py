@@ -30,7 +30,7 @@ REVISION_FIELDS = frozenset({'state', 'priority', 'tag_ids', 'assignee_id', 'dep
 
 class LiwanInboxConversation(models.Model):
     _name = 'liwan.inbox.conversation'
-    _description = 'Customer Inbox conversation'
+    _description = 'Customer Messages conversation'
     _order = 'last_message_at desc, id desc'
     _liwan_scope = 'company'
 

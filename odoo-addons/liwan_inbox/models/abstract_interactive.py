@@ -14,7 +14,7 @@ NO_PRODUCT_BODY = '[product]'
 class LiwanInboxInteractive(models.AbstractModel):
     """Reply buttons, a list or a link button around a `body`. The concrete model has `body` and `option_ids`."""
     _name = 'liwan.inbox.interactive'
-    _description = 'Customer Inbox interactive content'
+    _description = 'Customer Messages interactive content'
     _liwan_scope = 'global'
 
     interactive_type = fields.Selection([
@@ -71,7 +71,7 @@ class LiwanInboxInteractive(models.AbstractModel):
 class LiwanInboxOption(models.AbstractModel):
     """One reply button or list row of interactive content."""
     _name = 'liwan.inbox.option'
-    _description = 'Customer Inbox interactive option'
+    _description = 'Customer Messages interactive option'
     _order = 'sequence, id'
     _liwan_scope = 'global'
 
