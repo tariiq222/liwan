@@ -1,12 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
-    'name': 'liwan Customer Inbox and Payments',
+    'name': 'liwan Customer Messages and Payments',
     'summary': 'liwan platform: a Meta product catalog for WhatsApp, carts that become paid online orders',
     'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    # The bridge between the Customer Inbox application and the shared payments service (rank 5):
+    # The bridge between the Customer Messages application and the shared payments service (rank 5):
     # installed by Odoo as soon as both are. liwan_inbox owns the conversation, the WhatsApp wire
     # (commerce messages, carts) and the neutral commerce hooks; liwan_payments owns the online
     # order, its expiry, payment and invoice. The bridge owns the link to the tenant's Meta commerce

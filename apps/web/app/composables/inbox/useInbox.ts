@@ -21,6 +21,7 @@ import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
 import { fileToBase64 } from '../../utils/attachmentFile'
 import { createTypingNotifier } from './inboxTyping'
 import { ApiError } from '../useApi'
+import { busFallbackInterval, useBus } from '../useBus'
 
 // Conversation events refresh lists and the affected thread; template events have their own keys.
 export const inboxKeys = {
@@ -42,6 +43,7 @@ export function useInboxConversations(route: MaybeRefOrGetter<InboxListRoute>) {
     queryKey: computed(() => inboxKeys.list(toValue(route))),
     placeholderData: keepPreviousData,
     retry: false,
+    refetchInterval: busFallbackInterval(),
     queryFn: ({ queryKey, signal }) => $api('/api/v1/inbox/conversations', { query: queryKey[2], signal, schema: InboxConversationListSchema }),
   })
 }
@@ -52,6 +54,7 @@ export function useInboxConversation(id: MaybeRefOrGetter<number | undefined>) {
     queryKey: computed(() => inboxKeys.detail(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
     retry: false,
+    refetchInterval: busFallbackInterval(),
     queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}`, { signal, schema: InboxConversationDetailSchema }),
   })
 }
@@ -93,9 +96,14 @@ export function nextOlderOffset(pages: readonly MessagePage[]): number | undefin
   return last.items.length > 0 && loaded < last.total ? loaded : undefined
 }
 
-/** The conversation's messages, oldest first, newest page first on the wire; `fetchNextPage` loads the next older page. */
+/**
+ * The conversation's messages, oldest first, newest page first on the wire; `fetchNextPage` loads the next older page.
+ * While the bus is disconnected only the newest page is polled, never the history already loaded: a long thread is not
+ * re-read every five seconds. A reconnect refreshes the whole query once through the bus's own stale reconciliation.
+ */
 export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
   const { $api } = useApi()
+  const { connected } = useBus()
   const query = useInfiniteQuery({
     queryKey: computed(() => inboxKeys.messagesOf(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
@@ -104,8 +112,22 @@ export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
     queryFn: ({ pageParam, queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}/messages`, { signal, query: { limit: INBOX_MESSAGE_PAGE, offset: pageParam }, schema: InboxMessageListSchema }),
     getNextPageParam: (_last, pages) => nextOlderOffset(pages),
   })
-  const items = computed(() => mergeMessagePages(query.data.value?.pages ?? []))
-  return { ...query, items }
+  const latest = useQuery({
+    queryKey: computed(() => [...inboxKeys.messagesOf(toValue(id) ?? 0), 'latest'] as const),
+    enabled: computed(() => !!toValue(id) && !connected.value),
+    retry: false,
+    refetchInterval: busFallbackInterval(),
+    queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}/messages`, { signal, query: { limit: INBOX_MESSAGE_PAGE, offset: 0 }, schema: InboxMessageListSchema }),
+  })
+  const pages = computed<MessagePage[]>(() => {
+    const history = query.data.value?.pages ?? []
+    const newest = latest.data.value
+    if (connected.value || !newest || !history.length) return history
+    // The polled page replaces the history's first page; older pages are left exactly as loaded.
+    return [{ ...newest, total: Math.max(newest.total, history[0]!.total) }, ...history.slice(1)]
+  })
+  const items = computed(() => mergeMessagePages(pages.value))
+  return { ...query, items, latest }
 }
 
 export function useInboxCannedReplies() {

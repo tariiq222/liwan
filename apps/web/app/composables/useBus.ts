@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { CHAT_TYPING_MS } from '../utils/chatState'
 import { clearTaskWriteAcknowledgements, reconcileTaskWriteEvent, taskKeys } from './useTasks'
@@ -56,8 +56,16 @@ export function collectChatIds(notifications: BusNotification[]): number[] {
   return collectIds(notifications, 'liwan/chat')
 }
 
+/** The conversation ids of an inbox frame: one `id`, or the `ids` a batch notification carries for the same recipient. */
 export function collectInboxIds(notifications: BusNotification[]): number[] {
-  return collectIds(notifications, 'liwan/inbox')
+  const seen = new Set<number>()
+  for (const notification of notifications) {
+    if (notification.message?.type !== 'liwan/inbox') continue
+    const payload = notification.message.payload
+    const ids = Array.isArray(payload?.ids) ? payload.ids : [payload?.id]
+    for (const id of ids) if (typeof id === 'number') seen.add(id)
+  }
+  return [...seen]
 }
 
 // Pure: exponential backoff, 1s doubling up to a 30s ceiling, with +/-20%
@@ -424,6 +432,14 @@ function disconnect() {
   socket = null
   connected.value = false
   s?.close()
+}
+
+/** The fallback poll period of a bus-driven query while the socket is down. */
+export const BUS_FALLBACK_POLL_MS = 5_000
+
+/** A `refetchInterval` that polls while the bus is not connected and stays off while it is, so no request goes out while pushes arrive. It is reactive: a reconnect stops the polling and a drop starts it again. */
+export function busFallbackInterval(pollMs: number = BUS_FALLBACK_POLL_MS): ComputedRef<number | false> {
+  return computed(() => connected.value ? false : pollMs)
 }
 
 export function useBus(): { connected: Ref<boolean>; connect: () => void; disconnect: () => void } {
