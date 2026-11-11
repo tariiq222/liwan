@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { CrmImportBatch } from '@liwan/contracts'
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { useCrmImportBatches } from '@/composables/crm/useCrmImports'
-import { listPageNumber } from '@/composables/useRouteListFilters'
+import { listPageNumber, useLastPageClamp } from '@/composables/useRouteListFilters'
 
 // The imported files of the company, newest first, with what each one created, skipped and left without an agent.
 // `background` is the list behind the import panel: it always shows the first page and writes nothing to the address.
@@ -20,6 +20,7 @@ const page = computed(() => (props.background ? 1 : listPageNumber(route.query.p
 const query = useCrmImportBatches(() => ({ limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+useLastPageClamp({ page: () => page.value, total: () => query.data.value?.total, pageSize: PAGE_SIZE })
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const goTo = (value: number) => { if (hydrated.value) void router.replace({ query: { ...route.query, page: value > 1 ? String(value) : undefined } }) }
 

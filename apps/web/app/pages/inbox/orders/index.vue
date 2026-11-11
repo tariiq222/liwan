@@ -3,7 +3,7 @@ import InboxOrdersTable from '@/components/inbox/InboxOrdersTable.vue'
 import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
 import { useInboxOrders } from '@/composables/inbox/useInboxOrders'
 import { useInboxChannels } from '@/composables/inbox/useInboxSettings'
-import { listPageNumber } from '@/composables/useRouteListFilters'
+import { listPageNumber, useLastPageClamp } from '@/composables/useRouteListFilters'
 
 // The orders across the conversations the viewer can see: carts customers sent and orders agents built, filtered by
 // state, payment status and channel. The filters live in the address (`?state=&payment_status=&channel_id=&q=&page=`),
@@ -29,6 +29,7 @@ const page = computed(() => listPageNumber(route.query.page))
 const query = useInboxOrders(() => ({ state: state.value, payment_status: payment.value, channel_id: channelId.value, q: committedSearch.value.trim(), limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }), enabled)
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+useLastPageClamp({ page: () => page.value, total: () => query.data.value?.total, pageSize: PAGE_SIZE })
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const filtered = computed(() => !!(state.value || payment.value || channelId.value || committedSearch.value.trim()))
 
