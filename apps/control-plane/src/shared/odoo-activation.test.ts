@@ -45,7 +45,7 @@ it('quarantines a full failed batch so the healthy eleventh tenant activates nex
     const uuid=`ba91699b-c25b-4a01-8c84-${String(index).padStart(12,'0')}`
     const binding={...job.binding,tenantId:`tenant${index}`,database:`liwan_scratch_${String(index).padStart(32,'0')}`,filestore:`liwan_scratch_${String(index).padStart(32,'0')}`}
     const payload=bindJob({...job,requestId:uuid,binding})
-    return {payload,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(payload),request_id:uuid,control_tenant_id:uuid,job_id:uuid,stage:'verifying'}
+    return {payload,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(payload),request_id:uuid,control_tenant_id:uuid,job_id:uuid,stage:'verifying',recheck_failures:0}
   })
   const observed:string[]=[]
   const client={release(){},async query(sql:string,params:unknown[]=[]){
@@ -67,7 +67,7 @@ it('quarantines a full failed batch so the healthy eleventh tenant activates nex
   }} as unknown as Pool
   const adapter={observe:async(candidate:typeof job)=>{
     observed.push(candidate.requestId)
-    if(candidate.requestId!==rows[10]!.request_id)return {state:'unknown'}
+    if(candidate.requestId!==rows[10]!.request_id)return {state:'absent'}
     return {state:'present',binding:candidate.binding,businessKey:businessKey(candidate),payloadDigest:payloadDigest(candidate),verified:true}
   },applyFenced:async()=>{throw Error('read-only activation')}}
   const config={tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any
@@ -77,6 +77,52 @@ it('quarantines a full failed batch so the healthy eleventh tenant activates nex
   await reconcileOdooOnboardings(pool,config,adapter)
   expect(rows[10]!.stage).toBe('active')
   expect(observed).toHaveLength(11)
+})
+
+function recheckFixture(recheckFailures:number,observation:unknown){
+  const writes:Array<{sql:string;params:unknown[]}>=[]
+  const client={release(){},async query(sql:string,params:unknown[]=[]){
+    if(sql.startsWith('UPDATE'))writes.push({sql,params})
+    return {rowCount:1,rows:[{}]}
+  }}
+  const row={payload:job,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(job),request_id:id,control_tenant_id:id,job_id:id,recheck_failures:recheckFailures}
+  const pool={connect:async()=>client,async query(sql:string,params:unknown[]=[]){
+    if(sql.startsWith('UPDATE'))writes.push({sql,params})
+    return {rows:[row]}
+  }} as unknown as Pool
+  const run=()=>reconcileOdooOnboardings(pool,{} as any,{observe:async()=>observation,applyFenced:async()=>{throw Error('read-only activation')}} as any)
+  return {writes,run}
+}
+
+it('an unreadable recheck backs the candidate off without quarantining it or touching the tenant',async()=>{
+  const f=recheckFixture(0,{state:'unknown'})
+  await f.run()
+  expect(f.writes).toHaveLength(1)
+  expect(f.writes[0]!.sql).toContain('recheck_failures=$2')
+  expect(f.writes[0]!.sql).toContain('recheck_after')
+  expect(f.writes[0]!.sql).not.toContain('needs_intervention')
+  expect(f.writes[0]!.params).toEqual([id,1,30])
+})
+
+it('the unreadable backoff doubles with each failure',async()=>{
+  const f=recheckFixture(2,{state:'unknown'})
+  await f.run()
+  expect(f.writes[0]!.params).toEqual([id,3,120])
+})
+
+it('the last allowed unreadable recheck quarantines with a code that says it was unreadable',async()=>{
+  const f=recheckFixture(4,{state:'unknown'})
+  await f.run()
+  expect(f.writes[0]!.sql).toContain("stage='needs_intervention'")
+  expect(f.writes[0]!.params).toEqual([id,'readiness_recheck_unreadable'])
+  expect(f.writes[1]!.sql).toContain("status='needs_intervention'")
+})
+
+it.each([{state:'absent'},{state:'partial'}])('a definitive mismatch %j quarantines at once, whatever the failure count',async observation=>{
+  const f=recheckFixture(0,observation)
+  await f.run()
+  expect(f.writes[0]!.params).toEqual([id,'readiness_recheck_failed'])
+  expect(f.writes[1]!.sql).toContain("status='needs_intervention'")
 })
 
 it('does not mark tenant active after another reconciler quarantines the onboarding',async()=>{
