@@ -159,6 +159,22 @@ class PullRequestTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertNotIn('image', ci_scope.pull_request_stages([path], self.affected(path)))
 
+    def test_a_pull_request_that_changes_a_migration_runs_the_upgrade_stage(self):
+        for path in ('odoo-addons/liwan_hr/migrations/19.0.1.20.0/post-payroll.py',
+                     'odoo-addons/liwan_hr/migrations/19.0.1.20.0/README.md',
+                     'odoo-addons/base_tier_validation/migrations/19.0.1.0.0/pre-x.py'):
+            with self.subTest(path=path):
+                stages = ci_scope.pull_request_stages([path], None)
+                self.assertIn('upgrade', stages)
+                self.assertFalse({'restore-drill', 'image'} & set(stages))
+
+    def test_other_addon_and_control_plane_files_do_not_pull_the_upgrade_stage_into_a_pull_request(self):
+        for path in ('odoo-addons/liwan_hr/models/a.py', 'odoo-addons/liwan_hr/__manifest__.py',
+                     'odoo-addons/liwan_hr/tests/test_migrations.py', 'apps/control-plane/src/schema_a.sql',
+                     'docs/migrations.md', 'tools/migration_guard.py'):
+            with self.subTest(path=path):
+                self.assertNotIn('upgrade', ci_scope.pull_request_stages([path], None))
+
     def test_ci_result_names_exactly_the_deferred_stages(self):
         workflow = (Path(ci_scope.__file__).resolve().parents[1] / '.github/workflows/ci.yml').read_text()
         listed = ', '.join('"%s"' % stage for stage in ci_scope.DEFERRED_STAGES)

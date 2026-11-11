@@ -1,4 +1,4 @@
-"""Split the release modules into balanced Odoo test shards for the CI ``odoo`` stage.
+"""Split the release modules and the tested vendored dependencies into balanced Odoo test shards for the CI ``odoo`` stage.
 
     python3 -B tools/odoo_shards.py matrix [--modules a,b]   # JSON array of shard numbers, for the workflow matrix
     python3 -B tools/odoo_shards.py tags 2/6 [--modules a,b] # --test-tags value of shard 2 of 6
@@ -10,7 +10,7 @@ uses ODOO_PORT + k - 1 and its own scratch database. Logs go to a temporary dire
 Six local Odoo processes on one Postgres can be slow enough to hit the 12 s HTTP test timeout (finance
 report tests); a red local run under load is not proof of a defect, so re-run the failing shard alone.
 
-Every shard still installs the whole release module list (about 17 s on the CI runner, so a shard costs
+Every shard still installs the whole release module list (which brings in ``TESTED_DEPENDENCIES``) (about 17 s on the CI runner, so a shard costs
 little); a shard only differs in the modules whose tests it runs. A module is never split: the heaviest one
 (``liwan_finance``) fills a shard of its own and sets the longest run.
 
@@ -45,6 +45,11 @@ SHARD_COUNT = 6
 COST_FACTOR = {'liwan_finance': 2.7, 'liwan_hr': 2.4, 'liwan_pmo': 2.1, 'liwan_hr_finance': 3.3,
                'liwan_meetings_pmo': 4.9, 'liwan_pmo_finance': 2.2, 'liwan_appointments_payments': 2.3,
                'liwan_hr_operations': 1.6}
+# Vendored addons that release modules depend on and whose tests include ones written by this team. `-i <release>`
+# installs them as dependencies, so their tests run in a shard like a release module's. They stay out of the release
+# list (and so out of the catalog and the production install list). `liwan_registry_probe` is not here on purpose:
+# it contributes to the registries, so `deploy/ci/odoo.sh` tests it on a database of its own.
+TESTED_DEPENDENCIES = ('base_tier_validation',)
 TEST_DEF = re.compile(r'^\s*def test_', re.MULTILINE)
 
 
@@ -58,6 +63,11 @@ def release_modules() -> list[str]:
     if result.returncode:
         raise ShardError('catalog_check --release-modules failed: ' + result.stderr.strip())
     return result.stdout.strip().split(',')
+
+
+def tested_modules() -> list[str]:
+    """Every module whose tests the odoo stage runs: the release modules plus TESTED_DEPENDENCIES."""
+    return [*release_modules(), *TESTED_DEPENDENCIES]
 
 
 def weight(module: str, addons: Path = REPO / 'odoo-addons') -> int:
@@ -94,7 +104,7 @@ def shard_numbers(modules: list[str] | None = None) -> list[int]:
     """The matrix of a run: every shard of SHARD_COUNT, or just enough for the affected modules."""
     if modules is None:
         return list(range(1, SHARD_COUNT + 1))
-    total = sum(weight(module) for module in release_modules())
+    total = sum(weight(module) for module in tested_modules())
     count = shard_count_for(sum(weight(module) for module in modules), total)
     return list(range(1, min(count, len(modules)) + 1))
 
@@ -113,11 +123,11 @@ def require_count(count: int) -> int:
 
 
 def plan(count: int, modules: list[str] | None = None) -> list[list[str]]:
-    release = release_modules()
-    unknown = sorted(set(modules or ()) - set(release))
+    tested = tested_modules()
+    unknown = sorted(set(modules or ()) - set(tested))
     if unknown:
-        raise ShardError('not release modules: ' + ', '.join(unknown))
-    return split({module: weight(module) for module in (release if modules is None else modules)}, require_count(count))
+        raise ShardError('not tested modules: ' + ', '.join(unknown))
+    return split({module: weight(module) for module in (tested if modules is None else modules)}, require_count(count))
 
 
 def tags(selector: str, modules: list[str] | None = None) -> str:

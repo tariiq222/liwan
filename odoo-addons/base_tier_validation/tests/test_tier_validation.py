@@ -1784,9 +1784,10 @@ class TierTierValidation(CommonTierValidation):
 
         self.test_record_2.company_id = self.other_company
 
+        # The lock checks write access in the caller's company context, so the user acts in the record's company.
         reviews = self.test_record_2.with_user(
             self.test_user_3_multi_company.id,
-        ).request_validation()
+        ).with_company(self.other_company).request_validation()
 
         self.assertEqual(len(reviews), 1)
 

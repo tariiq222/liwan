@@ -214,8 +214,10 @@ python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>] [--pull-
 A pull request is narrower still (`--pull-request`, passed by the `scope` job only for the `pull_request`
 and `merge_group` events; a merge-queue entry is selected from the queue base to the queued merge result):
 
-- `upgrade` and `restore-drill` never run on a pull request, and `image` runs only when the change touches a file
-  that decides how an image builds: a `Dockerfile`, a Compose file, `.dockerignore`, `deploy/ci/image.sh`,
+- `restore-drill` never runs on a pull request. `upgrade` runs only when the change adds or edits a file under an addon's
+  `migrations/` directory (`feeds_upgrade`; a manifest version bump must ship `migrations/<version>/`, so it is covered
+  too; the control-plane `schema_*.sql` files are applied by the `control-plane` stage instead). `image` runs only when
+  the change touches a file that decides how an image builds: a `Dockerfile`, a Compose file, `.dockerignore`, `deploy/ci/image.sh`,
   `deploy/odoo/requirements-python312-linux.txt`, or `apps/ai-service/requirements.txt` and `requirements-build.txt`
   (`feeds_image_build` in `tools/ci_scope.py`; the dev and audit locks are read by no Dockerfile). Otherwise the three
   run on the push to `main`, the nightly run and a full dispatch. The `ci-result` job names the deferred stages a run
@@ -292,7 +294,10 @@ Removing the merged task's worktree, branch and scratch database is `python3 -B 
 ### Stage notes
 
 The `odoo` stage covers the release modules and is a matrix of six shards (a job still named `odoo` to
-`ci-result`, so it stays one of the thirteen stages). Every shard installs the whole release module list on
+`ci-result`, so it stays one of the thirteen stages). Besides the release modules it tests `TESTED_DEPENDENCIES` in
+`tools/odoo_shards.py` (the vendored `base_tier_validation`, whose security tests are ours), which the release installs as
+a dependency. Shard 1 also tests `liwan_registry_probe` on a database of its own (it adds a capability and a feature to the
+registries, so it never shares the release database or the release list). Every shard installs the whole release module list on
 its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
 counts times `COST_FACTOR` (seconds per test relative to the median module, measured for `liwan_finance`, `liwan_hr`, `liwan_pmo` and five bridges; the comment in `tools/odoo_shards.py` records how) (greedy, heaviest first; refit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split and its weights. Run one shard
@@ -410,12 +415,19 @@ parsed with their strict schema by `src/fixtures.test.ts`, which runs in `npm te
 - Refresh: `python3 -B tools/contract_fixtures.py` (runs the Odoo tests of the manifest addons on a
   scratch database, slow). Drift check: `python3 -B tools/contract_fixtures.py --check`. Neither is part
   of `npm test`.
+- CI does not run the drift check: the recorded response is the largest one any running test produced, so it depends on
+  which addons' tests share the run, and the `odoo` shards split the manifest addons from the bridges that enrich their
+  routes (measured 2026-11-11: a mixed run of eight addons differed from the committed fixtures on eight routes). A sound CI
+  check is one dedicated job that runs `--check` as above (about the cost of the manifest addons' tests again).
 
 ## 3. Playwright mock specs
 
 Specs live in `apps/web/e2e` and talk to `apps/web/e2e/internal-ui-audit-mock.mjs`. They are
 deterministic and free, and CI runs the list in `ci-mock-specs.txt`. Use them for page
 states, navigation and regressions that need no judgement.
+
+Every Playwright config sets `forbidOnly: !!process.env.CI` (GitHub Actions exports `CI`), so a committed `test.only` fails the
+stage instead of silently running one test; vitest already refuses `.only` under CI by default.
 
 How the stage runs (`deploy/ci/e2e-mock.sh`):
 
