@@ -386,7 +386,7 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 | What stock Odoo does with product field values when the category changes | Not reviewed | The catalog plan |
 | How far the OCA booking link can carry several offers per service | Not reviewed | The appointments plan |
 | A group of separate legal companies in one tenant | Outside this design (section 7) | An owner decision if a customer needs it |
-| How staff of several branches choose their working company | The product has no company switch today (`apps/web/app/components/shell/AppUserMenu.vue:13`) | Its own design before step 1 ships to tenants whose staff work in several branches |
+| How staff of several branches choose their working company | The product has no company switch today (`apps/web/app/components/shell/AppUserMenu.vue:13`) | [2026-11-12-working-company-switch-design.md](2026-11-12-working-company-switch-design.md), before step 1 ships to tenants whose staff work in several branches |
 
 ## 11. Evidence status
 
