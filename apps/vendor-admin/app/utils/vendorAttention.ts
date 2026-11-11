@@ -45,6 +45,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: customerTab(item, 'subscription'), tone: 'info', icon: 'i-lucide-gauge', actionKey: action(item.kind) }
     case 'stalled_activation':
       return { to: customerTab(item, 'workspace'), tone: 'destructive', icon: 'i-lucide-hourglass', actionKey: action(item.kind) }
+    case 'invitation_failed':
+      return { to: customerTab(item, 'workspace'), tone: 'destructive', icon: 'i-lucide-mail-x', actionKey: action(item.kind) }
     case 'operation_failed':
       return { to: item.operation_id ? { path: `/operations/${item.operation_id}`, query: { source: 'legacy', returnTo: '/overview' } } : null, tone: 'destructive', icon: 'i-lucide-circle-alert', actionKey: action(item.kind) }
     case 'setup_required':
@@ -72,6 +74,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
       return FAILED_FULFILLMENT.includes(item.detail ?? '')
         ? { key: 'stalled_failed', days: null, operation: null }
         : { key: 'stalled_waiting', days: Math.max(0, daysBetween(item.since, now)), operation: null }
+    case 'invitation_failed': return { key: 'invitation_failed', days: null, operation: null }
     case 'operation_failed': return { key: 'operation_failed', days: null, operation: item.detail }
     case 'setup_required': return { key: 'setup_required', days: null, operation: null }
     case 'renewal_missed': return { key: 'renewal_missed', days: daysSinceRenewal(item.since, now), operation: null }
