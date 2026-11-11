@@ -2,6 +2,7 @@
 from . import (
     access_admin,
     access_branches,
+    access_policy,
     account_public,
     auth,
     branding,
