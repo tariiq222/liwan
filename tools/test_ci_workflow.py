@@ -12,6 +12,8 @@ DOCKERFILES = sorted(p for base in ('apps', 'deploy') for p in (ROOT / base).rgl
 # `uses: actions/x@<40 hex>` or a local composite action (`./.github/actions/...`).
 PINNED_ACTION = re.compile(r'^\s*(?:-\s*)?uses:\s+(\S+)')
 COMMIT_SHA = re.compile(r'^[^@]+@[0-9a-f]{40}$')
+CONTAINER_IMAGE = re.compile(r'^\s*image:\s+(\S+)')
+IMAGE_DIGEST = re.compile(r'^[^@\s]+:[^@\s]+@sha256:[0-9a-f]{64}$')
 NODE_IMAGE = re.compile(r'^FROM\s+node:([0-9]+\.[0-9]+\.[0-9]+)-')
 
 
@@ -40,6 +42,16 @@ class ActionPinningTest(unittest.TestCase):
                     continue
                 with self.subTest(workflow=workflow.name, action=match.group(1)):
                     self.assertRegex(line, r'#\s*v\d+\.\d+\.\d+$')
+
+    def test_every_container_image_is_pinned_to_a_digest(self):
+        # Service and job containers: a tag alone lets the registry change what runs without a commit.
+        for workflow in workflow_files():
+            for line in workflow.read_text().splitlines():
+                match = CONTAINER_IMAGE.match(line)
+                if not match:
+                    continue
+                with self.subTest(workflow=workflow.name, image=match.group(1)):
+                    self.assertRegex(match.group(1), IMAGE_DIGEST, 'pin the image as name:tag@sha256:<digest>')
 
     def test_dependabot_keeps_the_actions_moving(self):
         config = (WORKFLOW_DIR / 'dependabot.yml').read_text()
@@ -125,7 +137,7 @@ class StaticStageTest(unittest.TestCase):
     def test_the_documentation_profile_runs_in_one_part_only(self):
         job = self.static_job()
         self.assertIn("if: steps.profile.outputs.mode == 'docs' && matrix.part == 'policies'", job)
-        self.assertEqual(job.count("steps.profile.outputs.mode != 'docs'"), 3)
+        self.assertEqual(job.count("steps.profile.outputs.mode != 'docs'"), 4)  # setup, Python tools, Semgrep rulesets, the script
 
     def test_the_script_runs_one_part_or_all_and_refuses_an_unknown_one(self):
         result = subprocess.run(['bash', str(ROOT / 'deploy/ci/static.sh'), 'unknown'], capture_output=True, text=True, check=False)

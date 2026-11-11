@@ -1,0 +1,8 @@
+{
+  "reviewed": "2026-11-12",
+  "rulesets": {
+    "p/python": "de5bc79d074c3b4146338a0bf95830406f169bd91ac590a2f1ef111f162e23f5",
+    "p/typescript": "967e551f37a9f27ce8b396ed121e5e127bf9ea60148e10589b794bd4ffe73395",
+    "p/secrets": "d1afb323ed493cf9d3ee5044447b989debf033b2b7cc8208662a81b8c162c66a"
+  }
+}
