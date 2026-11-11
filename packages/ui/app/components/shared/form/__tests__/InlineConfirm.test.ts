@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { defineComponent, h, nextTick, type App } from 'vue'
+import { defineComponent, h, nextTick, onMounted, ref, type App } from 'vue'
 import { createHostNode, findNode, hostRenderer, type HostNode } from '../../../../../test/helpers/hostRenderer'
 import { loadShared } from '../../../../../test/helpers/renderShared'
 
@@ -16,7 +16,8 @@ const UAlert = defineComponent({
 })
 
 function mount(slot?: () => unknown) {
-  const InlineConfirm = loadShared('InlineConfirm')
+  // The real useHydrated: false until mounted, so Cancel starts disabled exactly as on a page.
+  const InlineConfirm = loadShared('InlineConfirm', { globals: { useHydrated: () => { const hydrated = ref(false); onMounted(() => { hydrated.value = true }); return hydrated } } })
   const app = hostRenderer.createApp(defineComponent({ render: () => h(InlineConfirm, { title: 'Archive?', confirmLabel: 'Archive', onCancel: () => focused.push('cancel-emitted') }, slot ? { default: slot } : {}) }))
   app.component('UAlert', UAlert)
   app.component('UButton', passthrough('button'))
@@ -29,7 +30,8 @@ function mount(slot?: () => unknown) {
 beforeEach(() => {
   focused.length = 0
   fieldInSlot = null
-  hostProto.focus = function (this: HostNode) { focused.push(String(this.props['data-testid'])) }
+  // A disabled control cannot take focus: record it, so a focus attempt before the hydration render shows up.
+  hostProto.focus = function (this: HostNode) { focused.push(`${String(this.props['data-testid'])}${this.props.disabled ? ':disabled' : ''}`) }
   hostProto.querySelector = () => fieldInSlot
 })
 
@@ -42,20 +44,23 @@ afterEach(() => {
 })
 
 describe('SharedInlineConfirm focus', () => {
-  it('moves focus to Cancel when it appears and the slot has no field', () => {
+  it('moves focus to Cancel once the hydration render has enabled it, when the slot has no field', async () => {
     mount()
+    await nextTick()
     expect(focused).toEqual(['inline-confirm-cancel'])
   })
 
-  it('moves focus to the first field of its slot when there is one', () => {
+  it('moves focus to the first field of its slot when there is one', async () => {
     fieldInSlot = { focus: () => focused.push('slot-field') }
     mount(() => h('input'))
+    await nextTick()
     expect(focused).toEqual(['slot-field'])
   })
 
   it('returns focus to the control that opened it when Cancel is chosen and that control is in the page', async () => {
     ;(globalThis as { document?: unknown }).document = { activeElement: { isConnected: true, focus: () => focused.push('opener') } }
     const host = mount()
+    await nextTick()
     focused.length = 0
     ;(findNode(host, node => node.props['data-testid'] === 'inline-confirm-cancel')!.props.onClick as () => void)()
     await nextTick()
@@ -65,6 +70,7 @@ describe('SharedInlineConfirm focus', () => {
   it('leaves focus alone on Cancel when the opening control is gone from the page', async () => {
     ;(globalThis as { document?: unknown }).document = { activeElement: { isConnected: false, focus: () => focused.push('opener') } }
     const host = mount()
+    await nextTick()
     focused.length = 0
     ;(findNode(host, node => node.props['data-testid'] === 'inline-confirm-cancel')!.props.onClick as () => void)()
     await nextTick()

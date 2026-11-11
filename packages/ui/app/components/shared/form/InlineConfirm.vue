@@ -22,7 +22,10 @@ const cancelButton = useTemplateRef<{ $el: HTMLElement }>('cancelButton')
 const fields = useTemplateRef<HTMLElement>('fields')
 const opener = typeof document === 'undefined' ? null : document.activeElement as HTMLElement | null
 
-onMounted(() => {
+// Cancel is disabled until hydration, and `hydrated` flips in a mounted hook that Vue patches into the DOM on the next
+// render; focusing a disabled button does nothing, so focus is moved after that render.
+onMounted(async () => {
+  await nextTick()
   const field = fields.value?.querySelector<HTMLElement>('input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled)')
   const target = field ?? cancelButton.value?.$el
   target?.focus()
