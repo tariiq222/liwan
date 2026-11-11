@@ -44,34 +44,40 @@ runs:
       uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       with:
         python-version: '3.12'
-    - name: System package archive cache
+    - name: System package cache
       if: inputs.odoo == 'true'
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
-        path: ${{ runner.temp }}/apt-archives
-        # A new runner image restores the previous image's archives and saves its own set.
-        key: apt-archives-${{ env.ImageOS }}-${{ env.ImageVersion }}-${{ hashFiles('.github/actions/setup/action.yml') }}
-        restore-keys: apt-archives-${{ env.ImageOS }}-
+        path: ${{ runner.temp }}/apt-cache
+        # A new runner image restores the previous image's packages and saves its own set.
+        key: apt-cache-${{ env.ImageOS }}-${{ env.ImageVersion }}-${{ hashFiles('.github/actions/setup/action.yml') }}
+        restore-keys: apt-cache-${{ env.ImageOS }}-
     - name: System packages for Odoo
       if: inputs.odoo == 'true'
       shell: bash
       run: |
         set -euo pipefail
-        archives="$RUNNER_TEMP/apt-archives"
+        cache="$RUNNER_TEMP/apt-cache"
+        archives="$cache/archives"
+        lists="$cache/lists"
         mkdir -p "$archives/partial"
         packages=(build-essential libpq-dev libldap2-dev libsasl2-dev postgresql-client-16)
         apt_get() {
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 \
             -o Dir::Cache::Archives="$archives" -o APT::Keep-Downloaded-Packages=true "$@"
         }
-        # Install from the cached archives with the image's package lists first, so an Ubuntu mirror outage does not
-        # stop CI; only a missing or outdated archive goes to the network.
-        if ! apt_get install -y -q --no-install-recommends --no-download "${packages[@]}"; then
+        # Install offline first, resolving with the package lists the cached archives were downloaded from (the
+        # image's own lists may name other versions), so an Ubuntu mirror outage does not stop CI.
+        offline=()
+        if [ -d "$lists" ]; then offline=(-o Dir::State::Lists="$lists"); fi
+        if ! apt_get "${offline[@]}" install -y -q --no-install-recommends --no-download "${packages[@]}"; then
           apt_get update -q
           apt_get install -y -q --no-install-recommends "${packages[@]}"
+          sudo rm -rf "$lists"
+          sudo cp -a /var/lib/apt/lists "$lists"
         fi
-        # apt writes the archives as root; the cache step saves them as the runner user.
-        sudo chown -R "$(id -u):$(id -g)" "$archives"
+        # apt writes as root; the cache step saves as the runner user.
+        sudo chown -R "$(id -u):$(id -g)" "$cache"
     - name: Odoo source cache
       id: odoo-source
       if: inputs.odoo == 'true'
