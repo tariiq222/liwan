@@ -2386,6 +2386,21 @@
         ],
         "type": "string"
       },
+      "AiBlockedSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "enum": [
+              "ai_balance_empty",
+              "ai_spend_ceiling"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "AiCapabilitySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -3193,6 +3208,92 @@
           "policy": {
             "additionalProperties": false,
             "properties": {
+              "allowance": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "allowance_left": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "allowance_resets_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "balance_granted": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "balance_left": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "blocked": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "ai_balance_empty",
+                      "ai_spend_ceiling"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "blocked_resets_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "consent_signed": {
                 "type": "boolean"
               },
@@ -3227,7 +3328,7 @@
                 ],
                 "type": "string"
               },
-              "tokens_monthly": {
+              "spend_ceiling": {
                 "anyOf": [
                   {
                     "maximum": 9007199254740991,
@@ -3239,19 +3340,33 @@
                   }
                 ]
               },
-              "tokens_used": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
+              "spend_this_month": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
               "provider_mode",
               "consent_signed",
-              "tokens_monthly",
-              "tokens_used",
               "output_tokens_per_run",
-              "input_tokens_per_run"
+              "input_tokens_per_run",
+              "blocked",
+              "blocked_resets_at",
+              "allowance_resets_at",
+              "balance_granted",
+              "balance_left",
+              "allowance",
+              "allowance_left",
+              "spend_ceiling",
+              "spend_this_month"
             ],
             "type": "object"
           },
@@ -3696,6 +3811,92 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "allowance": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowance_left": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowance_resets_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "balance_granted": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "balance_left": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blocked": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ai_balance_empty",
+                  "ai_spend_ceiling"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blocked_resets_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "consent_signed": {
             "type": "boolean"
           },
@@ -3730,7 +3931,7 @@
             ],
             "type": "string"
           },
-          "tokens_monthly": {
+          "spend_ceiling": {
             "anyOf": [
               {
                 "maximum": 9007199254740991,
@@ -3742,19 +3943,33 @@
               }
             ]
           },
-          "tokens_used": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
+          "spend_this_month": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "provider_mode",
           "consent_signed",
-          "tokens_monthly",
-          "tokens_used",
           "output_tokens_per_run",
-          "input_tokens_per_run"
+          "input_tokens_per_run",
+          "blocked",
+          "blocked_resets_at",
+          "allowance_resets_at",
+          "balance_granted",
+          "balance_left",
+          "allowance",
+          "allowance_left",
+          "spend_ceiling",
+          "spend_this_month"
         ],
         "type": "object"
       },
@@ -4216,6 +4431,11 @@
             "minimum": 0,
             "type": "integer"
           },
+          "monthly_spend_ceiling": {
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": "integer"
+          },
           "provider_mode": {
             "enum": [
               "platform",
@@ -4331,6 +4551,11 @@
             "minimum": 0,
             "type": "integer"
           },
+          "monthly_spend_ceiling": {
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": "integer"
+          },
           "provider_mode": {
             "enum": [
               "platform",
@@ -4395,23 +4620,6 @@
                     "type": "null"
                   }
                 ]
-              },
-              "tokens_limit": {
-                "anyOf": [
-                  {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "tokens_used": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
               }
             },
             "required": [
@@ -4420,8 +4628,6 @@
               "messages_limit",
               "assist_used",
               "assist_limit",
-              "tokens_used",
-              "tokens_limit",
               "output_tokens_per_run"
             ],
             "type": "object"
@@ -4431,6 +4637,7 @@
           "provider_mode",
           "messages_per_user_monthly",
           "input_tokens_per_run",
+          "monthly_spend_ceiling",
           "external_send",
           "knowledge_enabled",
           "revision",
@@ -5140,6 +5347,92 @@
               "policy": {
                 "additionalProperties": false,
                 "properties": {
+                  "allowance": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "allowance_left": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "allowance_resets_at": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "balance_granted": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "balance_left": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "blocked": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "ai_balance_empty",
+                          "ai_spend_ceiling"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "blocked_resets_at": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "consent_signed": {
                     "type": "boolean"
                   },
@@ -5174,7 +5467,7 @@
                     ],
                     "type": "string"
                   },
-                  "tokens_monthly": {
+                  "spend_ceiling": {
                     "anyOf": [
                       {
                         "maximum": 9007199254740991,
@@ -5186,19 +5479,33 @@
                       }
                     ]
                   },
-                  "tokens_used": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
+                  "spend_this_month": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
                   "provider_mode",
                   "consent_signed",
-                  "tokens_monthly",
-                  "tokens_used",
                   "output_tokens_per_run",
-                  "input_tokens_per_run"
+                  "input_tokens_per_run",
+                  "blocked",
+                  "blocked_resets_at",
+                  "allowance_resets_at",
+                  "balance_granted",
+                  "balance_left",
+                  "allowance",
+                  "allowance_left",
+                  "spend_ceiling",
+                  "spend_this_month"
                 ],
                 "type": "object"
               },
@@ -5285,6 +5592,11 @@
                       "type": "null"
                     }
                   ]
+                },
+                "charge_paid": {
+                  "maximum": 2147483647,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "conversation_id": {
                   "maxLength": 64,
@@ -5374,7 +5686,8 @@
                 "output_tokens",
                 "cost",
                 "charge",
-                "called_at"
+                "called_at",
+                "charge_paid"
               ],
               "type": "object"
             },
@@ -5704,6 +6017,11 @@
               }
             ]
           },
+          "charge_paid": {
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": "integer"
+          },
           "conversation_id": {
             "maxLength": 64,
             "minLength": 1,
@@ -5792,7 +6110,8 @@
           "output_tokens",
           "cost",
           "charge",
-          "called_at"
+          "called_at",
+          "charge_paid"
         ],
         "type": "object"
       },
