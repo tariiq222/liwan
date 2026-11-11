@@ -42,15 +42,18 @@ const props = defineProps<{ record: CrmOpportunity; sources: CrmSource[]; pendin
 const emit = defineEmits<{ save: [patch: ReturnType<typeof contactPatch>]; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const draft = ref<CrmContactDraft>({
+// The patch is built against the snapshot the editor opened from: a background refetch of the record must not
+// turn untouched fields into changes that would overwrite another user's correction.
+const snapshot = ref<CrmContactDraft>({
   contact_name: props.record.contact_name,
   phone: props.record.phone,
   email: props.record.email,
   source_id: props.record.source?.id ?? null,
 })
+const draft = ref<CrmContactDraft>({ ...snapshot.value })
 const attempted = ref(false)
 const dirty = defineModel<boolean>('dirty', { default: false })
-const patch = computed(() => contactPatch(props.record, draft.value))
+const patch = computed(() => contactPatch(snapshot.value, draft.value))
 watch(patch, value => { dirty.value = Object.keys(value).length > 0 }, { immediate: true })
 onBeforeUnmount(() => { dirty.value = false })
 

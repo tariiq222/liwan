@@ -94,6 +94,8 @@ const formShown = computed<Record<Origin, boolean>>(() => ({
 }))
 const pageFailure = computed(() => Boolean(failure.value) && !formShown.value[failure.value!.origin])
 const textFor = (origin: Origin) => (failure.value?.origin === origin ? failureText.value : '')
+// The contact editor reads the structured error itself, to place duplicate-phone and invalid-email on their field.
+const errorFor = (origin: Origin) => (failure.value?.origin === origin ? failure.value.error : undefined)
 const recorded = ref('')
 
 function resetSale() {
@@ -287,7 +289,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       <CrmOpportunityCallLog :calls="calls.items.value" :total="calls.data.value?.pages.at(-1)?.total ?? 0" :has-more="!!calls.hasNextPage.value" :loading-more="calls.isFetchingNextPage.value" @more="calls.fetchNextPage()" />
     </template>
     <template v-if="record" #aside>
-      <CrmOpportunityContactForm v-if="canWork && panel === 'contact'" v-model:dirty="contactDirty" :record="record" :sources="sources.data.value?.items ?? []" :pending="actions.patch.isPending.value" :disabled="busy" :error="textFor('contact')" @save="saveContact" @cancel="open('contact')" />
+      <CrmOpportunityContactForm v-if="canWork && panel === 'contact'" v-model:dirty="contactDirty" :record="record" :sources="sources.data.value?.items ?? []" :pending="actions.patch.isPending.value" :disabled="busy" :error="errorFor('contact')" @save="saveContact" @cancel="open('contact')" />
       <div v-else-if="canWork" class="flex justify-end">
         <UButton size="xs" variant="outline" icon="i-lucide-pencil" :label="t('crm.opportunities.contact.edit')" :disabled="busy" data-testid="crm-contact-edit" @click="open('contact')" />
       </div>
