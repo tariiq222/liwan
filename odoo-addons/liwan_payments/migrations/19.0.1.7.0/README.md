@@ -1,0 +1,1 @@
+Adds payment.transaction.liwan_gateway_checked_at (when the Paymob reconciliation last asked about a checkout). Existing transactions start empty, which the reconciliation reads as never asked, so nothing is carried forward.

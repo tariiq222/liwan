@@ -125,9 +125,9 @@ class TestOnlineOrders(LiwanOrderCase):
         (open_checkout | waiting).liwan_payment_deadline = fields.Datetime.now() - timedelta(minutes=1)
         self.expire()
         self.assertEqual((open_checkout.state, waiting.state), ('draft', 'draft'))
-        # Once the open checkout is older than the open window, the order is cancelled after all.
+        # Once the unanswered checkout is older than the open window and the wait for the gateway, the order is cancelled after all.
         self.env.cr.execute(
-            "UPDATE payment_transaction SET create_date = (now() at time zone 'UTC') - interval '16 minutes' WHERE id = %s",
+            "UPDATE payment_transaction SET create_date = (now() at time zone 'UTC') - interval '121 minutes' WHERE id = %s",
             [open_checkout.transaction_ids.id],
         )
         self.env.invalidate_all()

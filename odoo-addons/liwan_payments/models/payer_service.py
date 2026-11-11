@@ -13,6 +13,14 @@ OPEN_CHECKOUT = timedelta(minutes=15)
 # How long a payment the gateway reported as pending or authorized still counts as on its way; after
 # that the gateway is not expected to settle it, and a late settlement makes the refund due.
 SETTLE_WINDOW = timedelta(days=1)
+# A gateway checkout older than this with no answer is queried at the gateway; longer than OPEN_CHECKOUT so
+# a payer still on the gateway page is not queried.
+RECONCILE_AFTER = timedelta(minutes=30)
+# How long an unanswered gateway checkout holds its order from expiring: time for the reconciliation to
+# learn a payment whose notification was lost.
+AWAIT_GATEWAY = timedelta(hours=2)
+# The most checkouts one reconciliation run queries, so a gateway outage cannot make a run unbounded.
+RECONCILE_BATCH = 50
 # How long stock keeps retrying the post-processing of a received payment (payment_transaction.py,
 # ``_cron_post_process``); after that nothing records it on its document any more.
 POST_PROCESS_RETRIES = timedelta(days=4)
@@ -40,6 +48,14 @@ def payment_on_its_way(transactions, now):
 def payment_stuck(transactions, now):
     """Whether money was received but has not been recorded on its document for ``STUCK_AFTER``."""
     return any(_unrecorded(tx) and tx.last_state_change < now - STUCK_AFTER for tx in transactions)
+
+
+def awaiting_gateway(transactions, now):
+    """Whether a checkout among ``transactions`` reached the gateway less than ``AWAIT_GATEWAY`` ago and has no answer yet."""
+    return any(
+        tx.state == 'draft' and tx.provider_reference and tx.create_date >= now - AWAIT_GATEWAY
+        for tx in transactions
+    )
 
 
 def checkout_open(transactions, since):

@@ -12,7 +12,7 @@ from odoo.addons.liwan_api.tests.common import (
     cover_isolation_routes,
     exempt_isolation_route,
 )
-from odoo.addons.liwan_inbox.models.secret_box import KEY_ENV
+from odoo.addons.liwan_core.models.secret_box import KEY_ENV
 from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET
 from odoo.addons.liwan_inbox_payments.tests.common import CATALOG_ID, image_bytes
 

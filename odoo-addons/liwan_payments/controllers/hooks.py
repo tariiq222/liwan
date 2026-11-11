@@ -1,5 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import logging
 
 from werkzeug.exceptions import HTTPException
 
@@ -11,8 +10,6 @@ from odoo.addons.liwan_platform.models.read_only_guard import (
     INBOUND_EVENT_CONTEXT,
     INBOUND_EVENT_TOKEN,
 )
-
-_logger = logging.getLogger(__name__)
 
 KINDS = ('webhook', 'return')
 # How long post-processing waits for a row another transaction holds before it is left to the retry cron.
@@ -76,25 +73,9 @@ class GatewayCallbackController(http.Controller):
 
     @staticmethod
     def _post_process(transactions):
-        """Confirm, record and reconcile what this call processed, now, as stock's status poll does.
+        """Post-process what this call processed now; the gateway waits only ``POST_PROCESS_LOCK_TIMEOUT_MS`` for a held row.
 
-        Only the transactions this call changed are touched, and this does not depend on the
-        post-processing cron, which stock switches off with the last active gateway. A failure is
-        logged and handed to that cron, switched back on if needed (stock retries for four days);
-        the notification itself stays recorded. A row another transaction holds (the invoice being
-        posted, say) is waited for only ``POST_PROCESS_LOCK_TIMEOUT_MS``: the gateway gets its answer
-        in time and the cron finishes the job.
+        The transactions keep the environment the stock controller elevated them in.
         """
         for tx in transactions:
-            if tx.is_post_processed or tx.state not in ('authorized', 'done'):
-                continue
-            try:
-                with request.env.cr.savepoint():
-                    request.env.cr.execute('SET LOCAL lock_timeout = %s', [POST_PROCESS_LOCK_TIMEOUT_MS])
-                    tx._post_process()
-                    request.env.cr.execute('RESET lock_timeout')
-            except Exception:
-                _logger.exception("Post-processing of payment transaction %s failed; the cron will retry it", tx.reference)
-                # The transaction is elevated by the stock controller that processed it.
-                tx.provider_id._toggle_post_processing_cron()
-                request.env.ref('payment.cron_post_process_payment_tx')._trigger()
+            tx._liwan_post_process_now(POST_PROCESS_LOCK_TIMEOUT_MS)

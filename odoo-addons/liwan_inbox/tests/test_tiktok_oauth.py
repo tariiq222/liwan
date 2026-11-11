@@ -17,9 +17,9 @@ from odoo.tests.common import HOST
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_core.models import secret_box
 from odoo.addons.liwan_inbox.adapters import tiktok
-from odoo.addons.liwan_inbox.models import secret_box
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import SECRET_PURPOSE, TIKTOK_FEATURE
 
 REDIRECT_URI = 'https://liwan.test/api/v1/inbox/tiktok/callback'
 CONNECT = '/api/v1/inbox/channels/tiktok/connect'
@@ -166,8 +166,8 @@ class TestTikTokOAuth(LiwanInboxCase):
         self.assertTrue(channel.token_expires_at and channel.refresh_expires_at)
         self.assertNotIn(ACCESS_TOKEN, channel.access_token_enc)
         self.assertNotIn(REFRESH_TOKEN, channel.refresh_token_enc)
-        self.assertEqual(secret_box.decrypt(self.env, channel.access_token_enc), ACCESS_TOKEN)
-        self.assertEqual(secret_box.decrypt(self.env, channel.refresh_token_enc), REFRESH_TOKEN)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.access_token_enc), ACCESS_TOKEN)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.refresh_token_enc), REFRESH_TOKEN)
         # The never-returned tokens appear in no part of the redirect answer.
         self.assertNotIn(ACCESS_TOKEN, response.text)
         self.assertNotIn(REFRESH_TOKEN, response.text)
@@ -252,4 +252,4 @@ class TestTikTokOAuth(LiwanInboxCase):
         channel = self.reload(channel)
         self.assertEqual((channel.state, channel.last_error), ('connected', False))
         self.assertEqual(channel.tiktok_username, 'liwan_shop')
-        self.assertEqual(secret_box.decrypt(self.env, channel.access_token_enc), ACCESS_TOKEN)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.access_token_enc), ACCESS_TOKEN)

@@ -1,7 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import SUPERUSER_ID, api
 
-from odoo.addons.liwan_inbox.models import secret_box
+from odoo.addons.liwan_core.models import secret_box
+from odoo.addons.liwan_inbox.models.constants import SECRET_PURPOSE
 
 
 def migrate(cr, version):
@@ -18,6 +19,6 @@ def migrate(cr, version):
     for channel_id, token in cr.fetchall():
         cr.execute(
             'UPDATE liwan_inbox_channel SET verify_token_enc = %s WHERE id = %s',
-            (secret_box.encrypt(env, token), channel_id),
+            (secret_box.encrypt(env, SECRET_PURPOSE, token), channel_id),
         )
     cr.execute('ALTER TABLE liwan_inbox_channel DROP COLUMN verify_token')
