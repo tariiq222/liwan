@@ -1278,9 +1278,14 @@
           "action": "Request refund",
           "confirmTitle": "Request a full refund of this invoice",
           "confirmHint": "This opens a pending credit note for the invoice total. Refund the customer in the payment provider's dashboard, then record the provider's reference on the note.",
-          "confirm": "Request refund"
+          "confirm": "Request refund",
+          "unitsUsed": "AI units already used",
+          "unitsUsedHint": "Read the units this top-up has spent in the customer's workspace. Enter 0 if none were used. A top-up with any use cannot be refunded.",
+          "unitsUsedInvalid": "Enter a whole number, 0 or more."
         },
         "errors": {
+          "units_used_required": "Say how many AI units of this top-up were already used, then request the refund again.",
+          "ai_topup_used": "Part of this invoice's AI top-up was already used, so it cannot be refunded.",
           "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
           "refund_reference_in_use": "This refund reference is already recorded on another credit note.",
           "refund_window_closed": "The refund window has closed, so this payment cannot be refunded.",

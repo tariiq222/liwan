@@ -137,10 +137,19 @@ export function refundRequestBlock(invoice: Pick<VendorInvoice, 'refund' | 'adju
   if (invoice.refund.refundable) return null
   return invoice.refund.first_payment ? 'windowClosed' : 'notFirstPayment'
 }
+/** An invoice whose order carries an AI top-up: the control plane then needs the units already spent before it opens the refund. */
+export const invoiceHasAiTopup = (invoice: Pick<VendorInvoice, 'lines'>) => invoice.lines.some(line => line.kind === 'ai_topup')
+/** AI units already spent, as the operator read them in the tenant: a non-negative whole number (Arabic-Indic digits included), bounded like the control plane's `units_used`. */
+export function parseUnitsUsed(text: string): number | null {
+  const digits = normalizeDigits(text).trim()
+  if (!/^\d+$/.test(digits)) return null
+  const units = Number(digits)
+  return Number.isSafeInteger(units) ? units : null
+}
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
-  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment'].includes(code)
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used'].includes(code)
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 

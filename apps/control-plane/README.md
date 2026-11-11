@@ -18,5 +18,5 @@ How the tenant is kept equal to the ledger: every ledger or settings event queue
 
 Open points and limits, stated on purpose:
 - The cap is on lifetime purchases: a delivered AI value never exceeds 1,000,000,000 units (about 10,000 USD of top-ups per customer). A quote that would pass it is refused, a payment that would pass it is credited back, and a ledger already over it is delivered clamped. Whether the cap should apply to the current balance instead is an open product decision.
-- `units_used` at refund time is supplied by the operator, because the control plane cannot read tenant usage (R5). There is no automatic check.
+- `units_used` at refund time is supplied by the operator, because the control plane cannot read tenant usage (R5). There is no automatic check. The generic invoice refund request (`POST commercial/invoices/:id/refund-request`) requires it too when the invoice's order carries an unrefunded top-up: 422 `units_used_required` without it, 409 `ai_topup_used` when it is above zero.
 - Under a VAT-inclusive pricing policy the units are computed on the gross amount of the line. The active policy today charges no tax.
