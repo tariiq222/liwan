@@ -14,6 +14,9 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 //
 process.env.NUXT_ODOO_DB = 'liwan_fiscal_settings_unused_scratch'
 
+// This spec serves its own build on its own port: the suite's Origin header (playwright.config.ts) would name
+// another origin and break the page, while the browser marks this page's own writes same-origin by itself.
+test.use({ extraHTTPHeaders: {} })
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 type Mode = 'manager' | 'reader'
