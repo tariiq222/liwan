@@ -16,7 +16,7 @@ PROJECT = 'liwan-health-fixture'
 IMAGES = {service: 'sha256:' + letter * 64 for service, letter in zip(['db', 'odoo', 'web', 'edge'], 'abcd')}
 IDS = {service: letter * 64 for service, letter in zip(['db', 'odoo', 'web', 'edge'], '1234')}
 BRANDING = {
-    'name': 'Fixture institution', 'logo_url': '/web/binary/company_logo?company=1&v=20260923112233445566-012345abcdef',
+    'name': 'Fixture institution', 'logo_url': '/web/binary/company_logo?company=1&v=012345abcdef',
     'primary_color': '#18181b', 'font': 'IBM_Plex_Sans_Arabic',
 }
 LOGIN = b'<html><body><div id="__nuxt"><main class="liwan-login-page"><form><input id="login" autocomplete="username"><input id="password" type="password"></form></main></div></body></html>'
@@ -197,7 +197,7 @@ class HealthCase(unittest.TestCase):
                         {**BRANDING, 'secret': 'private-value'}, {**BRANDING, 'font': False},
                         {**BRANDING, 'primary_color': 'red'}, {**BRANDING, 'secondary_color': None},
                         {**BRANDING, 'logo_url': 'https://foreign.invalid/logo'},
-                        {**BRANDING, 'logo_url': '/web/binary/company_logo?company=x&v=0-012345abcdef'}]:
+                        {**BRANDING, 'logo_url': '/web/binary/company_logo?company=x&v=012345abcdef'}]:
             self.opener.responses['http://127.0.0.1:28061/api/v1/branding'].body = json.dumps(payload).encode()
             self.assertFalse(self.health())
 
@@ -206,7 +206,7 @@ class HealthCase(unittest.TestCase):
         self.assertFalse(self.health())
 
     def test_optional_secondary_color_and_zero_logo_timestamp_valid(self):
-        value = {**BRANDING, 'secondary_color': '#aAbB01', 'logo_url': '/web/binary/company_logo?company=2&v=0-012345abcdef'}
+        value = {**BRANDING, 'secondary_color': '#aAbB01', 'logo_url': '/web/binary/company_logo?company=2&v=012345abcdef'}
         for url, response in self.opener.responses.items():
             if url.endswith('/branding'):
                 response.body = json.dumps(value).encode()
