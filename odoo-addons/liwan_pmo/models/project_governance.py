@@ -5,7 +5,7 @@ from datetime import date, datetime
 from psycopg2.errors import ForeignKeyViolation, UniqueViolation
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.exceptions import AccessError, LockError, UserError, ValidationError
 from odoo.tools import SQL
 
 GOVERNANCE_ROLES = ('R', 'A', 'C', 'I')
@@ -31,6 +31,25 @@ def _check_project(project, manage=False):
         project._liwan_check_manage()
         project._liwan_check_tool_write('governance')
     return project
+
+
+def _next_project_number(project, table, busy_error):
+    """The next ``number`` of ``table`` for ``project``, under a lock on the project row.
+
+    ``lock_for_update`` skips a locked row, and a concurrent insert that only references the project can hold
+    a key-share lock for an instant, so the lock is tried once more before ``busy_error`` is raised. The last
+    number is read from the table itself after the lock: the ORM cache may predate the other writer.
+    """
+    for attempt in range(2):
+        try:
+            project.lock_for_update()
+            break
+        except LockError as error:
+            if attempt:
+                raise busy_error from error
+    project.env.flush_all()
+    project.env.cr.execute(SQL('SELECT COALESCE(MAX(number), 0) FROM %s WHERE project_id = %s', SQL.identifier(table), project.id))
+    return project.env.cr.fetchone()[0] + 1
 
 
 def _check_internal_user(user, project):

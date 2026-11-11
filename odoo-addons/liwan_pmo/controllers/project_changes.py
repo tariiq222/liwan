@@ -160,6 +160,8 @@ class ProjectChangeController(http.Controller):
             change = request.env['liwan.project.change'].create({**vals, 'project_id': project.id})
         except LiwanChangeControlOff as error:
             raise ApiError(409, 'change_control_off', str(error)) from error
+        except LiwanChangeState as error:
+            raise ApiError(409, 'change_state', str(error)) from error
         return request.make_json_response(dump_change(change), status=201)
 
     @http.route('/api/v1/projects/<int:project_id>/changes/<int:change_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
