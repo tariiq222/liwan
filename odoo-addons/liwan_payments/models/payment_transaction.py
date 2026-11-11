@@ -100,6 +100,29 @@ class PaymentTransaction(models.Model):
             if not Cron._commit_progress(1):
                 break
 
+    def _liwan_post_process_now(self, lock_timeout_ms=None):
+        """Confirm, record and reconcile these settled transactions now, as stock's status poll does.
+
+        This does not depend on the post-processing cron, which stock switches off with the last active
+        gateway. A failure is logged and handed to that cron, switched back on if needed (stock retries
+        for four days); the payment itself stays recorded. With ``lock_timeout_ms`` a row another
+        transaction holds (the invoice being posted, say) is waited for only that long.
+        """
+        for tx in self:
+            if tx.is_post_processed or tx.state not in ('authorized', 'done'):
+                continue
+            try:
+                with self.env.cr.savepoint():
+                    if lock_timeout_ms:
+                        self.env.cr.execute('SET LOCAL lock_timeout = %s', [lock_timeout_ms])
+                    tx._post_process()
+                    if lock_timeout_ms:
+                        self.env.cr.execute('RESET lock_timeout')
+            except Exception:
+                _logger.exception("Post-processing of payment transaction %s failed; the cron will retry it", tx.reference)
+                tx.provider_id._toggle_post_processing_cron()
+                self.env.ref('payment.cron_post_process_payment_tx')._trigger()
+
     def _liwan_reconcile_paymob(self):
         """Settle this checkout from Paymob's own record when Paymob says it is paid or being paid.
 
@@ -136,3 +159,4 @@ class PaymentTransaction(models.Model):
             _logger.warning("Paymob's answer for transaction %s names another order; ignored", self.reference)
             return
         self._process('paymob', normalized)
+        self._liwan_post_process_now()

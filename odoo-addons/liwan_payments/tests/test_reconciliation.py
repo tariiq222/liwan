@@ -71,6 +71,26 @@ class TestPaymobReconciliation(LiwanOrderCase):
         self.assertEqual(self.queries, [('POST', INQUIRY, {'order_id': 987654})])
         self.assertEqual(tx.state, 'done')
 
+    def test_a_reconciled_payment_is_recorded_on_its_invoice_at_once(self):
+        tx = self.checkout()
+        self.answer = self.paymob_answer(tx)
+        self.reconcile()
+        self.assertEqual((tx.state, tx.is_post_processed), ('done', True))
+        self.assertIn(tx.invoice_ids.payment_state, ('in_payment', 'paid'))
+
+    @mute_logger(LOGGER)
+    def test_a_reconciled_payment_keeps_a_retry_after_the_last_gateway_is_off(self):
+        tx = self.checkout()
+        cron = self.env.ref('payment.cron_post_process_payment_tx')
+        tx.provider_id.write({'state': 'disabled', 'is_published': False})
+        self.env.invalidate_all()
+        self.assertFalse(cron.active)
+        self.answer = self.paymob_answer(tx)
+        self.reconcile()
+        self.assertEqual((tx.state, tx.is_post_processed), ('done', False))
+        self.assertTrue(cron.active, 'the cron must stay on while a transaction waits for it')
+        self.assertTrue(self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)]))
+
     def test_a_failed_query_leaves_the_checkout_and_logs_no_provider_data(self):
         tx = self.checkout()
         self.answer = ValidationError(PROVIDER_SECRET)

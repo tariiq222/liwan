@@ -71,7 +71,7 @@ class TestGatewayCallbacks(LiwanPayerCase):
         self.assertEqual((self.tx.state, self.tx.is_post_processed), ('done', True))
         self.assertTrue(self.tx.payment_id)
 
-    @mute_logger('odoo.addons.liwan_payments.controllers.hooks')
+    @mute_logger('odoo.addons.liwan_payments.models.payment_transaction')
     def test_a_failed_post_processing_keeps_a_retry_after_the_last_gateway_is_off(self):
         cron = self.env.ref('payment.cron_post_process_payment_tx')
         self.paymob.sudo().write({'state': 'disabled', 'is_published': False})
