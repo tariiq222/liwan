@@ -240,6 +240,29 @@ test('the UI language header passes only on the trusted hop with ar or en and re
   for (const value of ['fr', 'ar_001', '', 'AR']) assert.throws(() => requestPlan(req(0, { ...trusted, 'x-liwan-ui-locale': value }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
   assert.throws(() => requestPlan(req(0, { 'x-liwan-ui-locale': 'ar' }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
 })
+test('the expected user and company headers pass as plain bounded ids and reach Odoo only on /api/v1/', () => {
+  const expected = { 'x-liwan-expected-user-id': '7', 'x-liwan-expected-company-id': '9007199254740991' }
+  const trusted = { 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }
+  const web = requestPlan(req(0, expected, '/api/finance/fiscal-setup'), registry, token, codec)
+  assert.equal(web.odoo, false)
+  for (const [name, value] of Object.entries(expected)) assert.equal(web.headers[name], value)
+  const odoo = requestPlan(req(0, { ...trusted, ...expected }, '/api/v1/finance/fiscal-setup'), registry, token, codec)
+  assert.equal(odoo.odoo, true)
+  for (const [name, value] of Object.entries(expected)) assert.equal(odoo.headers[name], value)
+  const session = requestPlan(req(0, { ...trusted, ...expected }, '/web/session/destroy'), registry, token, codec)
+  assert.equal(session.odoo, true)
+  for (const name of Object.keys(expected)) assert.equal(session.headers[name], undefined)
+  const barcode = requestPlan(req(0, expected, '/report/barcode/?barcode_type=QR&value=x'), registry, token, codec)
+  assert.equal(barcode.odoo, true)
+  for (const name of Object.keys(expected)) assert.equal(barcode.headers[name], undefined)
+  for (const name of Object.keys(expected)) {
+    for (const value of ['', '0', '-1', '01', '1.5', '1e3', ' 1', '1 ', '+1', '9007199254740992', '12345678901234567', '1, 2']) {
+      assert.throws(() => requestPlan(req(0, { ...trusted, [name]: value }, '/api/v1/finance/fiscal-setup'), registry, token, codec), /forbidden_header/)
+      assert.throws(() => requestPlan(req(0, { [name]: value }, '/api/finance/fiscal-setup'), registry, token, codec), /forbidden_header/)
+    }
+  }
+  assert.throws(() => requestPlan(req(0, { 'x-liwan-expected-tenant-id': '1' }, '/api/finance/fiscal-setup'), registry, token, codec), /forbidden_header/)
+})
 test('guard denies bootstrap hosts and serves the first publication without restart', async t => {
   const path = join(mkdtempSync(join(tmpdir(), 'liwan-guard-empty-')), 'registry.json')
   const bootstrap = { schemaVersion: 1, snapshotRevision: 0, targets: [] }
