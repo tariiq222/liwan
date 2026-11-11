@@ -11,7 +11,7 @@ from odoo import Command, fields
 from odoo.tests import new_test_user
 
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
-from odoo.addons.liwan_inbox.models.secret_box import KEY_ENV
+from odoo.addons.liwan_core.models.secret_box import KEY_ENV
 
 PASSWORD = 'inbox_pass_123'
 PHONE_ID = '100000000001'

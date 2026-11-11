@@ -32,6 +32,13 @@ retries (four days) and is shown as needing attention after an hour; after that 
 released and the money is due back. No pay link is offered for an order that could not be invoiced
 once paid (invoice when paid on, and no sales journal in the company).
 
+## Gateway keys
+
+The Paymob secret, HMAC and API keys are stored encrypted (`liwan_core.models.secret_box`, purpose
+`liwan_payments`, the platform master key `LIWAN_INBOX_SECRET_KEY`); stock's own fields are computed
+views over the ciphertext columns, so stock code reads plaintext and a database dump holds none.
+`data/neutralize.sql` empties the ciphertext columns of a neutralized copy.
+
 ## Refunds
 
 What a cancelled order gives back follows the refund rules of its products (a company default, which a

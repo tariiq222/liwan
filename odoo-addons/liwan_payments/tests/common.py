@@ -1,10 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import base64
+import os
 from datetime import timedelta
+from unittest.mock import patch
 
 from odoo import Command
 from odoo.tests import new_test_user
 
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
+from odoo.addons.liwan_core.models.secret_box import KEY_ENV
 
 PAYMOB_CREDENTIALS = {
     'paymob_public_key': 'egy_pk_test_spike',
@@ -20,6 +24,10 @@ class LiwanPaymentsCase(LiwanApiCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        if not os.environ.get(KEY_ENV):  # a class that also derives from an inbox case already has its key
+            env_patch = patch.dict(os.environ, {KEY_ENV: base64.urlsafe_b64encode(os.urandom(32)).decode()})
+            env_patch.start()
+            cls.addClassCleanup(env_patch.stop)
         cls.admin = new_test_user(
             cls.env, login='payments_admin', password='payments_admin_pass_123',
             name='Payments administrator', groups='liwan_core.group_employee',

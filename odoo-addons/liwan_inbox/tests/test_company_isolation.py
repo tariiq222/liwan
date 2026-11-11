@@ -19,9 +19,9 @@ from odoo.addons.liwan_api.tests.common import (
     cover_isolation_routes,
     set_probe_feature,
 )
+from odoo.addons.liwan_core.models.secret_box import KEY_ENV
 from odoo.addons.liwan_inbox.adapters import whatsapp
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
-from odoo.addons.liwan_inbox.models.secret_box import KEY_ENV
 from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET, store_event
 
 EXPECTED_GET_RECORD_ROUTES = 30  # includes the failed-delivery list an operator re-runs

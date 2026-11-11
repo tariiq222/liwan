@@ -1,7 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
+from odoo.addons.liwan_core.models import secret_box
 from odoo.addons.liwan_payments.models.access_service import PROVIDERS_MANAGE
 
 MANAGER_GROUP = 'liwan_payments.group_cap_payments_providers_manage'
@@ -12,16 +13,69 @@ MANAGER_GROUP = 'liwan_payments.group_cap_payments_providers_manage'
 # through the ORM (issue #512): it writes them through `_liwan_payments_set_credentials` and
 # reads only their presence, both elevated after a capability check, and the API only ever
 # reports whether each one is set.
-SECRET_FIELDS = ('paymob_secret_key', 'paymob_hmac_key', 'paymob_api_key')
+# At rest the keys are encrypted (audit AUDIT-041): the stock fields stay as computed views over
+# the ciphertext columns below, so stock code that reads `provider.paymob_hmac_key` still gets the
+# plaintext without being copied or overridden, and a database dump holds ciphertext only.
+SECRET_PURPOSE = 'liwan_payments'
+ENCRYPTED_KEY_FIELDS = {
+    'paymob_secret_key': 'liwan_paymob_secret_key_enc',
+    'paymob_hmac_key': 'liwan_paymob_hmac_key_enc',
+    'paymob_api_key': 'liwan_paymob_api_key_enc',
+}
 
 
 class PaymentProvider(models.Model):
     _inherit = 'payment.provider'
 
-    # The secret key keeps stock's own definition (`groups='base.group_system'`). These two are
-    # narrowed to the same group: they sign and authenticate the gateway exactly as it does.
-    paymob_hmac_key = fields.Char(groups='base.group_system')
-    paymob_api_key = fields.Char(groups='base.group_system')
+    liwan_paymob_secret_key_enc = fields.Char(groups='base.group_system', copy=False)
+    liwan_paymob_hmac_key_enc = fields.Char(groups='base.group_system', copy=False)
+    liwan_paymob_api_key_enc = fields.Char(groups='base.group_system', copy=False)
+    # Stock's own columns stay in the table (its neutralize.sql writes them, and they exist before
+    # this addon is installed) but stay empty: the fields are computed from the ciphertext columns.
+    # One compute and inverse per field: Odoo protects the fields of a shared compute group while
+    # an inverse runs, so a shared inverse would read the untouched keys as empty and clear them.
+    paymob_secret_key = fields.Char(
+        compute='_compute_paymob_secret_key', inverse='_inverse_paymob_secret_key', store=False, groups='base.group_system',
+    )
+    paymob_hmac_key = fields.Char(
+        compute='_compute_paymob_hmac_key', inverse='_inverse_paymob_hmac_key', store=False, groups='base.group_system',
+    )
+    paymob_api_key = fields.Char(
+        compute='_compute_paymob_api_key', inverse='_inverse_paymob_api_key', store=False, groups='base.group_system',
+    )
+
+    @api.depends('liwan_paymob_secret_key_enc')
+    def _compute_paymob_secret_key(self):
+        self._liwan_decrypt_key('paymob_secret_key')
+
+    @api.depends('liwan_paymob_hmac_key_enc')
+    def _compute_paymob_hmac_key(self):
+        self._liwan_decrypt_key('paymob_hmac_key')
+
+    @api.depends('liwan_paymob_api_key_enc')
+    def _compute_paymob_api_key(self):
+        self._liwan_decrypt_key('paymob_api_key')
+
+    def _inverse_paymob_secret_key(self):
+        self._liwan_encrypt_key('paymob_secret_key')
+
+    def _inverse_paymob_hmac_key(self):
+        self._liwan_encrypt_key('paymob_hmac_key')
+
+    def _inverse_paymob_api_key(self):
+        self._liwan_encrypt_key('paymob_api_key')
+
+    def _liwan_decrypt_key(self, field):
+        encrypted = ENCRYPTED_KEY_FIELDS[field]
+        for provider in self:
+            token = provider[encrypted]
+            provider[field] = secret_box.decrypt(self.env, SECRET_PURPOSE, token) if token else False
+
+    def _liwan_encrypt_key(self, field):
+        encrypted = ENCRYPTED_KEY_FIELDS[field]
+        for provider in self:
+            plain = provider[field]
+            provider[encrypted] = secret_box.encrypt(self.env, SECRET_PURPOSE, plain) if plain else False
 
     def _liwan_payments_definition(self):
         """The registry definition of this provider's code, or an empty dict when LiwanOS does not offer it."""
@@ -33,10 +87,14 @@ class PaymentProvider(models.Model):
 
         The three secret fields are system-only, so the presence check reads them elevated: the
         answer is one boolean per key, never the value, and it is the only thing the API returns.
+        It reads the ciphertext column of a secret, so it never decrypts.
         """
         self.ensure_one()
         elevated = self.sudo()
-        return {field: bool(elevated[field]) for field in self._liwan_payments_definition()['credential_fields']}
+        return {
+            field: bool(elevated[ENCRYPTED_KEY_FIELDS.get(field, field)])
+            for field in self._liwan_payments_definition()['credential_fields']
+        }
 
     def _liwan_payments_set_credentials(self, values):
         """Store the gateway's keys after the caller's capability check.
