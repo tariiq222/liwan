@@ -143,9 +143,9 @@ def update_lock(path=LOCK, fetch=download, today=None):
     return rulesets
 
 
-def run_semgrep(files):
+def run_semgrep(files, lock):
     cache = rules_cache()
-    configs = [pinned_ruleset(ruleset, digest, cache) for ruleset, digest in load_lock().items()]
+    configs = [pinned_ruleset(ruleset, digest, cache) for ruleset, digest in lock.items()]
     with tempfile.TemporaryDirectory(prefix='liwan-semgrep-') as tmp:
         output = Path(tmp) / 'out.json'
         cmd = ['semgrep', 'scan', '--metrics=off', '--disable-version-check', '--quiet', '--json', '--output', str(output)]
@@ -171,8 +171,9 @@ def main(argv=None):
     if not files:
         sys.stdout.write('semgrep_gate: no changed source files to scan\n')
         return 0
+    lock = load_lock()  # a missing or unreadable lock is an error of its own, never "semgrep is not installed"
     try:
-        data, error = run_semgrep(files)
+        data, error = run_semgrep(files, lock)
     except FileNotFoundError:
         data, error = None, 'semgrep is not installed'
     except RulesetError as failure:
