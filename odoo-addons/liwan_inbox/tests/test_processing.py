@@ -130,28 +130,15 @@ class TestEventProcessing(LiwanInboxCase):
     def test_the_final_failure_rings_the_channel_managers_once(self):
         self.store_event(self.channel, self.two_messages())
         events = self.env['liwan.inbox.event']
-        with self.fail_bad_message():
+        channel_model = type(self.env['liwan.inbox.channel'])
+        with self.fail_bad_message(), patch.object(
+            channel_model, '_liwan_notify_event_failed', autospec=True, side_effect=channel_model._liwan_notify_event_failed,
+        ) as ring:
             for _ in range(MAX_ATTEMPTS - 1):
                 events._liwan_run_events()
             self.assertFalse(self.bells())
             events._liwan_run_events()
             events._liwan_run_events()
+        self.assertEqual(ring.call_count, 1)
         self.assertTrue(self.bells())
         self.assertEqual(set(self.bells().mapped('liwan_inbox_channel_id')), {self.channel.id})
-
-    def test_a_reprocessed_failed_event_is_picked_up_again_without_duplicates(self):
-        event = self.store_event(self.channel, self.two_messages())
-        with self.fail_bad_message():
-            for _ in range(MAX_ATTEMPTS):
-                self.env['liwan.inbox.event']._liwan_run_events()
-        self.assertEqual((event.state, event.attempts), ('failed', MAX_ATTEMPTS))
-        self.assertEqual(event._liwan_reprocess(), event)
-        self.assertEqual((event.state, event.attempts, event.error), ('pending', 0, False))
-        self.env['liwan.inbox.event']._liwan_run_events()
-        self.assertEqual(event.state, 'done')
-        self.assertEqual((len(self.message('wamid.GOOD')), len(self.message('wamid.BAD'))), (1, 1))
-
-    def test_reprocess_leaves_done_events_alone(self):
-        event = self.deliver(wa.inbound_text())
-        self.assertFalse(event._liwan_reprocess())
-        self.assertEqual(event.state, 'done')

@@ -107,6 +107,7 @@ class LiwanInboxChannelHealth(models.Model):
     def _liwan_notify_managers(self, alert):
         self._liwan_bell_managers(
             self.env._('WhatsApp number %(channel)s: %(event)s', channel=self.name, event=dict(alert._fields['kind'].selection)[alert.kind]),
+            f'{HEALTH_KIND}:{self.id}',
         )
 
     def _liwan_notify_event_failed(self):
@@ -114,13 +115,15 @@ class LiwanInboxChannelHealth(models.Model):
         self.ensure_one()
         self._liwan_bell_managers(
             self.env._('Channel %(channel)s: a customer delivery failed %(attempts)d times and was stopped', channel=self.name, attempts=MAX_ATTEMPTS),
+            f'{HEALTH_KIND}:event:{self.id}',
         )
 
-    def _liwan_bell_managers(self, body):
+    def _liwan_bell_managers(self, body, topic):
+        """One bell per manager and TOPIC: a newer one replaces it, and another topic's bell stays."""
         for user in self._liwan_managers():
             self.env['liwan.notify.service']._liwan_deliver(
                 self._name, self.id, HEALTH_KIND, user.partner_id, body,
-                key=f'{HEALTH_KIND}:{self.id}:{user.partner_id.id}',
+                key=f'{topic}:{user.partner_id.id}',
                 values={'liwan_inbox_channel_id': self.id, 'liwan_inbox_channel_name': self.name},
                 replace=True,
             )
