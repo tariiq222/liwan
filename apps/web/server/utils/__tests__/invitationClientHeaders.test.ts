@@ -8,7 +8,7 @@ describe('invitationClientHeaders', () => {
   const key = 'k'.repeat(40)
   const config = { customerCommercialIssuer: 'liwan-web', customerCommercialServiceKey: key }
   const target = new URL('/v1/invitations/accept', 'https://control.example.test')
-  const headersFor = (edgeIp: string | undefined, cfg = config) => {
+  const headersFor = (edgeIp: string | undefined, cfg: Partial<typeof config> = config) => {
     vi.stubGlobal('getHeader', (_event: unknown, name: string) => (name === 'x-liwan-client-ip' ? edgeIp : undefined))
     return invitationClientHeaders({} as never, cfg, target)
   }
@@ -32,6 +32,6 @@ describe('invitationClientHeaders', () => {
     for (const ip of [undefined, '', 'not-an-ip', '203.0.113.7, 198.51.100.1']) expect(headersFor(ip)).toEqual({})
   })
   it('sends nothing, and does not throw, while the key or issuer is not configured', () => {
-    for (const cfg of [{}, { customerCommercialIssuer: 'liwan-web' }, { customerCommercialServiceKey: key }, { ...config, customerCommercialServiceKey: 'short' }]) expect(headersFor('203.0.113.7', cfg)).toEqual({})
+    for (const cfg of [{}, { customerCommercialIssuer: 'liwan-web' }, { customerCommercialServiceKey: key }, { ...config, customerCommercialServiceKey: 'short' }] as Partial<typeof config>[]) expect(headersFor('203.0.113.7', cfg)).toEqual({})
   })
 })

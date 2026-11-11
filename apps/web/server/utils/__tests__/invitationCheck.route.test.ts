@@ -83,7 +83,7 @@ describe('POST /api/invitations/check', () => {
     expect(verifyServiceRequest({ method: 'POST', path: '/v1/invitations/check', body: 'liwan-invitation-client:203.0.113.7\n', headers: seen, key: KEY, anonymous: true })).toMatchObject({ issuer: 'liwan-web' })
   })
   it('sends no address or signature when the edge supplied none or a malformed one', async () => {
-    for (const extra of [{}, { 'x-liwan-client-ip': 'not-an-ip' }]) {
+    for (const extra of [{}, { 'x-liwan-client-ip': 'not-an-ip' }] as Record<string, string>[]) {
       await post({ token: LIVE }, extra)
       expect(seen['x-liwan-client-ip']).toBeUndefined()
       expect(seen['x-liwan-signature']).toBeUndefined()
