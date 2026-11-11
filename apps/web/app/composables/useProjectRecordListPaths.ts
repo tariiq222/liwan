@@ -20,7 +20,7 @@ export function useProjectRecordListPaths(id: MaybeRefOrGetter<number | null>, o
     const projectId = toValue(id)
     if (!projectId || !Number.isSafeInteger(projectId)) return toValue(owning)
     const tools = project.value?.tools
-    const sections = projectSections(projectId, me.value, { active: project.value?.active ?? true, tools })
+    const sections = projectSections(projectId, me.value, { active: project.value?.active ?? true, tools, canReadFinance: project.value?.can_read_finance })
       .filter(section => canReach(me.value, section.capability, section.to))
     const governance = sections.some(section => section.id === 'governance')
       ? governanceSections(projectId, { changeControl: project.value?.change_control_mode !== 'off' && hasFeature(me.value, 'pmo.change_control') }) : []
@@ -28,7 +28,7 @@ export function useProjectRecordListPaths(id: MaybeRefOrGetter<number | null>, o
     const planning = sections.some(section => section.id === 'tasks') && projectSectionAvailable('planning', tools)
       ? planningSections(projectId, { active: project.value?.active ?? true, baselines: hasFeature(me.value, 'pmo.baselines') }) : []
     const secondary: string[] = []
-    if (projectSectionAvailable('evm', tools) && hasFeature(me.value, 'pmo.evm')) secondary.push(`/projects/${projectId}/evm`)
+    if (project.value?.can_read_finance !== false && projectSectionAvailable('evm', tools) && hasFeature(me.value, 'pmo.evm')) secondary.push(`/projects/${projectId}/evm`)
     return [...toValue(owning), ...planning.map(section => section.to), ...sections.map(section => section.to), ...governance.map(section => section.to), ...secondary]
   })
 }

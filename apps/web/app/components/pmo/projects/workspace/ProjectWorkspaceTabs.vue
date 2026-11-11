@@ -26,7 +26,7 @@ const activeProject = computed(() => props.active ?? projectData.value?.active ?
 // Five tabs: summary, tasks, meetings (with `meetings.read`), finance, governance. Updates are part of the summary and the timeline is a view of the tasks.
 const sectionItems = computed(() => {
   const current = activeProjectSection(route.path)
-  return projectSections(props.projectId, me.value, { active: activeProject.value, tools: projectData.value?.tools }).map(section => ({
+  return projectSections(props.projectId, me.value, { active: activeProject.value, tools: projectData.value?.tools, canReadFinance: projectData.value?.can_read_finance }).map(section => ({
     key: `project-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: current === section.id, icon: section.icon,
   }))
 })

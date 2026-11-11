@@ -54,4 +54,23 @@ describe('change request draft', () => {
     draft.categoryId.value = '2'
     expect(draft.body().category_id).toBe(2)
   })
+
+  it('has no cost to edit and sends none when the server withheld it', () => {
+    const draft = useChangeDraft(item({ impact_cost: null }))
+    draft.title.value = 'Renamed'
+    expect(draft.costHidden.value).toBe(true)
+    expect(draft.costValid.value).toBe(true)
+    expect(draft.body()).not.toHaveProperty('impact_cost')
+    draft.reload(item({ impact_cost: 4 }))
+    expect(draft.costHidden.value).toBe(false)
+    expect(draft.body().impact_cost).toBe(4)
+  })
+
+  it('hides the cost on create too for a caller without finance read, and sends none', () => {
+    const draft = useChangeDraft(undefined, false)
+    draft.title.value = 'New'
+    expect(draft.costHidden.value).toBe(true)
+    expect(draft.costValid.value).toBe(true)
+    expect(draft.body()).not.toHaveProperty('impact_cost')
+  })
 })

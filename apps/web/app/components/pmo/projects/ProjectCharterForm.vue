@@ -79,7 +79,8 @@ function snapshotDraft(value: CharterDraft): CharterDraft {
 // --- steps -----------------------------------------------------------------
 // The chosen classification (project type) decides which optional steps the
 // charter walks; basics and review always frame them.
-const steps = computed(() => charterStepsForType(draft.value.typeSteps).filter(key => key !== 'budget' || props.project.tools.finance.enabled).filter(key => key !== 'schedule' || props.project.tools.planning.enabled))
+const budgetVisible = computed(() => props.project.tools.finance.enabled && props.project.can_read_finance !== false)
+const steps = computed(() => charterStepsForType(draft.value.typeSteps).filter(key => key !== 'budget' || budgetVisible.value).filter(key => key !== 'schedule' || props.project.tools.planning.enabled))
 const step = ref<CharterWizardStep>(parseCharterStepQuery(route.query.step, steps.value))
 // Steps the walker has validated past may be revisited from the stepper;
 // later ones stay closed until "next" validates the way there.
@@ -254,8 +255,7 @@ async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'su
   try {
     if (!props.project || !token) return
     const wasApproved = baselineApproved.value
-    const patch = charterPatchBody(preserved, token, originalDates.value)
-    if (!props.project.tools.finance.enabled && patch.charter) { delete patch.charter.budget_state; delete patch.charter.amount }
+    const patch = charterPatchBody(preserved, token, originalDates.value, budgetVisible.value)
     const detail = await updateProject({
       id: props.project.id,
       patch,
@@ -337,6 +337,7 @@ function discardToServer() {
     <SharedUnsavedChanges v-if="!readonly || dirty" :dirty="dirty" guard-route-updates :ignore-query-keys="['step']" />
     <ProjectCharterDisplay
       :tools="project.tools"
+      :can-read-finance="project.can_read_finance"
       v-if="readonly"
       :draft="persistedDraft"
       :milestones="milestones"
@@ -370,7 +371,7 @@ function discardToServer() {
 
       <div v-if="isLastStep" class="grid gap-(--liwan-gap-card)" data-testid="charter-review-step">
         <p class="text-sm text-muted">{{ t('projects.charter.reviewHint') }}</p>
-        <ProjectCharterDisplay :tools="project.tools" :draft="draft" :milestones="milestones ?? []" />
+        <ProjectCharterDisplay :tools="project.tools" :can-read-finance="project.can_read_finance" :draft="draft" :milestones="milestones ?? []" />
       </div>
       <ProjectCharterFields
         v-else

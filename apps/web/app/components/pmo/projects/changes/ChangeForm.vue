@@ -5,14 +5,14 @@ import { useChangeCategories, useCreateProjectChange, useProjectChange, useUpdat
 import { NO_CATEGORY, useChangeDraft } from './changeDraft'
 
 // Raising a change request and editing its draft. The server owns the number, the requester and the state.
-const props = defineProps<{ projectId: number; item?: ProjectChange }>()
+const props = defineProps<{ projectId: number; item?: ProjectChange; canReadFinance?: boolean }>()
 const emit = defineEmits<{ saved: [item: ProjectChange]; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const categories = useChangeCategories()
-const draft = useChangeDraft(props.item)
-const { title, description, reason, categoryId, scheduleDays, costInput, impactScope, cost } = draft
+const draft = useChangeDraft(props.item, props.canReadFinance)
+const { title, description, reason, categoryId, scheduleDays, costInput, impactScope, costHidden, costValid } = draft
 const live = useProjectChange(() => props.projectId, () => props.item?.id ?? null)
 
 const categoryItems = computed(() => {
@@ -22,7 +22,7 @@ const categoryItems = computed(() => {
   return [{ value: NO_CATEGORY, label: t('projects.changes.noCategory') }, ...options]
 })
 const currencySymbol = computed(() => props.item?.currency?.symbol ?? '')
-const costError = computed(() => attempted.value && !Number.isFinite(cost.value) ? t('projects.changes.costInvalid') : undefined)
+const costError = computed(() => attempted.value && !costValid.value ? t('projects.changes.costInvalid') : undefined)
 const daysError = computed(() => attempted.value && !Number.isInteger(scheduleDays.value) ? t('projects.changes.daysInvalid') : undefined)
 const titleError = computed(() => attempted.value && !title.value.trim() ? t('projects.changes.titleRequired') : undefined)
 
@@ -40,7 +40,7 @@ async function submit() {
   attempted.value = true
   error.value = null
   stale.value = false
-  if (!title.value.trim() || !Number.isFinite(cost.value) || !Number.isInteger(scheduleDays.value)) return
+  if (!title.value.trim() || !costValid.value || !Number.isInteger(scheduleDays.value)) return
   const body = draft.body()
   try {
     const item = props.item
@@ -98,7 +98,7 @@ async function reload() {
         <UFormField :label="t('projects.changes.fields.scheduleDays')" :help="t('projects.changes.form.scheduleHelp')" :error="daysError">
           <UInputNumber id="change-days" v-model="scheduleDays" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>
-        <UFormField :label="currencySymbol ? `${t('projects.changes.fields.cost')} (${currencySymbol})` : t('projects.changes.fields.cost')" :help="t('projects.changes.form.costHelp')" :error="costError">
+        <UFormField v-if="!costHidden" :label="currencySymbol ? `${t('projects.changes.fields.cost')} (${currencySymbol})` : t('projects.changes.fields.cost')" :help="t('projects.changes.form.costHelp')" :error="costError">
           <UInput id="change-cost" v-model="costInput" class="w-full" inputmode="decimal" dir="ltr" :disabled="!hydrated || pending" />
         </UFormField>
         <UFormField :label="t('projects.changes.fields.impactScope')">

@@ -17,6 +17,7 @@ import {
   financePatchHasMutation,
   financeSubmitToken,
   financeWriteAllowed,
+  formatChangeCost,
   formatNullableAmount,
   formatNullablePercent,
   formatUtilization,
@@ -244,6 +245,11 @@ describe('finance write permission and form persistence', () => {
 })
 
 describe('unknown versus zero formatting', () => {
+  it('shows a dash for a change cost the server withheld and a zero for a real zero', () => {
+    expect(formatChangeCost(null, SAR)).toBe('—')
+    expect(formatChangeCost(0, SAR)).toBe('0.00 ر.س')
+    expect(formatChangeCost(12, null)).toBe('12')
+  })
   it('labels a null amount as unknown and keeps an explicit zero as a zero amount', () => {
     expect(formatNullableAmount(null, SAR, 'unknown')).toBe('unknown')
     expect(formatNullableAmount(0, SAR, 'unknown')).toBe('0.00 ر.س')

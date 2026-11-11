@@ -34,7 +34,7 @@ function project(charter: Partial<NonNullable<ProjectDetail['charter']>> = {}): 
     charter_state: charter.state ?? 'draft', phase: 'initiating', phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional', description_html: '', manager: null, privacy_visibility: 'employees',
     date_start: '2030-01-01', date_end: null, tags: [], followers_count: 0, milestone_count: 0,
     allow_task_dependencies: false, completion_approval: 'none', completion_approver: null,
-    objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},
+    objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},can_read_finance:true,
     updated_at: 'v4', charter: { ...EMPTY_CHARTER, ...charter },
   }
 }
