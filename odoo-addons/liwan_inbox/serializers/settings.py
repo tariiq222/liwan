@@ -16,8 +16,12 @@ def dump_settings(settings):
     }
 
 
-def dump_department(department):
-    return {'id': department.id, 'name': department.name, 'members': [dump_ref(user) for user in department.member_ids]}
+def dump_department(department, members=True):
+    """The department and, when the reader has a settings or agent right, its members."""
+    return {
+        'id': department.id, 'name': department.name,
+        'members': [dump_ref(user) for user in department.member_ids] if members else [],
+    }
 
 
 def dump_tag(tag):

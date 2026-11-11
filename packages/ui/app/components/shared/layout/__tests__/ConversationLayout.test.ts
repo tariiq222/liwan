@@ -51,6 +51,13 @@ describe('ConversationLayout', () => {
     expect(html).not.toMatch(/\b(?:border-l|border-r|ml-|mr-)/)
   })
 
+  it('keeps the selected thread mounted while the info panel replaces it', async () => {
+    const html = await render({ hasSelection: true, infoOpen: true })
+    expect(html).toContain('data-thread')
+    expect(html).toContain('data-composer')
+    expect(paneTag(html, 'thread')).toContain('hidden xl:flex')
+  })
+
   it('shows the empty state beside the list only from 768px, and ignores info without a selection', async () => {
     const html = await render({ hasSelection: false, infoOpen: true })
     expect(html).toContain('data-empty')

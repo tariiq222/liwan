@@ -220,7 +220,8 @@ class TestChannelsApi(LiwanInboxCase):
         # The channel form's department picker: readable, never writable, for the channel manager.
         departments = self.api('GET', '/api/v1/inbox/departments')
         self.assertEqual(departments.status_code, 200, departments.text)
-        self.assertIn(self.department.id, [row['id'] for row in departments.json()['items']])
+        row = next(row for row in departments.json()['items'] if row['id'] == self.department.id)
+        self.assertEqual(row['members'], [], 'a channel-only role reads the picker, not the staff list')
         self.assertError(self.api('POST', '/api/v1/inbox/departments', {'name': 'Z', 'member_ids': []}), 403, 'forbidden')
         self.assertError(
             self.api('PATCH', f'/api/v1/inbox/departments/{self.department.id}', {'name': 'Z'}), 403, 'forbidden',

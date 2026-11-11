@@ -13,6 +13,9 @@ from .constants import BACKOFF_MINUTES, MAX_ATTEMPTS, OUTBOX_BATCH, TYPING_MAX_A
 from odoo.addons.liwan_inbox.adapters import errors, tiktok, whatsapp
 
 _logger = logging.getLogger(__name__)
+# A media send can spend an upload timeout and a read timeout before it finishes; a younger marker may still be in
+# flight, so it is never settled. The outbox runs every minute, so a crashed one settles within a few runs.
+STALE_SEND_AFTER = relativedelta(seconds=2 * whatsapp.UPLOAD_TIMEOUT_SECONDS + whatsapp.TIMEOUT_SECONDS)
 
 
 class LiwanInboxMessageOutbox(models.Model):
@@ -117,11 +120,13 @@ class LiwanInboxMessageOutbox(models.Model):
 
         The provider may hold the message, so it is marked unconfirmed instead of being sent a second time. Only a
         queued outbound message can hold a marker, so a message that was stored as sent or failed is never touched.
-        The outbox cron is a single job (Odoo holds its row while it runs), so a marker this run meets is never the
-        one of a send in progress.
+        A marker younger than `STALE_SEND_AFTER` may still belong to an in-flight send and is left alone; the send
+        query excludes every marker anyway, so leaving it costs a later pass, never a duplicate.
         """
+        cutoff = fields.Datetime.now() - STALE_SEND_AFTER
         stuck = self.search([
             ('direction', '=', 'out'), ('delivery_state', '=', 'queued'), ('send_token', '!=', False),
+            '|', ('send_started_at', '=', False), ('send_started_at', '<', cutoff),
         ], limit=OUTBOX_BATCH)
         process_each(
             stuck, lambda message: message._liwan_mark_send_interrupted(),

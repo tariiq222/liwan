@@ -16,12 +16,15 @@ async function signIn(page: Page) {
 
 test('an unconfirmed send is explained and only the explicit retry sends it again', async ({ page }) => {
   const retries: string[] = []
+  let retried = false
   await page.route('**/api/v1/inbox/conversations/1/messages**', async route => {
     if (route.request().method() !== 'GET') return route.continue()
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [failed], total: 1 }) })
+    const message = retried ? { ...failed, delivery_state: 'queued', unconfirmed: false, error: null } : failed
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [message], total: 1 }) })
   })
   await page.route('**/api/v1/inbox/messages/77/retry', async route => {
     retries.push(route.request().url())
+    retried = true
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...failed, delivery_state: 'queued', unconfirmed: false, error: null }) })
   })
 
@@ -39,4 +42,6 @@ test('an unconfirmed send is explained and only the explicit retry sends it agai
 
   await page.getByRole('button', { name: 'إعادة المحاولة' }).click()
   await expect.poll(() => retries.length).toBe(1)
+  // The retried message leaves the failed state instead of the notice staying after a no-op retry.
+  await expect(page.getByText('لم تؤكد Meta إرسال الرسالة', { exact: false })).toHaveCount(0)
 })

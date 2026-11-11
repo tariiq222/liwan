@@ -96,7 +96,7 @@ const tiktokErrorKey = computed(() => inboxTikTokReasonKey(route.query.tiktok_er
         <span class="flex flex-wrap items-center gap-2">
           <UButton v-if="channel.kind === 'whatsapp' && templatesOn && can('inbox.templates.manage')" size="sm" color="neutral" variant="outline" icon="i-lucide-file-text" :to="`/settings/apps/inbox/channels/${channel.id}/templates`" :label="t('inbox.templates.title')" :data-testid="`inbox-work-templates-${channel.id}`" />
           <UButton v-if="channel.kind === 'whatsapp' && flowsOn && can('inbox.flows.manage')" size="sm" color="neutral" variant="outline" icon="i-lucide-clipboard-list" :to="`/settings/apps/inbox/channels/${channel.id}/flows`" :label="t('inbox.flows.title')" :data-testid="`inbox-work-flows-${channel.id}`" />
-          <UButton v-if="can('inbox.automation.manage')" size="sm" color="neutral" variant="outline" icon="i-lucide-bot-message-square" :to="`/settings/apps/inbox/channels/${channel.id}/automation`" :label="t('inbox.automation.messages.title')" :data-testid="`inbox-work-automation-${channel.id}`" />
+          <UButton v-if="can('inbox.automation.manage')" size="sm" color="neutral" variant="outline" icon="i-lucide-bot-message-square" :to="`/settings/apps/inbox/auto-messages/${channel.id}`" :label="t('inbox.automation.messages.title')" :data-testid="`inbox-work-automation-${channel.id}`" />
         </span>
       </div>
     </template>

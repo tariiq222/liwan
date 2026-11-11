@@ -14,6 +14,15 @@ async function open(page: Page, path: string) {
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled({ timeout: 30_000 })
 }
 
+test('with the features on, the automation editor and templates entry are offered', async ({ page }) => {
+  // The positive control: the absence assertions below are only meaningful when the entries exist with the features on.
+  expect((await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })).status()).toBe(200)
+  await open(page, '/settings/apps/inbox/working-hours')
+  await expect(page.getByTestId('inbox-hours-form')).toBeVisible()
+  await open(page, '/settings/apps/inbox/channels/1')
+  await expect(page.getByTestId('inbox-channel-templates')).toBeVisible()
+})
+
 test('automation off: its settings pages and entries disappear', async ({ page }) => {
   await signIn(page, 'inbox.automation')
   await open(page, '/settings/apps/inbox')

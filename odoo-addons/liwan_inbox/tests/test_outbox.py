@@ -179,6 +179,13 @@ class TestOutbox(LiwanInboxCase):
         self.run_outbox(mocked)
         self.assertEqual(mocked.call_count, 0)
 
+    def test_a_token_of_an_in_flight_send_is_left_alone(self):
+        message = self.queue(send_token='c' * 32, send_started_at=fields.Datetime.now())
+        mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.FRESH'}]}))
+        self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 0)
+        self.assertEqual((message.delivery_state, message.send_token, message.unconfirmed), ('queued', 'c' * 32, False))
+
     def test_a_message_with_an_unsettled_send_token_is_never_sent_again(self):
         message = self.queue(send_token='b' * 32, send_started_at=fields.Datetime.now())
         mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.AGAIN'}]}))

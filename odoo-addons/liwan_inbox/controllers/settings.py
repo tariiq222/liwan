@@ -126,8 +126,17 @@ class SettingsController(http.Controller):
     @requires_feature('inbox.enabled', operation='read')
     @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, MANAGE_CHANNELS, match='any')
     def list_departments(self, **_):
-        """The departments to pick from; a channel manager reads them for the channel form and writes none."""
-        return list_page('liwan.inbox.department', dump_department)
+        """The departments to pick from; a channel manager reads them for the channel form and writes none.
+
+        A channel-only role needs the id and name, not the staff list: the member references are returned only to a
+        reader with a settings, automation or conversation right.
+        """
+        include_members = any(
+            holds(capability, request.env.company) for capability in (READ, MANAGE_SETTINGS, MANAGE_AUTOMATION)
+        )
+        return list_page(
+            'liwan.inbox.department', lambda department: dump_department(department, members=include_members),
+        )
 
     @http.route('/api/v1/inbox/departments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

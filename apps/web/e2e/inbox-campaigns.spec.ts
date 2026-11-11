@@ -35,4 +35,6 @@ test('a draft campaign launches and reports the running state with its figures',
   await expect(page.getByTestId('inbox-campaign-state')).toContainText('قيد الإرسال')
   await expect(page.getByTestId('inbox-campaign-stats')).toBeVisible()
   await expect(page.getByTestId('inbox-campaign-recipients')).toBeVisible()
+  // The launch created the audience's recipients; a stats card that renders unconditionally would not prove it.
+  await expect(page.locator('[data-testid^="inbox-recipient-state-"]').first()).toBeVisible()
 })

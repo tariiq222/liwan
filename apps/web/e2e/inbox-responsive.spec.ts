@@ -65,6 +65,7 @@ test.describe('customer messages on a phone', () => {
     await expect(page.locator('[data-template="conversation-info"]')).toBeVisible()
     await expect(page.getByTestId('inbox-contact-panel')).toBeVisible()
     await expect(page.locator('[data-template="conversation-thread"]')).toBeHidden()
+    await expect(page.getByTestId('inbox-info-toggle')).toHaveAttribute('aria-expanded', 'true')
     await expectNoSidewaysScroll(page)
 
     await page.getByRole('link', { name: 'رجوع' }).first().click()
@@ -122,6 +123,7 @@ test.describe('internal chat shares the frame', () => {
     await signIn(page)
     await open(page, '/chat/42')
     await expect(page.getByTestId('chat-thread')).toBeVisible()
+    await expect(page.getByTestId('chat-thread')).toContainText('رسالة أولى')
     await expect(page.getByTestId('chat-list')).toBeHidden()
     expect(await widthOf(page, '[data-template="conversation-thread"]')).toBeGreaterThan(300)
     await expectNoSidewaysScroll(page)
