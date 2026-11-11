@@ -500,7 +500,8 @@ def parse_number(value, field, *, maximum, positive=False):
     """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ApiError(422, 'invalid', f'{field} must be a number', field=field)
-    if not math.isfinite(value):
+    # Only a float can be non-finite; an integer too large for a float is refused by the range check below.
+    if isinstance(value, float) and not math.isfinite(value):
         raise ApiError(422, 'invalid', f'{field} must be a finite number', field=field)
     if value < 0 or (positive and value == 0):
         raise ApiError(422, 'invalid', f'{field} must be {"positive" if positive else "zero or more"}', field=field)

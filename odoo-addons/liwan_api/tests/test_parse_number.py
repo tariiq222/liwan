@@ -14,6 +14,7 @@ REJECTED = {
     'list': [1],
     'negative': -0.5,
     'above the maximum': 10.5,
+    'integer too large for a float': 10 ** 400,
 }
 
 
