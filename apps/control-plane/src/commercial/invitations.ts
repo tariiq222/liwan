@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
-import { enqueueOutbox, claimOutbox, completeOutbox, failOutbox, releaseOutbox } from './outbox.js'
+import { enqueueOutbox, claimOutbox, completeOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { buildInvitationUrl, createInvitationToken, hashToken, invitationExpiry, renderInvitationEmail } from './invitation-tokens.js'
 import { isLocalCapture, type MailAdapter } from './mail-adapter.js'
@@ -10,6 +10,18 @@ export const MIN_PASSWORD_LENGTH = 12
 /** Same maxima as the internal effect protocol, enforced before the token is consumed. */
 export const MAX_PASSWORD_LENGTH = 256
 export const MAX_TOKEN_LENGTH = 200
+/** An invitation that cannot be issued or sent is retried with the outbox backoff (1, 2, 4, 8 minutes); the fifth failure is final and shows as `failed`. */
+export const INVITATION_MAX_ATTEMPTS = 5
+
+const failureText = (error: unknown, fallback: string) => error instanceof Error ? error.message.slice(0, 200) : fallback
+const lastAttempt = (row: Pick<OutboxRow, 'attempts'>) => row.attempts + 1 >= INVITATION_MAX_ATTEMPTS
+
+/** Backs a failed invitation row off for another try, or fails it for good on its last allowed attempt. Returns true when it failed for good. */
+export async function settleFailedInvitationOutbox(pool: Pool, row: Pick<OutboxRow, 'id' | 'attempts'>, error: unknown, fallback: string): Promise<boolean> {
+  if (lastAttempt(row)) { await failOutbox(pool, row.id, failureText(error, fallback)); return true }
+  await deferOutbox(pool, row.id, failureText(error, fallback))
+  return false
+}
 
 /** Sets the tenant admin's own Odoo password. Without a configured adapter the default refuses,
  *  so acceptance never fakes success. */
@@ -47,8 +59,9 @@ export async function onSubscriptionActivated(pool: Pool, subscription_id: strin
   return issueInvitation(pool, { customer_id: s.customer_id, tenant_id: s.tenant_id, admin_login: s.admin_login, ttl_seconds: opts.ttl_seconds ?? 72 * 3600 })
 }
 
-/** `signal` is the worker shutdown: the message in flight finishes, every other claimed row gives its lease back untouched. */
-export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; returnOrigin: ReturnOrigin; smtpHost?: string; limit?: number; signal?: AbortSignal }) {
+/** `signal` is the worker shutdown: the message in flight finishes, every other claimed row gives its lease back untouched.
+ *  `failed` counts invitations that failed for good; a failed attempt with retries left is only logged. */
+export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; returnOrigin: ReturnOrigin; smtpHost?: string; limit?: number; signal?: AbortSignal; log?: (message: string, error?: unknown) => void }) {
   let sent = 0, failed = 0
   for (const row of await claimOutbox(pool, [INVITATION_KIND], o.limit ?? 20)) {
     if (o.signal?.aborted) { await releaseOutbox(pool, row.id); continue }
@@ -66,9 +79,13 @@ export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; r
       await pool.query(`UPDATE commercial_outbox SET payload = payload - 'token' WHERE id=$1`, [row.id])
       await completeOutbox(pool, row.id); sent++
     } catch (e) {
-      await pool.query(`UPDATE admin_invitations SET delivery_status='failed' WHERE id=$1`, [invitation_id])
-      await pool.query(`UPDATE commercial_outbox SET payload = payload - 'token' WHERE id=$1`, [row.id])
-      await failOutbox(pool, row.id, e instanceof Error ? e.message.slice(0, 200) : 'send_failed'); failed++
+      // The raw token stays in the outbox payload while retries remain (it is what the next attempt mails); the final failure scrubs it.
+      o.log?.(`invitation ${invitation_id} send failed (attempt ${row.attempts + 1} of ${INVITATION_MAX_ATTEMPTS})`, e)
+      if (lastAttempt(row)) {
+        await pool.query(`UPDATE admin_invitations SET delivery_status='failed' WHERE id=$1`, [invitation_id])
+        await pool.query(`UPDATE commercial_outbox SET payload = payload - 'token' WHERE id=$1`, [row.id])
+      }
+      if (await settleFailedInvitationOutbox(pool, row, e, 'send_failed')) failed++
     }
   }
   return { sent, failed }

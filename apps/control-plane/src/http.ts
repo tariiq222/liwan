@@ -37,6 +37,7 @@ import { join } from 'node:path'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
+import { isIP } from 'node:net'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
 import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
@@ -316,6 +317,19 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
   })
 }
 
+/** The Nuxt server is the only caller of the public invitation routes, so the socket address is always its own. The real
+ * visitor's address is trusted only when the BFF signed it with the customer service key (domain-separated from the signup
+ * signature); anything else, including a forged or stale header, falls back to the socket address. */
+const INVITATION_CLIENT_HEADER = 'x-liwan-client-ip'
+function invitationClientAddress(req: IncomingMessage, pathname: string, service: { issuer?: string; key?: string }): string {
+  const claimed = req.headers[INVITATION_CLIENT_HEADER]
+  if (typeof claimed === 'string' && isIP(claimed) && service.issuer && service.key) {
+    const signed = verifyServiceRequest({ method: 'POST', path: pathname, body: `liwan-invitation-client:${claimed}\n`, headers: req.headers, key: service.key, anonymous: true })
+    if (signed?.issuer === service.issuer) return claimed
+  }
+  return req.socket.remoteAddress ?? 'unknown'
+}
+
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
   // Dedicated: the first LIWAN_PAYMENT_RETURN_ORIGINS entry. Shared: each customer's own tenant host, checked against that allowlist.
   const paymentRuntime: PaymentRuntime = {adapter:null,returnOrigin:returnOriginFromEnv(pool,process.env)}
@@ -330,6 +344,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
   if (signupKey !== config.key && signupIssuer && signupIssuer !== config.installationId) {
     try { signup = signupFromEnv(pool, signupKey) } catch { console.error('[control-plane] public signup configuration invalid') }
   }
+  const bffService = signupKey !== config.key && signupIssuer !== config.installationId ? { issuer: signupIssuer, key: signupKey } : {}
   let invitationsInFlight = 0
   const invitationAttempts = new Map<string, { count: number; expiresAt: number }>()
   let invitationCleanupAt = 0
@@ -351,9 +366,9 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
           for (const [ip, attempt] of invitationAttempts) if (attempt.expiresAt <= now) invitationAttempts.delete(ip)
           invitationCleanupAt = now + 60000
         }
-        // Do not trust caller-supplied forwarding headers for this public limit.
+        // Unsigned forwarding headers are never trusted for this public limit.
         // accept and check count separately so a page-load check never uses up the accept budget.
-        const ip = `${pathname}|${req.socket.remoteAddress ?? 'unknown'}`
+        const ip = `${pathname}|${invitationClientAddress(req, pathname, bffService)}`
         let attempt = invitationAttempts.get(ip)
         if (!attempt || attempt.expiresAt <= now) {
           attempt = { count: 0, expiresAt: now + 60000 }

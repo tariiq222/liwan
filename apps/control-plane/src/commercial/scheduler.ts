@@ -1,8 +1,8 @@
 import type { Pool } from 'pg'
 import type { Config } from '../config.js'
 import { processFulfillmentOutbox } from './fulfillment.js'
-import { claimOutbox, completeOutbox, failOutbox, releaseOutbox } from './outbox.js'
-import { onSubscriptionActivated, sendInvitationOutbox } from './invitations.js'
+import { claimOutbox, completeOutbox, releaseOutbox } from './outbox.js'
+import { onSubscriptionActivated, sendInvitationOutbox, settleFailedInvitationOutbox } from './invitations.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
@@ -97,12 +97,15 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
           try {
             await onSubscriptionActivated(pool, (row.payload as { subscription_id: string }).subscription_id)
             await completeOutbox(pool, row.id)
-          } catch (e) { await failOutbox(pool, row.id, e instanceof Error ? e.message.slice(0, 200) : 'issue_failed') }
+          } catch (e) {
+            log(`invitation.issue ${row.id} failed (attempt ${row.attempts + 1})`, e)
+            await settleFailedInvitationOutbox(pool, row, e, 'issue_failed')
+          }
         }
       })
       if (o.mailAdapter) {
         const mail = o.mailAdapter
-        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal }))
+        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, signal: o.signal }))
       }
