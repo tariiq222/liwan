@@ -9,6 +9,8 @@ export default defineConfig({
   testDir: './e2e-rtl',
   testMatch: '**/*.rtl.ts',
   timeout: 30_000,
+  // A stray test.only would make a CI stage run one test and pass.
+  forbidOnly: !!process.env.CI,
   // One spec file holds every story test: without this, `--shard k/N` (the CI matrix) would put the whole file in one shard.
   fullyParallel: true,
   workers: 4,
