@@ -105,15 +105,6 @@ class LiwanInboxEvent(models.Model):
         if attempts == MAX_ATTEMPTS:
             self.channel_id._liwan_notify_event_failed()
 
-    def _liwan_reprocess(self):
-        """Give the failed events among ``self`` a fresh set of attempts; the processing cron picks them up.
-
-        A message already stored is skipped by its provider id, so a retry never duplicates one.
-        """
-        failed = self.filtered(lambda event: event.state == 'failed')
-        failed.write({'state': 'pending', 'attempts': 0, 'error': False})
-        return failed
-
     def _liwan_process(self):
         """Apply every item of the delivery in its own savepoint, so one bad item loses none of the others.
 
@@ -135,10 +126,14 @@ class LiwanInboxEvent(models.Model):
         applied = []
         failures = []
         for number, item in enumerate(items, 1):
-            error = attempt(self.env, lambda item=item: applied.append(ingest(channel, [item])))
+            # Kept apart until the savepoint has closed: its exit flush can still undo the item.
+            changed = []
+            error = attempt(self.env, lambda item=item, changed=changed: changed.append(ingest(channel, [item])))
             if error:
                 _logger.warning('%s %s item %d failed: %s', self._name, self.id, number, type(error).__name__)
                 failures.append(f'item {number}: {self._liwan_error_text(error)}')
+            else:
+                applied.extend(changed)
         channel.last_event_at = self.create_date
         if failures:
             self._liwan_fail('; '.join(failures))
