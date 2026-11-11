@@ -1,11 +1,8 @@
 import { fakeApi, login, test } from './support/myTaskApi'
 import { expect as baseExpect, type Locator, type Page } from '@playwright/test'
 
-// Isolated stack only: not in ci-mock-specs.txt because the shared mock's /me does not know the tasks
-// application. Run it behind the wrapper e2e/my-tasks-mock.mjs (see docs/testing.md):
-//   E2E_MY_TASKS=1 E2E_BASE_URL=http://localhost:<nuxt> npx playwright test e2e/my-tasks-detail.spec.ts
-// The wrapper serves the first paint from my-tasks-fixtures.mjs; every browser call to /api/v1/my-tasks is faked here.
-test.skip(process.env.E2E_MY_TASKS !== '1', 'Requires the isolated e2e/my-tasks-mock.mjs server (E2E_MY_TASKS=1)')
+// Runs on the shared mock (MODULE_UI_PREVIEW=1 gives /me the tasks capabilities); the first paint comes from my-tasks-fixtures.mjs,
+// and every browser call to /api/v1/my-tasks is faked here.
 test.describe.configure({ timeout: 60_000 })
 // Controls stay disabled until hydration; a busy machine hydrates slowly.
 const expect = baseExpect.configure({ timeout: 15_000 })

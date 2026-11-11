@@ -116,7 +116,7 @@ merged result and supplies release evidence.
 | `npm run check:audit` | `npm audit` gate: fails on a high or critical advisory in production dependencies, or a critical one in any dependency. Needs registry access. The CI `static` stage runs it when a change touches `package.json` or `package-lock.json`; the daily `audit` workflow runs it on `main`. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. The rulesets are pinned by sha256 in `tools/semgrep_rules.lock.json` and read from a verified cache (`~/.cache/liwan-semgrep-rules`, the Actions cache in CI) or the registry; a ruleset that changed upstream fails the gate until `python3 -B tools/semgrep_gate.py --update-lock` is reviewed and committed. Needs network when the cache lacks a ruleset, sends no usage data, exits 3 when semgrep or the registry is unavailable or a ruleset changed upstream. Also runs in the CI `static` stage. |
 | `npm run review:jev -- --base <ref> --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against the base (`tools/jev_review.mjs`; `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Suspended by owner decision 2026-11-10 (see `REVIEW.md`): do not run it in reviews. |
-| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage, a matrix of four shards (`deploy/ci/rtl-stories.sh --shard k/N`, Playwright `--shard=k/N` over the story tests, each job building Storybook itself); `fullyParallel` in the config splits the one spec file per test. |
+| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage, a matrix of four shards (`deploy/ci/rtl-stories.sh --shard k/N`, Playwright `--shard=k/N` over the story tests, each job building Storybook itself); `fullyParallel` in the config splits the one spec file per test. The last shard (or an unsharded run) then runs the Storybook behaviour specs in `apps/web/e2e` on the same build: `storybook-density`, `storybook-shell`, `storybook-templates`, `storybook-display-templates` and `my-tasks-visual`. |
 
 Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
@@ -488,8 +488,9 @@ desktop and mobile screenshots of `/ai` and the open disclosure at 375px.
 
 ### Running the my-tasks specs
 
-The standalone list, new and detail specs use `e2e/my-tasks-mock.mjs`, behind the flag `E2E_MY_TASKS=1`.
-The shared audit mock's module-preview profile also includes task capabilities. Both paths supply
+The detail spec and the `tasmim6-my-tasks-*` specs run in the `e2e-mock` stage on the shared audit mock, whose
+module-preview profile includes task capabilities. The standalone list and new specs still use `e2e/my-tasks-mock.mjs`,
+behind the flag `E2E_MY_TASKS=1`; they fail there today and are registered as stale in `tools/ci_not_run.json`. Both paths supply
 first-paint reads on the server, while `page.route` handles browser requests. The
 wrapper listens on `MOCK_PORT`, starts the audit mock on `MOCK_PORT + 1000` (the upstream), adds the tasks
 capabilities to `GET /api/v1/me`, and answers the first-paint reads of `/my-tasks/<id>` (the task, its
