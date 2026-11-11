@@ -13,9 +13,11 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 const root = new URL('../../', import.meta.url).pathname
+const dedicated = process.env.LIWAN_ACCEPTANCE_DEDICATED_ARTIFACT
+if (!dedicated) throw new Error('set LIWAN_ACCEPTANCE_DEDICATED_ARTIFACT to a default (dedicated) build, or run deploy/ci/lib/tenancy-isolation.sh')
 const artifacts = {
   shared: resolve(process.env.LIWAN_ACCEPTANCE_ARTIFACT ?? join(root, 'apps/web/.output')),
-  dedicated: resolve(process.env.LIWAN_ACCEPTANCE_DEDICATED_ARTIFACT ?? join(root, 'apps/web/.output-dedicated')),
+  dedicated: resolve(dedicated),
 }
 const probe = new URL('./build-mode-probe.mjs', import.meta.url).pathname
 // Attempts to forge the build stamp through the environment must have no effect.
