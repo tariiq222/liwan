@@ -11,7 +11,7 @@ import { createAdminPasswordRunner } from './shared/admin-password-runner.js'
 import { loadSharedRuntimeConfig } from './shared/runtime-config.js'
 import { startInternalEffectServer } from './shared/internal-effect-server.js'
 import { runSharedWorker } from './shared/job-runner.js'
-import { runMaintenanceSteps,type MaintenanceStep } from './shared/job-loop.js'
+import { createMaintenanceRunner,type MaintenanceStep } from './shared/job-loop.js'
 import { processJobRecoveries } from './shared/job-recovery.js'
 import { processJobAbandonments } from './shared/job-abandon.js'
 import { onShutdownSignal } from './shutdown.js'
@@ -53,5 +53,5 @@ try{
     {name:'commercial-scheduler',run:()=>scheduler!.tick()},
     {name:'restore-publication',run:()=>dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})},
   ]
-  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:()=>runMaintenanceSteps(maintenance,{isStopping,log})})
+  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:createMaintenanceRunner(maintenance,{isStopping,log,now:Date.now})})
 }finally{await scheduler?.usageIdle().catch(()=>{});await pool.end()}
