@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { TEMPLATE_CATEGORIES, TEMPLATE_CATEGORY_TONE, TEMPLATE_QUALITY_TONE, TEMPLATE_STATUSES, TEMPLATE_STATUS_TONE, templatesRoute } from '@/composables/inbox/inboxTemplate'
 import { useInboxChannelTemplates } from '@/composables/inbox/useInboxSettings'
-import { listPageNumber } from '@/composables/useRouteListFilters'
+import { listPageNumber, useLastPageClamp } from '@/composables/useRouteListFilters'
 
 // The templates of one channel with their review status, category and quality, filtered by status, category and a name
 // search kept in the address (`?status=&category=&q=`), so a filtered list can be shared and survives refresh and back.
@@ -27,6 +27,7 @@ const page = computed(() => listPageNumber(route.query.page))
 const query = useInboxChannelTemplates(() => props.channelId, () => ({ status: status.value, category: category.value, q: committedSearch.value.trim(), limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const items = computed(() => query.data.value?.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / PAGE_SIZE)))
+useLastPageClamp({ page: () => page.value, total: () => query.data.value?.total, pageSize: PAGE_SIZE })
 const filtered = computed(() => !!(status.value || category.value || committedSearch.value.trim()))
 
 function update(values: Record<string, string | undefined>) {

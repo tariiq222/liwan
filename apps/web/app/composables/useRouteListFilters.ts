@@ -21,6 +21,25 @@ export function listPageNumber(value: unknown) {
   return Math.max(1, Number.isSafeInteger(page) ? page : 1)
 }
 
+/** The last page of `total` rows when `page` lies beyond it (a stale or hand-typed `?page=`), otherwise null. */
+export function pageBeyondLast(page: number, total: number, pageSize: number): number | null {
+  const last = Math.max(1, Math.ceil(total / pageSize))
+  return page > last ? last : null
+}
+
+/**
+ * Replaces the route with the last page when the requested one is past it, so a list never shows an empty page (and
+ * hides its pagination) for a `?page=` the data no longer reaches. The other query parameters stay. `total` is
+ * undefined until the list has loaded.
+ */
+export function useLastPageClamp(source: { page: () => number; total: () => number | undefined; pageSize: number }) {
+  const route = useRoute()
+  const router = useRouter()
+  watch(() => { const total = source.total(); return total === undefined ? null : pageBeyondLast(source.page(), total, source.pageSize) }, (last) => {
+    if (last !== null) void router.replace({ path: route.path, query: { ...route.query, page: last > 1 ? String(last) : undefined }, hash: route.hash })
+  }, { immediate: true })
+}
+
 /**
  * The shared `q` / `page` URL state of a paged list: a debounced search box that writes `?q=`, `update()` for any other key,
  * and the page number read back from the query. Writes wait for hydration, like every control.

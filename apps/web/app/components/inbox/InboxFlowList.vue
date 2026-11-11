@@ -2,7 +2,7 @@
 import InboxFlowState from '@/components/inbox/InboxFlowState.vue'
 import { FLOW_STATUSES, flowsRoute } from '@/composables/inbox/inboxFlow'
 import { useInboxChannelFlows } from '@/composables/inbox/useInboxFlows'
-import { listPageNumber } from '@/composables/useRouteListFilters'
+import { listPageNumber, useLastPageClamp } from '@/composables/useRouteListFilters'
 
 // The forms of one channel with their state and sending health, filtered by status and a name search kept in the
 // address (`?status=&q=`), so a filtered list can be shared and survives refresh and back. An empty list explains what
@@ -27,6 +27,7 @@ const page = computed(() => listPageNumber(route.query.page))
 const query = useInboxChannelFlows(() => props.channelId, () => ({ status: status.value, q: committedSearch.value.trim(), limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const items = computed(() => query.data.value?.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / PAGE_SIZE)))
+useLastPageClamp({ page: () => page.value, total: () => query.data.value?.total, pageSize: PAGE_SIZE })
 const filtered = computed(() => !!(status.value || committedSearch.value.trim()))
 const statusItems = computed(() => [{ value: ALL, label: t('inbox.flows.filter.allStatuses') }, ...FLOW_STATUSES.map(value => ({ value, label: t(`inbox.flows.status.${value}`) }))])
 
