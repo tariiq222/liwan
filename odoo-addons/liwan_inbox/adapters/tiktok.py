@@ -315,7 +315,7 @@ def send_text(credentials, conversation_id, body, context_id=None):
     content = {'message_type': 'TEXT', 'text': {'body': body}}
     if context_id:
         content['referenced_message_info'] = {'referenced_message_id': context_id}
-    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, json={
+    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, sends_message=True, json={
         'business_id': credentials.business_id,
         'recipient_type': 'CONVERSATION',
         'recipient': conversation_id,
@@ -340,7 +340,7 @@ def upload_image(credentials, filename, mimetype, data):
 
 def send_image(credentials, conversation_id, media_id):
     """Send an uploaded image as its own message; returns the provider message id."""
-    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, json={
+    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, sends_message=True, json={
         'business_id': credentials.business_id,
         'recipient_type': 'CONVERSATION',
         'recipient': conversation_id,
@@ -352,7 +352,7 @@ def send_image(credentials, conversation_id, media_id):
 def send_buttons(credentials, conversation_id, title, buttons):
     """Send a QA button card (a title and 1 to 3 reply buttons); returns the provider message id."""
     _validate_card(title, buttons)
-    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, json={
+    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, sends_message=True, json={
         'business_id': credentials.business_id,
         'recipient_type': 'CONVERSATION',
         'recipient': conversation_id,
@@ -486,7 +486,7 @@ def _api(path):
     return f'{API_BASE}/{path}'
 
 
-def _call(method, url, token=None, timeout=TIMEOUT_SECONDS, headers=None, **kwargs):
+def _call(method, url, token=None, timeout=TIMEOUT_SECONDS, headers=None, sends_message=False, **kwargs):
     headers = dict(headers or {})
     if token:
         headers['Access-Token'] = token
@@ -499,6 +499,9 @@ def _call(method, url, token=None, timeout=TIMEOUT_SECONDS, headers=None, **kwar
     except requests.RequestException as error:
         raise errors.ProviderError(f'provider unreachable: {type(error).__name__}', retryable=True) from None
     if response.status_code >= 400:
+        # A 5xx may follow an accepted send: for a send it is unconfirmed, never retried automatically. 429 is a refusal.
+        if sends_message and response.status_code >= 500:
+            raise errors.ProviderError(_error_text(response), retryable=False, unconfirmed=True, code=_error_code(response))
         retryable = response.status_code == 429 or response.status_code >= 500
         raise errors.ProviderError(_error_text(response), retryable=retryable, code=_error_code(response))
     return response

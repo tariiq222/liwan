@@ -407,6 +407,23 @@ class TestTikTokAdapter(BaseCase):
             with self.subTest(host=host):
                 self.assertEqual(tiktok._media_host(host), trusted)
 
+    def test_a_server_error_on_a_send_is_unconfirmed_but_not_on_a_typing_action(self):
+        down = response({'code': 50000, 'message': 'internal'}, status=503)
+        with patch.object(requests, 'request', return_value=down):
+            with self.assertRaises(errors.ProviderError) as sent:
+                tiktok.send_text(CREDENTIALS, tt.CONVERSATION_ID, 'hi')
+            with self.assertRaises(errors.ProviderError) as acted:
+                tiktok.send_action(CREDENTIALS, tt.CONVERSATION_ID, 'TYPING')
+        self.assertEqual((sent.exception.retryable, sent.exception.unconfirmed), (False, True))
+        self.assertEqual((acted.exception.retryable, acted.exception.unconfirmed), (True, False))
+
+    def test_a_rate_limit_on_a_send_stays_retryable(self):
+        limited = response({'code': 40133, 'message': 'too many'}, status=429)
+        with patch.object(requests, 'request', return_value=limited):
+            with self.assertRaises(errors.ProviderError) as sent:
+                tiktok.send_text(CREDENTIALS, tt.CONVERSATION_ID, 'hi')
+        self.assertEqual((sent.exception.retryable, sent.exception.unconfirmed), (True, False))
+
     def test_image_send_capable(self):
         capable = response(tt.answer({
             'capability_infos': [{'capability_type': 'IMAGE_SEND', 'capability_result': True}],
