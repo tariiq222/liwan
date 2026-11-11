@@ -86,7 +86,7 @@ async function onSaved() {
 
     <template v-if="assignment && editing">
       <SharedPageState :loading="schedules.isLoading.value" :error="schedules.error.value" @retry="schedules.refetch">
-        <ShiftAssignmentForm :assignment="assignment" :back-to="viewTo" :employees="[]" :schedules="scheduleOptions" @saved="onSaved" />
+        <ShiftAssignmentForm :assignment="assignment" :back-to="viewTo" :schedules="scheduleOptions" @saved="onSaved" />
       </SharedPageState>
     </template>
 

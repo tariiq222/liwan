@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import { ApiError } from '@/composables/useApi'
 import { useCreateHrShiftAssignment, useUpdateHrShiftAssignment, type HrShiftAssignment } from '@/composables/useHrShifts'
 
@@ -8,7 +9,6 @@ import { useCreateHrShiftAssignment, useUpdateHrShiftAssignment, type HrShiftAss
 // range in place on its record page, the employee staying fixed. An empty end is an open end.
 const props = defineProps<{
   backTo: RouteLocationRaw
-  employees: { value: string; label: string }[]
   schedules: { value: string; label: string }[]
   assignment?: HrShiftAssignment
 }>()
@@ -50,10 +50,6 @@ function fieldError(field: string) {
 
 function apiMessage(cause: ApiError) {
   return cause.code === 'assignment_overlap' ? t('hrShifts.form.overlap') : cause.message
-}
-
-function pickEmployee(value: unknown) {
-  employeeId.value = value ? Number(value) : null
 }
 
 function pickSchedule(value: unknown) {
@@ -98,15 +94,12 @@ async function submit() {
     <SharedFormSection panel :title="t('hrShifts.form.assignmentSection')" :description="sectionHint">
       <div class="grid gap-4">
         <UFormField v-if="!props.assignment" :label="t('hrShifts.form.employee')" name="hr-shift-assignment-employee" required :error="employeeError">
-          <USelect
+          <EmployeeSearchSelect
             id="hr-shift-assignment-employee"
-            class="w-full"
-            :model-value="employeeId ? String(employeeId) : undefined"
-            :items="props.employees"
+            v-model="employeeId"
             :placeholder="t('hrShifts.form.chooseEmployee')"
             :disabled="!hydrated || isPending"
-            data-testid="hr-shift-assignment-employee"
-            @update:model-value="pickEmployee"
+            test-id="hr-shift-assignment-employee"
           />
         </UFormField>
         <UFormField :label="t('hrShifts.form.schedule')" name="hr-shift-assignment-schedule" required :error="scheduleError">
