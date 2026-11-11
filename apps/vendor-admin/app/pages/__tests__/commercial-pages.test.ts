@@ -54,6 +54,11 @@ describe('vendor commercial pages: structure and gating', () => {
     expect(section).toContain('vendor.bundles.usedByNone'); expect(section).toContain("vendor.pricing.version', { count: p.version }"); expect(section).toContain('lifecycleBadge(p)')
     for (const lang of ['en', 'ar']) expect(json(lang).bundles.usedByUnavailable, lang).toBeTruthy()
   })
+  it('plan and bundle pages fail whole, with the shared retry, when a bundle, release or version cannot load', () => {
+    for (const f of ['plans/[id].vue', 'bundles/[id].vue', 'plans/[id]/edit.vue']) expect(page(f), f).not.toMatch(/\.catch\(/)
+    for (const f of ['plans/[id].vue', 'bundles/[id].vue']) expect(page(f), f).toContain(':error="error" @retry="refresh"')
+    expect(page('plans/[id]/edit.vue')).toContain(':error="error"'); expect(page('plans/[id]/edit.vue')).toContain('@retry="refresh"')
+  })
   it('bundle detail states the status and the customer count once, and all prices through the fact', () => {
     const p = page('bundles/[id].vue')
     expect(p.match(/lifecycleBadge\(view\)\.tone/g)).toHaveLength(1)
