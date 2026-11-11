@@ -1,6 +1,6 @@
 # Customers and catalog foundation design
 
-Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 two further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2 and still need the owner's confirmation. Nothing here is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
+Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2 and still need the owner's confirmation. Nothing here is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
 
 This file records the design. It does not change the rules in [AGENTS.md](../../../AGENTS.md). [repository-layout.md](../../agents/repository-layout.md) and `tools/arch_layers.json` change in the pull requests that build it.
 
@@ -53,6 +53,7 @@ Settled in the first design review:
 16. Candidate customers are shown to authorised staff only. A public form never links to an existing customer and never returns one's data; it creates a new customer that staff can merge.
 17. Automatic linking is limited to a channel that authenticates the sender's number, such as WhatsApp. A phone number typed into a form proves nothing about who typed it.
 18. Tenant-wide settings are changed with a capability held in the root company, so a branch manager cannot change what other branches see.
+19. Sharing a customer shares the party record together with what stock Odoo attaches to it: its child contacts and addresses and its bank accounts. Each stays behind its own capability, the settings screen states it before the tenant chooses, and documents stay per branch.
 
 This design implements the 2026-11-06 decision on one customer record.
 
@@ -89,13 +90,13 @@ LiwanOS adds its own company fence on top of the stock rule: a record is readabl
 
 Each tenant is one database with one root company, so a record with no company is shared inside that tenant and nowhere else.
 
-Sharing a customer shares the identity only. Bookings, invoices, conversations and leads stay under each application's and branch's own rules in both modes.
+Sharing a customer shares more than its name. Stock Odoo copies a partner's company to its child contacts (`odoo/odoo/addons/base/models/res_partner.py:911`), and a partner's bank account takes its company from the partner (`odoo/odoo/addons/base/models/res_bank.py:101`). A shared customer therefore has shared contacts, addresses and bank accounts, and the bank account route asks only for `finance.partners.read` in the caller's company (`liwan_finance/controllers/finance_partner_banks.py:71`). The design accepts this and makes it visible: the setting and the transfer preview say that contacts and bank accounts are shared with staff who hold the matching capability in any branch, and the preview counts them. A tenant that cannot accept it chooses `branch`. Bookings, invoices, payments, conversations and leads stay under each application's and branch's own rules in both modes.
 
 The setting is separate from `liwan_branch_access_mode`. That mode decides whether the parent's users may act inside branches (`liwan_core/models/access_branch.py:141`) and says nothing about records shared between sibling branches.
 
 Changing the setting after customers exist runs a transfer with a preview, in both directions:
 
-- Branch to establishment: every customer loses its company. Customers with the same normalised phone are listed as probable duplicates for merge.
+- Branch to establishment: every customer loses its company, and so do its contacts and bank accounts. Customers with the same normalised phone are listed as probable duplicates for merge.
 - Establishment to branch: a customer whose documents all belong to one branch moves to that branch. A customer with documents in several branches stays shared and is listed, so the tenant can split or keep it. New customers belong to the branch that creates them. The settings screen shows these shared exceptions in the preview and keeps showing them after the change.
 
 ### 3.4 Matching policy
@@ -118,13 +119,16 @@ A public path always ends with a customer of its own. The booking engine require
 | --- | --- |
 | Picking a customer inside an action | Comes with the consuming application's own capability. Returns the name and the last four digits of the phone |
 | `customers.read` | The customer directory and full contact data |
-| `customers.manage` | Create, edit, archive, restore |
+| Creating a customer inside an action | Comes with the consuming application's own capability, under the matching policy of 3.4 |
+| `customers.manage` | Edit, archive and restore an existing customer, and create one from the directory |
 | `customers.export` | Export |
 | `customers.merge` | Merge, with a preview of the documents that move |
 | `customers.erase` | Erasure |
 | `customers.settings.manage` | The settings in 3.6. Checked in the root company |
 
 Every internal user can read every partner field at ACL level; the routes are the gate, and the Odoo client is closed by the `ir.http` guard. The service adds no path that returns partner fields without one of the rows above.
+
+Every capability is checked in the user's current company. A tenant that wants shared records managed centrally grants `customers.manage` or `catalog.products.manage` only in the companies whose staff should edit them; no extra setting is needed for that.
 
 ### 3.6 Settings
 
@@ -215,7 +219,7 @@ One settings record per tenant, changed by holders of `catalog.settings.manage` 
 
 Product fields use the stock `product_properties` field and its per-category definition (`odoo/addons/product/models/product_template.py:186`). A clinic can add a preparation note to its services and a retailer a material to its goods. Because the fields are defined per category, moving a product to another category can drop values; the move shows which fields and how many values are affected before it is saved.
 
-Pricing is a single base price in this phase. Pricelists by branch, customer, channel or period are stock Odoo and are added behind the price function when a tenant needs them; they need their own settings and a review of currency handling first. A tenant has one currency: a branch takes the currency of its root company (`odoo/odoo/addons/base/models/res_company.py:111`).
+Pricing is a single base price in this phase. Pricelists by branch, customer, channel or period are stock Odoo and are added behind the price function when a tenant needs them; they need their own settings and a review of currency handling first. A tenant has one accounting currency: a branch takes the currency of its root company (`odoo/odoo/addons/base/models/res_company.py:111`). The base price is in that currency. A single transaction can still be in another currency, as finance invoices already allow (`liwan_finance/controllers/finance_invoices.py:211`).
 
 ### 4.6 Tax
 
@@ -247,7 +251,17 @@ Each of these reuses the customer, order and payment models and adds the extensi
 
 ## 7. Boundary of this design
 
-A tenant is one database with one root company, one currency and one set of accounts; its branches are child companies. The `group_of_companies` preset is a branch access pattern on that same structure (`liwan_core/models/access_branch.py:15`). A group of separate legal companies, each with its own accounts or currency inside one tenant, is not modelled today and this design does not add it. Such a group is served today as separate tenants.
+A tenant is the subscriber's account and the boundary of its data: one database, with its own users, applications and subscription. Today a tenant holds one root company with one accounting currency and one set of accounts, and its branches are child companies. The `group_of_companies` preset is a branch access pattern on that same structure (`liwan_core/models/access_branch.py:15`).
+
+| Subscriber | How it is served |
+| --- | --- |
+| One company with branches | One tenant. This design |
+| Separate companies that want full separation | One tenant each |
+| A group of legal companies that wants one account, shared records and joint reports | Not modelled today. It needs its own design for provisioning, access, accounting and subscription |
+
+Nothing in the two services assumes a single company beyond one meaning: a record with no company is shared by the whole tenant. Both sharing settings are enumerated lists, so a later design can add a value between branch and tenant without changing the applications.
+
+"The branch that created it" is the user's current company. Staff who work in several branches need a way to choose the company they are working in before that rule is reliable for them.
 
 ## 8. Order of work
 
@@ -273,6 +287,7 @@ Customers:
 - A public form with a matching phone creates a new customer, flags it, and returns nothing of the existing one.
 - A settings change is refused for a holder of the capability in a branch only.
 - Changing customer sharing in each direction after invoices exist, including a customer with documents in two branches.
+- A shared customer with a bank account and a child contact: the preview counts both, a finance reader of another branch reads the account only with `finance.partners.read` there, and under `branch` cannot find the customer at all.
 - A finance edit and a finance archive go through the service and keep the finance audit entry.
 - Each capability of 3.5 is enforced on the server for read, write and export.
 - A tenant-defined customer field is saved, returned by the API and cleared by erasure.
@@ -303,6 +318,7 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 | What stock Odoo does with product field values when the category changes | Not reviewed | The catalog plan |
 | How far the OCA booking link can carry several offers per service | Not reviewed | The appointments plan |
 | A group of separate legal companies in one tenant | Outside this design (section 7) | An owner decision if a customer needs it |
+| How staff of several branches choose their working company | The product has no company switch today (`apps/web/app/components/shell/AppUserMenu.vue:13`) | Its own design before step 1 ships to tenants whose staff work in several branches |
 
 ## 11. Evidence status
 
@@ -317,6 +333,8 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 | The product to booking type link and its use on the sale line, the required requester of a booking | Checked in OCA and LiwanOS source |
 | A variant's price extra, the sale line computing its own price | Checked in Odoo source |
 | The guest booking page returns the requester's name, phone and email | Checked in code |
+| A partner's company is copied to its child contacts and is the company of its bank accounts; the bank route asks for `finance.partners.read` | Checked in Odoo and LiwanOS source. The fifth review reports reproducing the cross-branch read on a scratch database |
+| Finance invoices accept a transaction currency | Checked in code |
 | The two product columns, CRM's product ACL, the appointments `sudo()` write, the tax handling | Checked in code |
 | Everything in sections 3 to 8 | Design, not built |
 
@@ -333,4 +351,5 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 - Tying the product's accounting fields to online payments: a tenant that invoices and collects in cash would have none.
 - Linking a public form to an existing customer by a typed phone number: it would show a visitor another person's data.
 - A price function of our own beside the stock computation: the sale line would disagree with the screen.
+- Sharing a customer while keeping its bank accounts per branch: stock ties the bank account's company to the partner's, and separating them means changing a stock related field.
 - A generic master-data addon, an event bus or separate services: the fault is missing ownership of two records, and two small addons fix it inside the existing layers.
