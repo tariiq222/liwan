@@ -1,6 +1,6 @@
 # Customers and catalog foundation design
 
-Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 a further review found four design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2 and still need the owner's confirmation. Nothing here is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
+Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 two further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2 and still need the owner's confirmation. Nothing here is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
 
 This file records the design. It does not change the rules in [AGENTS.md](../../../AGENTS.md). [repository-layout.md](../../agents/repository-layout.md) and `tools/arch_layers.json` change in the pull requests that build it.
 
@@ -45,12 +45,14 @@ Settled in the first design review:
 
 9. Free settings and no sector presets. Every behaviour that differs between companies is its own typed setting with a stated default, and a tenant shapes the two services by changing settings one at a time. No preset layer is built for these two services now.
 10. Customer sharing, catalog sharing and pricing are three independent settings. A franchise can share product definitions, keep each branch's customers apart and later price per branch. The earlier proposal to derive the catalog scope from the customer scope is withdrawn, and so is the special default for the `group_of_companies` preset: both settings default to establishment for every tenant.
-11. Decision 3 is a limit of the first phase. Every price an application shows or charges comes from one function of the catalog service, so pricelists can be added later without touching the applications.
+11. Decision 3 is a limit of the first phase. Every price an application shows or charges comes from one function of the catalog service, which runs the same stock computation as the sale line, so pricelists can be added later without touching the applications.
 12. A shared record has no company. "Establishment" means `company_id` is unset. Section 3.3 gives the reason.
 13. Shared services do not depend on each other. Section 3.1 gives the reason and the pattern.
 14. Every change to a customer's identity goes through `liwan_customers`, including edits and archiving, which finance does directly today.
 15. A service in the catalog can be offered for booking more than once, for example in two branches with different staff and durations. The booking and the order line keep the offer that was chosen.
-16. Candidate customers are shown to authorised staff only. A visitor or an inbound channel never receives them.
+16. Candidate customers are shown to authorised staff only. A public form never links to an existing customer and never returns one's data; it creates a new customer that staff can merge.
+17. Automatic linking is limited to a channel that authenticates the sender's number, such as WhatsApp. A phone number typed into a form proves nothing about who typed it.
+18. Tenant-wide settings are changed with a capability held in the root company, so a branch manager cannot change what other branches see.
 
 This design implements the 2026-11-06 decision on one customer record.
 
@@ -78,7 +80,7 @@ Finance keeps its accounting fields on the same record (VAT number, registry, ad
 
 ### 3.3 Sharing between branches
 
-LiwanOS adds its own company fence on top of the stock rule: a record is readable when its `company_id` is unset or is one of the companies in which the user holds the capability (`liwan_core/models/ir_rule.py:50`). A partner owned by the root company therefore stays hidden from staff who work only in a branch. A partner with no company passes both the fence and the stock rule.
+LiwanOS adds its own company fence on top of the stock rule: a record is readable when its `company_id` is unset or is one of the companies in which the user holds the capability (`liwan_core/models/ir_rule.py:50`). A partner owned by the root company therefore stays hidden from staff who work only in a branch. A partner with no company passes both the fence and the stock rule. It passes them for every operation, so the capability check of the service in the current company is what gates each read and each write of a shared record.
 
 | Sharing | `company_id` of a new customer | Who finds it |
 | --- | --- | --- |
@@ -94,19 +96,21 @@ The setting is separate from `liwan_branch_access_mode`. That mode decides wheth
 Changing the setting after customers exist runs a transfer with a preview, in both directions:
 
 - Branch to establishment: every customer loses its company. Customers with the same normalised phone are listed as probable duplicates for merge.
-- Establishment to branch: a customer whose documents all belong to one branch moves to that branch. A customer with documents in several branches stays shared and is listed, so the tenant can split or keep it. New customers belong to the branch that creates them.
+- Establishment to branch: a customer whose documents all belong to one branch moves to that branch. A customer with documents in several branches stays shared and is listed, so the tenant can split or keep it. New customers belong to the branch that creates them. The settings screen shows these shared exceptions in the preview and keeps showing them after the change.
 
 ### 3.4 Matching policy
 
 The service returns the partners in scope whose `phone_sanitized` equals the normalised number.
 
-| Matches | Staff present | Unattended (inbound WhatsApp, public booking) |
-| --- | --- | --- |
-| None | Create | Create when the path needs a customer; otherwise wait |
-| One | Suggest it; staff confirm or create a new customer | Link only when the tenant enabled automatic linking (3.6); otherwise leave unlinked for staff |
-| Two or more | Staff choose one or create a new customer | Leave unlinked for staff |
+| Matches | Staff present | Authenticated channel (inbound WhatsApp) | Public form (a visitor types the data) |
+| --- | --- | --- | --- |
+| None | Create | Create when the path needs a customer; otherwise wait | Create |
+| One | Suggest it; staff confirm or create a new customer | Staff confirm the first link and later messages reuse it. Links without staff only when the tenant enabled it (3.6) | Create a new customer from the data given and flag it as a probable duplicate |
+| Two or more | Staff choose one or create a new customer | Leave unlinked for staff | Same as one match |
 
-A staff request that has candidates answers `409 conflict` with the candidate list and is repeated naming an existing customer or stating that a new one is wanted. A public or channel path never returns candidates; it completes with an unlinked record and staff resolve the link later. The service never merges on its own.
+A staff request that has candidates answers `409 conflict` with the candidate list and is repeated naming an existing customer or stating that a new one is wanted. The service never merges on its own.
+
+A public path always ends with a customer of its own. The booking engine requires a requester (`oca-19.0/calendar/resource_booking/models/resource_booking.py:105`) and so does a payment, and the guest booking page shows the requester's name, phone and email (`liwan_appointments/serializers/appointment_guest.py:88`), so linking a visitor to an existing record by a typed phone number would show them another person's data. Staff see the flagged duplicates in one list and merge the ones that are the same person.
 
 ### 3.5 Capabilities
 
@@ -118,7 +122,7 @@ A staff request that has candidates answers `409 conflict` with the candidate li
 | `customers.export` | Export |
 | `customers.merge` | Merge, with a preview of the documents that move |
 | `customers.erase` | Erasure |
-| `customers.settings.manage` | The settings in 3.6 |
+| `customers.settings.manage` | The settings in 3.6. Checked in the root company |
 
 Every internal user can read every partner field at ACL level; the routes are the gate, and the Odoo client is closed by the `ir.http` guard. The service adds no path that returns partner fields without one of the rows above.
 
@@ -130,10 +134,10 @@ One settings record per tenant, changed by holders of `customers.settings.manage
 | --- | --- | --- | --- |
 | Customer sharing | `establishment`, `branch` | `establishment` | The transfer in 3.3 |
 | Party kinds | `individuals`, `companies`, `both` | `both` | None. Decides which forms and fields new customers get |
-| Automatic linking on a single phone match | on, off | off | None. Applies to contacts that arrive after the change |
+| Automatic linking on a single match, for channels that authenticate the number | on, off | off | None. Applies to contacts that arrive after the change |
 | Customer fields | A list the tenant defines: label, type, choices | Empty | Removing a field removes its values, after a confirmation that names the count |
 
-Customer fields use the stock `properties` field of `res.partner` and its per-database definition (`odoo/addons/base/models/res_partner.py:187`), which CRM already uses for leads. A clinic can add a file number and a retailer a loyalty tier without a schema change.
+Customer fields use the stock `properties` field of `res.partner` and its per-database definition (`odoo/addons/base/models/res_partner.py:187`), which CRM already uses for leads. A wholesaler can add a credit tier and a retailer a loyalty tier without a schema change. A field that describes a person belongs to the application's person model: a guardian who pays for two children is one customer, and each child's medical file number sits on that child's patient record.
 
 Which identity fields a journey requires stays with the application that runs it, as appointments already does with its requester field settings. The service requires only a name.
 
@@ -148,7 +152,7 @@ Erasure replaces the name with a placeholder, clears phone, email, address, imag
 ### 3.8 What changes in each consumer
 
 - Appointments: `_requester` calls the service. Its own create, its `company_id in [False, current]` lookup and the partner create ACL of the bookings capability are removed.
-- Customer messages: `partner_id` moves from the payments bridge to `liwan_inbox`, which may depend on a rank-3 service. The contact stays the channel identity and is linked under the unattended column of 3.4. The `sudo()` create in `liwan_inbox_payments/models/contact.py` and its entry in `tools/arch_documented_sudo.json` are deleted. Placing an order needs a partner at once (`liwan_inbox_payments/models/order.py:183`); the agent placing it is staff, so an unlinked contact makes the request answer with the candidates.
+- Customer messages: `partner_id` moves from the payments bridge to `liwan_inbox`, which may depend on a rank-3 service. The contact stays the channel identity and is linked under the authenticated channel column of 3.4. The `sudo()` create in `liwan_inbox_payments/models/contact.py` and its entry in `tools/arch_documented_sudo.json` are deleted. Placing an order needs a partner at once (`liwan_inbox_payments/models/order.py:183`); the agent placing it is staff, so an unlinked contact makes the request answer with the candidates.
 - CRM: the stock `partner_id` of the lead is set when staff link the lead to a customer, and at the latest when the lead is won. Early leads stay unlinked. The one-phone-per-company index on leads blocks a second request from a returning customer; turning it into a CRM setting (block, warn, allow) is CRM work that follows this design and is not part of it.
 - Finance: the partner routes call the service for identity writes and archiving, and keep their accounting fields and audit log.
 - Payments: no change. The order service receives a partner as it does today.
@@ -167,7 +171,7 @@ Rank 3, depends on `liwan_api` and `product`. Applications and bridges that touc
 
 - Every write to a product's definition: `name`, `type` (goods, service or combo, the stock values), `list_price`, `image_1920`, `description_sale`, `default_code`, `barcode`, `categ_id`, `uom_id`, `active`, `sale_ok` and `company_id`.
 - Variants. Sizes, colours and similar options use stock product attributes and belong to the catalog, whichever application first needs them.
-- The price function: given a product, a company, a customer, a quantity and a date, it returns the price. In the first phase it returns `list_price`. Applications never read `list_price` themselves.
+- The price function. It takes a variant (`product.product`), a quantity, a unit of measure, a company, a customer and a date, and returns the unit price in the company's currency. It runs the stock computation the sale line already uses (`odoo/addons/sale/models/sale_order_line.py:590`), so a screen and an order agree, and it includes a variant's extra: a product at 100 whose variant adds 20 is shown and sold at 120 (`odoo/addons/product/models/product_product.py:325`). Whether that price includes tax is decided by the company's tax mode and stated next to every price the API returns. Applications never read `list_price` themselves. Pricelists later change what the stock computation returns and nothing else.
 - The settings in 4.5, including the tenant's categories and its own product fields.
 - The capabilities in 4.4, the routes under `/api/v1/catalog` and the "Products and services" screen, built from the Storybook catalog under [DESIGN.md](../../../DESIGN.md).
 - An extension hook through which another addon contributes product fields to the catalog's serializer and parser, in the way applications extend the company profile.
@@ -181,7 +185,7 @@ A booking, an order line and a lead keep the name and price they were created wi
 The catalog holds no column per consumer. Each application keeps the relation in its own models:
 
 - CRM: the packages a company offers become a relation on `liwan.crm.settings`. The `liwan_crm_package` column, the three domains that read it (`crm_lead.py:23`, `controllers/sale.py:24`, `models/intake.py:214`) and CRM's product create and its tax clearing are replaced.
-- Customer messages: `liwan.inbox.catalog.item` already states which products are listed in Meta. The `liwan_inbox_catalog` column and the bridge's own product editor go. The product write override that triggers a Meta resync stays with the catalog items. The manual in-stock flag on a catalog item stays until an inventory application exists; from then on availability comes from inventory and the flag is removed.
+- Customer messages: `liwan.inbox.catalog.item` already states which products are listed in Meta. The `liwan_inbox_catalog` column and the bridge's own product editor go. The product write override that triggers a Meta resync stays with the catalog items. Availability has one source per product: a tracked good takes it from inventory once an inventory application exists, a bookable service from its resources, and anything else, such as an untracked good or digital content, from the manual flag on the channel's item. Publishing a product in a channel stays a separate choice.
 - Appointments: a service can have several booking offers, each with its own branch, booking type, duration, resources and deposit. Today the link is a `Many2one` from the product to one booking type (`oca-19.0/sale-workflow/sale_resource_booking/models/product_template.py:10`), LiwanOS adds a unique constraint on it (`liwan_appointments_payments/models/product_template.py:10`), and the sale line reads the type from the product (`sale_resource_booking/models/sale_order_line.py:73`). That shape allows one branch per service. The appointments bridge owns the offer relation and makes the order line carry the chosen offer; its plan decides how far the OCA link can be reused through its extension points. The product is no longer renamed after its booking type.
 
 Each channel owns what it publishes. The store, WhatsApp and any later channel keep their own list of published products and their publication state.
@@ -201,21 +205,21 @@ A discount or a changed price on one transaction belongs to the application that
 
 ### 4.5 Settings
 
-One settings record per tenant, changed by holders of `catalog.settings.manage`, readable through the API.
+One settings record per tenant, changed by holders of `catalog.settings.manage` in the root company, readable through the API.
 
 | Setting | Values | Default | Effect on existing data |
 | --- | --- | --- | --- |
 | Catalog sharing | `establishment`, `branch` | `establishment` | The same transfer as 3.3, applied to products |
-| Categories | A tree the tenant defines | One general category | Removing a category moves its products to the parent |
+| Categories | A tree the tenant defines | One general category | Removing a category moves its products to the parent, after a preview of the product fields they lose |
 | Product fields | Per category, a list the tenant defines: label, type, choices | Empty | Removing a field removes its values, after a confirmation that names the count |
 
-Product fields use the stock `product_properties` field and its per-category definition (`odoo/addons/product/models/product_template.py:186`). A clinic can add a preparation note to its services and a retailer a material to its goods.
+Product fields use the stock `product_properties` field and its per-category definition (`odoo/addons/product/models/product_template.py:186`). A clinic can add a preparation note to its services and a retailer a material to its goods. Because the fields are defined per category, moving a product to another category can drop values; the move shows which fields and how many values are affected before it is saved.
 
 Pricing is a single base price in this phase. Pricelists by branch, customer, channel or period are stock Odoo and are added behind the price function when a tenant needs them; they need their own settings and a review of currency handling first. A tenant has one currency: a branch takes the currency of its root company (`odoo/odoo/addons/base/models/res_company.py:111`).
 
 ### 4.6 Tax
 
-`taxes_id` exists only when `account` is installed, and a rank-3 catalog on `product` must not require it. A rank-5 bridge between `liwan_catalog` and `liwan_payments` contributes the default tax of a product through the extension hook; `account` is always present with payments because `sale` brings it. The effective tax on a line stays in the order service, decided by the company's VAT registration and tax mode, so the price a screen shows, the order and the invoice agree.
+`taxes_id` exists only when `account` is installed, and a rank-3 catalog on `product` must not require it. A rank-5 bridge `liwan_catalog_account`, installed whenever `liwan_catalog` and stock `account` both are, contributes the default tax and the other accounting fields of a product through the extension hook. A tenant that invoices from finance and collects in cash has it, and so does a tenant with online payments and no finance, because `sale` brings `account`. The effective tax on a line stays in the order service, decided by the company's VAT registration and tax mode, so the price a screen shows, the order and the invoice agree.
 
 ### 4.7 Meta catalog
 
@@ -239,7 +243,7 @@ Nothing changes in the schema now. When the store starts, a rank-3 `liwan_orders
 | Bundles | Components | The catalog, with the stock `combo` type |
 | Digital content | The file and its delivery | The application that delivers it |
 
-None of these changes `liwan_customers`, the order or the payment.
+Each of these reuses the customer, order and payment models and adds the extension it needs: a subscription adds a billing cycle, and a booking offer adds a reference on the order line.
 
 ## 7. Boundary of this design
 
@@ -265,8 +269,9 @@ Customers:
 - Under `establishment`, a customer created in one branch is found by staff who work only in another branch. Under `branch`, it is hidden from them.
 - Shared catalog with separate customers: `catalog sharing = establishment` and `customer sharing = branch` in the same tenant.
 - A phone shared by two customers: staff are offered both and can create a third; an inbound message links to neither.
-- Automatic linking off and on, each with one match.
-- A public booking and an inbound message never receive a candidate list.
+- Automatic linking off and on for an inbound WhatsApp message with one match.
+- A public form with a matching phone creates a new customer, flags it, and returns nothing of the existing one.
+- A settings change is refused for a holder of the capability in a branch only.
 - Changing customer sharing in each direction after invoices exist, including a customer with documents in two branches.
 - A finance edit and a finance archive go through the service and keep the finance audit entry.
 - Each capability of 3.5 is enforced on the server for read, write and export.
@@ -280,6 +285,9 @@ Catalog:
 - CRM, appointments and the inbox bridge hold no product write ACL and no `sudo()` product write, and the registry shrinks accordingly.
 - An order line for a catalog product is taxed exactly as before the change, for a VAT-registered company and for one that is not.
 - Editing or archiving a product leaves an existing booking, order line and lead unchanged.
+- A product at 100 with a variant extra of 20 shows 120 in the catalog API and on the order line.
+- A tenant with finance and no online payments has the default tax on its products.
+- Moving a product to another category shows the fields it loses before saving.
 - `arch_policy.py` passes with no baseline growth.
 
 Both run in `saas` and `non_saas` (R8), register their features (R10) and add no reference to the control plane (R5).
@@ -291,6 +299,8 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 | The changes in section 2.2 | As written | Owner confirmation |
 | Capacity | Not measured. The pass mark is in the [hosting contract](liwan-shared-saas-and-sovereign-deployment.md) | The load test planned there |
 | Currency and pricelists in the order service | Not reviewed | A read before pricelists or `liwan_orders` are designed |
+| Where the tax mode lives for a tenant with finance and no online payments | Not decided. It is a `liwan_payments` setting today | The catalog plan |
+| What stock Odoo does with product field values when the category changes | Not reviewed | The catalog plan |
 | How far the OCA booking link can carry several offers per service | Not reviewed | The appointments plan |
 | A group of separate legal companies in one tenant | Outside this design (section 7) | An owner decision if a customer needs it |
 
@@ -304,7 +314,9 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 | `liwan_branch_access_mode` controls only parent access into branches | Checked in code |
 | `phone_validation` installs with `mail` | Checked in the Odoo manifest |
 | Stock `properties` on `res.partner`, `product_properties` per category, `currency_id` delegated to the root company, the product types | Checked in Odoo source |
-| The product to booking type link and its use on the sale line | Checked in OCA and LiwanOS source |
+| The product to booking type link and its use on the sale line, the required requester of a booking | Checked in OCA and LiwanOS source |
+| A variant's price extra, the sale line computing its own price | Checked in Odoo source |
+| The guest booking page returns the requester's name, phone and email | Checked in code |
 | The two product columns, CRM's product ACL, the appointments `sudo()` write, the tax handling | Checked in code |
 | Everything in sections 3 to 8 | Design, not built |
 
@@ -318,4 +330,7 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 - A marker column per application on `product.template`: one schema change for every new consumer, and the catalog would know its consumers.
 - Product tags to mark packages or listings: the tenant can edit them.
 - Taxes inside the catalog: the field needs `account`, and the order service already decides the effective tax.
+- Tying the product's accounting fields to online payments: a tenant that invoices and collects in cash would have none.
+- Linking a public form to an existing customer by a typed phone number: it would show a visitor another person's data.
+- A price function of our own beside the stock computation: the sale line would disagree with the screen.
 - A generic master-data addon, an event bus or separate services: the fault is missing ownership of two records, and two small addons fix it inside the existing layers.
