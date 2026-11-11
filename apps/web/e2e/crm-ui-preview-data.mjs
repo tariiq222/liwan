@@ -165,11 +165,11 @@ const page = (rows, url) => {
   const limit = Number(url.searchParams.get('limit') ?? 20)
   return { items: rows.slice(offset, offset + limit), total: rows.length }
 }
-function filterOpportunities(url) {
+function filterOpportunities(url, defaultStatus = 'open') {
   const param = name => url.searchParams.get(name)
   const q = (param('q') ?? '').trim().toLowerCase()
   const now = Date.now()
-  const status = param('status') ?? 'open'
+  const status = param('status') ?? defaultStatus
   return opportunities.filter(item => (status === 'all' || (status === 'open' ? item.status === 'pending' : item.status === status))
     && (status === 'lost' || status === 'all' || item.active)
     && (!param('stage_id') || item.stage?.id === Number(param('stage_id')))
@@ -181,6 +181,15 @@ function filterOpportunities(url) {
     && (!q || `${item.contact_name} ${item.phone} ${item.email}`.toLowerCase().includes(q)))
 }
 
+// The export keeps the list filters like the server does, but defaults to every status; the file is the {filename, body} the mock host sends as a download.
+const csvCell = value => `"${String(value ?? '').replaceAll('"', '""')}"`
+function exportFile(url) {
+  const rows = filterOpportunities(url, 'all').map(item => [item.id, item.contact_name, item.phone, item.email, item.stage?.name, item.user?.name, item.source?.name, item.status].map(csvCell).join(','))
+  return { file: { filename: 'crm-opportunities-2026-11-11.csv', body: `\uFEFFid,name,phone,email,stage,owner,source,status\n${rows.join('\n')}\n` } }
+}
+// The view log lists the opportunities the mock admin opened, newest first.
+const viewLogs = () => [...opportunities].slice(0, 3).map((item, index) => ({ id: index + 1, user: mockUserRef(2), opportunity_id: item.id, viewed_at: iso(-(index + 1)) }))
+
 export function crmPreviewData(path, url) {
   if (path === '/api/v1/crm/settings') return dumpSettings()
   if (path === '/api/v1/crm/terms') return settings.values.terms
@@ -191,6 +200,8 @@ export function crmPreviewData(path, url) {
   if (path === '/api/v1/crm/imports') return page(batches, url)
   if (path === '/api/v1/crm/import-mappings') return page(mappings, url)
   if (path === '/api/v1/crm/dashboard') return dashboard()
+  if (path === '/api/v1/crm/export') return exportFile(url)
+  if (path === '/api/v1/crm/audit/views') return page(viewLogs(), url)
   const record = path.match(/^\/api\/v1\/crm\/opportunities\/(\d+)(\/calls)?$/)
   if (record) {
     const found = opportunities.find(item => item.id === Number(record[1]))

@@ -178,7 +178,11 @@
         "viewList": "قائمة",
         "viewBoard": "لوحة المراحل",
         "empty": "لا شيء هنا بعد. أضف أول سجل.",
-        "results": "{shown} من {total}"
+        "results": "{shown} من {total}",
+        "export": "تصدير CSV",
+        "exporting": "جارٍ التصدير…",
+        "exportFailed": "تعذّر تصدير الفرص. حاول مرة أخرى.",
+        "auditLink": "سجل الاطلاع"
       },
       "cols": {
         "phone": "الهاتف",
@@ -451,6 +455,15 @@
         "agentsEmpty": "لا مسؤولين لديهم سجلات.",
         "conversionHint": "السجلات التي أُنشئت هذا الشهر والمباع منها."
       }
+    },
+    "audit": {
+      "title": "سجل الاطلاع",
+      "cols": {
+        "user": "المستخدم",
+        "viewedAt": "وقت الاطلاع"
+      },
+      "empty": "لا توجد عمليات اطلاع مسجّلة بعد",
+      "footer": "عرض {shown} من {total}"
     }
   },
   "errors": {
