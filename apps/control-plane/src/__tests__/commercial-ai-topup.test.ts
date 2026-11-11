@@ -203,11 +203,27 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
     it('the generic invoice refund lowers the ledger too, and a second refund of either kind is refused', async () => {
       const { id, o } = await paidTopup(free, 2500, true)
       const invoice = (await pool.query('SELECT id FROM invoices WHERE order_id=$1', [o.id])).rows[0]
-      await requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Generic refund' })
+      await requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Generic refund', units_used: 0 })
       expect(await grantedUnits(pool, id)).toBe(0)
       expect(await lastJobGranted(id)).toBe(0)
       await expect(refund(o.id, { reason: 'Second way', units_used: 0 })).rejects.toMatchObject({ code: 'refund_already_requested' })
-      await expect(requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Generic again' })).rejects.toMatchObject({ code: 'refund_already_requested' })
+      await expect(requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Generic again', units_used: 0 })).rejects.toMatchObject({ code: 'refund_already_requested' })
+    })
+    it('the generic invoice refund refuses a top-up that was used or whose use was not stated, and leaves no note behind', async () => {
+      const { id, o } = await paidTopup(free, 2500, true)
+      const invoice = (await pool.query('SELECT id FROM invoices WHERE order_id=$1', [o.id])).rows[0]
+      await expect(requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Used some', units_used: 5 })).rejects.toMatchObject({ code: 'ai_topup_used', status: 409 })
+      await expect(requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'No units' })).rejects.toMatchObject({ code: 'units_used_required', status: 422 })
+      expect((await pool.query('SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1', [invoice.id])).rowCount).toBe(0)
+      expect(await grantedUnits(pool, id)).toBe(666_666)
+    })
+    it('the generic invoice refund route takes the used units and refuses a used top-up', async () => {
+      const { o } = await paidTopup(free, 2500, true)
+      const invoice = (await pool.query('SELECT id FROM invoices WHERE order_id=$1', [o.id])).rows[0]
+      const call = (body: unknown) => routesB(pool, { method: 'POST', pathname: `/v1/commercial/invoices/${invoice.id}/refund-request`, raw: JSON.stringify(body), issuer: 't', actor: 7, capabilities: caps, stepUpFresh: true },
+        new URL(`http://localhost/v1/commercial/invoices/${invoice.id}/refund-request`), runtime)
+      await expect(call({ reason: 'Used some', units_used: 3 })).rejects.toMatchObject({ code: 'ai_topup_used' })
+      expect((await call({ reason: 'Unused', units_used: 0 }))!.status).toBe(201)
     })
     it('the top-up refund refuses when a credit note already exists on the invoice', async () => {
       const { o } = await paidTopup()

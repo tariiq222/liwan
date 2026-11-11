@@ -202,8 +202,8 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage')
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     if(!z.uuid().safeParse(refundRequest[1]).success)throw new CommercialHttpError('not_found',404)
-    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
-    return {status:201,data:await requestInvoiceRefund(pool,{invoice_id:refundRequest[1]!,actor:{issuer:input.issuer,actorUid:input.actor},reason:body.reason})}
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000),units_used:topupRefundBodySchema.shape.units_used.optional()}))
+    return {status:201,data:await requestInvoiceRefund(pool,{invoice_id:refundRequest[1]!,actor:{issuer:input.issuer,actorUid:input.actor},reason:body.reason,units_used:body.units_used})}
   }
   const settle=/^\/payment-simulator\/([^/]+)\/settle$/.exec(path)
   if(settle){

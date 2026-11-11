@@ -7,7 +7,7 @@ import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js
 import { billingSettings } from './billing-settings.js'
 import { refundWindow } from './settlements.js'
 import { actorLabel } from '../admin-auth/grants.js'
-import { aiBillingSettings, grantedUnits, markTopupRefunded } from './ai-ledger.js'
+import { aiBillingSettings, assertTopupUnused, grantedUnits, markTopupRefunded } from './ai-ledger.js'
 
 type Q = Pick<Pool, 'query'>
 
@@ -48,7 +48,7 @@ export async function refundTopup(pool: Pool, { order_id, actor, reason, units_u
     const noted = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND kind='credit_note' AND status<>'void'", [invoice.id])
     if (noted.rowCount) throw new CommercialHttpError('refund_already_requested', 409)
     if (invoice.status !== 'paid') throw new CommercialHttpError('invoice_not_paid', 409)
-    if (units_used > 0) throw new CommercialHttpError('ai_topup_used', 409, 'units_used')
+    await assertTopupUnused(client, order_id, units_used)
     const others = await client.query("SELECT 1 FROM invoice_lines WHERE invoice_id=$1 AND kind NOT IN ('ai_topup','tax') AND amount_minor>0 LIMIT 1", [invoice.id])
     if (others.rowCount) throw new CommercialHttpError('ai_topup_refund_mixed_order', 409)
     const paid = (await client.query('SELECT a.succeeded_at FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.id=$1 AND o.paid_attempt_id=a.id', [order_id])).rows[0]

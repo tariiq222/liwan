@@ -4,6 +4,7 @@ import { AI_ENTITLEMENT_KEYS, AI_UNITS_MAX, aiEntitlementFeatures, quoteSchema, 
 import { transaction } from '../db.js'
 import { lockTenantJobs } from '../shared/job-store.js'
 import { appliedDeliveryTarget, enqueueAppliedDelivery } from './delivery-target.js'
+import { CommercialHttpError } from './lifecycle.js'
 
 type Q = Pick<Pool, 'query'>
 
@@ -148,4 +149,16 @@ export async function markTopupRefunded(client: PoolClient, orderId: string, by:
   if (!row) return false
   await pushAiEntitlement(client, row.customer_id)
   return true
+}
+
+/**
+ * The one rule for refunding a top-up, whichever route asks: the vendor never gives back value that was consumed. The
+ * control plane cannot read tenant usage (R5), so the operator states the units spent (`unitsUsed`). An order with no
+ * top-up, or one already refunded, has nothing to judge. A top-up whose use was not stated is refused, never assumed unused.
+ */
+export async function assertTopupUnused(client: Pick<PoolClient, 'query'>, orderId: string, unitsUsed: number | undefined): Promise<void> {
+  const open = await client.query('SELECT 1 FROM ai_topups WHERE order_id=$1 AND refunded_at IS NULL', [orderId])
+  if (!open.rowCount) return
+  if (unitsUsed === undefined) throw new CommercialHttpError('units_used_required', 422, 'units_used')
+  if (unitsUsed > 0) throw new CommercialHttpError('ai_topup_used', 409, 'units_used')
 }
