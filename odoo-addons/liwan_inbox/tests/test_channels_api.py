@@ -227,6 +227,29 @@ class TestChannelsApi(LiwanInboxCase):
         )
         self.assertError(self.api('DELETE', f'/api/v1/inbox/departments/{self.department.id}'), 403, 'forbidden')
 
+    def test_a_failed_delivery_is_listed_and_reprocessed_from_the_channel(self):
+        event = self.store_event(self.channel, '{"entry": "x"')
+        for _ in range(5):
+            self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((event.state, event.attempts), ('failed', 5))
+        self.login(self.manager)
+        listing = self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}/events')
+        self.assertEqual(listing.status_code, 200, listing.text)
+        item = listing.json()['items'][0]
+        self.assertEqual(set(item), {'id', 'state', 'attempts', 'error', 'created_at'})
+        self.assertEqual((item['id'], item['state'], item['attempts'], item['error']), (event.id, 'failed', 5, 'JSONDecodeError'))
+        retried = self.api('POST', f'/api/v1/inbox/events/{event.id}/retry')
+        self.assertEqual(retried.status_code, 200, retried.text)
+        self.assertEqual((retried.json()['state'], retried.json()['attempts'], retried.json()['error']), ('pending', 0, None))
+        self.assertEqual(self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}/events').json()['total'], 0)
+        # A delivery that is not failed is refused, and a channel this role does not administer is not found.
+        self.assertError(self.api('POST', f'/api/v1/inbox/events/{event.id}/retry'), 422, 'invalid')
+        # The route's channel capability is checked before the record: a role without it is refused, never told an id.
+        for user in (self.templates_only, self.agent, self.outsider):
+            self.login(user)
+            self.assertError(self.get(f'/api/v1/inbox/channels/{self.channel.id}/events'), 403, 'forbidden')
+            self.assertError(self.api('POST', f'/api/v1/inbox/events/{event.id}/retry', {}), 403, 'forbidden')
+
     def test_the_work_channel_list_is_a_picker_of_the_work_capabilities_only(self):
         self.channel.department_id = self.department
         self.login(self.templates_only)
@@ -241,3 +264,8 @@ class TestChannelsApi(LiwanInboxCase):
         for user in (self.agent, self.reader_only, self.outsider):
             self.login(user)
             self.assertError(self.get('/api/v1/inbox/channels/work'), 403, 'forbidden')
+        # Automation is the third work right the picker serves: it sees the same channel without channel administration.
+        self.login(self._capability_user('inbox_automation_only', 'inbox.automation.manage'))
+        automation = self.get('/api/v1/inbox/channels/work')
+        self.assertEqual(automation.status_code, 200, automation.text)
+        self.assertEqual([row['id'] for row in automation.json()['items']], [self.channel.id])

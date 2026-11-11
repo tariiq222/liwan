@@ -83,6 +83,14 @@ def dump_channel_work(channel):
     }
 
 
+def dump_event(event):
+    """One webhook delivery the operator may re-run: its state, attempts, last error and arrival time."""
+    return {
+        'id': event.id, 'state': event.state, 'attempts': event.attempts,
+        'error': event.error or None, 'created_at': iso(event.create_date),
+    }
+
+
 def dump_channel(channel, callback_url):
     """The channel for its administrator: secrets are reported only as present or absent.
 

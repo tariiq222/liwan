@@ -11,6 +11,7 @@ import {
   InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxCatalogProductOptionListSchema,
   InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
   InboxTikTokConnectResponseSchema, InboxTikTokShortcutEnableResultSchema, InboxTikTokShortcutListSchema, InboxTikTokSyncAnswerSchema,
+  InboxEventListSchema, InboxEventSchema,
 } from '@liwan/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -35,6 +36,9 @@ describe('inbox audit mock', () => {
     expect(InboxChannelListSchema.parse(call('GET', '/api/v1/inbox/channels').body).total).toBe(2)
     expect(InboxChannelWorkListSchema.parse(call('GET', '/api/v1/inbox/channels/work').body).items.map(item => item.kind)).toEqual(['whatsapp', 'tiktok'])
     expect(InboxRefSchema.parse(call('GET', '/api/v1/inbox/channels/1/ref').body).id).toBe(1)
+    const failed = InboxEventListSchema.parse(call('GET', '/api/v1/inbox/channels/1/events?state=failed').body)
+    expect(failed.items.map(event => [event.id, event.state, event.attempts])).toEqual([[901, 'failed', 5]])
+    expect(InboxEventSchema.parse(call('POST', '/api/v1/inbox/events/901/retry').body).state).toBe('pending')
   })
 
   it('serves a TikTok channel with its shortcuts and its import job', () => {

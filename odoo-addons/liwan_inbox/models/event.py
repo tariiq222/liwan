@@ -12,6 +12,7 @@ from odoo.exceptions import UserError
 from .batch import attempt, process_each
 from .constants import (
     EVENT_BATCH,
+    EVENT_CRON,
     MAX_ATTEMPTS,
     PROCESSED_EVENT_DAYS,
     PURGE_BATCH,
@@ -105,6 +106,18 @@ class LiwanInboxEvent(models.Model):
         self.write({'state': 'failed', 'attempts': attempts, 'error': text[:ERROR_TEXT_LENGTH]})
         if attempts == MAX_ATTEMPTS:
             self.channel_id._liwan_notify_event_failed()
+
+    def _liwan_reprocess(self):
+        """Give the failed events a fresh set of attempts; the event cron picks them up.
+
+        A message already stored is skipped by its provider id, so a retry never duplicates one, and the good items of
+        the same delivery are not applied again.
+        """
+        failed = self.filtered(lambda event: event.state == 'failed')
+        failed.write({'state': 'pending', 'attempts': 0, 'error': False})
+        if failed:
+            self.env['ir.cron'].browse(self.env['ir.model.data']._xmlid_to_res_id(EVENT_CRON))._trigger()
+        return failed
 
     def _liwan_process(self):
         """Apply every item of the delivery in its own savepoint, so one bad item loses none of the others.

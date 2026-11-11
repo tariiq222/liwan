@@ -48,6 +48,12 @@ test('WhatsApp off: no connect button for a new number', async ({ page }) => {
   await expect(page.getByTestId('inbox-channel-connect')).toHaveCount(0)
 })
 
+test('TikTok off: no TikTok connect entry', async ({ page }) => {
+  await signIn(page, 'inbox.tiktok')
+  await open(page, '/settings/apps/inbox#channels')
+  await expect(page.getByRole('button', { name: 'ربط TikTok' })).toHaveCount(0)
+})
+
 test('campaigns off: no campaign navigation entry', async ({ page }) => {
   await signIn(page, 'inbox.campaigns')
   await open(page, '/inbox')

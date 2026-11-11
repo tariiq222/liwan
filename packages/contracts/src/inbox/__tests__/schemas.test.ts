@@ -2,6 +2,7 @@ import {
   InboxChannelPatchSchema,
   InboxChannelSchema,
   InboxChannelWorkListSchema,
+  InboxEventListSchema,
   InboxConversationListSchema,
   InboxConversationPatchSchema,
   InboxInteractiveSchema,
@@ -89,6 +90,16 @@ describe('InboxChannelSchema', () => {
     expect(keys).not.toContain('access_token')
     expect(keys).not.toContain('app_secret')
     expect(keys).toContain('has_access_token')
+  })
+})
+
+describe('InboxEventListSchema', () => {
+  const EVENT = { id: 9, state: 'failed', attempts: 5, error: 'item 2: RuntimeError', created_at: '2026-11-11T08:00:00Z' }
+
+  it('accepts a failed delivery and rejects a widened shape', () => {
+    expect(InboxEventListSchema.parse({ items: [EVENT], total: 1 }).items[0]).toEqual(EVENT)
+    expect(() => InboxEventListSchema.parse({ items: [{ ...EVENT, provider_payload: '{}' }], total: 1 })).toThrow()
+    expect(InboxEventListSchema.parse({ items: [{ ...EVENT, error: null }], total: 1 }).items[0].error).toBeNull()
   })
 })
 

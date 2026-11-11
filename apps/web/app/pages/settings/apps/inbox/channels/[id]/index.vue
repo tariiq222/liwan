@@ -4,6 +4,7 @@ import { useClipboard } from '@vueuse/core'
 import { InboxChannelPatchSchema } from '@liwan/contracts'
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
+import InboxChannelFailedDeliveries from '@/components/inbox/InboxChannelFailedDeliveries.vue'
 import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
 import { useInboxFlowsEnabled, useInboxTemplatesEnabled } from '@/composables/inbox/inboxFeatures'
@@ -173,6 +174,7 @@ async function copy(kind: 'callback' | 'token', value: string) {
 
     <template v-if="channel">
       <InboxChannelTabs v-if="manage" :channel-id="channel.id" :kind="channel.kind" />
+      <InboxChannelFailedDeliveries v-if="manage && isTikTok" :channel-id="channel.id" />
       <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="channelError" data-testid="inbox-channel-error" />
 
       <SharedRecordSection v-if="isTikTok" variant="panel" :title="t('inbox.tiktok.details')">

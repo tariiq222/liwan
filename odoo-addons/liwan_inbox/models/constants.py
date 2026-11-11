@@ -40,6 +40,7 @@ STALE_UPLOAD_AGE = timedelta(days=1)
 # A typing request older than this is dropped unsent: the customer would see "typing" long after the agent stopped.
 TYPING_MAX_AGE = timedelta(seconds=25)
 OUTBOX_CRON = 'liwan_inbox.ir_cron_inbox_send_outbox'
+EVENT_CRON = 'liwan_inbox.ir_cron_inbox_process_events'
 
 # Automation guards: automated replies per conversation per hour, and how long an agent's reply keeps rule replies quiet.
 MAX_AUTOMATED_PER_HOUR = 5

@@ -146,6 +146,26 @@ class TestEventProcessing(LiwanInboxCase):
         self.assertEqual(len(self.message('wamid.GOOD')), 1)
         self.assertFalse(self.message('wamid.BAD'))
 
+    def test_a_failed_delivery_is_reprocessed_without_reapplying_the_good_items(self):
+        event = self.store_event(self.channel, self.two_messages())
+        with self.fail_bad_message():
+            for _ in range(MAX_ATTEMPTS):
+                self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((event.state, event.attempts), ('failed', MAX_ATTEMPTS))
+        event._liwan_reprocess()
+        self.assertEqual((event.state, event.attempts, event.error), ('pending', 0, False))
+        with self.fail_bad_message():
+            self.env['liwan.inbox.event']._liwan_run_events()
+        # The retry applies only the item that failed; the stored one is skipped by its provider id.
+        self.assertEqual(len(self.message('wamid.GOOD')), 1)
+        self.assertFalse(self.message('wamid.BAD'))
+
+    def test_an_event_that_is_not_failed_is_not_reprocessed(self):
+        event = self.store_event(self.channel, wa.inbound_text())
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual(event.state, 'done')
+        self.assertFalse(event._liwan_reprocess())
+
     def test_a_cron_time_budget_stops_the_batch_and_leaves_the_rest(self):
         events = [self.store_event(self.channel, wa.inbound_text(f'wamid.B{n}')) for n in range(3)]
         # The first two items fit the cron's budget; the remaining time then falls under the reservation.

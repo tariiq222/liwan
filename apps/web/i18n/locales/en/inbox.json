@@ -117,6 +117,15 @@
         "disabledHint": "Meta disabled the business account: nothing can be sent until it is reinstated in WhatsApp Manager.",
         "ok": "The account works normally"
       },
+      "deliveries": {
+        "title": "Failed deliveries",
+        "description": "Deliveries the provider sent that could not be applied after their attempts ran out. The good items of the delivery are already stored; retrying adds only what is missing.",
+        "empty": "No failed deliveries",
+        "caption": "Failed deliveries",
+        "attempts": "Attempts: {count}",
+        "retry": "Retry",
+        "retried": "The delivery was queued again; it is processed in the next run."
+      },
       "alerts": {
         "title": "Alert timeline",
         "description": "Quality, limit, name and account changes as Meta reported them",
