@@ -12,13 +12,17 @@ from odoo.tools import SQL, escape_psql
 from odoo.tools.mail import email_split
 
 # Every limit of the sign-in code lives here, in one place, so no route repeats a number:
-# six digits, five minutes, five attempts, a 60-second resend cooldown, and two send caps.
+# six digits, five minutes, five attempts, a 60-second resend cooldown, and three send caps: hourly and
+# daily per user, and a tenant-wide daily ceiling that only guards the messaging bill.
 CODE_LENGTH = 6
 CODE_TTL = timedelta(minutes=5)
 CODE_ATTEMPTS = 5
 RESEND_COOLDOWN = timedelta(seconds=60)
 HOURLY_SENDS = 5
-DAILY_SENDS = 50
+USER_DAILY_SENDS = 10
+# The tenant ceiling is a multiple of the per-user cap, so one user can never reach it alone.
+TENANT_CEILING_USERS = 5
+DAILY_SENDS = USER_DAILY_SENDS * TENANT_CEILING_USERS
 PURGE_AFTER = timedelta(days=30)
 CHANNELS = ('sms', 'email')
 # A code nobody revoked and nobody consumed is the one a user may enter; the newest one wins.
@@ -150,6 +154,8 @@ class LiwanLoginCode(models.Model):
         cutoff = now - timedelta(hours=1)
         if self.search_count([('user_id', '=', user.id), ('create_date', '>=', cutoff)]) >= HOURLY_SENDS:
             return 'send_limit_reached'
+        if self._liwan_user_daily_sends(user) >= USER_DAILY_SENDS:
+            return 'send_limit_reached'
         destination_match = ('destination', '=ilike', escape_psql(destination)) if channel == 'email' else (
             'destination', '=', destination,
         )
@@ -164,9 +170,17 @@ class LiwanLoginCode(models.Model):
 
     @api.model
     def _liwan_daily_sends(self):
-        """How many codes went out today, across every user: the cap that guards the messaging bill."""
-        midnight = fields.Datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        return self.search_count([('create_date', '>=', midnight)])
+        """How many codes went out today, across every user: the ceiling that guards the messaging bill."""
+        return self.search_count([('create_date', '>=', self._liwan_midnight())])
+
+    @api.model
+    def _liwan_user_daily_sends(self, user):
+        """How many codes went out to USER today."""
+        return self.search_count([('user_id', '=', user.id), ('create_date', '>=', self._liwan_midnight())])
+
+    @api.model
+    def _liwan_midnight(self):
+        return fields.Datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
     @api.model
     def _liwan_body(self, raw, lang='ar_001'):
