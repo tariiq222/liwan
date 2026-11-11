@@ -12,12 +12,15 @@ import http from 'node:http'
 import net from 'node:net'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { readFileSync } from 'node:fs'
 import { mkdtemp, writeFile, rm, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createGuard } from '../../deploy/shared/guard.mjs'
+
+const projectDetail = JSON.parse(readFileSync(new URL('../../packages/contracts/fixtures/pmo/project-detail.json', import.meta.url)))
 
 const root = new URL('../../', import.meta.url).pathname
 const artifact = resolve(process.env.LIWAN_ACCEPTANCE_ARTIFACT ?? join(root, 'apps/web/.output'))
@@ -77,7 +80,7 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
       const project = req.url.match(/^\/api\/v1\/projects\/(\d+)(?:\?|$)/)
       if (project) {
         if (Number(project[1]) !== tenant.projectId) { res.writeHead(404); res.end('{}'); return }
-        res.end(JSON.stringify({ id: tenant.projectId, name: `PROJECT_${tenant.marker}` }))
+        res.end(JSON.stringify({ ...projectDetail, id: tenant.projectId, name: `PROJECT_${tenant.marker}` }))
         return
       }
       const content = req.url.match(/^\/api\/v1\/tasks\/(\d+)\/attachments\/(\d+)\/download$/)
@@ -158,16 +161,17 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
         const me = await call('GET', '/api/v1/me', { host: tenant.host, cookie: cookies.get(tenant) })
         assert.equal(me.status, 200, me.text.slice(0, 300))
         assert.ok(me.text.includes(tenant.marker), 'own identity missing')
-        const search = await call('GET', '/search', { host: tenant.host, cookie: cookies.get(tenant) })
-        assert.equal(search.status, 200, search.text.slice(0, 300))
-        assert.ok(search.text.includes(`PROJECT_${tenant.marker}`), `own project missing from ${tenant.tenantId} SSR`)
+        // The project record is fetched during SSR and carried in the serialized payload.
+        const record = await call('GET', `/projects/${tenant.projectId}`, { host: tenant.host, cookie: cookies.get(tenant) })
+        assert.equal(record.status, 200, record.text.slice(0, 300))
+        assert.ok(record.text.includes(`PROJECT_${tenant.marker}`), `own project missing from ${tenant.tenantId} SSR`)
         for (const other of tenants) if (other !== tenant) {
-          assert.ok(!search.text.includes(other.marker), `foreign marker ${other.marker} leaked into ${tenant.tenantId} SSR`)
-          assert.ok(!search.text.includes(`PROJECT_${other.marker}`), `foreign project leaked into ${tenant.tenantId} SSR`)
+          assert.ok(!record.text.includes(other.marker), `foreign marker ${other.marker} leaked into ${tenant.tenantId} SSR`)
+          assert.ok(!record.text.includes(`PROJECT_${other.marker}`), `foreign project leaked into ${tenant.tenantId} SSR`)
         }
-        assert.ok(!search.text.includes(token), 'proxy token leaked into SSR response')
+        assert.ok(!record.text.includes(token), 'proxy token leaked into SSR response')
       }
-      console.log('Phase 2: 10/10 positive controls (API identity + SSR project markup), zero foreign markers')
+      console.log('Phase 2: 10/10 positive controls (API identity + SSR project payload), zero foreign markers')
 
       // Phase 3 — 90 directional session crossings on the API surface, rejected before dispatch.
       const before = calls.length

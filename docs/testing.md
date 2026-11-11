@@ -446,6 +446,14 @@ How the stage runs (`deploy/ci/e2e-mock.sh`):
   second server from the same build (`WEB_PORT + 10`): the scroll-restoration and navigation specs need a list taller than a
   viewport, and every other spec keeps the four-task fixture its counts assume.
 - A spec belongs in `ci-mock-specs.txt` only if it passes in that run. The gate is never edited to hide a failure.
+- Tenant isolation on the built server runs in the first shard (at the end of an unsharded run), through
+  `deploy/ci/lib/tenancy-isolation.sh`: it stops the servers, builds a second, shared-mode copy
+  (`LIWAN_TENANCY_MODE=shared`, about two minutes on the runner) and runs `node --test` over three files:
+  `tools/shared_isolation_acceptance/isolation-matrix.test.mjs` (ten tenants through the real guard, 90 directional
+  pairs per surface), `tools/shared_isolation_acceptance/operational-ssr.test.mjs` (SSR payloads, browser hydration,
+  entitlement revocation) and `tools/shared_isolation_acceptance/build-mode.test.mjs` (both builds refuse a
+  mismatched, invalid or mutated tenancy mode). The upstream is synthetic, so real-Odoo isolation is not proven there.
+  It stays out of the last shard, which already carries the long-list run.
 
 A spec that signs in to Odoo and writes real data needs a scratch stack. Such a journey
 either runs in the `e2e-odoo` stage below or is covered by an addon test plus a mock spec, in which case it is deleted.

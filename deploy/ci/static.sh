@@ -58,7 +58,7 @@ policies() {
   fi
   python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'
   # Every deploy/shared/*.test.mjs runs (a new one is picked up by the glob); the isolation acceptance files that need a
-  # built Nuxt server (isolation-matrix, operational-ssr) are registered in tools/ci_not_run.json instead.
+  # built Nuxt server (isolation-matrix, operational-ssr, build-mode) run in the e2e-mock stage (deploy/ci/lib/tenancy-isolation.sh).
   node --test deploy/shared/*.test.mjs deploy/releases/test_dedicated_guard.mjs \
     tools/shared_isolation_acceptance/ssr-boundary.test.mjs tools/shared_isolation_acceptance/acceptance.test.mjs \
     tools/shared_isolation_acceptance/known-regressions.test.mjs tools/shared_isolation_acceptance/t17-image-negative.test.mjs

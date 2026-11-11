@@ -165,13 +165,6 @@
       ]
     },
     {
-      "reason": "needs a built Nuxt server (apps/web/.output/server/index.mjs), which the static stage does not build; it fails with ERR_MODULE_NOT_FOUND without it",
-      "files": [
-        "tools/shared_isolation_acceptance/isolation-matrix.test.mjs",
-        "tools/shared_isolation_acceptance/operational-ssr.test.mjs"
-      ]
-    },
-    {
       "reason": "hard-pinned to the macOS developer workstation (/opt/homebrew/opt/node@22 and the /Users/tariq/code/odoo venv); passes there, fails on the Linux runner by design",
       "files": [
         "deploy/control-plane/test_actual_reservation_caller.py",
