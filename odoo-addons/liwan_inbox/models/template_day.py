@@ -5,7 +5,7 @@ from odoo import api, fields, models
 class LiwanInboxTemplateDay(models.Model):
     """Meta's sent, delivered, read and clicked counts of one template on one UTC day (template analytics)."""
     _name = 'liwan.inbox.template.day'
-    _description = 'Customer Inbox template analytics per day'
+    _description = 'Customer Messages template analytics per day'
     _order = 'day desc, id'
     _liwan_scope = 'tenant'
 
@@ -32,7 +32,7 @@ class LiwanInboxTemplateDay(models.Model):
 class LiwanInboxTemplateClick(models.Model):
     """The clicks of one template button on one day."""
     _name = 'liwan.inbox.template.click'
-    _description = 'Customer Inbox template button clicks'
+    _description = 'Customer Messages template button clicks'
     _order = 'id'
     _liwan_scope = 'tenant'
 

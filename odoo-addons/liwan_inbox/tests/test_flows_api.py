@@ -277,6 +277,14 @@ class TestFlowsApi(FlowCase):
         self.assertEqual(self.get(self.flows).status_code, 200)
         self.assertEqual(self.get(self.flow_path(flow, '/preview')).status_code, 200)
         self.assertEqual(self.api('POST', f'{self.flows}/sync').status_code, 200)
+        # The forms page renders from the channel reference and the work list; channel administration stays closed.
+        self.assertEqual(
+            self.get(f'{BASE}/channels/{self.channel.id}/ref').json(), {'id': self.channel.id, 'name': self.channel.name},
+        )
+        self.assertEqual([row['id'] for row in self.get(f'{BASE}/channels/work').json()['items']], [self.channel.id])
+        self.assertError(self.get(f'{BASE}/channels/{self.channel.id}'), 403, 'forbidden')
+        self.assertError(self.api('POST', f'{BASE}/channels', {'name': 'x'}), 403, 'forbidden')
+        self.assertError(self.api('PATCH', f'{BASE}/channels/{self.channel.id}', {'name': 'x'}), 403, 'forbidden')
 
     def test_pickers_read_and_only_flow_managers_write(self):
         flow = self.make_flow()

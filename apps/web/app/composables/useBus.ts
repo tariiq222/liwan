@@ -56,8 +56,16 @@ export function collectChatIds(notifications: BusNotification[]): number[] {
   return collectIds(notifications, 'liwan/chat')
 }
 
+/** The conversation ids of an inbox frame: one `id`, or the `ids` a batch notification carries for the same recipient. */
 export function collectInboxIds(notifications: BusNotification[]): number[] {
-  return collectIds(notifications, 'liwan/inbox')
+  const seen = new Set<number>()
+  for (const notification of notifications) {
+    if (notification.message?.type !== 'liwan/inbox') continue
+    const payload = notification.message.payload
+    const ids = Array.isArray(payload?.ids) ? payload.ids : [payload?.id]
+    for (const id of ids) if (typeof id === 'number') seen.add(id)
+  }
+  return [...seen]
 }
 
 // Pure: exponential backoff, 1s doubling up to a 30s ceiling, with +/-20%

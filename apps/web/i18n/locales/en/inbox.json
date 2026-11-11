@@ -117,6 +117,15 @@
         "disabledHint": "Meta disabled the business account: nothing can be sent until it is reinstated in WhatsApp Manager.",
         "ok": "The account works normally"
       },
+      "deliveries": {
+        "title": "Failed deliveries",
+        "description": "Deliveries the provider sent that could not be applied after their attempts ran out. The good items of the delivery are already stored; retrying adds only what is missing.",
+        "empty": "No failed deliveries",
+        "caption": "Failed deliveries",
+        "attempts": "Attempts: {count}",
+        "retry": "Retry",
+        "retried": "The delivery was queued again; it is processed in the next run."
+      },
       "alerts": {
         "title": "Alert timeline",
         "description": "Quality, limit, name and account changes as Meta reported them",
@@ -467,7 +476,9 @@
       },
       "channels": {
         "title": "Channels",
-        "hint": "The WhatsApp and TikTok channels connected to the inbox.",
+        "hint": "The WhatsApp and TikTok channels connected to customer messages.",
+        "workHint": "The channels you can work on in templates, forms or automation. Administering the channel itself stays with its administrators.",
+        "workEmpty": "No channel is available for your work right now.",
         "connect": "Connect WhatsApp",
         "connectHint": "Connect a WhatsApp Business number through the Cloud API.",
         "tiktokNotice": "TikTok processes the message data outside the Kingdom of Saudi Arabia; connecting is optional and can be disconnected at any time.",

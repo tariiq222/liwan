@@ -407,7 +407,8 @@ export function seedCampaignRecords(ctx, ago) {
     { location: 'button', position: 1, source: 'static', value: '4521' },
   ]
   data.campaigns.push(
-    base(3, 'مسودة عروض الشتاء', { template_id: 2, audience_id: 2, params: [] }),
+    // The draft is launch-ready: its template is an image one, so it carries the same uploaded header its running sibling does.
+    base(3, 'مسودة عروض الشتاء', { template_id: 2, audience_id: 2, params: [], header_attachment_id: 400 }),
     base(2, 'عروض الشتاء', { template_id: 2, audience_id: 1, params: [], header_attachment_id: 400, state: 'running', launched_at: ago(0.5), created_at: ago(2) }),
     base(1, 'تذكير مواعيد الأسبوع', { params, state: 'done', launched_at: ago(60), completed_at: ago(58), created_at: ago(70) }),
   )

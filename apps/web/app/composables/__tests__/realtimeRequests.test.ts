@@ -61,8 +61,14 @@ it('refreshes only the affected chat thread and lists', async () => {
 })
 it('keeps an unrelated inbox history and settings untouched', async () => {
   const { starts, send, stops } = await setup([['inbox', 'conversations'], ['inbox', 'messages', 3], ['inbox', 'messages', 4], ['inbox', 'canned-replies'], ['inbox', 'templates', 9]])
-  send('liwan/inbox', { id: 3, event: 'conversation' })
+  send('liwan/inbox', { ids: [3], event: 'conversation' })
   await vi.waitFor(() => expect(starts.map(fn => fn.mock.calls.length)).toEqual([1, 1, 0, 0, 0]))
+  stops.forEach(stop => stop())
+})
+it('still accepts a legacy single-id conversation event', async () => {
+  const { starts, send, stops } = await setup([['inbox', 'messages', 3]])
+  send('liwan/inbox', { id: 3, event: 'conversation' })
+  await vi.waitFor(() => expect(starts[0]!.mock.calls.length).toBe(1))
   stops.forEach(stop => stop())
 })
 it('template events refresh templates without replaying message history', async () => {
@@ -76,7 +82,7 @@ it('retains hidden-tab staleness and reconciles on return without background que
   const document = { visibilityState: 'hidden', addEventListener: (name: string, fn: () => void) => listeners.set(name, fn), removeEventListener: (name: string) => listeners.delete(name) }
   vi.stubGlobal('document', document)
   const { starts, send, stops } = await setup([['chat', 7, 'messages', 3, {}], ['inbox', 'messages', 3]])
-  send('liwan/chat', { id: 3, event: 'message_created' }); send('liwan/inbox', { id: 3, event: 'conversation' })
+  send('liwan/chat', { id: 3, event: 'message_created' }); send('liwan/inbox', { ids: [3], event: 'conversation' })
   await new Promise(resolve => setTimeout(resolve, 10))
   expect(starts.map(fn => fn.mock.calls.length)).toEqual([0, 0])
   document.visibilityState = 'visible'; listeners.get('visibilitychange')!()
@@ -100,7 +106,7 @@ it.each(['initial', 'refetch'] as const)('retains a hidden event across a pendin
       await vi.waitFor(() => expect(starts[0]).toHaveBeenCalledTimes(1))
     }
     document.visibilityState = 'hidden'
-    send('liwan/inbox', { id: 3, event: 'conversation' })
+    send('liwan/inbox', { ids: [3], event: 'conversation' })
     await Promise.resolve()
     release({ version: 'pre-event' })
     await vi.waitFor(() => expect(qc.getQueryState(key)?.fetchStatus).toBe('idle'))
@@ -125,12 +131,12 @@ it('retains a hidden event while a visible event catchup is still fetching', asy
   try {
     void qc.refetchQueries({ queryKey: key, exact: true })
     await vi.waitFor(() => expect(starts[0]).toHaveBeenCalledTimes(1))
-    send('liwan/inbox', { id: 3, event: 'conversation' })
+    send('liwan/inbox', { ids: [3], event: 'conversation' })
     await Promise.resolve()
     releaseRead({ version: 'old' })
     await vi.waitFor(() => expect(starts[0]).toHaveBeenCalledTimes(2))
     document.visibilityState = 'hidden'
-    send('liwan/inbox', { id: 3, event: 'conversation' })
+    send('liwan/inbox', { ids: [3], event: 'conversation' })
     await Promise.resolve()
     releaseCatchup({ version: 'before-hidden-event' })
     await vi.waitFor(() => expect(qc.getQueryState(key)?.fetchStatus).toBe('idle'))
@@ -145,9 +151,9 @@ it('coalesces a burst during a slow read and reconciles once after that snapshot
   const { starts, send, stops } = await setup([['inbox', 'messages', 3]])
   let release!: (value: object) => void
   starts[0]!.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
-  send('liwan/inbox', { id: 3, event: 'conversation' })
+  send('liwan/inbox', { ids: [3], event: 'conversation' })
   await vi.waitFor(() => expect(starts[0]).toHaveBeenCalledTimes(1))
-  for (let i = 0; i < 100; i++) send('liwan/inbox', { id: 3, event: 'conversation' })
+  for (let i = 0; i < 100; i++) send('liwan/inbox', { ids: [3], event: 'conversation' })
   await new Promise(resolve => setTimeout(resolve, 10))
   expect(starts[0]).toHaveBeenCalledTimes(1)
   release({})
@@ -243,7 +249,7 @@ it.each(['paid', 'cancelled'] as const)('a payment %s event updates order cards,
   const inactiveKey = inboxOrderKeys.detail(83)
   qc.setQueryData(inactiveKey, inboxOrder('payable', 83))
   try {
-    send('liwan/inbox', { id: 3, event: 'conversation' })
+    send('liwan/inbox', { ids: [3], event: 'conversation' })
     await vi.waitFor(() => {
       expect(qc.getQueryData(keys[0]!)).toEqual(empty)
       expect(qc.getQueryData(keys[1]!)).toEqual(changed)
@@ -336,7 +342,7 @@ it.each(['conversation', 'template'] as const)('preserves the complete %s event 
     starts[index]!.mockResolvedValue({ fresh: row.name })
   })
   try {
-    send('liwan/inbox', { id: event === 'conversation' ? 3 : 2, event })
+    send('liwan/inbox', { ...(event === 'conversation' ? { ids: [3] } : { id: 2 }), event })
     await vi.waitFor(() => {
       for (const [index, row] of inboxEventCases.entries()) {
         expect(starts[index]!.mock.calls.length, row.name).toBe(row[event])
@@ -353,9 +359,9 @@ it('coalesces order-event bursts during an old read into one trailing payment re
   let release!: (value: object) => void
   starts[0]!.mockImplementationOnce(() => new Promise(resolve => { release = resolve })).mockResolvedValue(inboxOrder('paid'))
   try {
-    send('liwan/inbox', { id: 3, event: 'conversation' })
+    send('liwan/inbox', { ids: [3], event: 'conversation' })
     await vi.waitFor(() => expect(starts[0]).toHaveBeenCalledTimes(1))
-    for (let index = 0; index < 100; index++) send('liwan/inbox', { id: 3, event: 'conversation' })
+    for (let index = 0; index < 100; index++) send('liwan/inbox', { ids: [3], event: 'conversation' })
     await Promise.resolve(); await Promise.resolve()
     expect(starts.map(read => read.mock.calls.length)).toEqual([1, 0, 0])
     release(inboxOrder('payable'))
@@ -383,7 +389,7 @@ it.each(['initial', 'refetch'] as const)('retains a hidden payment event after a
       await vi.waitFor(() => expect(starts[0]).toHaveBeenCalledTimes(1))
     }
     visibility.document.visibilityState = 'hidden'
-    send('liwan/inbox', { id: 3, event: 'conversation' })
+    send('liwan/inbox', { ids: [3], event: 'conversation' })
     await Promise.resolve(); await Promise.resolve()
     release(inboxOrder('payable'))
     await vi.waitFor(() => expect(qc.getQueryState(key)?.fetchStatus).toBe('idle'))
@@ -400,7 +406,7 @@ it('keeps an idle hidden order stale without reads until one visible payment cat
   qc.setQueryData(key, inboxOrder('payable')); starts[0]!.mockResolvedValue(inboxOrder('paid'))
   try {
     visibility.document.visibilityState = 'hidden'
-    send('liwan/inbox', { id: 3, event: 'conversation' })
+    send('liwan/inbox', { ids: [3], event: 'conversation' })
     await Promise.resolve(); await Promise.resolve()
     expect(starts.map(read => read.mock.calls.length)).toEqual([0, 0, 0])
     expect(qc.getQueryState(key)?.isInvalidated).toBe(true)
@@ -415,7 +421,7 @@ it.each(['queued', 'trailing'] as const)('fences %s payment work from a replacem
   const oldRead = new Promise<object>(resolve => { release = resolve })
   const { qc, send, stops } = await setup([key], phase === 'trailing' ? () => oldRead : undefined)
   if (phase === 'queued') qc.setQueryData(key, inboxOrder('payable'))
-  send('liwan/inbox', { id: 3, event: 'conversation' })
+  send('liwan/inbox', { ids: [3], event: 'conversation' })
   if (phase === 'trailing') {
     await Promise.resolve(); await Promise.resolve()
     expect(qc.getQueryState(key)?.isInvalidated).toBe(true)

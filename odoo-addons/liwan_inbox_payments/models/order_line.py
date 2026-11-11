@@ -8,7 +8,7 @@ from .constants import MAX_CART_QUANTITY
 class LiwanInboxOrderLine(models.Model):
     """One line of a cart: the catalog product (none for a retailer id this catalog does not know) and its quantity."""
     _name = 'liwan.inbox.order.line'
-    _description = 'Customer Inbox order line'
+    _description = 'Customer Messages order line'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 

@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
 from unittest.mock import patch
 
+from odoo import fields
 from odoo.tests import tagged
 
 from . import whatsapp_payloads as wa
@@ -142,3 +144,98 @@ class TestEventProcessing(LiwanInboxCase):
         self.assertEqual(ring.call_count, 1)
         self.assertTrue(self.bells())
         self.assertEqual(set(self.bells().mapped('liwan_inbox_channel_id')), {self.channel.id})
+        # Each retry re-applies only the failed item: the good one of the delivery is still stored exactly once.
+        self.assertEqual(len(self.message('wamid.GOOD')), 1)
+        self.assertFalse(self.message('wamid.BAD'))
+
+    def test_a_failing_failure_report_does_not_stop_the_batch(self):
+        events = self.store_event(self.channel, '{"one": 1') | self.store_event(self.channel, '{"two": 2')
+        reported = []
+
+        message = 'report failed'
+
+        def failing_report(model, event, error):
+            reported.append(event.id)
+            raise RuntimeError(message)
+
+        with patch.object(type(self.env['liwan.inbox.event']), '_liwan_record_failure', failing_report):
+            self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual(sorted(reported), sorted(events.ids), 'both items were attempted despite the failing report')
+
+    def test_a_failed_delivery_is_reprocessed_without_reapplying_the_good_items(self):
+        event = self.store_event(self.channel, self.two_messages())
+        with self.fail_bad_message():
+            for _ in range(MAX_ATTEMPTS):
+                self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((event.state, event.attempts), ('failed', MAX_ATTEMPTS))
+        event._liwan_reprocess()
+        self.assertEqual((event.state, event.attempts, event.error), ('pending', 0, False))
+        with self.fail_bad_message():
+            self.env['liwan.inbox.event']._liwan_run_events()
+        # The retry applies only the item that failed; the stored one is skipped by its provider id.
+        self.assertEqual(len(self.message('wamid.GOOD')), 1)
+        self.assertFalse(self.message('wamid.BAD'))
+
+    def test_an_event_that_is_not_failed_is_not_reprocessed(self):
+        event = self.store_event(self.channel, wa.inbound_text())
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual(event.state, 'done')
+        self.assertFalse(event._liwan_reprocess())
+
+    def consent_contact(self, name='Sara'):
+        contact = self.env['liwan.inbox.contact'].create({
+            'name': name, 'phone': '+966501112222', 'company_id': self.channel.owner_company_id.id,
+        })
+        self.env['liwan.inbox.contact.identity'].create({
+            'contact_id': contact.id, 'channel_kind': 'whatsapp', 'address': '966501112222',
+            'company_id': self.channel.owner_company_id.id,
+        })
+        return contact
+
+    def preference_payload(self, value):
+        data = self.two_messages()
+        data['entry'][0]['changes'][0]['value']['user_preferences'] = [{
+            'wa_id': '966501112222', 'category': 'marketing_messages', 'value': value,
+            'timestamp': str(wa.TIMESTAMP),
+        }]
+        return data
+
+    def test_a_replayed_stop_is_recorded_once(self):
+        contact = self.consent_contact()
+        event = self.store_event(self.channel, self.preference_payload('stop'))
+        with self.fail_bad_message():
+            self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((contact.marketing_consent, len(contact.consent_ids)), ('opted_out', 1))
+        event._liwan_reprocess()
+        with self.fail_bad_message():
+            self.env['liwan.inbox.event']._liwan_run_events()
+        # The replay of the same delivery must not append a second opt-out or touch the stored good message.
+        self.assertEqual((contact.marketing_consent, len(contact.consent_ids)), ('opted_out', 1))
+        self.assertEqual(len(self.message('wamid.GOOD')), 1)
+
+    def test_a_replayed_resume_does_not_withdraw_an_older_opt_out(self):
+        contact = self.consent_contact()
+        contact._liwan_record_consent('opted_out', 'whatsapp', provider_at=fields.Datetime.now() - timedelta(days=2))
+        contact._liwan_record_consent('opted_out', 'whatsapp', provider_at=fields.Datetime.now() - timedelta(days=1))
+        event = self.store_event(self.channel, self.preference_payload('resume'))
+        with self.fail_bad_message():
+            self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual(len(contact.consent_ids.filtered('resumed')), 1)
+        self.assertEqual(contact.marketing_consent, 'opted_out')
+        event._liwan_reprocess()
+        with self.fail_bad_message():
+            self.env['liwan.inbox.event']._liwan_run_events()
+        # The replayed resume is the same provider timestamp: it withdraws no older opt-out.
+        self.assertEqual(len(contact.consent_ids.filtered('resumed')), 1)
+        self.assertEqual(contact.marketing_consent, 'opted_out')
+
+    def test_a_cron_time_budget_stops_the_batch_and_leaves_the_rest(self):
+        events = [self.store_event(self.channel, wa.inbound_text(f'wamid.B{n}')) for n in range(3)]
+        # The first two items fit the cron's budget; the remaining time then falls under the reservation.
+        self.commits.side_effect = [60.0, 60.0, 2.0]
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual([event.state for event in events], ['done', 'done', 'pending'])
+        self.commits.side_effect = None
+        self.commits.return_value = float('inf')
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual([event.state for event in events], ['done', 'done', 'done'])

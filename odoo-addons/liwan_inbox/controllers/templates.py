@@ -22,14 +22,15 @@ from odoo.addons.liwan_inbox.controllers.template_parsing import parse_template_
 from odoo.addons.liwan_inbox.models.access_service import (
     CAMPAIGNS,
     MANAGE_CHANNELS,
+    MANAGE_FLOWS,
     MANAGE_TEMPLATES,
     READ,
 )
+from odoo.addons.liwan_inbox.models.constants import TEMPLATES_FEATURE
 from odoo.addons.liwan_inbox.models.template import CATEGORIES, STATUSES
 from odoo.addons.liwan_inbox.serializers.conversation import dump_attachment, dump_ref
 from odoo.addons.liwan_inbox.serializers.settings import dump_template
 
-TEMPLATES_FEATURE = 'inbox.templates'
 READ_CAPABILITIES = (READ, MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS)
 # Meta accepts one sample file per header kind: a PNG or JPEG image, an MP4 video, a PDF document.
 SAMPLE_MIMETYPES = {'image': {'image/png', 'image/jpeg'}, 'video': {'video/mp4'}, 'document': {'application/pdf'}}
@@ -81,10 +82,11 @@ class TemplateController(http.Controller):
     @http.route('/api/v1/inbox/channels/<int:channel_id>/ref', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS, match='any')
+    @requires_capability(MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS, MANAGE_FLOWS, match='any')
     def read_channel_ref(self, channel_id, **_):
-        """The id and name of a channel, for the pages of a user who manages its templates or campaigns but not the channel itself."""
-        channel = get_channel(channel_id, MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS)
+        """The id and name of a channel, for the pages of a user who works on its templates, campaigns or forms
+        but does not administer the channel itself."""
+        channel = get_channel(channel_id, MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS, MANAGE_FLOWS)
         require_kind(channel, 'whatsapp')
         return dump_ref(channel)
 

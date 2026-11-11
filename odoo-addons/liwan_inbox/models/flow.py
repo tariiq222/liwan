@@ -53,7 +53,7 @@ FIELD_COLUMNS = (
 class LiwanInboxFlow(models.Model):
     """A WhatsApp form (Meta Flow): built in LiwanOS, published to Meta, sent in a conversation and answered by the customer."""
     _name = 'liwan.inbox.flow'
-    _description = 'Customer Inbox WhatsApp form'
+    _description = 'Customer Messages WhatsApp form'
     _order = 'name, id'
     _liwan_scope = 'company'
 
@@ -410,7 +410,7 @@ class LiwanInboxFlow(models.Model):
 class LiwanInboxFlowScreen(models.Model):
     """One screen of a form: a title, its fields in order and a footer button (next, or submit on the last)."""
     _name = 'liwan.inbox.flow.screen'
-    _description = 'Customer Inbox form screen'
+    _description = 'Customer Messages form screen'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 
@@ -433,7 +433,7 @@ class LiwanInboxFlowScreen(models.Model):
 class LiwanInboxFlowField(models.Model):
     """A component of a screen: a text to show, or an input that collects one answer under its `key`."""
     _name = 'liwan.inbox.flow.field'
-    _description = 'Customer Inbox form field'
+    _description = 'Customer Messages form field'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 
@@ -494,7 +494,7 @@ class LiwanInboxFlowField(models.Model):
 class LiwanInboxFlowOption(models.Model):
     """A choice of a dropdown, radio or checkbox field; its key (o1, o2, ...) is generated."""
     _name = 'liwan.inbox.flow.option'
-    _description = 'Customer Inbox form choice'
+    _description = 'Customer Messages form choice'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 
@@ -509,7 +509,7 @@ class LiwanInboxFlowOption(models.Model):
 class LiwanInboxFlowError(models.Model):
     """A problem Meta found in the uploaded form; publishing waits until there are none."""
     _name = 'liwan.inbox.flow.error'
-    _description = 'Customer Inbox form validation error'
+    _description = 'Customer Messages form validation error'
     _order = 'id'
     _liwan_scope = 'company'
 

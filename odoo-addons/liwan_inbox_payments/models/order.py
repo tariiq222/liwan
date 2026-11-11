@@ -33,7 +33,7 @@ class PayTemplateInvalid(UserError):
 class LiwanInboxOrder(models.Model):
     """A customer's cart (or an order an agent builds) and, once ordered, the online order it became."""
     _name = 'liwan.inbox.order'
-    _description = 'Customer Inbox order'
+    _description = 'Customer Messages order'
     _order = 'id desc'
     _liwan_scope = 'company'
 
