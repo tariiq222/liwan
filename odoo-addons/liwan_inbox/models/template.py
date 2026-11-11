@@ -45,7 +45,7 @@ SUPPORTED_COMPONENTS = frozenset({'HEADER', 'BODY', 'FOOTER', 'BUTTONS'})
 class LiwanInboxTemplate(models.Model):
     """A WhatsApp message template: written in LiwanOS and reviewed by Meta, or synchronised from Meta."""
     _name = 'liwan.inbox.template'
-    _description = 'Customer Inbox message template'
+    _description = 'Customer Messages message template'
     _order = 'name, language, id'
     _liwan_scope = 'company'
 
@@ -385,7 +385,7 @@ class LiwanInboxTemplate(models.Model):
 class LiwanInboxTemplateExample(models.Model):
     """The sample value Meta reviews for one body placeholder."""
     _name = 'liwan.inbox.template.example'
-    _description = 'Customer Inbox template body example'
+    _description = 'Customer Messages template body example'
     _order = 'position, id'
     _liwan_scope = 'company'
 
@@ -398,7 +398,7 @@ class LiwanInboxTemplateExample(models.Model):
 class LiwanInboxTemplateButton(models.Model):
     """One button of a template."""
     _name = 'liwan.inbox.template.button'
-    _description = 'Customer Inbox template button'
+    _description = 'Customer Messages template button'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 

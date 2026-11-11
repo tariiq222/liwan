@@ -68,10 +68,10 @@ const createTo = computed(() => ({ path: '/inbox/campaigns/new', query: route.qu
           />
         </template>
         <SharedFilterField :label="t('inbox.campaigns.columns.state')">
-          <USelect :model-value="filters.state || ALL" :items="stateItems" class="w-full" :disabled="!hydrated" data-testid="inbox-campaigns-state" @update:model-value="setFilters({ state: $event === ALL ? '' : ($event as CampaignListRoute['state']) })" />
+          <USelect :model-value="filters.state || ALL" :items="stateItems" class="w-full" :disabled="!hydrated" :aria-label="t('inbox.campaigns.columns.state')" data-testid="inbox-campaigns-state" @update:model-value="setFilters({ state: $event === ALL ? '' : ($event as CampaignListRoute['state']) })" />
         </SharedFilterField>
         <SharedFilterField :label="t('inbox.campaigns.columns.channel')">
-          <USelect :model-value="filters.channelId ? String(filters.channelId) : ALL" :items="channelItems" class="w-full" :disabled="!hydrated" @update:model-value="setFilters({ channelId: $event === ALL ? null : Number($event) })" />
+          <USelect :model-value="filters.channelId ? String(filters.channelId) : ALL" :items="channelItems" class="w-full" :disabled="!hydrated" :aria-label="t('inbox.campaigns.columns.channel')" @update:model-value="setFilters({ channelId: $event === ALL ? null : Number($event) })" />
         </SharedFilterField>
       </SharedFilterBar>
     </template>

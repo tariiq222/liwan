@@ -14,7 +14,7 @@ class LiwanInboxInbound(models.AbstractModel):
     Runs from the events cron as the superuser; every record is created in the channel's company.
     """
     _name = 'liwan.inbox.inbound'
-    _description = 'Customer Inbox inbound ingestion'
+    _description = 'Customer Messages inbound ingestion'
     _liwan_scope = 'global'
 
     @api.model

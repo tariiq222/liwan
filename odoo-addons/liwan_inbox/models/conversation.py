@@ -1,4 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+from collections import defaultdict
+
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
@@ -6,15 +9,19 @@ from odoo.exceptions import ValidationError
 from odoo.fields import Domain
 
 from .access_service import ASSIGN, READ
+from .batch import process_each
 from .constants import (
     CSAT_SCORES,
     MESSAGE_KINDS,
     PREVIEW_LENGTH,
+    PURGE_BATCH,
     REPLY_WINDOWS,
     STALE_UPLOAD_AGE,
     TYPING_THROTTLE,
 )
 from .notification_types import KINDS
+
+_logger = logging.getLogger(__name__)
 
 BUS_CHANNEL = 'liwan/inbox'
 # What an agent edits on a conversation; a change to any of them is a new revision (INB-114).
@@ -23,7 +30,7 @@ REVISION_FIELDS = frozenset({'state', 'priority', 'tag_ids', 'assignee_id', 'dep
 
 class LiwanInboxConversation(models.Model):
     _name = 'liwan.inbox.conversation'
-    _description = 'Customer Inbox conversation'
+    _description = 'Customer Messages conversation'
     _order = 'last_message_at desc, id desc'
     _liwan_scope = 'company'
 
@@ -194,23 +201,36 @@ class LiwanInboxConversation(models.Model):
     def _liwan_count_visible(self, domain=()):
         return self.search_count(Domain.AND([Domain(list(domain)), self._liwan_visible_domain()]))
 
-    def _liwan_recipients(self):
-        """Active users who hold the read capability and may see this conversation (bus audience)."""
-        self.ensure_one()
-        scoped = self.with_company(self.company_id)
-        service = scoped.env['liwan.access.service']
-        readers = scoped.env.ref('liwan_inbox.group_cap_inbox_conversations_read').all_user_ids.filtered('active')
-        return readers.filtered(
-            lambda user: service._liwan_has_capability(user, READ, company=self.company_id)
-            and self.filtered_domain(scoped._liwan_visible_domain(user)),
-        )
+    def _liwan_company_readers(self, company):
+        """Active users who hold the read capability in `company`.
+
+        The capability is checked once per user here, so a batch of conversations resolves its readers once per
+        company instead of once per conversation and reader.
+        """
+        readers = self.env.ref('liwan_inbox.group_cap_inbox_conversations_read').all_user_ids.filtered('active')
+        service = self.env['liwan.access.service'].with_company(company)
+        return readers.filtered(lambda user: service._liwan_has_capability(user, READ, company=company))
 
     def _liwan_notify_bus(self):
-        """Tell every user who may see each conversation that it changed (id only, no content)."""
+        """Tell every user who may see the conversations that they changed: one notification per user, with their ids.
+
+        The payload names ids only, never content. A user gets one message for the whole batch, and the readers of
+        each company are resolved once (one capability check and one visibility filter per reader for every
+        conversation of the batch), never once per conversation.
+        """
         bus = self.env['bus.bus']
+        audience = defaultdict(set)
+        by_company = defaultdict(list)
         for conversation in self:
-            for user in conversation._liwan_recipients():
-                bus._sendone(user.partner_id, BUS_CHANNEL, {'event': 'conversation', 'id': conversation.id})
+            by_company[conversation.company_id].append(conversation.id)
+        for company, conversation_ids in by_company.items():
+            scoped = self.browse(conversation_ids).with_company(company)
+            for user in scoped._liwan_company_readers(company):
+                visible = scoped.filtered_domain(scoped._liwan_visible_domain(user))
+                if visible:
+                    audience[user.partner_id] |= set(visible.ids)
+        for partner, conversation_ids in audience.items():
+            bus._sendone(partner, BUS_CHANNEL, {'event': 'conversation', 'ids': sorted(conversation_ids)})
 
     # maintenance (cron)
 
@@ -240,19 +260,32 @@ class LiwanInboxConversation(models.Model):
             '|', ('res_model', '=', self._name),
             '&', ('res_model', 'in', ('liwan.inbox.template', 'liwan.inbox.campaign')), ('res_id', '=', 0),
             ('create_date', '<', now - STALE_UPLOAD_AGE),
-        ]).unlink()
+        ], limit=PURGE_BATCH).unlink()
 
     @api.model
     def _liwan_purge_expired(self, company, cutoff):
-        """Delete the company's conversations idle since `cutoff` with their attachments and bell rows, stale events, and the marketing data (campaign recipients, contacts) past the same window."""
-        expired = self.search([('company_id', '=', company.id), ('last_message_at', '<', cutoff)])
-        self.env['mail.message'].search([
-            ('liwan_notification_kind', 'in', KINDS), ('liwan_inbox_conversation_id', 'in', expired.ids),
-        ]).unlink()
+        """Delete the company's events and marketing data past `cutoff`, and its conversations idle since then.
+
+        The conversations go one savepoint each (`process_each`, which also stops at the cron's time budget), so
+        a pass deletes at most `PURGE_BATCH` of them and the next one continues.
+        """
         self.env['liwan.inbox.event']._liwan_purge_unprocessed(company, cutoff)
-        self.env['ir.attachment'].search([
-            '|', '&', ('res_model', '=', 'liwan.inbox.message'), ('res_id', 'in', expired.message_ids.ids),
-            '&', ('res_model', '=', self._name), ('res_id', 'in', expired.ids),
-        ]).unlink()
-        expired.unlink()
+        expired = self.search([('company_id', '=', company.id), ('last_message_at', '<', cutoff)], limit=PURGE_BATCH)
+        process_each(expired, lambda conversation: conversation._liwan_purge_conversation(), self._liwan_purge_failed)
         self.env['liwan.inbox.campaign']._liwan_purge_marketing(company, cutoff)
+
+    def _liwan_purge_conversation(self):
+        """Delete one idle conversation with its bell rows and attachments (its messages follow the conversation)."""
+        self.ensure_one()
+        self.env['mail.message'].search([
+            ('liwan_notification_kind', 'in', KINDS), ('liwan_inbox_conversation_id', '=', self.id),
+        ]).unlink()
+        self.env['ir.attachment'].search([
+            '|', '&', ('res_model', '=', 'liwan.inbox.message'), ('res_id', 'in', self.message_ids.ids),
+            '&', ('res_model', '=', self._name), ('res_id', '=', self.id),
+        ]).unlink()
+        self.unlink()
+
+    @api.model
+    def _liwan_purge_failed(self, conversation, error):
+        _logger.warning('purge of conversation %s failed: %s', conversation.id, type(error).__name__)

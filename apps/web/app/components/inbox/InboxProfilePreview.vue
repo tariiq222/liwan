@@ -28,9 +28,7 @@ const rows = computed(() => [
     <div class="flex flex-col items-center gap-2 bg-elevated/40 px-4 py-6 text-center">
       <UAvatar :src="profile.pictureUrl ?? undefined" icon="i-lucide-store" size="3xl" :alt="t('inbox.profile.picture.aria')" data-testid="inbox-profile-preview-picture" />
       <h3 class="max-w-full truncate text-base font-semibold text-highlighted"><bdi>{{ name }}</bdi></h3>
-      <span class="inline-flex items-center gap-1 rounded-inner bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
-        <UIcon name="i-lucide-badge-check" class="size-3.5" aria-hidden="true" />{{ t('inbox.profile.preview.business') }}
-      </span>
+      <SharedStatusBadge tone="success" size="sm" icon="i-lucide-badge-check" :label="t('inbox.profile.preview.business')" />
       <span v-if="profile.vertical" class="text-xs text-muted">{{ t(`inbox.profile.vertical.${profile.vertical}`) }}</span>
     </div>
     <div class="flex flex-col gap-3 p-4">

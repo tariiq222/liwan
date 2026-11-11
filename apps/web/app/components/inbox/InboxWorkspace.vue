@@ -87,7 +87,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
           </UTooltip>
           <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
           <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
-            <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-pressed="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
+            <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-expanded="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
               <UIcon name="i-lucide-shopping-cart" class="size-5" aria-hidden="true" />
             </UButton>
           </UTooltip>
@@ -97,7 +97,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
               :variant="infoOpen ? 'soft' : 'ghost'"
               square
               :to="infoOpen ? threadTo : infoTo"
-              :aria-pressed="infoOpen"
+              :aria-expanded="infoOpen"
               :aria-label="t('inbox.panel.title')"
               data-testid="inbox-info-toggle"
             >

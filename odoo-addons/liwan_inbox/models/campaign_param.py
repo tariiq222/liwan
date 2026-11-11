@@ -39,7 +39,7 @@ def template_needs(template):
 class LiwanInboxCampaignParam(models.Model):
     """What fills one placeholder of the campaign's template: a static text, or a field of the contact with a fallback."""
     _name = 'liwan.inbox.campaign.param'
-    _description = 'Customer Inbox campaign parameter'
+    _description = 'Customer Messages campaign parameter'
     _order = 'location, position, id'
     _liwan_scope = 'company'
 

@@ -468,6 +468,18 @@ export const InboxChannelAlertSchema = z.object({
 }).strict()
 export const InboxChannelAlertListSchema = list(InboxChannelAlertSchema)
 
+// A stored webhook delivery: the channel-health page lists the failed ones so an operator can give them a fresh set of
+// attempts without touching the deliveries that already succeeded.
+export const InboxEventStateSchema = z.enum(['pending', 'done', 'failed'])
+export const InboxEventSchema = z.object({
+  id: Id,
+  state: InboxEventStateSchema,
+  attempts: z.number().int().nonnegative(),
+  error: z.string().nullable(),
+  created_at: UtcDateTime,
+}).strict()
+export const InboxEventListSchema = list(InboxEventSchema)
+
 export const InboxBusinessVerticalSchema = z.enum([
   'alcohol', 'apparel', 'auto', 'beauty', 'edu', 'entertain', 'event_plan', 'finance', 'govt', 'grocery', 'health',
   'hotel', 'nonprofit', 'online_gambling', 'otc_drugs', 'other', 'physical_gambling', 'prof_services', 'restaurant',
@@ -541,6 +553,15 @@ export const InboxChannelSchema = z.object({
   tiktok_prompts_enabled: z.boolean().default(false),
 }).strict()
 export const InboxChannelListSchema = list(InboxChannelSchema)
+// A channel a template, form or automation page may pick: nothing its administrator sees (provider ids, secrets,
+// health) is part of this reference.
+export const InboxChannelWorkSchema = z.object({
+  id: Id,
+  name: z.string(),
+  kind: InboxChannelKindSchema,
+  department: InboxRefSchema.nullable(),
+}).strict()
+export const InboxChannelWorkListSchema = list(InboxChannelWorkSchema)
 export const InboxVerifyTokenSchema = z.object({ verify_token: z.string() }).strict()
 
 const AppId = z.string().regex(/^\d{5,32}$/)
@@ -739,6 +760,7 @@ export type InboxRuleTest = z.infer<typeof InboxRuleTestSchema>
 export type InboxRuleTestResult = z.infer<typeof InboxRuleTestResultSchema>
 export type InboxSettingsPatch = z.infer<typeof InboxSettingsPatchSchema>
 export type InboxChannel = z.infer<typeof InboxChannelSchema>
+export type InboxChannelWork = z.infer<typeof InboxChannelWorkSchema>
 export type InboxChannelCreate = z.infer<typeof InboxChannelCreateSchema>
 export type InboxChannelPatch = z.infer<typeof InboxChannelPatchSchema>
 export type InboxChannelHealth = z.infer<typeof InboxChannelHealthSchema>

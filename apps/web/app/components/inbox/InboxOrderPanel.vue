@@ -16,7 +16,7 @@ const creating = ref(false)
 
 <template>
   <div class="flex flex-col gap-3 p-3" data-testid="inbox-order-panel">
-    <UButton v-if="can('inbox.orders.manage')" type="button" class="self-start" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('inbox.orders.create')" :aria-pressed="creating" :disabled="!hydrated" data-testid="inbox-order-new" @click="creating = !creating" />
+    <UButton v-if="can('inbox.orders.manage')" type="button" class="self-start" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('inbox.orders.create')" :aria-expanded="creating" :disabled="!hydrated" data-testid="inbox-order-new" @click="creating = !creating" />
     <InboxOrderEditor v-if="creating" :conversation-id="props.conversationId" @saved="creating = false" @cancel="creating = false" />
     <SharedLoadingSkeleton v-if="query.isPending.value" />
     <SharedPageState v-else-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />

@@ -24,7 +24,7 @@ from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
 from odoo.addons.liwan_inbox.models.secret_box import KEY_ENV
 from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET, store_event
 
-EXPECTED_GET_RECORD_ROUTES = 29
+EXPECTED_GET_RECORD_ROUTES = 30  # includes the failed-delivery list an operator re-runs
 PASSWORD = 'iso_inbox_nocap_pass_123'
 PROFILE = {'about': 'About', 'address': None, 'description': None, 'email': None, 'websites': [], 'vertical': None}
 PREVIEW = {'url': 'https://business.facebook.com/wa/manage/flows/preview/abc', 'expires_at': fields.Datetime.now()}
@@ -149,6 +149,7 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
             'campaign': f'/api/v1/inbox/campaigns/{rec["campaign"].id}',
             'recipients': f'/api/v1/inbox/campaigns/{rec["campaign"].id}/recipients',
             'alerts': f'/api/v1/inbox/channels/{rec["channel"].id}/alerts',
+            'events': f'/api/v1/inbox/channels/{rec["channel"].id}/events',
             'profile': f'/api/v1/inbox/channels/{rec["channel"].id}/profile',
             'sending': f'/api/v1/inbox/channels/{rec["channel"].id}/sending',
             'marketing': f'/api/v1/inbox/contacts/{rec["contact"].id}/marketing',
@@ -174,7 +175,7 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
             'channel': rec['channel'], 'ref': rec['channel'], 'templates': rec['channel'], 'template': rec['template'], 'conversation': rec['conversation'],
             'messages': rec['conversation'], 'contact': rec['contact'], 'download': rec['message'],
             'audience': rec['audience'], 'members': rec['audience'], 'department_hours': rec['department'], 'automation': rec['channel'],
-            'rule': rec['rule'], 'campaign': rec['campaign'], 'recipients': rec['campaign'], 'alerts': rec['channel'],
+            'rule': rec['rule'], 'campaign': rec['campaign'], 'recipients': rec['campaign'], 'alerts': rec['channel'], 'events': rec['channel'],
             'profile': rec['channel'], 'sending': rec['channel'], 'marketing': rec['contact'], 'flows': rec['channel'],
             'flow': rec['flow'], 'flow_preview': rec['flow'], 'flow_submissions': rec['flow'],
             'conversation_submissions': rec['conversation'], 'report_template': rec['template'],
@@ -505,6 +506,7 @@ cover_isolation_routes((
     '/api/v1/inbox/campaigns/<int:campaign_id>',
     '/api/v1/inbox/campaigns/<int:campaign_id>/recipients',
     '/api/v1/inbox/channels/<int:channel_id>/alerts',
+    '/api/v1/inbox/channels/<int:channel_id>/events',
     '/api/v1/inbox/channels/<int:channel_id>/profile',
     '/api/v1/inbox/channels/<int:channel_id>/sending',
     '/api/v1/inbox/contacts/<int:contact_id>/marketing',

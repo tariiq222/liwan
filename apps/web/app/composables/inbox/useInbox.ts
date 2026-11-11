@@ -1,4 +1,4 @@
-import type { MaybeRefOrGetter } from 'vue'
+import { getCurrentInstance, onMounted, ref, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   InboxAgentListSchema,
@@ -20,7 +20,7 @@ import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
 import { fileToBase64 } from '../../utils/attachmentFile'
 import { createTypingNotifier } from './inboxTyping'
 import { ApiError } from '../useApi'
-import { busFallbackInterval } from '../useBus'
+import { busFallbackInterval, useBus } from '../useBus'
 
 // Conversation events refresh lists and the affected thread; template events have their own keys.
 export const inboxKeys = {
@@ -95,20 +95,50 @@ export function nextOlderOffset(pages: readonly MessagePage[]): number | undefin
   return last.items.length > 0 && loaded < last.total ? loaded : undefined
 }
 
-/** The conversation's messages, oldest first, newest page first on the wire; `fetchNextPage` loads the next older page. */
+/**
+ * The conversation's messages, oldest first, newest page first on the wire; `fetchNextPage` loads the next older page.
+ * While the bus is disconnected only the newest page is polled, never the history already loaded: a long thread is not
+ * re-read every five seconds. A reconnect refreshes the whole query once through the bus's own stale reconciliation.
+ */
+/**
+ * The loaded history plus the polled newest page. The newest page shifts forward on every arrival, so its older
+ * boundary overlaps the history's first page; keeping that page (instead of replacing it) means the merge never
+ * drops a message at the boundary. `mergeMessagePages` dedupes by id and restores the oldest-first order.
+ */
+export function mergeLatestPage(history: readonly MessagePage[], newest: MessagePage | undefined, off: boolean): readonly MessagePage[] {
+  if (off || !newest || !history.length) return history
+  // A message the poll returns may have changed state (queued -> failed); the polled copy must win over the history's,
+  // not the other way round. Drop the ids the new page carries from the older pages before merging.
+  const polled = new Set(newest.items.map(item => item.id))
+  const older = history.map(page => ({ ...page, items: page.items.filter(item => !polled.has(item.id)) }))
+  return [{ ...newest, total: Math.max(newest.total, history[0]!.total) }, ...older]
+}
+
 export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
   const { $api } = useApi()
+  const { connected } = useBus()
+  // The newest-page poll is a browser fallback: the server-rendered first paint already reads the thread, and a second
+  // query there would duplicate page 0 on every server render.
+  const mounted = ref(false)
+  if (getCurrentInstance()) onMounted(() => { mounted.value = true })
   const query = useInfiniteQuery({
     queryKey: computed(() => inboxKeys.messagesOf(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
     retry: false,
-    refetchInterval: busFallbackInterval(),
     initialPageParam: 0,
     queryFn: ({ pageParam, queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}/messages`, { signal, query: { limit: INBOX_MESSAGE_PAGE, offset: pageParam }, schema: InboxMessageListSchema }),
     getNextPageParam: (_last, pages) => nextOlderOffset(pages),
   })
-  const items = computed(() => mergeMessagePages(query.data.value?.pages ?? []))
-  return { ...query, items }
+  const latest = useQuery({
+    queryKey: computed(() => [...inboxKeys.messagesOf(toValue(id) ?? 0), 'latest'] as const),
+    enabled: computed(() => !!toValue(id) && mounted.value && !connected.value),
+    retry: false,
+    refetchInterval: busFallbackInterval(),
+    queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}/messages`, { signal, query: { limit: INBOX_MESSAGE_PAGE, offset: 0 }, schema: InboxMessageListSchema }),
+  })
+  const pages = computed<readonly MessagePage[]>(() => mergeLatestPage(query.data.value?.pages ?? [], latest.data.value, connected.value || !mounted.value))
+  const items = computed(() => mergeMessagePages(pages.value))
+  return { ...query, items, latest }
 }
 
 export function useInboxCannedReplies() {
@@ -119,6 +149,7 @@ export function useInboxCannedReplies() {
   })
 }
 
+/** The tags an agent may put on a conversation (readable with the read capability). */
 /** The company's users who may reply: the only valid assignees. */
 export function useInboxAgents(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()

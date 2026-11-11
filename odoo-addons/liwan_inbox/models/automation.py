@@ -39,7 +39,7 @@ NOTE_FLOW_UNAVAILABLE = 'لم يُرسل النموذج «%s» لأنه غير �
 
 class LiwanInboxAutomation(models.AbstractModel):
     _name = 'liwan.inbox.automation'
-    _description = 'Customer Inbox automation engine'
+    _description = 'Customer Messages automation engine'
     _liwan_scope = 'global'
 
     # entry points (inbound processing)

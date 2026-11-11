@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
 
-from odoo import Command
+from odoo import Command, fields
 from odoo.tests import new_test_user, tagged
 
 from .common import PASSWORD, LiwanInboxCase
@@ -120,6 +121,32 @@ class TestChannelHealth(LiwanInboxCase):
         self.assertTrue(self.channel.health_checked_at)
         self.assertFalse(draft.health_checked_at)
         self.assertEqual(mocked.call_count, 2)  # the main channel and the branch channel
+
+    def test_a_budget_cut_rotates_to_the_least_recently_checked_channels(self):
+        now = fields.Datetime.now()
+        (self.channel | self.branch_channel).write({'health_checked_at': now})
+        old = self.make_channel(phone_id='710000000010', health_checked_at=now - timedelta(days=2))
+        fresh = self.make_channel(phone_id='710000000011', health_checked_at=now)
+        refreshed = []
+
+        def record(model):
+            refreshed.append(model.id)
+            model.write({'health_checked_at': fields.Datetime.now()})
+
+        channel_model = type(self.env['liwan.inbox.channel'])
+        self.commits.side_effect = [float('inf'), float('inf'), 2.0]
+        with patch.object(channel_model, '_liwan_refresh_health', record):
+            self.env['liwan.inbox.channel']._liwan_run_health()
+        self.assertEqual(refreshed, [old.id], 'the oldest reading is refreshed first')
+        self.commits.side_effect = [float('inf'), float('inf'), 2.0]
+        with patch.object(channel_model, '_liwan_refresh_health', record):
+            self.env['liwan.inbox.channel']._liwan_run_health()
+        self.assertNotIn(old.id, refreshed[1:], 'a refreshed channel moves behind the rest instead of starving them')
+        self.commits.side_effect = None
+        self.commits.return_value = float('inf')
+        with patch.object(channel_model, '_liwan_refresh_health', record):
+            self.env['liwan.inbox.channel']._liwan_run_health()
+        self.assertIn(fresh.id, refreshed, 'the remaining channels are reached once the budget allows')
 
     def test_a_lapsed_restriction_ends_on_the_next_reading(self):
         self.channel.write({'account_state': 'restricted', 'account_restricted_until': '2020-01-01 00:00:00'})

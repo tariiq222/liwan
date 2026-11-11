@@ -122,7 +122,9 @@ class TestCronResilience(LiwanInboxCase):
 
         with patch.object(whatsapp, 'send_text', side_effect=send):
             self.env['liwan.inbox.message']._liwan_run_outbox()
-        self.assertEqual(self.commits.call_count, 7, 'once per batch (replies, campaign messages, reactions, receipts, typing) and once per item')
+        # once per batch (the interrupted-send settlement, replies, campaign messages, reactions, receipts, typing) and
+        # once per item for it: the durable send marker before the provider call, then the item's own progress.
+        self.assertEqual(self.commits.call_count, 10)
         self.assertEqual((first.delivery_state, first.attempts, first.error), ('queued', 1, 'unexpected error: RuntimeError'))
         self.assertGreater(first.next_attempt_at, fields.Datetime.now())
         self.assertEqual((second.delivery_state, second.provider_message_id), ('sent', 'wamid.OK2'))
