@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
-import { enqueueOutbox, claimOutbox, completeOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
+import { enqueueOutbox, claimOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { buildInvitationUrl, createInvitationToken, hashToken, invitationExpiry, renderInvitationEmail } from './invitation-tokens.js'
 import { isLocalCapture, type MailAdapter } from './mail-adapter.js'
@@ -21,6 +21,25 @@ export async function settleFailedInvitationOutbox(pool: Pool, row: Pick<OutboxR
   if (lastAttempt(row)) { await failOutbox(pool, row.id, failureText(error, fallback)); return true }
   await deferOutbox(pool, row.id, failureText(error, fallback))
   return false
+}
+
+/** Closes an invitation outbox row and removes the raw token from its payload. */
+const DONE_WITHOUT_TOKEN = `status='done', processed_at=now(), payload = payload - 'token'`
+const RECORD_DELIVERY_ATTEMPTS = 3
+
+/** One statement records the delivery on the invitation and closes its outbox row, so the two cannot disagree.
+ *  Retried in place, because the mail has already gone out and sending again would deliver it twice;
+ *  only if every attempt fails does the row stay leased and get claimed again. */
+async function recordDelivery(pool: Pool, outboxId: string, invitationId: string, delivery: { status: string; provider_message_id: string }) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await pool.query(
+        `WITH delivered AS (UPDATE admin_invitations SET delivery_status=$3, sent_at=now(), message_id=$4 WHERE id=$2)
+         UPDATE commercial_outbox SET ${DONE_WITHOUT_TOKEN} WHERE id=$1 AND status='pending'`,
+        [outboxId, invitationId, delivery.status, delivery.provider_message_id])
+      return
+    } catch (e) { if (attempt >= RECORD_DELIVERY_ATTEMPTS) throw e }
+  }
 }
 
 /** Sets the tenant admin's own Odoo password. Without a configured adapter the default refuses,
@@ -66,18 +85,16 @@ export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; r
   for (const row of await claimOutbox(pool, [INVITATION_KIND], o.limit ?? 20)) {
     if (o.signal?.aborted) { await releaseOutbox(pool, row.id); continue }
     const { invitation_id, token } = row.payload as { invitation_id: string; token?: string }
+    let delivery: { status: string; provider_message_id: string }
     try {
       const q = await pool.query(
         `SELECT i.admin_login, i.customer_id, c.name FROM admin_invitations i JOIN customers c ON c.id=i.customer_id
          WHERE i.id=$1 AND i.consumed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()`, [invitation_id])
-      if (!q.rows[0] || !token) { await completeOutbox(pool, row.id); continue } // superseded/expired: nothing to send
+      if (!q.rows[0] || !token) { await pool.query(`UPDATE commercial_outbox SET ${DONE_WITHOUT_TOKEN} WHERE id=$1 AND status='pending'`, [row.id]); continue } // superseded/expired: nothing to send
       const mail = renderInvitationEmail({ companyName: q.rows[0].name, url: buildInvitationUrl(await o.returnOrigin(q.rows[0].customer_id), token) })
       const message_id = `${invitation_id}@liwan`
       const res = await o.mail.send({ to: q.rows[0].admin_login, ...mail, message_id })
-      const status = o.smtpHost && isLocalCapture(o.smtpHost) ? 'local_capture' : 'sent'
-      await pool.query(`UPDATE admin_invitations SET delivery_status=$2, sent_at=now(), message_id=$3 WHERE id=$1`, [invitation_id, status, res.provider_message_id])
-      await pool.query(`UPDATE commercial_outbox SET payload = payload - 'token' WHERE id=$1`, [row.id])
-      await completeOutbox(pool, row.id); sent++
+      delivery = { status: o.smtpHost && isLocalCapture(o.smtpHost) ? 'local_capture' : 'sent', provider_message_id: res.provider_message_id }
     } catch (e) {
       // The raw token stays in the outbox payload while retries remain (it is what the next attempt mails); the final failure scrubs it.
       o.log?.(`invitation ${invitation_id} send failed (attempt ${row.attempts + 1} of ${INVITATION_MAX_ATTEMPTS})`, e)
@@ -86,7 +103,11 @@ export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; r
         await pool.query(`UPDATE commercial_outbox SET payload = payload - 'token' WHERE id=$1`, [row.id])
       }
       if (await settleFailedInvitationOutbox(pool, row, e, 'send_failed')) failed++
+      continue
     }
+    // The mail is out: a recording failure must never count as a failed send or mark a delivered mail `failed`.
+    try { await recordDelivery(pool, row.id, invitation_id, delivery); sent++ }
+    catch (e) { o.log?.(`invitation ${invitation_id} was sent but its delivery could not be recorded`, e) }
   }
   return { sent, failed }
 }

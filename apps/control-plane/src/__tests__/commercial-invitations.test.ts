@@ -101,6 +101,36 @@ d('admin invitations', () => {
     await makeDue()
     expect(await sendInvitationOutbox(pool, { mail: broken, returnOrigin: origin })).toEqual({ sent: 0, failed: 0 })
   })
+  /** A pool whose delivery-recording statement fails the first `times` calls, as a dropped connection would. */
+  const failingRecord = (times: number) => {
+    let left = times
+    return { query: (sql: string, ...rest: unknown[]) => sql.includes('WITH delivered') && left-- > 0 ? Promise.reject(new Error('connection reset')) : (pool.query as (...a: unknown[]) => Promise<unknown>)(sql, ...rest) } as unknown as Pool
+  }
+  it('records a delivery again without mailing again when only the recording failed', async () => {
+    const inv = await issue()
+    expect(await sendInvitationOutbox(failingRecord(2), { mail, returnOrigin: origin })).toEqual({ sent: 1, failed: 0 })
+    expect(sent).toHaveLength(1)
+    expect((await pool.query('SELECT delivery_status FROM admin_invitations WHERE id=$1', [inv.id])).rows[0].delivery_status).toBe('sent')
+    const done = await outbox()
+    expect(done.status).toBe('done'); expect(done.payload.token).toBeUndefined()
+  })
+  it('never marks a delivered mail failed when its recording keeps failing', async () => {
+    const inv = await issue()
+    const logged: string[] = []
+    expect(await sendInvitationOutbox(failingRecord(99), { mail, returnOrigin: origin, log: m => logged.push(m) })).toEqual({ sent: 0, failed: 0 })
+    expect(sent).toHaveLength(1)
+    expect(logged).toEqual([`invitation ${inv.id} was sent but its delivery could not be recorded`])
+    expect((await pool.query('SELECT delivery_status FROM admin_invitations WHERE id=$1', [inv.id])).rows[0].delivery_status).not.toBe('failed')
+    expect((await outbox()).attempts).toBe(0)
+  })
+  it('scrubs the token from the outbox row of an invitation that was superseded before it was sent', async () => {
+    const inv = await issue()
+    await pool.query('UPDATE admin_invitations SET revoked_at=now() WHERE id=$1', [inv.id])
+    expect(await sendInvitationOutbox(pool, { mail, returnOrigin: origin })).toEqual({ sent: 0, failed: 0 })
+    expect(sent).toHaveLength(0)
+    const done = await outbox()
+    expect(done.status).toBe('done'); expect(done.payload.token).toBeUndefined()
+  })
   it('retries, without mailing, while the tenant has no usable origin', async () => {
     await issue()
     expect(await sendInvitationOutbox(pool, { mail, returnOrigin: tenantReturnOrigin(pool, ['https://*.saas.example']) })).toEqual({ sent: 0, failed: 0 })
