@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { InboxMessage } from '@liwan/contracts'
-import { mergeMessagePages, nextOlderOffset } from '../useInbox'
+import { mergeLatestPage, mergeMessagePages, nextOlderOffset } from '../useInbox'
 
 const message = (id: number) => ({ id, direction: 'in', body: `m${id}`, author: null, template: null, delivery_state: 'received', error: null, attachments: [], created_at: '2026-10-28T10:00:00Z' }) as unknown as InboxMessage
 const page = (ids: number[], total: number) => ({ items: ids.map(message), total })
@@ -14,6 +14,18 @@ describe('inbox message pages', () => {
   it('keeps a message once when new arrivals shifted it onto two pages', () => {
     const merged = mergeMessagePages([page([4, 5, 6], 6), page([3, 4], 6)])
     expect(merged.map(item => item.id)).toEqual([3, 4, 5, 6])
+  })
+
+  it('keeps the boundary message when the polled newest page shifts forward', () => {
+    const history = [page(Array.from({ length: 100 }, (_, i) => 101 + i), 201), page(Array.from({ length: 100 }, (_, i) => 1 + i), 201)]
+    // One arrival moved the newest page from 101–200 to 102–201; the old first page must not be dropped.
+    const merged = mergeMessagePages(mergeLatestPage(history, page(Array.from({ length: 100 }, (_, i) => 102 + i), 201), false))
+    expect(merged.map(item => item.id)).toEqual(Array.from({ length: 201 }, (_, i) => 1 + i))
+  })
+
+  it('keeps the loaded history when the polled page is off', () => {
+    const history = [page([3, 4], 4)]
+    expect(mergeLatestPage(history, page([4, 5], 5), true)).toBe(history)
   })
 
   it('asks for the next older page at the loaded count until the total is reached', () => {

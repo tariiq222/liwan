@@ -101,6 +101,16 @@ export function nextOlderOffset(pages: readonly MessagePage[]): number | undefin
  * While the bus is disconnected only the newest page is polled, never the history already loaded: a long thread is not
  * re-read every five seconds. A reconnect refreshes the whole query once through the bus's own stale reconciliation.
  */
+/**
+ * The loaded history plus the polled newest page. The newest page shifts forward on every arrival, so its older
+ * boundary overlaps the history's first page; keeping that page (instead of replacing it) means the merge never
+ * drops a message at the boundary. `mergeMessagePages` dedupes by id and restores the oldest-first order.
+ */
+export function mergeLatestPage(history: readonly MessagePage[], newest: MessagePage | undefined, off: boolean): readonly MessagePage[] {
+  if (off || !newest || !history.length) return history
+  return [{ ...newest, total: Math.max(newest.total, history[0]!.total) }, ...history]
+}
+
 export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
   const { $api } = useApi()
   const { connected } = useBus()
@@ -123,13 +133,7 @@ export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
     refetchInterval: busFallbackInterval(),
     queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}/messages`, { signal, query: { limit: INBOX_MESSAGE_PAGE, offset: 0 }, schema: InboxMessageListSchema }),
   })
-  const pages = computed<MessagePage[]>(() => {
-    const history = query.data.value?.pages ?? []
-    const newest = latest.data.value
-    if (connected.value || !mounted.value || !newest || !history.length) return history
-    // The polled page replaces the history's first page; older pages are left exactly as loaded.
-    return [{ ...newest, total: Math.max(newest.total, history[0]!.total) }, ...history.slice(1)]
-  })
+  const pages = computed<readonly MessagePage[]>(() => mergeLatestPage(query.data.value?.pages ?? [], latest.data.value, connected.value || !mounted.value))
   const items = computed(() => mergeMessagePages(pages.value))
   return { ...query, items, latest }
 }

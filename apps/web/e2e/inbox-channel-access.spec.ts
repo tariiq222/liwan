@@ -45,6 +45,18 @@ test('a forms manager reaches the forms of a channel, without channel administra
   await expect(page.getByText('طلب موعد').first()).toBeVisible({ timeout: 30_000 })
 })
 
+test('an automation manager reaches the automatic messages, not the channel page', async ({ page }) => {
+  await signIn(page, 'inbox_automation')
+  await open(page, '/settings/apps/inbox#channels')
+
+  await expect(page.getByTestId('inbox-work-channel-1')).toBeVisible()
+  await expect(page.getByTestId('inbox-channel-1')).toHaveCount(0)
+  // The work row must open the automatic-messages editor, not the TikTok-only channel tab the server refuses.
+  await page.getByTestId('inbox-work-automation-1').click()
+  await expect(page).toHaveURL(/\/settings\/apps\/inbox\/auto-messages\/1$/)
+  await expect(page.getByTestId('inbox-automation-form')).toBeVisible({ timeout: 30_000 })
+})
+
 test('a reader with no channel work capability gets no channels entry', async ({ page }) => {
   await signIn(page, 'reader')
   await open(page, '/settings/apps/inbox')

@@ -298,6 +298,18 @@ class TestCampaignRetention(CampaignCase):
             self.purge(cutoff)
         self.assertFalse(contacts.exists())
 
+    def test_suppression_anonymization_advances_past_completed_rows(self):
+        contacts = self.make_contact(consent='opted_out') | self.make_contact(consent='opted_out')
+        contacts.write({'last_activity_at': fields.Datetime.now() - timedelta(days=90)})
+        contacts.consent_ids.write({'date': fields.Datetime.now() - timedelta(days=90)})
+        cutoff = fields.Datetime.now() - timedelta(days=30)
+        with patch('odoo.addons.liwan_inbox.models.campaign_retention.PURGE_BATCH', 1):
+            self.purge(cutoff)
+            # The first pass reduced the first contact; it must leave the aged set so the second one is reached.
+            self.purge(cutoff)
+        for contact in contacts:
+            self.assertEqual((contact.name, contact.email, contact.tag_ids), (contact.phone, False, self.env['liwan.inbox.tag']))
+
     def test_finished_campaign_recipients_are_purged_a_batch_per_run(self):
         campaign = self.finished(2)
         campaign.completed_at = fields.Datetime.now() - timedelta(days=800)

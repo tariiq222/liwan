@@ -93,12 +93,21 @@ class LiwanInboxContactMarketing(models.Model):
         return False
 
     def _liwan_anonymize_suppression(self):
-        """Reduce an opted-out contact to a suppression record: its number and the opt-out, no name, tags, notes or history."""
+        """Reduce an opted-out contact to a suppression record: its number and the opt-out, no name, tags, notes or history.
+
+        Anonymizing counts as activity so the record leaves the aged query: a bounded pass must advance past the rows
+        it already reduced, or the same first `PURGE_BATCH` would be selected on every run and starve the rest.
+        """
         self.ensure_one()
+        now = fields.Datetime.now()
         decisive = self.consent_ids.filtered(lambda event: not event.resumed).sorted(lambda event: (event.date, event.id))[-1:]
         placeholder = self.phone or ''
         if self.name == placeholder and not self.email and not self.tag_ids and self.consent_ids == decisive and not decisive.note:
+            self.last_activity_at = now
             return
         (self.consent_ids - decisive).unlink()
         decisive.write({'note': False, 'author_id': False, 'campaign_id': False})
-        self.write({'name': placeholder or self.identity_ids.address or '-', 'email': False, 'tag_ids': [(5, 0, 0)]})
+        self.write({
+            'name': placeholder or self.identity_ids.address or '-', 'email': False, 'tag_ids': [(5, 0, 0)],
+            'last_activity_at': now,
+        })
