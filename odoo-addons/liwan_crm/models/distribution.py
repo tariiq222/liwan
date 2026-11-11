@@ -4,11 +4,14 @@ from collections import defaultdict
 from psycopg2.errors import UniqueViolation
 
 from odoo import api, models
+from odoo.exceptions import ConcurrencyError
 from odoo.tools import SQL
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 
 WORK_CAPABILITY = 'crm.leads.work'
+# A competing transaction committed the company's rotation row after this snapshot opened; Odoo replays the request.
+ROTATION_RACE = 'the CRM rotation was created concurrently; retry in a fresh snapshot'
 
 
 def agent_not_eligible():
@@ -93,17 +96,33 @@ class LiwanCrmDistribution(models.AbstractModel):
 
     @api.model
     def _liwan_locked_rotation(self, company):
-        """The company's rotation row, created on first use, locked until commit with a fresh read."""
-        rotation = self._liwan_rotation(company)
-        if not rotation:
-            try:
-                with self.env.cr.savepoint():
-                    rotation = self.env['liwan.crm.rotation'].with_company(company).create({'company_id': company.id})
-            except UniqueViolation:
-                rotation = self._liwan_rotation(company)
+        """The company's rotation row, created on first use, locked until commit with a fresh read.
+
+        ``FOR UPDATE`` serialises every allocation for ``company``. A first use that races another
+        transaction may find the row committed after its snapshot opened, which this REPEATABLE READ
+        transaction cannot read; ``_liwan_create_rotation`` then raises ``ConcurrencyError``, and
+        Odoo's request retry (``odoo.service.model.retrying``) replays it in a snapshot that sees the row.
+        """
+        rotation = self._liwan_rotation(company) or self._liwan_create_rotation(company)
         rotation.flush_recordset()
         self.env.cr.execute(SQL('SELECT 1 FROM %s WHERE id = %s FOR UPDATE', SQL.identifier(rotation._table), rotation.id))
         rotation.invalidate_recordset(['last_user_id'])
+        return rotation
+
+    @api.model
+    def _liwan_create_rotation(self, company):
+        """The new rotation row, or the one a competing transaction created, if this snapshot can read it.
+
+        A unique violation means another transaction committed the row. When this snapshot cannot read
+        it, the caller must not go on with an empty row: the conflict is raised as retryable instead.
+        """
+        try:
+            with self.env.cr.savepoint():
+                return self.env['liwan.crm.rotation'].with_company(company).create({'company_id': company.id})
+        except UniqueViolation:
+            rotation = self._liwan_rotation(company)
+        if not rotation:
+            raise ConcurrencyError(ROTATION_RACE)
         return rotation
 
     @api.model
