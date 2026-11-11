@@ -25,9 +25,9 @@ describe('API proxy tenancy mode separation', () => {
   it('selects the bounded dedicated adapter without registry access', async () => {
     vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
     const { proxy, handler } = await setup()
-    const event = { path: '/api/v1/me', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
+    const event = { path: '/api/v1/me', method: 'GET', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/me', { method: undefined, body: undefined, headers: { 'x-liwan-ui-locale': 'ar' } })
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/me', { method: 'GET', body: undefined, headers: { 'x-liwan-ui-locale': 'ar' } })
   })
 
   it('shared explicitly forwards trusted host, token and per-tenant revision', async () => {
@@ -38,11 +38,11 @@ describe('API proxy tenancy mode separation', () => {
     vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
     vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', path)
     const headers = { host: 'alpha.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '3', cookie: 'session_id=synthetic' }
-    const event = { path: '/api/v1/me', node: { req: { headers } } }
+    const event = { path: '/api/v1/me', method: 'GET', node: { req: { headers } } }
     const { proxy, handler } = await setup()
     await handler(event as never)
     expect(proxy).not.toHaveBeenCalled()
-    expect(transport).toHaveBeenCalledWith(event, 'http://guard:8080', '/api/v1/me', { method: undefined, body: undefined })
+    expect(transport).toHaveBeenCalledWith(event, 'http://guard:8080', '/api/v1/me', { method: 'GET', body: undefined })
     proxy.mockClear()
     event.node.req.headers['x-liwan-tenant-revision'] = '2'
     await expect(handler(event as never)).rejects.toThrow('tenant_boundary_rejected')
@@ -60,7 +60,7 @@ describe('API proxy tenancy mode separation', () => {
     vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
     transport.mockClear()
     const { proxy, handler } = await setup()
-    const event = { path: '/api/v1/me', node: { req: { headers: {} } } }
+    const event = { path: '/api/v1/me', method: 'GET', node: { req: { headers: {} } } }
     let caught: unknown
     try { await handler(event as never) } catch (error) { caught = error }
     expect(caught).toHaveProperty('data.code', 'session_required')
@@ -174,5 +174,48 @@ describe('public API namespace', () => {
     await handler(sharedEvent('/api/v1/public/payments/invoices/7?access_token=t', 'GET') as never)
     await handler(sharedEvent('/api/v1/branding', 'GET') as never)
     expect(scopes).toEqual(['booking', 'booking', 'public', 'public'])
+  })
+})
+
+describe('cross-site write defence', () => {
+  const post = (headers: Record<string, string>, path = '/api/v1/tasks/5/archive') => ({ path, method: 'POST', node: { req: { headers: { cookie: 'session_id=synthetic', host: 'alpha.example.test', ...headers } } } })
+
+  it.each([
+    ['a body-less form post with no fetch metadata', {}],
+    ['Sec-Fetch-Site: cross-site', { 'sec-fetch-site': 'cross-site' }],
+    ['Sec-Fetch-Site: same-site', { 'sec-fetch-site': 'same-site' }],
+    ['a foreign Origin', { origin: 'https://evil.example.test' }],
+  ])('refuses %s with 403 cross_site_request before any session check or dispatch', async (_label, headers) => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+    transport.mockClear()
+    const { proxy, handler } = await setup()
+    await expect(handler(post(headers) as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'cross_site_request' } })
+    expect(proxy).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Sec-Fetch-Site: same-origin', { 'sec-fetch-site': 'same-origin' }],
+    ['an exact Origin and no Sec-Fetch-Site', { origin: 'http://alpha.example.test' }],
+  ])('forwards a write with %s', async (_label, headers) => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+    const { proxy, handler } = await setup()
+    const event = post(headers)
+    await handler(event as never)
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/tasks/5/archive', { method: 'POST', body: undefined, headers: { 'x-liwan-ui-locale': 'ar' } })
+  })
+
+  it('leaves a cross-site GET alone', async () => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+    const { proxy, handler } = await setup()
+    await handler({ ...post({ 'sec-fetch-site': 'cross-site' }), method: 'GET' } as never)
+    expect(proxy).toHaveBeenCalledOnce()
+  })
+
+  it.each(['/api/v1/inbox/hooks/whatsapp', '/api/v1/inbox/hooks/tiktok'])('lets the provider webhook %s through without browser metadata', async path => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+    const { proxy, handler } = await setup()
+    await handler({ path, method: 'POST', node: { req: { headers: {} } } } as never)
+    expect(proxy).toHaveBeenCalledOnce()
   })
 })

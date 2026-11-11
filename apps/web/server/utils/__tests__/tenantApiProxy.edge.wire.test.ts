@@ -91,7 +91,7 @@ async function fixture(mode: 'shared' | 'dedicated') {
   }
   function call(path: string, sid?: string, body?: Buffer, extra: Record<string, string> = {}) {
     return new Promise<{ status: number; headers: http.IncomingHttpHeaders; body: Buffer }>((resolve, reject) => {
-      const request = http.request(new URL(path, guardUrl), { method: body ? 'POST' : 'GET', headers: { host: tenant.host, ...(sid ? { cookie: cookie(sid) } : {}), ...extra } }, response => {
+      const request = http.request(new URL(path, guardUrl), { method: body ? 'POST' : 'GET', headers: { host: tenant.host, 'sec-fetch-site': 'same-origin', ...(sid ? { cookie: cookie(sid) } : {}), ...extra } }, response => {
         const chunks: Buffer[] = []
         response.on('data', chunk => chunks.push(Buffer.from(chunk)))
         response.on('end', () => resolve({ status: response.statusCode!, headers: response.headers, body: Buffer.concat(chunks) }))
@@ -172,7 +172,7 @@ it.each(['shared', 'dedicated'] as const)('%s rejects a forged slow API upload b
   let upload: http.ClientRequest | undefined
   try {
     const response = await new Promise<{ status: number; body: string }>((resolve, reject) => {
-      upload = http.request(new URL('/api/v1/tasks', wire.guardUrl), { method: 'POST', headers: { host: tenant.host, cookie: wire.cookie('forged'), 'content-type': 'application/json', 'content-length': '100000' } }, reply => {
+      upload = http.request(new URL('/api/v1/tasks', wire.guardUrl), { method: 'POST', headers: { host: tenant.host, 'sec-fetch-site': 'same-origin', cookie: wire.cookie('forged'), 'content-type': 'application/json', 'content-length': '100000' } }, reply => {
         let body = ''; reply.on('data', chunk => { body += chunk }); reply.on('end', () => resolve({ status: reply.statusCode!, body }))
       })
       upload.on('error', reject)

@@ -2,6 +2,7 @@ import { createError, getHeader, getProxyRequestHeaders, sendWebResponse, setRes
 import { boundedTenantBody, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
 import { uiLocaleHeaders, withUiLocale } from '../../../utils/uiLocale'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
+import { assertSameOriginWrite } from '../../../utils/same-site'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
 import { canonicalApiPath } from '../../../utils/apiPath'
 import { heavyRouteKind } from '../../../utils/heavyRoutes'
@@ -32,6 +33,7 @@ export default defineEventHandler(async (event) => {
     setResponseHeader(event, 'connection', 'close')
     throw createError({ statusCode: 405, data: { code: 'method_not_allowed', message: 'This endpoint does not support the request method.' } })
   }
+  assertSameOriginWrite(event, apiPath, headers)
   // Reuse only a plain GET /me owned by this cold request. Conditional/query/HEAD
   // requests still dispatch with their original semantics after admission.
   const reuseIdentity = event.method === 'GET' && path === '/api/v1/me' && !getHeader(event, 'if-none-match') && !getHeader(event, 'if-modified-since') && !getHeader(event, 'range')

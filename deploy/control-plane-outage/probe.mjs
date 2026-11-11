@@ -13,7 +13,8 @@ const evidence = { schema_version: 1, base_url: baseUrl, started_at: new Date().
 const cookieJar = new Map()
 
 async function request(path, { method = 'GET', body, expected, label }) {
-  const headers = { accept: 'application/json' }
+  // The /api/v1 proxy accepts only same-origin writes (AUDIT-023); this probe stands in for the browser page.
+  const headers = { accept: 'application/json', 'sec-fetch-site': 'same-origin' }
   if (body !== undefined) headers['content-type'] = 'application/json'
   if (cookieJar.size) headers.cookie = [...cookieJar.entries()].map(([k, v]) => `${k}=${v}`).join('; ')
   const response = await fetch(new URL(path, baseUrl), {
