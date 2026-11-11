@@ -438,8 +438,8 @@ class TestAiBalance(AiProbe, LiwanApiCase):
             self.env['liwan.tenant.profile'].sudo().create({'ai_paid_total': 5})
 
     def test_the_migration_backfills_the_allowance_window(self):
-        path = Path(__file__).parents[1] / 'migrations' / '19.0.1.15.0' / 'pre-balance.py'
-        spec = importlib.util.spec_from_file_location('pre_balance_window', path)
+        path = Path(__file__).parents[1] / 'migrations' / '19.0.1.15.0' / 'post-balance.py'
+        spec = importlib.util.spec_from_file_location('post_balance', path)
         migration = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(migration)
         called_at = fields.Datetime.now()
