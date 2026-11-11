@@ -297,9 +297,17 @@ class LiwanInboxChannelHealth(models.Model):
 
     @api.model
     def _liwan_run_health(self):
-        """Refresh the health of every connected channel (6-hourly)."""
-        channels = self.search([('kind', '=', 'whatsapp'), ('state', 'in', CHECKED_STATES)])
-        process_each(channels, lambda channel: channel._liwan_refresh_health(), self._liwan_health_failed)
+        """Refresh the health of every connected channel (6-hourly), least recently checked first.
+
+        A run cut short by the cron budget refreshes the never-checked channels first, then the oldest readings; the
+        refreshed rows move to the end, so the same tail cannot starve on every run.
+        """
+        base = [('kind', '=', 'whatsapp'), ('state', 'in', CHECKED_STATES)]
+        never = self.search(base + [('health_checked_at', '=', False)], order='id')
+        old = self.search(base + [('health_checked_at', '!=', False)], order='health_checked_at asc, id')
+        for channels in (never, old):
+            if not process_each(channels, lambda channel: channel._liwan_refresh_health(), self._liwan_health_failed):
+                break
 
     @api.model
     def _liwan_run_analytics(self):

@@ -23,6 +23,16 @@ describe('inbox message pages', () => {
     expect(merged.map(item => item.id)).toEqual(Array.from({ length: 201 }, (_, i) => 1 + i))
   })
 
+  it('lets the polled page win when a message changed state', () => {
+    const stale = { ...message(7), delivery_state: 'queued', unconfirmed: false } as InboxMessage
+    const fresh = { ...message(7), delivery_state: 'failed', unconfirmed: true } as InboxMessage
+    const history = [{ items: [message(5), message(6), stale], total: 8 }]
+    const merged = mergeMessagePages(mergeLatestPage(history, { items: [fresh, message(8)], total: 8 }, false))
+    expect(merged.map(item => [item.id, item.delivery_state])).toEqual([
+      [5, 'received'], [6, 'received'], [7, 'failed'], [8, 'received'],
+    ])
+  })
+
   it('keeps the loaded history when the polled page is off', () => {
     const history = [page([3, 4], 4)]
     expect(mergeLatestPage(history, page([4, 5], 5), true)).toBe(history)

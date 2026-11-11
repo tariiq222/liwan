@@ -10,7 +10,6 @@ import {
   InboxMessageListSchema,
   InboxMessageSchema,
   InboxTagListSchema,
-  InboxTemplateListSchema,
   type InboxContactPatch,
   type InboxMessage,
   type InboxConversationPatch,
@@ -108,7 +107,11 @@ export function nextOlderOffset(pages: readonly MessagePage[]): number | undefin
  */
 export function mergeLatestPage(history: readonly MessagePage[], newest: MessagePage | undefined, off: boolean): readonly MessagePage[] {
   if (off || !newest || !history.length) return history
-  return [{ ...newest, total: Math.max(newest.total, history[0]!.total) }, ...history]
+  // A message the poll returns may have changed state (queued -> failed); the polled copy must win over the history's,
+  // not the other way round. Drop the ids the new page carries from the older pages before merging.
+  const polled = new Set(newest.items.map(item => item.id))
+  const older = history.map(page => ({ ...page, items: page.items.filter(item => !polled.has(item.id)) }))
+  return [{ ...newest, total: Math.max(newest.total, history[0]!.total) }, ...older]
 }
 
 export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
@@ -143,19 +146,6 @@ export function useInboxCannedReplies() {
   return useQuery({
     queryKey: inboxKeys.canned,
     queryFn: ({ signal }) => $api('/api/v1/inbox/canned-replies', { signal, schema: InboxCannedReplyListSchema }),
-  })
-}
-
-/** Templates a reply may use: the approved ones, as many as the server returns in one page. */
-export const APPROVED_TEMPLATES_QUERY = { status: 'approved', limit: 200 } as const
-
-/** The approved templates of one channel, for a reply after the customer-service window has closed. */
-export function useInboxTemplates(channelId: MaybeRefOrGetter<number | undefined>, enabled: MaybeRefOrGetter<boolean> = true) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => inboxKeys.templateList(toValue(channelId) ?? 0, APPROVED_TEMPLATES_QUERY)),
-    enabled: computed(() => !!toValue(channelId) && toValue(enabled)),
-    queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/channels/${queryKey[2]}/templates`, { signal, query: APPROVED_TEMPLATES_QUERY, schema: InboxTemplateListSchema }),
   })
 }
 
