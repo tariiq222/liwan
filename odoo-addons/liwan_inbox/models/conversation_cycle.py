@@ -8,7 +8,7 @@ END_REASONS = [('resolved', 'Resolved'), ('closed', 'Closed'), ('auto_closed', '
 class LiwanInboxConversationCycle(models.Model):
     """A conversation reopens and its own fields are overwritten, so each period keeps its own row."""
     _name = 'liwan.inbox.conversation.cycle'
-    _description = 'Customer Messages conversation cycle'
+    _description = 'Customer Inbox conversation cycle'
     _order = 'opened_at desc, id desc'
     _liwan_scope = 'company'
 

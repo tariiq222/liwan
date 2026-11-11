@@ -34,7 +34,7 @@ export const packages: CrmPackage[] = [
 ]
 
 const base: CrmOpportunity = {
-  id: 1, contact_name: 'أحمد العتيبي', phone: '0501234567', email: '', stage: { id: 1, name: 'جديد' }, user: { id: 3, name: 'ليلى الحربي' },
+  id: 1, contact_name: 'أحمد العتيبي', phone: '0501234567', email: '', notes: '', stage: { id: 1, name: 'جديد' }, user: { id: 3, name: 'ليلى الحربي' },
   source: { id: 1, name: 'الموقع' }, package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0,
   attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: '2026-10-20T09:00:00Z',
   properties: withValues({}),

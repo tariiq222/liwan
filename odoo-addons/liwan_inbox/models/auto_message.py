@@ -16,7 +16,7 @@ class LiwanInboxAutoMessage(models.Model):
     """What the automation says: the welcome or away message of a channel, or the reply of a rule."""
     _name = 'liwan.inbox.auto.message'
     _inherit = 'liwan.inbox.interactive'
-    _description = 'Customer Messages automatic message'
+    _description = 'Customer Inbox automatic message'
     _liwan_scope = 'company'
 
     company_id = fields.Many2one('res.company', compute='_compute_company', store=True, index=True)
@@ -86,7 +86,7 @@ class LiwanInboxAutoOption(models.Model):
     """One reply button or list row of an automatic message."""
     _name = 'liwan.inbox.auto.option'
     _inherit = 'liwan.inbox.option'
-    _description = 'Customer Messages automatic message option'
+    _description = 'Customer Inbox automatic message option'
     _liwan_scope = 'company'
 
     auto_message_id = fields.Many2one('liwan.inbox.auto.message', required=True, index=True, ondelete='cascade')

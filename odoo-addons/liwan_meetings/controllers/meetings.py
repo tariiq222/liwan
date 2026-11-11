@@ -403,9 +403,10 @@ class MeetingController(http.Controller):
         _require_manager(meeting)
         if scope not in {'this', 'this_and_following'}:
             raise ApiError(422, 'invalid', 'invalid scope', field='scope')
-        if meeting.state == 'done':
-            raise ApiError(409, 'conflict', 'reopen the completed meeting before cancelling it')
-        meeting.action_cancel_scope(scope)
+        try:
+            meeting.action_cancel_scope(scope)
+        except UserError as e:
+            raise ApiError(403, 'transition_forbidden', str(e)) from e
         return dump_meeting(meeting, detail=True)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/resolutions', type='json2', auth='user', methods=['POST'], readonly=False)

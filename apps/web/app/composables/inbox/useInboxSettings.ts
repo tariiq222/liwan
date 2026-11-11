@@ -5,9 +5,6 @@ import {
   InboxCannedReplySchema,
   InboxChannelListSchema,
   InboxChannelSchema,
-  InboxChannelWorkListSchema,
-  InboxEventListSchema,
-  InboxEventSchema,
   InboxDepartmentListSchema,
   InboxDepartmentSchema,
   InboxAttachmentSchema,
@@ -35,10 +32,8 @@ export const inboxSettingsKeys = {
   settings: ['inbox', 'settings'] as const,
   departments: ['inbox', 'departments'] as const,
   channels: ['inbox', 'channels'] as const,
-  workChannels: ['inbox', 'channels', 'work'] as const,
   channel: (id: number) => ['inbox', 'channel', id] as const,
   channelRef: (id: number) => ['inbox', 'channel-ref', id] as const,
-  channelEvents: (id: number) => ['inbox', 'channel-events', id] as const,
 }
 
 export function useInboxSettings() {
@@ -138,44 +133,11 @@ export function useDeleteInboxCannedReply() {
   })
 }
 
-export function useInboxChannels(enabled: MaybeRefOrGetter<boolean> = true) {
+export function useInboxChannels() {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxSettingsKeys.channels,
-    enabled,
     queryFn: () => $api('/api/v1/inbox/channels', { schema: InboxChannelListSchema }),
-  })
-}
-
-/** The failed webhook deliveries of one channel, newest first: the ones an operator may re-run. */
-export function useInboxChannelEvents(channelId: MaybeRefOrGetter<number | undefined>) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => inboxSettingsKeys.channelEvents(toValue(channelId) ?? 0)),
-    enabled: computed(() => !!toValue(channelId)),
-    retry: false,
-    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/events`, { query: { state: 'failed' }, schema: InboxEventListSchema }),
-  })
-}
-
-/** Give one failed delivery a fresh set of attempts; its stored messages are skipped, so nothing is applied twice. */
-export function useRetryInboxEvent(channelId: () => number) {
-  const { $api } = useApi()
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (eventId: number) => $api(`/api/v1/inbox/events/${eventId}/retry`, { method: 'POST', schema: InboxEventSchema }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: inboxSettingsKeys.channelEvents(channelId()) }),
-  })
-}
-
-/** The channels a templates, forms or automation manager may work on: a minimal reference list, without channel administration. */
-export function useInboxChannelWork(enabled: MaybeRefOrGetter<boolean> = true) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: inboxSettingsKeys.workChannels,
-    enabled,
-    retry: false,
-    queryFn: () => $api('/api/v1/inbox/channels/work', { schema: InboxChannelWorkListSchema }),
   })
 }
 

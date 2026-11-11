@@ -173,6 +173,7 @@ export const FinanceBankStatementPatchSchema = z.object({
 }).strict().refine(body => Object.keys(body).length > 0, 'no fields to update')
 
 /** POST /bank-statements/{id}/auto-reconcile: without `apply` it only reports what it would do. */
+export const FinanceBankAutoReconcileInputSchema = z.object({ apply: z.boolean().optional() }).strict()
 
 export const FinanceBankAutoReconcileSchema = z.object({
   applied: z.boolean(),

@@ -55,22 +55,44 @@ export const CrmLostReasonListSchema = listOf(CrmLostReasonSchema)
 export const CrmSourceListSchema = listOf(CrmSourceSchema)
 export const CrmPackageListSchema = listOf(CrmPackageSchema)
 
+export const CrmStageCreateSchema = z.strictObject({ name: NameSchema, is_won: z.boolean().optional() })
 export const CrmStagePatchSchema = z
   .strictObject({ name: NameSchema, is_won: z.boolean(), active: z.boolean() })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'nothing to change')
+export const CrmStageOrderSchema = z.strictObject({ ids: z.array(z.number().int()) })
 
 export const CrmOutcomeCreateSchema = z.strictObject({
   name: NameSchema,
   effect: CrmOutcomeEffectSchema,
   lost_reason_id: z.number().int().positive().nullable().optional(),
 })
+export const CrmOutcomePatchSchema = z
+  .strictObject({
+    name: NameSchema,
+    effect: CrmOutcomeEffectSchema,
+    lost_reason_id: z.number().int().positive().nullable(),
+    active: z.boolean(),
+  })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, 'nothing to change')
+
+// Lost reasons and sources share the same write body: a name, plus `active` on patch.
+export const CrmNamedCreateSchema = z.strictObject({ name: NameSchema })
+export const CrmNamedPatchSchema = z
+  .strictObject({ name: NameSchema, active: z.boolean() })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, 'nothing to change')
 
 export const CrmPackageCreateSchema = z.strictObject({
   name: NameSchema,
   price: PriceSchema,
   description: z.string().max(2000).optional(),
 })
+export const CrmPackagePatchSchema = z
+  .strictObject({ name: NameSchema, price: PriceSchema, description: z.string().max(2000), active: z.boolean() })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, 'nothing to change')
 
 export type CrmStage = z.infer<typeof CrmStageSchema>
 export type CrmOutcome = z.infer<typeof CrmOutcomeSchema>

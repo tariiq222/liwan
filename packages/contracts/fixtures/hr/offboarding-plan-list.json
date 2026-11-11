@@ -45,340 +45,44 @@
     },
     {
       "active": true,
-      "department": null,
+      "department": {
+        "id": 7,
+        "name": "Plan Dept"
+      },
       "id": 6,
-      "name": "Zero limit offboarding plan 000",
-      "steps": []
+      "name": "Pinned shared check",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 8,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Pin step"
+        }
+      ]
     },
     {
       "active": true,
-      "department": null,
-      "id": 7,
-      "name": "Zero limit offboarding plan 001",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 8,
-      "name": "Zero limit offboarding plan 002",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
+      "department": {
+        "id": 10,
+        "name": "Ofb Free"
+      },
       "id": 9,
-      "name": "Zero limit offboarding plan 003",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 10,
-      "name": "Zero limit offboarding plan 004",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 11,
-      "name": "Zero limit offboarding plan 005",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 12,
-      "name": "Zero limit offboarding plan 006",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 13,
-      "name": "Zero limit offboarding plan 007",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 14,
-      "name": "Zero limit offboarding plan 008",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 15,
-      "name": "Zero limit offboarding plan 009",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 16,
-      "name": "Zero limit offboarding plan 010",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 17,
-      "name": "Zero limit offboarding plan 011",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 18,
-      "name": "Zero limit offboarding plan 012",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 19,
-      "name": "Zero limit offboarding plan 013",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 20,
-      "name": "Zero limit offboarding plan 014",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 21,
-      "name": "Zero limit offboarding plan 015",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 22,
-      "name": "Zero limit offboarding plan 016",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 23,
-      "name": "Zero limit offboarding plan 017",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 24,
-      "name": "Zero limit offboarding plan 018",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 25,
-      "name": "Zero limit offboarding plan 019",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 26,
-      "name": "Zero limit offboarding plan 020",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 27,
-      "name": "Zero limit offboarding plan 021",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 28,
-      "name": "Zero limit offboarding plan 022",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 29,
-      "name": "Zero limit offboarding plan 023",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 30,
-      "name": "Zero limit offboarding plan 024",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 31,
-      "name": "Zero limit offboarding plan 025",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 32,
-      "name": "Zero limit offboarding plan 026",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 33,
-      "name": "Zero limit offboarding plan 027",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 34,
-      "name": "Zero limit offboarding plan 028",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 35,
-      "name": "Zero limit offboarding plan 029",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 36,
-      "name": "Zero limit offboarding plan 030",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 37,
-      "name": "Zero limit offboarding plan 031",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 38,
-      "name": "Zero limit offboarding plan 032",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 39,
-      "name": "Zero limit offboarding plan 033",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 40,
-      "name": "Zero limit offboarding plan 034",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 41,
-      "name": "Zero limit offboarding plan 035",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 42,
-      "name": "Zero limit offboarding plan 036",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 43,
-      "name": "Zero limit offboarding plan 037",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 44,
-      "name": "Zero limit offboarding plan 038",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 45,
-      "name": "Zero limit offboarding plan 039",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 46,
-      "name": "Zero limit offboarding plan 040",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 47,
-      "name": "Zero limit offboarding plan 041",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 48,
-      "name": "Zero limit offboarding plan 042",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 49,
-      "name": "Zero limit offboarding plan 043",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 50,
-      "name": "Zero limit offboarding plan 044",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 51,
-      "name": "Zero limit offboarding plan 045",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 52,
-      "name": "Zero limit offboarding plan 046",
-      "steps": []
-    },
-    {
-      "active": true,
-      "department": null,
-      "id": 53,
-      "name": "Zero limit offboarding plan 047",
-      "steps": []
+      "name": "Shared offboarding plan",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 4,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Shared step"
+        }
+      ]
     }
   ],
-  "total": 53
+  "total": 4
 }

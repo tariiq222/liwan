@@ -74,7 +74,7 @@ def sums_of(values):
 
 class LiwanInboxReportQuery(models.AbstractModel):
     _name = 'liwan.inbox.report.query'
-    _description = 'Customer Messages report reads'
+    _description = 'Customer Inbox report reads'
     _liwan_scope = 'global'
 
     @api.model

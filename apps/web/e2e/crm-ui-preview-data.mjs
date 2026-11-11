@@ -112,13 +112,13 @@ const withKeys = ({ key, options, ...field }) => ({
   key: key ?? serverKey(), ...field, ...(options && { options: options.map(({ key, label }) => ({ key: key ?? serverKey(), label })) }),
 })
 const seedOpportunities = () => {
-  const base = { email: '', lost_reason: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
+  const base = { email: '', notes: '', lost_reason: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
   const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({
     ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId),
     properties: propertiesOf(SEED_PROPERTIES), created_at: seededCreatedAt(id), ...extra,
   })
   return [
-    row(1, 'أحمد العتيبي', '0501234567', 1, 2, 1, { attempt_count: 1, next_call_at: iso(-3), email: 'ahmad@example.com', probability: 25 }),
+    row(1, 'أحمد العتيبي', '0501234567', 1, 2, 1, { attempt_count: 1, next_call_at: iso(-3), email: 'ahmad@example.com', probability: 25, notes: 'اتصل بعد الظهر\nيسأل عن التوصيل' }),
     row(2, 'سارة القحطاني', '0507654321', 2, 2, 2, {
       attempt_count: 1, next_call_at: iso(20), probability: 50,
       properties: propertiesOf(SEED_PROPERTIES, { sector: 'retail', city: 'الرياض', branch_count: 3, decision_maker: true, follow_up_on: '2026-12-01', interests: ['pricing'] }),
@@ -289,7 +289,7 @@ function crmOpportunityWrite(method, path, body) {
   if (method === 'POST' && path === '/api/v1/crm/opportunities') {
     if (opportunities.some(item => item.phone === body.phone)) return invalid('phone', 'duplicate phone', 'duplicate_phone')
     const created = {
-      id: Math.max(0, ...opportunities.map(item => item.id)) + 1, contact_name: body.contact_name, phone: body.phone, email: body.email ?? '',
+      id: Math.max(0, ...opportunities.map(item => item.id)) + 1, contact_name: body.contact_name, phone: body.phone, email: body.email ?? '', notes: '',
       stage: ref(lists.stages, firstStage().id), user: mockUserRef('user_id' in body ? body.user_id : 2), source: ref(lists.sources, body.source_id),
       package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0,
       next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0), properties: propertiesOf(settings.values.lead_properties),
@@ -304,7 +304,10 @@ function crmOpportunityWrite(method, path, body) {
   const action = route[2]
   if (method === 'PATCH' && !action) {
     if (lead.status !== 'pending') return closed
-    if (body.phone && opportunities.some(item => item.id !== lead.id && item.phone === body.phone)) return invalid('phone', 'duplicate phone', 'duplicate_phone')
+    if (body.phone !== undefined && !validPhone(body.phone)) return invalid('phone', 'invalid phone', 'invalid_phone')
+    if (body.phone && opportunities.some(item => item.id !== lead.id && phoneDigits(item.phone) === phoneDigits(body.phone))) return invalid('phone', 'duplicate phone', 'duplicate_phone')
+    if (body.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) return invalid('email', 'must be an email address', 'invalid_email')
+    if ('notes' in body) return invalid('notes', 'field is not writable')
     const { stage_id: stageId, source_id: sourceId, properties, ...plain } = body
     if (body.probability !== undefined && (typeof body.probability !== 'number' || !(body.probability >= 0 && body.probability <= 100))) return invalid('probability', 'must be a number from 0 to 100')
     if (stageId && !lists.stages.some(stage => stage.id === stageId)) return invalid('stage_id', 'stage does not exist')
@@ -411,6 +414,7 @@ function judge(file, mapping) {
     const name = row[mapping.name] ?? ''
     const phone = row[mapping.phone] ?? ''
     const email = mapping.email ? (row[mapping.email] ?? '') : ''
+    const notes = mapping.notes ? (row[mapping.notes] ?? '') : ''
     let reason = null
     if (!name) reason = 'missing_name'
     else if (!phone) reason = 'missing_phone'
@@ -418,7 +422,7 @@ function judge(file, mapping) {
     else if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) reason = 'invalid_email'
     const duplicate = !reason && seen.has(phoneDigits(phone))
     if (!reason) seen.add(phoneDigits(phone))
-    return { number: index + 2, name, phone, email, reason, duplicate }
+    return { number: index + 2, name, phone, email, notes, reason, duplicate }
   })
 }
 
@@ -454,7 +458,7 @@ function commitImport(body, checked) {
   for (const item of fresh) {
     nextId += 1
     opportunities.unshift({
-      id: nextId, contact_name: item.name, phone: item.phone, email: item.email, stage: ref(lists.stages, firstStage().id), user: mockUserRef(agentId),
+      id: nextId, contact_name: item.name, phone: item.phone, email: item.email, notes: item.notes, stage: ref(lists.stages, firstStage().id), user: mockUserRef(agentId),
       source: ref(lists.sources, body.source_id), package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0,
       expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
       properties: propertiesOf(settings.values.lead_properties),

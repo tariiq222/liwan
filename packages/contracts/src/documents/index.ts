@@ -37,6 +37,7 @@ export const DocumentCreateSchema = z.object({
 }).strict()
 export const DocumentPatchSchema = DocumentCreateSchema.partial().extend({ expected_revision: revision }).strict()
   .refine(value => Object.keys(value).some(key => key !== 'expected_revision'), 'At least one changed field is required')
+export const DocumentRevisionSchema = z.object({ expected_revision: revision }).strict()
 export const DocumentAccessSchema = z.object({
   visibility, revision, grants: z.array(z.object({ user: z.object({ id, name: z.string() }).strict(), access: grantAccess }).strict()),
 }).strict()

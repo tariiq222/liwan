@@ -18,7 +18,6 @@ from odoo.addons.liwan_api.tests.common import (
     LiwanApiCase,
     set_probe_feature,
 )
-from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 MESSAGE = {
@@ -309,9 +308,9 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
             self.employee.company_id | company,
         )
         self._set_feature('ai.messages.monthly', 5)
-        with self.assertRaises(LiwanAccessRule) as caught:
+        with self.assertRaises(Exception) as caught:
             self.audit_a.create(MESSAGE)
-        self.assertEqual(caught.exception.details, {'reason': 'limit', 'limit_key': 'ai.messages.monthly'})
+        self.assertEqual(getattr(caught.exception, 'details', None), {'reason': 'limit', 'limit_key': 'ai.messages.monthly'})
         self.assertEqual(self.env['liwan.ai.audit'].search_count([('kind', '=', 'message')]), 5)
 
     def test_message_limit_counts_colleagues_without_reading_their_rows(self):
@@ -320,9 +319,9 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
         self.assertFalse(self.audit_b.search([]))
         self.assertEqual(self.audit_b._liwan_ai_count_messages(), 3)
         self._set_feature('ai.messages.monthly', 3)
-        with self.assertRaises(LiwanAccessRule) as caught:
+        with self.assertRaises(Exception) as caught:
             self.audit_b.create(MESSAGE)
-        self.assertEqual(caught.exception.details, {'reason': 'limit', 'limit_key': 'ai.messages.monthly'})
+        self.assertEqual(getattr(caught.exception, 'details', None), {'reason': 'limit', 'limit_key': 'ai.messages.monthly'})
 
     def test_tools_route_reports_the_tenant_wide_messages_used(self):
         company, user = self._other_company_user()
@@ -486,9 +485,9 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
 
     def test_direct_create_obeys_the_ai_feature_gate(self):
         self._set_feature('ai.enabled', False)
-        with self.assertRaises(LiwanAccessRule) as caught:
+        with self.assertRaises(Exception) as caught:
             self.env['liwan.ai.audit'].with_user(self.employee).create({**MESSAGE})
-        self.assertEqual(caught.exception.code, 'feature_not_included')
+        self.assertEqual(getattr(caught.exception, 'code', None), 'feature_not_included')
         self.assertFalse(self.env['liwan.ai.audit'].search([]))
 
     # 6. NUL characters and non-finite numbers

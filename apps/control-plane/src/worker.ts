@@ -3,7 +3,6 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Pool, PoolClient } from 'pg'
-import { canonicalJson } from '@liwan/commercial-contracts'
 import type { Config } from './config.js'
 import { dedicatedExecutionEnabled, inventory, resolveTargetLane, type TargetLane } from './http.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
@@ -35,6 +34,15 @@ export function safeProfileFeatures(profile: unknown, expectedMode: unknown): Re
   }
   if (!Object.hasOwn(result, 'users.limit') || !Object.hasOwn(result, 'storage.limit_mb')) return null
   return result
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
 }
 
 // Match liwan_cli.journal.payload_digest: exact policy bytes and the full enrolled

@@ -50,7 +50,6 @@ if 'tools/app_isolation.py' in args and 'install' in args:
 if 'tools/app_isolation.py' in args and 'tags' in args: print('/' + args[-1])
 if 'tools/app_isolation.py' in args and 'foundation' in args: print('liwan_api')
 if 'tools/app_isolation.py' in args and 'rank' in args: print(4)
-if 'tools/contract_fixtures.py' in args and '--addons' in args: print('liwan_tasks,liwan_pmo')
 if 'deploy/classification.py' in args:
  output=Path(args[args.index('--output')+1]); output.parent.mkdir(parents=True, exist_ok=True); output.write_text('{}')
 ''')
@@ -126,38 +125,6 @@ elif "SELECT state" in ' '.join(args): print('installed')
         self.fake('odoo-python', "log=next(a.split('=',1)[1] for a in args if a.startswith('--logfile=')); Path(log).touch()\n")
         process = self.execute('odoo')
         self.assertNotEqual(process.returncode, 0)
-
-    def test_contract_fixtures_run_the_fixture_addons_alone_then_compare_what_they_recorded(self):
-        self.fake('odoo-python', """
-log = next(a.split('=',1)[1] for a in args if a.startswith('--logfile='))
-Path(log).write_text('odoo.tests.result: 0 failed, 0 error(s) of 12 tests when loading database\\n')
-Path(os.environ['LIWAN_CONTRACT_FIXTURES'], 'recorded.json').write_text('{}')
-""")
-        process = self.execute('contract-fixtures')
-        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
-        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
-        odoo = next(x for x in calls if x[0] == 'odoo-python')
-        self.assertEqual(odoo[odoo.index('-i') + 1], 'liwan_tasks')
-        self.assertEqual(odoo[odoo.index('--test-tags') + 1], '/liwan_tasks,/liwan_pmo')
-        compare = next(x for x in calls if x[0] == 'python3' and '--compare' in x)
-        self.assertTrue(compare[compare.index('--compare') + 1].endswith('/fixtures'))
-        self.assertTrue(odoo[odoo.index('-d') + 1].startswith('liwan_scratch_'))
-
-    def test_contract_fixtures_fail_without_a_green_odoo_verdict_and_never_compare(self):
-        for log in ('', "Path(log).write_text('odoo.tests.result: 0 failed, 0 error(s) of 0 tests when loading database\\n')\n"):
-            with self.subTest(log=log):
-                self.fake('odoo-python', "log=next(a.split('=',1)[1] for a in args if a.startswith('--logfile=')); Path(log).touch()\n" + log)
-                self.calls.write_text('')
-                process = self.execute('contract-fixtures')
-                self.assertNotEqual(process.returncode, 0)
-                self.assertNotIn('--compare', self.calls.read_text())
-
-    def test_contract_fixtures_fail_when_the_comparison_fails(self):
-        self.fake('python3', "if '--compare' in args: sys.exit(1)\nif 'tools/contract_fixtures.py' in args: print('liwan_tasks')\n"
-                  "if 'tools/catalog_check.py' in args: print('liwan_tasks')\nif 'tools/oca_addons.py' in args: print('/oca/repo')\n"
-                  "if 'deploy/classification.py' in args:\n output=Path(args[args.index('--output')+1]); output.write_text('{}')\n")
-        self.assertNotEqual(self.execute('contract-fixtures').returncode, 0)
-        self.assertIn('--compare', self.calls.read_text())
 
     def test_odoo_nonzero_exit_fails_even_with_a_green_verdict_line(self):
         self.fake('odoo-python', """
@@ -562,7 +529,7 @@ class TestVendorAdminStage(unittest.TestCase):
     def test_every_script_is_executable_bash_and_run_by_the_workflow(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         scripts = sorted((ROOT / 'deploy/ci').glob('*.sh'))
-        self.assertEqual(len(scripts), 15)  # the thirteen stages, main-alert and the nightly contract-fixtures job
+        self.assertEqual(len(scripts), 14)  # the thirteen stages and main-alert
         for script in scripts:
             with self.subTest(script=script.name):
                 self.assertTrue(os.access(script, os.X_OK))

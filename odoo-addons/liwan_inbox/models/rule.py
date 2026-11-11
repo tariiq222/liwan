@@ -23,7 +23,7 @@ TEXT_KINDS = ('text', 'interactive')
 class LiwanInboxRule(models.Model):
     """An ordered automation rule: when an inbound message matches, reply and/or act on the conversation."""
     _name = 'liwan.inbox.rule'
-    _description = 'Customer Messages automation rule'
+    _description = 'Customer Inbox automation rule'
     _order = 'sequence, id'
     _liwan_scope = 'company'
 
@@ -96,7 +96,7 @@ class LiwanInboxRule(models.Model):
 class LiwanInboxRuleKeyword(models.Model):
     """A word or phrase of a rule, kept with its normalized form (what the inbound text is compared with)."""
     _name = 'liwan.inbox.rule.keyword'
-    _description = 'Customer Messages rule keyword'
+    _description = 'Customer Inbox rule keyword'
     _order = 'id'
     _liwan_scope = 'company'
 

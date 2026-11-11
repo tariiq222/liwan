@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
-    'name': 'liwan Customer Messages',
-    'summary': 'liwan platform: the Customer Messages application — WhatsApp conversations, /api/v1/inbox',
-    'version': '19.0.1.19.0',
+    'name': 'liwan Customer Inbox',
+    'summary': 'liwan platform: the Customer Inbox application — WhatsApp conversations, /api/v1/inbox',
+    'version': '19.0.1.18.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

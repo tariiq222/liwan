@@ -12,10 +12,8 @@ from odoo.exceptions import UserError
 from .batch import attempt, process_each
 from .constants import (
     EVENT_BATCH,
-    EVENT_CRON,
     MAX_ATTEMPTS,
     PROCESSED_EVENT_DAYS,
-    PURGE_BATCH,
     TIKTOK_ECHO_SETTLE,
 )
 from odoo.addons.liwan_inbox.adapters import tiktok, whatsapp
@@ -33,7 +31,7 @@ class LiwanInboxEvent(models.Model):
     processed event for `PROCESSED_EVENT_DAYS`), which is the documented replay window.
     """
     _name = 'liwan.inbox.event'
-    _description = 'Customer Messages webhook event'
+    _description = 'Customer Inbox webhook event'
     _order = 'id'
     # Tenant scope with an owning company, for the same reason as the channel: the webhook identity
     # creates events for channels of any company.
@@ -107,18 +105,6 @@ class LiwanInboxEvent(models.Model):
         if attempts == MAX_ATTEMPTS:
             self.channel_id._liwan_notify_event_failed()
 
-    def _liwan_reprocess(self):
-        """Give the failed events a fresh set of attempts; the event cron picks them up.
-
-        A message already stored is skipped by its provider id, so a retry never duplicates one, and the good items of
-        the same delivery are not applied again.
-        """
-        failed = self.filtered(lambda event: event.state == 'failed')
-        failed.write({'state': 'pending', 'attempts': 0, 'error': False})
-        if failed:
-            self.env['ir.cron'].browse(self.env['ir.model.data']._xmlid_to_res_id(EVENT_CRON))._trigger()
-        return failed
-
     def _liwan_process(self):
         """Apply every item of the delivery in its own savepoint, so one bad item loses none of the others.
 
@@ -159,11 +145,11 @@ class LiwanInboxEvent(models.Model):
     def _liwan_purge_processed(self, now):
         self.search([
             ('state', '=', 'done'), ('processed_at', '<', now - relativedelta(days=PROCESSED_EVENT_DAYS)),
-        ], limit=PURGE_BATCH).unlink()
+        ]).unlink()
 
     @api.model
     def _liwan_purge_unprocessed(self, company, cutoff):
         """Delete the company's events that never succeeded and are older than `cutoff`; they hold customer text."""
         self.search([
             ('owner_company_id', '=', company.id), ('state', '!=', 'done'), ('create_date', '<', cutoff),
-        ], limit=PURGE_BATCH).unlink()
+        ]).unlink()

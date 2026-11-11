@@ -12,7 +12,7 @@ SENT_STATES = ('sent', 'delivered', 'read')
 
 class LiwanInboxReportMetaQuery(models.AbstractModel):
     _name = 'liwan.inbox.report.meta.query'
-    _description = 'Customer Messages Meta report reads'
+    _description = 'Customer Inbox Meta report reads'
     _liwan_scope = 'global'
 
     @api.model

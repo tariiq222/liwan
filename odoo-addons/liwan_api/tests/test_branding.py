@@ -170,14 +170,6 @@ class TestAdminBranding(HttpCase):
         company.write({'logo': image_base64('JPEG')})
         self.assertNotEqual(original['logo_url'], self.api('GET', '/api/v1/branding').json()['logo_url'])
 
-    def test_logo_url_ignores_unrelated_company_writes(self):
-        company = self.env.company.with_user(self.vendor)
-        company.write({'logo': image_base64('PNG')})
-        before = self.api('GET', '/api/v1/branding').json()['logo_url']
-        company.write({'primary_color': '#0055ff', 'name': 'Renamed'})
-        self.assertEqual(self.api('GET', '/api/v1/branding').json()['logo_url'], before)
-        self.assertRegex(before, r'&v=[0-9a-f]{12}$')
-
     def test_customer_admin_cannot_bypass_logo_guard_through_attachments(self):
         self.admin.group_ids |= self.env.ref('base.group_partner_manager')
         company = self.env.company

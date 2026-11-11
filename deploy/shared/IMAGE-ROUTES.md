@@ -2,7 +2,7 @@
 
 Two actual client consumers are admitted in shared guard only:
 
-- `useBranding.ts` constructs GET/HEAD `/web/image/res.company/<positive-id>/logo/32x32?v=<version>` from the public branding logo. Version is actual serializer output: the first 12 lowercase hex characters of the logo's SHA-256, so it reveals nothing but a change of logo. Exactly one `v`, no additional query keys.
+- `useBranding.ts` constructs GET/HEAD `/web/image/res.company/<positive-id>/logo/32x32?v=<version>` from the public branding logo. Version is actual serializer output: 20-digit timestamp (or `0`) + hyphen + 12 lowercase SHA256 hex characters. Exactly one `v`, no additional query keys.
 - `EmployeeCard.vue` constructs GET/HEAD `/web/image/hr.employee/<positive-id>/avatar_128`, with no query parameters.
 
 Generic image models/fields, alternate sizes, arbitrary binary URLs, access_token,

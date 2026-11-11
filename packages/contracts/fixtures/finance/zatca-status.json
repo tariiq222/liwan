@@ -8,17 +8,17 @@
   },
   "journals": [
     {
-      "expires_at": "2026-01-01T00:00:00Z",
-      "expiry_warning_days": null,
       "journal": {
         "id": 1,
         "name": "Sales"
       },
-      "onboarded": true,
-      "state": "onboarded"
+      "onboarded": false,
+      "state": "not_started",
+      "expires_at": null,
+      "expiry_warning_days": null
     }
   ],
-  "onboarded": true,
-  "overdue_reporting": 0,
-  "private_key_present": true
+  "onboarded": false,
+  "private_key_present": false,
+  "overdue_reporting": 0
 }

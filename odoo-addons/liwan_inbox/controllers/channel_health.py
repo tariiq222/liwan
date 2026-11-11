@@ -24,10 +24,11 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     require_kind,
 )
 from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
-from odoo.addons.liwan_inbox.models.constants import TEMPLATES_FEATURE, WHATSAPP_FEATURE
+from odoo.addons.liwan_inbox.models.constants import WHATSAPP_FEATURE
 from odoo.addons.liwan_inbox.models.health_constants import ACTION_COOLDOWN
 from odoo.addons.liwan_inbox.serializers.channel_health import dump_alert
 
+TEMPLATES_FEATURE = 'inbox.templates'
 PIN = re.compile(r'^\d{6}$')
 EMAIL = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 WEBSITE = re.compile(r'^https?://\S+$')

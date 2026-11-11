@@ -149,7 +149,7 @@ test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disa
   const beforeContent = calls.length
   result = await call(url, '/web/content/1', { host: targets[0].host, cookie })
   assert.equal(result.status, 403); assert.equal(calls.length, beforeContent)
-  for (const image of ['/web/image/res.company/7/logo/32x32?v=abcdef123456', '/web/image/hr.employee/9/avatar_128']) {
+  for (const image of ['/web/image/res.company/7/logo/32x32?v=0-abcdef123456', '/web/image/hr.employee/9/avatar_128']) {
     result = await call(url, image, { host: targets[0].host, cookie })
     assert.equal(result.status, 200)
     assert.equal(result.text, `MOCK_IMAGE_BYTES:db_0:${image}`)

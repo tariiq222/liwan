@@ -10,7 +10,7 @@ const { data, error, pending, refresh } = await useAsyncData(() => `vendor:plan-
   const view = await api.get<PlanView>('plan', id.value)
   const published = (await api.listBundles({ status: 'published', limit: 100 })).items.filter(b => b.available)
   const known = new Set(published.map(b => b.id))
-  const kept = await Promise.all([...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids].filter(x => !known.has(x)).map(x => api.get<BundleView>('bundle', x)))
+  const kept = (await Promise.all([...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids].filter(x => !known.has(x)).map(x => api.get<BundleView>('bundle', x).catch(() => null)))).filter((b): b is BundleView => Boolean(b))
   return { view, bundles: [...published, ...kept], policies: await api.policies() }
 })
 const busy = ref(false); const saveError = ref<unknown>(null); const resetKey = ref(0)

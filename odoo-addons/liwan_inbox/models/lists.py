@@ -7,7 +7,7 @@ from .constants import DEFAULT_TIMEZONE
 
 class LiwanInboxDepartment(models.Model):
     _name = 'liwan.inbox.department'
-    _description = 'Customer Messages department'
+    _description = 'Customer Inbox department'
     _order = 'name, id'
     _liwan_scope = 'company'
 
@@ -27,7 +27,7 @@ class LiwanInboxDepartment(models.Model):
 
 class LiwanInboxTag(models.Model):
     _name = 'liwan.inbox.tag'
-    _description = 'Customer Messages tag'
+    _description = 'Customer Inbox tag'
     _order = 'name, id'
     _liwan_scope = 'company'
 
@@ -40,7 +40,7 @@ class LiwanInboxTag(models.Model):
 
 class LiwanInboxCannedReply(models.Model):
     _name = 'liwan.inbox.canned.reply'
-    _description = 'Customer Messages canned reply'
+    _description = 'Customer Inbox canned reply'
     _order = 'shortcut, id'
     _liwan_scope = 'company'
 

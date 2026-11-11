@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tools import email_normalize
+from odoo.tools import email_normalize, html2plaintext
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
@@ -39,6 +39,7 @@ def dump_opportunity(lead):
         'contact_name': lead.contact_name or '',
         'phone': lead.phone or '',
         'email': lead.email_from or '',
+        'notes': html2plaintext(lead.description or '').strip(),
         'stage': ref(lead.stage_id),
         'user': ref(lead.user_id),
         'source': ref(lead.source_id),

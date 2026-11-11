@@ -8,7 +8,7 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 // Five data rows: three new, one whose phone the mock already holds (row 5) and one that is not a phone number (row 6).
 const LEADS_CSV = [
   'الاسم,الهاتف,البريد,ملاحظات',
-  'علي المالكي,0541112223,,',
+  'علي المالكي,0541112223,,اتصل بعد الظهر',
   'منى الغامدي,0542223334,mona@example.com,',
   'ياسر الشريف,0543334445,,',
   'أحمد مكرر,0501234567,,',
@@ -44,6 +44,7 @@ async function mapStandardColumns(page: Page) {
   await choose(page, 'name', 'الاسم')
   await choose(page, 'phone', 'الهاتف')
   await choose(page, 'email', 'البريد')
+  await choose(page, 'notes', 'ملاحظات')
   await choose(page, 'source', 'الموقع')
 }
 
@@ -74,6 +75,12 @@ test('upload, map, preview the counts, confirm and find the new records', async 
   await expect(page.getByRole('link', { name: 'منى الغامدي' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'ياسر الشريف' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'أحمد مكرر' })).toHaveCount(0)
+
+  // The mapped Notes column reaches the record: open an imported opportunity and read it there.
+  await page.goto('/crm/opportunities')
+  await page.getByRole('link', { name: 'علي المالكي' }).click()
+  await expect(page.locator('main h1')).toHaveText('علي المالكي')
+  await expect(page.getByTestId('crm-notes')).toContainText('اتصل بعد الظهر')
 
   await page.goto('/crm/imports')
   await expect(page.getByTestId('crm-import-batches')).toContainText('leads.csv')

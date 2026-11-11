@@ -8,11 +8,7 @@ calendars, their leaves and the derived work-time rate — stays out of these sh
 """
 from odoo import Command, fields
 
-from odoo.addons.liwan_api.controllers.common import (
-    ApiError,
-    parse_number,
-    parse_positive_int,
-)
+from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 
 SCHEDULE_FIELDS = {'name', 'tz', 'two_weeks', 'attendances'}
@@ -35,6 +31,15 @@ def _reject_unknown(payload, allowed):
     if extra:
         field = sorted(extra)[0]
         raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
+
+
+def _number(value, field, maximum):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ApiError(422, 'invalid', f'{field} must be a number', field=field)
+    number = float(value)
+    if number < 0 or number > maximum:
+        raise ApiError(422, 'invalid', f'{field} is outside the supported range', field=field)
+    return number
 
 
 def dump_attendance(line):
@@ -109,8 +114,8 @@ def _attendance_vals(payload):
     day_period = payload.get('day_period')
     if day_period not in DAY_PERIODS:
         raise ApiError(422, 'invalid', 'day_period is not a supported period', field='day_period')
-    hour_from = parse_number(payload.get('hour_from'), 'hour_from', maximum=MAX_HOUR)
-    hour_to = parse_number(payload.get('hour_to'), 'hour_to', maximum=MAX_HOUR)
+    hour_from = _number(payload.get('hour_from'), 'hour_from', MAX_HOUR)
+    hour_to = _number(payload.get('hour_to'), 'hour_to', MAX_HOUR)
     if hour_to < hour_from:
         raise ApiError(422, 'invalid', 'hour_to is before hour_from', field='hour_to')
     week_type = payload.get('week_type')

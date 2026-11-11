@@ -19,6 +19,8 @@ const list = <T extends z.ZodType>(item: T) => z.object({
   total: Count,
 }).strict()
 
+export const INBOX_REPORTS_CAPABILITY = 'inbox.reports.read'
+export const INBOX_REPORTS_FEATURE = 'inbox.reports'
 // The longest range one request may ask for, in days (inclusive of both ends).
 export const INBOX_REPORT_MAX_DAYS = 366
 // Meta keeps template analytics for 90 days.

@@ -18,7 +18,7 @@ test.describe('Plan 7: PMO direct SSR hydration', () => {
     const messages = hydrationMessages(page)
     await open(page, '/projects/2/finance')
     await expect(rows(page)).toHaveCount(4)
-    await expect(rows(page).filter({ hasText: 'تجهيز بيئة العمل' }).getByRole('link', { name: /^تعديل: .*تجهيز بيئة العمل/ })).toBeVisible()
+    await expect(rows(page).filter({ hasText: 'تجهيز بيئة العمل' }).getByRole('link', { name: 'تعديل', exact: true })).toBeVisible()
     expect(messages).toEqual([])
     await expect(page.getByRole('columnheader', { name: 'الإجراءات', exact: true })).toHaveCount(1)
     await expect(page.getByRole('columnheader', { name: 'الإجراءات', exact: true }).locator('span.sr-only')).toHaveText('الإجراءات')

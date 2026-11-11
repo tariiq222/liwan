@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { discoverLocaleFiles } from '@liwan/ui/i18n/localeFiles'
+import { discoverLocaleFiles } from '../../../i18n/localeFiles'
 
 const root = resolve(import.meta.dirname, '../../..')
 const read = (p: string) => readFileSync(resolve(root, p), 'utf8')

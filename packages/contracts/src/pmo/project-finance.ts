@@ -16,6 +16,7 @@ export const FinanceEntryCreateSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('expense'), title, amount: amount.positive(), expense_date: date, reference: reference.optional(), notes: notes.optional(), budget_entry_id: link.optional() }).strict(),
 ])
 export const FinanceEntryPatchSchema = z.object(mutable).partial().extend({ expected_updated_at: revision }).strict().refine(value => Object.keys(value).some(key => key !== 'expected_updated_at'), { message: 'At least one mutable field is required' })
+export const FinanceEntryDeleteSchema = z.object({ expected_updated_at: revision }).strict()
 export const FinanceEntrySchema = z.object({
   id: z.number().int().positive(), project_id: z.number().int().positive(), kind: FinanceKindSchema,
   ...mutable, updated_at: revision,

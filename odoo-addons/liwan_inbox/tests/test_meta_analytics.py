@@ -184,32 +184,6 @@ class TestMetaAnalytics(LiwanInboxCase):
         self.assertFalse(self.channel.analytics_sync_requested)
         self.assertTrue(self.channel.analytics_synced_at)
 
-    def test_a_budget_cut_rotates_the_daily_sync(self):
-        now = fields.Datetime.now()
-        self.channel.analytics_synced_at = now
-        old = self.make_channel(phone_id='710000000020', analytics_synced_at=now - timedelta(days=2))
-        fresh = self.make_channel(phone_id='710000000021', analytics_synced_at=now)
-        synced = []
-
-        def record(model, channel):
-            synced.append(channel.id)
-            channel.write({'analytics_synced_at': fields.Datetime.now()})
-
-        analytics_model = type(self.env['liwan.inbox.meta.analytics'])
-        self.commits.side_effect = [float('inf'), float('inf'), 2.0]
-        with patch.object(analytics_model, '_liwan_sync', record):
-            self.env['liwan.inbox.channel']._liwan_run_analytics()
-        self.assertEqual(synced, [old.id], 'the oldest reading is synced first')
-        self.commits.side_effect = [float('inf'), float('inf'), 2.0]
-        with patch.object(analytics_model, '_liwan_sync', record):
-            self.env['liwan.inbox.channel']._liwan_run_analytics()
-        self.assertNotIn(old.id, synced[1:], 'a synced channel moves behind the rest instead of starving them')
-        self.commits.side_effect = None
-        self.commits.return_value = float('inf')
-        with patch.object(analytics_model, '_liwan_sync', record):
-            self.env['liwan.inbox.channel']._liwan_run_analytics()
-        self.assertIn(fresh.id, synced)
-
     def test_the_cron_syncs_connected_channels(self):
         with patch.object(requests, 'request', MagicMock(side_effect=Meta(pricing_analytics=meta(pricing())))):
             self.env['liwan.inbox.channel']._liwan_run_analytics()

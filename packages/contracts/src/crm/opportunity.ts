@@ -20,6 +20,8 @@ export const CrmOpportunitySchema = z.strictObject({
   contact_name: z.string(),
   phone: z.string(),
   email: z.string(),
+  // The plain text of the opportunity's description (the import's Notes column); '' when empty.
+  notes: z.string(),
   stage: RefSchema.nullable(),
   user: RefSchema.nullable(),
   source: RefSchema.nullable(),

@@ -64,15 +64,10 @@ test('an agent opens a conversation, replies, and opens the inbox settings', { t
   await screen.getByRole('button', 'إرسال').tap();
   await expect(screen.getByText(question).first()).toBeVisible(slow);
 
-  // The page header's channels button opens the settings on its channels tab: the tab is named in the address, so the
-  // page does not rely on the default tab, and the channels section is the one on screen.
-  await screen.getByTestId('inbox-channels-link').tap();
-  await expect(browser).toHaveURL(/\/settings\/apps\/inbox#channels$/, slow);
-  await expect(screen.getByRole('heading', 'القنوات')).toBeVisible(slow);
-
-  // The default tab sits next to it and still carries the general policy form.
-  await screen.getByTestId('settings-tab-basics').tap();
+  // The settings page opens with its sections.
+  await app.open('/settings/apps/inbox');
   await expect(screen.getByRole('heading', 'السياسة العامة')).toBeVisible(slow);
+  await expect(screen.getByRole('heading', 'القنوات')).toBeVisible(slow);
 });
 
 test('a manager creates a WhatsApp template and sees it waiting for Meta review', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
@@ -212,7 +207,7 @@ test('a manager reads the inbox reports, checks the number health and edits the 
 
   // The overview: the figures against the previous period, and the agent table.
   await app.open('/inbox/reports');
-  await expect(screen.getByRole('heading', 'تقارير رسائل العملاء')).toBeVisible(slow);
+  await expect(screen.getByRole('heading', 'تقارير صندوق العملاء')).toBeVisible(slow);
   await expect(screen.getByTestId('inbox-reports-kpis')).toBeVisible(slow);
   await expect(screen.getByTestId('inbox-agent-table')).toBeVisible(slow);
   await expect(screen.getByText('نورة الحربي').first()).toBeVisible(slow);
@@ -299,11 +294,10 @@ test('a manager builds an audience, creates a campaign, launches it and watches 
   await screen.getByRole('button', 'دخول').tap();
   await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
 
-  // The campaigns list: the seeded campaigns with their state. The row's stable test id, not its text: the row's
-  // accessible name repeats the campaign name, so a text match is ambiguous.
+  // The campaigns list: the seeded campaigns with their state.
   await app.open('/inbox/campaigns');
-  await expect(screen.getByTestId('inbox-campaign-row-1')).toBeVisible(slow);
-  await expect(screen.getByTestId('inbox-campaign-row-2')).toBeVisible(slow);
+  await expect(screen.getByText('تذكير مواعيد الأسبوع')).toBeVisible(slow);
+  await expect(screen.getByText('عروض الشتاء').first()).toBeVisible(slow);
 
   // An audience from the tag "حجز": its live counts show on its page, with the members and their consent.
   await app.open('/inbox/campaigns/audiences');
@@ -312,9 +306,6 @@ test('a manager builds an audience, creates a campaign, launches it and watches 
   await screen.getByTestId('inbox-audience-name').fill(audience);
   await screen.getByTestId('inbox-audience-tags').tap();
   await screen.getByRole('option', 'حجز').tap();
-  // A multi-select keeps its list open after a pick; Escape closes only that list (it is a dismissable layer) and the
-  // form's submit control becomes reachable again.
-  await browser.keyboard.press('Escape');
   await screen.getByTestId('inbox-audience-submit').tap();
   await expect(browser).toHaveURL(/\/audiences\/\d+$/, slow);
   await expect(screen.getByTestId('inbox-audience-counts')).toBeVisible(slow);
@@ -330,7 +321,6 @@ test('a manager builds an audience, creates a campaign, launches it and watches 
   await screen.getByTestId('inbox-campaign-audience').tap();
   await screen.getByRole('option', new RegExp(audience)).tap();
   await expect(screen.getByTestId('inbox-campaign-params')).toBeVisible(slow);
-  await screen.getByTestId('inbox-campaign-param-body-1').getByRole('textbox').fill('عميلنا');
   await screen.getByTestId('inbox-campaign-param-body-2').getByRole('textbox').fill('الخميس');
   await screen.getByTestId('inbox-campaign-param-button-1').getByRole('textbox').fill('4521');
   await screen.getByTestId('inbox-campaign-submit').tap();

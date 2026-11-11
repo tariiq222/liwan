@@ -1,8 +1,6 @@
 import {
   InboxChannelPatchSchema,
   InboxChannelSchema,
-  InboxChannelWorkListSchema,
-  InboxEventListSchema,
   InboxConversationListSchema,
   InboxConversationPatchSchema,
   InboxInteractiveSchema,
@@ -90,31 +88,6 @@ describe('InboxChannelSchema', () => {
     expect(keys).not.toContain('access_token')
     expect(keys).not.toContain('app_secret')
     expect(keys).toContain('has_access_token')
-  })
-})
-
-describe('InboxEventListSchema', () => {
-  const EVENT = { id: 9, state: 'failed', attempts: 5, error: 'item 2: RuntimeError', created_at: '2026-11-11T08:00:00Z' }
-
-  it('accepts a failed delivery and rejects a widened shape', () => {
-    expect(InboxEventListSchema.parse({ items: [EVENT], total: 1 }).items[0]).toEqual(EVENT)
-    expect(() => InboxEventListSchema.parse({ items: [{ ...EVENT, provider_payload: '{}' }], total: 1 })).toThrow()
-    expect(InboxEventListSchema.parse({ items: [{ ...EVENT, error: null }], total: 1 }).items[0].error).toBeNull()
-  })
-})
-
-describe('InboxChannelWorkListSchema', () => {
-  const WORK = { id: 3, name: 'Main WhatsApp', kind: 'whatsapp', department: { id: 7, name: 'Support' } }
-
-  it('accepts the picker shape and rejects any administrator field', () => {
-    expect(InboxChannelWorkListSchema.parse({ items: [WORK], total: 1 }).items[0]).toEqual(WORK)
-    expect(() => InboxChannelWorkListSchema.parse({
-      items: [{ ...WORK, phone_number_id: '100000000001' }], total: 1,
-    })).toThrow()
-    expect(() => InboxChannelWorkListSchema.parse({
-      items: [{ ...WORK, has_access_token: true }], total: 1,
-    })).toThrow()
-    expect(InboxChannelWorkListSchema.parse({ items: [{ ...WORK, department: null }], total: 1 }).items[0].department).toBeNull()
   })
 })
 

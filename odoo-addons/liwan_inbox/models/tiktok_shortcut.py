@@ -25,7 +25,7 @@ ERROR_TEXT_LENGTH = 200
 class LiwanInboxTikTokShortcut(models.Model):
     """One suggested question or chat prompt of a TikTok channel."""
     _name = 'liwan.inbox.tiktok.shortcut'
-    _description = 'Customer Messages TikTok suggested question or chat prompt'
+    _description = 'Customer Inbox TikTok suggested question or chat prompt'
     _order = 'kind, sequence, id'
     _liwan_scope = 'company'
 

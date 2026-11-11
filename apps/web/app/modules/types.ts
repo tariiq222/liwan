@@ -58,8 +58,6 @@ export interface AppSettingsPart {
   anyCapabilities?: string[]
   to?: string
   within?: string
-  /** Palette/search target when the card's `within` is a directory without a page (the channels list); defaults to `to ?? within ?? page + anchor`. */
-  navTo?: string
 }
 /**
  * One tab of a long settings page: its label and the parts it shows. A page with groups shows one tab per group; a

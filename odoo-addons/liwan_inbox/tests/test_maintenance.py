@@ -1,14 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import timedelta
-from unittest.mock import patch
-
-from dateutil.relativedelta import relativedelta
 
 from odoo import fields
 from odoo.tests import tagged
 
 from .common import LiwanInboxCase
-from odoo.addons.liwan_inbox.models.health_constants import ALERT_RETENTION_MONTHS
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -62,70 +58,3 @@ class TestMaintenance(LiwanInboxCase):
         self.run_maintenance()
         self.assertFalse(old.exists())
         self.assertTrue(recent.exists() and pending.exists())
-
-    # each purge is capped: a pass handles a batch and the next one continues where it stopped
-
-    def test_a_conversation_purge_pass_deletes_at_most_the_cap_and_the_next_one_continues(self):
-        self.settings.retention_months = 1
-        self.settings.auto_close_hours = 0
-        expired = self.make_conversation(minutes_ago=40 * 24 * 60) | self.make_conversation(minutes_ago=41 * 24 * 60)
-        with patch('odoo.addons.liwan_inbox.models.conversation.PURGE_BATCH', 1):
-            self.run_maintenance()
-            self.assertEqual(len(expired.exists()), 1)
-            self.run_maintenance()
-        self.assertFalse(expired.exists())
-
-    def test_stale_uploads_are_deleted_a_batch_per_run(self):
-        uploads = self.env['ir.attachment']
-        for name in ('a.png', 'b.png'):
-            uploads |= self.env['ir.attachment'].create({
-                'name': name, 'raw': b'x', 'res_model': 'liwan.inbox.campaign', 'res_id': 0,
-            })
-        # Two days from now, the uploads of this test are past STALE_UPLOAD_AGE.
-        later = fields.Datetime.now() + timedelta(days=2)
-        with patch('odoo.addons.liwan_inbox.models.conversation.PURGE_BATCH', 1):
-            self.env['liwan.inbox.conversation']._liwan_purge_stale_uploads(later)
-            self.assertEqual(len(uploads.exists()), 1)
-            self.env['liwan.inbox.conversation']._liwan_purge_stale_uploads(later)
-        self.assertFalse(uploads.exists())
-
-    def test_processed_events_are_deleted_a_batch_per_run(self):
-        now = fields.Datetime.now()
-        events = self.store_event(self.channel, '{"first": true}') | self.store_event(self.channel, '{"second": true}')
-        events.write({'state': 'done', 'processed_at': now - timedelta(days=8)})
-        with patch('odoo.addons.liwan_inbox.models.event.PURGE_BATCH', 1):
-            self.env['liwan.inbox.event']._liwan_purge_processed(now)
-            self.assertEqual(len(events.exists()), 1)
-            self.env['liwan.inbox.event']._liwan_purge_processed(now)
-        self.assertFalse(events.exists())
-
-    def test_report_rows_are_deleted_a_batch_per_run(self):
-        self.settings.report_retention_months = 12
-        sibling = self.make_channel(phone_id='100000000009')
-        day = fields.Date.to_date(fields.Datetime.now()) - relativedelta(months=24)
-        rows = self.env['liwan.inbox.report.day']
-        for channel in (self.channel | sibling):
-            rows |= self.env['liwan.inbox.report.day'].create({
-                'company_id': self.env.company.id, 'day': day, 'channel_id': channel.id,
-                'computed_at': fields.Datetime.now(), 'messages_in': 1,
-            })
-        with patch('odoo.addons.liwan_inbox.models.report_build.PURGE_BATCH', 1):
-            self.env['liwan.inbox.report.build']._liwan_purge(self.env.company, fields.Datetime.now())
-            self.assertEqual(len(rows.exists()), 1)
-            self.env['liwan.inbox.report.build']._liwan_purge(self.env.company, fields.Datetime.now())
-        self.assertFalse(rows.exists())
-
-    def test_expired_channel_alerts_are_deleted_a_batch_per_run(self):
-        now = fields.Datetime.now()
-        old = now - relativedelta(months=ALERT_RETENTION_MONTHS + 1)
-        alerts = self.env['liwan.inbox.channel.alert']
-        for kind in ('quality_changed', 'messaging_limit_changed'):
-            alerts |= self.env['liwan.inbox.channel.alert'].create({
-                'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id,
-                'kind': kind, 'severity': 'info', 'occurred_at': old,
-            })
-        with patch('odoo.addons.liwan_inbox.models.channel_health.PURGE_BATCH', 1):
-            self.env['liwan.inbox.channel']._liwan_purge_alerts(now)
-            self.assertEqual(len(alerts.exists()), 1)
-            self.env['liwan.inbox.channel']._liwan_purge_alerts(now)
-        self.assertFalse(alerts.exists())

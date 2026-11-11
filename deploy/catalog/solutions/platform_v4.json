@@ -62,8 +62,8 @@
     },
     {
       "id": "inbox",
-      "name": "Customer Messages",
-      "description": "The Customer Messages application: WhatsApp and TikTok customer messages.",
+      "name": "Customer Inbox",
+      "description": "The Customer Inbox application: WhatsApp and TikTok customer messages.",
       "sellable": true,
       "modules": [
         "liwan_inbox",

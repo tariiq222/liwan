@@ -10,11 +10,11 @@ only the baseline that is creating them.
 from psycopg2 import IntegrityError
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.exceptions import AccessError, LockError, UserError, ValidationError
 
 from .project_charter import LiwanChangeRequired, LiwanCharterState
 from .project_constants import BASELINE_NOTE_MAX, TASK_CANCELED_STATE
-from .project_governance import _create_values, _next_project_number
+from .project_governance import _create_values
 
 
 def _check_project(project, manage=False):
@@ -130,10 +130,22 @@ class LiwanProjectBaseline(models.Model):
     # --- creation -----------------------------------------------------------------------
     @api.model
     def _liwan_next_number(self, project):
-        """The next number of the project; two managers never share one."""
-        return _next_project_number(
-            project, self._table, LiwanBaselineBusy(self.env._("Another baseline is being taken on this project; try again.")),
-        )
+        """The next number of the project, under a lock on the project row so two managers never share one.
+
+        ``lock_for_update`` skips a locked row, and a concurrent insert that only references the project can hold
+        a key-share lock for an instant, so the lock is tried once more before the project counts as busy. The
+        last number is read from the table itself after the lock: the ORM cache may predate the other writer.
+        """
+        for attempt in range(2):
+            try:
+                project.lock_for_update()
+                break
+            except LockError as error:
+                if attempt:
+                    raise LiwanBaselineBusy(self.env._("Another baseline is being taken on this project; try again.")) from error
+        self.env.flush_all()
+        self.env.cr.execute('SELECT COALESCE(MAX(number), 0) FROM liwan_project_baseline WHERE project_id = %s', [project.id])
+        return self.env.cr.fetchone()[0] + 1
 
     def _liwan_check_taking(self, project, change, has_previous):
         """The rules of taking a baseline: the caller manages the project, the plan is approved, a change covers a controlled project."""

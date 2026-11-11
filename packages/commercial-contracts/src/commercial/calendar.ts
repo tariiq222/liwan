@@ -4,7 +4,12 @@ import type { Cadence } from './types.js'
 const bad = () => new CommercialError('invalid_billing_period')
 const DAY_MS = 86_400_000
 
-export { canonicalJson } from '../canonical-json.js'
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  const obj = value as Record<string, unknown>
+  return `{${Object.keys(obj).filter(k => obj[k] !== undefined).sort().map(k => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`).join(',')}}`
+}
 
 function parse(date: string): [number, number, number] {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)

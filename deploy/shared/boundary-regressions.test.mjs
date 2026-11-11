@@ -7,7 +7,7 @@ const registry = { targets: [a, b] }
 const token = 'synthetic-private-token'.repeat(3)
 const codec = sessionCodec({ key: token }, 'key')
 const plan = (url, headers = {}, extra = {}) => requestPlan({ url, method: 'GET', headers: { host: a.host, ...headers }, ...extra }, registry, token, codec)
-const logo = '/web/binary/company_logo?company=1&v=abcdef123456'
+const logo = '/web/binary/company_logo?company=1&v=0-abcdef123456'
 test('logo narrowly allows GET/HEAD with anonymous/signed tenant binding, not generic binary', () => {
   for (const method of ['GET', 'HEAD']) for (const cookie of ['', `session_id=${codec.seal('sid', a)}`]) {
     assert.equal(plan(logo, { cookie }, { method }).headers.host, 'db_a')

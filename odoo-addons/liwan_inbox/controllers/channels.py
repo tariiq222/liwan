@@ -15,32 +15,15 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     get_channel,
     holds,
     no_content,
-    not_found,
     parse_provider_id,
     parse_text,
     reject,
     unique_as_invalid,
 )
-from odoo.addons.liwan_inbox.models.access_service import (
-    MANAGE_AUTOMATION,
-    MANAGE_CHANNELS,
-    MANAGE_FLOWS,
-    MANAGE_TEMPLATES,
-)
-from odoo.addons.liwan_inbox.models.constants import (
-    AUTOMATION_FEATURE,
-    FLOWS_FEATURE,
-    TEMPLATES_FEATURE,
-)
-from odoo.addons.liwan_inbox.serializers.settings import (
-    dump_channel,
-    dump_channel_work,
-    dump_event,
-)
+from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
+from odoo.addons.liwan_inbox.serializers.settings import dump_channel
 
 HOOK_PATHS = {'whatsapp': '/api/v1/inbox/hooks/whatsapp', 'tiktok': '/api/v1/inbox/hooks/tiktok'}
-# The channels a page may pick from, by the capability and sub-feature that give a user work on them.
-WORK_SCOPES = ((MANAGE_TEMPLATES, TEMPLATES_FEATURE), (MANAGE_FLOWS, FLOWS_FEATURE), (MANAGE_AUTOMATION, AUTOMATION_FEATURE))
 CREATE_FIELDS = {
     'name', 'kind', 'department_id', 'phone_number_id', 'business_account_id', 'access_token', 'app_secret', 'app_id',
 }
@@ -116,65 +99,6 @@ class ChannelController(http.Controller):
             'items': [dump(c) for c in Channel.search(domain, limit=limit, offset=offset)],
             'total': Channel.search_count(domain),
         }
-
-    @http.route('/api/v1/inbox/channels/work', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(MANAGE_TEMPLATES, MANAGE_FLOWS, MANAGE_AUTOMATION, match='any')
-    def list_work_channels(self, **_):
-        """The channels the caller works on (templates, forms or automation), as minimal references.
-
-        The channel list itself needs the channels capability; this one names only what a template, form or
-        automation page needs to pick a channel, for the companies where the caller holds that work's capability
-        and the matching sub-feature is readable.
-        """
-        limit, offset = parse_page(request.httprequest.args)
-        entitlement = request.env['liwan.entitlement.service']
-        companies = {
-            company_id
-            for capability, feature in WORK_SCOPES
-            if entitlement._liwan_feature_read(feature)
-            for company_id in request.env['liwan.access.service']._liwan_capability_company_ids((capability,))
-        }
-        domain = [('owner_company_id', 'in', sorted(companies))]
-        Channel = request.env['liwan.inbox.channel']
-        return {
-            'items': [dump_channel_work(c) for c in Channel.search(domain, limit=limit, offset=offset)],
-            'total': Channel.search_count(domain),
-        }
-
-    @http.route('/api/v1/inbox/channels/<int:channel_id>/events', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(MANAGE_CHANNELS)
-    def list_channel_events(self, channel_id, **_):
-        """The channel's deliveries in one state, failed ones by default: what an operator may re-run."""
-        channel = get_channel(channel_id, MANAGE_CHANNELS)
-        state = request.httprequest.args.get('state') or 'failed'
-        if state not in ('pending', 'done', 'failed'):
-            reject('state must be pending, done or failed', 'state')
-        limit, offset = parse_page(request.httprequest.args)
-        Event = request.env['liwan.inbox.event']
-        domain = [('channel_id', '=', channel.id), ('state', '=', state)]
-        return {
-            'items': [dump_event(e) for e in Event.search(domain, order='create_date desc, id desc', limit=limit, offset=offset)],
-            'total': Event.search_count(domain),
-        }
-
-    @http.route('/api/v1/inbox/events/<int:event_id>/retry', type='json2', auth='user', methods=['POST'], readonly=False)
-    @api_handler
-    @requires_feature('inbox.enabled', operation='write')
-    @requires_capability(MANAGE_CHANNELS)
-    def retry_event(self, event_id, **_):
-        """Give a failed delivery a fresh set of attempts; a stored message is skipped by its provider id."""
-        event = request.env['liwan.inbox.event'].search([('id', '=', event_id)], limit=1)
-        if not event:
-            raise not_found()
-        get_channel(event.channel_id.id, MANAGE_CHANNELS)
-        if event.state != 'failed':
-            raise ApiError(422, 'invalid', 'only a failed delivery can be retried')
-        event._liwan_reprocess()
-        return dump_event(event)
 
     @http.route('/api/v1/inbox/channels', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

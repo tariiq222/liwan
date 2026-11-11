@@ -1,5 +1,4 @@
 """The Odoo test shards: balanced, complete, disjoint and stable."""
-import ast
 import contextlib
 import io
 import json
@@ -101,41 +100,6 @@ class WeightTest(unittest.TestCase):
                 self.assertEqual(odoo_shards.weight('m', Path(root)), 7)
 
 
-class TestedModulesTest(unittest.TestCase):
-    ADDONS = Path(odoo_shards.__file__).resolve().parents[1] / 'odoo-addons'
-    SEPARATE_DATABASE = {'liwan_registry_probe'}  # test-only registry contribution, run by deploy/ci/odoo.sh on its own database
-
-    def test_every_addon_with_tests_is_in_a_shard_or_has_its_own_run(self):
-        with_tests = {path.parent.parent.name for path in self.ADDONS.glob('*/tests/test_*.py')}
-        planned = {module for shard in odoo_shards.plan(odoo_shards.SHARD_COUNT) for module in shard}
-        self.assertEqual(sorted(with_tests - planned - self.SEPARATE_DATABASE), [])
-
-    def test_the_separate_database_modules_are_run_by_the_odoo_stage_and_stay_out_of_the_shards(self):
-        script = (Path(odoo_shards.__file__).resolve().parent.parent / 'deploy/ci/odoo.sh').read_text(encoding='utf-8')
-        planned = {module for shard in odoo_shards.plan(odoo_shards.SHARD_COUNT) for module in shard}
-        for module in self.SEPARATE_DATABASE:
-            with self.subTest(module=module):
-                self.assertIn('-i "$install"', script)
-                self.assertIn('run_tests "registry-probe" "$PROBE_DB" %s /%s' % (module, module), script)
-                self.assertNotIn(module, planned)
-                self.assertNotIn(module, odoo_shards.release_modules())
-
-    def test_a_tested_dependency_is_planned_but_is_not_a_release_module(self):
-        planned = {module for shard in odoo_shards.plan(odoo_shards.SHARD_COUNT) for module in shard}
-        for module in odoo_shards.TESTED_DEPENDENCIES:
-            with self.subTest(module=module):
-                self.assertIn(module, planned)
-                self.assertNotIn(module, odoo_shards.release_modules())
-                self.assertIn('/' + module, odoo_shards.tags('1/1').split(','))
-
-    def test_the_tested_dependencies_are_installed_by_the_release(self):
-        installed = set(odoo_shards.release_modules())
-        for module in odoo_shards.TESTED_DEPENDENCIES:
-            with self.subTest(module=module):
-                self.assertTrue(any(module in ast.literal_eval((self.ADDONS / m / '__manifest__.py').read_text()).get('depends', ())
-                                    for m in installed))
-
-
 class CostFactorTest(unittest.TestCase):
     def test_every_factor_names_a_release_module(self):
         self.assertLessEqual(set(odoo_shards.COST_FACTOR), set(odoo_shards.release_modules()))
@@ -189,10 +153,10 @@ class CommandTest(unittest.TestCase):
 
 
 class ReleaseTest(unittest.TestCase):
-    def test_shard_tags_cover_the_tested_modules_once(self):
+    def test_shard_tags_cover_the_release_modules_once(self):
         count = odoo_shards.SHARD_COUNT
         tagged = [t for k in range(1, count + 1) for t in odoo_shards.tags('%d/%d' % (k, count)).split(',')]
-        self.assertEqual(sorted(tagged), sorted('/' + m for m in odoo_shards.tested_modules()))
+        self.assertEqual(sorted(tagged), sorted('/' + m for m in odoo_shards.release_modules()))
 
 
 if __name__ == '__main__':

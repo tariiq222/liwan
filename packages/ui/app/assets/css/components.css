@@ -92,7 +92,7 @@
   .rounded-tile, .rounded-inner, .rounded-control, .rounded-card, .rounded-surface,
   .liwan-app-tile, .liwan-pill, .liwan-status-callout-danger, .liwan-settings-option, .liwan-chat-bubble,
   .liwan-side-brand:focus-visible, .liwan-side-org, .liwan-side-org [data-slot="initial"], .liwan-side-org img, .liwan-side-row,
-  .liwan-side-row [data-slot="count"],
+  .liwan-side-row [data-slot="count"], .liwan-side-account,
   .liwan-shell-header .liwan-search-trigger kbd, .header-account, .liwan-tool, .liwan-tool-badge, .liwan-slideover, .liwan-slideover-close,
   .liwan-panel-row, .liwan-panel-row [data-slot="check"] { corner-shape: squircle; }
 /* The top bar's four controls (tools capsule, AI tile, search field, user chip) share one radius token and keep the plain round corner. */

@@ -10,8 +10,8 @@ const id = computed(() => String(route.params.id)); const isEdit = computed(() =
 const back = computed(() => catalogReturn(route.query.returnTo, 'bundles')); const backTo = computed(() => back.value.to)
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:bundle:${id.value}`, async () => {
   const view = await api.get<BundleView>('bundle', id.value)
-  const [releases, versions, plans] = await Promise.all([api.releases(), api.bundleVersions(view.bundle_id), plansUsingBundle(page => api.listPlans(page), view.id)])
-  return { view, release: releases.find(r => r.id === view.catalog_release_id), versions, usedBy: plans }
+  const [releases, versions, plans] = await Promise.all([api.releases().catch(() => []), api.bundleVersions(view.bundle_id).catch(() => null), plansUsingBundle(page => api.listPlans(page), view.id)])
+  return { view, release: releases.find(r => r.id === view.catalog_release_id), versions: versions ?? [], usedBy: plans }
 }, { watch: [id] })
 const view = computed(() => data.value?.view)
 async function done(action: LifecycleAction, result: unknown) {

@@ -119,9 +119,3 @@ project-entry-regressions.spec.ts
 project-baselines.spec.ts
 project-evm.spec.ts
 projects-sidebar.spec.ts
-inbox-campaigns.spec.ts
-inbox-responsive.spec.ts
-inbox-channel-access.spec.ts
-inbox-delivery-uncertain.spec.ts
-inbox-feature-gates.spec.ts
-inbox-failed-delivery.spec.ts

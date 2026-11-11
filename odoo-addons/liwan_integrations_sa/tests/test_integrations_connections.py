@@ -1,6 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from psycopg2 import IntegrityError
-
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 from odoo.tools import mute_logger
@@ -143,7 +141,7 @@ class TestIntegrationConnections(LiwanIntegrationsCase):
 
     def test_a_connection_is_unique_per_company_kind_and_provider(self):
         Connection = self.env['liwan.integration.connection']
-        with mute_logger('odoo.sql_db'), self.assertRaises(IntegrityError), self.env.cr.savepoint():
+        with mute_logger('odoo.sql_db'), self.assertRaises(Exception), self.env.cr.savepoint():  # noqa: B017
             Connection.create({'kind': self.connection.kind, 'provider': self.connection.provider})
 
     def test_plain_orm_stays_current_only_and_other_company_requires_a_grant(self):

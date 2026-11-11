@@ -106,13 +106,6 @@ describe('collectInboxIds', () => {
       { id: 1, message: { type: 'liwan/inbox', payload: { id: 12, event: 'template' } } },
     ])).toEqual([12])
   })
-
-  it('collects every id of one batched conversation notification once', () => {
-    expect(collectInboxIds([
-      { id: 1, message: { type: 'liwan/inbox', payload: { event: 'conversation', ids: [4, 7, 4] } } },
-      { id: 2, message: { type: 'liwan/inbox', payload: { event: 'conversation', id: 9 } } },
-    ])).toEqual([4, 7, 9])
-  })
 })
 
 describe('applyChatTyping', () => {

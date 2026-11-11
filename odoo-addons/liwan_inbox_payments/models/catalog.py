@@ -18,7 +18,7 @@ def is_https_url(value):
 class LiwanInboxCatalog(models.Model):
     """The Meta commerce catalog of a WhatsApp Business Account; every phone number of the account shares it."""
     _name = 'liwan.inbox.catalog'
-    _description = 'Customer Messages product catalog'
+    _description = 'Customer Inbox product catalog'
     _order = 'id'
     _liwan_scope = 'company'
 

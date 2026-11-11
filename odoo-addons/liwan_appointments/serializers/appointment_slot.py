@@ -69,19 +69,6 @@ def type_today(booking_type, now):
     return now.astimezone(_type_timezone(booking_type)).date()
 
 
-def type_day_bounds(booking_type, first, last):
-    """UTC ``(lower, upper)`` of the type's calendar days ``first``..``last`` inclusive, as naive datetimes.
-
-    The bounds are the same local midnights the slot search uses; a missing day gives ``None`` for its bound.
-    """
-    tz = _type_timezone(booking_type)
-
-    def midnight_utc(day):
-        return tz.localize(datetime.combine(day, time.min)).astimezone(UTC).replace(tzinfo=None) if day else None
-
-    return midnight_utc(first), midnight_utc(last + timedelta(days=1) if last else None)
-
-
 def last_bookable_date(booking_type, settings, now):
     """The last day a slots request may name: today in the type's calendar timezone plus the booking horizon."""
     return type_today(booking_type, now) + timedelta(days=settings['horizon_days'])

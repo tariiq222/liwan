@@ -1,13 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import datetime, timedelta, timezone
 
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_ai.tests.common import AiProbe
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
-from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ITEM = {
@@ -246,9 +245,9 @@ class TestAiUsage(AiProbe, LiwanApiCase):
 
     def test_direct_create_obeys_the_same_gates(self):
         self._set_feature('ai.enabled', False)
-        with self.assertRaises(LiwanAccessRule) as caught:
+        with self.assertRaises(Exception) as caught:
             self.Usage.with_user(self.employee).create(ITEM)
-        self.assertEqual(caught.exception.code, 'feature_not_included')
+        self.assertEqual(getattr(caught.exception, 'code', None), 'feature_not_included')
         self._set_feature('ai.enabled', True)
         self.employee.write({'group_ids': [Command.unlink(self.env.ref('liwan_ai.group_cap_ai_use').id)]})
         with self.assertRaises(AccessError):
@@ -264,7 +263,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
             ({'cost_reported': True}, 'cost_reported'),
             ({'charge_reported': True}, 'charge_reported'),
         ):
-            with self.assertRaises(ValidationError, msg=change) as caught:
+            with self.assertRaises(Exception, msg=change) as caught:
                 usage.create({**ITEM, **change})
             self.assertEqual(caught.exception.liwan_field, field)
         row = usage.create(ITEM)

@@ -140,7 +140,7 @@ export function requestPlan(req, registry, token, codec) {
     if (req.url.split('?')[0] !== url.pathname || req.url.includes('#') || !['GET', 'HEAD'].includes(req.method ?? 'GET')) throw Error('forbidden_image_route')
     const params = [...url.searchParams]
     if (avatar ? params.length !== 0 : params.length !== 1 || url.searchParams.getAll('v').length !== 1 ||
-        !/^[a-f0-9]{12}$/.test(url.searchParams.get('v') ?? '')) throw Error('forbidden_image_query')
+        !/^(?:0|[0-9]{20})-[a-f0-9]{12}$/.test(url.searchParams.get('v') ?? '')) throw Error('forbidden_image_query')
   }
   const logo = url.pathname === '/web/binary/company_logo'
   if (logo) {
@@ -148,7 +148,7 @@ export function requestPlan(req, registry, token, codec) {
     const params = [...url.searchParams]
     if (params.length !== 2 || url.searchParams.getAll('company').length !== 1 || url.searchParams.getAll('v').length !== 1 ||
         !/^[1-9][0-9]{0,9}$/.test(url.searchParams.get('company') ?? '') ||
-        !/^[a-f0-9]{12}$/.test(url.searchParams.get('v') ?? '')) throw Error('forbidden_logo_query')
+        !/^(?:0|[0-9]{20})-[a-f0-9]{12}$/.test(url.searchParams.get('v') ?? '')) throw Error('forbidden_logo_query')
   }
   // Company ids are scoped to the resolved database, never interpreted as tenant ids.
   // An explicit route allowlist excludes database manager, generic RPC and vendor console.

@@ -8,7 +8,7 @@ from odoo import api, fields, models
 
 from .access_service import MANAGE_CHANNELS
 from .batch import process_each
-from .constants import MAX_ATTEMPTS, PURGE_BATCH
+from .constants import MAX_ATTEMPTS
 from .health_constants import (
     ACCOUNT_STATES,
     ALERT_REASON_LENGTH,
@@ -297,17 +297,9 @@ class LiwanInboxChannelHealth(models.Model):
 
     @api.model
     def _liwan_run_health(self):
-        """Refresh the health of every connected channel (6-hourly), least recently checked first.
-
-        A run cut short by the cron budget refreshes the never-checked channels first, then the oldest readings; the
-        refreshed rows move to the end, so the same tail cannot starve on every run.
-        """
-        base = [('kind', '=', 'whatsapp'), ('state', 'in', CHECKED_STATES)]
-        never = self.search(base + [('health_checked_at', '=', False)], order='id')
-        old = self.search(base + [('health_checked_at', '!=', False)], order='health_checked_at asc, id')
-        for channels in (never, old):
-            if not process_each(channels, lambda channel: channel._liwan_refresh_health(), self._liwan_health_failed):
-                break
+        """Refresh the health of every connected channel (6-hourly)."""
+        channels = self.search([('kind', '=', 'whatsapp'), ('state', 'in', CHECKED_STATES)])
+        process_each(channels, lambda channel: channel._liwan_refresh_health(), self._liwan_health_failed)
 
     @api.model
     def _liwan_run_analytics(self):
@@ -325,11 +317,10 @@ class LiwanInboxChannelHealth(models.Model):
 
     @api.model
     def _liwan_purge_alerts(self, now):
-        """Delete expired alert rows and the bells of deleted channels (bounded per run)."""
         self.env['liwan.inbox.channel.alert'].search([
             ('occurred_at', '<', now - relativedelta(months=ALERT_RETENTION_MONTHS)),
-        ], limit=PURGE_BATCH).unlink()
+        ]).unlink()
         channel_ids = self.search([]).ids
         self.env['mail.message'].search([
             ('liwan_notification_kind', '=', HEALTH_KIND), ('liwan_inbox_channel_id', 'not in', channel_ids),
-        ], limit=PURGE_BATCH).unlink()
+        ]).unlink()

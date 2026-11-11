@@ -23,6 +23,7 @@ export const CatalogRefSchema = z.object({
 export const ProjectCharterStepSchema = z.enum(['justification', 'scope', 'schedule', 'budget', 'risks'])
 export const PROJECT_CHARTER_STEPS = ProjectCharterStepSchema.options
 export const ProjectCharterStateSchema = z.enum(['draft', 'submitted', 'approved'])
+export const PROJECT_CHARTER_STATES = ProjectCharterStateSchema.options
 
 export const ProjectTypeRefSchema = CatalogRefSchema.extend({
   charter_steps: z.array(ProjectCharterStepSchema),

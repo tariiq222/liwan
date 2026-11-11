@@ -235,7 +235,8 @@
         "closedWon": "Closed as sold.",
         "closedLost": "Closed as lost.",
         "probabilitySaved": "Probability saved",
-        "customFieldsSaved": "Fields saved"
+        "customFieldsSaved": "Fields saved",
+        "notes": "Imported notes"
       },
       "call": {
         "title": "Record a call",
@@ -279,6 +280,13 @@
         "confirmBody": "It leaves the follow-up. Someone with the assign capability can reopen it.",
         "confirm": "Close as lost",
         "done": "Closed as lost"
+      },
+      "contact": {
+        "title": "Correct contact data",
+        "edit": "Edit contact data",
+        "submit": "Save contact data",
+        "saved": "Contact data saved",
+        "invalidEmail": "Enter a valid email address."
       },
       "form": {
         "contact": "Name",

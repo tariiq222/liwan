@@ -95,8 +95,7 @@ test('a creator can restore an archived task from the archived scope', async ({ 
   const row = page.getByRole('row').filter({ hasText: `E2E archived task ${stamp}` })
   await expect(row).toBeVisible()
   const restored = page.waitForResponse((response) => response.url().includes(`/api/v1/tasks/${taskId}/unarchive`) && response.request().method() === 'POST')
-  // A single row action is named by the action and the record (SharedRowActions).
-  await row.getByRole('button', { name: `استعادة: E2E archived task ${stamp}`, exact: true }).click()
+  await row.getByRole('button', { name: 'استعادة', exact: true }).click()
   await restored
   await expect(row).toHaveCount(0)
   const restoredTask = await page.request.get(`/api/v1/tasks/${taskId}`)

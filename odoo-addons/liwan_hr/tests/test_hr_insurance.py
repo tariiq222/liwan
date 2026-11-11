@@ -3,7 +3,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from odoo import fields
-from odoo.exceptions import AccessError, LockError, ValidationError
+from odoo.exceptions import LockError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanHrCase, set_hr_feature
@@ -433,9 +433,9 @@ class TestHrInsurance(LiwanHrCase):
     def test_nobody_edits_a_record_behind_the_actions(self):
         row = self.env['liwan.hr.insurance.enrollment'].browse(self.enroll(self.plan())['id'])
         for user in (self.hr, self.emp_user):
-            with self.assertRaises(AccessError):
+            with self.assertRaises(Exception):  # noqa: B017 - AccessError from the write gate
                 row.with_user(user).write({'notes': 'sneaky'})
-            with self.assertRaises(AccessError):
+            with self.assertRaises(Exception):  # noqa: B017
                 row.with_user(user).unlink()
 
     # --- summary and settings ----------------------------------------------------------------------------

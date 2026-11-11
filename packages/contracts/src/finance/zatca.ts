@@ -59,6 +59,10 @@ export const FinanceZatcaModeInputSchema = z.object({
   confirmation: z.string(),
 }).strict().refine(value => value.confirmation === environmentNames[value.mode], { path: ['confirmation'] })
 
+export const FinanceZatcaModeResultSchema = z.object({
+  api_mode: FinanceZatcaModeSchema,
+  changed: z.boolean(),
+}).strict()
 
 /** POST /finance/zatca/journals/{id}/onboard: the six-digit one-time password of the Fatoora portal. */
 export const FinanceZatcaOnboardInputSchema = z.object({

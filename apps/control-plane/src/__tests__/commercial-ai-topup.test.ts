@@ -228,7 +228,7 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
     it('the top-up refund refuses when a credit note already exists on the invoice', async () => {
       const { o } = await paidTopup()
       const invoice = (await pool.query('SELECT id,customer_id FROM invoices WHERE order_id=$1', [o.id])).rows[0]
-      await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause) VALUES($1,$2,$3,'credit_note','Provider refund',2500,'SAR',2,'pending','system','system','provider_refund')`, [randomUUID(), invoice.id, invoice.customer_id])
+      await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin) VALUES($1,$2,$3,'credit_note','Provider refund',2500,'SAR',2,'pending','system','system')`, [randomUUID(), invoice.id, invoice.customer_id])
       await expect(refund(o.id, { reason: 'Over a note', units_used: 0 })).rejects.toMatchObject({ code: 'refund_already_requested' })
     })
     it('a provider refund or chargeback of the top-up order lowers the ledger and the tenant hears of it', async () => {

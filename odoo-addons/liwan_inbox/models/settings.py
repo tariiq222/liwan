@@ -24,7 +24,7 @@ MIN_REPORT_RETENTION_MONTHS = 12
 class LiwanInboxSettings(models.Model):
     """One row per company; created on first use with the stated defaults."""
     _name = 'liwan.inbox.settings'
-    _description = 'Customer Messages settings'
+    _description = 'Customer Inbox settings'
     _liwan_scope = 'company'
 
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',

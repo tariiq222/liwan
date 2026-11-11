@@ -29,7 +29,7 @@ INVALID = 'invalid'
 
 class LiwanInboxChannel(models.Model):
     _name = 'liwan.inbox.channel'
-    _description = 'Customer Messages channel'
+    _description = 'Customer Inbox channel'
     _order = 'name, id'
     # Tenant scope: the channel is the tenant's webhook routing record (phone_number_id is unique in
     # the database) and the webhook resolves it before any company context exists, so it must reach

@@ -12,7 +12,7 @@ const back = computed(() => catalogReturn(route.query.returnTo, 'plans')); const
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:plan:${id.value}`, async () => {
   const view = await api.get<PlanView>('plan', id.value)
   const ids = [...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids]
-  const bundles = await Promise.all(ids.map(x => api.get<BundleView>('bundle', x)))
+  const bundles = (await Promise.all(ids.map(x => api.get<BundleView>('bundle', x).catch(() => null)))).filter((b): b is BundleView => Boolean(b))
   return { view, bundles }
 }, { watch: [id] })
 const view = computed(() => data.value?.view)

@@ -17,7 +17,7 @@ import { listAudit } from './audit-feed.js'
 import { allOperationCounts, allOperations, sharedOperationDetail, withTenantLabels } from './operation-feed.js'
 import {approveOdooRestore,odooJobProgress} from './shared/odoo-backup.js'
 import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
-import { canonicalJson, sharedOnboardingRequestSchema } from '@liwan/commercial-contracts'
+import { sharedOnboardingRequestSchema } from '@liwan/commercial-contracts'
 import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnabled } from './shared/onboarding.js'
 import { z } from 'zod'
 import { actorName, AdminAuthError } from './admin-auth/accounts.js'
@@ -113,6 +113,15 @@ async function readInventoryFile(path: string): Promise<unknown> {
   const file = await stat(path)
   if (!file.isFile() || file.size > 65536) throw new ApiError(503, 'inventory_unavailable', 'Operator inventory is unavailable')
   try { return JSON.parse(await readFile(path, 'utf8')) } catch { throw new ApiError(503, 'inventory_unavailable', 'Operator inventory is unavailable') }
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
 }
 
 export async function inventory(config: Config): Promise<{ version: number; targets: Record<string, OperatorTarget> }> {
@@ -325,8 +334,7 @@ function invitationClientAddress(req: IncomingMessage, pathname: string, service
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
   // Dedicated: the first LIWAN_PAYMENT_RETURN_ORIGINS entry. Shared: each customer's own tenant host, checked against that allowlist.
   const paymentRuntime: PaymentRuntime = {adapter:null,returnOrigin:returnOriginFromEnv(pool,process.env)}
-  // Payment routes fail closed without an adapter; the other routes stay available. The reason is logged, never the secret.
-  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch (e) { console.error('commercial payment adapter unavailable:', e instanceof Error ? e.message : e) }
+  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
   const effect = config.internalEffect
   const setPassword: SetPassword | undefined = process.env.LIWAN_TENANCY_MODE === 'shared' && effect?.url && effect.ca

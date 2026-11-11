@@ -24,10 +24,7 @@ export default defineEventHandler(async (event) => {
       headers: { 'Content-Type': 'application/json', ...uiLocaleHeaders(event), ...identityHeaders },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: tenant?.database ?? odooDb, login, password } }),
     })
-    // A proxy error page or an empty body is an unavailable upstream, never a raw SyntaxError.
-    const body = await upstream.json().catch(() => {
-      throw createError({ statusCode: 502, message: 'tenant_upstream_unavailable', data: { code: 'tenant_upstream_unavailable' } })
-    }) as { result?: { uid?: number | null }; error?: { data?: { name?: unknown } } }
+    const body = await upstream.json() as { result?: { uid?: number | null }; error?: { data?: { name?: unknown } } }
 
     // Odoo raises LiwanTenantSuspended only after the password checked out, so naming
     // the suspension reveals nothing to a caller without valid credentials.

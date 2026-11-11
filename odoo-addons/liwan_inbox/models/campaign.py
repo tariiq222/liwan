@@ -27,7 +27,7 @@ EXTRA_STATS = {
 
 class LiwanInboxCampaign(models.Model):
     _name = 'liwan.inbox.campaign'
-    _description = 'Customer Messages campaign'
+    _description = 'Customer Inbox campaign'
     _order = 'create_date desc, id desc'
     _liwan_scope = 'company'
 

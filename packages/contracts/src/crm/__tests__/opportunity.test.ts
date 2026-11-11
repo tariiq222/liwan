@@ -13,6 +13,7 @@ const opportunity = {
   contact_name: 'Customer',
   phone: '+966501234567',
   email: '',
+  notes: '',
   stage: { id: 1, name: 'New' },
   user: { id: 3, name: 'Agent' },
   source: null,

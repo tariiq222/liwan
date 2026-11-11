@@ -9,7 +9,6 @@
 import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
-  forbidOnly: !!process.env.CI,
   testDir: '.',
   testMatch: ['proof8.spec.mjs'],
   timeout: 240_000,

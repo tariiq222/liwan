@@ -51,7 +51,7 @@ def conversation_name(item):
 class LiwanInboxTikTokSync(models.Model):
     """One history import of a TikTok channel, advanced by the cron until it is done or failed."""
     _name = 'liwan.inbox.tiktok.sync'
-    _description = 'Customer Messages TikTok history import'
+    _description = 'Customer Inbox TikTok history import'
     _order = 'id desc'
     # Tenant scope with an owning company, like the event: the cron and the EU notice create a job for a
     # channel of any company, while staff reach only their companies' jobs through the group rule.

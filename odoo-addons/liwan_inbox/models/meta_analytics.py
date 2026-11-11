@@ -22,7 +22,7 @@ ERROR_TEXT_LENGTH = 200
 
 class LiwanInboxMetaAnalytics(models.AbstractModel):
     _name = 'liwan.inbox.meta.analytics'
-    _description = 'Customer Messages Meta analytics sync'
+    _description = 'Customer Inbox Meta analytics sync'
     _liwan_scope = 'global'
 
     @api.model
@@ -134,17 +134,9 @@ class LiwanInboxMetaAnalytics(models.AbstractModel):
 
     @api.model
     def _liwan_run(self):
-        """Pull the analytics of every connected channel (daily), least recently synced first.
-
-        A run cut short by the cron budget continues with the channels that have no reading yet, then the oldest ones;
-        a synced channel moves to the end, so the same tail cannot starve on every run.
-        """
-        base = [('kind', '=', 'whatsapp'), ('state', '=', 'connected')]
-        never = self.env['liwan.inbox.channel'].search(base + [('analytics_synced_at', '=', False)], order='id')
-        old = self.env['liwan.inbox.channel'].search(base + [('analytics_synced_at', '!=', False)], order='analytics_synced_at asc, id')
-        for channels in (never, old):
-            if not process_each(channels, self._liwan_sync, self._liwan_failed):
-                break
+        """Pull the analytics of every connected channel (daily)."""
+        channels = self.env['liwan.inbox.channel'].search([('kind', '=', 'whatsapp'), ('state', '=', 'connected')])
+        process_each(channels, self._liwan_sync, self._liwan_failed)
 
     @api.model
     def _liwan_run_requested(self):

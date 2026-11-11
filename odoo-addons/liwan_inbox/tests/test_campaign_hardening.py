@@ -56,10 +56,10 @@ class TestCampaignSendClaim(CampaignCase):
         first_message, second_message = first.message_id, second.message_id
         original = type(self.env[Message])._liwan_deliver
 
-        def deliver(message, answered=None):
+        def deliver(message):
             if message == first_message:
                 second_message.unlink()
-            return original(message, answered)
+            return original(message)
 
         with patch.object(type(self.env[Message]), '_liwan_deliver', deliver):
             mock = self.run_outbox()
@@ -70,8 +70,8 @@ class TestCampaignSendClaim(CampaignCase):
         campaign, (first, second) = self.queued(2)
         original = type(self.env[Message])._liwan_deliver
 
-        def deliver(message, answered=None):
-            original(message, answered)
+        def deliver(message):
+            original(message)
             if message == first.message_id:
                 campaign.action_pause()
 
@@ -287,60 +287,6 @@ class TestCampaignRetention(CampaignCase):
         self.run_campaigns()
         self.purge(fields.Datetime.now() - timedelta(days=30))
         self.assertTrue(decided.exists() and targeted.exists())
-
-    def test_a_purge_pass_deletes_at_most_the_cap_and_the_next_one_continues(self):
-        contacts = self.make_contact(consent=None) | self.make_contact(consent=None)
-        contacts.write({'last_activity_at': fields.Datetime.now() - timedelta(days=90)})
-        cutoff = fields.Datetime.now() - timedelta(days=30)
-        with patch('odoo.addons.liwan_inbox.models.campaign_retention.PURGE_BATCH', 1):
-            self.purge(cutoff)
-            self.assertEqual(len(contacts.exists()), 1)
-            self.purge(cutoff)
-        self.assertFalse(contacts.exists())
-
-    def test_suppression_anonymization_advances_past_completed_rows(self):
-        contacts = self.make_contact(consent='opted_out') | self.make_contact(consent='opted_out')
-        contacts.write({'last_activity_at': fields.Datetime.now() - timedelta(days=90)})
-        contacts.consent_ids.write({'date': fields.Datetime.now() - timedelta(days=90)})
-        cutoff = fields.Datetime.now() - timedelta(days=30)
-        with patch('odoo.addons.liwan_inbox.models.campaign_retention.PURGE_BATCH', 1):
-            self.purge(cutoff)
-            # The first pass reduced the first contact; it must leave the aged set so the second one is reached.
-            self.purge(cutoff)
-        for contact in contacts:
-            self.assertEqual((contact.name, contact.email, contact.tag_ids), (contact.phone, False, self.env['liwan.inbox.tag']))
-
-    def test_finished_campaign_recipients_are_purged_a_batch_per_run(self):
-        campaign = self.finished(2)
-        campaign.completed_at = fields.Datetime.now() - timedelta(days=800)
-        cutoff = fields.Datetime.now() - timedelta(days=700)
-        recipients = self.env['liwan.inbox.campaign.recipient']
-
-        def remaining():
-            return recipients.search_count([('campaign_id', '=', campaign.id)])
-
-        with patch('odoo.addons.liwan_inbox.models.campaign_retention.PURGE_BATCH', 1):
-            self.purge(cutoff)
-            self.assertEqual((campaign.stats_frozen, remaining()), (True, 1))
-            # The campaign was frozen by the pass before: its remaining recipients still go on the next one.
-            self.purge(cutoff)
-        self.assertEqual(remaining(), 0)
-
-    def test_a_pass_purges_only_the_recipients_of_its_own_company(self):
-        branch = self.env['res.company'].create({'name': 'Branch', 'parent_id': self.env.company.id})
-        channel = self.make_channel(phone_id='100000000077', owner_company_id=branch.id)
-        audience = self.env['liwan.inbox.audience'].create({'name': 'Branch audience', 'company_id': branch.id})
-        campaign = self.env['liwan.inbox.campaign'].create({
-            'name': 'Branch offer', 'company_id': branch.id, 'channel_id': channel.id, 'audience_id': audience.id,
-            'state': 'done', 'completed_at': fields.Datetime.now() - timedelta(days=800), 'stats_frozen': True,
-        })
-        contact = self.env['liwan.inbox.contact'].create({'name': 'Branch customer', 'company_id': branch.id})
-        self.env['liwan.inbox.campaign.recipient'].create({'campaign_id': campaign.id, 'contact_id': contact.id})
-        cutoff = fields.Datetime.now() - timedelta(days=700)
-        self.purge(cutoff)
-        self.assertEqual(campaign.recipient_ids.contact_id, contact, 'company A purged company B\'s recipients')
-        self.env['liwan.inbox.campaign']._liwan_purge_marketing(branch, cutoff)
-        self.assertFalse(campaign.recipient_ids)
 
     def test_the_maintenance_cron_applies_the_company_retention_window(self):
         old = self.make_contact(consent=None)

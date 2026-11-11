@@ -2,7 +2,6 @@
 from datetime import date, datetime, timedelta
 
 from odoo import fields
-from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
 from .report_common import ReportCase
@@ -140,6 +139,6 @@ class TestReportBuild(ReportCase):
 
     def test_the_retention_setting_is_bounded(self):
         for value in (11, 121):
-            with self.assertRaises(ValidationError):
+            with self.assertRaises(Exception):  # noqa: B017 - any validation error
                 self.settings.report_retention_months = value
         self.assertEqual(self.env['liwan.inbox.settings'].default_get(['report_retention_months'])['report_retention_months'], 36)

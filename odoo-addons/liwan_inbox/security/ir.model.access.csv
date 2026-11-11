@@ -5,8 +5,6 @@ access_liwan_inbox_applied_preset_settings,liwan.inbox.applied.preset.settings,m
 access_liwan_inbox_department_reader,liwan.inbox.department.reader,model_liwan_inbox_department,group_cap_inbox_conversations_read,1,0,0,0
 access_liwan_inbox_department_settings,liwan.inbox.department.settings,model_liwan_inbox_department,group_cap_inbox_settings_manage,1,1,1,1
 access_liwan_inbox_department_channels,liwan.inbox.department.channels,model_liwan_inbox_department,group_cap_inbox_channels_manage,1,0,0,0
-access_liwan_inbox_department_templates,liwan.inbox.department.templates,model_liwan_inbox_department,group_cap_inbox_templates_manage,1,0,0,0
-access_liwan_inbox_department_flows,liwan.inbox.department.flows,model_liwan_inbox_department,group_cap_inbox_flows_manage,1,0,0,0
 access_liwan_inbox_tag_reader,liwan.inbox.tag.reader,model_liwan_inbox_tag,group_cap_inbox_conversations_read,1,0,0,0
 access_liwan_inbox_tag_settings,liwan.inbox.tag.settings,model_liwan_inbox_tag,group_cap_inbox_settings_manage,1,1,1,1
 access_liwan_inbox_canned_reply_reader,liwan.inbox.canned.reply.reader,model_liwan_inbox_canned_reply,group_cap_inbox_conversations_read,1,0,0,0
@@ -25,7 +23,7 @@ access_liwan_inbox_message_reader,liwan.inbox.message.reader,model_liwan_inbox_m
 access_liwan_inbox_message_replier,liwan.inbox.message.replier,model_liwan_inbox_message,group_cap_inbox_conversations_reply,1,1,1,0
 access_liwan_inbox_template_reader,liwan.inbox.template.reader,model_liwan_inbox_template,group_cap_inbox_conversations_read,1,0,0,0
 access_liwan_inbox_template_channels,liwan.inbox.template.channels,model_liwan_inbox_template,group_cap_inbox_channels_manage,1,0,0,0
-access_liwan_inbox_event_channels,liwan.inbox.event.channels,model_liwan_inbox_event,group_cap_inbox_channels_manage,1,1,0,0
+access_liwan_inbox_event_channels,liwan.inbox.event.channels,model_liwan_inbox_event,group_cap_inbox_channels_manage,1,0,0,0
 access_liwan_inbox_event_hook,liwan.inbox.event.hook,model_liwan_inbox_event,group_inbox_hook,0,0,1,0
 access_liwan_inbox_hook_modules,liwan.inbox.hook.modules,base.model_ir_module_module,group_inbox_hook,1,0,0,0
 access_liwan_inbox_message_option_reader,liwan.inbox.message.option.reader,model_liwan_inbox_message_option,group_cap_inbox_conversations_read,1,0,0,0

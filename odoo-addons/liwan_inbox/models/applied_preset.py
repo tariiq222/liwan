@@ -7,7 +7,7 @@ from .presets import PRESETS
 class LiwanInboxAppliedPreset(models.Model):
     """A sector preset whose items were created for a company: applying it again never re-creates them."""
     _name = 'liwan.inbox.applied.preset'
-    _description = 'Customer Messages applied sector preset'
+    _description = 'Customer Inbox applied sector preset'
     _order = 'key'
     _liwan_scope = 'company'
 

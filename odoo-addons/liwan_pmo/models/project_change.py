@@ -7,13 +7,11 @@ by the project manager. The decision fields are written on this model itself, wi
 """
 import math
 
-from psycopg2.errors import UniqueViolation
-
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, LockError, UserError, ValidationError
 
 from .project_constants import CHANGE_NOTE_MAX
-from .project_governance import _check_project, _create_values, _next_project_number
+from .project_governance import _check_project, _create_values
 from .project_project import LiwanStaleWrite
 
 CHANGE_STATES = ('draft', 'submitted', 'approved', 'rejected', 'withdrawn', 'implemented')
@@ -125,10 +123,13 @@ class LiwanProjectChange(models.Model):
 
     @api.model
     def _liwan_next_number(self, project):
-        """The next number of the project; two requests never share one."""
-        return _next_project_number(
-            project, self._table, LiwanChangeState(self.env._("Another request is being raised on this project; try again.")),
-        )
+        """The next number of the project, under a lock on the project row so two requests never share one."""
+        try:
+            project.lock_for_update()
+        except LockError as error:
+            raise LiwanChangeState(self.env._("Another request is being raised on this project; try again.")) from error
+        last = self.with_context(active_test=False).search([('project_id', '=', project.id)], order='number desc', limit=1)
+        return last.number + 1
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -143,12 +144,7 @@ class LiwanProjectChange(models.Model):
                 number=self._liwan_next_number(project), requester_id=self.env.uid,
                 state='draft', liwan_revision=1,
             )
-        try:
-            with self.env.cr.savepoint():
-                return super().create(vals_list)
-        except UniqueViolation as error:
-            # A concurrent writer got the number first: the loser asks again. Any other integrity error is not a clash.
-            raise LiwanChangeState(self.env._("Another request is being raised on this project; try again.")) from error
+        return super().create(vals_list)
 
     @api.model
     def _liwan_clean_content(self, vals, *, partial, project):

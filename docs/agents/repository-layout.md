@@ -21,7 +21,7 @@ limits describe implementation stages, not permanent product exclusions.
 The authoritative addon list and ranks (0-2 foundation, 3 shared service, 4 application, 5 bridge,
 6 customer overlay) are in `tools/arch_layers.json`; the entries below describe ownership, not the
 complete list. Applications without an entry below: `liwan_finance` (Finance, `/api/v1/finance`),
-`liwan_appointments` (Appointments, `/api/v1/appointments`) and `liwan_inbox` (Customer Messages,
+`liwan_appointments` (Appointments, `/api/v1/appointments`) and `liwan_inbox` (Customer Inbox,
 WhatsApp, `/api/v1/inbox`); the shared service `liwan_payments` (online payments through the
 tenant's own gateway account, `/api/v1/payments`). Bridges `liwan_<app>_ai` declare each
 application's AI agent and tools.

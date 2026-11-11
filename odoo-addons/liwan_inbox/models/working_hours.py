@@ -24,7 +24,7 @@ def minutes_of(value):
 class LiwanInboxHoursRange(models.Model):
     """One weekly range (Monday is 0) of the working hours of the company settings or of a department."""
     _name = 'liwan.inbox.hours.range'
-    _description = 'Customer Messages working hours range'
+    _description = 'Customer Inbox working hours range'
     _order = 'weekday, start_minute, id'
     _liwan_scope = 'company'
 
@@ -50,7 +50,7 @@ class LiwanInboxHoursRange(models.Model):
 class LiwanInboxHoursHoliday(models.Model):
     """A holiday of the working hours: whole local days, from `date_from` to `date_to` inclusive."""
     _name = 'liwan.inbox.hours.holiday'
-    _description = 'Customer Messages working hours holiday'
+    _description = 'Customer Inbox working hours holiday'
     _order = 'date_from, id'
     _liwan_scope = 'company'
 
@@ -73,7 +73,7 @@ class LiwanInboxHoursHoliday(models.Model):
 class LiwanInboxWorkingHours(models.AbstractModel):
     """Reads, stores and evaluates the working hours of an owner (company settings or department)."""
     _name = 'liwan.inbox.working.hours'
-    _description = 'Customer Messages working hours'
+    _description = 'Customer Inbox working hours'
     _liwan_scope = 'global'
 
     @api.model

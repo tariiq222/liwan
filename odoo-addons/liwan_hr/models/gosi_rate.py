@@ -43,11 +43,6 @@ class LiwanHrGosiRate(models.Model):
         'UNIQUE(company_id, branch, nationality_class, date_from)',
         'a rate already starts on that date for this branch and class',
     )
-    # UNIQUE above treats the NULL company of two shared rows as different, so shared rows get their own index.
-    _shared_rate_unique = models.UniqueIndex(
-        '(branch, nationality_class, date_from) WHERE company_id IS NULL',
-        'a shared rate already starts on that date for this branch and class',
-    )
     _rate_valid = models.Constraint(
         'CHECK(employee_rate >= 0 AND employer_rate >= 0 AND wage_max >= wage_min)',
         'rates must not be negative and the maximum wage must reach the minimum',

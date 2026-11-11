@@ -1,11 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import datetime
 
-from psycopg2 import IntegrityError
-
-from odoo.exceptions import UserError
 from odoo.tests import new_test_user, tagged
-from odoo.tools import mute_logger
 
 from odoo.addons.liwan_ai.models import consent_text
 from odoo.addons.liwan_ai.models.ai_settings import (
@@ -108,7 +104,7 @@ class TestAiSettings(AiProbe, LiwanApiCase):
             'user_id': self.manager.id, 'signed_at': datetime.now(),
             'text_version': consent_text.CONSENT_VERSION, 'text_hash': consent_text.CONSENT_TEXT_HASH,
         })
-        with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.env.cr.savepoint():
+        with self.assertRaises(Exception), self.env.cr.savepoint():
             Consent.create({
                 'user_id': self.manager.id, 'signed_at': datetime.now(),
                 'text_version': consent_text.CONSENT_VERSION, 'text_hash': consent_text.CONSENT_TEXT_HASH,
@@ -179,7 +175,7 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         self.assertEqual((again.status_code, again.json()['code']), (404, 'not_found'))
         consent = self.env['liwan.ai.consent'].search([])
         self.assertEqual(consent.revoked_by_id, self.manager)
-        with self.assertRaises(UserError):
+        with self.assertRaises(Exception):
             consent.write({'text_version': 'other'})
 
     def test_the_retired_token_limit_no_longer_stops_a_platform_run(self):

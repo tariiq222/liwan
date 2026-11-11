@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { CustomFieldValues } from '@liwan/contracts'
+import type { CrmOpportunityPatch, CustomFieldValues } from '@liwan/contracts'
 import { formatDate, formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import CrmOpportunityCallForm, { type CrmCallDraft } from '@/components/crm/opportunity/CrmOpportunityCallForm.vue'
 import CrmOpportunityCallLog from '@/components/crm/opportunity/CrmOpportunityCallLog.vue'
+import CrmOpportunityContactForm from '@/components/crm/opportunity/CrmOpportunityContactForm.vue'
 import CrmOpportunityLostForm from '@/components/crm/opportunity/CrmOpportunityLostForm.vue'
 import CrmOpportunitySaleForm, { type CrmSaleDraft } from '@/components/crm/opportunity/CrmOpportunitySaleForm.vue'
-import { useCrmLostReasonChoices, useCrmOutcomeChoices, useCrmPackageChoices, useCrmStageChoices } from '@/composables/crm/useCrmLists'
+import { useCrmLostReasonChoices, useCrmOutcomeChoices, useCrmPackageChoices, useCrmSourceChoices, useCrmStageChoices } from '@/composables/crm/useCrmLists'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { useCrmCalls, useCrmOpportunity, useCrmOpportunityActions, useCrmOpportunityOpening } from '@/composables/crm/useOpportunities'
 import { owningListBack } from '@/utils/recordListOrigin'
@@ -33,6 +34,7 @@ const loadError = computed(() => (validId.value ? query.error.value : new ApiErr
 const loading = computed(() => validId.value && query.isPending.value)
 const calls = useCrmCalls(id)
 const stages = useCrmStageChoices()
+const sources = useCrmSourceChoices()
 const outcomes = useCrmOutcomeChoices()
 const packages = useCrmPackageChoices()
 const lostReasons = useCrmLostReasonChoices()
@@ -60,7 +62,7 @@ const headerTags = computed<PageHeaderTag[]>(() => {
   return tags
 })
 
-type Panel = 'sale' | 'lost' | null
+type Panel = 'sale' | 'lost' | 'contact' | null
 const panel = ref<Panel>(null)
 const saleDraft = ref<CrmSaleDraft>({ package_id: null, final_price: null })
 const saleAttempted = ref(false)
@@ -74,12 +76,13 @@ const customChanged = ref<CustomFieldValues>({})
 const customDirty = ref(false)
 const customErrors = ref<Record<string, string>>({})
 const callDirty = ref(false)
+const contactDirty = ref(false)
 const lostDirty = ref(false)
 const saleDirty = computed(() => panel.value === 'sale' && (Boolean(saleDraft.value.package_id) || saleDraft.value.final_price !== null))
-const unsent = computed(() => callDirty.value || lostDirty.value || saleDirty.value || probabilityDirty.value || customDirty.value)
+const unsent = computed(() => callDirty.value || lostDirty.value || saleDirty.value || probabilityDirty.value || customDirty.value || contactDirty.value)
 // A refusal belongs to the form that sent it and shows there only; one from a page action, or whose form went away
 // (a 409 refreshed the record and the form with it), shows at the top of the page.
-type Origin = 'page' | 'call' | 'sale' | 'lost'
+type Origin = 'page' | 'call' | 'sale' | 'lost' | 'contact'
 const failure = ref<{ error: unknown; origin: Origin; sale: boolean } | null>(null)
 const failureText = computed(() => (failure.value ? crmErrorMessage(failure.value.error, t, { sale: failure.value.sale }) : ''))
 const formShown = computed<Record<Origin, boolean>>(() => ({
@@ -87,6 +90,7 @@ const formShown = computed<Record<Origin, boolean>>(() => ({
   call: canWork.value && panel.value === null,
   sale: canWork.value && panel.value === 'sale',
   lost: canWork.value && panel.value === 'lost',
+  contact: canWork.value && panel.value === 'contact',
 }))
 const pageFailure = computed(() => Boolean(failure.value) && !formShown.value[failure.value!.origin])
 const textFor = (origin: Origin) => (failure.value?.origin === origin ? failureText.value : '')
@@ -154,6 +158,15 @@ async function changeStage(value: unknown) {
   if (!stageId || stageId === record.value?.stage?.id) return
   const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { stage_id: stageId } }))
   if (done) toast.add({ title: t('crm.opportunities.record.stageSaved'), color: 'success' })
+}
+
+// Only the fields the user changed travel, and the server's answer is the record's new state.
+async function saveContact(patch: CrmOpportunityPatch) {
+  if (!Object.keys(patch).length) return
+  const done = await run('contact', () => actions.patch.mutateAsync({ id: id.value, body: patch }))
+  if (!done) return
+  panel.value = null
+  toast.add({ title: t('crm.opportunities.contact.saved'), color: 'success' })
 }
 
 async function saveProbability() {
@@ -255,6 +268,9 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
     <template v-if="record">
       <SharedUnsavedChanges :dirty="unsent" guard-route-updates />
       <UAlert v-if="recorded" role="status" color="success" variant="subtle" :description="recorded" data-testid="crm-recorded" />
+      <SharedRecordSection v-if="record.notes" variant="panel" :title="t('crm.opportunities.record.notes')">
+        <p class="whitespace-pre-line text-sm" data-testid="crm-notes">{{ record.notes }}</p>
+      </SharedRecordSection>
       <UAlert v-if="pageFailure" role="alert" color="error" variant="subtle" :description="failureText" data-testid="crm-failure" />
       <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" v-model:dirty="lostDirty" :reasons="manualLostReasons" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
       <SharedRecordSection v-if="panel === 'sale' && canWork" variant="panel" :title="t('crm.opportunities.sale.title', { term: term('package', 'one') })">
@@ -271,6 +287,10 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       <CrmOpportunityCallLog :calls="calls.items.value" :total="calls.data.value?.pages.at(-1)?.total ?? 0" :has-more="!!calls.hasNextPage.value" :loading-more="calls.isFetchingNextPage.value" @more="calls.fetchNextPage()" />
     </template>
     <template v-if="record" #aside>
+      <CrmOpportunityContactForm v-if="canWork && panel === 'contact'" v-model:dirty="contactDirty" :record="record" :sources="sources.data.value?.items ?? []" :pending="actions.patch.isPending.value" :disabled="busy" :error="textFor('contact')" @save="saveContact" @cancel="open('contact')" />
+      <div v-else-if="canWork" class="flex justify-end">
+        <UButton size="xs" variant="outline" icon="i-lucide-pencil" :label="t('crm.opportunities.contact.edit')" :disabled="busy" data-testid="crm-contact-edit" @click="open('contact')" />
+      </div>
       <SharedPropertiesPanel :title="t('crm.opportunities.record.details')">
         <SharedPropertyRow :label="t('crm.opportunities.record.email')" :value="record.email" />
         <SharedPropertyRow :label="t('crm.opportunities.record.source')" :value="record.source?.name" />

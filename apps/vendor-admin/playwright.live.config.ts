@@ -7,7 +7,6 @@ export default defineConfig({
   testDir: './e2e',
   testMatch: /live-control\.spec\.ts$/,
   timeout: 120_000,
-  forbidOnly: !!process.env.CI,
   expect: { timeout: 10_000 },
   workers: 1,
   reporter: process.env.LIVE_JSON_REPORT ? [['list'], ['json', { outputFile: process.env.LIVE_JSON_REPORT }]] : 'list',

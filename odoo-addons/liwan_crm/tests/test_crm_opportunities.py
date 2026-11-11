@@ -5,7 +5,7 @@ from psycopg2 import IntegrityError
 
 from odoo import Command
 from odoo.tests import tagged
-from odoo.tools import mute_logger
+from odoo.tools import html2plaintext, mute_logger
 
 from .common import LiwanCrmCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
@@ -14,7 +14,7 @@ from odoo.addons.liwan_crm.controllers.opportunities import MAX_AGENTS
 URL = '/api/v1/crm/opportunities'
 AUDIT_URL = '/api/v1/crm/audit/views'
 OPPORTUNITY_KEYS = {
-    'id', 'contact_name', 'phone', 'email', 'stage', 'user', 'source', 'package', 'lost_reason', 'status',
+    'id', 'contact_name', 'phone', 'email', 'notes', 'stage', 'user', 'source', 'package', 'lost_reason', 'status',
     'list_price', 'discount_percent', 'final_price', 'expected_revenue', 'probability', 'attempt_count',
     'next_call_at', 'cycle', 'recycle_at', 'needs_manager', 'active', 'created_at', 'properties',
 }
@@ -203,6 +203,68 @@ class TestCrmOpportunities(LiwanCrmCase):
         self.assertEqual(lead.name, 'New')
         response = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'phone': '0507654321'})
         self.assertEqual((response.status_code, response.json()['message']), (422, 'duplicate phone'))
+
+    def test_an_agent_edits_the_contact_data_of_their_own_pending_opportunity(self):
+        lead = self.make_lead(self.agent)
+        response = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={
+            'contact_name': 'Corrected Name', 'phone': '0507654321',
+            'email': 'corrected@example.com', 'source_id': self.source.id,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(
+            (body['contact_name'], body['phone'], body['email'], body['source']),
+            ('Corrected Name', '+966507654321', 'corrected@example.com', {'id': self.source.id, 'name': 'Walk-in'}),
+        )
+        self.assertEqual((lead.contact_name, lead.phone_sanitized, lead.email_from), ('Corrected Name', '+966507654321', 'corrected@example.com'))
+        self.assertEqual(lead.source_id, self.source)
+        # An empty email clears the address; an absent source is left as it is.
+        cleared = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'email': ''})
+        self.assertEqual((cleared.status_code, cleared.json()['email']), (200, ''))
+        self.assertFalse(lead.email_from)
+
+    def test_another_agent_cannot_edit_the_contact_data(self):
+        # The company shows every assigned opportunity, so the other agent reads this one and is refused the write.
+        self.set_visibility('all')
+        lead = self.make_lead(self.agent)
+        before = (lead.contact_name, lead.phone)
+        response = self.as_user(self.agent2).api('PATCH', f'{URL}/{lead.id}', json={'contact_name': 'Taken over'})
+        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual((lead.contact_name, lead.phone), before)
+
+    def test_a_closed_opportunity_refuses_a_contact_edit(self):
+        lead = self.make_lead(self.agent, phone='+966501112222')
+        lead.action_set_won()
+        response = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'contact_name': 'Too late'})
+        self.assertEqual(response.status_code, 409, response.text)
+        self.assertEqual(lead.name, 'Customer')
+
+    def test_a_contact_edit_reports_duplicate_phone_and_invalid_email_on_their_fields(self):
+        lead = self.make_lead(self.agent)
+        self.make_lead(self.agent2, phone='+966507654321')
+        duplicate = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'phone': '0507654321'})
+        self.assertEqual((duplicate.status_code, duplicate.json()['field']), (422, 'phone'))
+        self.assertEqual(duplicate.json()['details'], {'reason': 'duplicate_phone'})
+        invalid = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'email': 'not-an-email'})
+        self.assertEqual((invalid.status_code, invalid.json()['field']), (422, 'email'))
+        self.assertEqual(invalid.json()['details'], {'reason': 'invalid_email'})
+
+    def test_a_contact_edit_never_writes_the_notes(self):
+        lead = self.make_lead(self.agent, description='<p>Imported</p>')
+        response = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'notes': 'rewritten'})
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'notes'))
+        self.assertEqual(lead.description, '<p>Imported</p>')
+
+    def test_the_detail_carries_the_description_as_plain_text_notes(self):
+        lead = self.make_lead(self.agent, description='<p>Call <strong>after</strong> noon</p><p>Second line</p>')
+        empty = self.make_lead(self.agent, phone='+966509999999')
+        detail = self.as_agent().api('GET', f'{URL}/{lead.id}').json()
+        self.assertEqual(set(detail), OPPORTUNITY_KEYS)
+        self.assertNotIn('<', detail['notes'])
+        self.assertEqual(detail['notes'], html2plaintext(lead.description).strip())
+        self.assertIn('Call', detail['notes'])
+        self.assertIn('Second line', detail['notes'])
+        self.assertEqual(self.as_agent().api('GET', f'{URL}/{empty.id}').json()['notes'], '')
 
     def test_patch_refuses_the_won_stage_and_unknown_fields(self):
         lead = self.make_lead(self.agent)

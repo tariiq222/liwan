@@ -78,19 +78,6 @@ describe('subscription navigation', () => {
 })
 
 describe('contextual module links', () => {
-  it('keeps a settings page whose only open part serves a second right', () => {
-    // A templates-only manager reaches the inbox settings through the channels card's second capability; the page
-    // link must name the capability it holds, or the sidebar drops the page it just admitted.
-    const templatesManager = { capabilities: ['inbox.templates.manage'] }
-    const links = contextLinksForModule('settings', templatesManager, '/settings/apps/inbox')
-    expect(links.map(link => link.id)).toContain('settings-inbox')
-    expect(links.find(link => link.id === 'settings-inbox')?.capability).toBe('inbox.templates.manage')
-    // The palette, search and rail read `useNav`: the same alternative capability must admit the card there, and the
-    // card's target is its page anchor, not the administrator-only channels directory.
-    expect(useNav(templatesManager).map(item => item.to)).toContain('/settings/apps/inbox#channels')
-    expect(visibleShellModules(templatesManager).map(module => module.id)).toContain('settings')
-  })
-
   it('gates and pins meeting and chat creation links', () => {
     const internal = { capabilities: ['liwan.internal', 'meetings.read', 'meetings.create'] }
     expect(contextLinksForModule('meetings', internal)[0]).toMatchObject({ id: 'new-meeting', pinned: true, capability: 'meetings.create' })

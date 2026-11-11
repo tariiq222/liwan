@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
-import { canonicalJson } from '@liwan/commercial-contracts/canonical-json'
 import {
   sharedJobSchema, sharedJournalSchema, sharedObservationSchema, sharedReceiptSchema, tenantBindingSchema,
   type SharedJob, type TenantBinding,
@@ -33,10 +32,20 @@ export function businessKey(input: unknown): string {
   return JSON.stringify(['shared-v1', job.binding.tenantId, job.operation, job.operation === 'provision' ? 'initial' : job.requestId])
 }
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
 export function payloadDigest(input: unknown): string {
   const job = bindJob(input)
   // requestId is transport identity for provision, not a new business request.
   const payload = job.operation === 'provision' ? { ...job, requestId: undefined } : job
+  if (job.operation === 'provision') delete payload.requestId
   return createHash('sha256').update(canonicalJson(payload)).digest('hex')
 }
 

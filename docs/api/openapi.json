@@ -15161,6 +15161,36 @@
         ],
         "type": "object"
       },
+      "CrmNamedCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "CrmNamedPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CrmOpportunityCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -16163,6 +16193,42 @@
         ],
         "type": "object"
       },
+      "CrmOutcomePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "effect": {
+            "enum": [
+              "follow_up",
+              "won",
+              "lost",
+              "none"
+            ],
+            "type": "string"
+          },
+          "lost_reason_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CrmOutcomeSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -16283,6 +16349,30 @@
           "items",
           "total"
         ],
+        "type": "object"
+      },
+      "CrmPackagePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "description": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "price": {
+            "maximum": 999999999,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
         "type": "object"
       },
       "CrmPackageSchema": {
@@ -18474,6 +18564,24 @@
         ],
         "type": "object"
       },
+      "CrmStageCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "is_won": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CrmStageListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -18522,6 +18630,24 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "CrmStageOrderSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "ids": {
+            "items": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
         ],
         "type": "object"
       },
@@ -20186,6 +20312,21 @@
               "type": "integer"
             },
             "type": "array"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "DocumentRevisionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
           }
         },
         "required": [
@@ -24220,6 +24361,16 @@
         ],
         "type": "object"
       },
+      "FinanceBankAutoReconcileInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "apply": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "FinanceBankAutoReconcileSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -27508,6 +27659,20 @@
             "type": "object"
           }
         ]
+      },
+      "FinanceEntryDeleteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_updated_at": {
+            "pattern": "^v\\d+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_updated_at"
+        ],
+        "type": "object"
       },
       "FinanceEntryListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -35459,6 +35624,28 @@
         "required": [
           "mode",
           "confirmation"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaModeResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "api_mode": {
+            "enum": [
+              "sandbox",
+              "preprod",
+              "prod"
+            ],
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "api_mode",
+          "changed"
         ],
         "type": "object"
       },
@@ -44123,6 +44310,21 @@
           "created_at",
           "is_read"
         ],
+        "type": "object"
+      },
+      "HrLeaveCancelSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "HrLeaveCancellationDecisionSchema": {
@@ -100646,6 +100848,23 @@
         ],
         "type": "object"
       },
+      "StageBodySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "fold": {
+            "type": "boolean"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "StageOrderBodySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -100662,6 +100881,20 @@
         "required": [
           "ids"
         ],
+        "type": "object"
+      },
+      "StagePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "fold": {
+            "type": "boolean"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "StorageInventorySchema": {
@@ -100790,6 +101023,20 @@
           "items",
           "total",
           "summary"
+        ],
+        "type": "object"
+      },
+      "TagCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ],
         "type": "object"
       },

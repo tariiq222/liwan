@@ -225,8 +225,8 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
   it('credits only what the vendor notes leave uncovered when a larger cumulative provider event follows', async () => {
     const f = await failedOrder('applied')
     // A vendor-origin note for part of the payment (the vendor flow itself only writes whole-invoice notes).
-    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
-      SELECT $1,$2,customer_id,'credit_note','Customer asked for part of it back',4000,'SAR',2,'pending','vendor-test','vendor','vendor_refund' FROM invoices WHERE id=$2`, [randomUUID(), f.invoice])
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
+      SELECT $1,$2,customer_id,'credit_note','Customer asked for part of it back',4000,'SAR',2,'pending','vendor-test','vendor' FROM invoices WHERE id=$2`, [randomUUID(), f.invoice])
     await enqueueRefund(f, refundedPayload(f, 9000))
     await processRefundOutbox(pool)
     expect((await notesOf(f.invoice)).map(n => [n.origin, n.amount_minor])).toEqual([['vendor', '4000'], ['system', '5000']])

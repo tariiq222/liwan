@@ -10,8 +10,7 @@ stage without reading a diff. This module is the only place the path-to-stage ma
 
 ``--pull-request`` narrows the selection for a pull request: the ``DEFERRED_STAGES`` are left to the
 push to ``main``, the nightly run and a full dispatch, except that ``image`` still runs when the change
-touches a file that decides how an image builds (``feeds_image_build``), ``upgrade`` still runs when it
-adds or edits a file under an addon ``migrations/`` directory (``feeds_upgrade``), and the Odoo stages reach only the release modules
+touches a file that decides how an image builds (``feeds_image_build``), and the Odoo stages reach only the release modules
 the change affects (the changed addons plus every addon depending on them, ``None`` meaning all of them
 when a changed path outside ``odoo-addons/`` feeds an Odoo stage). ``--modules`` prints that affected list
 as comma-separated names (empty means every release module).
@@ -53,11 +52,6 @@ DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image')
 # Compose file, `.dockerignore`, the image stage script, or a package lock the Dockerfiles install from.
 IMAGE_BUILD_INPUTS = ('deploy/ci/image.sh', 'deploy/odoo/requirements-python312-linux.txt',
                       'apps/ai-service/requirements.txt', 'apps/ai-service/requirements-build.txt')
-# `upgrade` installs the previous release and upgrades it with `-u` over every release module, so it is the only stage
-# that executes a migration script. A manifest version bump must ship `migrations/<version>/` (tools/migration_guard.py),
-# so the migrations path also covers a bump. The control-plane `schema_*.sql` files are not part of it; the `control-plane`
-# stage runs on every change under `apps/control-plane/` and applies them to a fresh scratch database.
-UPGRADE_INPUTS = ('odoo-addons/*/migrations/*',)
 # The web and vendor-admin images build from these packages, so `image` is selected with them.
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'
@@ -153,11 +147,6 @@ def feeds_image_build(path: str) -> bool:
             or any(fnmatchcase(path, pattern) for pattern in IMAGE_BUILD_INPUTS))
 
 
-def feeds_upgrade(path: str) -> bool:
-    """True for a file the `upgrade` stage runs: anything under an addon's `migrations/` directory."""
-    return any(fnmatchcase(path, pattern) for pattern in UPGRADE_INPUTS)
-
-
 def pull_request_stages(paths: list[str], affected: list[str] | None) -> tuple[str, ...]:
     """Keep nondeferred stages and run the Odoo test stages only when they have work.
 
@@ -171,8 +160,6 @@ def pull_request_stages(paths: list[str], affected: list[str] | None) -> tuple[s
     selected.difference_update(DEFERRED_STAGES)
     if any(feeds_image_build(path) for path in paths):
         selected.add('image')
-    if any(feeds_upgrade(path) for path in paths):
-        selected.add('upgrade')
     if affected is not None:
         runs = {'odoo': affected,
                 'odoo-app-standalone': app_isolation.matrix('apps', only=affected),
@@ -230,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
     selected = STAGES if args.full else stages_for(paths)
     if args.pull_request:
         try:
-            affected = affected_modules(paths, odoo_shards.tested_modules())
+            affected = affected_modules(paths, odoo_shards.release_modules())
             selected = pull_request_stages(paths, affected)
         except (odoo_shards.ShardError, app_isolation.IsolationError) as error:
             print(f'ci_scope: {error}', file=sys.stderr)

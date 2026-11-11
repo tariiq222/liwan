@@ -16,7 +16,7 @@ export interface RowAction {
 // one "more" menu so every list reads the same.
 const props = defineProps<{
   actions: RowAction[]
-  /** Names the record for the menu button and for a single action's button, e.g. "إجراءات مشروع ألفا". */
+  /** Names the record for the menu button, e.g. "إجراءات مشروع ألفا". */
   label: string
   disabled?: boolean
 }>()
@@ -47,7 +47,6 @@ const menuItems = computed(() => {
     size="sm"
     :icon="single.icon"
     :label="single.label"
-    :aria-label="`${single.label}: ${props.label}`"
     :to="single.to"
     :disabled="props.disabled || single.disabled || !hydrated"
     data-testid="row-action"

@@ -16,12 +16,8 @@ def dump_settings(settings):
     }
 
 
-def dump_department(department, members=True):
-    """The department and, when the reader has a settings or agent right, its members."""
-    return {
-        'id': department.id, 'name': department.name,
-        'members': [dump_ref(user) for user in department.member_ids] if members else [],
-    }
+def dump_department(department):
+    return {'id': department.id, 'name': department.name, 'members': [dump_ref(user) for user in department.member_ids]}
 
 
 def dump_tag(tag):
@@ -74,24 +70,6 @@ def dump_template(template):
         'param_count': template.param_count,
         'editable': template.editable,
         'supported': template.supported,
-    }
-
-
-def dump_channel_work(channel):
-    """A channel the caller works on (its templates, forms or automation): id, name, kind and department only.
-
-    Nothing an administrator sees (provider ids, secrets, health) belongs in this reference list.
-    """
-    return {
-        'id': channel.id, 'name': channel.name, 'kind': channel.kind, 'department': dump_ref(channel.department_id),
-    }
-
-
-def dump_event(event):
-    """One webhook delivery the operator may re-run: its state, attempts, last error and arrival time."""
-    return {
-        'id': event.id, 'state': event.state, 'attempts': event.attempts,
-        'error': event.error or None, 'created_at': iso(event.create_date),
     }
 
 
