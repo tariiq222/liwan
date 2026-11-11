@@ -124,8 +124,6 @@ export const ProjectPatchSchema = z.object({
 // Other core PATCH fields may omit expected_updated_at. If the token is supplied,
 // the server still row-locks and rejects a stale value.
 export const ProjectStatusBodySchema = z.object({ status: ProjectStatusSchema }).strict()
-export const StageBodySchema = z.object({ name: z.string().min(1), fold: z.boolean().optional() }).strict()
-export const StagePatchSchema = z.object({ name: z.string().min(1).optional(), fold: z.boolean().optional() }).strict()
 export const StageOrderBodySchema = z.object({ ids: z.array(z.number().int().positive()) }).strict()
 
 export type ProjectCompletionApproval = z.infer<typeof ProjectCompletionApprovalSchema>

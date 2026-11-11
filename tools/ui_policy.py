@@ -53,7 +53,7 @@ LAYER_COMPONENTS = frozenset(
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'InlineText', 'OptionCards', 'RichText', 'UnsavedChanges')]
-    + ['shell/' + name + '.vue' for name in ('ShellAccountCard', 'ShellAppTile', 'ShellBreadcrumb', 'ShellCoreApps', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellTip', 'ShellToolButton', 'ShellTopBar')]
+    + ['shell/' + name + '.vue' for name in ('ShellAppTile', 'ShellBreadcrumb', 'ShellCoreApps', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellTip', 'ShellToolButton', 'ShellTopBar')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@liwan/commercial-ui).
 COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
@@ -116,7 +116,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue',
     'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
     'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/form/TagPicker.vue',
-    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellSidebar.vue', 'shell/ShellTip.vue', 'shell/ShellNavSection.vue', 'shell/ShellNavRow.vue', 'shell/ShellAppTile.vue', 'shell/ShellOrgCard.vue', 'shell/ShellCoreApps.vue', 'shell/ShellAccountCard.vue', 'shell/ShellTopBar.vue', 'shell/ShellToolButton.vue', 'shell/ShellSlideOver.vue', 'shell/ShellPanelRow.vue', 'shell/ShellPanelStatus.vue', 'shell/ShellTabBar.vue', 'shell/AppSidebar.vue', 'shell/AppTopBar.vue', 'shell/ShellBreadcrumb.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
+    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellSidebar.vue', 'shell/ShellTip.vue', 'shell/ShellNavSection.vue', 'shell/ShellNavRow.vue', 'shell/ShellAppTile.vue', 'shell/ShellOrgCard.vue', 'shell/ShellCoreApps.vue', 'shell/ShellTopBar.vue', 'shell/ShellToolButton.vue', 'shell/ShellSlideOver.vue', 'shell/ShellPanelRow.vue', 'shell/ShellPanelStatus.vue', 'shell/ShellTabBar.vue', 'shell/AppSidebar.vue', 'shell/AppTopBar.vue', 'shell/ShellBreadcrumb.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
     'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
     'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
     'shared/form/RichText.vue', 'shared/data/Pagination.vue', 'shared/data/MetricTile.vue', 'shared/form/InlineConfirm.vue',

@@ -150,18 +150,6 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .liwan-side-appblock { display: flex; align-items: center; gap: 10px; margin-block: 10px 6px; padding: 6px 10px; color: var(--ui-text-highlighted); font-size: 1rem; font-weight: 700; }
 .liwan-side-appblock [data-slot="name"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Account card in the sidebar footer. */
-.liwan-side-account { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-control); color: inherit; text-decoration: none; }
-.liwan-side-account:hover { background: color-mix(in srgb, var(--ui-bg) 70%, transparent); }
-.liwan-side-account:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.liwan-side-account [data-slot="avatar"] { position: relative; display: grid; width: 34px; height: 34px; flex: none; place-items: center; border-radius: 999px; background: var(--liwan-ink); color: var(--liwan-on-ink); font-size: var(--text-sm); font-weight: 600; }
-.liwan-side-account [data-slot="status"] { position: absolute; inset-inline-end: -1px; inset-block-start: -1px; width: 10px; height: 10px; border-radius: 999px; box-shadow: 0 0 0 2px var(--liwan-sidebar); }
-.liwan-side-account [data-slot="status"][data-connected="true"] { background: var(--status-success, #16a34a); }
-.liwan-side-account [data-slot="status"][data-connected="false"] { background: var(--ui-text-dimmed); }
-.liwan-side-account [data-slot="copy"] { display: grid; min-width: 0; line-height: 1.25; }
-.liwan-side-account [data-slot="name"] { overflow: hidden; font-size: var(--text-sm); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.liwan-side-account [data-slot="caption"] { overflow: hidden; color: var(--ui-text-muted); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
-
 /* App icon tiles (the colour comes from app-identity.css through data-app; a free application is ink). */
 .liwan-side-tile { box-shadow: none; }
 .liwan-side-tile[data-size="sm"] { width: 26px; height: 26px; }
@@ -174,12 +162,11 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 /* Between 768px and 1099px the sidebar is an 84px icon-only strip: brand mark, the core icons upright, icons, avatar. */
 @media (min-width: 768px) and (max-width: 1099px) {
   .liwan-sidebar[data-surface="sidebar"] { padding: 16px 10px; }
-  .liwan-sidebar[data-surface="sidebar"] :is(.liwan-side-brand-copy, .liwan-side-org, .liwan-side-heading, .liwan-side-row [data-slot="label"], .liwan-side-row [data-slot="count"], .liwan-side-row [data-slot="chevron"], .liwan-side-account [data-slot="copy"], .liwan-side-appblock [data-slot="name"], .liwan-side-branch) { display: none; }
+  .liwan-sidebar[data-surface="sidebar"] :is(.liwan-side-brand-copy, .liwan-side-org, .liwan-side-heading, .liwan-side-row [data-slot="label"], .liwan-side-row [data-slot="count"], .liwan-side-row [data-slot="chevron"], .liwan-side-appblock [data-slot="name"], .liwan-side-branch) { display: none; }
   .liwan-sidebar[data-surface="sidebar"] .liwan-side-brand { justify-content: center; padding: 2px 0 16px; }
   .liwan-sidebar[data-surface="sidebar"] .liwan-side-core { flex-direction: column; justify-content: flex-start; gap: 10px; margin-block-end: 12px; padding-block-end: 12px; border-block-end: 1px solid var(--liwan-rail-border); }
   .liwan-sidebar[data-surface="sidebar"] .liwan-side-row { justify-content: center; padding-inline: 0; }
   .liwan-sidebar[data-surface="sidebar"] .liwan-side-appblock { justify-content: center; padding-inline: 0; }
-  .liwan-sidebar[data-surface="sidebar"] .liwan-side-account { justify-content: center; padding-inline: 0; }
 }
 
 /* One corner for the four top-bar controls: the radius token plus the plain round shape, stated on the rendered elements (the search

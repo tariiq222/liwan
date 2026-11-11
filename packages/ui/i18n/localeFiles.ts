@@ -1,5 +1,5 @@
 // Discovers the per-pillar locale namespace files from the locale folders.
-// Used by nuxt.config.ts (i18n locales) and therefore by Storybook too.
+// Used by the nuxt.config.ts of apps/web and apps/vendor-admin (i18n locales) and therefore by Storybook too.
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
