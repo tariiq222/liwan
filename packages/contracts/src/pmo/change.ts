@@ -24,7 +24,8 @@ export const ProjectChangeSchema = z.object({
   state: ProjectChangeStateSchema,
   requester: ChangeUserRefSchema,
   impact_schedule_days: z.number().int(),
-  impact_cost: z.number(),
+  /** `null` when the caller may not read the project's finance (`pmo.finance.read`). */
+  impact_cost: z.number().nullable(),
   currency: CurrencyRefSchema.nullable(),
   impact_scope: z.string(),
   decided_by: ChangeUserRefSchema.nullable(),
