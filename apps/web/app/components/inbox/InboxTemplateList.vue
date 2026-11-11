@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { TEMPLATE_CATEGORIES, TEMPLATE_CATEGORY_TONE, TEMPLATE_QUALITY_TONE, TEMPLATE_STATUSES, TEMPLATE_STATUS_TONE, templatesRoute } from '@/composables/inbox/inboxTemplate'
 import { useInboxChannelTemplates } from '@/composables/inbox/useInboxSettings'
+import { listPageNumber } from '@/composables/useRouteListFilters'
 
 // The templates of one channel with their review status, category and quality, filtered by status, category and a name
 // search kept in the address (`?status=&category=&q=`), so a filtered list can be shared and survives refresh and back.
@@ -10,6 +11,7 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const PAGE_SIZE = 50
 const ALL = 'all'
 const pick = (key: string, allowed: readonly string[]) => {
   const value = route.query[key]
@@ -21,13 +23,15 @@ const committedSearch = computed(() => typeof route.query.q === 'string' ? route
 const search = ref(committedSearch.value)
 watch(committedSearch, (value) => { search.value = value })
 
-const query = useInboxChannelTemplates(() => props.channelId, () => ({ status: status.value, category: category.value, q: committedSearch.value.trim(), limit: 200 }))
+const page = computed(() => listPageNumber(route.query.page))
+const query = useInboxChannelTemplates(() => props.channelId, () => ({ status: status.value, category: category.value, q: committedSearch.value.trim(), limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const items = computed(() => query.data.value?.items ?? [])
+const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / PAGE_SIZE)))
 const filtered = computed(() => !!(status.value || category.value || committedSearch.value.trim()))
 
 function update(values: Record<string, string | undefined>) {
   if (!hydrated.value) return
-  void router.replace({ path: route.path, query: { ...route.query, ...values } })
+  void router.replace({ path: route.path, query: { ...route.query, page: undefined, ...values } })
 }
 const withAll = (values: readonly string[], key: string) => [
   { value: ALL, label: t(`inbox.templates.filter.all.${key}`) },
@@ -88,5 +92,6 @@ function clear() {
         <span v-if="template.status_reason" class="ps-12 text-xs text-error" :data-testid="`inbox-template-reason-${template.id}`">{{ t('inbox.templates.reason') }}: <bdi>{{ template.status_reason }}</bdi></span>
       </NuxtLink>
     </template>
+    <div v-if="pages > 1" class="px-(--liwan-card-pad) py-3"><SharedPagination :page="page" :pages="pages" @update:page="update({ page: $event > 1 ? String($event) : undefined })" /></div>
   </SharedRecordSection>
 </template>

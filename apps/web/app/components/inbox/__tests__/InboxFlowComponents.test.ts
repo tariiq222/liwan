@@ -232,14 +232,22 @@ describe('InboxFlowFieldEditor', () => {
 
 describe('InboxFlowPicker', () => {
   function mountPicker(items: Array<{ id: number; name: string }>, props: Record<string, unknown>) {
-    const query = { data: Vue.ref({ items, total: items.length }), isSuccess: Vue.ref(true), isError: Vue.ref(false), isFetching: Vue.ref(false) }
-    return mountScript(url('InboxFlowPicker'), { useInboxSendableFlows: () => query }, { modelValue: null, channelId: 2, ...props })
+    const query = { data: Vue.ref({ items, total: props.total ?? items.length }), isSuccess: Vue.ref(true), isError: Vue.ref(false), isFetching: Vue.ref(false) }
+    const chosen = { data: Vue.ref(props.chosen ?? null) }
+    return mountScript(url('InboxFlowPicker'), { refDebounced: (value: unknown) => value, useInboxSendableFlows: () => query, useInboxFlow: () => chosen }, { modelValue: null, channelId: 2, ...props })
   }
 
   it('lists the sendable forms and keeps a chosen form that is no longer on the list', () => {
     const { state } = mountPicker([{ id: 1, name: 'أ' }], { known: { id: 9, name: 'قديم' } })
     expect(state.items).toEqual([{ value: '9', label: 'قديم' }, { value: '1', label: 'أ' }])
     expect(mountPicker([{ id: 1, name: 'أ' }], { known: { id: 1, name: 'أ' } }).state.items).toEqual([{ value: '1', label: 'أ' }])
+  })
+
+  it('reads a chosen form beyond the first page by id and says more forms match', () => {
+    const { state } = mountPicker([{ id: 1, name: 'أ' }], { modelValue: 70, total: 90, chosen: { id: 70, name: 'بعيد' } })
+    expect(state.items).toEqual([{ value: '70', label: 'بعيد' }, { value: '1', label: 'أ' }])
+    expect(state.more).toBe(true)
+    expect(mountPicker([{ id: 1, name: 'أ' }], {}).state.more).toBe(false)
   })
 
   it('says so when a channel has no published form, and emits the chosen id or null', () => {

@@ -35,11 +35,14 @@ describe('form queries', () => {
     expect($api).toHaveBeenCalledWith('/api/v1/inbox/channels/4/flows', expect.objectContaining({ query: { status: 'draft', limit: 200 } }))
   })
 
-  it('asks the pickers for sendable forms only, in one page, and not without a channel', async () => {
+  it('asks the pickers for sendable forms only, in one searchable page, and not without a channel', async () => {
     flows.useInboxSendableFlows(4)
     await last().queryFn!()
-    expect($api).toHaveBeenCalledWith('/api/v1/inbox/channels/4/flows', expect.objectContaining({ query: { sendable: true, limit: 200 } }))
+    expect($api).toHaveBeenCalledWith('/api/v1/inbox/channels/4/flows', expect.objectContaining({ query: { sendable: true, limit: 50 } }))
     expect(Vue.toValue(last().enabled as never)).toBe(true)
+    flows.useInboxSendableFlows(4, true, ' طلب ')
+    await last().queryFn!()
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/channels/4/flows', expect.objectContaining({ query: { sendable: true, q: 'طلب', limit: 50 } }))
     flows.useInboxSendableFlows(null)
     expect(Vue.toValue(last().enabled as never)).toBe(false)
     flows.useInboxSendableFlows(4, false)

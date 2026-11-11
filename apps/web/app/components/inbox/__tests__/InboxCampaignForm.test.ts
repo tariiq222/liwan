@@ -24,6 +24,7 @@ function mountForm(props: { campaign?: InboxCampaign } = {}, dailyCap = 100) {
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const save = vi.fn(async (_input: { id?: number; body: unknown }) => ({ ...STORED, id: 9 }))
   const previewCalls: unknown[] = []
+  const templateFilters: Array<Vue.ComputedRef<Record<string, unknown>>> = []
   const emitted: Array<[string, unknown]> = []
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
@@ -37,13 +38,13 @@ function mountForm(props: { campaign?: InboxCampaign } = {}, dailyCap = 100) {
     useInboxCampaignSettings: () => ({ data: Vue.ref({ default_daily_cap: dailyCap }) }),
     useInboxChannelSending: () => ({ data: Vue.ref(null) }),
     useInboxCampaignPreview: (request: Vue.Ref<unknown>) => { Vue.watchEffect(() => previewCalls.push(request.value)); return { data: Vue.ref(null), isFetching: Vue.ref(false) } },
-    useInboxChannelTemplates: () => ({ data: Vue.ref({ items: TEMPLATES, total: TEMPLATES.length }), isFetching: Vue.ref(false) }),
+    useInboxChannelTemplates: (_channel: unknown, filters: Vue.ComputedRef<Record<string, unknown>>) => (templateFilters.push(filters), { data: Vue.ref({ items: TEMPLATES, total: TEMPLATES.length }), isFetching: Vue.ref(false) }),
     useInboxTemplate: () => ({ data: Vue.ref(null) }),
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
   const state = Vue.proxyRefs(Vue.effectScope().run(() => component.setup(Vue.reactive({ backTo: '/back', ...props }), { expose: () => {}, emit: (name: string, value: unknown) => { emitted.push([name, value]) } })))
-  return { state, save, previewCalls, emitted }
+  return { state, save, previewCalls, emitted, templateFilters }
 }
 
 describe('InboxCampaignForm', () => {
@@ -71,6 +72,13 @@ describe('InboxCampaignForm', () => {
     const { state } = mountForm()
     state.draft.channelId = 1
     expect(state.templateItems.map((item: { value: number }) => item.value)).toEqual([1, 2, 4])
+  })
+
+  it('searches approved templates on the server, one page at a time', () => {
+    const { state, templateFilters } = mountForm()
+    expect(templateFilters[0]!.value).toEqual({ status: 'approved', q: '', limit: 50 })
+    state.templateSearch = ' عرض '
+    expect(templateFilters[0]!.value).toEqual({ status: 'approved', q: 'عرض', limit: 50 })
   })
 
   it('asks the server to render the preview with only the placeholders that have a value, for the chosen sample contact', async () => {

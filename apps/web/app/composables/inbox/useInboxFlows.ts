@@ -43,15 +43,17 @@ export function useInboxChannelFlows(channelId: MaybeRefOrGetter<number | null>,
 }
 
 /** The forms of a channel that may be sent now (published, not blocked), for the pickers of the composer, rules and templates. */
-export const SENDABLE_FLOWS_QUERY = { sendable: true, limit: 200 } as const
+export const SENDABLE_FLOWS_PAGE = 50
 
-export function useInboxSendableFlows(channelId: MaybeRefOrGetter<number | null | undefined>, enabled: MaybeRefOrGetter<boolean> = true) {
+/** One page of the sendable forms whose name matches `q`; a picker narrows it by typing, the chosen form is read by id. */
+export function useInboxSendableFlows(channelId: MaybeRefOrGetter<number | null | undefined>, enabled: MaybeRefOrGetter<boolean> = true, q: MaybeRefOrGetter<string> = '') {
   const { $api } = useApi()
+  const filters = () => cleanFilters({ sendable: true, q: toValue(q).trim(), limit: SENDABLE_FLOWS_PAGE })
   return useQuery({
-    queryKey: computed(() => inboxFlowKeys.list(toValue(channelId) ?? 0, SENDABLE_FLOWS_QUERY)),
+    queryKey: computed(() => inboxFlowKeys.list(toValue(channelId) ?? 0, filters())),
     enabled: computed(() => !!toValue(channelId) && toValue(enabled)),
     retry: false,
-    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/flows`, { query: SENDABLE_FLOWS_QUERY, schema: InboxFlowListSchema }),
+    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/flows`, { query: filters(), schema: InboxFlowListSchema }),
   })
 }
 

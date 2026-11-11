@@ -50,13 +50,19 @@ watch(() => settings.data.value?.default_daily_cap, (cap) => {
 // ---------------------------------------------------------------- template and placeholders
 
 const channelId = computed(() => draft.channelId)
-const templatesQuery = useInboxChannelTemplates(channelId, { status: 'approved', limit: 200 })
-const own = useInboxTemplate(() => props.campaign?.template?.id ?? null)
+// The picker asks the server for one page of approved templates matching the typed name (`q`, debounced); the chosen
+// template is read by id, so it stays shown and mapped after the search narrows the list past it.
+const TEMPLATE_PAGE = 50
+const templateSearch = ref('')
+const debouncedTemplateSearch = refDebounced(templateSearch, 250)
+const templatesQuery = useInboxChannelTemplates(channelId, computed(() => ({ status: 'approved', q: debouncedTemplateSearch.value.trim(), limit: TEMPLATE_PAGE })))
+const own = useInboxTemplate(() => draft.templateId)
 const templates = computed(() => campaignTemplates(templatesQuery.data.value?.items ?? []))
+const moreTemplates = computed(() => (templatesQuery.data.value?.total ?? 0) > (templatesQuery.data.value?.items.length ?? 0))
 const selected = computed(() => templates.value.find(item => item.id === draft.templateId) ?? (own.data.value?.id === draft.templateId ? own.data.value : null))
 const templateItems = computed(() => {
   const list = [...templates.value]
-  if (own.data.value && !list.some(item => item.id === own.data.value!.id)) list.unshift(own.data.value)
+  if (own.data.value && own.data.value.id === draft.templateId && !list.some(item => item.id === own.data.value!.id)) list.unshift(own.data.value)
   return list.map(item => ({ value: item.id, label: `${item.name} · ${item.language} · ${t(`inbox.templates.category.${item.category}`)}` }))
 })
 const mediaKind = computed(() => headerMediaKind(selected.value))
@@ -184,9 +190,13 @@ async function submit() {
         <USelect :model-value="draft.channelId ?? undefined" @update:model-value="draft.channelId = $event as number" :items="channelItems" class="w-full" :disabled="locked" :placeholder="t('inbox.campaigns.form.channelPlaceholder')" data-testid="inbox-campaign-channel" />
       </UFormField>
       <UFormField :label="t('inbox.campaigns.form.template')" :description="t('inbox.campaigns.form.templateHint')" required :error="templateError ?? fieldError('template_id')">
-        <USelect :model-value="draft.templateId ?? undefined" @update:model-value="draft.templateId = $event as number" :items="templateItems" class="w-full" :disabled="locked || !draft.channelId" :loading="templatesQuery.isFetching.value" :placeholder="t('inbox.campaigns.form.templatePlaceholder')" data-testid="inbox-campaign-template" />
+        <USelectMenu v-model:search-term="templateSearch" ignore-filter value-key="value" :model-value="draft.templateId ?? undefined" @update:model-value="draft.templateId = $event as number" :items="templateItems" class="w-full" :disabled="locked || !draft.channelId" :loading="templatesQuery.isFetching.value" :placeholder="t('inbox.campaigns.form.templatePlaceholder')" :search-input="{ placeholder: t('inbox.campaigns.form.templateSearch'), icon: 'i-lucide-search' }" data-testid="inbox-campaign-template">
+          <template v-if="moreTemplates" #content-bottom>
+            <p class="border-t border-default px-3 py-2 text-xs text-muted" data-testid="inbox-campaign-templates-more">{{ t('inbox.campaigns.form.templatesMore') }}</p>
+          </template>
+        </USelectMenu>
       </UFormField>
-      <p v-if="draft.channelId && !templatesQuery.isFetching.value && !templateItems.length" class="text-sm text-muted" data-testid="inbox-campaign-no-templates">{{ t('inbox.campaigns.form.noTemplates') }}</p>
+      <p v-if="draft.channelId && !templatesQuery.isFetching.value && !templateItems.length && !debouncedTemplateSearch.trim()" class="text-sm text-muted" data-testid="inbox-campaign-no-templates">{{ t('inbox.campaigns.form.noTemplates') }}</p>
       <UFormField :label="t('inbox.campaigns.form.audience')" required :error="audienceError ?? fieldError('audience_id')">
         <USelect :model-value="draft.audienceId ?? undefined" @update:model-value="draft.audienceId = $event as number" :items="audienceItems" class="w-full" :disabled="locked" :placeholder="t('inbox.campaigns.form.audiencePlaceholder')" data-testid="inbox-campaign-audience" />
       </UFormField>

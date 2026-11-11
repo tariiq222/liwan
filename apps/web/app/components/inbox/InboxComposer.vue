@@ -83,6 +83,8 @@ const { data: templates, isLoading: templatesLoading, isError: templatesFailed, 
 
 const suggestions = computed(() => mode.value === 'reply' && windowOpen.value && !suggestionsDismissed.value ? cannedSuggestions(draft.value, canned.value?.items ?? []) : [])
 const selectedTemplate = computed(() => templates.value?.items.find(item => item.id === templateId.value && item.supported))
+// The server returns one page; when more approved templates exist the picker says so instead of looking complete.
+const moreTemplates = computed(() => (templates.value?.total ?? 0) > (templates.value?.items.length ?? 0))
 const templateItems = computed(() => (templates.value?.items ?? []).filter(item => item.supported).map(item => ({ value: item.id, label: `${item.name} · ${item.language}`, category: item.category })))
 const modeItems = computed(() => [
   { value: 'reply', label: t('inbox.composer.reply'), icon: 'i-lucide-reply' },
@@ -335,6 +337,9 @@ async function submit() {
       <template v-else>
         <UFormField :label="t('inbox.composer.template')">
           <USelect v-model="templateId" class="w-full" :items="templateItems" :placeholder="t('inbox.composer.pickTemplate')" :disabled="!hydrated || sending" data-testid="inbox-template-select">
+            <template v-if="moreTemplates" #content-bottom>
+              <p class="border-t border-default px-3 py-2 text-xs text-muted" data-testid="inbox-templates-more">{{ t('inbox.composer.templatesMore', { shown: templates?.items.length ?? 0, total: templates?.total ?? 0 }) }}</p>
+            </template>
             <template #item-trailing="{ item }"><SharedStatusBadge v-if="typeof item === 'object' && 'category' in item" size="sm" :tone="TEMPLATE_CATEGORY_TONE[item.category]" :label="t(`inbox.templates.category.${item.category}`)" /></template>
           </USelect>
         </UFormField>

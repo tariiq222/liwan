@@ -26,7 +26,7 @@ class ApiError extends Error {
   constructor(public status: number) { super('refused') }
 }
 
-function mountComposer(endsAt: string | null, store = new Map<string, string>(), template: Record<string, unknown> = TEMPLATE, kind: 'whatsapp' | 'tiktok' = 'whatsapp') {
+function mountComposer(endsAt: string | null, store = new Map<string, string>(), template: Record<string, unknown> = TEMPLATE, kind: 'whatsapp' | 'tiktok' = 'whatsapp', total = 1) {
   const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'inbox-composer' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const inboxDrafts = createInboxDrafts(() => ({ getItem: k => store.get(k) ?? null, setItem: (k, v) => void store.set(k, v), removeItem: k => void store.delete(k), key: i => [...store.keys()][i] ?? null, length: store.size }))
@@ -49,7 +49,7 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
     inboxDrafts, cannedSuggestions, replyWindowOpen, templatePreview, TEMPLATE_CATEGORY_TONE, HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady,
     useSendInboxReply: () => ({ mutateAsync: sendReply, isPending: Vue.ref(false) }), useSendInboxNote: () => ({ mutateAsync: sendNote, isPending: Vue.ref(false) }),
     useInboxCannedReplies: () => ({ data: Vue.ref({ items: [], total: 0 }) }),
-    useInboxTemplates: (_channel: unknown, enabled: Vue.Ref<boolean>) => { templatesEnabled.value = enabled.value; return { data: Vue.ref({ items: [template], total: 1 }), isLoading: Vue.ref(false), isError: Vue.ref(false), refetch: vi.fn() } },
+    useInboxTemplates: (_channel: unknown, enabled: Vue.Ref<boolean>) => { templatesEnabled.value = enabled.value; return { data: Vue.ref({ items: [template], total }), isLoading: Vue.ref(false), isError: Vue.ref(false), refetch: vi.fn() } },
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
@@ -87,6 +87,11 @@ describe('InboxComposer', () => {
   it('is in template mode at once when the window never opened or already closed', () => {
     expect(mountComposer(null).state.templateMode.value).toBe(true)
     expect(mountComposer('2026-10-27T11:00:00Z').state.templateMode.value).toBe(true)
+  })
+
+  it('says so when more approved templates exist than the page it received', () => {
+    expect(mountComposer(null).state.moreTemplates.value).toBe(false)
+    expect(mountComposer(null, new Map(), TEMPLATE, 'whatsapp', 250).state.moreTemplates.value).toBe(true)
   })
 
   it('offers a TikTok conversation a text, one image and a button card only', () => {
