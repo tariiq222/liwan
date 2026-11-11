@@ -110,7 +110,7 @@ def _run(project_id, change_id, payload, action):
         raise ApiError(409, 'change_state', str(error)) from error
     except LiwanChangeControlOff as error:
         raise ApiError(409, 'change_control_off', str(error)) from error
-    return dump_change(change)
+    return dump_change(change, change.project_id._liwan_can_read_finance())
 
 
 class ProjectChangeController(http.Controller):
@@ -135,8 +135,9 @@ class ProjectChangeController(http.Controller):
             domain.append(('category_id', '=', parse_positive_int(args['category_id'], 'category_id')))
         limit, offset = parse_page(args)
         Change = request.env['liwan.project.change']
+        can_read_finance = project._liwan_can_read_finance()
         return {
-            'items': [dump_change(change) for change in Change.search(domain, limit=limit, offset=offset)],
+            'items': [dump_change(change, can_read_finance) for change in Change.search(domain, limit=limit, offset=offset)],
             'total': Change.search_count(domain),
             'can_create': _can_create(project),
         }
@@ -147,7 +148,8 @@ class ProjectChangeController(http.Controller):
     def get_change(self, project_id, change_id):
         require_capabilities('pmo.projects.read')
         declare_read_capability_scope('pmo.projects.read')
-        return dump_change(_change(_project(project_id), change_id))
+        change = _change(_project(project_id), change_id)
+        return dump_change(change, change.project_id._liwan_can_read_finance())
 
     @http.route('/api/v1/projects/<int:project_id>/changes', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -162,7 +164,7 @@ class ProjectChangeController(http.Controller):
             raise ApiError(409, 'change_control_off', str(error)) from error
         except LiwanChangeState as error:
             raise ApiError(409, 'change_state', str(error)) from error
-        return request.make_json_response(dump_change(change), status=201)
+        return request.make_json_response(dump_change(change, change.project_id._liwan_can_read_finance()), status=201)
 
     @http.route('/api/v1/projects/<int:project_id>/changes/<int:change_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -179,7 +181,7 @@ class ProjectChangeController(http.Controller):
             raise ApiError(409, 'change_state', str(error)) from error
         except LiwanChangeControlOff as error:
             raise ApiError(409, 'change_control_off', str(error)) from error
-        return dump_change(change)
+        return dump_change(change, change.project_id._liwan_can_read_finance())
 
     @http.route('/api/v1/projects/<int:project_id>/changes/<int:change_id>/submit', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

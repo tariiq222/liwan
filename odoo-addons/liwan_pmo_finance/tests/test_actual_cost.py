@@ -2,7 +2,7 @@
 from odoo import fields
 from odoo.tests import tagged
 
-from .common import PmoFinanceCase
+from .common import PROJECT_READ, PmoFinanceCase
 
 LINE_KEYS = {'id', 'date', 'label', 'reference', 'partner', 'amount', 'record'}
 EXTERNAL_KEYS = ('actual_source', 'actual_account', 'can_read_actual_lines', 'can_choose_actual_account')
@@ -186,3 +186,13 @@ class TestActualCost(PmoFinanceCase):
         rows = self.get_ok('/api/v1/reports/projects/analytics')['projects']
         project_row = next(row for row in rows if row['project']['id'] == self.project.id)
         self.assertIsNone(project_row['finance'])
+
+    def test_a_project_reader_without_pmo_finance_read_reaches_no_total_and_no_line(self):
+        outsider = self.user_with('pf_no_finance', [PROJECT_READ, 'finance.analytic.read'])
+        self.login_as(outsider)
+        for url in (self.summary_url(), self.lines_url()):
+            refused = self.api('GET', url)
+            self.assertEqual((refused.status_code, refused.json()['code']), (403, 'forbidden'), url)
+        body = self.get_ok('/api/v1/reports/projects/analytics')
+        self.assertTrue(all(row['finance'] is None for row in body['projects']))
+        self.assertEqual(body['totals'], [])

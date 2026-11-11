@@ -15,6 +15,7 @@ from odoo.exceptions import AccessError, LockError, UserError, ValidationError
 from .project_constants import CHANGE_NOTE_MAX
 from .project_governance import _check_project, _create_values, _next_project_number
 from .project_project import LiwanStaleWrite
+from .project_tools import FINANCE_READ
 
 CHANGE_STATES = ('draft', 'submitted', 'approved', 'rejected', 'withdrawn', 'implemented')
 CHANGE_CONTENT_FIELDS = {
@@ -73,6 +74,7 @@ class LiwanProjectChange(models.Model):
     _name = 'liwan.project.change'
     _inherit = 'liwan.governance.visibility'
     _liwan_required_features = ('pmo.change_control',)
+    _liwan_tool_field_map = {FINANCE_READ: {'impact_cost'}}
     _description = 'Project change request'
     _liwan_scope = 'company'
     _order = 'number desc, id desc'
@@ -165,6 +167,9 @@ class LiwanProjectChange(models.Model):
             cost = vals['impact_cost']
             if isinstance(cost, bool) or not isinstance(cost, int | float) or not math.isfinite(cost):
                 raise ValidationError(self.env._("The cost impact must be a number."))
+            if partial or cost:
+                # The create default (0) is the only value a caller who may not read the project's finance can send.
+                project._liwan_check_finance_read()
         if vals.get('category_id'):
             category = self.env['liwan.project.change.category'].search([
                 ('id', '=', vals['category_id']), ('active', '=', True), ('company_id', '=', project.company_id.id),

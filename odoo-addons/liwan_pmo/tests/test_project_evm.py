@@ -132,7 +132,7 @@ class TestProjectEvm(LiwanPmoCase):
         reader = new_test_user(self.env, login='api_evm_reader', password='api_evm_reader_pass_123', name='Reader', groups='base.group_user')
         role = self.env['liwan.access.role'].create({
             'name_ar': 'قارئ المشاريع للقيمة المكتسبة', 'company_id': self.env.company.id,
-            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([('key', '=', 'pmo.projects.read')]).ids)],
+            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([('key', 'in', ('pmo.projects.read', 'pmo.finance.read'))]).ids)],
         })
         self.env['liwan.access.assignment'].create({'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id})
         body = self._get('api_evm_reader').json()

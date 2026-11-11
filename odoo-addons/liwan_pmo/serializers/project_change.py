@@ -14,7 +14,7 @@ CHANGE_WRITE_FIELDS = {
 TEXT_FIELDS = ('description', 'reason', 'impact_scope')
 
 
-def dump_change(change):
+def dump_change(change, can_read_finance):
     actions = change._liwan_allowed_actions()
     category = change.category_id
     return {
@@ -28,7 +28,7 @@ def dump_change(change):
         'state': change.state,
         'requester': dump_user_ref(change.requester_id),
         'impact_schedule_days': change.impact_schedule_days,
-        'impact_cost': change.impact_cost,
+        'impact_cost': change.impact_cost if can_read_finance else None,
         'currency': dump_currency(change.currency_id),
         'impact_scope': change.impact_scope or '',
         'decided_by': dump_user_ref(change.decided_by_id),
