@@ -231,6 +231,8 @@ it('the actual direct Caddy routing sends API to web and preserves legacy Odoo/W
     return patterns!.some(pattern => pattern.endsWith('*') ? path.startsWith(pattern.slice(0, -1)) : path === pattern)
   })?.target
   for (const path of ['/api/v1/tasks', '/api/v1/branding', '/api/v1/auth/totp', '/api/auth/login', '/login']) expect(destination(path)).toBe('web:3000')
-  for (const path of ['/web/health', '/report/barcode']) expect(destination(path)).toBe('odoo:8069')
+  expect(destination('/web/health')).toBe('odoo:8069')
+  // Reports embed their QR inline, so the stock barcode route is not forwarded to Odoo (AUDIT-098).
+  for (const path of ['/report/barcode', '/report/barcode/']) expect(destination(path)).toBe('web:3000')
   expect(destination('/websocket')).toBe('odoo:8072')
 })

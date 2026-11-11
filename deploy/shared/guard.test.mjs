@@ -31,8 +31,11 @@ test('raw/tampered/expired/revoked sessions, selectors, header and route bypass 
   for (const cookie of ['session_id=raw', `session_id=${signed}x`, `session_id=${signed}; session_id=${signed}`]) assert.throws(() => requestPlan(req(0, { cookie }), registry, token, codec))
   for (const header of ['x-odoo-database', 'x-openerp-session-id', 'x-forwarded-host', 'forwarded', 'x-liwan-proxy-token']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }), registry, token, codec))
   for (const path of ['/web/database/list', '/web/session/authenticate', '/jsonrpc', '/xmlrpc/2/object', '/api/v1/me?%64b=db_1', '/websocket?session_id=raw']) assert.throws(() => requestPlan(req(0, {}, path), registry, token, codec))
-  assert.doesNotThrow(() => requestPlan(req(0, {}, '/report/barcode/?barcode_type=QR&value=x'), registry, token, codec))
-  for (const path of ['/report/barcode/QR/x', '/report/pdf/x', '/report/barcode/x/']) assert.throws(() => requestPlan(req(0, {}, path), registry, token, codec))
+  // Reports embed their QR inline, so the stock barcode route is closed in every shape (AUDIT-098).
+  const qr = 'barcode_type=QR&value=x&width=200&height=200'
+  for (const path of [`/report/barcode/?${qr}`, `/report/barcode?${qr}`, '/report/barcode/?barcode_type=QR&value=x', '/report/barcode/QR/x', '/report/pdf/x', '/report/barcode/x/']) {
+    assert.throws(() => requestPlan(req(0, {}, path), registry, token, codec), /forbidden_route/)
+  }
   assert.throws(() => codec.open(signed, { ...targets[0], registryRevision: 2 }))
   const expired = sessionCodec(keys, 'test', () => 0).seal('sid_a', targets[0])
   assert.throws(() => codec.open(expired, targets[0]))
@@ -252,9 +255,6 @@ test('the expected user and company headers pass as plain bounded ids and reach 
   const session = requestPlan(req(0, { ...trusted, ...expected }, '/web/session/destroy'), registry, token, codec)
   assert.equal(session.odoo, true)
   for (const name of Object.keys(expected)) assert.equal(session.headers[name], undefined)
-  const barcode = requestPlan(req(0, expected, '/report/barcode/?barcode_type=QR&value=x'), registry, token, codec)
-  assert.equal(barcode.odoo, true)
-  for (const name of Object.keys(expected)) assert.equal(barcode.headers[name], undefined)
   for (const name of Object.keys(expected)) {
     for (const value of ['', '0', '-1', '01', '1.5', '1e3', ' 1', '1 ', '+1', '9007199254740992', '12345678901234567', '1, 2']) {
       assert.throws(() => requestPlan(req(0, { ...trusted, [name]: value }, '/api/v1/finance/fiscal-setup'), registry, token, codec), /forbidden_header/)

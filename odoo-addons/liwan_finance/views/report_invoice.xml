@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- wkhtmltopdf cannot reach the stock /report/barcode route (closed at the edge and in liwan_platform),
+         so the ZATCA QR of the Saudi invoice is embedded in the page as a data URI. -->
+    <template id="report_invoice_document_zatca_qr" inherit_id="l10n_sa.l10n_sa_report_invoice_document">
+        <xpath expr="//div[@id='l10n_sa_qr_code']//img" position="attributes">
+            <attribute name="t-att-src">o._liwan_zatca_qr_data_uri()</attribute>
+        </xpath>
+    </template>
+</odoo>

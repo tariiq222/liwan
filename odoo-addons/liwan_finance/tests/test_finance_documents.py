@@ -163,18 +163,24 @@ class TestFinanceInvoicePdf(LiwanFinanceCase):
     def test_only_get_is_routed(self):
         self.assertEqual(self.url_open(f'{INVOICES}/{self.invoice.id}/pdf', data=b'{}').status_code, 405)
 
-    def test_the_stock_template_renders_for_the_caller_with_the_zatca_qr_and_both_languages(self):
+    @patch('odoo.addons.base.models.ir_actions_report.IrActionsReport.barcode', return_value=b'png')
+    def test_the_stock_template_renders_for_the_caller_with_the_zatca_qr_and_both_languages(self, barcode):
         # Under test the stock renderer returns the report HTML, which is what wkhtmltopdf would print.
+        # The reportlab image backend is not part of every test host; the QR bytes are stubbed.
         self.company.l10n_gcc_dual_language_invoice = True
         manager_env = self.env(user=self.manager)
         html, _type = manager_env['ir.actions.report']._render_qweb_pdf('account.account_invoices', self.invoice.ids)
         page = html.decode()
         self.assertIn(self.invoice.name, page)
-        self.assertIn('/report/barcode/?barcode_type=QR', page)
+        # The QR is inline: wkhtmltopdf fetches nothing from the closed /report/barcode route.
+        barcode.assert_called_with('QR', self.invoice.l10n_sa_qr_code_str, width=200, height=200)
+        self.assertIn('src="data:image/png;base64,cG5n"', page)
+        self.assertNotIn('/report/barcode', page)
         self.assertIn('Tax Invoice', page)
         self.assertRegex(page, '[\u0600-\u06ff]{3}')
 
-    def test_the_route_serves_the_real_rendering_without_elevated_rights(self):
+    @patch('odoo.addons.base.models.ir_actions_report.IrActionsReport.barcode', return_value=b'png')
+    def test_the_route_serves_the_real_rendering_without_elevated_rights(self, _barcode):
         result = self.api('GET', f'{INVOICES}/{self.invoice.id}/pdf')
         self.assertEqual(result.status_code, 200, result.text)
         self.assertIn(self.invoice.name, result.text)
