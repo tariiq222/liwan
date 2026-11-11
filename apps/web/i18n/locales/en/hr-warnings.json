@@ -115,6 +115,7 @@
       },
       "window": "Escalation window (months)",
       "windowHint": "A warning older than this no longer counts. Between 1 and 60 months.",
+      "windowInvalid": "Enter a whole number from {min} to {max} months.",
       "conflict": "These settings changed while you were editing. Reload to review the latest value before saving.",
       "reload": "Discard draft and reload",
       "saveError": "Could not save the warning settings"
