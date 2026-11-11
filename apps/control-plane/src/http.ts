@@ -38,6 +38,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
 import { isIP } from 'node:net'
+import { clientAddressBucket } from './client-address-bucket.js'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
 import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
@@ -368,7 +369,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         }
         // Unsigned forwarding headers are never trusted for this public limit.
         // accept and check count separately so a page-load check never uses up the accept budget.
-        const ip = `${pathname}|${invitationClientAddress(req, pathname, bffService)}`
+        const ip = `${pathname}|${clientAddressBucket(invitationClientAddress(req, pathname, bffService))}`
         let attempt = invitationAttempts.get(ip)
         if (!attempt || attempt.expiresAt <= now) {
           attempt = { count: 0, expiresAt: now + 60000 }
