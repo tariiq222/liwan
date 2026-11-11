@@ -4,9 +4,11 @@ from unittest.mock import patch
 from odoo.tests import tagged
 
 from . import whatsapp_payloads as wa
-from .common import LiwanInboxCase
+from .common import PHONE_ID, LiwanInboxCase
 from odoo.addons.liwan_inbox.adapters import errors, whatsapp
-from odoo.addons.liwan_inbox.models.constants import REPLY_WINDOWS
+from odoo.addons.liwan_inbox.models.constants import MAX_ATTEMPTS, REPLY_WINDOWS
+from odoo.addons.liwan_inbox.models.health_constants import HEALTH_KIND
+from odoo.addons.liwan_inbox.models.inbound_service import LiwanInboxInbound
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -94,3 +96,62 @@ class TestEventProcessing(LiwanInboxCase):
         self.env['liwan.inbox.event']._liwan_run_events()
         self.assertEqual(event.attempts, 5)
         self.assertTrue(event.error)
+
+    def two_messages(self):
+        raw = [
+            {'id': provider_id, 'from': '966501112222', 'timestamp': str(wa.TIMESTAMP), 'type': 'text', 'text': {'body': 'Hi'}}
+            for provider_id in ('wamid.GOOD', 'wamid.BAD')
+        ]
+        return wa.payload(PHONE_ID, contacts=[{'wa_id': '966501112222', 'profile': {'name': 'Sara'}}], messages=raw)
+
+    def fail_bad_message(self):
+        real = LiwanInboxInbound._liwan_ingest_message
+
+        def ingest(model, channel, item):
+            if item.provider_id == 'wamid.BAD':
+                raise RuntimeError
+            return real(model, channel, item)
+
+        return patch.object(LiwanInboxInbound, '_liwan_ingest_message', ingest)
+
+    def bells(self):
+        return self.env['mail.message'].sudo().search([
+            ('liwan_notification_kind', '=', HEALTH_KIND), ('model', '=', 'liwan.inbox.channel'), ('res_id', '=', self.channel.id),
+        ])
+
+    def test_a_bad_message_does_not_lose_the_good_one_of_its_payload(self):
+        event = self.store_event(self.channel, self.two_messages())
+        with self.fail_bad_message():
+            self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual(len(self.message('wamid.GOOD')), 1)
+        self.assertFalse(self.message('wamid.BAD'))
+        self.assertEqual((event.state, event.attempts, event.error), ('failed', 1, 'item 2: RuntimeError'))
+
+    def test_the_final_failure_rings_the_channel_managers_once(self):
+        self.store_event(self.channel, self.two_messages())
+        events = self.env['liwan.inbox.event']
+        with self.fail_bad_message():
+            for _ in range(MAX_ATTEMPTS - 1):
+                events._liwan_run_events()
+            self.assertFalse(self.bells())
+            events._liwan_run_events()
+            events._liwan_run_events()
+        self.assertTrue(self.bells())
+        self.assertEqual(set(self.bells().mapped('liwan_inbox_channel_id')), {self.channel.id})
+
+    def test_a_reprocessed_failed_event_is_picked_up_again_without_duplicates(self):
+        event = self.store_event(self.channel, self.two_messages())
+        with self.fail_bad_message():
+            for _ in range(MAX_ATTEMPTS):
+                self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((event.state, event.attempts), ('failed', MAX_ATTEMPTS))
+        self.assertEqual(event._liwan_reprocess(), event)
+        self.assertEqual((event.state, event.attempts, event.error), ('pending', 0, False))
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual(event.state, 'done')
+        self.assertEqual((len(self.message('wamid.GOOD')), len(self.message('wamid.BAD'))), (1, 1))
+
+    def test_reprocess_leaves_done_events_alone(self):
+        event = self.deliver(wa.inbound_text())
+        self.assertFalse(event._liwan_reprocess())
+        self.assertEqual(event.state, 'done')
