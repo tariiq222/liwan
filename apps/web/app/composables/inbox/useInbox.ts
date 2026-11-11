@@ -10,7 +10,6 @@ import {
   InboxMessageListSchema,
   InboxMessageSchema,
   InboxTagListSchema,
-  InboxTemplateListSchema,
   type InboxContactPatch,
   type InboxMessage,
   type InboxConversationPatch,
@@ -120,20 +119,6 @@ export function useInboxCannedReplies() {
   })
 }
 
-/** Templates a reply may use: the approved ones, as many as the server returns in one page. */
-export const APPROVED_TEMPLATES_QUERY = { status: 'approved', limit: 200 } as const
-
-/** The approved templates of one channel, for a reply after the customer-service window has closed. */
-export function useInboxTemplates(channelId: MaybeRefOrGetter<number | undefined>, enabled: MaybeRefOrGetter<boolean> = true) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => inboxKeys.templateList(toValue(channelId) ?? 0, APPROVED_TEMPLATES_QUERY)),
-    enabled: computed(() => !!toValue(channelId) && toValue(enabled)),
-    queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/channels/${queryKey[2]}/templates`, { signal, query: APPROVED_TEMPLATES_QUERY, schema: InboxTemplateListSchema }),
-  })
-}
-
-/** The tags an agent may put on a conversation (readable with the read capability). */
 /** The company's users who may reply: the only valid assignees. */
 export function useInboxAgents(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()

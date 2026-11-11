@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { InboxAttachment, InboxConversationDetail, InboxReplyCreate } from '@liwan/contracts'
+import type { InboxAttachment, InboxConversationDetail, InboxReplyCreate, InboxTemplate } from '@liwan/contracts'
+import InboxTemplatePicker from '@/components/inbox/InboxTemplatePicker.vue'
 import { ApiError } from '@/composables/useApi'
-import { useInboxCannedReplies, useInboxTemplates, useInboxTyping, useSendInboxNote, useSendInboxReply, useUploadInboxFile } from '@/composables/inbox/useInbox'
+import { useInboxCannedReplies, useInboxTyping, useSendInboxNote, useSendInboxReply, useUploadInboxFile } from '@/composables/inbox/useInbox'
 import { INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadAccept, inboxUploadProblem } from '@/composables/inbox/inboxAttachments'
 import { channelCarriesTemplates, inboxComposerActions } from '@/composables/inbox/inboxComposerKind'
 import { inboxTikTokErrorKey } from '@/composables/inbox/inboxTikTok'
@@ -33,7 +34,10 @@ const mode = ref<'reply' | 'note'>('reply')
 // Reply and note keep their own text, so switching the mode never loses what was typed.
 const texts = reactive({ reply: '', note: '' })
 const draft = computed({ get: () => texts[mode.value], set: (value: string) => { texts[mode.value] = value } })
-const templateId = ref<number | undefined>(undefined)
+const templateId = ref<number | null>(null)
+// The picker reads the chosen template by id and hands it back; the reply is built from it.
+const selectedTemplate = ref<InboxTemplate | null>(null)
+const isSendableTemplate = (template: InboxTemplate) => template.supported
 const params = ref<string[]>([])
 // The other inputs a template may ask for: its header value (text, a file of this conversation, or a location) and one
 // value per button that takes one (a url suffix or a coupon code).
@@ -79,13 +83,8 @@ const sending = computed(() => replying.value || noting.value)
 const { mutateAsync: uploadFile } = useUploadInboxFile(conversationId)
 const notifyTyping = useInboxTyping(conversationId)
 const { data: canned } = useInboxCannedReplies()
-const { data: templates, isLoading: templatesLoading, isError: templatesFailed, refetch: reloadTemplates } = useInboxTemplates(() => props.conversation.channel.id, templateMode)
 
 const suggestions = computed(() => mode.value === 'reply' && windowOpen.value && !suggestionsDismissed.value ? cannedSuggestions(draft.value, canned.value?.items ?? []) : [])
-const selectedTemplate = computed(() => templates.value?.items.find(item => item.id === templateId.value && item.supported))
-// The server returns one page; when more approved templates exist the picker says so instead of looking complete.
-const moreTemplates = computed(() => (templates.value?.total ?? 0) > (templates.value?.items.length ?? 0))
-const templateItems = computed(() => (templates.value?.items ?? []).filter(item => item.supported).map(item => ({ value: item.id, label: `${item.name} · ${item.language}`, category: item.category })))
 const modeItems = computed(() => [
   { value: 'reply', label: t('inbox.composer.reply'), icon: 'i-lucide-reply' },
   { value: 'note', label: t('inbox.composer.note'), icon: 'i-lucide-lock' },
@@ -150,7 +149,7 @@ onMounted(() => {
     const stored = inboxDrafts.get(me.value.id, props.conversation.id)
     texts.reply = stored.reply
     texts.note = stored.note
-    templateId.value = stored.templateId ?? undefined
+    templateId.value = stored.templateId
     params.value = stored.params
     headerParam.value = stored.headerParam
     buttonValues.value = stored.buttonParams
@@ -166,7 +165,7 @@ watch([() => texts.reply, () => texts.note, templateId, params, headerParam, but
     ...emptyInboxDraft(),
     reply: texts.reply,
     note: texts.note,
-    templateId: templateId.value ?? null,
+    templateId: templateId.value,
     params: [...params.value],
     headerParam: headerParam.value,
     buttonParams: [...buttonValues.value],
@@ -293,7 +292,7 @@ async function submit() {
   try {
     if (templateMode.value) {
       await sendReply(buildTemplateReply(selectedTemplate.value!, sendInput.value))
-      templateId.value = undefined
+      templateId.value = null
       resetTemplateInputs()
     } else if (mode.value === 'note') {
       await sendNote({ body: draft.value.trim() })
@@ -329,49 +328,39 @@ async function submit() {
       :description="props.conversation.reply_window_ends_at ? t(windowClosedDescriptionKey(kind)) : t('inbox.composer.noWindow')"
     />
     <template v-if="templateMode">
-      <SharedLoadingSkeleton v-if="templatesLoading" />
-      <UAlert v-else-if="templatesFailed" role="alert" color="error" variant="subtle" :title="t('inbox.composer.templatesFailed')">
-        <template #actions><UButton type="button" color="neutral" variant="outline" :label="t('app.retry')" @click="reloadTemplates()" /></template>
-      </UAlert>
-      <p v-else-if="!templateItems.length" class="text-sm text-muted" data-testid="inbox-no-templates">{{ t('inbox.composer.noTemplates') }}</p>
-      <template v-else>
-        <UFormField :label="t('inbox.composer.template')">
-          <USelect v-model="templateId" class="w-full" :items="templateItems" :placeholder="t('inbox.composer.pickTemplate')" :disabled="!hydrated || sending" data-testid="inbox-template-select">
-            <template v-if="moreTemplates" #content-bottom>
-              <p class="border-t border-default px-3 py-2 text-xs text-muted" data-testid="inbox-templates-more">{{ t('inbox.composer.templatesMore', { shown: templates?.items.length ?? 0, total: templates?.total ?? 0 }) }}</p>
-            </template>
-            <template #item-trailing="{ item }"><SharedStatusBadge v-if="typeof item === 'object' && 'category' in item" size="sm" :tone="TEMPLATE_CATEGORY_TONE[item.category]" :label="t(`inbox.templates.category.${item.category}`)" /></template>
-          </USelect>
+      <UFormField :label="t('inbox.composer.template')">
+        <InboxTemplatePicker v-model="templateId" v-model:template="selectedTemplate" :channel-id="props.conversation.channel.id" :accept="isSendableTemplate" :disabled="!hydrated || sending" data-testid="inbox-template-select">
+          <template #empty><p class="text-sm text-muted" data-testid="inbox-no-templates">{{ t('inbox.composer.noTemplates') }}</p></template>
+        </InboxTemplatePicker>
+      </UFormField>
+      <div v-if="selectedTemplate" class="flex flex-col gap-2">
+        <p v-if="selectedTemplate.category === 'marketing'" class="flex items-center gap-1.5 text-xs text-muted" data-testid="inbox-template-marketing-note">
+          <SharedStatusBadge size="sm" :tone="TEMPLATE_CATEGORY_TONE.marketing" :label="t('inbox.templates.category.marketing')" />{{ t('inbox.composer.marketingNote') }}
+        </p>
+        <UFormField v-if="headerNeeds?.kind === 'text'" :label="t('inbox.composer.headerParam')" required>
+          <UInput v-model="headerParam" class="w-full" maxlength="60" :disabled="!hydrated || sending" data-testid="inbox-template-header-param" />
         </UFormField>
-        <div v-if="selectedTemplate" class="flex flex-col gap-2">
-          <p v-if="selectedTemplate.category === 'marketing'" class="flex items-center gap-1.5 text-xs text-muted" data-testid="inbox-template-marketing-note">
-            <SharedStatusBadge size="sm" :tone="TEMPLATE_CATEGORY_TONE.marketing" :label="t('inbox.templates.category.marketing')" />{{ t('inbox.composer.marketingNote') }}
-          </p>
-          <UFormField v-if="headerNeeds?.kind === 'text'" :label="t('inbox.composer.headerParam')" required>
-            <UInput v-model="headerParam" class="w-full" maxlength="60" :disabled="!hydrated || sending" data-testid="inbox-template-header-param" />
-          </UFormField>
-          <div v-else-if="headerNeeds?.kind === 'media'" class="flex flex-col gap-2" data-testid="inbox-template-header-media">
-            <p class="text-sm font-medium">{{ t('inbox.composer.headerMedia', { kind: t(`inbox.templates.header.${headerNeeds.media}`) }) }} <span class="text-error" aria-hidden="true">*</span></p>
-            <div class="flex flex-wrap items-center gap-2">
-              <SharedFileField :accept="HEADER_MEDIA_ACCEPT[headerNeeds.media]" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || headerUploading" data-testid="inbox-template-header-file" @change="onHeaderPicked" />
-              <span v-if="headerUpload" class="inline-flex min-w-0 items-center gap-1.5 text-sm"><UIcon name="i-lucide-paperclip" class="size-4 shrink-0 text-muted" aria-hidden="true" /><bdi class="truncate">{{ headerUpload.name }}</bdi><UIcon v-if="headerUploading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-muted" aria-hidden="true" /></span>
-              <UButton v-if="headerUpload" type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.removeFile')" @click="discardHeaderUpload" />
-            </div>
-            <p v-if="headerError" class="text-sm text-error" role="alert" data-testid="inbox-template-header-error">{{ headerError }}</p>
+        <div v-else-if="headerNeeds?.kind === 'media'" class="flex flex-col gap-2" data-testid="inbox-template-header-media">
+          <p class="text-sm font-medium">{{ t('inbox.composer.headerMedia', { kind: t(`inbox.templates.header.${headerNeeds.media}`) }) }} <span class="text-error" aria-hidden="true">*</span></p>
+          <div class="flex flex-wrap items-center gap-2">
+            <SharedFileField :accept="HEADER_MEDIA_ACCEPT[headerNeeds.media]" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || headerUploading" data-testid="inbox-template-header-file" @change="onHeaderPicked" />
+            <span v-if="headerUpload" class="inline-flex min-w-0 items-center gap-1.5 text-sm"><UIcon name="i-lucide-paperclip" class="size-4 shrink-0 text-muted" aria-hidden="true" /><bdi class="truncate">{{ headerUpload.name }}</bdi><UIcon v-if="headerUploading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-muted" aria-hidden="true" /></span>
+            <UButton v-if="headerUpload" type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.removeFile')" @click="discardHeaderUpload" />
           </div>
-          <InboxLocationForm v-else-if="headerNeeds?.kind === 'location'" v-model="headerLocation" />
-          <UFormField v-for="(_, index) in params" :key="index" :label="selectedTemplate.category === 'authentication' ? t('inbox.composer.code') : t('inbox.composer.param', { n: index + 1 })" required>
-            <UInput v-model="params[index]" class="w-full" maxlength="1024" :disabled="!hydrated || sending" />
-          </UFormField>
-          <UFormField v-for="(button, position) in buttonInputs" :key="button.index" :label="button.type === 'copy_code' ? t('inbox.composer.couponCode') : t('inbox.composer.urlSuffix', { text: button.text })" required>
-            <UInput v-model="buttonValues[position]" class="w-full" dir="ltr" maxlength="2000" :disabled="!hydrated || sending" :data-testid="`inbox-template-button-param-${position}`" />
-          </UFormField>
-          <SharedSubCard tone="tinted">
-            <p class="mb-2 text-xs text-muted">{{ t('inbox.composer.preview') }}</p>
-            <InboxTemplatePreview v-if="previewParts" :parts="previewParts" />
-          </SharedSubCard>
+          <p v-if="headerError" class="text-sm text-error" role="alert" data-testid="inbox-template-header-error">{{ headerError }}</p>
         </div>
-      </template>
+        <InboxLocationForm v-else-if="headerNeeds?.kind === 'location'" v-model="headerLocation" />
+        <UFormField v-for="(_, index) in params" :key="index" :label="selectedTemplate.category === 'authentication' ? t('inbox.composer.code') : t('inbox.composer.param', { n: index + 1 })" required>
+          <UInput v-model="params[index]" class="w-full" maxlength="1024" :disabled="!hydrated || sending" />
+        </UFormField>
+        <UFormField v-for="(button, position) in buttonInputs" :key="button.index" :label="button.type === 'copy_code' ? t('inbox.composer.couponCode') : t('inbox.composer.urlSuffix', { text: button.text })" required>
+          <UInput v-model="buttonValues[position]" class="w-full" dir="ltr" maxlength="2000" :disabled="!hydrated || sending" :data-testid="`inbox-template-button-param-${position}`" />
+        </UFormField>
+        <SharedSubCard tone="tinted">
+          <p class="mb-2 text-xs text-muted">{{ t('inbox.composer.preview') }}</p>
+          <InboxTemplatePreview v-if="previewParts" :parts="previewParts" />
+        </SharedSubCard>
+      </div>
     </template>
     <template v-else-if="!blockedWindow">
       <div v-if="quoted" class="flex items-center gap-2 rounded-control border-s-2 border-primary bg-elevated/50 py-1.5 ps-3 pe-1 text-sm" data-testid="inbox-reply-chip">

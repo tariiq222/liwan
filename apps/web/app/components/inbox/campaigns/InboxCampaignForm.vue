@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import type { InboxCampaign } from '@liwan/contracts'
+import type { InboxCampaign, InboxTemplate } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
+import InboxTemplatePicker from '@/components/inbox/InboxTemplatePicker.vue'
 import InboxTemplatePreview from '@/components/inbox/InboxTemplatePreview.vue'
 import InboxCampaignContactPicker from '@/components/inbox/campaigns/InboxCampaignContactPicker.vue'
 import InboxCampaignParamsMapper from '@/components/inbox/campaigns/InboxCampaignParamsMapper.vue'
 import { inboxUploadProblem } from '@/composables/inbox/inboxAttachments'
 import {
-  campaignDraftSignature, campaignPreviewParts, campaignTemplates, campaignToDraft, campaignWrite, emptyCampaignDraft, headerMediaKind,
-  localInputToUtc, paramRows, paramsComplete, paramsWrite, rowsFromCampaign, type CampaignDraft,
+  campaignDraftSignature, campaignPreviewParts, campaignToDraft, campaignWrite, emptyCampaignDraft, headerMediaKind,
+  isCampaignTemplate, localInputToUtc, paramRows, paramsComplete, paramsWrite, rowsFromCampaign, type CampaignDraft,
 } from '@/composables/inbox/inboxCampaignParams'
 import { HEADER_MEDIA_ACCEPT } from '@/composables/inbox/inboxTemplateSend'
 import {
   useInboxAudienceChoices, useInboxCampaignChannels, useInboxCampaignPreview, useInboxCampaignSettings, useInboxChannelSending,
   useSaveInboxCampaign, useUploadInboxCampaignHeader,
 } from '@/composables/inbox/useInboxCampaigns'
-import { useInboxChannelTemplates, useInboxTemplate } from '@/composables/inbox/useInboxSettings'
 
 // A campaign: the channel and approved template it sends, the audience, what fills each placeholder, an optional header
 // file, when it starts and how fast it goes. A paused campaign changes only its name, daily cap and working-hours rule;
@@ -50,21 +50,8 @@ watch(() => settings.data.value?.default_daily_cap, (cap) => {
 // ---------------------------------------------------------------- template and placeholders
 
 const channelId = computed(() => draft.channelId)
-// The picker asks the server for one page of approved templates matching the typed name (`q`, debounced); the chosen
-// template is read by id, so it stays shown and mapped after the search narrows the list past it.
-const TEMPLATE_PAGE = 50
-const templateSearch = ref('')
-const debouncedTemplateSearch = refDebounced(templateSearch, 250)
-const templatesQuery = useInboxChannelTemplates(channelId, computed(() => ({ status: 'approved', q: debouncedTemplateSearch.value.trim(), limit: TEMPLATE_PAGE })))
-const own = useInboxTemplate(() => draft.templateId)
-const templates = computed(() => campaignTemplates(templatesQuery.data.value?.items ?? []))
-const moreTemplates = computed(() => (templatesQuery.data.value?.total ?? 0) > (templatesQuery.data.value?.items.length ?? 0))
-const selected = computed(() => templates.value.find(item => item.id === draft.templateId) ?? (own.data.value?.id === draft.templateId ? own.data.value : null))
-const templateItems = computed(() => {
-  const list = [...templates.value]
-  if (own.data.value && own.data.value.id === draft.templateId && !list.some(item => item.id === own.data.value!.id)) list.unshift(own.data.value)
-  return list.map(item => ({ value: item.id, label: `${item.name} · ${item.language} · ${t(`inbox.templates.category.${item.category}`)}` }))
-})
+// The picker searches approved templates on the server and reads the chosen one by id; it hands the template back here.
+const selected = ref<InboxTemplate | null>(null)
 const mediaKind = computed(() => headerMediaKind(selected.value))
 
 const baseline = ref<string | null>(props.campaign ? null : campaignDraftSignature(draft))
@@ -190,13 +177,10 @@ async function submit() {
         <USelect :model-value="draft.channelId ?? undefined" @update:model-value="draft.channelId = $event as number" :items="channelItems" class="w-full" :disabled="locked" :placeholder="t('inbox.campaigns.form.channelPlaceholder')" data-testid="inbox-campaign-channel" />
       </UFormField>
       <UFormField :label="t('inbox.campaigns.form.template')" :description="t('inbox.campaigns.form.templateHint')" required :error="templateError ?? fieldError('template_id')">
-        <USelectMenu v-model:search-term="templateSearch" ignore-filter value-key="value" :model-value="draft.templateId ?? undefined" @update:model-value="draft.templateId = $event as number" :items="templateItems" class="w-full" :disabled="locked || !draft.channelId" :loading="templatesQuery.isFetching.value" :placeholder="t('inbox.campaigns.form.templatePlaceholder')" :search-input="{ placeholder: t('inbox.campaigns.form.templateSearch'), icon: 'i-lucide-search' }" data-testid="inbox-campaign-template">
-          <template v-if="moreTemplates" #content-bottom>
-            <p class="border-t border-default px-3 py-2 text-xs text-muted" data-testid="inbox-campaign-templates-more">{{ t('inbox.campaigns.form.templatesMore') }}</p>
-          </template>
-        </USelectMenu>
+        <InboxTemplatePicker v-model="draft.templateId" v-model:template="selected" :channel-id="draft.channelId" :accept="isCampaignTemplate" :disabled="locked" :invalid="!!(templateError ?? fieldError('template_id'))" data-testid="inbox-campaign-template">
+          <template #empty><p class="text-sm text-muted" data-testid="inbox-campaign-no-templates">{{ t('inbox.campaigns.form.noTemplates') }}</p></template>
+        </InboxTemplatePicker>
       </UFormField>
-      <p v-if="draft.channelId && !templatesQuery.isFetching.value && !templateItems.length && !debouncedTemplateSearch.trim()" class="text-sm text-muted" data-testid="inbox-campaign-no-templates">{{ t('inbox.campaigns.form.noTemplates') }}</p>
       <UFormField :label="t('inbox.campaigns.form.audience')" required :error="audienceError ?? fieldError('audience_id')">
         <USelect :model-value="draft.audienceId ?? undefined" @update:model-value="draft.audienceId = $event as number" :items="audienceItems" class="w-full" :disabled="locked" :placeholder="t('inbox.campaigns.form.audiencePlaceholder')" data-testid="inbox-campaign-audience" />
       </UFormField>

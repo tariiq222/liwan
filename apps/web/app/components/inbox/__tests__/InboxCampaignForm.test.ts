@@ -24,13 +24,12 @@ function mountForm(props: { campaign?: InboxCampaign } = {}, dailyCap = 100) {
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const save = vi.fn(async (_input: { id?: number; body: unknown }) => ({ ...STORED, id: 9 }))
   const previewCalls: unknown[] = []
-  const templateFilters: Array<Vue.ComputedRef<Record<string, unknown>>> = []
   const emitted: Array<[string, unknown]> = []
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }),
     refDebounced: <T>(source: Vue.Ref<T>) => source,
-    ...params, InboxTemplatePreview: {}, InboxCampaignContactPicker: {}, InboxCampaignParamsMapper: {}, HEADER_MEDIA_ACCEPT: {}, inboxUploadProblem: () => null,
+    ...params, InboxTemplatePicker: {}, InboxTemplatePreview: {}, InboxCampaignContactPicker: {}, InboxCampaignParamsMapper: {}, HEADER_MEDIA_ACCEPT: {}, inboxUploadProblem: () => null,
     useSaveInboxCampaign: () => ({ mutateAsync: save, isPending: Vue.ref(false) }),
     useUploadInboxCampaignHeader: () => ({ mutateAsync: vi.fn() }),
     useInboxCampaignChannels: () => ({ data: Vue.ref({ items: [{ id: 1, name: 'ق' }], total: 1 }) }),
@@ -38,13 +37,13 @@ function mountForm(props: { campaign?: InboxCampaign } = {}, dailyCap = 100) {
     useInboxCampaignSettings: () => ({ data: Vue.ref({ default_daily_cap: dailyCap }) }),
     useInboxChannelSending: () => ({ data: Vue.ref(null) }),
     useInboxCampaignPreview: (request: Vue.Ref<unknown>) => { Vue.watchEffect(() => previewCalls.push(request.value)); return { data: Vue.ref(null), isFetching: Vue.ref(false) } },
-    useInboxChannelTemplates: (_channel: unknown, filters: Vue.ComputedRef<Record<string, unknown>>) => (templateFilters.push(filters), { data: Vue.ref({ items: TEMPLATES, total: TEMPLATES.length }), isFetching: Vue.ref(false) }),
-    useInboxTemplate: () => ({ data: Vue.ref(null) }),
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
   const state = Vue.proxyRefs(Vue.effectScope().run(() => component.setup(Vue.reactive({ backTo: '/back', ...props }), { expose: () => {}, emit: (name: string, value: unknown) => { emitted.push([name, value]) } })))
-  return { state, save, previewCalls, emitted, templateFilters }
+  // The picker hands the chosen template to the form; with no render here the test does the same.
+  const choose = (id: number) => { state.draft.templateId = id; state.selected = TEMPLATES.find(item => item.id === id) ?? null }
+  return { state, save, previewCalls, emitted, choose }
 }
 
 describe('InboxCampaignForm', () => {
@@ -53,38 +52,25 @@ describe('InboxCampaignForm', () => {
   })
 
   it('shows one mapper row per placeholder of the chosen template, and follows a change of template', async () => {
-    const { state } = mountForm()
+    const { state, choose } = mountForm()
     state.draft.channelId = 1
-    state.draft.templateId = 1
+    choose(1)
     await Vue.nextTick()
     expect(state.draft.rows.map((row: { location: string; position: number }) => `${row.location}:${row.position}`)).toEqual(['body:1', 'body:2'])
     state.draft.rows[0].value = 'نص'
-    state.draft.templateId = 2
+    choose(2)
     await Vue.nextTick()
     expect(state.draft.rows).toEqual([])
     expect(state.mediaKind).toBeNull()
-    state.draft.templateId = 4
+    choose(4)
     await Vue.nextTick()
     expect(state.mediaKind).toBe('image')
   })
 
-  it('never offers an authentication template', () => {
-    const { state } = mountForm()
-    state.draft.channelId = 1
-    expect(state.templateItems.map((item: { value: number }) => item.value)).toEqual([1, 2, 4])
-  })
-
-  it('searches approved templates on the server, one page at a time', () => {
-    const { state, templateFilters } = mountForm()
-    expect(templateFilters[0]!.value).toEqual({ status: 'approved', q: '', limit: 50 })
-    state.templateSearch = ' عرض '
-    expect(templateFilters[0]!.value).toEqual({ status: 'approved', q: 'عرض', limit: 50 })
-  })
-
   it('asks the server to render the preview with only the placeholders that have a value, for the chosen sample contact', async () => {
-    const { state, previewCalls } = mountForm()
+    const { state, previewCalls, choose } = mountForm()
     state.draft.channelId = 1
-    state.draft.templateId = 1
+    choose(1)
     await Vue.nextTick()
     state.draft.rows[0].source = 'contact_name'
     state.draft.rows[1].value = ''
@@ -103,8 +89,9 @@ describe('InboxCampaignForm', () => {
   })
 
   it('creates the campaign with the mapped params and emits it', async () => {
-    const { state, save, emitted } = mountForm()
-    Object.assign(state.draft, { name: 'عرض', channelId: 1, templateId: 1, audienceId: 2 })
+    const { state, save, emitted, choose } = mountForm()
+    Object.assign(state.draft, { name: 'عرض', channelId: 1, audienceId: 2 })
+    choose(1)
     await Vue.nextTick()
     state.draft.rows[0].source = 'contact_first_name'
     state.draft.rows[1].value = 'الخميس'
@@ -120,8 +107,9 @@ describe('InboxCampaignForm', () => {
   })
 
   it('refuses a media template until its header file is uploaded', async () => {
-    const { state, save } = mountForm()
-    Object.assign(state.draft, { name: 'صورة', channelId: 1, templateId: 4, audienceId: 2 })
+    const { state, save, choose } = mountForm()
+    Object.assign(state.draft, { name: 'صورة', channelId: 1, audienceId: 2 })
+    choose(4)
     await Vue.nextTick()
     await state.submit()
     expect(save).not.toHaveBeenCalled()
@@ -129,7 +117,8 @@ describe('InboxCampaignForm', () => {
   })
 
   it('keeps a stored campaign\'s mapping and is not dirty until something changes', async () => {
-    const { state } = mountForm({ campaign: STORED })
+    const { state, choose } = mountForm({ campaign: STORED })
+    choose(1) // the picker reads the stored template by id and hands it to the form
     await Vue.nextTick()
     expect(state.draft.rows.map((row: { source: string; value: string }) => [row.source, row.value])).toEqual([['contact_first_name', ''], ['static', 'الخميس']])
     expect(state.dirty).toBe(false)
