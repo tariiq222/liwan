@@ -25,6 +25,18 @@ Product (`product.template`):
 
 Each new application built this way adds one more partner creator, one more product column and one more bridge per application it touches.
 
+Today, every application writes the two stock tables directly:
+
+```mermaid
+flowchart TD
+  A["Appointments"] --> P[("res.partner")]
+  A --> T[("product.template")]
+  W["Customer messages"] --> P
+  W --> T
+  C["CRM"] --> T
+  F["Finance"] --> P
+```
+
 ## 2. Decisions
 
 ### 2.1 Approved by the owner on 2026-11-11
@@ -57,6 +69,27 @@ Settled in the first design review:
 
 This design implements the 2026-11-06 decision on one customer record.
 
+The target: applications ask two shared services, and each service is the only writer of its table.
+
+```mermaid
+flowchart TD
+  subgraph apps["Applications"]
+    A["Appointments"]
+    W["Customer messages"]
+    C["CRM"]
+    F["Finance"]
+    N["Store and medical, later"]
+  end
+  subgraph shared["Shared services, rank 3"]
+    CU["liwan_customers"]
+    CA["liwan_catalog"]
+  end
+  apps --> CU
+  apps --> CA
+  CU --> P[("res.partner")]
+  CA --> T[("product.template")]
+```
+
 ## 3. `liwan_customers`
 
 ### 3.1 Place in the layers
@@ -88,6 +121,20 @@ LiwanOS adds its own company fence on top of the stock rule: a record is readabl
 | `establishment` | Unset | Every branch |
 | `branch` | The branch that created it | That branch only |
 
+```mermaid
+flowchart TD
+  subgraph est["Sharing: establishment"]
+    R1["Customer, no company"]
+    A1["Branch A"] -->|finds| R1
+    B1["Branch B"] -->|finds| R1
+  end
+  subgraph br["Sharing: branch"]
+    R2["Customer, company is branch A"]
+    A2["Branch A"] -->|finds| R2
+    B2["Branch B cannot find it"]
+  end
+```
+
 Each tenant is one database with one root company, so a record with no company is shared inside that tenant and nowhere else.
 
 Sharing a customer shares more than its name. Stock Odoo copies a partner's company to its child contacts (`odoo/odoo/addons/base/models/res_partner.py:911`), and a partner's bank account takes its company from the partner (`odoo/odoo/addons/base/models/res_bank.py:101`). A shared customer therefore has shared contacts, addresses and bank accounts, and the bank account route asks only for `finance.partners.read` in the caller's company (`liwan_finance/controllers/finance_partner_banks.py:71`). The design accepts this and makes it visible: the setting and the transfer preview say that contacts and bank accounts are shared with staff who hold the matching capability in any branch, and the preview counts them. A tenant that cannot accept it chooses `branch`. Bookings, invoices, payments, conversations and leads stay under each application's and branch's own rules in both modes.
@@ -110,6 +157,16 @@ The service returns the partners in scope whose `phone_sanitized` equals the nor
 | Two or more | Staff choose one or create a new customer | Leave unlinked for staff | Same as one match |
 
 A staff request that has candidates answers `409 conflict` with the candidate list and is repeated naming an existing customer or stating that a new one is wanted. The service never merges on its own.
+
+```mermaid
+flowchart TD
+  S["Staff enter a phone number"] --> M{"Matches in scope"}
+  M -->|none| C1["Create"]
+  M -->|one| C2["Suggest it; staff confirm or create new"]
+  M -->|two or more| C3["Staff choose one or create new"]
+  PF["Public form"] --> D["Always a new customer, flagged as a probable duplicate"]
+  WA["Inbound WhatsApp"] --> U["Unlinked until staff confirm, unless automatic linking is on and there is one match"]
+```
 
 A public path always ends with a customer of its own. The booking engine requires a requester (`oca-19.0/calendar/resource_booking/models/resource_booking.py:105`) and so does a payment, and the guest booking page shows the requester's name, phone and email (`liwan_appointments/serializers/appointment_guest.py:88`), so linking a visitor to an existing record by a typed phone number would show them another person's data. Staff see the flagged duplicates in one list and merge the ones that are the same person.
 
@@ -234,6 +291,17 @@ Publishing a catalog to Meta should not depend on online payments being enabled.
 `sale.order` is stock. `liwan_payments` adds the payment deadline, the retained amount and the refund-due amount (`liwan_payments/models/sale_order.py:19`), and its `_liwan_new_order` is the only order factory, elevated and for online payment only (`order_service.py:48`).
 
 Nothing changes in the schema now. When the store starts, a rank-3 `liwan_orders` on `sale` takes the order factory and the tax pricing, and `liwan_payments` keeps the pay state, expiry and refunds. It receives a partner and a product from its caller and depends on neither `liwan_customers` nor `liwan_catalog`. The store design then decides how confirmation, delivery and collection sit on the same model.
+
+A paid appointment after steps 1 and 2. The application fetches the two records and passes them on; the shared services do not call each other.
+
+```mermaid
+flowchart TD
+  A["Appointments: staff book a paid appointment"] --> CU["liwan_customers returns the partner"]
+  A --> CA["liwan_catalog returns the service and its price"]
+  CU --> PAY["liwan_payments creates the order and prices the tax"]
+  CA --> PAY
+  PAY --> FIN["Finance: the invoice after payment"]
+```
 
 ## 6. How new kinds of product fit
 
