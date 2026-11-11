@@ -1,6 +1,6 @@
 # Working company switch design
 
-Status: the owner asked for this design on 2026-11-12. It is a proposal: the decisions in section 2 need the owner's confirmation, and nothing is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run.
+Status: the owner asked for this design and approved the decisions in section 2 on 2026-11-12. Nothing is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run.
 
 The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch-access-policy-design.md)) owns who may act in which company. This file adds one thing on top of it: how a person who belongs to several companies of a tenant chooses the one they are working in. It changes no capability and no policy mode. [2026-11-11-customers-and-catalog-foundation-design.md](2026-11-11-customers-and-catalog-foundation-design.md) depends on it, because "the branch that created the customer" is the working company of the user.
 
@@ -12,7 +12,7 @@ The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch
 - A new record lands in the current company unless its route takes a company. A root manager who books for a branch through such a route creates the booking in the root.
 - The product has no company switch. The user menu says so (`apps/web/app/components/shell/AppUserMenu.vue:13`), and `GET /api/v1/me` returns one company (`liwan_api/serializers/user.py:49`).
 
-## 2. Decisions proposed
+## 2. Decisions
 
 1. A user has two companies with different jobs. The home company is `res.users.company_id`: where the person is employed, where their seat is counted (`liwan_platform/models/entitlement_service_seats.py:139`) and where a session starts. The working company is the one the current session acts in.
 2. The working company lives in the server session. Switching writes nothing on the user record, so seats, the employee link and notification routing do not move when a person covers another branch for an afternoon.
@@ -21,7 +21,7 @@ The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch
 5. A session starts in the home company.
 6. Personal pages follow the person. Routes that serve a user's own employment data, such as their leave and payslips, read in the home company whatever the working company is.
 
-Decisions 5 and 6 change what users see and are the two the owner should weigh; section 6 gives the alternatives.
+Decisions 5 and 6 change what users see; section 6 records the alternatives the owner weighed.
 
 ## 3. Server
 
@@ -71,7 +71,7 @@ A switch is not recorded in the access audit. It changes no grant, it can happen
 
 ## 6. Owner decisions
 
-| Decision | Options | Recommended |
+| Decision | Options | Outcome |
 | --- | --- | --- |
 | Where a session starts | The home company. Or the company the person last worked in, stored per user | The home company. It is predictable and matches where the person is employed and counted |
 | Personal pages after a switch | Follow the person: own leave, payslips and profile read in the home company. Or follow the working company, so they show nothing while the person is switched | Follow the person. An employee covering another branch should still find their own leave balance |

@@ -1,6 +1,6 @@
 # Customers and catalog foundation design
 
-Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2 and still need the owner's confirmation. Nothing here is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
+Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2, and the owner approved them on 2026-11-12. Nothing here is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
 
 This file records the design. It does not change the rules in [AGENTS.md](../../../AGENTS.md). [repository-layout.md](../../agents/repository-layout.md) and `tools/arch_layers.json` change in the pull requests that build it.
 
@@ -53,7 +53,7 @@ Settled in the first design review:
 7. The catalog does not own taxes. The effective tax stays on the order line, computed as today.
 8. The order schema does not change now. A rank-3 `liwan_orders` service is created when the store starts. Until then no store logic is added to `liwan_payments`.
 
-### 2.2 Changes of 2026-11-12, awaiting the owner's confirmation
+### 2.2 Changes approved by the owner on 2026-11-12
 
 9. Free settings and no sector presets. Every behaviour that differs between companies is its own typed setting with a stated default, and a tenant shapes the two services by changing settings one at a time. No preset layer is built for these two services now.
 10. Customer sharing, catalog sharing and pricing are three independent settings. A franchise can share product definitions, keep each branch's customers apart and later price per branch. The earlier proposal to derive the catalog scope from the customer scope is withdrawn, and so is the special default for the `group_of_companies` preset: both settings default to establishment for every tenant.
@@ -379,7 +379,6 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 
 | Point | Proposal | Needs |
 | --- | --- | --- |
-| The changes in section 2.2 | As written | Owner confirmation |
 | Capacity | Not measured. The pass mark is in the [hosting contract](liwan-shared-saas-and-sovereign-deployment.md) | The load test planned there |
 | Currency and pricelists in the order service | Not reviewed | A read before pricelists or `liwan_orders` are designed |
 | Where the tax mode lives for a tenant with finance and no online payments | Not decided. It is a `liwan_payments` setting today | The catalog plan |
