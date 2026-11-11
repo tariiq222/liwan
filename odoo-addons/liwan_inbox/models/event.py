@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import hashlib
 import json
+import logging
 
 from dateutil.relativedelta import relativedelta
 from psycopg2.errors import UniqueViolation
@@ -8,7 +9,7 @@ from psycopg2.errors import UniqueViolation
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-from .batch import process_each
+from .batch import attempt, process_each
 from .constants import (
     EVENT_BATCH,
     MAX_ATTEMPTS,
@@ -17,6 +18,7 @@ from .constants import (
 )
 from odoo.addons.liwan_inbox.adapters import tiktok, whatsapp
 
+_logger = logging.getLogger(__name__)
 ERROR_TEXT_LENGTH = 200
 
 
@@ -89,22 +91,60 @@ class LiwanInboxEvent(models.Model):
 
     @api.model
     def _liwan_record_failure(self, event, error):
-        text = str(error) if isinstance(error, UserError) else type(error).__name__
-        event.write({'state': 'failed', 'attempts': event.attempts + 1, 'error': text[:ERROR_TEXT_LENGTH]})
+        event._liwan_fail(self._liwan_error_text(error))
+
+    @api.model
+    def _liwan_error_text(self, error):
+        return str(error) if isinstance(error, UserError) else type(error).__name__
+
+    def _liwan_fail(self, text):
+        """Count one failed attempt; the attempt that exhausts the retries tells the channel managers, once."""
+        self.ensure_one()
+        attempts = self.attempts + 1
+        self.write({'state': 'failed', 'attempts': attempts, 'error': text[:ERROR_TEXT_LENGTH]})
+        if attempts == MAX_ATTEMPTS:
+            self.channel_id._liwan_notify_event_failed()
+
+    def _liwan_reprocess(self):
+        """Give the failed events among ``self`` a fresh set of attempts; the processing cron picks them up.
+
+        A message already stored is skipped by its provider id, so a retry never duplicates one.
+        """
+        failed = self.filtered(lambda event: event.state == 'failed')
+        failed.write({'state': 'pending', 'attempts': 0, 'error': False})
+        return failed
 
     def _liwan_process(self):
+        """Apply every item of the delivery in its own savepoint, so one bad item loses none of the others.
+
+        An event with a failed item ends `failed` and names the items; the retry skips what is already stored.
+        """
         self.ensure_one()
         channel = self.channel_id
         payload = json.loads(self.payload)
+        inbound = self.env['liwan.inbox.inbound']
         if channel.kind == 'tiktok':
-            items = tiktok.parse_event(payload, channel.tiktok_business_id)
-            changed = self.env['liwan.inbox.inbound']._liwan_ingest_tiktok(channel, items)
+            # An echo is applied after the customer messages of its delivery: it names no customer of its own.
+            items = sorted(
+                tiktok.parse_event(payload, channel.tiktok_business_id), key=lambda item: getattr(item, 'echo', False),
+            )
+            ingest = inbound._liwan_ingest_tiktok
         else:
             items = whatsapp.parse_events(payload, channel.phone_number_id, channel.business_account_id, channel.display_phone_number)
-            changed = self.env['liwan.inbox.inbound']._liwan_ingest(channel, items)
+            ingest = inbound._liwan_ingest
+        applied = []
+        failures = []
+        for number, item in enumerate(items, 1):
+            error = attempt(self.env, lambda item=item: applied.append(ingest(channel, [item])))
+            if error:
+                _logger.warning('%s %s item %d failed: %s', self._name, self.id, number, type(error).__name__)
+                failures.append(f'item {number}: {self._liwan_error_text(error)}')
         channel.last_event_at = self.create_date
-        self.write({'state': 'done', 'processed_at': fields.Datetime.now(), 'error': False})
-        changed._liwan_notify_bus()
+        if failures:
+            self._liwan_fail('; '.join(failures))
+        else:
+            self.write({'state': 'done', 'processed_at': fields.Datetime.now(), 'error': False})
+        self.env['liwan.inbox.conversation'].union(*applied)._liwan_notify_bus()
 
     @api.model
     def _liwan_purge_processed(self, now):
