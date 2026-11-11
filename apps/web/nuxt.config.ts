@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { discoverLocaleFiles } from '@liwan/ui/i18n/localeFiles'
+import { discoverLocaleFiles } from '@liwan/ui/i18n/localeFiles.ts'
 
 const localeFiles = discoverLocaleFiles(fileURLToPath(new URL('./i18n/locales', import.meta.url)))
 
