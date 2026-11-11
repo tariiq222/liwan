@@ -21,3 +21,15 @@ export async function runSharedLoop(deps: SharedLoopDependencies): Promise<void>
     if (waiting.includes(result.state)) await deps.wait(1000)
   }
 }
+
+export type MaintenanceStep = { name: string; run: () => Promise<unknown> }
+/** Runs the maintenance steps of one worker pass in order. A step that throws is logged (stack included) and the
+ * remaining steps still run, so one broken step cannot stop payments, renewals or dunning for every customer.
+ * A step that keeps failing is logged again on every pass. Nothing is skipped silently: only shutdown ends the pass early. */
+export async function runMaintenanceSteps(steps: MaintenanceStep[], deps: { isStopping: () => boolean; log: (message: string, error?: unknown) => void }): Promise<void> {
+  for (const step of steps) {
+    if (deps.isStopping()) return
+    try { await step.run() }
+    catch (error) { deps.log(`maintenance step ${step.name} failed`, error) }
+  }
+}

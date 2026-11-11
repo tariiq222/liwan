@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { runSharedLoop } from './job-loop.js'
+import { runMaintenanceSteps, runSharedLoop } from './job-loop.js'
 
 it('waits on idle and contention, then stops without another dispatch', async () => {
   let ticks=0
@@ -41,4 +41,31 @@ it('keeps the worker available after a restore waits for commercial reconciliati
   await runSharedLoop({dispatch,wait,isStopping:()=>ticks===2,isTransient:()=>false})
   expect(dispatch).toHaveBeenCalledTimes(2)
   expect(wait.mock.calls).toEqual([[1000]])
+})
+
+it('a maintenance step that throws is logged with its error and the later steps still run',async()=>{
+  const order:string[]=[]
+  const boom=Error('candidate exploded')
+  const log=vi.fn()
+  await runMaintenanceSteps([
+    {name:'onboarding-reconcile',run:async()=>{order.push('reconcile');throw boom}},
+    {name:'commercial-scheduler',run:async()=>{order.push('tick')}},
+    {name:'restore-publication',run:async()=>{order.push('restore')}},
+  ],{isStopping:()=>false,log})
+  expect(order).toEqual(['reconcile','tick','restore'])
+  expect(log).toHaveBeenCalledTimes(1)
+  expect(log).toHaveBeenCalledWith('maintenance step onboarding-reconcile failed',boom)
+})
+it('a step that keeps failing is logged on every pass',async()=>{
+  const log=vi.fn()
+  const steps=[{name:'broken',run:async()=>{throw Error('still broken')}}]
+  await runMaintenanceSteps(steps,{isStopping:()=>false,log})
+  await runMaintenanceSteps(steps,{isStopping:()=>false,log})
+  expect(log).toHaveBeenCalledTimes(2)
+})
+it('stops starting steps once shutdown is requested',async()=>{
+  let stopping=false
+  const second=vi.fn()
+  await runMaintenanceSteps([{name:'first',run:async()=>{stopping=true}},{name:'second',run:second}],{isStopping:()=>stopping,log:vi.fn()})
+  expect(second).not.toHaveBeenCalled()
 })

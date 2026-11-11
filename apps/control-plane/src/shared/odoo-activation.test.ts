@@ -1,4 +1,4 @@
-import {expect,it} from 'vitest'
+import {expect,it,vi} from 'vitest'
 import type {Pool} from 'pg'
 import {reconcileOdooOnboardings} from './odoo-adapter.js'
 import {bindJob,businessKey,payloadDigest} from './provisioning.js'
@@ -29,12 +29,14 @@ function fixture(enabled:boolean){
 }
 it('refuses activation when tenant operations were disabled after physical verification',async()=>{
   const f=fixture(false)
-  await expect(reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter)).rejects.toThrow('tenant_operations_unavailable')
+  const log=vi.fn()
+  await reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter,log)
+  expect(log).toHaveBeenCalledWith(`onboarding reconcile failed for ${id}`,expect.objectContaining({message:'tenant_operations_unavailable'}))
   expect(f.writes).toEqual([])
 })
 it('persists the flat feature map used by tenant HTTP/UI policy fields',async()=>{
   const f=fixture(true)
-  await reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter)
+  await reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter,vi.fn())
   const write=f.writes.find(entry=>entry.sql.startsWith("UPDATE tenants SET status='active'"))!
   expect(write.params[1]).toEqual(job.operation==='provision'?job.policy.features:null)
   expect(write.params[1]).not.toHaveProperty('modules')
@@ -71,10 +73,10 @@ it('quarantines a full failed batch so the healthy eleventh tenant activates nex
     return {state:'present',binding:candidate.binding,businessKey:businessKey(candidate),payloadDigest:payloadDigest(candidate),verified:true}
   },applyFenced:async()=>{throw Error('read-only activation')}}
   const config={tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any
-  await reconcileOdooOnboardings(pool,config,adapter)
+  await reconcileOdooOnboardings(pool,config,adapter,vi.fn())
   expect(rows.slice(0,10).every(row=>row.stage==='needs_intervention')).toBe(true)
   expect(rows[10]!.stage).toBe('verifying')
-  await reconcileOdooOnboardings(pool,config,adapter)
+  await reconcileOdooOnboardings(pool,config,adapter,vi.fn())
   expect(rows[10]!.stage).toBe('active')
   expect(observed).toHaveLength(11)
 })
@@ -90,7 +92,7 @@ function recheckFixture(recheckFailures:number,observation:unknown){
     if(sql.startsWith('UPDATE'))writes.push({sql,params})
     return {rows:[row]}
   }} as unknown as Pool
-  const run=()=>reconcileOdooOnboardings(pool,{} as any,{observe:async()=>observation,applyFenced:async()=>{throw Error('read-only activation')}} as any)
+  const run=()=>reconcileOdooOnboardings(pool,{} as any,{observe:async()=>observation,applyFenced:async()=>{throw Error('read-only activation')}} as any,vi.fn())
   return {writes,run}
 }
 
@@ -128,18 +130,53 @@ it.each([{state:'absent'},{state:'partial'}])('a definitive mismatch %j quaranti
 it('does not mark tenant active after another reconciler quarantines the onboarding',async()=>{
   const f=fixture(true)
   f.flags.quarantined=true
-  await reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter)
+  await reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter,vi.fn())
   expect(f.writes.some(entry=>entry.sql.startsWith("UPDATE tenants SET status='active'"))).toBe(false)
 })
 it('does not mark tenant active when final stage CAS updates no row',async()=>{
   const f=fixture(true)
   f.flags.lostCas=true
-  await expect(reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter)).rejects.toThrow('shared_activation_state_changed')
+  const log=vi.fn()
+  await reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter,log)
+  expect(log).toHaveBeenCalledWith(`onboarding reconcile failed for ${id}`,expect.objectContaining({message:'shared_activation_state_changed'}))
   expect(f.writes.some(entry=>entry.sql.startsWith("UPDATE tenants SET status='active'"))).toBe(false)
 })
 it('requires the durable verified receipt and enabled exact published binding again under final locks',async()=>{
   const f=fixture(true)
   f.flags.badEvidence=true
-  await expect(reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter)).rejects.toThrow('shared_verification_lost')
+  const log=vi.fn()
+  await reconcileOdooOnboardings(f.pool,{tenantRegistryPath:'/nonexistent/shared-test-registry.json'} as any,f.adapter,log)
+  expect(log).toHaveBeenCalledWith(`onboarding reconcile failed for ${id}`,expect.objectContaining({message:'shared_verification_lost'}))
   expect(f.writes.some(entry=>entry.sql.startsWith("UPDATE tenants SET status='active'"))).toBe(false)
+})
+
+it('logs one candidate\'s unexpected error, holds it back and still reconciles the next candidate',async()=>{
+  const second='ba91699b-c25b-4a01-8c84-000000000002'
+  const secondJob=bindJob({...job,requestId:second,binding:{...job.binding,tenantId:'tb',database:'liwan_scratch_'+'b'.repeat(32),filestore:'liwan_scratch_'+'b'.repeat(32)}})
+  const rows=[
+    {payload:job,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(job),request_id:id,control_tenant_id:id,job_id:id,recheck_failures:0},
+    {payload:secondJob,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(secondJob),request_id:second,control_tenant_id:second,job_id:second,recheck_failures:0},
+  ]
+  const held:unknown[][]=[]
+  const quarantined:unknown[][]=[]
+  const client={release(){},async query(sql:string,params:unknown[]=[]){
+    if(sql.startsWith('UPDATE shared_onboardings'))quarantined.push(params)
+    return {rowCount:1,rows:[{}]}
+  }}
+  const pool={connect:async()=>client,async query(sql:string,params:unknown[]=[]){
+    if(sql.startsWith('UPDATE shared_onboardings SET recheck_after')){held.push(params);return {rowCount:1,rows:[]}}
+    return {rows}
+  }} as unknown as Pool
+  const observed:string[]=[]
+  const adapter={observe:async(candidate:typeof job)=>{
+    observed.push(candidate.requestId)
+    if(candidate.requestId===id)throw Error('observe_exploded')
+    return {state:'absent'}
+  },applyFenced:async()=>{throw Error('read-only activation')}} as any
+  const log=vi.fn()
+  await reconcileOdooOnboardings(pool,{} as any,adapter,log)
+  expect(observed).toEqual([id,second])
+  expect(log).toHaveBeenCalledWith(`onboarding reconcile failed for ${id}`,expect.objectContaining({message:'observe_exploded'}))
+  expect(held).toEqual([[id,60]])
+  expect(quarantined).toContainEqual([second,'readiness_recheck_failed'])
 })

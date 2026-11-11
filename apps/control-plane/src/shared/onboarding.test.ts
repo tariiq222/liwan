@@ -50,7 +50,7 @@ it.each([{state:'absent'},{state:'partial'},{state:'present',binding:job.binding
   const writes:string[]=[]
   const client={release(){},async query(sql:string){if(sql.startsWith('UPDATE'))writes.push(sql);return {rows:[]}}}
   const pool={connect:async()=>client,async query(){calls++;return {rows:[{payload:job,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(job),recheck_failures:0}]}}} as unknown as Pool
-  await reconcileOdooOnboardings(pool,{} as any,{observe:async()=>observation,applyFenced:async()=>{throw Error('must never mutate in reconcile')}})
+  await reconcileOdooOnboardings(pool,{} as any,{observe:async()=>observation,applyFenced:async()=>{throw Error('must never mutate in reconcile')}},vi.fn())
   expect(calls).toBe(1)
   expect(writes[0]).toContain("stage='needs_intervention',error_code=$2")
   expect(writes[1]).toContain("status='needs_intervention'")
