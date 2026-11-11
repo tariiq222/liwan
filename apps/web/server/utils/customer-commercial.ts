@@ -302,7 +302,7 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   } catch { fail(503, 'unavailable', 'Signup is unavailable') }
   if (!response.ok) {
     const code = response._data?.code
-    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired'].includes(code)) {
+    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required'].includes(code)) {
       fail(response.status, code, 'Signup request rejected')
     }
     fail(503, 'unavailable', 'Signup is unavailable')

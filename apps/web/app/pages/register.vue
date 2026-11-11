@@ -21,6 +21,8 @@ const signupId = ref<string>()
 const emailSent = ref(false)
 const pending = ref<Action>()
 const errorKey = ref<string>()
+// The refusal the server states about the email field itself; its free-mail list stays on the server.
+const emailErrorKey = ref<string>()
 const resend = useResendWait()
 const resendSeconds = resend.seconds
 const waitingToResend = resend.waiting
@@ -35,6 +37,7 @@ const errors: Record<string, string> = {
 }
 
 watch(step, () => heading.value?.focus(), { flush: 'post' })
+watch(() => details.email, () => { emailErrorKey.value = undefined })
 
 function validateDetails(value: Partial<typeof details>): FormError[] {
   const problems: FormError[] = []
@@ -58,6 +61,7 @@ function editDetails() {
   emailSent.value = false
   verification.code = ''
   errorKey.value = undefined
+  emailErrorKey.value = undefined
   resend.stop()
   step.value = 'details'
 }
@@ -70,6 +74,7 @@ async function run(action: Action, execute: () => Promise<void>) {
   if (!hydrated.value || pending.value) return
   pending.value = action
   errorKey.value = undefined
+  emailErrorKey.value = undefined
   try {
     await execute()
   } catch (error) {
@@ -77,6 +82,10 @@ async function run(action: Action, execute: () => Promise<void>) {
     if (code === 'signup_expired') editDetails()
     if (code === 'rate_limited' && (action === 'start' || action === 'send-email') && step.value !== 'details') {
       resend.start(errorSeconds(error) || resendCooldownSeconds)
+    }
+    if (code === 'business_email_required') {
+      emailErrorKey.value = 'signup.errors.businessEmailRequired'
+      return
     }
     errorKey.value = (code && Object.hasOwn(errors, code) ? errors[code] : undefined) ?? errors.unavailable
   } finally {
@@ -164,7 +173,7 @@ async function verifyCode() {
         <UFormField name="admin_name" :label="t('signup.adminName')" required>
           <UInput v-model="details.admin_name" autocomplete="name" class="w-full" :disabled="!!pending" />
         </UFormField>
-        <UFormField name="email" :label="t('signup.email')" required>
+        <UFormField name="email" :label="t('signup.email')" :error="emailErrorKey ? t(emailErrorKey) : undefined" required>
           <UInput v-model="details.email" type="email" autocomplete="email" dir="ltr" class="w-full text-start" :disabled="!!pending" />
         </UFormField>
         <UFormField name="mobile" :label="t('signup.mobile')" required>
