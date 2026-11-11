@@ -11,5 +11,6 @@ npx nuxt prepare
 npm run lint
 npm run test
 npm run build
-npx playwright install chromium
+# The job's setup skips npm ci, and with it the setup action's browser install, so the system libraries come here.
+npx playwright install --with-deps chromium
 npx playwright test --project=prod
