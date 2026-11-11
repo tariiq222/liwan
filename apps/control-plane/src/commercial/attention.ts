@@ -102,6 +102,13 @@ const subjectsSql = `WITH latest AS (
     ORDER BY i.tenant_id, i.admin_login, i.created_at DESC, i.id
   ) latest_invitation
   WHERE delivery_status='failed' AND consumed_at IS NULL AND revoked_at IS NULL
+  UNION ALL
+  -- The first invitation could not even be issued (its outbox row failed for good), so no invitation row exists for the
+  -- tenant. Any invitation issued afterwards (a vendor re-issue) clears the item.
+  SELECT c.id, c.tenant_id, c.name, ob.processed_at FROM commercial_outbox ob
+  JOIN subscriptions s ON s.id::text=ob.payload->>'subscription_id' JOIN customers c ON c.id=s.customer_id
+  WHERE ob.kind='invitation.issue' AND ob.status='failed' AND c.tenant_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM admin_invitations i WHERE i.tenant_id=c.tenant_id AND i.admin_login=c.admin_login)
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
