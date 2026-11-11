@@ -9,7 +9,7 @@ import type { Pool } from 'pg'
 import type { SharedJob,SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { sharedObservationSchema } from '@liwan/commercial-contracts/shared'
 import type { Config } from '../config.js'
-import { transaction } from '../db.js'
+import { isTransientDatabaseError,transaction } from '../db.js'
 import { businessKey,payloadDigest } from './provisioning.js'
 import { loadSharedRuntimeConfig } from './runtime-config.js'
 import type { SharedFencedAdapter } from './job-worker.js'
@@ -218,28 +218,48 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   }
 }
 
-/** An unreadable recheck is retried this many times (backing off) before the signup is quarantined for a vendor. */
+/** A failed recheck (unreadable or erroring) is retried this many times (backing off) before the signup is quarantined for a vendor. */
 const RECHECK_MAX_UNREADABLE_ATTEMPTS=5
 /** The first retry waits this long; every further consecutive failure doubles it (30s, 60s, 120s, 240s). */
 const RECHECK_BACKOFF_BASE_SECONDS=30
-/** A candidate that failed unexpectedly is held back this long, so a broken one cannot fill every LIMIT batch. */
-const RECONCILE_ERROR_BACKOFF_SECONDS=60
 export type ReconcileLog=(message:string,error?:unknown)=>void
+
+/** An integrity mismatch that waiting cannot heal: the candidate is quarantined at once under its own code. */
+class OnboardingIntegrityError extends Error {
+  constructor(readonly code:'tenant_binding_mismatch'|'shared_verification_lost'|'shared_activation_state_changed'){super(code)}
+}
+type QuarantineCode='readiness_recheck_failed'|'readiness_recheck_unreadable'|'readiness_recheck_errored'|OnboardingIntegrityError['code']
+/** The columns of `shared_onboardings` and its verified job that one reconcile pass reads. */
+type OnboardingCandidate={request_id:string;control_tenant_id:string;job_id:string;job_digest:string;issuer:string;actor_uid:number|string;host:string;recheck_failures:number;payload:SharedJob}
 
 /** Quarantine this candidate once; it cannot occupy every future LIMIT batch.
  * No catch here: an unexpected DB/programming error reaches `reconcileOdooOnboardings`, which logs it with its stack. */
-async function quarantineOnboarding(pool:Pool,row:{request_id:string;control_tenant_id:string},errorCode:'readiness_recheck_failed'|'readiness_recheck_unreadable'){
+async function quarantineOnboarding(pool:Pool,row:Pick<OnboardingCandidate,'request_id'|'control_tenant_id'>,errorCode:QuarantineCode){
   await transaction(pool,async client=>{
     await client.query("UPDATE shared_onboardings SET stage='needs_intervention',error_code=$2 WHERE request_id=$1 AND stage IN ('queued','verifying','activating')",[row.request_id,errorCode])
     await client.query("UPDATE tenants SET status='needs_intervention' WHERE id=$1 AND status<>'active'",[row.control_tenant_id])
   })
 }
 
+/** The one place a candidate is held back: stores `failures` and waits RECHECK_BACKOFF_BASE_SECONDS, doubled per failure. */
+async function holdBack(pool:Pool,row:Pick<OnboardingCandidate,'request_id'>,failures:number){
+  await pool.query("UPDATE shared_onboardings SET recheck_failures=$2,recheck_after=clock_timestamp()+$3*interval '1 second' WHERE request_id=$1 AND stage IN ('queued','verifying','activating')",[row.request_id,failures,RECHECK_BACKOFF_BASE_SECONDS*2**(Math.max(failures,1)-1)])
+}
+
+/** Counts one more failed recheck: the candidate backs off, and the failure that reaches the bound quarantines it under `errorCode`. */
+async function countRecheckFailure(pool:Pool,row:OnboardingCandidate,errorCode:QuarantineCode){
+  const failures=row.recheck_failures+1
+  if(failures>=RECHECK_MAX_UNREADABLE_ATTEMPTS)await quarantineOnboarding(pool,row,errorCode)
+  else await holdBack(pool,row,failures)
+}
+
 /** Route publication is deliberately AFTER durable physical verification. It
  * has its own resumable stage; job binding revision remains the creation one.
  * An observation that is `unknown` could not read Odoo (a transient failure): the candidate waits for a later tick,
  * and only repeated failure quarantines it. An observed mismatch quarantines at once.
- * An unexpected error in one candidate is logged and does not stop the others in the batch. */
+ * An unexpected error in one candidate is logged with its stack and does not stop the others in the batch. It counts as a
+ * failed recheck (backoff, then quarantine as `readiness_recheck_errored`), a known integrity mismatch quarantines at once,
+ * and a transient database error only backs the candidate off without counting. */
 export async function reconcileOdooOnboardings(pool:Pool,config:Config,adapter:SharedFencedAdapter,log:ReconcileLog){
   const candidates=await pool.query(`SELECT o.*,j.payload,j.receipt,j.state FROM shared_onboardings o JOIN shared_jobs j ON j.id=o.job_id
     WHERE j.state='verified' AND o.stage IN ('queued','verifying','activating') AND (o.recheck_after IS NULL OR o.recheck_after<=clock_timestamp())
@@ -249,20 +269,21 @@ export async function reconcileOdooOnboardings(pool:Pool,config:Config,adapter:S
     catch(error){
       // One candidate's unexpected failure (stack included) must not stop the rest of the batch or the worker pass.
       log(`onboarding reconcile failed for ${row.request_id}`,error)
-      await pool.query("UPDATE shared_onboardings SET recheck_after=clock_timestamp()+$2*interval '1 second' WHERE request_id=$1 AND stage IN ('queued','verifying','activating')",[row.request_id,RECONCILE_ERROR_BACKOFF_SECONDS])
-        .catch(backoffError=>log(`onboarding reconcile backoff failed for ${row.request_id}`,backoffError))
+      try{
+        if(error instanceof OnboardingIntegrityError)await quarantineOnboarding(pool,row,error.code)
+        else if(isTransientDatabaseError(error))await holdBack(pool,row,row.recheck_failures)
+        else await countRecheckFailure(pool,row,'readiness_recheck_errored')
+      }catch(recordError){log(`onboarding reconcile could not record the failure for ${row.request_id}`,recordError)}
     }
   }
 }
 
-async function reconcileCandidate(pool:Pool,config:Config,adapter:SharedFencedAdapter,row:any){
+async function reconcileCandidate(pool:Pool,config:Config,adapter:SharedFencedAdapter,row:OnboardingCandidate){
   const job=row.payload as SharedJob
   const actor=provisioningActor(config,row)
   const observed=sharedObservationSchema.parse(await adapter.observe(job))
   if(observed.state==='unknown'){
-    const failures=row.recheck_failures+1
-    if(failures>=RECHECK_MAX_UNREADABLE_ATTEMPTS)await quarantineOnboarding(pool,row,'readiness_recheck_unreadable')
-    else await pool.query("UPDATE shared_onboardings SET recheck_failures=$2,recheck_after=clock_timestamp()+$3*interval '1 second' WHERE request_id=$1 AND stage IN ('queued','verifying','activating')",[row.request_id,failures,RECHECK_BACKOFF_BASE_SECONDS*2**(failures-1)])
+    await countRecheckFailure(pool,row,'readiness_recheck_unreadable')
     return
   }
   if(observed.state!=='present' || !observed.verified || observed.payloadDigest!==row.job_digest || observed.businessKey!==businessKey(job) || (['tenantId','database','filestore','registryRevision'] as const).some(field=>observed.binding[field]!==job.binding[field])) {
@@ -273,23 +294,23 @@ async function reconcileCandidate(pool:Pool,config:Config,adapter:SharedFencedAd
     await requireOnboardingAuthority(client,actor)
     await requireJobAuthority(client,row.control_tenant_id,actor)
     const verified=await client.query("SELECT 1 FROM shared_jobs WHERE id=$1 AND state='verified' AND payload_digest=$2 AND receipt->>'payloadDigest'=$2 FOR SHARE",[row.job_id,row.job_digest])
-    if(!verified.rowCount)throw Error('shared_verification_lost')
+    if(!verified.rowCount)throw new OnboardingIntegrityError('shared_verification_lost')
     await client.query("UPDATE shared_onboardings SET stage='activating',error_code=NULL,recheck_failures=0,recheck_after=NULL WHERE request_id=$1 AND stage IN ('queued','verifying','activating')",[row.request_id])
   })
   if(await lstat(`${config.tenantRegistryPath}.pending`).catch(()=>null))await recoverRegistry(pool,config.tenantRegistryPath!,actor,'Resume verified route publication')
   const binding=await pool.query('SELECT enabled,registry_revision::float8 AS revision FROM shared_registry_bindings WHERE control_tenant_id=$1',[row.control_tenant_id])
   if(!binding.rows[0].enabled){
-    if(binding.rows[0].revision!==job.binding.registryRevision)throw Error('tenant_binding_mismatch')
+    if(binding.rows[0].revision!==job.binding.registryRevision)throw new OnboardingIntegrityError('tenant_binding_mismatch')
     const state=await pool.query('SELECT revision::float8 AS revision FROM shared_registry_state WHERE singleton=true')
     await publishRegistryMutation(pool,config.tenantRegistryPath!,actor,{controlTenantId:row.control_tenant_id,expectedSnapshotRevision:state.rows[0].revision,target:{...job.binding,host:row.host,enabled:true,registryRevision:job.binding.registryRevision+1},reason:'Activate independently verified Odoo tenant'})
-  }else if(binding.rows[0].revision!==job.binding.registryRevision+1)throw Error('tenant_binding_mismatch')
+  }else if(binding.rows[0].revision!==job.binding.registryRevision+1)throw new OnboardingIntegrityError('tenant_binding_mismatch')
   // Lock the current onboarding before deciding: a concurrent reconciler's
   // quarantine must never be overwritten by this candidate's stale readback.
   // External Odoo observation stays outside control-plane transactions.
   await transaction(pool,async client=>{
     const current=await client.query('SELECT stage,job_id,job_digest FROM shared_onboardings WHERE request_id=$1 FOR UPDATE',[row.request_id])
     if(!current.rowCount || current.rows[0].stage!=='activating')return
-    if(current.rows[0].job_id!==row.job_id || current.rows[0].job_digest!==row.job_digest)throw Error('shared_activation_state_changed')
+    if(current.rows[0].job_id!==row.job_id || current.rows[0].job_digest!==row.job_digest)throw new OnboardingIntegrityError('shared_activation_state_changed')
     await requireOnboardingAuthority(client,actor)
     await requireJobAuthority(client,row.control_tenant_id,actor)
     const verified=await client.query(`SELECT j.id FROM shared_jobs j JOIN shared_registry_bindings b ON b.control_tenant_id=j.control_tenant_id
@@ -297,9 +318,9 @@ async function reconcileCandidate(pool:Pool,config:Config,adapter:SharedFencedAd
       AND j.receipt->>'payloadDigest'=$3 AND j.receipt->>'status'='verified'
       AND b.enabled=true AND b.tenant_id=$4 AND b.database_name=$5 AND b.filestore=$6 AND b.registry_revision=$7
       FOR SHARE OF j,b`,[row.job_id,row.control_tenant_id,row.job_digest,job.binding.tenantId,job.binding.database,job.binding.filestore,job.binding.registryRevision+1])
-    if(!verified.rowCount)throw Error('shared_verification_lost')
+    if(!verified.rowCount)throw new OnboardingIntegrityError('shared_verification_lost')
     const activated=await client.query("UPDATE shared_onboardings SET stage='active',error_code=NULL WHERE request_id=$1 AND stage='activating' AND job_id=$2 AND job_digest=$3 RETURNING request_id",[row.request_id,row.job_id,row.job_digest])
-    if(activated.rowCount!==1)throw Error('shared_activation_state_changed')
+    if(activated.rowCount!==1)throw new OnboardingIntegrityError('shared_activation_state_changed')
     // A provisioned database starts active: the worker asserts the subscription's status again.
     await client.query('UPDATE subscriptions SET tenant_status_pushed=NULL,tenant_status_failures=0,tenant_status_next_at=NULL WHERE tenant_id=$1',[row.control_tenant_id])
     await client.query("UPDATE tenants SET status='active',policy_revision=1,desired_policy=$2,observed_policy=$2,health_checked_at=clock_timestamp() WHERE id=$1",[row.control_tenant_id,job.operation==='provision'?job.policy.features:null])
