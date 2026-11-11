@@ -12,9 +12,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
 import requests
-import urllib3
 
-from odoo.addons.liwan_inbox.adapters import errors
+from odoo.addons.liwan_inbox.adapters import errors, media_download
 
 GRAPH_API_VERSION = 'v26.0'
 GRAPH_BASE = 'https://graph.facebook.com'
@@ -22,6 +21,9 @@ TIMEOUT_SECONDS = 10
 UPLOAD_TIMEOUT_SECONDS = 60
 TYPING_TIMEOUT_SECONDS = 3
 MAX_MEDIA_BYTES = 16 * 1024 * 1024
+MEDIA_DEADLINE_SECONDS = 60
+# The only host Meta serves a media file from; the download carries the access token, so nothing else may get it.
+MEDIA_HOSTS = frozenset({'lookaside.fbsbx.com'})
 MAX_TEMPLATE_PAGES = 10
 MEDIA_KINDS = frozenset({'image', 'document', 'audio', 'video', 'sticker'})
 TEXT_KINDS = frozenset({'text', 'location', 'contacts'})
@@ -965,17 +967,10 @@ def fetch_media(credentials, media_id):
     if not isinstance(meta.get('url'), str):
         message = 'malformed provider response'
         raise errors.ProviderError(message, retryable=False)
-    response = _call('GET', meta['url'], credentials, stream=True)
-    try:
-        content = response.raw.read(MAX_MEDIA_BYTES + 1, decode_content=True)
-    except (requests.RequestException, urllib3.exceptions.HTTPError, OSError) as error:
-        message = f'media download failed: {type(error).__name__}'
-        raise errors.ProviderError(message, retryable=True) from None
-    finally:
-        response.close()
-    if len(content) > MAX_MEDIA_BYTES:
-        message = 'media is too large'
-        raise errors.ProviderError(message, retryable=False)
+    content, _content_type = media_download.download(
+        meta['url'], MEDIA_HOSTS.__contains__, {'Authorization': f'Bearer {credentials.access_token}'},
+        TIMEOUT_SECONDS, MEDIA_DEADLINE_SECONDS, MAX_MEDIA_BYTES,
+    )
     return Media(content=content, mimetype=meta.get('mime_type') or 'application/octet-stream')
 
 

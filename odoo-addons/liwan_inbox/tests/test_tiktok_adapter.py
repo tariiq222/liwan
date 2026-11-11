@@ -32,12 +32,12 @@ def response(body=None, status=200, content=b'', headers=None):
     return answer
 
 
-def streamed(content):
-    """A download answer read through `response.raw`, as a streamed request delivers it."""
+def streamed(content, status=200, headers=None):
+    """A download answer read in chunks through `iter_content`, as a streamed request delivers it."""
     answer = MagicMock()
-    answer.status_code = 200
-    answer.headers = {'Content-Type': 'image/jpeg'}
-    answer.raw.read.return_value = content
+    answer.status_code = status
+    answer.headers = headers or {'Content-Type': 'image/jpeg'}
+    answer.iter_content.side_effect = lambda size: iter([content[i:i + size] for i in range(0, len(content), size)])
     answer.closed = False
     answer.close.side_effect = lambda: setattr(answer, 'closed', True)
     return answer
@@ -318,35 +318,94 @@ class TestTikTokAdapter(BaseCase):
         with self.assertRaises(ValueError):
             tiktok.send_action(CREDENTIALS, tt.CONVERSATION_ID, 'DANCE')
 
-    def test_fetch_media_uses_x_user_header(self):
-        download = response(tt.answer({'download_url': 'https://cdn.tiktok.com/file/1'}))
-        content = streamed(b'image-bytes')
-        content.headers = {'Content-Type': 'image/jpeg; charset=binary'}
-        with patch.object(requests, 'request', side_effect=[download, content]) as request:
+    def fetch(self, url, *downloads):
+        """`fetch_media` against a metadata answer naming `url`; returns the result or the error, and the GET mock."""
+        metadata = response(tt.answer({'download_url': url}))
+        with patch.object(requests, 'request', return_value=metadata), patch.object(requests, 'get', side_effect=downloads) as get:
+            try:
+                result = tiktok.fetch_media(CREDENTIALS, tt.CONVERSATION_ID, 'msg-image-1', 'media-image-1', 'IMAGE')
+            except errors.ProviderError as error:
+                result = error
+        return result, get
+
+    def test_fetch_media_sends_both_token_headers_to_a_tiktok_host(self):
+        content = streamed(b'image-bytes', headers={'Content-Type': 'image/jpeg; charset=binary'})
+        metadata = response(tt.answer({'download_url': 'https://cdn.tiktok.com/file/1'}))
+        with patch.object(requests, 'request', return_value=metadata) as request, patch.object(requests, 'get', return_value=content) as get:
             media = tiktok.fetch_media(CREDENTIALS, tt.CONVERSATION_ID, 'msg-image-1', 'media-image-1', 'IMAGE')
         self.assertEqual(media, tiktok.Media(b'image-bytes', 'image/jpeg'))
-        first, second = request.call_args_list
-        self.assertEqual(first.args[:2], ('POST', tiktok.API_BASE + '/business/message/media/download/'))
-        self.assertEqual(first.kwargs['json'], {
+        self.assertEqual(request.call_args.args[:2], ('POST', tiktok.API_BASE + '/business/message/media/download/'))
+        self.assertEqual(request.call_args.kwargs['json'], {
             'business_id': tt.BUSINESS_ID,
             'conversation_id': tt.CONVERSATION_ID,
             'message_id': 'msg-image-1',
             'media_id': 'media-image-1',
             'media_type': 'IMAGE',
         })
-        self.assertEqual(second.args, ('GET', 'https://cdn.tiktok.com/file/1'))
-        self.assertEqual(second.kwargs['headers']['x-user'], 'access-token-1')
+        self.assertEqual(get.call_args.args, ('https://cdn.tiktok.com/file/1',))
+        self.assertEqual(get.call_args.kwargs['headers'], {'Access-Token': 'access-token-1', 'x-user': 'access-token-1'})
+        self.assertFalse(get.call_args.kwargs['allow_redirects'])
+        self.assertTrue(get.call_args.kwargs['stream'], 'the body is streamed, never buffered whole')
+        self.assertTrue(content.closed)
+
+    def test_fetch_media_never_sends_the_token_to_an_untrusted_url(self):
+        for url in (
+            'http://cdn.tiktok.com/file/1',
+            'https://evil.example/x',
+            'https://nottiktok.com/x',
+            'https://cdn.tiktok.com.evil.example/x',
+            'https://cdn.tiktok.com@evil.example/x',
+            'https://evil.example\\.cdn.tiktok.com',
+            'https://cdn.tiktok.com:8443/x',
+        ):
+            with self.subTest(url=url):
+                result, get = self.fetch(url)
+                self.assertIsInstance(result, errors.ProviderError)
+                self.assertFalse(result.retryable)
+                get.assert_not_called()
+
+    def test_fetch_media_follows_a_redirect_only_to_a_trusted_host(self):
+        redirect = streamed(b'', status=302, headers={'Location': 'https://evil.example/steal'})
+        result, get = self.fetch('https://cdn.tiktok.com/file/1', redirect)
+        self.assertIsInstance(result, errors.ProviderError)
+        self.assertEqual(get.call_count, 1, 'the untrusted hop never receives a request')
+        self.assertTrue(redirect.closed)
+
+        redirect = streamed(b'', status=302, headers={'Location': '/other/2'})
+        result, get = self.fetch('https://cdn.tiktok.com/file/1', redirect, streamed(b'bytes'))
+        self.assertEqual(result, tiktok.Media(b'bytes', 'image/jpeg'))
+        self.assertEqual([call.args[0] for call in get.call_args_list], ['https://cdn.tiktok.com/file/1', 'https://cdn.tiktok.com/other/2'])
+        self.assertEqual(get.call_args.kwargs['headers']['x-user'], 'access-token-1')
+
+        for location in ('https://evil.example\\.cdn.tiktok.com/steal', None):
+            with self.subTest(location=location):
+                redirect = streamed(b'', status=302, headers={'Location': location} if location else {})
+                result, get = self.fetch('https://cdn.tiktok.com/file/1', redirect)
+                self.assertIsInstance(result, errors.ProviderError)
+                self.assertFalse(result.retryable)
+                self.assertEqual(get.call_count, 1)
+
+    def test_fetch_media_refuses_a_redirect_loop(self):
+        hops = [streamed(b'', status=302, headers={'Location': 'https://cdn.tiktok.com/again'}) for _ in range(5)]
+        result, get = self.fetch('https://cdn.tiktok.com/file/1', *hops)
+        self.assertIsInstance(result, errors.ProviderError)
+        self.assertFalse(result.retryable)
+        self.assertEqual(get.call_count, 4)
 
     def test_fetch_media_refuses_a_body_over_the_cap(self):
-        # The download URL is the provider's, so its body is read with a cap instead of being buffered whole.
-        download = response(tt.answer({'download_url': 'https://cdn.tiktok.com/file/2'}))
         oversized = streamed(b'x' * (tiktok.MAX_MEDIA_BYTES + 1))
-        with patch.object(requests, 'request', side_effect=[download, oversized]) as request:
-            with self.assertRaises(errors.ProviderError) as refused:
-                tiktok.fetch_media(CREDENTIALS, tt.CONVERSATION_ID, 'msg-image-2', 'media-image-2', 'IMAGE')
-        self.assertFalse(refused.exception.retryable)
-        self.assertTrue(request.call_args_list[1].kwargs['stream'], 'the body is streamed, never buffered whole')
+        result, _get = self.fetch('https://cdn.tiktok.com/file/2', oversized)
+        self.assertIsInstance(result, errors.ProviderError)
+        self.assertEqual((str(result), result.retryable), ('media is too large', False))
         self.assertTrue(oversized.closed, 'the download response is closed even when the body is refused')
+
+    def test_fetch_media_trusts_only_tiktok_owned_domains(self):
+        for host, trusted in (
+            ('tiktok.com', True), ('v16.tiktokcdn.com', True), ('p16.tiktokcdn-us.com', True), ('a.b.tiktokv.com', True),
+            ('nottiktok.com', False), ('tiktok.com.evil.example', False), ('tiktokcdn.org', False),
+        ):
+            with self.subTest(host=host):
+                self.assertEqual(tiktok._media_host(host), trusted)
 
     def test_image_send_capable(self):
         capable = response(tt.answer({

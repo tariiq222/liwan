@@ -9,9 +9,8 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote, urlencode
 
 import requests
-import urllib3
 
-from odoo.addons.liwan_inbox.adapters import errors
+from odoo.addons.liwan_inbox.adapters import errors, media_download
 
 API_BASE = 'https://business-api.tiktok.com/open_api/v1.3'
 AUTHORIZE_URL = 'https://www.tiktok.com/v2/auth/authorize'
@@ -55,6 +54,9 @@ TIMEOUT_SECONDS = 10
 UPLOAD_TIMEOUT_SECONDS = 60
 DOWNLOAD_TIMEOUT_SECONDS = 60
 MAX_MEDIA_BYTES = 16 * 1024 * 1024
+# TikTok does not publish the host of a media download URL, so the token headers go only to TikTok-owned domains:
+# the host equals one of these or is a subdomain of it.
+MEDIA_DOMAINS = ('tiktok.com', 'tiktokcdn.com', 'tiktokcdn-us.com', 'tiktokv.com')
 CONVERSATION_PAGE = 100
 ERROR_TEXT_LENGTH = 200
 WEBHOOK_EVENT = 'DIRECT_MESSAGE'
@@ -284,6 +286,10 @@ def image_send_capable(credentials, conversation_id):
     return _capability_result(data)
 
 
+def _media_host(host):
+    return any(host == domain or host.endswith(f'.{domain}') for domain in MEDIA_DOMAINS)
+
+
 def fetch_media(credentials, conversation_id, message_id, media_id, media_type):
     """Download one message's media; TikTok gates the download URL itself behind the `x-user` header."""
     data = _answer(_call('POST', _api('business/message/media/download/'), credentials.access_token, json={
@@ -294,20 +300,11 @@ def fetch_media(credentials, conversation_id, message_id, media_id, media_type):
         'media_type': media_type,
     }))
     url = _require_text(data, 'download_url')
-    response = _call('GET', url, credentials.access_token, timeout=DOWNLOAD_TIMEOUT_SECONDS, stream=True, headers={
-        'x-user': credentials.access_token,
-    })
-    try:
-        content = response.raw.read(MAX_MEDIA_BYTES + 1, decode_content=True)
-    except (requests.RequestException, urllib3.exceptions.HTTPError, OSError) as error:
-        message = f'media download failed: {type(error).__name__}'
-        raise errors.ProviderError(message, retryable=True) from None
-    finally:
-        response.close()
-    if len(content) > MAX_MEDIA_BYTES:
-        message = 'media is too large'
-        raise errors.ProviderError(message, retryable=False)
-    mimetype = (response.headers.get('Content-Type') or '').split(';')[0].strip()
+    content, content_type = media_download.download(
+        url, _media_host, {'Access-Token': credentials.access_token, 'x-user': credentials.access_token},
+        DOWNLOAD_TIMEOUT_SECONDS, DOWNLOAD_TIMEOUT_SECONDS, MAX_MEDIA_BYTES,
+    )
+    mimetype = (content_type or '').split(';')[0].strip()
     return Media(content, mimetype)
 
 
