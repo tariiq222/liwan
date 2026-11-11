@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
-import { canonicalJson } from '@liwan/commercial-contracts'
+import { canonicalJson } from '@liwan/commercial-contracts/canonical-json'
 import {
   sharedJobSchema, sharedJournalSchema, sharedObservationSchema, sharedReceiptSchema, tenantBindingSchema,
   type SharedJob, type TenantBinding,
