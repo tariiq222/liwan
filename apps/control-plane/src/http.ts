@@ -17,7 +17,7 @@ import { listAudit } from './audit-feed.js'
 import { allOperationCounts, allOperations, sharedOperationDetail, withTenantLabels } from './operation-feed.js'
 import {approveOdooRestore,odooJobProgress} from './shared/odoo-backup.js'
 import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
-import { sharedOnboardingRequestSchema } from '@liwan/commercial-contracts'
+import { canonicalJson, sharedOnboardingRequestSchema } from '@liwan/commercial-contracts'
 import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnabled } from './shared/onboarding.js'
 import { z } from 'zod'
 import { actorName, AdminAuthError } from './admin-auth/accounts.js'
@@ -113,15 +113,6 @@ async function readInventoryFile(path: string): Promise<unknown> {
   const file = await stat(path)
   if (!file.isFile() || file.size > 65536) throw new ApiError(503, 'inventory_unavailable', 'Operator inventory is unavailable')
   try { return JSON.parse(await readFile(path, 'utf8')) } catch { throw new ApiError(503, 'inventory_unavailable', 'Operator inventory is unavailable') }
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>
-    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
-  }
-  return JSON.stringify(value)
 }
 
 export async function inventory(config: Config): Promise<{ version: number; targets: Record<string, OperatorTarget> }> {
