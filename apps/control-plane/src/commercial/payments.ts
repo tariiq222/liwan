@@ -164,21 +164,28 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
       || !['pending','succeeded','failed','refunded','canceled'].includes(event.status)
       || !Number.isSafeInteger(event.amount.minor) || event.amount.minor < 0) throw new Error('invalid_event')
   } catch { return { status: 401, outcome: 'rejected' as const } }
+  // A redelivery of an event already recorded answers at once, without asking the provider again.
+  if ((await pool.query('SELECT 1 FROM payment_events WHERE provider=$1 AND provider_event_id=$2', [event.provider, event.event_id])).rowCount)
+    return { status: 200, outcome: 'duplicate' as const }
+  // The provider is asked before any transaction opens: a slow answer must not hold a pooled connection or a row lock.
+  // A transient failure throws here with nothing recorded, so the provider's redelivery is handled from scratch.
+  const tokenCharge = (await pool.query('SELECT token_charge FROM payment_attempts WHERE provider=$1 AND provider_ref=$2', [event.provider, event.provider_ref])).rows[0]?.token_charge === true
+  const confirmed = await confirmEvent(input.adapter, event, { tokenCharge }).catch((e: unknown) => {
+    if ((e as { code?: string }).code !== 'event_mismatch') throw e
+    return null
+  })
+  // The unique (provider, provider_event_id) key makes the recording idempotent: of two concurrent deliveries one inserts,
+  // the other waits on that row and reads 'duplicate' once it commits (or inserts itself if the first rolled back).
   const result = await transaction(pool, async client => {
     const id = randomUUID()
-    const inserted = await client.query(`INSERT INTO payment_events(id,provider,provider_event_id,status,amount_minor,currency,exponent,verified,confirmed,outcome)
-      VALUES($1,$2,$3,$4,$5,$6,$7,true,false,'accepted') ON CONFLICT DO NOTHING RETURNING id`,
-    [id,event.provider,event.event_id,event.status,event.amount.minor,event.amount.currency,event.amount.exponent])
+    const inserted = await client.query(`INSERT INTO payment_events(id,provider,provider_event_id,status,amount_minor,currency,exponent,verified,confirmed,outcome,reason)
+      VALUES($1,$2,$3,$4,$5,$6,$7,true,$8,$9,$10) ON CONFLICT DO NOTHING RETURNING id`,
+    [id,event.provider,event.event_id,event.status,event.amount.minor,event.amount.currency,event.amount.exponent,confirmed !== null,confirmed ? 'accepted' : 'rejected',confirmed ? null : 'event_mismatch'])
     if (!inserted.rowCount) return { status: 200, outcome: 'duplicate' as const }
-    let confirmed: ProviderEvent
-    const tokenCharge = (await client.query('SELECT token_charge FROM payment_attempts WHERE provider=$1 AND provider_ref=$2', [event.provider, event.provider_ref])).rows[0]?.token_charge === true
-    try { confirmed = await confirmEvent(input.adapter, event, { tokenCharge }) } catch (e) {
-      if ((e as { code?: string }).code !== 'event_mismatch') throw e // transient fetch failure rolls back for redelivery
-      await client.query("UPDATE payment_events SET outcome='rejected',reason='event_mismatch' WHERE id=$1", [id])
-      return { status: 200, outcome: 'rejected' as const }
-    }
+    if (!confirmed) return { status: 200, outcome: 'rejected' as const }
+    // apply() re-reads and locks the order and the attempt, so what it applies is judged against their state now.
     const outcome = await apply(client, { ...confirmed, event_id: event.event_id })
-    await client.query(`UPDATE payment_events SET confirmed=true,outcome=$2,reason=$3,
+    await client.query(`UPDATE payment_events SET outcome=$2,reason=$3,
       attempt_id=(SELECT id FROM payment_attempts WHERE provider=$4 AND provider_ref=$5) WHERE id=$1`,
     [id,outcome === 'rejected' ? 'rejected' : 'accepted',outcome === 'rejected' ? 'attempt_mismatch' : null,event.provider,event.provider_ref])
     return { status: 200, outcome, paid: outcome === 'accepted' && confirmed.status === 'succeeded' ? confirmed : null }
