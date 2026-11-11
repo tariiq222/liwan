@@ -1,4 +1,4 @@
-import type { MaybeRefOrGetter } from 'vue'
+import { getCurrentInstance, onMounted, ref, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   InboxAgentListSchema,
@@ -104,6 +104,10 @@ export function nextOlderOffset(pages: readonly MessagePage[]): number | undefin
 export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
   const { $api } = useApi()
   const { connected } = useBus()
+  // The newest-page poll is a browser fallback: the server-rendered first paint already reads the thread, and a second
+  // query there would duplicate page 0 on every server render.
+  const mounted = ref(false)
+  if (getCurrentInstance()) onMounted(() => { mounted.value = true })
   const query = useInfiniteQuery({
     queryKey: computed(() => inboxKeys.messagesOf(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
@@ -114,7 +118,7 @@ export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
   })
   const latest = useQuery({
     queryKey: computed(() => [...inboxKeys.messagesOf(toValue(id) ?? 0), 'latest'] as const),
-    enabled: computed(() => !!toValue(id) && !connected.value),
+    enabled: computed(() => !!toValue(id) && mounted.value && !connected.value),
     retry: false,
     refetchInterval: busFallbackInterval(),
     queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}/messages`, { signal, query: { limit: INBOX_MESSAGE_PAGE, offset: 0 }, schema: InboxMessageListSchema }),
@@ -122,7 +126,7 @@ export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
   const pages = computed<MessagePage[]>(() => {
     const history = query.data.value?.pages ?? []
     const newest = latest.data.value
-    if (connected.value || !newest || !history.length) return history
+    if (connected.value || !mounted.value || !newest || !history.length) return history
     // The polled page replaces the history's first page; older pages are left exactly as loaded.
     return [{ ...newest, total: Math.max(newest.total, history[0]!.total) }, ...history.slice(1)]
   })
