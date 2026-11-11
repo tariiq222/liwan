@@ -2,14 +2,14 @@
   "errors": [
     {
       "code": null,
-      "message": "The invoice could not be processed here; check the journal onboarding and the invoice data"
+      "message": "ZATCA refused the journal certificate (expired or revoked); onboard the journal again"
     }
   ],
-  "last_attempt_at": null,
+  "last_attempt_at": "2026-01-01T00:00:00Z",
   "mode": "clearance",
-  "next_retry_at": null,
+  "next_retry_at": "2026-01-01T00:00:00Z",
   "qr_present": false,
   "retry_count": 0,
-  "state": "blocked",
+  "state": "unauthorized",
   "warnings": []
 }
