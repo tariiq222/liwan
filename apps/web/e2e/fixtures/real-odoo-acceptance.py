@@ -38,7 +38,7 @@ EXTRA_ACCOUNTS = {
 }
 # key -> (Arabic name, capability keys). Dependencies are added by the role service.
 EXTRA_ROLES = {
-    'acceptance_finance_reader': ('قراءة مال المشروع فقط', ('pmo.projects.read', 'pmo.tasks.read')),
+    'acceptance_finance_reader': ('قراءة مال المشروع فقط', ('pmo.projects.read', 'pmo.tasks.read', 'pmo.finance.read')),
     'acceptance_leave_config': ('إعداد سياسة الإجازات فقط', ('hr.leave.config',)),
 }
 # The employee the leave journeys request for and grant to, so their balance is not shared with a persona another
