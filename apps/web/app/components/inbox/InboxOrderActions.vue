@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { InboxOrderPaymentStatus, InboxOrderState } from '@liwan/contracts'
 import InboxOrderEditor from '@/components/inbox/InboxOrderEditor.vue'
-import { COMMERCE_LIMITS } from '@/composables/inbox/inboxCommerce'
-import { useInboxTemplates } from '@/composables/inbox/useInbox'
+import InboxTemplatePicker from '@/components/inbox/InboxTemplatePicker.vue'
+import { COMMERCE_LIMITS, isPayLinkTemplate } from '@/composables/inbox/inboxCommerce'
 import { useCancelInboxOrder, useCheckoutInboxOrder, useInboxOrder } from '@/composables/inbox/useInboxOrders'
 
 // What an agent with `inbox.orders.manage` can do with one order, each step inline under the order: change a cart, create
@@ -23,16 +23,13 @@ const { can } = useAccess()
 type Step = 'edit' | 'checkout' | 'cancel'
 const step = ref<Step | null>(null)
 const body = ref('')
-const templateId = ref<number | undefined>(undefined)
+const templateId = ref<number | null>(null)
 
 const manage = computed(() => can('inbox.orders.manage'))
 const canManageTemplates = computed(() => can('inbox.channels.manage') || can('inbox.templates.manage'))
 const isCart = computed(() => props.state === 'cart')
 const unpaid = computed(() => props.state === 'ordered' && (props.paymentStatus === 'payable' || props.paymentStatus === 'processing' || props.paymentStatus === null))
 const order = useInboxOrder(() => props.orderId, () => step.value === 'edit')
-const { data: templates } = useInboxTemplates(() => props.channelId, () => step.value === 'checkout' && !props.windowOpen)
-// A pay-link template has a url button to the pay page that ends in a variable; the server checks the exact prefix.
-const payTemplates = computed(() => (templates.value?.items ?? []).filter(item => item.supported && item.buttons.some(button => button.type === 'url' && button.url.includes('/pay/order/') && button.url.endsWith('{{1}}'))).map(item => ({ value: item.id, label: `${item.name} · ${item.language}` })))
 const { mutateAsync: checkout, isPending: checkingOut } = useCheckoutInboxOrder()
 const { mutate: cancel, isPending: cancelling } = useCancelInboxOrder()
 const busy = computed(() => !hydrated.value || checkingOut.value || cancelling.value)
@@ -45,7 +42,7 @@ function open(next: Step) {
 async function submitCheckout() {
   if (busy.value || !checkoutReady.value) return
   try {
-    await checkout({ id: props.orderId, body: props.windowOpen ? (body.value.trim() ? { body: body.value.trim() } : {}) : { template_id: templateId.value } })
+    await checkout({ id: props.orderId, body: props.windowOpen ? (body.value.trim() ? { body: body.value.trim() } : {}) : { template_id: templateId.value ?? undefined } })
     toast.add({ title: t('inbox.orders.linkSent'), color: 'success' })
     step.value = null
     body.value = ''
@@ -80,14 +77,17 @@ function confirmCancel() {
       </UFormField>
       <template v-else>
         <UAlert color="info" variant="subtle" icon="i-lucide-clock" :title="t('inbox.composer.windowClosed')" :description="t('inbox.orders.templateNeeded')" />
-        <p v-if="!payTemplates.length" class="text-sm text-status-warning-foreground" data-testid="inbox-order-no-template">
-          {{ t('inbox.orders.noPayTemplate') }}
-          <NuxtLink v-if="canManageTemplates" class="underline" :to="`/settings/apps/inbox/channels/${props.channelId}/templates`" data-testid="inbox-order-templates-link">
-            {{ t('inbox.orders.manageTemplates') }}
-          </NuxtLink>
-        </p>
-        <UFormField v-else :label="t('inbox.orders.payTemplate')" required>
-          <USelect v-model="templateId" class="w-full" :items="payTemplates" :placeholder="t('inbox.composer.pickTemplate')" :disabled="busy" data-testid="inbox-order-template" />
+        <UFormField :label="t('inbox.orders.payTemplate')" required>
+          <InboxTemplatePicker v-model="templateId" :channel-id="props.channelId" :accept="isPayLinkTemplate" :disabled="busy" data-testid="inbox-order-template">
+            <template #empty>
+              <p class="text-sm text-status-warning-foreground" data-testid="inbox-order-no-template">
+                {{ t('inbox.orders.noPayTemplate') }}
+                <NuxtLink v-if="canManageTemplates" class="underline" :to="`/settings/apps/inbox/channels/${props.channelId}/templates`" data-testid="inbox-order-templates-link">
+                  {{ t('inbox.orders.manageTemplates') }}
+                </NuxtLink>
+              </p>
+            </template>
+          </InboxTemplatePicker>
         </UFormField>
       </template>
       <div class="flex justify-end gap-2">

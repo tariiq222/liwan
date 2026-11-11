@@ -135,7 +135,7 @@ it('imports use the identity timezone consistently across server and browser hos
         const globals = {
           defineProps: () => ({}), useRoute: () => ({ query: {} }), useRouter: () => ({}),
           useI18n: () => ({ t: (key: string) => key }), useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(false),
-          useMe: () => ({ me: Vue.ref({ tz: userZone }) }), useCrmImportBatches: () => query, listPageNumber: () => 1, computed: Vue.computed,
+          useMe: () => ({ me: Vue.ref({ tz: userZone }) }), useCrmImportBatches: () => query, listPageNumber: () => 1, useLastPageClamp: () => {}, computed: Vue.computed,
         }
         const timeZone = new Function(...Object.keys(globals), `${body}\nreturn timeZone.value`)(...Object.values(globals))
         rendered.push(await render(templateComponent('components/crm/imports/CrmImportBatchList.vue', { ...bindings('rows'), timeZone })))

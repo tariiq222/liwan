@@ -11,6 +11,7 @@ import { createAdminPasswordRunner } from './shared/admin-password-runner.js'
 import { loadSharedRuntimeConfig } from './shared/runtime-config.js'
 import { startInternalEffectServer } from './shared/internal-effect-server.js'
 import { runSharedWorker } from './shared/job-runner.js'
+import { createMaintenanceRunner,type MaintenanceStep } from './shared/job-loop.js'
 import { processJobRecoveries } from './shared/job-recovery.js'
 import { processJobAbandonments } from './shared/job-abandon.js'
 import { onShutdownSignal } from './shutdown.js'
@@ -43,5 +44,14 @@ try{
     }
   }catch{console.error('internal_effect_unavailable','start_failed')}
   scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,signal:controller.signal})
-  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{if(controller.signal.aborted)return;const log=(message:string,error?:unknown)=>console.error(message,error instanceof Error?error.message:error);await processJobRecoveries(pool,adapter,{log});await processJobAbandonments(pool,adapter,{log});await reconcileOdooOnboardings(pool,config,adapter);await scheduler!.tick();if(controller.signal.aborted)return;await dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})}})
+  const log=(message:string,error?:unknown)=>console.error(message,error instanceof Error?error.stack??error.message:error)
+  const isStopping=()=>controller.signal.aborted
+  const maintenance:MaintenanceStep[]=[
+    {name:'job-recoveries',run:()=>processJobRecoveries(pool,adapter,{log})},
+    {name:'job-abandonments',run:()=>processJobAbandonments(pool,adapter,{log})},
+    {name:'onboarding-reconcile',run:()=>reconcileOdooOnboardings(pool,config,adapter,log)},
+    {name:'commercial-scheduler',run:()=>scheduler!.tick()},
+    {name:'restore-publication',run:()=>dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})},
+  ]
+  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:createMaintenanceRunner(maintenance,{isStopping,log,now:Date.now})})
 }finally{await scheduler?.usageIdle().catch(()=>{});await pool.end()}

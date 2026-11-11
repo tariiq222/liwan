@@ -12,7 +12,7 @@ function open(store: Map<string, string>, conversationId: number | undefined, er
   const bindings = {
     onMounted: (fn: () => void) => fn(), useMediaQuery: media, useQueryClient: () => ({ cancelQueries: vi.fn(), removeQueries: vi.fn() }),
     useMe: () => ({ me: Vue.ref({ id: 1 }) }), useEscapeBack: () => {}, useChatConversation: () => query({ name: 'G', type: 'group' }), useChatConversations: () => query({ total: 1, items: [] }),
-    chatDrafts: createChatDrafts(() => storage), chatKeys: { root: () => ['chat'] }, applyChatAccessFailure: vi.fn(), chatTypingEvent: Vue.ref(null),
+    chatDrafts: createChatDrafts(() => storage), chatKeys: { root: () => ['chat'] }, applyChatAccessFailure: vi.fn(), chatTypists: Vue.ref([]),
     isFatalChatStatus, parseChatListRoute: () => ({ q: '', filter: 'all', offset: 0 }), serializeChatListRoute: () => ({}), avatarProps: () => ({}),
     useChatWritable: () => Vue.computed(() => writable),
     EmptyState: {}, ChatInfoPanel: {}, ConversationList: {}, MessageHistory: {}, MessageComposer: {},

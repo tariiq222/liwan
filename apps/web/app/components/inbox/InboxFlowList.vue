@@ -2,6 +2,7 @@
 import InboxFlowState from '@/components/inbox/InboxFlowState.vue'
 import { FLOW_STATUSES, flowsRoute } from '@/composables/inbox/inboxFlow'
 import { useInboxChannelFlows } from '@/composables/inbox/useInboxFlows'
+import { listPageNumber, useLastPageClamp } from '@/composables/useRouteListFilters'
 
 // The forms of one channel with their state and sending health, filtered by status and a name search kept in the
 // address (`?status=&q=`), so a filtered list can be shared and survives refresh and back. An empty list explains what
@@ -12,6 +13,7 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const PAGE_SIZE = 50
 const ALL = 'all'
 const status = computed(() => {
   const value = route.query.status
@@ -21,14 +23,17 @@ const committedSearch = computed(() => typeof route.query.q === 'string' ? route
 const search = ref(committedSearch.value)
 watch(committedSearch, (value) => { search.value = value })
 
-const query = useInboxChannelFlows(() => props.channelId, () => ({ status: status.value, q: committedSearch.value.trim(), limit: 200 }))
+const page = computed(() => listPageNumber(route.query.page))
+const query = useInboxChannelFlows(() => props.channelId, () => ({ status: status.value, q: committedSearch.value.trim(), limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const items = computed(() => query.data.value?.items ?? [])
+const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / PAGE_SIZE)))
+useLastPageClamp({ page: () => page.value, total: () => query.data.value?.total, pageSize: PAGE_SIZE })
 const filtered = computed(() => !!(status.value || committedSearch.value.trim()))
 const statusItems = computed(() => [{ value: ALL, label: t('inbox.flows.filter.allStatuses') }, ...FLOW_STATUSES.map(value => ({ value, label: t(`inbox.flows.status.${value}`) }))])
 
 function update(values: Record<string, string | undefined>) {
   if (!hydrated.value) return
-  void router.replace({ path: route.path, query: { ...route.query, ...values } })
+  void router.replace({ path: route.path, query: { ...route.query, page: undefined, ...values } })
 }
 function clear() {
   search.value = ''
@@ -83,5 +88,6 @@ function clear() {
         <span v-if="flow.version_warning" class="ps-12 text-xs text-status-warning-foreground"><bdi>{{ flow.version_warning }}</bdi></span>
       </NuxtLink>
     </template>
+    <div v-if="pages > 1" class="px-(--liwan-card-pad) py-3"><SharedPagination :page="page" :pages="pages" @update:page="update({ page: $event > 1 ? String($event) : undefined })" /></div>
   </SharedRecordSection>
 </template>

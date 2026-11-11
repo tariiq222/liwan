@@ -203,6 +203,7 @@
       },
       "alertDays": "Alert before a plan ends (days)",
       "alertDaysHint": "Insurance managers get a bell notification when a plan ends within this many days.",
+      "alertDaysInvalid": "Enter a whole number from {min} to {max} days.",
       "requireId": "Require the dependent identity number",
       "requireIdHint": "A dependent cannot be added without it.",
       "saveError": "The settings were not saved",

@@ -4,7 +4,7 @@ import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { owningListBack } from '@/utils/recordListOrigin'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
-import type { HrEquipment, HrRef } from '@liwan/contracts'
+import type { HrEquipment } from '@liwan/contracts'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -21,9 +21,6 @@ const backTo = computed(() => owningListBack(route.query, sourcePaths.value, rou
 
 const canManage = computed(() => can('hr.assets.manage'))
 const categories = useHrAssetCategories()
-// The custody control needs the employee directory; every assets role carries
-// hr.employees.read through the catalog dependency.
-const employees = useHrEmployees(computed(() => ({ limit: 100 })))
 const assignment = useAssignHrEquipment()
 const release = useReturnHrEquipment()
 const scrapping = useArchiveHrEquipment()
@@ -91,10 +88,6 @@ useSsrQuerySeed(query, fillForm)
 const categoryOptions = computed(() => (categories.data.value?.items ?? []).map(category => ({
   value: String(category.id),
   label: category.name,
-})))
-const employeeRefs = computed<HrRef[]>(() => (employees.data.value?.items ?? []).map(employee => ({
-  id: employee.id,
-  name: employee.name,
 })))
 const dirty = computed(() => {
   const current = equipment.value
@@ -216,7 +209,6 @@ async function submit() {
     <EquipmentCustodyPanel
       v-if="equipment"
       :equipment="equipment"
-      :employees="employeeRefs"
       :can-manage="canManage"
       :pending="writing"
       @assign="assign"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import RunCancel from '@/components/hr/lifecycle/RunCancel.vue'
 import RunSteps from '@/components/hr/lifecycle/RunSteps.vue'
 import { useCancelHrOnboardingRun, useCompleteHrOnboardingStep, useHrOnboardingRun } from '@/composables/useHrOnboarding'
@@ -13,7 +14,7 @@ const validId = computed(() => Number.isSafeInteger(runId.value) && runId.value 
 const query = useHrOnboardingRun(computed(() => validId.value ? runId.value : null))
 const run = computed(() => query.data.value)
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t(`${NAMESPACE}.errors.notFound`))))
-const backTo = computed(() => typeof route.query.returnTo === 'string' && route.query.returnTo.startsWith('/') ? route.query.returnTo : '/hr/onboarding')
+const backTo = computed(() => safeReturnTo(route.query.returnTo, '/hr/onboarding', ['/hr']))
 const stepError = ref<unknown>(null)
 const { mutateAsync: completeStep, isPending } = useCompleteHrOnboardingStep()
 async function complete(stepId: number, feedback?: string) {

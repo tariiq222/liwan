@@ -262,14 +262,33 @@ async def test_two_concurrent_resumes_of_one_call_run_the_model_once():
         assert len(model.calls) == before + 1
 
 
-async def test_two_concurrent_continuations_of_a_finished_run_start_one_turn():
+async def test_two_concurrent_continuations_of_a_finished_run_start_one_turn(monkeypatch):
     model = ScriptedChatModel([ai_text("أول"), ai_text("ثاني"), ai_text("ثالث")])
-    async with make_client(model) as client:
+    store = MemoryRunStore()
+    async with make_client(model, store) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         before = len(model.calls)
         again = {**BODY, "run_id": run_id, "message": "وبعدين؟"}
-        first, second = await asyncio.gather(*(client.post("/v1/runs", json=again, headers=HEADERS) for _ in range(2)))
-        assert sorted([first.status_code, second.status_code]) == [200, 409]
+        acquired, release = asyncio.Event(), asyncio.Event()
+        acquire = store.acquire
+
+        async def hold_first_lease(*args, **kwargs):
+            lease = await acquire(*args, **kwargs)
+            # Keep the first continuation running until the second attempts to acquire its lease.
+            if lease is not None and not acquired.is_set():
+                acquired.set()
+                await release.wait()
+            return lease
+
+        monkeypatch.setattr(store, "acquire", hold_first_lease)
+        first = asyncio.create_task(client.post("/v1/runs", json=again, headers=HEADERS))
+        try:
+            await asyncio.wait_for(acquired.wait(), 5)
+            second = await asyncio.wait_for(client.post("/v1/runs", json=again, headers=HEADERS), 5)
+        finally:
+            release.set()
+            first_response = await asyncio.wait_for(first, 5)
+        assert (first_response.status_code, second.status_code) == (200, 409)
         assert len(model.calls) == before + 1
 
 

@@ -85,6 +85,24 @@ test('dedicated edge takes the UI language header only from the trusted hop, as 
   assert.equal((await call(f.url, '/api/v1/me', { 'x-liwan-ui-locale': 'ar' })).status, 403)
 })
 
+test('dedicated edge passes the expected user and company ids as plain bounded integers and reaches Odoo only on /api/v1/', async t => {
+  const f = await fixture(t)
+  const expected = { 'x-liwan-expected-user-id': '7', 'x-liwan-expected-company-id': '9007199254740991' }
+  assert.equal((await call(f.url, '/api/finance/fiscal-setup', expected)).status, 200)
+  for (const [name, value] of Object.entries(expected)) assert.equal(f.observed.at(-1).headers[name], value)
+  assert.equal((await call(f.url, '/api/v1/finance/fiscal-setup', { ...internal, ...expected })).body, 'odoo')
+  for (const [name, value] of Object.entries(expected)) assert.equal(f.observed.at(-1).headers[name], value)
+  assert.equal((await call(f.url, '/web/session/destroy', { ...internal, ...expected })).body, 'odoo')
+  for (const name of Object.keys(expected)) assert.equal(f.observed.at(-1).headers[name], undefined)
+  for (const name of Object.keys(expected)) {
+    for (const value of ['', '0', '-1', '01', '1.5', '1e3', '+1', '9007199254740992', '12345678901234567', '1, 2']) {
+      assert.equal((await call(f.url, '/api/v1/finance/fiscal-setup', { ...internal, [name]: value })).status, 403)
+      assert.equal((await call(f.url, '/api/finance/fiscal-setup', { [name]: value })).status, 403)
+    }
+  }
+  assert.equal((await call(f.url, '/api/finance/fiscal-setup', { 'x-liwan-expected-tenant-id': '1' })).status, 403)
+})
+
 test('dedicated Nuxt hop preserves browser CSRF while private and Odoo headers stay isolated', async t => {
   const f = await fixture(t)
   const csrf = 'synthetic-browser-csrf-value'

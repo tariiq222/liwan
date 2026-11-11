@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { applyChatDeleted, applyChatTyping, chatDeletedEvent, chatTypingEvent, collectChatIds, collectInboxIds, collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { applyChatDeleted, applyChatTyping, chatDeletedBatch, chatTypists, collectChatIds, collectInboxIds, collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
 import { CHAT_TYPING_MS } from '../../utils/chatState'
 
 describe('parseBusFrame', () => {
@@ -116,13 +116,37 @@ describe('collectInboxIds', () => {
 })
 
 describe('applyChatTyping', () => {
+  beforeEach(() => { vi.useFakeTimers(); chatTypists.value = [] })
+  afterEach(() => vi.useRealTimers())
+
   it('keeps the writer name and expires typing after the idle window', () => {
-    vi.useFakeTimers()
     applyChatTyping({ conversationId: 8, userId: 3, userName: 'Peer', isTyping: true })
-    expect(chatTypingEvent.value).toMatchObject({ userName: 'Peer', isTyping: true })
+    expect(chatTypists.value).toEqual([{ conversationId: 8, userId: 3, userName: 'Peer', isTyping: true }])
     vi.advanceTimersByTime(CHAT_TYPING_MS)
-    expect(chatTypingEvent.value?.isTyping).toBe(false)
-    vi.useRealTimers()
+    expect(chatTypists.value).toEqual([])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('tracks each channel and each user on their own, so a second typist or channel does not replace the first', () => {
+    applyChatTyping({ conversationId: 8, userId: 3, userName: 'A', isTyping: true })
+    vi.advanceTimersByTime(2_000)
+    applyChatTyping({ conversationId: 8, userId: 4, userName: 'B', isTyping: true })
+    applyChatTyping({ conversationId: 9, userId: 3, userName: 'A', isTyping: true })
+    expect(chatTypists.value.map(entry => `${entry.conversationId}:${entry.userId}`)).toEqual(['8:3', '8:4', '9:3'])
+    vi.advanceTimersByTime(CHAT_TYPING_MS - 2_000)
+    expect(chatTypists.value.map(entry => `${entry.conversationId}:${entry.userId}`)).toEqual(['8:4', '9:3'])
+    applyChatTyping({ conversationId: 8, userId: 4, userName: 'B', isTyping: false })
+    expect(chatTypists.value.map(entry => `${entry.conversationId}:${entry.userId}`)).toEqual(['9:3'])
+  })
+
+  it('restarts the idle window when the same user types again, without a duplicate entry', () => {
+    applyChatTyping({ conversationId: 8, userId: 3, userName: 'A', isTyping: true })
+    vi.advanceTimersByTime(CHAT_TYPING_MS - 1)
+    applyChatTyping({ conversationId: 8, userId: 3, userName: 'A', isTyping: true })
+    vi.advanceTimersByTime(CHAT_TYPING_MS - 1)
+    expect(chatTypists.value).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    expect(chatTypists.value).toEqual([])
   })
 })
 
@@ -161,12 +185,23 @@ describe('nextBackoffDelay', () => {
 })
 
 describe('applyChatDeleted', () => {
+  const deleted = (id: number, messageId: number) => ({ message: { type: 'liwan/chat', payload: { id, event: 'message_deleted', message_id: messageId } } })
+
   it('announces the id of a message removed for good, and ignores every other event', () => {
-    chatDeletedEvent.value = null
-    applyChatDeleted({ message: { type: 'liwan/chat', payload: { id: 5, event: 'message_updated', message_id: 9 } } })
-    applyChatDeleted({ message: { type: 'liwan/task', payload: { id: 5, event: 'message_deleted', message_id: 9 } } })
-    expect(chatDeletedEvent.value).toBeNull()
-    applyChatDeleted({ message: { type: 'liwan/chat', payload: { id: 5, event: 'message_deleted', message_id: 9 } } })
-    expect(chatDeletedEvent.value).toEqual({ conversationId: 5, messageId: 9 })
+    chatDeletedBatch.value = []
+    applyChatDeleted([
+      { message: { type: 'liwan/chat', payload: { id: 5, event: 'message_updated', message_id: 9 } } },
+      { message: { type: 'liwan/task', payload: { id: 5, event: 'message_deleted', message_id: 9 } } },
+    ])
+    expect(chatDeletedBatch.value).toEqual([])
+    applyChatDeleted([deleted(5, 9)])
+    expect(chatDeletedBatch.value).toEqual([{ conversationId: 5, messageId: 9 }])
+  })
+
+  it('keeps every delete of one frame, and the next frame replaces the batch instead of growing it', () => {
+    applyChatDeleted([deleted(5, 9), deleted(5, 10), deleted(6, 3)])
+    expect(chatDeletedBatch.value).toEqual([{ conversationId: 5, messageId: 9 }, { conversationId: 5, messageId: 10 }, { conversationId: 6, messageId: 3 }])
+    applyChatDeleted([deleted(5, 11)])
+    expect(chatDeletedBatch.value).toEqual([{ conversationId: 5, messageId: 11 }])
   })
 })

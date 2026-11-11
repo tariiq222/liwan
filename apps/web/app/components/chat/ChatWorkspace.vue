@@ -7,7 +7,7 @@ import MessageHistory from '@/components/chat/MessageHistory.vue'
 import MessageComposer from '@/components/chat/MessageComposer.vue'
 import { ApiError } from '@/composables/useApi'
 import { applyChatAccessFailure, chatKeys, useChatWritable } from '@/composables/useChat'
-import { chatTypingEvent } from '@/composables/useBus'
+import { chatTypists } from '@/composables/useBus'
 import { chatDrafts } from '@/utils/chatDrafts'
 import { isFatalChatStatus, parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
@@ -18,7 +18,7 @@ import type { ChatMessage } from '@liwan/contracts'
 // beside the thread from 1280px and replaces it below that. The info panel is the URL /chat/<id>/info, so a direct link,
 // a refresh and Back all work.
 const props = defineProps<{ conversationId?: number; infoOpen?: boolean }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { me } = useMe()
 const route = useRoute()
 const router = useRouter()
@@ -52,11 +52,15 @@ const infoTo = computed(() => ({ path: `/chat/${props.conversationId}/info`, que
 // Escape leaves the open info panel for the thread, as it leaves a record page for its list.
 useEscapeBack(() => (infoOpen.value ? threadTo.value : undefined))
 
+// Only the people typing in the open channel, never the reader; one or several are named in the user's language.
 const typingLabel = computed(() => {
-  const event = chatTypingEvent.value
-  if (!props.conversationId || !event?.isTyping) return ''
-  if (event.conversationId !== props.conversationId || event.userId === me.value?.id) return ''
-  return t('chat.typing', { name: event.userName || data.value?.name || '' })
+  if (!props.conversationId) return ''
+  const names = chatTypists.value
+    .filter(entry => entry.conversationId === props.conversationId && entry.userId !== me.value?.id)
+    .map(entry => entry.userName || data.value?.name || '')
+  if (!names.length) return ''
+  const list = new Intl.ListFormat(locale.value, { style: 'long', type: 'conjunction' }).format(names)
+  return t(names.length === 1 ? 'chat.typing' : 'chat.typingMany', { name: list })
 })
 
 function restoreDraft() {

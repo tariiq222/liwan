@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { client, money, monthly, setup, url } from '../__tests__/commercial-helpers.js'
 import { SignupService } from './service.js'
@@ -29,6 +29,8 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     expect(plan.status).toBe(200)
     planId = plan.body.id
   })
+  // Limits are durable, so a test starts from an empty delivery history.
+  beforeEach(async () => { await pool.query('TRUNCATE public_signup_deliveries') })
   afterAll(async () => { await pool.end() })
 
   function fixture() {
@@ -135,5 +137,45 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const successful = issued.find(x => x.status === 'fulfilled')!
     f.advance(6)
     await expect(f.service.verifySms(successful.value.signup_id, f.sms())).rejects.toMatchObject({ code: 'invalid_code' })
+  })
+
+  it('refuses a free-mail address before anything is sent or stored', async () => {
+    const f = fixture()
+    for (const email of ['owner@gmail.com', 'Owner@OUTLOOK.com', 'owner@yahoo.com']) {
+      await expect(f.service.start({ ...f.input, email }, f.ip)).rejects.toMatchObject({ code: 'business_email_required', status: 422 })
+    }
+    expect(f.sms()).toBe('')
+    expect((await pool.query('SELECT 1 FROM public_signup_deliveries')).rowCount).toBe(0)
+    expect((await pool.query("SELECT 1 FROM public_signups WHERE email LIKE '%@gmail.com'")).rowCount).toBe(0)
+    await expect(f.start()).resolves.toHaveProperty('signup_id')
+  })
+
+  describe('limits keyed on the requester', () => {
+    const person = (n: number) => ({ company_name: 'Signup company', admin_name: 'Administrator',
+      email: `owner@d${n}.example.test`, mobile: `+9665660${String(n).padStart(5, '0')}` })
+    const cheapService = (now: () => Date) => new SignupService(pool, { planId, secret: 'a'.repeat(32), dailyLimit: 100, now, sms: async () => {}, email: async () => {} })
+
+    it('one client address cannot send more than its daily share, and another address is unaffected', async () => {
+      let now = new Date()
+      const service = cheapService(() => now)
+      for (let n = 1; n <= 20; n++) {
+        if (n % 10 === 1 && n > 1) now = new Date(+now + 61 * 60_000)
+        await service.start(person(n), '198.51.100.1')
+      }
+      now = new Date(+now + 61 * 60_000)
+      await expect(service.start(person(21), '198.51.100.1')).rejects.toMatchObject({ code: 'rate_limited' })
+      await expect(service.start(person(21), '198.51.100.2')).resolves.toHaveProperty('signup_id')
+    })
+
+    it('one phone number cannot be sent more than its daily share, whoever asks', async () => {
+      let now = new Date()
+      const service = cheapService(() => now)
+      for (let i = 1; i <= 5; i++) {
+        await service.start({ ...person(1), email: `owner@d${i}.example.test` }, `198.51.100.${i}`)
+        now = new Date(+now + 61 * 60_000)
+      }
+      await expect(service.start({ ...person(1), email: 'owner@d9.example.test' }, '198.51.100.99')).rejects.toMatchObject({ code: 'rate_limited' })
+      await expect(service.start(person(2), '198.51.100.99')).resolves.toHaveProperty('signup_id')
+    })
   })
 })

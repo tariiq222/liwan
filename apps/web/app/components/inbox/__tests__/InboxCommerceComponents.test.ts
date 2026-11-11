@@ -13,7 +13,7 @@ function run(file: string, bindings: Record<string, unknown>, props: Record<stri
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const base = {
     _defineComponent: Vue.defineComponent, _mergeModels: (Vue as unknown as Record<string, unknown>).mergeModels, _useModel: Vue.useModel, _unref: Vue.unref,
-    InboxOrderActions: {}, InboxOrderLines: {}, InboxOrderEditor: {}, InboxProductPicker: {}, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
+    InboxOrderActions: {}, InboxOrderLines: {}, InboxOrderEditor: {}, InboxProductPicker: {}, InboxTemplatePicker: {}, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }), ...commerce, ...bindings,
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
@@ -74,10 +74,6 @@ describe('InboxOrderActions', () => {
     const state = run('InboxOrderActions.vue', {
       useAccess: () => ({ can: () => can }),
       useInboxOrder: () => ({ data: Vue.ref(undefined), isPending: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
-      useInboxTemplates: () => ({ data: Vue.ref({ items: [
-        { id: 4, name: 'pay', language: 'ar', supported: true, buttons: [{ type: 'url', url: 'https://x.test/pay/order/{{1}}' }] },
-        { id: 5, name: 'other', language: 'ar', supported: true, buttons: [{ type: 'url', url: 'https://x.test/a/{{1}}' }] },
-      ], total: 2 }) }),
       useCheckoutInboxOrder: () => ({ mutateAsync: checkout, isPending: Vue.ref(false) }),
       useCancelInboxOrder: () => ({ mutate: cancel, isPending: Vue.ref(false) }),
     }, { orderId: 7, state: 'cart', paymentStatus: null, conversationId: 3, channelId: 1, windowOpen: true, ...props })
@@ -102,14 +98,13 @@ describe('InboxOrderActions', () => {
     expect(state.step).toBeNull()
   })
 
-  it('needs a pay-link template once the window has closed, and offers only those', async () => {
+  it('needs a pay-link template once the window has closed', async () => {
     const { state, checkout } = mount({ windowOpen: false })
     state.step = 'checkout'
-    expect(state.payTemplates.map((entry: { value: number }) => entry.value)).toEqual([4])
     expect(state.checkoutReady).toBe(false)
     await state.submitCheckout()
     expect(checkout).not.toHaveBeenCalled()
-    state.templateId = 4
+    state.templateId = 4 // chosen in the picker, which searches the channel's templates on the server
     await state.submitCheckout()
     expect(checkout).toHaveBeenCalledWith({ id: 7, body: { template_id: 4 } })
   })

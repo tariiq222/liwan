@@ -52,5 +52,6 @@ python3 -B tools/upgrade_log_guard.py "$SCRATCH_ROOT/logs/upgrade.log"
 # Post-upgrade smoke
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" shell "${ODOO_DB_ARGS[@]}" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" \
-  -d "$SCRATCH_DB" --http-port="$ODOO_PORT" --no-http < deploy/odoo/upgrade_smoke.py | tee "$SCRATCH_ROOT/smoke.log"
+  --data-dir="$SCRATCH_ROOT/data" -d "$SCRATCH_DB" --http-port="$ODOO_PORT" --no-http \
+  < deploy/odoo/upgrade_smoke.py | tee "$SCRATCH_ROOT/smoke.log"
 grep -q UPGRADE_SMOKE_OK "$SCRATCH_ROOT/smoke.log"

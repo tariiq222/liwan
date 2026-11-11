@@ -74,7 +74,7 @@ definePageMeta({ middleware: 'customer-commercial' })
   <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.status.title')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
-    <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
+    <SharedPageState v-else :loading="pending && !loaded" :error="error" @retry="refresh">
       <SharedRecordSection variant="panel" :title="t('subscription.status.order')">
         <template #actions><SharedStatusBadge v-if="display" data-slot="subscription-state" :data-state="display" :tone="subscriptionStateBadge(display).tone" :label="t(subscriptionStateBadge(display).labelKey)" /></template>
         <div class="space-y-4">

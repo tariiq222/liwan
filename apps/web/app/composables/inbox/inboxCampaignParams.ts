@@ -59,8 +59,8 @@ export function headerMediaKind(template: InboxTemplate | null): 'image' | 'vide
 }
 
 /** Marketing and utility templates LiwanOS can fill, without a location header (a campaign refuses it). */
-export const campaignTemplates = (templates: readonly InboxTemplate[]) =>
-  templates.filter(template => template.status === 'approved' && template.supported && template.category !== 'authentication' && template.header?.type !== 'location')
+export const isCampaignTemplate = (template: InboxTemplate) =>
+  template.status === 'approved' && template.supported && template.category !== 'authentication' && template.header?.type !== 'location'
 
 // ---------------------------------------------------------------- schedule
 

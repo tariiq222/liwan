@@ -1,11 +1,11 @@
 import { acceptOutcome, assertPublicMutationOrigin, pickAcceptBody } from '../../utils/invitation-accept'
-import { customerControlBase } from '../../utils/customer-commercial'
+import { customerControlBase, invitationClientHeaders } from '../../utils/customer-commercial'
 import { boundedTenantBody, withTenantBody } from '../../utils/tenantTransport'
 
-// Public route: the control-plane endpoint is unauthenticated, so no service signature.
+// Public route: no user signature. Only the visitor's edge-derived address is signed, for the control plane's rate limit.
 // Never log or echo the token or password.
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig(event) as { customerCommercialPublicOrigin?: string; customerCommercialControlUrl?: string }
+  const config = useRuntimeConfig(event) as { customerCommercialPublicOrigin?: string; customerCommercialControlUrl?: string; customerCommercialIssuer?: string; customerCommercialServiceKey?: string }
   setResponseHeader(event, 'cache-control', 'no-store')
   assertPublicMutationOrigin(event, config)
   const base = customerControlBase(config)
@@ -16,8 +16,9 @@ export default defineEventHandler(async (event) => {
   const body = pickAcceptBody(parsed)
   if (!body) throw createError({ statusCode: 400, data: { code: 'invalid_invitation', message: 'Invalid invitation' } })
   try {
-    const response = await $fetch.raw(new URL('/v1/invitations/accept', base).toString(), {
-      method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', accept: 'application/json' },
+    const target = new URL('/v1/invitations/accept', base)
+    const response = await $fetch.raw(target.toString(), {
+      method: 'POST', body: JSON.stringify(body), headers: { ...invitationClientHeaders(event, config, target), 'content-type': 'application/json', accept: 'application/json' },
       // Longer than control-api's own effect wait (215s), so a slow Odoo effect that still succeeds is not reported
       // to the browser as a failure after the password has already changed.
       redirect: 'error', signal: AbortSignal.timeout(230000),

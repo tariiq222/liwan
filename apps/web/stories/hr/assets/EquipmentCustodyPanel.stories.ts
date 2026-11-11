@@ -11,14 +11,13 @@ const meta = {
   component: EquipmentCustodyPanel,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/assets/[equipmentId].vue:216', 'كتلة العهدة في سجل الأصل: المُسلَّم إليه وتاريخ آخر تسليم، وضبط التسليم (الموظف والتاريخ) حين يكون الأصل غير مُسلَّم.'),
+    ...storyContext('apps/web/app/pages/hr/assets/[equipmentId].vue:209', 'كتلة العهدة في سجل الأصل: المُسلَّم إليه وتاريخ آخر تسليم، وضبط التسليم (الموظف والتاريخ) حين يكون الأصل غير مُسلَّم.'),
   },
   args: {
     equipment: {
       id: 5, name: 'MacBook Pro', category: { id: 2, name: 'حاسبات' }, serial_no: 'SN-001', model: 'M4',
       employee: null, assign_date: '2026-04-02', warranty_date: null, scrap_date: null, active: true,
     },
-    employees: [{ id: 7, name: 'ليلى الحربي' }, { id: 8, name: 'عمر القحطاني' }],
     canManage: true,
     pending: false,
     onAssign: fn(),

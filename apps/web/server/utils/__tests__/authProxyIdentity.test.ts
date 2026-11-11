@@ -79,7 +79,7 @@ describe.each(['/login', '/verify'])('dedicated auth identity on %s', (path) => 
     expect(calls).toHaveLength(1)
     expect(calls[0]).toMatchObject({ 'x-forwarded-for': '203.0.113.7', 'x-forwarded-host': 'liwan.example.test:8443', 'x-forwarded-proto': 'https' })
     expect(calls[0]?.forwarded).toBeUndefined()
-    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/; Secure'])
+    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/; Secure; SameSite=Lax'])
   })
 
   it.each(['2001:db8::1234', '::ffff:192.0.2.8'])('supports a single IPv6 peer %s', async (ip) => {
@@ -117,7 +117,7 @@ describe.each(['/login', '/verify'])('dedicated auth identity on %s', (path) => 
     configuredHeader = ''
     const response = await request(path, { ...edge, 'x-forwarded-for': '198.51.100.99', 'x-forwarded-proto': 'https' })
     expect(response.status).toBe(200)
-    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/'])
+    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/; SameSite=Lax'])
     expect(calls[0]?.['x-forwarded-for']).toBeUndefined()
     expect(calls[0]?.['x-forwarded-host']).toBeUndefined()
   })
@@ -128,7 +128,7 @@ it('secures both upstream and local cookie clears on HTTPS logout', async () => 
   expect(response.status).toBe(204)
   const cookies = response.headers.getSetCookie()
   expect(cookies).toHaveLength(2)
-  expect(cookies[0]).toBe('liwan_device=; HttpOnly; Path=/api/auth; Max-Age=0; Secure')
+  expect(cookies[0]).toBe('liwan_device=; HttpOnly; Path=/api/auth; Max-Age=0; Secure; SameSite=Lax')
   expect(cookies[1]).toMatch(/^session_id=;.*Max-Age=0.*; Secure$/)
 })
 
@@ -143,7 +143,7 @@ it.each(['/login', '/verify'])('shared %s preserves tenant authority without tru
   try {
     const response = await request(path, { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' })
     expect(response.status).toBe(200)
-    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/; Secure'])
+    expect(response.headers.getSetCookie()).toEqual(['session_id=synthetic-wire-session; HttpOnly; Path=/; Secure; SameSite=Lax'])
     expect(calls[0]).toMatchObject({ host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' })
     expect(calls[0]?.['x-forwarded-for']).toBeUndefined()
     expect(calls[0]?.['x-forwarded-host']).toBeUndefined()

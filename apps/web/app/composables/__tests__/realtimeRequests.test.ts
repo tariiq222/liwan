@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { QueryClient, QueryObserver } from '@tanstack/vue-query'
-import { setBusQueryClient, useBus, chatTypingEvent } from '../useBus'
+import { setBusQueryClient, useBus, chatTypists } from '../useBus'
 import { scheduleKeys } from '../useProjectSchedule'
 import { governanceKeys } from '../projectGovernanceKeys'
 import { baselineKeys } from '../projectBaselineKeys'
@@ -46,10 +46,11 @@ async function setup(keys: readonly (readonly unknown[])[], firstRead?: () => Pr
 it('updates typing without starting any durable chat query', async () => {
   const { starts, send, stops } = await setup([['chat', 7, 'list'], ['chat', 7, 'detail', 3], ['chat', 7, 'messages', 3, {}]])
   send('liwan/chat', { id: 3, event: 'typing', user_id: 8, is_typing: true })
-  expect(chatTypingEvent.value?.isTyping).toBe(true)
+  expect(chatTypists.value).toHaveLength(1)
   await Promise.resolve()
   expect(starts.map(fn => fn.mock.calls.length)).toEqual([0, 0, 0])
   send('liwan/chat', { id: 3, event: 'typing', user_id: 8, is_typing: false })
+  expect(chatTypists.value).toEqual([])
   stops.forEach(stop => stop())
 })
 it('refreshes only the affected chat thread and lists', async () => {

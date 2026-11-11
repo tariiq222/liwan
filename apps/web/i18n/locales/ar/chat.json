@@ -46,6 +46,7 @@
     "channel": "قناة",
     "seen": "قُرئت",
     "typing": "{name} يكتب…",
+    "typingMany": "{name} يكتبون…",
     "reply": "رد",
     "star": "تمييز",
     "pin": "تثبيت",

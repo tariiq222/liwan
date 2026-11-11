@@ -4,7 +4,8 @@
 The state carries the tenant, the signed-in user, the channel to reconnect (or 0), the channel name,
 the department, the tenant host and an expiry, signed with the app secret (D13). The relay verifies the
 same signature before it forwards the callback to the owning tenant, so the tenant host in the state is
-never trusted from the query string. Tokens are stored encrypted and never appear in a redirect.
+never trusted from the query string. The callback also refuses a state minted for another host.
+Tokens are stored encrypted and never appear in a redirect.
 """
 import base64
 import binascii
@@ -57,6 +58,11 @@ def encode_state(config, values):
         json.dumps(values, separators=(',', ':'), sort_keys=True).encode(),
     ).decode().rstrip('=')
     return f'{payload}.{_state_signature(config.client_secret, payload)}'
+
+
+def _request_host():
+    """The host this request arrived on, without its port: what a state is minted for and checked against."""
+    return request.httprequest.host.partition(':')[0]
 
 
 def _is_count(value, minimum):
@@ -126,7 +132,7 @@ class TikTokOAuthController(http.Controller):
             'ch': channel.id if channel else 0,
             'n': parse_text(payload, 'name', 128) if 'name' in payload else channel.name,
             'd': department.id if department else 0,
-            'h': request.httprequest.host.partition(':')[0],
+            'h': _request_host(),
             'x': int(time.time()) + int(TIKTOK_STATE_TTL.total_seconds()),
         })
         return {'authorize_url': tiktok.authorize_url(config, state)}
@@ -141,6 +147,10 @@ class TikTokOAuthController(http.Controller):
         config = request.env['liwan.inbox.channel']._liwan_tiktok_config()
         values = decode_state(config, state, int(time.time()))
         company = request.env['res.company'].browse(values['c'])
+        # The app secret is shared by every tenant of a shared deployment, so only the host proves the state
+        # was minted for this tenant.
+        if values['h'] != _request_host():
+            raise ApiError(403, 'forbidden', STATE_INVALID)
         if values['u'] != request.env.user.id or not company.exists() or not holds(MANAGE_CHANNELS, company):
             raise ApiError(403, 'forbidden', STATE_INVALID)
         channel = request.env['liwan.inbox.channel']

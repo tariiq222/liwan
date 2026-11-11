@@ -4,10 +4,18 @@ import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { startTrialOn } from '../commercial/trial.js'
+import { isFreeMailAddress } from './free-mail.js'
 
 const minutes = (count: number) => count * 60_000
 const maxAttempts = 5
 const signupDeliveryLock = 1397969237
+// Delivery limits. The platform-wide daily ceiling (Settings.dailyLimit) is the last-resort cost cap; these keep one
+// requester from spending it. Every count is over the delivery history, which keeps one day.
+const DESTINATION_COOLDOWN_MINUTES = 1
+const DESTINATION_HOURLY_LIMIT = 3
+const DESTINATION_DAILY_LIMIT = 5
+const SOURCE_HOURLY_LIMIT = 10
+const SOURCE_DAILY_LIMIT = 20
 const ok = { ok: true } as const
 type Channel = 'sms' | 'email'
 type SendCode = (destination: string, code: string) => Promise<void>
@@ -63,13 +71,17 @@ export class SignupService {
       'SELECT network(set_masklen($1::inet, CASE family($1::inet) WHEN 6 THEN 64 ELSE 32 END))::text AS address', [ip])
     const source = this.key('source', subnet.rows[0]!.address).toString('hex')
     await client.query("DELETE FROM public_signup_deliveries WHERE issued_at <= $1::timestamptz - interval '1 day'", [now])
-    const { rows: [count] } = await client.query<{ total: number; recent: number; destination: number; source: number }>(`
+    const { rows: [count] } = await client.query<{ total: number; recent: number; destination: number; destination_day: number; source: number; source_day: number }>(`
       SELECT count(*)::int AS total,
-        count(*) FILTER (WHERE destination_key=$2 AND issued_at > $4::timestamptz - interval '1 minute')::int AS recent,
+        count(*) FILTER (WHERE destination_key=$2 AND issued_at > $4::timestamptz - make_interval(mins => $5))::int AS recent,
         count(*) FILTER (WHERE destination_key=$2 AND issued_at > $4::timestamptz - interval '1 hour')::int AS destination,
-        count(*) FILTER (WHERE source_key=$3 AND issued_at > $4::timestamptz - interval '1 hour')::int AS source
-      FROM public_signup_deliveries WHERE channel=$1`, [channel, address, source, now])
-    if (!count || count.total >= this.settings.dailyLimit || count.recent || count.destination >= 3 || count.source >= 10) {
+        count(*) FILTER (WHERE destination_key=$2)::int AS destination_day,
+        count(*) FILTER (WHERE source_key=$3 AND issued_at > $4::timestamptz - interval '1 hour')::int AS source,
+        count(*) FILTER (WHERE source_key=$3)::int AS source_day
+      FROM public_signup_deliveries WHERE channel=$1`, [channel, address, source, now, DESTINATION_COOLDOWN_MINUTES])
+    if (!count || count.total >= this.settings.dailyLimit || count.recent ||
+        count.destination >= DESTINATION_HOURLY_LIMIT || count.destination_day >= DESTINATION_DAILY_LIMIT ||
+        count.source >= SOURCE_HOURLY_LIMIT || count.source_day >= SOURCE_DAILY_LIMIT) {
       refuse('rate_limited', 429)
     }
     await client.query('INSERT INTO public_signup_deliveries(channel,destination_key,source_key,issued_at) VALUES($1,$2,$3,$4)',
@@ -82,6 +94,7 @@ export class SignupService {
 
   async start(input: z.input<typeof signupInput>, ip: string) {
     const { company_name, admin_name, email, mobile } = signupInput.parse(input)
+    if (isFreeMailAddress(email)) refuse('business_email_required', 422)
     const id = randomUUID()
     const code = codeValue()
     const now = this.now()

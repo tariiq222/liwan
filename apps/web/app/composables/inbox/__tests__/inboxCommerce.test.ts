@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxMessageCommerce } from '@liwan/contracts'
+import type { InboxMessageCommerce, InboxTemplate } from '@liwan/contracts'
 import {
   COMMERCE_LIMITS, addDraftSection, buildCommerceContent, cartLineRows, commerceProblem, commerceProductCount, commerceToDraft, emptyCommerceDraft, expiryCountdown, formatInboxMoney,
-  imageProblem, linesTotal, normalizeCommerceDraft, orderBadge, orderLineRows, pickedIds, removeDraftSection, rowsTotal, toggleDraftProduct,
+  imageProblem, isPayLinkTemplate, linesTotal, normalizeCommerceDraft, orderBadge, orderLineRows, pickedIds, removeDraftSection, rowsTotal, toggleDraftProduct,
 } from '../inboxCommerce'
 
 const ids = (count: number, from = 1) => Array.from({ length: count }, (_, index) => `wv-${from + index}`)
@@ -131,5 +131,17 @@ describe('product images', () => {
     expect(imageProblem({ type: 'image/gif', size: 1000 }, null)).toBe('type')
     expect(imageProblem({ type: 'image/jpeg', size: 5 * 1024 * 1024 + 1 }, null)).toBe('tooLarge')
     expect(imageProblem({ type: 'image/jpeg', size: 1000 }, { width: 499, height: 800 })).toBe('tooSmall')
+  })
+})
+
+describe('pay-link templates', () => {
+  const template = (rest: Partial<InboxTemplate>) => ({ supported: true, buttons: [], ...rest }) as InboxTemplate
+  const url = (value: string) => ({ type: 'url', text: 'Pay', url: value }) as InboxTemplate['buttons'][number]
+
+  it('needs a supported template with a url button to the pay page that ends in a variable', () => {
+    expect(isPayLinkTemplate(template({ buttons: [url('https://x.test/pay/order/{{1}}')] }))).toBe(true)
+    expect(isPayLinkTemplate(template({ buttons: [url('https://x.test/a/{{1}}')] }))).toBe(false)
+    expect(isPayLinkTemplate(template({ buttons: [url('https://x.test/pay/order/1')] }))).toBe(false)
+    expect(isPayLinkTemplate(template({ supported: false, buttons: [url('https://x.test/pay/order/{{1}}')] }))).toBe(false)
   })
 })

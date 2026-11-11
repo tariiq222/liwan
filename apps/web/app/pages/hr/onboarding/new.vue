@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useHrOnboardingPlans, useLaunchHrOnboardingRun } from '@/composables/useHrOnboarding'
-import { useHrEmployees } from '@/composables/useHrEmployees'
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import { lifecycleLaunchErrorMessage } from '@/utils/hrLifecycleErrors'
 import { owningListBack } from '@/utils/recordListOrigin'
 
@@ -11,7 +11,6 @@ const { can } = useAccess()
 const hydrated = useHydrated()
 const formError = ref<unknown>(null)
 const errorMessage = computed(() => formError.value ? lifecycleLaunchErrorMessage(formError.value, t, t(`${NAMESPACE}.form.saveError`)) : undefined)
-const employees = useHrEmployees({ limit: 200, offset: 0 })
 const plans = useHrOnboardingPlans({ active: 'true', limit: 200, offset: 0 }, computed(() => can('hr.onboarding.read')))
 // «Start onboarding» after a hire arrives here with the new employee already chosen.
 const queryEmployeeId = Number(route.query.employee_id)
@@ -21,7 +20,6 @@ const planId = ref<number | null>(null)
 const planDate = ref<string | null>(null)
 const employeeError = ref<string>()
 const planError = ref<string>()
-const employeeOptions = computed(() => (employees.data.value?.items ?? []).map(employee => ({ value: String(employee.id), label: employee.name })))
 const planOptions = computed(() => (plans.data.value?.items ?? []).map(plan => ({ value: String(plan.id), label: plan.name })))
 const { mutateAsync: launch, isPending } = useLaunchHrOnboardingRun()
 const sourcePaths = useRecordListPaths(['/hr/onboarding'])
@@ -58,14 +56,11 @@ async function submit() {
       <SharedFormSection panel :title="t(`${NAMESPACE}.runs.title`)">
         <div class="liwan-auto-grid">
           <UFormField :label="t(`${NAMESPACE}.form.employee`)" name="hr-onboarding-employee" required :error="employeeError">
-            <USelect
+            <EmployeeSearchSelect
               id="hr-onboarding-employee"
-              class="w-full"
-              :model-value="employeeId ? String(employeeId) : undefined"
-              :items="employeeOptions"
+              v-model="employeeId"
               :placeholder="t(`${NAMESPACE}.form.employeePlaceholder`)"
               :disabled="!hydrated || isPending"
-              @update:model-value="employeeId = $event ? Number($event) : null"
             />
           </UFormField>
           <UFormField :label="t(`${NAMESPACE}.runs.plan`)" name="hr-onboarding-plan" required :error="planError">

@@ -17,6 +17,10 @@ const browserHeaders = new Set(['x-liwan-csrf'])
 // The UI language the web proxy forwards on its trusted hop; any other value, or any other sender, is refused.
 const UI_LOCALE_HEADER = 'x-liwan-ui-locale'
 const uiLocale = value => value === 'ar' || value === 'en'
+// Preconditions the fiscal write states about its sign-in user and company; Odoo compares them with the session, they select nothing.
+// A plain positive decimal no wider than an exact JavaScript integer, as odoo-addons/liwan_finance/controllers/finance_setup.py requires.
+const EXPECTED_ID_HEADERS = new Set(['x-liwan-expected-user-id', 'x-liwan-expected-company-id'])
+const expectedId = value => typeof value === 'string' && /^[1-9][0-9]{0,15}$/.test(value) && Number(value) <= Number.MAX_SAFE_INTEGER
 const deviceCookieName = 'liwan_device='
 const deviceToken = /^[A-Za-z0-9_-]{20,256}$/
 const deviceMaxAge = 30 * 24 * 60 * 60
@@ -118,7 +122,7 @@ export function requestPlan(req, registry, token, codec) {
   const internal = equal(req.headers['x-liwan-proxy-token'], token)
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
   for (const name of Object.keys(req.headers)) {
-    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && name === UI_LOCALE_HEADER && uiLocale(req.headers[name])) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
+    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && name === UI_LOCALE_HEADER && uiLocale(req.headers[name])) && !(EXPECTED_ID_HEADERS.has(name) && expectedId(req.headers[name])) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
   }
   if (internal && req.headers['x-liwan-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
   if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url)) throw Error('invalid_path')
@@ -160,6 +164,8 @@ export function requestPlan(req, registry, token, codec) {
   const serviceKey = req.headers.authorization
   if (internal && odoo && isServiceAuthorizedRequest(req.method, req.url) && typeof serviceKey === 'string' && BEARER_KEY.test(serviceKey)) headers.authorization = serviceKey
   if (internal && uiLocale(req.headers[UI_LOCALE_HEADER])) headers[UI_LOCALE_HEADER] = req.headers[UI_LOCALE_HEADER]
+  // Validated above; Odoo gets them only on the trusted API hop, the Nuxt hop gets them from the browser.
+  if (!odoo || (internal && url.pathname.startsWith('/api/v1/'))) for (const name of EXPECTED_ID_HEADERS) if (req.headers[name] !== undefined) headers[name] = req.headers[name]
   const cookies = (headers.cookie ?? '').split(';').map(v => v.trim()).filter(Boolean)
   const sessions = cookies.filter(v => v.startsWith('session_id='))
   if (sessions.length > 1) throw Error('ambiguous_session')

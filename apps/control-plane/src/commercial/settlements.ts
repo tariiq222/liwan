@@ -10,7 +10,7 @@ import { actorLabel } from '../admin-auth/grants.js'
 import { billingSettings } from './billing-settings.js'
 import { claimOutbox, completeOutbox, deferOutbox } from './outbox.js'
 import { creditedMinorSql, DUPLICATE_PAYMENT_REASON } from './refund-credit.js'
-import { markTopupRefunded } from './ai-ledger.js'
+import { assertTopupUnused, markTopupRefunded } from './ai-ledger.js'
 
 /** Refunds the provider cannot do for this payment: retrying changes nothing, so the row goes to the operator at once. */
 const NON_RETRYABLE_REFUND = ['provider_refund_unavailable', 'provider_refund_payment_mismatch']
@@ -317,7 +317,7 @@ export type Refundability = { refundable: boolean; first_payment: boolean; until
  * structural checks. A note that already exists for this invoice answers `refund_already_requested` rather than making
  * a second one, which the unique index would refuse anyway.
  */
-export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reason }: { invoice_id: string; actor: CommercialActor; reason: string }) {
+export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reason, units_used }: { invoice_id: string; actor: CommercialActor; reason: string; units_used?: number }) {
   return transaction(pool, async client => {
     // The invoice row is locked first: two operators asking together make one note, and the lock order matches the
     // settlement path (invoice, then note) so neither can deadlock with a concurrent refund.
@@ -336,6 +336,8 @@ export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reas
     const already = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND origin='vendor' AND kind='credit_note' AND status<>'void'", [invoice_id])
     if (already.rowCount) throw new CommercialHttpError('refund_already_requested', 409)
     await assertRefundable(client, invoice.customer_id, invoice.id)
+    // An AI top-up on this invoice must be unspent: the same rule the top-up refund route applies.
+    if (invoice.order_id) await assertTopupUnused(client, invoice.order_id, units_used)
     // The note's `created_at` is the request time the window was judged at; recording the refund later never re-judges it.
     const id = randomUUID()
     const row = (await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
