@@ -21,6 +21,7 @@ import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
 import { fileToBase64 } from '../../utils/attachmentFile'
 import { createTypingNotifier } from './inboxTyping'
 import { ApiError } from '../useApi'
+import { busFallbackInterval } from '../useBus'
 
 // Conversation events refresh lists and the affected thread; template events have their own keys.
 export const inboxKeys = {
@@ -42,6 +43,7 @@ export function useInboxConversations(route: MaybeRefOrGetter<InboxListRoute>) {
     queryKey: computed(() => inboxKeys.list(toValue(route))),
     placeholderData: keepPreviousData,
     retry: false,
+    refetchInterval: busFallbackInterval(),
     queryFn: ({ queryKey, signal }) => $api('/api/v1/inbox/conversations', { query: queryKey[2], signal, schema: InboxConversationListSchema }),
   })
 }
@@ -52,6 +54,7 @@ export function useInboxConversation(id: MaybeRefOrGetter<number | undefined>) {
     queryKey: computed(() => inboxKeys.detail(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
     retry: false,
+    refetchInterval: busFallbackInterval(),
     queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}`, { signal, schema: InboxConversationDetailSchema }),
   })
 }
@@ -100,6 +103,7 @@ export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
     queryKey: computed(() => inboxKeys.messagesOf(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
     retry: false,
+    refetchInterval: busFallbackInterval(),
     initialPageParam: 0,
     queryFn: ({ pageParam, queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}/messages`, { signal, query: { limit: INBOX_MESSAGE_PAGE, offset: pageParam }, schema: InboxMessageListSchema }),
     getNextPageParam: (_last, pages) => nextOlderOffset(pages),
