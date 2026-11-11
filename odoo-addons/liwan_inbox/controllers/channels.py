@@ -20,10 +20,22 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     reject,
     unique_as_invalid,
 )
-from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
-from odoo.addons.liwan_inbox.serializers.settings import dump_channel
+from odoo.addons.liwan_inbox.models.access_service import (
+    MANAGE_AUTOMATION,
+    MANAGE_CHANNELS,
+    MANAGE_FLOWS,
+    MANAGE_TEMPLATES,
+)
+from odoo.addons.liwan_inbox.models.constants import (
+    AUTOMATION_FEATURE,
+    FLOWS_FEATURE,
+    TEMPLATES_FEATURE,
+)
+from odoo.addons.liwan_inbox.serializers.settings import dump_channel, dump_channel_work
 
 HOOK_PATHS = {'whatsapp': '/api/v1/inbox/hooks/whatsapp', 'tiktok': '/api/v1/inbox/hooks/tiktok'}
+# The channels a page may pick from, by the capability and sub-feature that give a user work on them.
+WORK_SCOPES = ((MANAGE_TEMPLATES, TEMPLATES_FEATURE), (MANAGE_FLOWS, FLOWS_FEATURE), (MANAGE_AUTOMATION, AUTOMATION_FEATURE))
 CREATE_FIELDS = {
     'name', 'kind', 'department_id', 'phone_number_id', 'business_account_id', 'access_token', 'app_secret', 'app_id',
 }
@@ -97,6 +109,32 @@ class ChannelController(http.Controller):
         domain = [('owner_company_id', 'in', companies)]
         return {
             'items': [dump(c) for c in Channel.search(domain, limit=limit, offset=offset)],
+            'total': Channel.search_count(domain),
+        }
+
+    @http.route('/api/v1/inbox/channels/work', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('inbox.enabled', operation='read')
+    @requires_capability(MANAGE_TEMPLATES, MANAGE_FLOWS, MANAGE_AUTOMATION, match='any')
+    def list_work_channels(self, **_):
+        """The channels the caller works on (templates, forms or automation), as minimal references.
+
+        The channel list itself needs the channels capability; this one names only what a template, form or
+        automation page needs to pick a channel, for the companies where the caller holds that work's capability
+        and the matching sub-feature is readable.
+        """
+        limit, offset = parse_page(request.httprequest.args)
+        entitlement = request.env['liwan.entitlement.service']
+        companies = {
+            company_id
+            for capability, feature in WORK_SCOPES
+            if entitlement._liwan_feature_read(feature)
+            for company_id in request.env['liwan.access.service']._liwan_capability_company_ids((capability,))
+        }
+        domain = [('owner_company_id', 'in', sorted(companies))]
+        Channel = request.env['liwan.inbox.channel']
+        return {
+            'items': [dump_channel_work(c) for c in Channel.search(domain, limit=limit, offset=offset)],
             'total': Channel.search_count(domain),
         }
 

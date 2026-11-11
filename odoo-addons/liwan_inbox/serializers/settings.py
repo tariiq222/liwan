@@ -73,6 +73,16 @@ def dump_template(template):
     }
 
 
+def dump_channel_work(channel):
+    """A channel the caller works on (its templates, forms or automation): id, name, kind and department only.
+
+    Nothing an administrator sees (provider ids, secrets, health) belongs in this reference list.
+    """
+    return {
+        'id': channel.id, 'name': channel.name, 'kind': channel.kind, 'department': dump_ref(channel.department_id),
+    }
+
+
 def dump_channel(channel, callback_url):
     """The channel for its administrator: secrets are reported only as present or absent.
 

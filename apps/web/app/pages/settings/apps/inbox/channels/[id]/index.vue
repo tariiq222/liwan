@@ -6,6 +6,7 @@ import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
+import { useInboxFlowsEnabled, useInboxTemplatesEnabled } from '@/composables/inbox/inboxFeatures'
 import { channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
 import { inboxTikTokErrorKey, useConnectInboxTikTok } from '@/composables/inbox/inboxTikTok'
@@ -40,6 +41,8 @@ const { mutate: rotate, isPending: rotating } = useRotateInboxVerifyToken(() => 
 const rotatedToken = ref<string | null>(null)
 const manage = computed(() => can('inbox.channels.manage'))
 const catalogOn = useInboxCatalogEnabled()
+const templatesOn = useInboxTemplatesEnabled()
+const flowsOn = useInboxFlowsEnabled()
 const manageTemplates = computed(() => can('inbox.templates.manage'))
 const isTikTok = computed(() => channel.value?.kind === 'tiktok')
 const { mutateAsync: connect, isPending: connecting } = useConnectInboxTikTok()
@@ -162,8 +165,8 @@ async function copy(kind: 'callback' | 'token', value: string) {
   >
     <template v-if="channel && manage && !isTikTok" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-plug-zap" :loading="testing" :disabled="busy" :label="t('inbox.settings.channels.test')" data-testid="inbox-channel-test" @click="runTest" />
-      <UButton color="neutral" variant="outline" icon="i-lucide-file-text" :to="`/settings/apps/inbox/channels/${channel?.id}/templates`" :disabled="busy" :label="t('inbox.templates.title')" data-testid="inbox-channel-templates" />
-      <UButton color="neutral" variant="outline" icon="i-lucide-clipboard-list" :to="`/settings/apps/inbox/channels/${channel?.id}/flows`" :disabled="busy" :label="t('inbox.flows.title')" data-testid="inbox-channel-flows" />
+      <UButton v-if="templatesOn" color="neutral" variant="outline" icon="i-lucide-file-text" :to="`/settings/apps/inbox/channels/${channel?.id}/templates`" :disabled="busy" :label="t('inbox.templates.title')" data-testid="inbox-channel-templates" />
+      <UButton v-if="flowsOn" color="neutral" variant="outline" icon="i-lucide-clipboard-list" :to="`/settings/apps/inbox/channels/${channel?.id}/flows`" :disabled="busy" :label="t('inbox.flows.title')" data-testid="inbox-channel-flows" />
       <UButton v-if="can('inbox.automation.manage')" color="neutral" variant="outline" icon="i-lucide-bot-message-square" :to="`/settings/apps/inbox/auto-messages/${channel?.id}`" :disabled="busy" :label="t('inbox.automation.messages.title')" data-testid="inbox-channel-automation" />
       <UButton v-if="manageTemplates" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="syncing" :disabled="busy" :label="t('inbox.settings.channels.syncTemplates')" data-testid="inbox-channel-sync" @click="runSync" />
     </template>

@@ -1170,6 +1170,10 @@ export function inboxPreviewData(method, path, url, body = {}) {
   if (resource === 'flows' && id !== undefined) return flowRoute(method, id, parts[5], body, url)
   if (resource === 'templates' && id !== undefined) return templateRoute(method, id, body)
   if (resource === 'reports') return reportsRoute(mockContext(), method, parts, url)
+  // The minimal channel reference a templates, forms or automation manager may work on (no admin-only fields).
+  if (resource === 'channels' && parts[4] === 'work' && method === 'GET') {
+    return ok(list(state.channels.map(({ id, name, kind, department }) => ({ id, name, kind, department }))))
+  }
   if (resource === 'channels') return channelRoute(method, parts, body, url)
   return undefined
 }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InboxAudienceListSchema, InboxAudienceMemberListSchema, InboxAudienceSchema, InboxCampaignListSchema, InboxCampaignPreviewSchema, InboxCampaignRecipientListSchema,
   InboxCampaignSchema, InboxCampaignSettingsSchema, InboxCampaignTestResultSchema, InboxChannelSendingSchema, InboxContactImportResultSchema, InboxContactMarketingSchema,
-  InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
+  InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxChannelWorkListSchema, InboxConversationDetailSchema, InboxConversationListSchema,
   InboxBusinessProfileSchema, InboxChannelAlertListSchema, InboxCostReportSchema, InboxReportBreakdownSchema, InboxReportOverviewSchema,
   InboxTemplateAnalyticsDetailSchema, InboxTemplateAnalyticsListSchema, InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxFlowListSchema,
   InboxFlowPreviewSchema, InboxFlowSchema, InboxFlowSubmissionListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema,
@@ -33,6 +33,7 @@ describe('inbox audit mock', () => {
     expect(InboxDepartmentListSchema.parse(call('GET', '/api/v1/inbox/departments').body).total).toBe(2)
     expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body).visibility_policy).toBe('department')
     expect(InboxChannelListSchema.parse(call('GET', '/api/v1/inbox/channels').body).total).toBe(2)
+    expect(InboxChannelWorkListSchema.parse(call('GET', '/api/v1/inbox/channels/work').body).items.map(item => item.kind)).toEqual(['whatsapp', 'tiktok'])
     expect(InboxRefSchema.parse(call('GET', '/api/v1/inbox/channels/1/ref').body).id).toBe(1)
   })
 

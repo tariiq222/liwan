@@ -469,7 +469,9 @@
       },
       "channels": {
         "title": "Channels",
-        "hint": "The WhatsApp and TikTok channels connected to the inbox.",
+        "hint": "The WhatsApp and TikTok channels connected to customer messages.",
+        "workHint": "The channels you can work on in templates, forms or automation. Administering the channel itself stays with its administrators.",
+        "workEmpty": "No channel is available for your work right now.",
         "connect": "Connect WhatsApp",
         "connectHint": "Connect a WhatsApp Business number through the Cloud API.",
         "tiktokNotice": "TikTok processes the message data outside the Kingdom of Saudi Arabia; connecting is optional and can be disconnected at any time.",

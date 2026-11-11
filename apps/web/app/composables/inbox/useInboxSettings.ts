@@ -5,6 +5,7 @@ import {
   InboxCannedReplySchema,
   InboxChannelListSchema,
   InboxChannelSchema,
+  InboxChannelWorkListSchema,
   InboxDepartmentListSchema,
   InboxDepartmentSchema,
   InboxAttachmentSchema,
@@ -32,6 +33,7 @@ export const inboxSettingsKeys = {
   settings: ['inbox', 'settings'] as const,
   departments: ['inbox', 'departments'] as const,
   channels: ['inbox', 'channels'] as const,
+  workChannels: ['inbox', 'channels', 'work'] as const,
   channel: (id: number) => ['inbox', 'channel', id] as const,
   channelRef: (id: number) => ['inbox', 'channel-ref', id] as const,
 }
@@ -133,11 +135,23 @@ export function useDeleteInboxCannedReply() {
   })
 }
 
-export function useInboxChannels() {
+export function useInboxChannels(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxSettingsKeys.channels,
+    enabled,
     queryFn: () => $api('/api/v1/inbox/channels', { schema: InboxChannelListSchema }),
+  })
+}
+
+/** The channels a templates, forms or automation manager may work on: a minimal reference list, without channel administration. */
+export function useInboxChannelWork(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: inboxSettingsKeys.workChannels,
+    enabled,
+    retry: false,
+    queryFn: () => $api('/api/v1/inbox/channels/work', { schema: InboxChannelWorkListSchema }),
   })
 }
 

@@ -217,4 +217,27 @@ class TestChannelsApi(LiwanInboxCase):
         detail = self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}')
         self.assertEqual(detail.status_code, 200, detail.text)
         self.assertEqual(detail.json()['department']['id'], self.department.id)
-        self.assertError(self.api('GET', '/api/v1/inbox/departments'), 403, 'forbidden')
+        # The channel form's department picker: readable, never writable, for the channel manager.
+        departments = self.api('GET', '/api/v1/inbox/departments')
+        self.assertEqual(departments.status_code, 200, departments.text)
+        self.assertIn(self.department.id, [row['id'] for row in departments.json()['items']])
+        self.assertError(self.api('POST', '/api/v1/inbox/departments', {'name': 'Z', 'member_ids': []}), 403, 'forbidden')
+        self.assertError(
+            self.api('PATCH', f'/api/v1/inbox/departments/{self.department.id}', {'name': 'Z'}), 403, 'forbidden',
+        )
+        self.assertError(self.api('DELETE', f'/api/v1/inbox/departments/{self.department.id}'), 403, 'forbidden')
+
+    def test_the_work_channel_list_is_a_picker_of_the_work_capabilities_only(self):
+        self.channel.department_id = self.department
+        self.login(self.templates_only)
+        listing = self.api('GET', '/api/v1/inbox/channels/work')
+        self.assertEqual(listing.status_code, 200, listing.text)
+        body = listing.json()
+        self.assertEqual((body['total'], [row['id'] for row in body['items']]), (1, [self.channel.id]))
+        self.assertEqual(body['items'][0], {
+            'id': self.channel.id, 'name': self.channel.name, 'kind': 'whatsapp',
+            'department': {'id': self.department.id, 'name': self.department.name},
+        })
+        for user in (self.agent, self.reader_only, self.outsider):
+            self.login(user)
+            self.assertError(self.get('/api/v1/inbox/channels/work'), 403, 'forbidden')

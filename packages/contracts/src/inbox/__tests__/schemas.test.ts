@@ -1,6 +1,7 @@
 import {
   InboxChannelPatchSchema,
   InboxChannelSchema,
+  InboxChannelWorkListSchema,
   InboxConversationListSchema,
   InboxConversationPatchSchema,
   InboxInteractiveSchema,
@@ -88,6 +89,21 @@ describe('InboxChannelSchema', () => {
     expect(keys).not.toContain('access_token')
     expect(keys).not.toContain('app_secret')
     expect(keys).toContain('has_access_token')
+  })
+})
+
+describe('InboxChannelWorkListSchema', () => {
+  const WORK = { id: 3, name: 'Main WhatsApp', kind: 'whatsapp', department: { id: 7, name: 'Support' } }
+
+  it('accepts the picker shape and rejects any administrator field', () => {
+    expect(InboxChannelWorkListSchema.parse({ items: [WORK], total: 1 }).items[0]).toEqual(WORK)
+    expect(() => InboxChannelWorkListSchema.parse({
+      items: [{ ...WORK, phone_number_id: '100000000001' }], total: 1,
+    })).toThrow()
+    expect(() => InboxChannelWorkListSchema.parse({
+      items: [{ ...WORK, has_access_token: true }], total: 1,
+    })).toThrow()
+    expect(InboxChannelWorkListSchema.parse({ items: [{ ...WORK, department: null }], total: 1 }).items[0].department).toBeNull()
   })
 })
 

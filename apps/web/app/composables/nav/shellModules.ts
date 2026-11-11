@@ -151,9 +151,12 @@ export function hidePinnedNewProject(path: string): boolean {
 }
 
 /** The settings pages with at least one part this identity may open (all of them without an identity: the breadcrumb). */
+/** The path the identity must reach for a part: its own page, or the page holding it when it is a card. */
+const partNavPath = (page: SettingsPage, part: AppSettingsPart) => part.to ?? page.to
+
 export function visibleSettingsPages(identity?: AccessIdentity): { page: SettingsPage; parts: AppSettingsPart[] }[] {
   return settingsPages()
-    .map(page => ({ page, parts: page.parts.filter(part => identity === undefined || navAllowed(identity, part.capability, settingsPartPath(page, part)) || (part.anyCapabilities ?? []).some(key => navAllowed(identity, key, settingsPartPath(page, part)))) }))
+    .map(page => ({ page, parts: page.parts.filter(part => identity === undefined || navAllowed(identity, part.capability, partNavPath(page, part)) || (part.anyCapabilities ?? []).some(key => navAllowed(identity, key, partNavPath(page, part)))) }))
     .filter(({ parts }) => parts.length > 0)
 }
 
@@ -170,6 +173,17 @@ function partLinks({ page, parts }: { page: SettingsPage; parts: AppSettingsPart
 }
 
 /**
+ * The capability that opens one visible part: its own, or the held `anyCapabilities` key that admitted a part serving
+ * two rights (a channels list that also serves a templates-only manager). A page link must name a capability the
+ * identity holds, or the sidebar drops the page it just admitted.
+ */
+function openingCapability(identity: AccessIdentity | undefined, page: SettingsPage, part: AppSettingsPart): string {
+  const path = partNavPath(page, part)
+  if (!identity || navAllowed(identity, part.capability, path)) return part.capability
+  return (part.anyCapabilities ?? []).find(key => navAllowed(identity, key, path)) ?? part.capability
+}
+
+/**
  * The settings sidebar: the overview and one link per page on top, always (the applications' pages under their own
  * heading); below them the parts of the open page under its heading. Each page link opens the first part the identity
  * may use. A page with tabs lists only its parts that open a page of their own: the tab strip holds its cards.
@@ -177,10 +191,12 @@ function partLinks({ page, parts }: { page: SettingsPage; parts: AppSettingsPart
 function settingsContextLinks(path: string | undefined, identity?: AccessIdentity): ShellContextLink[] {
   const visible = visibleSettingsPages(identity)
   if (!visible.length) return []
+  const first = visible[0]!
   const top: ShellContextLink[] = [
-    { id: 'settings-overview', labelKey: 'settings.sections.overview', icon: 'i-lucide-layout-dashboard', to: SETTINGS_OVERVIEW_PATH, capability: visible[0]!.parts[0]!.capability, exact: true },
+    { id: 'settings-overview', labelKey: 'settings.sections.overview', icon: 'i-lucide-layout-dashboard', to: SETTINGS_OVERVIEW_PATH, capability: openingCapability(identity, first.page, first.parts[0]!), exact: true },
     ...visible.map(({ page, parts }): ShellContextLink => ({
-      id: `settings-${page.id}`, labelKey: page.labelKey, icon: page.icon, to: parts[0]!.to ?? page.to, capability: parts[0]!.capability,
+      id: `settings-${page.id}`, labelKey: page.labelKey, icon: page.icon, to: parts[0]!.to ?? page.to,
+      capability: openingCapability(identity, page, parts[0]!),
       within: page.within, ...(page.group ? { group: page.group } : {}),
     })),
   ]
