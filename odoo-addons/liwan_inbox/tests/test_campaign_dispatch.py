@@ -315,6 +315,23 @@ class TestCampaignDispatch(CampaignCase):
         payload = mock.calls[1][2]
         self.assertEqual(payload['template']['components'][0]['parameters'], [{'type': 'text', 'text': 'Sara'}])
 
+    def test_a_prepared_message_that_is_not_delivered_drops_its_marker(self):
+        self.make_contact()
+        campaign = self.launched()
+        self.run_campaigns()
+        message = campaign.recipient_ids.message_id
+        # The campaign pauses after the message was prepared for sending: the claim then refuses the send.
+        message._liwan_prepare_send()
+        campaign.action_pause()
+        mock = self.sending_meta()
+        with patch.object(requests, 'request', mock):
+            message._liwan_deliver()
+        self.assertFalse(mock.called)
+        self.assertEqual((message.delivery_state, message.send_token), ('queued', False))
+        # Nothing was prepared, so the next run never reads it as an interrupted send.
+        self.env['liwan.inbox.message']._liwan_settle_interrupted_sends()
+        self.assertEqual((message.delivery_state, message.unconfirmed), ('queued', False))
+
     def test_a_full_batch_asks_for_another_outbox_run(self):
         for _ in range(3):
             self.make_contact()

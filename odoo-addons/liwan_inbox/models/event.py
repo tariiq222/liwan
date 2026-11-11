@@ -14,6 +14,7 @@ from .constants import (
     EVENT_BATCH,
     MAX_ATTEMPTS,
     PROCESSED_EVENT_DAYS,
+    PURGE_BATCH,
     TIKTOK_ECHO_SETTLE,
 )
 from odoo.addons.liwan_inbox.adapters import tiktok, whatsapp
@@ -145,11 +146,11 @@ class LiwanInboxEvent(models.Model):
     def _liwan_purge_processed(self, now):
         self.search([
             ('state', '=', 'done'), ('processed_at', '<', now - relativedelta(days=PROCESSED_EVENT_DAYS)),
-        ]).unlink()
+        ], limit=PURGE_BATCH).unlink()
 
     @api.model
     def _liwan_purge_unprocessed(self, company, cutoff):
         """Delete the company's events that never succeeded and are older than `cutoff`; they hold customer text."""
         self.search([
             ('owner_company_id', '=', company.id), ('state', '!=', 'done'), ('create_date', '<', cutoff),
-        ]).unlink()
+        ], limit=PURGE_BATCH).unlink()

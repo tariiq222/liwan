@@ -1,7 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import json
+from unittest.mock import patch
+
 from odoo.tests import tagged
 
 from .common import LiwanInboxCase
+from odoo.addons.liwan_inbox.models.access_service import READ
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -73,6 +77,48 @@ class TestVisibilityPolicy(LiwanInboxCase):
         self.login(self.agent2)
         download = self.get(f'/api/v1/inbox/messages/{message.id}/attachments/{attachment.id}/download')
         self.assertEqual((download.status_code, download.content), (200, b'secret'))
+
+    def bus_notices(self):
+        """(partner id, payload) of the conversation notifications stored so far in this transaction."""
+        notices = []
+        for row in self.env['bus.bus'].sudo().search([], order='id'):
+            channel, message = json.loads(row.channel), json.loads(row.message)
+            if message['type'] == 'liwan/inbox' and message['payload'].get('event') == 'conversation':
+                notices.append((channel[2], message['payload']))
+        return notices
+
+    def test_a_batch_of_conversations_sends_one_notification_per_reader(self):
+        self.set_policy('all')
+        conversations = self.everything
+        conversations._liwan_notify_bus()
+        self.env.cr.flush()  # the bus rows wait in precommit; flushing writes them
+        notices = self.bus_notices()
+        partners = [partner for partner, _payload in notices]
+        self.assertEqual(len(partners), len(set(partners)), 'one notification per reader')
+        self.assertIn(self.agent.partner_id.id, partners)
+        self.assertNotIn(self.outsider.partner_id.id, partners)
+        self.assertEqual([payload['event'] for _partner, payload in notices], ['conversation'] * len(notices))
+        self.assertEqual(
+            {tuple(payload['ids']) for _partner, payload in notices}, {tuple(sorted(conversations.ids))},
+        )
+
+    def test_the_reader_capability_is_checked_once_per_reader_not_once_per_conversation(self):
+        self.set_policy('all')
+        conversations = self.everything
+        service_model = type(self.env['liwan.access.service'])
+        original = service_model._liwan_has_capability
+        checked = []
+
+        def spy(model, user, capability, record=None, company=None):
+            checked.append(capability)
+            return original(model, user, capability, record=record, company=company)
+
+        with patch.object(service_model, '_liwan_has_capability', autospec=True, side_effect=spy):
+            conversations._liwan_notify_bus()
+        readers = self.env.ref('liwan_inbox.group_cap_inbox_conversations_read').all_user_ids.filtered('active')
+        self.assertGreater(len(readers), 1)
+        # One read-capability check per reader, however many conversations the batch carries.
+        self.assertEqual(checked.count(READ), len(readers))
 
     def test_visible_attachment_downloads(self):
         self.set_policy('assigned_only')

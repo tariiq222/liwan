@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import logging
+import secrets
 
 from dateutil.relativedelta import relativedelta
 
@@ -20,15 +21,26 @@ class LiwanInboxMessageOutbox(models.Model):
 
     @api.model
     def _liwan_run_outbox(self):
+        self._liwan_settle_interrupted_sends()
         # Agent and automation messages always leave before campaign messages; a full batch asks for another run at once.
+        # `answered` remembers, within this run, which messages the provider already took (see `_liwan_unexpected_failure`).
+        answered = {}
         full = False
         for campaign in (False, True):
             due = self.search([
                 ('direction', '=', 'out'), ('delivery_state', '=', 'queued'), ('next_attempt_at', '<=', fields.Datetime.now()),
                 *([('campaign_recipient_ids.campaign_id.state', '=', 'running')] if campaign else [('campaign_recipient_ids', '=', False)]),
             ], order='next_attempt_at, id', limit=OUTBOX_BATCH)
-            process_each(due, lambda message: message._liwan_deliver(), self._liwan_unexpected_failure)
-            full = full or len(due) == OUTBOX_BATCH
+            drained = process_each(
+                due, lambda message: message._liwan_deliver(answered),
+                lambda message, error: self._liwan_unexpected_failure(message, error, answered),
+                prepare=lambda message: message._liwan_prepare_send(),
+            )
+            # Only a drained full batch means there is more waiting; a run cut short by the time budget is
+            # rescheduled by the cron itself, so asking for another run at once would only spin.
+            full = full or (drained and len(due) == OUTBOX_BATCH)
+            if not drained:
+                return
         now = fields.Datetime.now()
         reactions = self.search([
             ('agent_reaction_pending', '=', True), '|', ('reaction_next_attempt_at', '=', False), ('reaction_next_attempt_at', '<=', now),
@@ -80,18 +92,71 @@ class LiwanInboxMessageOutbox(models.Model):
                 inbound.write({'read_receipt': 'sent', 'receipt_attempts': 0})
 
     @api.model
-    def _liwan_unexpected_failure(self, message, error):
-        """An error outside the provider contract: counted as one retryable attempt."""
-        if message.exists():  # a message deleted while the batch ran (a paused campaign's) is simply gone
+    def _liwan_unexpected_failure(self, message, error, answered=None):
+        """An error outside the provider contract.
+
+        Before the provider is called it is one retryable attempt. Once the provider has answered (`answered` holds
+        the message id), the customer may have received it whatever failed afterwards, so it is marked unconfirmed
+        and never sent again automatically: only an explicit retry sends it once more.
+        """
+        if not message.exists():  # a message deleted while the batch ran (a paused campaign's) is simply gone
+            return
+        if answered and message.id in answered:
+            message._liwan_record_failure(
+                self.env._('The provider accepted the message but its result could not be stored; '
+                           'check it with the customer before retrying.'),
+                retryable=False, unconfirmed=True,
+            )
+        else:
             message._liwan_record_failure(f'unexpected error: {type(error).__name__}', retryable=True)
 
-    def _liwan_deliver(self):
-        if not self.exists() or (self.campaign_recipient_ids and not self._liwan_claim_campaign_send()):
+    @api.model
+    def _liwan_settle_interrupted_sends(self):
+        """Settle the marker a worker that died mid-send left behind, before this run sends anything else.
+
+        The provider may hold the message, so it is marked unconfirmed instead of being sent a second time. Only a
+        queued outbound message can hold a marker, so a message that was stored as sent or failed is never touched.
+        The outbox cron is a single job (Odoo holds its row while it runs), so a marker this run meets is never the
+        one of a send in progress.
+        """
+        stuck = self.search([
+            ('direction', '=', 'out'), ('delivery_state', '=', 'queued'), ('send_token', '!=', False),
+        ], limit=OUTBOX_BATCH)
+        process_each(
+            stuck, lambda message: message._liwan_mark_send_interrupted(),
+            lambda message, error: _logger.warning(
+                'interrupted send of message %s could not be settled: %s', message.id, type(error).__name__,
+            ),
+        )
+
+    def _liwan_prepare_send(self):
+        """The durable marker of one send attempt, written and committed before the provider is called."""
+        self.write({'send_token': secrets.token_hex(16), 'send_started_at': fields.Datetime.now()})
+
+    def _liwan_clear_send_marker(self):
+        """Drop the marker of a prepared attempt that will not call the provider."""
+        self.write({'send_token': False, 'send_started_at': False})
+
+    def _liwan_mark_send_interrupted(self):
+        """A marker left by a hard crash: the provider may have the message, so it is not sent again."""
+        when = fields.Datetime.to_string(self.send_started_at) if self.send_started_at else self.env._('an earlier run')
+        self._liwan_record_failure(
+            self.env._('A send attempt at %(when)s recorded no result; check it with the customer before retrying.',
+                       when=when),
+            retryable=False, unconfirmed=True,
+        )
+
+    def _liwan_deliver(self, answered=None):
+        if not self.exists():
             return
-        self._liwan_send()
+        if self.campaign_recipient_ids and not self._liwan_claim_campaign_send():
+            # Nothing is sent, so the prepared marker must not read as an interrupted send on the next run.
+            self._liwan_clear_send_marker()
+            return
+        self._liwan_send(answered)
         self.conversation_id._liwan_notify_bus()
 
-    def _liwan_send(self):
+    def _liwan_send(self, answered=None):
         self.ensure_one()
         conversation = self.conversation_id
         if conversation.channel_id.state == 'disabled':
@@ -104,10 +169,16 @@ class LiwanInboxMessageOutbox(models.Model):
         except UserError as error:
             self._liwan_record_failure(str(error), retryable=False)
         else:
-            self.write({
-                'delivery_state': 'sent', 'provider_message_id': sent.provider_id, 'held_for_quality': sent.held,
-                'attempts': self.attempts + 1, 'error': False, 'error_code': False, 'unconfirmed': False,
-            })
+            if answered is not None:
+                answered[self.id] = True  # the provider has it: whatever fails from here on is never a retry
+            self._liwan_mark_sent(sent)
+
+    def _liwan_mark_sent(self, sent):
+        self.write({
+            'delivery_state': 'sent', 'provider_message_id': sent.provider_id, 'held_for_quality': sent.held,
+            'attempts': self.attempts + 1, 'error': False, 'error_code': False, 'unconfirmed': False,
+            'send_token': False, 'send_started_at': False,
+        })
 
     def _liwan_provider_send(self):
         """Send this message and return the whatsapp.SendResult (provider message id, held for a quality check)."""
@@ -202,7 +273,10 @@ class LiwanInboxMessageOutbox(models.Model):
 
     def _liwan_record_failure(self, error, retryable, code=None, unconfirmed=False):
         attempts = self.attempts + 1
-        values = {'attempts': attempts, 'error': error, 'error_code': code or False, 'unconfirmed': unconfirmed}
+        values = {
+            'attempts': attempts, 'error': error, 'error_code': code or False, 'unconfirmed': unconfirmed,
+            'send_token': False, 'send_started_at': False,
+        }
         if retryable and attempts < MAX_ATTEMPTS:
             values['next_attempt_at'] = fields.Datetime.now() + relativedelta(minutes=BACKOFF_MINUTES[attempts - 1])
         else:

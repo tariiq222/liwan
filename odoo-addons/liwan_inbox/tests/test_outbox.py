@@ -127,6 +127,70 @@ class TestOutbox(LiwanInboxCase):
             self.run_outbox(MagicMock())
         self.assertEqual((message.delivery_state, message.error), ('failed', 'Secret storage is not configured.'))
 
+    def test_a_local_failure_after_the_provider_took_the_message_is_unconfirmed_and_never_resent(self):
+        message = self.queue()
+        mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.LOST'}]}))
+        message_model = type(self.env['liwan.inbox.message'])
+        with patch.object(message_model, '_liwan_mark_sent', side_effect=RuntimeError('disk full')):
+            self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 1)
+        self.assertEqual((message.delivery_state, message.unconfirmed, message.attempts), ('failed', True, 1))
+        self.assertFalse(message.send_token)
+        self.assertIn('could not be stored', message.error)
+        self.commits.assert_any_call(0)  # the send marker was committed before the provider was called
+        self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 1)
+
+    def test_an_unexpected_error_before_the_provider_keeps_the_retry(self):
+        message = self.queue()
+        mocked = MagicMock()
+        message_model = type(self.env['liwan.inbox.message'])
+        with patch.object(message_model, '_liwan_provider_send', side_effect=RuntimeError('boom')):
+            self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 0)
+        self.assertEqual((message.delivery_state, message.attempts, message.unconfirmed), ('queued', 1, False))
+        self.assertTrue(message.next_attempt_at)
+        self.assertFalse(message.send_token)
+
+    def test_a_failure_after_the_provider_answered_is_unconfirmed_and_never_resent(self):
+        message = self.queue()
+        mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.SENTBUS'}]}))
+        conversation_model = type(self.env['liwan.inbox.conversation'])
+        with patch.object(conversation_model, '_liwan_notify_bus', side_effect=RuntimeError('bus down')):
+            self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 1)
+        self.assertEqual((message.delivery_state, message.unconfirmed, message.attempts), ('failed', True, 1))
+        self.assertFalse(message.send_token)
+        self.assertIn('could not be stored', message.error)
+        self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 1)
+
+    def test_a_marker_left_by_a_crashed_worker_is_settled_without_sending(self):
+        message = self.queue(send_token='a' * 32, send_started_at=fields.Datetime.now() - timedelta(minutes=5))
+        # A message already stored as sent keeps its state: only a queued outbound message can be mid-send.
+        sent = self.queue(delivery_state='sent', provider_message_id='wamid.OLD', send_token='c' * 32)
+        mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.NOPE'}]}))
+        self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 0)
+        self.assertEqual((message.delivery_state, message.unconfirmed, message.attempts), ('failed', True, 1))
+        self.assertFalse(message.send_token)
+        self.assertIn('recorded no result', message.error)
+        self.assertEqual((sent.delivery_state, sent.unconfirmed, sent.send_token), ('sent', False, 'c' * 32))
+        self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 0)
+
+    def test_a_run_cut_short_by_the_time_budget_does_not_ask_for_another_run(self):
+        first, second = self.queue(), self.queue()
+        # Both fit the batch, but the cron's budget ends after the first message.
+        remaining = iter([float('inf')] * 3 + [2.0])
+        self.commits.side_effect = lambda *args, **kwargs: next(remaining, 2.0)
+        message_model = type(self.env['liwan.inbox.message'])
+        with patch('odoo.addons.liwan_inbox.models.message_outbox.OUTBOX_BATCH', 2), \
+                patch.object(message_model, '_liwan_wake_outbox') as wake:
+            self.run_outbox(MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.CUT'}]})))
+        self.assertEqual((first.delivery_state, second.delivery_state), ('sent', 'queued'))
+        wake.assert_not_called()
+
     def test_the_monthly_outbound_limit_is_enforced(self):
         profile = self.env.ref('liwan_platform.tenant_profile')
         used = self.env['liwan.inbox.message']._liwan_count_outbound_this_month()

@@ -107,6 +107,10 @@ class LiwanInboxMessage(models.Model):
     unconfirmed = fields.Boolean(default=False, copy=False)
     attempts = fields.Integer(default=0)
     next_attempt_at = fields.Datetime(index=True)
+    # The durable marker of a send attempt in progress: `send_token` names the attempt and is written and committed
+    # before the provider is called, so a worker that dies mid-send leaves it behind (see `_liwan_run_outbox`).
+    send_token = fields.Char(copy=False)
+    send_started_at = fields.Datetime(copy=False)
 
     _provider_message_unique = models.UniqueIndex(
         '(provider_message_id) WHERE provider_message_id IS NOT NULL',
@@ -473,6 +477,7 @@ class LiwanInboxMessage(models.Model):
         self.write({
             'delivery_state': 'queued', 'attempts': 0, 'error': False, 'error_code': False, 'held_for_quality': False,
             'unconfirmed': False, 'next_attempt_at': fields.Datetime.now(), 'media_id': False,
+            'send_token': False, 'send_started_at': False,
         })
         self._liwan_wake_outbox()
 

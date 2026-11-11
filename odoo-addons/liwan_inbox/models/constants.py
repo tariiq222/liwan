@@ -16,6 +16,7 @@ TIKTOK_TOKEN_MARGIN = timedelta(minutes=5)
 TIKTOK_ECHO_SETTLE = timedelta(seconds=30)
 TIKTOK_REQUIRED_SCOPES = frozenset({'user.info.basic', 'message.list.read', 'message.list.send'})
 AUTOMATION_FEATURE = 'inbox.automation'
+TEMPLATES_FEATURE = 'inbox.templates'
 FLOWS_FEATURE = 'inbox.flows'
 DEFAULT_TIMEZONE = 'Asia/Riyadh'
 
@@ -29,6 +30,8 @@ BACKOFF_MINUTES = (1, 2, 4, 8, 16)
 EVENT_BATCH = 200
 OUTBOX_BATCH = 100
 PROCESSED_EVENT_DAYS = 7
+# The most rows one maintenance pass deletes per query: a purge is bounded, and the next run continues where it stopped.
+PURGE_BATCH = 500
 
 REPLY_PREVIEW_LENGTH = 80
 # A conversation sends the typing indicator at most this often, and an upload nobody sent is deleted after a day.

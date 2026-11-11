@@ -142,3 +142,17 @@ class TestEventProcessing(LiwanInboxCase):
         self.assertEqual(ring.call_count, 1)
         self.assertTrue(self.bells())
         self.assertEqual(set(self.bells().mapped('liwan_inbox_channel_id')), {self.channel.id})
+        # Each retry re-applies only the failed item: the good one of the delivery is still stored exactly once.
+        self.assertEqual(len(self.message('wamid.GOOD')), 1)
+        self.assertFalse(self.message('wamid.BAD'))
+
+    def test_a_cron_time_budget_stops_the_batch_and_leaves_the_rest(self):
+        events = [self.store_event(self.channel, wa.inbound_text(f'wamid.B{n}')) for n in range(3)]
+        # The first two items fit the cron's budget; the remaining time then falls under the reservation.
+        self.commits.side_effect = [60.0, 60.0, 2.0]
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual([event.state for event in events], ['done', 'done', 'pending'])
+        self.commits.side_effect = None
+        self.commits.return_value = float('inf')
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual([event.state for event in events], ['done', 'done', 'done'])

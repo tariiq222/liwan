@@ -3,6 +3,9 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+# A cron run stops this many seconds before its deadline, so the item it is running has time to finish and commit.
+CRON_MARGIN_SECONDS = 5
+
 
 def attempt(env, work):
     """Run `work()` in its own savepoint; the exception it raised (its writes undone), or None on success."""
@@ -14,19 +17,39 @@ def attempt(env, work):
     return None
 
 
-def process_each(records, work, record_failure):
+def process_each(records, work, record_failure, prepare=None):
     """Run `work(record)` for each record of a cron batch, committing after every one.
 
     The commit keeps an earlier success (a message already sent) when a later item fails, and keeps
     a failure counter when the item's own work rolls back. Any exception becomes `record_failure(record, error)`
     after the item's savepoint is undone, so one bad item never blocks the queue. Only the exception type
     and the record id are logged: provider responses and secrets stay out of the log.
+
+    `prepare(record)` runs in its own savepoint before the item's savepoint and its write is committed at once, so a
+    durable marker of the attempt survives the rollback of a failed item; it must write that marker only. A record
+    whose preparation fails (it is gone) is reported through `record_failure` and skipped, never sent.
+
+    The run stops when the cron's remaining time is shorter than `CRON_MARGIN_SECONDS`, leaving the rest of
+    the batch to the next run. Outside a cron the remaining time is infinite, so every record is processed.
+    Returns True when the batch was drained, False when the time budget ended first.
     """
     cron = records.env['ir.cron']
-    cron._commit_progress(remaining=len(records))
+    remaining_time = cron._commit_progress(remaining=len(records))
     for record in records:
+        if remaining_time < CRON_MARGIN_SECONDS:
+            return False
+        if prepare:
+            error = attempt(records.env, lambda record=record: prepare(record))
+            if error:
+                # The marker could not be written (the record is gone): nothing is sent for it.
+                _logger.warning('%s %s could not be prepared: %s', record._name, record.id, type(error).__name__)
+                record_failure(record, error)
+                remaining_time = cron._commit_progress(1)
+                continue
+            remaining_time = cron._commit_progress(0)
         error = attempt(records.env, lambda record=record: work(record))
         if error:
             _logger.warning('%s %s failed: %s', record._name, record.id, type(error).__name__)
             record_failure(record, error)
-        cron._commit_progress(1)
+        remaining_time = cron._commit_progress(1)
+    return True

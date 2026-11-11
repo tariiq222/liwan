@@ -8,7 +8,7 @@ from odoo import api, fields, models
 
 from .access_service import MANAGE_CHANNELS
 from .batch import process_each
-from .constants import MAX_ATTEMPTS
+from .constants import MAX_ATTEMPTS, PURGE_BATCH
 from .health_constants import (
     ACCOUNT_STATES,
     ALERT_REASON_LENGTH,
@@ -317,10 +317,11 @@ class LiwanInboxChannelHealth(models.Model):
 
     @api.model
     def _liwan_purge_alerts(self, now):
+        """Delete expired alert rows and the bells of deleted channels (bounded per run)."""
         self.env['liwan.inbox.channel.alert'].search([
             ('occurred_at', '<', now - relativedelta(months=ALERT_RETENTION_MONTHS)),
-        ]).unlink()
+        ], limit=PURGE_BATCH).unlink()
         channel_ids = self.search([]).ids
         self.env['mail.message'].search([
             ('liwan_notification_kind', '=', HEALTH_KIND), ('liwan_inbox_channel_id', 'not in', channel_ids),
-        ]).unlink()
+        ], limit=PURGE_BATCH).unlink()
