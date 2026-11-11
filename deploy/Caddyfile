@@ -3,7 +3,7 @@
 {$DOMAIN} {
 	encode zstd gzip
 
-	@odoo path /web/* /report/barcode*
+	@odoo path /web/*
 
 	route {
 		rate_limit {
@@ -55,7 +55,7 @@
 			}
 			zone liwan_odoo {
 				match {
-					path /web/* /report/barcode*
+					path /web/*
 					not path /web/session/* /web/login /web/login/* /web/health
 				}
 				match {
@@ -68,7 +68,7 @@
 			}
 			zone liwan_web {
 				match {
-					not path /api/auth/* /api/v1/* /web/* /report/barcode* /websocket*
+					not path /api/auth/* /api/v1/* /web/* /websocket*
 				}
 				key {remote_host}
 				events 600
@@ -84,8 +84,8 @@
 		}
 		handle {
 			# Browser documents come only from Nuxt. The Odoo handles above answer JSON,
-			# PDF reports and binary downloads, where a document CSP breaks report and
-			# barcode rendering, so these headers never leave this block.
+			# PDF reports and binary downloads, where a document CSP breaks report
+			# rendering, so these headers never leave this block.
 			# `defer` gives the edge the last word over an upstream value: the baseline policy
 			# below is the one the browser enforces. If Nuxt ever emits its own CSP (for a
 			# nonce), merge the two here instead of letting either layer win.

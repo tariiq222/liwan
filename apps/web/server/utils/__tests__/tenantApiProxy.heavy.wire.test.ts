@@ -74,7 +74,7 @@ function useMode(selected: typeof mode) {
 type Reply = { status: number; body?: { data?: { code?: string } } }
 /** Plain http.request, because fetch cannot set the Host header shared mode resolves the tenant from. */
 const call = (path: string, options: { method?: string; signal?: AbortSignal } = {}) => new Promise<Reply>((resolve, reject) => {
-  const headers: Record<string, string> = { cookie: COOKIE }
+  const headers: Record<string, string> = { cookie: COOKIE, 'sec-fetch-site': 'same-origin' }
   if (mode === 'shared') Object.assign(headers, { host: TENANT_HOST, 'x-liwan-proxy-token': PROXY_TOKEN, 'x-liwan-tenant-revision': '1' })
   const request = http.request(`${url}${path}`, { method: options.method ?? 'GET', headers, signal: options.signal, agent: false }, response => {
     const chunks: Buffer[] = []

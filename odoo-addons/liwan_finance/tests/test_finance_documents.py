@@ -170,7 +170,10 @@ class TestFinanceInvoicePdf(LiwanFinanceCase):
         html, _type = manager_env['ir.actions.report']._render_qweb_pdf('account.account_invoices', self.invoice.ids)
         page = html.decode()
         self.assertIn(self.invoice.name, page)
-        self.assertIn('/report/barcode/?barcode_type=QR', page)
+        # The QR is inline: wkhtmltopdf fetches nothing from the closed /report/barcode route.
+        # A real PNG drawn by reportlab's renderPM backend (rl-renderPM), the image that ends up in the PDF.
+        self.assertIn('src="data:image/png;base64,iVBORw0KGgo', page)
+        self.assertNotIn('/report/barcode', page)
         self.assertIn('Tax Invoice', page)
         self.assertRegex(page, '[\u0600-\u06ff]{3}')
 

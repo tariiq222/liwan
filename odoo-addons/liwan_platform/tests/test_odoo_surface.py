@@ -1,6 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import datetime, timedelta
-from unittest.mock import patch
 
 from odoo.tests import HttpCase, get_db_name, new_test_user, tagged
 
@@ -145,17 +144,24 @@ class TestSessionOdooSurface(HttpCase):
                 self.assertEqual(self.url_open(f'{favicon}{query}').status_code, 404)
         self.assertEqual(self.url_open('/web/image/hr.employee/1/avatar_128?x=1').status_code, 404)
 
-    @patch('odoo.addons.base.models.ir_actions_report.IrActionsReport.barcode', return_value=b'png')
-    def test_report_barcode_is_open_for_wkhtmltopdf(self, _barcode):
-        # The image backend of reportlab is not part of every test host; the route itself is stock.
-        qr = '/report/barcode/?barcode_type=QR&value=surface&width=64&height=64'
-        anonymous = self.url_open(qr)
-        self.assertEqual(anonymous.status_code, 200)
-        self.authenticate('surface_emp', 'surface_emp_pass_123')
-        signed_in = self.url_open(qr)
-        self.assertEqual(signed_in.status_code, 200)
-        self.assertEqual(self.url_open('/report/barcode?barcode_type=QR&value=surface').status_code, 200)
-        self.assertEqual(self.url_open('/report/barcode/QR/surface').status_code, 404)
+    def test_report_barcode_is_closed_for_everyone(self):
+        # Reports embed their QR inline; nothing legitimate fetches the stock image route.
+        queries = (
+            'barcode_type=QR&value=surface&width=200&height=200',
+            'barcode_type=QR&value=surface&width=64&height=64',
+            'barcode_type=Code128&value=surface&width=200&height=200',
+            'barcode_type=QR&value=surface',
+        )
+        for signed_in in (False, True):
+            if signed_in:
+                self.authenticate('surface_emp', 'surface_emp_pass_123')
+            else:
+                self.opener.cookies.clear()
+            for path in ('/report/barcode/', '/report/barcode'):
+                for query in queries:
+                    with self.subTest(signed_in=signed_in, path=path, query=query[:40]):
+                        self.assertEqual(self.url_open(f'{path}?{query}').status_code, 404)
+            self.assertEqual(self.url_open('/report/barcode/QR/surface').status_code, 404)
 
     def test_anonymous_requests_reach_only_what_the_login_needs(self):
         self.opener.cookies.clear()

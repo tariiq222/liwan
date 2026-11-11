@@ -21,7 +21,8 @@ from .source_scratch import SourceScratchRuntime
 
 
 def request(base, host, cookie, path, body=None):
-    headers = {'Host': host, 'Cookie': cookie}
+    # The /api/v1 proxy accepts only same-origin writes (AUDIT-023); this client stands in for the browser page.
+    headers = {'Host': host, 'Cookie': cookie, 'Sec-Fetch-Site': 'same-origin'}
     if body is not None: headers['Content-Type'] = 'application/json'
     try:
         with urlopen(Request(base + path, headers=headers, data=None if body is None else json.dumps(body).encode()), timeout=30) as response:

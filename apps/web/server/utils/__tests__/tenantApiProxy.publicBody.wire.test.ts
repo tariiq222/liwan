@@ -262,13 +262,13 @@ it.each(['shared', 'dedicated'] as const)('%s carries the small second-step payl
 
     // The same path through the browser proxy reaches Odoo without a session: the pending cookie is
     // the only authority, exactly as on the BFF hop above.
-    const direct = await wire.call('/api/v1/auth/verify', code, { 'content-type': 'application/json', cookie: 'session_id=pending-wire' })
+    const direct = await wire.call('/api/v1/auth/verify', code, { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', cookie: 'session_id=pending-wire' })
     expect(direct.status).toBe(200)
     expect(wire.authCalls).toHaveLength(2)
     expect(wire.authCalls[1]!.body).toEqual({ code: '123456' })
 
     const upload = Buffer.alloc(16 * 1024 * 1024, 65)
-    const result = await wire.call('/api/v1/echo', upload, { cookie: 'session_id=verified', 'content-type': 'application/octet-stream' })
+    const result = await wire.call('/api/v1/echo', upload, { cookie: 'session_id=verified', 'sec-fetch-site': 'same-origin', 'content-type': 'application/octet-stream' })
     expect(result.status).toBe(200)
     expect(result.body).toEqual({ path: '/api/v1/echo', bytes: 16 * 1024 * 1024, digest: createHash('sha256').update(upload).digest('hex') })
     expect(wire.calls.map(call => call.path)).toEqual(['/api/v1/auth/verify', '/api/v1/auth/verify', '/api/v1/me', '/api/v1/echo'])
@@ -479,7 +479,7 @@ it.each([
 
 
 function startBody(wire: Awaited<ReturnType<typeof fixture>>, path: string, bytes: Buffer, headers: Record<string, string>, finish = true) {
-  const request = http.request(new URL(path, wire.url), { method: 'POST', headers: { ...wire.headers, 'content-type': 'application/json', 'content-length': String(16 * 1024 * 1024), ...headers } })
+  const request = http.request(new URL(path, wire.url), { method: 'POST', headers: { ...wire.headers, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json', 'content-length': String(16 * 1024 * 1024), ...headers } })
   const response = new Promise<{ status: number; body: unknown }>((resolve, reject) => {
     request.on('response', reply => {
       let text = ''; reply.on('data', chunk => { text += chunk }); reply.on('end', () => resolve({ status: reply.statusCode!, body: responseBody(text) }))
@@ -498,7 +498,7 @@ async function verifiedCookie(wire: Awaited<ReturnType<typeof fixture>>) {
   if (!cookie) throw Error('verified login did not issue a session cookie')
   expect((await wire.call('/api/v1/branding', undefined, { cookie })).status).toBe(200)
   // Warm real session admission before holding the work gate.
-  expect((await wire.call('/api/v1/echo', Buffer.from('{}'), { cookie, 'content-type': 'application/json' })).status).toBe(200)
+  expect((await wire.call('/api/v1/echo', Buffer.from('{}'), { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' })).status).toBe(200)
   return cookie
 }
 
@@ -623,7 +623,7 @@ it.each((['shared', 'dedicated'] as const).flatMap(mode => ['nuxt', 'guard-exter
     }
     expect(wire.calls.filter(call => call.path.startsWith(prefix))).toHaveLength(0)
     const recovery = hop === 'guard-external' ? Buffer.from('{"login":"user","password":"synthetic"}') : uploadBytes()
-    const result = await wire.call(hop === 'guard-external' ? '/api/auth/login' : '/api/v1/echo', recovery, { ...headers, 'content-length': String(recovery.length), 'content-type': 'application/json' })
+    const result = await wire.call(hop === 'guard-external' ? '/api/auth/login' : '/api/v1/echo', recovery, { ...headers, 'sec-fetch-site': 'same-origin', 'content-length': String(recovery.length), 'content-type': 'application/json' })
     expect(result.status).toBe(200)
   } finally { vi.useRealTimers(); for (const upload of uploads) upload.request.destroy(); await wire.close() }
 })

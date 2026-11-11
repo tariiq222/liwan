@@ -30,15 +30,11 @@ SESSION_PREFIXES = (
 RPC_PREFIXES = ('/xmlrpc', '/jsonrpc')
 # LiwanOS's own Odoo routes: /api/v1 and the customer-commercial stub (R5 exception).
 API_PREFIXES = ('/api/v1/', '/api/commercial/v1/')
-# Odoo routes the Nuxt app calls itself (login state, bus version probe, logo) and
-# the stateless QR/barcode image generator wkhtmltopdf fetches while it renders a
-# report (the ZATCA QR of a Saudi invoice).
+# Odoo routes the Nuxt app calls itself (login state, bus version probe, logo).
 OPEN_ROUTES = frozenset({
     *SESSION_ALLOWLIST,
     '/web/session/get_session_info',
     '/web/binary/company_logo',
-    '/report/barcode',
-    '/report/barcode/',
 })
 # Open prefixes: LiwanOS's own routes, the websocket and Odoo's static assets.
 OPEN_PREFIXES = (*API_PREFIXES, '/websocket', '/web/assets/', '/web/static/')

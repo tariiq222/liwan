@@ -81,13 +81,13 @@ describe('API session preadmission on the wire', () => {
     expect(calls).toBe(0)
   })
   it('rejects a forged exact cookie before forwarding the operation', async () => {
-    const response = await fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: 'session_id=synthetic' }, body: '{}' })
+    const response = await fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: 'session_id=synthetic', 'sec-fetch-site': 'same-origin' }, body: '{}' })
     expect(response.status).toBe(401)
     expect(workCalls).toBe(0)
   })
   it('rejects a forged slow upload without waiting for its body', async () => {
     const status = await new Promise<number>((resolve, reject) => {
-      const req = http.request(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: 'session_id=forged-slow', 'content-type': 'application/json', 'content-length': '100000' } }, res => {
+      const req = http.request(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: 'session_id=forged-slow', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json', 'content-length': '100000' } }, res => {
         resolve(res.statusCode!); res.resume(); req.destroy()
       })
       req.on('error', error => { if ((error as NodeJS.ErrnoException).code !== 'ECONNRESET') reject(error) })
@@ -110,7 +110,7 @@ describe('API session preadmission on the wire', () => {
   })
   it('preserves buffered upload bytes through dedicated forwarding', async () => {
     const bytes = Buffer.from([0, 255, 1, 128, 42])
-    const response = await fetch(`${url}/api/v1/echo`, { method: 'POST', headers: { cookie: 'session_id=valid-wire-session', 'content-type': 'application/octet-stream' }, body: new Uint8Array(bytes) })
+    const response = await fetch(`${url}/api/v1/echo`, { method: 'POST', headers: { cookie: 'session_id=valid-wire-session', 'sec-fetch-site': 'same-origin', 'content-type': 'application/octet-stream' }, body: new Uint8Array(bytes) })
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ hex: bytes.toString('hex') })
   })
@@ -149,7 +149,7 @@ describe('API session preadmission on the wire', () => {
     expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-wire-session' } })).status).toBe(200)
     workCalls = 0
     holdChecks = true
-    const pending = ['a'].map(id => fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: `session_id=forged-${id}` }, body: '{}' }))
+    const pending = ['a'].map(id => fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: `session_id=forged-${id}`, 'sec-fetch-site': 'same-origin' }, body: '{}' }))
     try {
       await vi.waitFor(() => expect(releaseChecks).toHaveLength(1))
       // A second cold identity waits in the lane queue instead of being rejected.
