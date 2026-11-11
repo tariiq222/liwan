@@ -54,8 +54,8 @@ const ME = {
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -634,9 +634,13 @@ async function handle(req, res) {
       const cookie = req.headers.cookie ?? ''
       const readOnlyPayroll = /(?:^|;\s*)mock_readonly=payroll(?:;|$)/.test(cookie)
       const noPolicy = /(?:^|;\s*)mock_readonly=no-policy(?:;|$)/.test(cookie)
+      // mock_features=no_crm_import removes the package sub-feature crm.import from both lists, like a plan without imports.
+      const noCrmImport = /(?:^|;\s*)mock_features=no_crm_import(?:;|$)/.test(cookie)
       const base = { ...ME }
       if (noPolicy) delete base.platform
-      const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
+      let platform = ME.platform
+      if (readOnlyPayroll) platform = { ...platform, writable_features: platform.writable_features.filter(key => key !== 'hr.payroll') }
+      if (noCrmImport) platform = { ...platform, readable_features: platform.readable_features.filter(key => key !== 'crm.import'), writable_features: platform.writable_features.filter(key => key !== 'crm.import') }
       return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, ...INBOX_CAPABILITIES]), AI_USE, 'ai.settings.manage'] })
     }
     const preview = moduleUiPreviewData(path, url)
