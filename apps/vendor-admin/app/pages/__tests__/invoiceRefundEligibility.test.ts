@@ -249,6 +249,39 @@ describe('requesting the refund of a paid invoice', () => {
     expect(p.state.requestFailure.value).toBe('vendor.pricing.errors.generic')
   })
 
+  it('asks for the AI units already used only on an invoice with a top-up, keeps the confirm disabled until valid and sends them', async () => {
+    const topupLine = { key: 'ai_topup', kind: 'ai_topup', description: 'AI top-up', quantity: 1, free_quantity: null, unit_amount: money, amount: money, period_start: '2026-10-01', period_end: '2026-11-01' }
+    const p = await page({ refund: refundable, overrides: { lines: [topupLine] } as never })
+    p.state.openRequest(); p.state.requestReason.value = 'Customer asked for the refund on day 3'
+    let { captured } = await p.rendered()
+    expect(byTestId(captured, 'request-units-used')).toBeDefined()
+    expect(captured.find(c => c.name === 'SharedInlineConfirm')?.props.disabled).toBe(true)
+    await p.state.requestRefund(); expect(p.api.requestRefund).not.toHaveBeenCalled()
+    for (const bad of ['-1', '1.5', 'abc']) {
+      p.state.requestUnitsUsed.value = bad
+      expect(p.state.requestValid.value).toBe(false)
+      expect(p.state.requestUnitsError.value).toBe('vendor.invoices.refund.request.unitsUsedInvalid')
+    }
+    p.state.requestUnitsUsed.value = '٠'
+    ;({ captured } = await p.rendered())
+    expect(captured.find(c => c.name === 'SharedInlineConfirm')?.props.disabled).toBe(false)
+    await p.state.requestRefund()
+    expect(p.api.requestRefund).toHaveBeenCalledWith('invoice1', { reason: 'Customer asked for the refund on day 3', units_used: 0 })
+  })
+
+  it('sends no units_used and shows no units field on an invoice without a top-up', async () => {
+    const p = await page({ refund: refundable })
+    p.state.openRequest(); p.state.requestReason.value = 'Customer asked for the refund on day 3'
+    expect(byTestId((await p.rendered()).captured, 'request-units-used')).toBeUndefined()
+    await p.state.requestRefund()
+    expect(p.api.requestRefund).toHaveBeenCalledWith('invoice1', { reason: 'Customer asked for the refund on day 3' })
+  })
+
+  it('names the top-up refusals', async () => {
+    expect(subscriptions.refundErrorKey({ statusCode: 422, data: { code: 'units_used_required' } })).toBe('vendor.invoices.refund.errors.units_used_required')
+    expect(subscriptions.refundErrorKey({ statusCode: 409, data: { code: 'ai_topup_used' } })).toBe('vendor.invoices.refund.errors.ai_topup_used')
+  })
+
   it('sends nothing before hydration', async () => {
     const p = await page({ refund: refundable, hydrated: false })
     p.state.openRequest(); p.state.requestReason.value = 'Customer asked for the refund on day 3'

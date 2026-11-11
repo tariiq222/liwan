@@ -254,7 +254,6 @@
       "tasksOf": "{done} of {total}",
       "notFound": "This milestone does not exist or you cannot view it",
       "startDate": "Start date",
-      "endDateRequired": "The source project has no end date and the company requires one. Enter the copy's end date.",
       "scheduleRequired": "Set project dates and both milestone dates before creating a milestone.",
       "startAfterDeadline": "The milestone start must be on or before its deadline.",
       "startOutsideProject": "The milestone start must be within the project dates.",
@@ -1168,6 +1167,8 @@
       "source": "Source project",
       "name": "New project name",
       "startDate": "Start date",
+      "endDate": "End date",
+      "endDateRequired": "The source project has no end date and the company requires one. Enter the copy's end date.",
       "submit": "Copy project",
       "defaultName": "{name} (copy)",
       "validation": {

@@ -45,14 +45,14 @@ it('disabled routing exception requires exact durable onboarding digest, and nev
   expect((await resolveProvisionTarget(client,input.request_id,job)).enabled).toBe(true)
   expect(calls.every(sql=>sql.startsWith('SELECT'))).toBe(true)
 })
-it.each([{state:'unknown'},{state:'partial'},{state:'present',binding:job.binding,businessKey:'foreign',payloadDigest:payloadDigest(job),verified:true}])('does not activate from incomplete or foreign real evidence %j',async observation=>{
+it.each([{state:'absent'},{state:'partial'},{state:'present',binding:job.binding,businessKey:'foreign',payloadDigest:payloadDigest(job),verified:true}])('does not activate from incomplete or foreign real evidence %j',async observation=>{
   let calls=0
   const writes:string[]=[]
   const client={release(){},async query(sql:string){if(sql.startsWith('UPDATE'))writes.push(sql);return {rows:[]}}}
-  const pool={connect:async()=>client,async query(){calls++;return {rows:[{payload:job,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(job)}]}}} as unknown as Pool
-  await reconcileOdooOnboardings(pool,{} as any,{observe:async()=>observation,applyFenced:async()=>{throw Error('must never mutate in reconcile')}})
+  const pool={connect:async()=>client,async query(){calls++;return {rows:[{payload:job,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(job),recheck_failures:0}]}}} as unknown as Pool
+  await reconcileOdooOnboardings(pool,{} as any,{observe:async()=>observation,applyFenced:async()=>{throw Error('must never mutate in reconcile')}},vi.fn())
   expect(calls).toBe(1)
-  expect(writes[0]).toContain("stage='needs_intervention',error_code='readiness_recheck_failed'")
+  expect(writes[0]).toContain("stage='needs_intervention',error_code=$2")
   expect(writes[1]).toContain("status='needs_intervention'")
 })
 

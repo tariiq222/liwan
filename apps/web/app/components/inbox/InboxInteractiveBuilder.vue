@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import InboxFlowBubble from '@/components/inbox/InboxFlowBubble.vue'
 import type { InboxChannelKind } from '@liwan/contracts'
-import { useInboxSendableFlows } from '@/composables/inbox/useInboxFlows'
+import { useInboxFlow } from '@/composables/inbox/useInboxFlows'
 import { interactiveLimits, interactiveRowCount, interactiveTypes, type InteractiveDraft } from '@/composables/inbox/inboxInteractive'
 
 // Builds the interactive message an agent sends: up to three reply buttons, a list of up to ten rows in sections, or
@@ -19,8 +19,7 @@ const typeItems = computed(() => interactiveTypes(props.kind).map(value => ({ va
 watch(() => props.kind, (kind) => { if (!interactiveTypes(kind).includes(draft.value.type)) draft.value.type = 'buttons' }, { immediate: true })
 const rows = computed(() => interactiveRowCount(draft.value))
 const counter = (value: string, max: number) => `${value.length}/${max}`
-const flows = useInboxSendableFlows(() => props.channelId, () => draft.value.type === 'flow')
-const chosenFlow = computed(() => flows.data.value?.items.find(flow => flow.id === draft.value.flowId))
+const chosenFlow = useInboxFlow(() => (draft.value.type === 'flow' ? draft.value.flowId : null)).data
 // A form belongs to one channel: changing the channel under a chosen form drops the choice.
 watch(() => props.channelId, (next, previous) => { if (next !== previous) draft.value.flowId = null })
 

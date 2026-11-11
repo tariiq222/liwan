@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { HrDeparture } from '@liwan/contracts'
 import { lifecycleLaunchErrorMessage } from '@/utils/hrLifecycleErrors'
 import { ApiError } from '@/composables/useApi'
-import { useHrEmployees } from '@/composables/useHrEmployees'
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import {
   useHrDepartureReasons,
   useHrOffboardingPlans,
@@ -28,7 +28,6 @@ const errorMessage = computed(() => formError.value
   ? lifecycleLaunchErrorMessage(formError.value, t, t(`${props.namespace}.form.saveError`))
   : undefined)
 const canManage = computed(() => can('hr.offboarding.manage'))
-const employees = useHrEmployees({ limit: 200, offset: 0 })
 const reasons = useHrDepartureReasons()
 const plans = useHrOffboardingPlans({ active: 'true', limit: 200, offset: 0 })
 
@@ -53,8 +52,6 @@ const employeeError = ref<string>()
 const dateError = ref<string>()
 const reasonError = ref<string>()
 
-const employeeOptions = computed(() => (employees.data.value?.items ?? [])
-  .map(employee => ({ value: String(employee.id), label: employee.name })))
 const reasonOptions = computed(() => (reasons.data.value?.items ?? [])
   .map(reason => ({ value: String(reason.id), label: reason.name })))
 const planOptions = computed(() => [
@@ -130,14 +127,11 @@ async function submit() {
     <SharedFormSection panel :title="t(`${namespace}.departures.title`)">
       <div class="liwan-auto-grid">
         <UFormField v-if="!departure" :label="t(`${namespace}.form.employee`)" name="hr-departure-employee" required :error="fieldError('employee_id')">
-          <USelect
+          <EmployeeSearchSelect
             id="hr-departure-employee"
-            class="w-full"
-            :model-value="employeeId ? String(employeeId) : undefined"
-            :items="employeeOptions"
+            v-model="employeeId"
             :placeholder="t(`${namespace}.form.employeePlaceholder`)"
             :disabled="!canManage || !hydrated || pending"
-            @update:model-value="employeeId = $event ? Number($event) : null"
           />
         </UFormField>
         <UFormField :label="t(`${namespace}.form.departureDate`)" name="hr-departure-date" required :error="fieldError('departure_date')">

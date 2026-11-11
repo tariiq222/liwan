@@ -8,7 +8,7 @@ import {
   useHrShiftAssignments,
   useHrShiftSchedules,
 } from '@/composables/useHrShifts'
-import { useHrEmployees } from '@/composables/useHrEmployees'
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import ShiftAssignmentTable from '@/components/hr/shifts/ShiftAssignmentTable.vue'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
@@ -50,12 +50,7 @@ const page = computed(() => Math.floor(offset.value / HR_SHIFTS_PAGE_SIZE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / HR_SHIFTS_PAGE_SIZE)))
 const showEmpty = computed(() => !source.isLoading.value && !source.error.value && items.value.length === 0)
 
-const employees = useHrEmployees({ limit: 200 })
 const schedules = useHrShiftSchedules({ active: 'true', limit: 200, offset: 0 })
-const employeeOptions = computed(() => [
-  { value: ALL, label: t('hrShifts.filters.allEmployees') },
-  ...(employees.data.value?.items ?? []).map(employee => ({ value: String(employee.id), label: employee.name })),
-])
 const scheduleOptions = computed(() => [
   { value: ALL, label: t('hrShifts.filters.allSchedules') },
   ...(schedules.data.value?.items ?? []).map(schedule => ({ value: String(schedule.id), label: schedule.name })),
@@ -78,10 +73,6 @@ function writeQuery(next: { employee_id?: number | null; schedule_id?: number | 
     },
     hash: route.hash,
   })
-}
-
-function pickEmployee(value: unknown) {
-  writeQuery({ employee_id: value && value !== ALL ? Number(value) : null, offset: 0 })
 }
 
 function pickSchedule(value: unknown) {
@@ -183,14 +174,14 @@ async function confirmRemove() {
             @clear="clearFilters"
           >
             <SharedFilterField :label="t('hrShifts.filters.employee')" for="hr-shifts-filter-employee">
-              <USelect
+              <EmployeeSearchSelect
                 id="hr-shifts-filter-employee"
-                class="w-full"
-                :model-value="employeeId ? String(employeeId) : ALL"
-                :items="employeeOptions"
+                :model-value="employeeId"
+                :any-label="t('hrShifts.filters.allEmployees')"
+                :placeholder="t('hrShifts.filters.allEmployees')"
                 :disabled="!hydrated"
-                data-testid="hr-shifts-filter-employee"
-                @update:model-value="pickEmployee"
+                test-id="hr-shifts-filter-employee"
+                @update:model-value="writeQuery({ employee_id: $event, offset: 0 })"
               />
             </SharedFilterField>
             <SharedFilterField :label="t('hrShifts.filters.schedule')" for="hr-shifts-filter-schedule">

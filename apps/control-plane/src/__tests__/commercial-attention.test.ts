@@ -15,8 +15,8 @@ suite('vendor attention list on PostgreSQL', () => {
   let pool: Pool
   let databaseCreated = false
   const tag = `at${randomUUID().slice(0, 8)}`
-  const id = { overdue: randomUUID(), rejected: randomUUID(), blocked: randomUUID(), stalled: randomUUID(), setup: randomUUID(), renewing: randomUUID(), missed: randomUUID(), calm: randomUUID(), failedOp: randomUUID(), recovered: randomUUID() }
-  const tenants = { overdue: randomUUID(), failedOp: randomUUID(), recovered: randomUUID() }
+  const id = { overdue: randomUUID(), rejected: randomUUID(), blocked: randomUUID(), stalled: randomUUID(), setup: randomUUID(), renewing: randomUUID(), missed: randomUUID(), calm: randomUUID(), failedOp: randomUUID(), recovered: randomUUID(), inviteFailed: randomUUID(), inviteReissued: randomUUID(), issueFailed: randomUUID(), issueRecovered: randomUUID() }
+  const tenants = { overdue: randomUUID(), failedOp: randomUUID(), recovered: randomUUID(), inviteFailed: randomUUID(), inviteReissued: randomUUID(), issueFailed: randomUUID(), issueRecovered: randomUUID() }
   const operationId = randomUUID()
   let rejectedFixture: { order: string; attempt: string; invoice: string }
   /** A paid invoice with its paying attempt, and a refund row the worker closed as failed. */
@@ -48,6 +48,9 @@ suite('vendor attention list on PostgreSQL', () => {
   const order = (customerId: string, s: { sub: string, rev: string }, fulfillment: string, ageHours: number) => pool.query(
     "INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent,created_at) VALUES($1,$2,$3,'new',$4,$5,'paid',$6,$7,'d',0,'SAR',2,now() - make_interval(hours => $8::int))",
     [randomUUID(), customerId, s.sub, randomUUID(), s.rev, fulfillment, randomUUID(), ageHours])
+  const invitation = (customerId: string, tenantId: string, status: string, ageHours: number, revoked = false, login = 'admin@example.test') => pool.query(
+    "INSERT INTO admin_invitations(id,customer_id,tenant_id,admin_login,token_hash,expires_at,revoked_at,delivery_status,created_at) VALUES($1,$2,$3,$4,$5,now() + interval '3 days',CASE WHEN $8::boolean THEN now() END,$6,now() - make_interval(hours => $7::int))",
+    [randomUUID(), customerId, tenantId, login, randomUUID(), status, ageHours, revoked])
   const operation = (tenantId: string, status: string, id = randomUUID(), ageMinutes = 0) => pool.query(
     "INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,status,request_id,reason,payload,payload_digest,created_at,updated_at) VALUES($1,$2,7,'attention-test','upgrade',$3,$4,'fixture','{}','d',now() - make_interval(mins => $5::int),now() - make_interval(mins => $5::int))",
     [id, tenantId, status, randomUUID(), ageMinutes])
@@ -79,6 +82,23 @@ suite('vendor attention list on PostgreSQL', () => {
     const calm = await subscription(id.calm, 'active', new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10))
     await order(id.calm, calm, 'applying', 1)
     await operation(tenants.failedOp, 'failed', operationId)
+    for (const key of ['inviteFailed', 'inviteReissued'] as const) {
+      await tenant(tenants[key], `${tag} ${key}`)
+      await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [id[key], `${tag} ${key}`, tenants[key]])
+      await subscription(id[key], 'active', new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10), tenants[key])
+    }
+    // A re-issue revokes the older row. Failed for good after an earlier delivered one: listed. Failed, then re-issued and pending: cleared.
+    await invitation(id.inviteFailed, tenants.inviteFailed, 'sent', 30, true); await invitation(id.inviteFailed, tenants.inviteFailed, 'failed', 1)
+    await invitation(id.inviteReissued, tenants.inviteReissued, 'failed', 5, true); await invitation(id.inviteReissued, tenants.inviteReissued, 'queued', 1)
+    // The first invitation could not be issued: the failed `invitation.issue` outbox row is all there is. A later re-issue clears it.
+    for (const key of ['issueFailed', 'issueRecovered'] as const) {
+      await tenant(tenants[key], `${tag} ${key}`)
+      await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [id[key], `${tag} ${key}`, tenants[key], 'admin@example.test'])
+      const { sub } = await subscription(id[key], 'active', new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10), tenants[key])
+      await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status,processed_at) VALUES($1,'invitation.issue',$2,'first-activation',$3,'failed',now())",
+        [randomUUID(), sub, JSON.stringify({ subscription_id: sub, error: 'issue_failed' })])
+    }
+    await invitation(id.issueRecovered, tenants.issueRecovered, 'queued', 0)
     await operation(tenants.recovered, 'failed', randomUUID(), 10); await operation(tenants.recovered, 'succeeded', randomUUID(), 5)
   })
   afterAll(async () => {
@@ -92,7 +112,7 @@ suite('vendor attention list on PostgreSQL', () => {
   it('lists each kind once per customer, most urgent first, naming the exact record', async () => {
     const { items } = await get(BILLING)
     expect(mine(items).map(i => [i.kind, i.name.slice(tag.length + 1)])).toEqual([
-      ['past_due', 'overdue'], ['refund_rejected', 'rejected'], ['billing_blocked', 'blocked'], ['stalled_activation', 'stalled'], ['operation_failed', 'failed op'], ['setup_required', 'setup'], ['renewal_missed', 'missed'], ['renewal_soon', 'renewing'],
+      ['past_due', 'overdue'], ['refund_rejected', 'rejected'], ['billing_blocked', 'blocked'], ['stalled_activation', 'stalled'], ['invitation_failed', 'inviteFailed'], ['invitation_failed', 'issueFailed'], ['operation_failed', 'failed op'], ['setup_required', 'setup'], ['renewal_missed', 'missed'], ['renewal_soon', 'renewing'],
     ])
     const byKind = Object.fromEntries(mine(items).map(i => [i.kind, i]))
     expect(byKind.past_due).toMatchObject({ customer_id: id.overdue, tenant_id: tenants.overdue, operation_id: null })
@@ -103,6 +123,10 @@ suite('vendor attention list on PostgreSQL', () => {
     expect(byKind.billing_blocked).toMatchObject({ customer_id: id.blocked, invoice_id: null, detail: null })
     expect(Date.now() - Date.parse(byKind.billing_blocked!.since)).toBeGreaterThan(1.9 * 86_400_000)
     expect(byKind.stalled_activation).toMatchObject({ customer_id: id.stalled, detail: 'applying' })
+    const inviteFailed = mine(items).find(i => i.name.endsWith('inviteFailed'))!
+    expect(inviteFailed).toMatchObject({ kind: 'invitation_failed', customer_id: id.inviteFailed, tenant_id: tenants.inviteFailed, operation_id: null, invoice_id: null, detail: null })
+    expect(Date.now() - Date.parse(inviteFailed.since)).toBeLessThan(2 * 3_600_000)
+    expect(mine(items).find(i => i.name.endsWith('issueFailed'))).toMatchObject({ kind: 'invitation_failed', customer_id: id.issueFailed, tenant_id: tenants.issueFailed, detail: null })
     expect(byKind.operation_failed).toMatchObject({ operation_id: operationId, tenant_id: tenants.failedOp, customer_id: null, detail: 'upgrade' })
     expect(byKind.setup_required).toMatchObject({ customer_id: id.setup })
   })
@@ -120,8 +144,8 @@ suite('vendor attention list on PostgreSQL', () => {
     await pool.query("INSERT INTO customers(id,name,commercial_setup_required) SELECT gen_random_uuid(), $1 || ' bulk ' || n, true FROM generate_series(1,25) n", [tag])
     const r = await get(BILLING)
     expect(r.items).toHaveLength(20)
-    expect(r.total).toBe(8 + 25)
-    expect(r.items.slice(0, 5).map(i => i.kind)).toEqual(['past_due', 'refund_rejected', 'billing_blocked', 'stalled_activation', 'operation_failed'])
+    expect(r.total).toBe(10 + 25)
+    expect(r.items.slice(0, 5).map(i => i.kind)).toEqual(['past_due', 'refund_rejected', 'billing_blocked', 'stalled_activation', 'invitation_failed'])
     expect(r.counts.past_due).toBe(1)
     expect(r.counts.stalled).toBeGreaterThanOrEqual(1)
     expect(r.counts.renewals).toBeGreaterThanOrEqual(1)

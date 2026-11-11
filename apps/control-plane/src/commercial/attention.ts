@@ -93,6 +93,26 @@ const subjectsSql = `WITH latest AS (
   WHERE op.status IN ('failed','needs_intervention')
     AND NOT EXISTS (SELECT 1 FROM operations later WHERE later.tenant_id=op.tenant_id AND later.created_at>op.created_at AND later.status='succeeded')
   ORDER BY op.tenant_id, op.created_at DESC, op.id
+), invitation_failures AS (
+  -- The latest invitation per tenant and admin login ended as failed (delivery gave up after its retries): nobody holds a
+  -- usable link. A later pending or delivered re-issue is the latest row, so it clears the item.
+  SELECT customer_id, tenant_id, name, created_at FROM (
+    SELECT DISTINCT ON (i.tenant_id, i.admin_login) i.customer_id, i.tenant_id, c.name, i.created_at, i.delivery_status, i.consumed_at, i.revoked_at
+    FROM admin_invitations i JOIN customers c ON c.id=i.customer_id
+    ORDER BY i.tenant_id, i.admin_login, i.created_at DESC, i.id
+  ) latest_invitation
+  WHERE delivery_status='failed' AND consumed_at IS NULL AND revoked_at IS NULL
+  UNION ALL
+  -- The first invitation could not even be issued (its outbox row failed for good), so no invitation row exists for the
+  -- tenant. Any invitation issued afterwards (a vendor re-issue) clears the item.
+  -- One item per customer, dated by its latest failure, however many issue rows failed.
+  SELECT * FROM (
+    SELECT DISTINCT ON (c.id) c.id, c.tenant_id, c.name, ob.processed_at FROM commercial_outbox ob
+    JOIN subscriptions s ON s.id::text=ob.payload->>'subscription_id' JOIN customers c ON c.id=s.customer_id
+    WHERE ob.kind='invitation.issue' AND ob.status='failed' AND c.tenant_id IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM admin_invitations i WHERE i.tenant_id=c.tenant_id AND i.admin_login=c.admin_login)
+    ORDER BY c.id, ob.processed_at DESC
+  ) latest_issue_failure
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
@@ -103,6 +123,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
+  UNION ALL SELECT 4,'invitation_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM invitation_failures
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
   UNION ALL SELECT 7,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}

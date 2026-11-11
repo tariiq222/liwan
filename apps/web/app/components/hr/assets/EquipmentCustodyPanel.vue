@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { HrEquipment, HrRef } from '@liwan/contracts'
+import type { HrEquipment } from '@liwan/contracts'
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 
 // The custody block of one asset: who holds it now, since when, and the assignment
 // control. The page owns the mutation and the inline confirmations.
 const props = defineProps<{
   equipment: HrEquipment
-  employees: HrRef[]
   canManage: boolean
   pending: boolean
 }>()
@@ -25,10 +25,6 @@ const assignDate = ref<string | null>(null)
 // Filled after hydration from the browser's own day: toISOString would give the UTC day.
 onMounted(() => { assignDate.value ??= localToday() })
 
-const employeeOptions = computed(() => props.employees.map(employee => ({
-  value: String(employee.id),
-  label: employee.name,
-})))
 const canAssign = computed(() => props.canManage && !props.pending && !props.equipment.employee && !!employeeId.value && !!assignDate.value)
 
 function assign() {
@@ -48,15 +44,12 @@ function assign() {
     </SharedPropertiesPanel>
     <div v-if="props.canManage && !props.equipment.employee" class="mt-4 liwan-auto-grid gap-4">
       <UFormField :label="t('hrAssets.custody.employee')" for="hr-asset-assign-employee">
-        <USelect
+        <EmployeeSearchSelect
           id="hr-asset-assign-employee"
-          class="w-full"
-          :model-value="employeeId ? String(employeeId) : undefined"
-          :items="employeeOptions"
+          v-model="employeeId"
           :placeholder="t('hrAssets.custody.chooseEmployee')"
           :disabled="!hydrated || props.pending"
-          data-testid="hr-asset-assign-employee"
-          @update:model-value="employeeId = $event ? Number($event) : null"
+          test-id="hr-asset-assign-employee"
         />
       </UFormField>
       <UFormField :label="t('hrAssets.custody.date')" for="hr-asset-assign-date">

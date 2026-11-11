@@ -1,6 +1,6 @@
 import {
   INBOX_COMMERCE_LIMITS, InboxCommerceContentSchema,
-  type InboxCatalogItemReview, type InboxCatalogItemSyncState, type InboxCatalogState, type InboxCommerceContent, type InboxMessageCommerce, type InboxOrder, type InboxOrderPaymentStatus, type InboxOrderState,
+  type InboxCatalogItemReview, type InboxCatalogItemSyncState, type InboxCatalogState, type InboxCommerceContent, type InboxMessageCommerce, type InboxOrder, type InboxOrderPaymentStatus, type InboxOrderState, type InboxTemplate,
 } from '@liwan/contracts'
 import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
@@ -186,6 +186,10 @@ export function orderBadge(order: { state: InboxOrderState; payment_status: Inbo
   if (order.state === 'ordered' && order.payment_status) return { tone: PAYMENT_STATUS_TONE[order.payment_status], labelKey: `inbox.orders.payment.${order.payment_status}` }
   return { tone: ORDER_STATE_TONE[order.state], labelKey: `inbox.orders.state.${order.state}` }
 }
+
+/** A template that can carry the pay link: a url button to the pay page that ends in a variable (the server checks the exact prefix). */
+export const isPayLinkTemplate = (template: InboxTemplate) =>
+  template.supported && template.buttons.some(button => button.type === 'url' && button.url.includes('/pay/order/') && button.url.endsWith('{{1}}'))
 
 /** One line of a cart or an order as the screens draw it, whichever shape it came from. */
 export interface OrderLineRow {

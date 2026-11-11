@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { CHAT_TYPING_MS } from '../utils/chatState'
 import { clearTaskWriteAcknowledgements, reconcileTaskWriteEvent, taskKeys } from './useTasks'
@@ -94,37 +94,46 @@ let manuallyClosed = true
 let generation = 0
 const connected = ref(false)
 export type ChatTypingEvent = { conversationId: number; userId: number; userName: string; isTyping: boolean }
-export const chatTypingEvent = ref<ChatTypingEvent | null>(null)
+/** Everyone typing right now, one entry per channel and user; an entry leaves when the user stops or after `CHAT_TYPING_MS`. */
+export const chatTypists = ref<ChatTypingEvent[]>([])
 /** A message removed for good (the company's «permanent» delete): open histories drop it, a refetch cannot tell them to. */
 export type ChatDeletedEvent = { conversationId: number; messageId: number }
-export const chatDeletedEvent = ref<ChatDeletedEvent | null>(null)
-export function applyChatDeleted(notification: { message?: { type?: string; payload?: Record<string, unknown> } }): void {
-  const payload = notification.message?.payload
-  if (notification.message?.type === 'liwan/chat' && payload?.event === 'message_deleted'
-    && typeof payload.id === 'number' && typeof payload.message_id === 'number') {
-    chatDeletedEvent.value = { conversationId: payload.id, messageId: payload.message_id }
+/** The permanent deletes of the latest bus frame, all of them: a later frame replaces the batch, so it never grows. */
+export const chatDeletedBatch = ref<ChatDeletedEvent[]>([])
+export function applyChatDeleted(notifications: ReadonlyArray<{ message?: { type?: string; payload?: Record<string, unknown> } }>): void {
+  const deleted: ChatDeletedEvent[] = []
+  for (const { message } of notifications) {
+    const payload = message?.payload
+    if (message?.type === 'liwan/chat' && payload?.event === 'message_deleted'
+      && typeof payload.id === 'number' && typeof payload.message_id === 'number') {
+      deleted.push({ conversationId: payload.id, messageId: payload.message_id })
+    }
   }
+  if (deleted.length) chatDeletedBatch.value = deleted
 }
-let typingTimer: ReturnType<typeof setTimeout> | null = null
+const typingTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const typingKey = (event: Pick<ChatTypingEvent, 'conversationId' | 'userId'>) => `${event.conversationId}:${event.userId}`
+
+function stopTyping(event: Pick<ChatTypingEvent, 'conversationId' | 'userId'>): void {
+  const key = typingKey(event)
+  const timer = typingTimers.get(key)
+  if (timer) clearTimeout(timer)
+  typingTimers.delete(key)
+  chatTypists.value = chatTypists.value.filter(entry => typingKey(entry) !== key)
+}
 
 export function applyChatTyping(event: ChatTypingEvent): void {
-  if (typingTimer) {
-    clearTimeout(typingTimer)
-    typingTimer = null
-  }
-  if (!event.isTyping) {
-    if (chatTypingEvent.value?.conversationId === event.conversationId && chatTypingEvent.value.userId === event.userId) {
-      chatTypingEvent.value = event
-    }
-    return
-  }
-  chatTypingEvent.value = event
-  typingTimer = setTimeout(() => {
-    if (chatTypingEvent.value?.conversationId === event.conversationId && chatTypingEvent.value.userId === event.userId) {
-      chatTypingEvent.value = { ...chatTypingEvent.value, isTyping: false }
-    }
-    typingTimer = null
-  }, CHAT_TYPING_MS)
+  stopTyping(event)
+  if (!event.isTyping) return
+  chatTypists.value = [...chatTypists.value, event]
+  typingTimers.set(typingKey(event), setTimeout(() => stopTyping(event), CHAT_TYPING_MS))
+}
+
+function clearChatPresence(): void {
+  typingTimers.forEach(timer => clearTimeout(timer))
+  typingTimers.clear()
+  chatTypists.value = []
+  chatDeletedBatch.value = []
 }
 
 // Called once, client-only, from bus.client.ts's plugin setup() (that file's
@@ -317,9 +326,9 @@ function handleMessage(event: MessageEvent) {
   if (typeof event.data !== 'string') return
   const { notifications, lastId: newLast } = parseBusFrame(event.data)
   if (newLast !== undefined) lastId = newLast
+  applyChatDeleted(notifications)
   for (const notification of notifications) {
     const payload = notification.message?.payload
-    applyChatDeleted(notification)
     if (notification.message?.type !== 'liwan/chat' || payload?.event !== 'typing') continue
     if (typeof payload.id !== 'number' || typeof payload.user_id !== 'number') continue
     applyChatTyping({
@@ -412,6 +421,7 @@ function disconnect() {
   if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', reconcileVisibleQueries)
   pendingNotifications = []
   invalidationQueued = false
+  clearChatPresence()
   trailingReconciliations.clear()
   if (queryClient) clearTaskWriteAcknowledgements(queryClient)
   generation++
@@ -424,6 +434,14 @@ function disconnect() {
   socket = null
   connected.value = false
   s?.close()
+}
+
+/** The fallback poll period of a bus-driven query while the socket is down. */
+export const BUS_FALLBACK_POLL_MS = 5_000
+
+/** A `refetchInterval` that polls while the bus is not connected and stays off while it is, so no request goes out while pushes arrive. It is reactive: a reconnect stops the polling and a drop starts it again. */
+export function busFallbackInterval(pollMs: number = BUS_FALLBACK_POLL_MS): ComputedRef<number | false> {
+  return computed(() => connected.value ? false : pollMs)
 }
 
 export function useBus(): { connected: Ref<boolean>; connect: () => void; disconnect: () => void } {

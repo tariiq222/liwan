@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { InboxCampaign, InboxCampaignPreview, InboxTemplate } from '@liwan/contracts'
 import {
-  campaignDraftSignature, campaignPreviewParts, campaignTemplates, campaignToDraft, campaignWrite, emptyCampaignDraft, headerMediaKind,
+  campaignDraftSignature, campaignPreviewParts, campaignToDraft, campaignWrite, emptyCampaignDraft, headerMediaKind, isCampaignTemplate,
   localInputToUtc, paramRows, paramsComplete, paramsWrite, rowsFromCampaign, utcToLocalInput,
 } from '../inboxCampaignParams'
 
@@ -65,7 +65,7 @@ describe('campaign templates', () => {
       template({ id: 6, header: { type: 'location' } }),
       template({ id: 7, header: { type: 'image', example_attachment: null } }),
     ]
-    expect(campaignTemplates(all).map(item => item.id)).toEqual([1, 2, 7])
+    expect(all.filter(isCampaignTemplate).map(item => item.id)).toEqual([1, 2, 7])
   })
 
   it('finds the media kind that needs a header file', () => {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
-import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerPrincipal, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, prospectLanding, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
+import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerPrincipal, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, forwardSignupRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, prospectLanding, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
 vi.mock('../tenantRequest', async (orig) => {
@@ -377,5 +377,28 @@ describe('issueCsrfCookie', () => {
     expect(setCookie).not.toHaveBeenCalled()
     setup({ cfg: { customerCommercialEnabled: false } })
     expect(() => issueCsrfCookie({} as never)).toThrow()
+  })
+})
+
+describe('signup relay', () => {
+  const PROXY_TOKEN = 'p'.repeat(40)
+  afterEach(() => vi.unstubAllEnvs())
+  function signup(answer: { status: number; _data: unknown }) {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', PROXY_TOKEN)
+    const raw = setup({
+      method: 'POST', url: 'https://acme.example/api/commercial/signup/start', body: '{"email":"a@gmail.com"}',
+      headers: { host: 'acme.example', 'x-liwan-proxy-token': PROXY_TOKEN, 'x-liwan-signup-client': '203.0.113.7' },
+      cfg: { publicSignupEnabled: true },
+    })
+    raw.mockResolvedValue(answer)
+    return raw
+  }
+  it('passes a refused free-mail address through as its own code and status', async () => {
+    signup({ status: 422, _data: { code: 'business_email_required' } })
+    await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 422, data: { code: 'business_email_required' } })
+  })
+  it('still hides a code outside the whitelist behind unavailable', async () => {
+    signup({ status: 500, _data: { code: 'database_exploded' } })
+    await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 503, data: { code: 'unavailable' } })
   })
 })

@@ -52,6 +52,7 @@ const MODULES: Record<string, unknown> = {
   '@/components/hr/DepartmentForm.vue': component('DepartmentForm'),
   '@/components/hr/lifecycle/DepartureForm.vue': component('DepartureForm'),
   '@/components/hr/EmployeeGeneralForm.vue': component('EmployeeGeneralForm'),
+  '@/components/hr/EmployeeSearchSelect.vue': component('EmployeeSearchSelect'),
   '@/components/hr/assets/EquipmentForm.vue': component('EquipmentForm'),
   '@/components/hr/LeaveAllocationForm.vue': component('LeaveAllocationForm'),
   '@/components/hr/LeaveRequestForm.vue': component('LeaveRequestForm'),

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import EquipmentTable from '@/components/hr/assets/EquipmentTable.vue'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import {
@@ -58,9 +59,9 @@ const equipment = useHrEquipmentList(computed(() => ({
   offset: offset.value,
 })))
 const categories = useHrAssetCategories()
-// The holder filter lists employees; every assets role carries hr.employees.read through the
-// catalog dependency, so the query is the same one the employee directory uses.
-const employees = useHrEmployees(computed(() => ({ limit: 100 })))
+// The holder filter searches employees; every assets role carries hr.employees.read through the
+// catalog dependency. The chip names the chosen holder by id, wherever it sits in the directory.
+const holder = useHrEmployee(computed(() => canReadEmployees.value ? employeeId.value : null))
 
 const items = computed(() => equipment.data.value?.items ?? [])
 const total = computed(() => equipment.data.value?.total ?? 0)
@@ -79,12 +80,8 @@ const categoryOptions = computed(() => (categories.data.value?.items ?? []).map(
   value: String(category.id),
   label: category.name,
 })))
-const employeeOptions = computed(() => (employees.data.value?.items ?? []).map(employee => ({
-  value: String(employee.id),
-  label: employee.name,
-})))
 const categoryName = computed(() => categoryOptions.value.find(option => option.value === String(categoryId.value))?.label ?? t('hrAssets.columns.category'))
-const employeeName = computed(() => employeeOptions.value.find(option => option.value === String(employeeId.value))?.label ?? t('hrAssets.columns.employee'))
+const employeeName = computed(() => holder.data.value?.name ?? t('hrAssets.columns.employee'))
 const assignedOptions = computed(() => ASSIGNED_FILTERS.map(value => ({
   value,
   label: t(`hrAssets.assignedFilter.${value}`),
@@ -182,15 +179,14 @@ function equipmentTo(row: HrEquipment) {
               />
             </SharedFilterField>
             <SharedFilterField v-if="canReadEmployees" :label="t('hrAssets.columns.employee')" for="hr-assets-employee">
-              <USelect
+              <EmployeeSearchSelect
                 id="hr-assets-employee"
-                class="w-full"
-                :model-value="employeeId ? String(employeeId) : undefined"
-                :items="employeeOptions"
+                :model-value="employeeId"
+                :any-label="t('hrAssets.anyEmployee')"
                 :placeholder="t('hrAssets.anyEmployee')"
-                :disabled="!hydrated || employees.isLoading.value"
-                data-testid="hr-assets-employee"
-                @update:model-value="writeQuery({ employee: $event ? Number($event) : null, offset: 0 })"
+                :disabled="!hydrated"
+                test-id="hr-assets-employee"
+                @update:model-value="writeQuery({ employee: $event, offset: 0 })"
               />
             </SharedFilterField>
           </SharedFilterPopover>

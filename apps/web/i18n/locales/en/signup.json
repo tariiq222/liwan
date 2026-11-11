@@ -31,6 +31,7 @@
       "companyRequired": "Enter your company name.",
       "adminRequired": "Enter the administrator’s name.",
       "emailInvalid": "Enter a valid email address.",
+      "businessEmailRequired": "Use your company email address. Free email providers such as Gmail or Outlook are not accepted.",
       "mobileInvalid": "Enter a Saudi mobile number, such as 0500000000.",
       "codeFormat": "Enter the six digits from the verification message.",
       "invalid": "Check your registration details and try again.",

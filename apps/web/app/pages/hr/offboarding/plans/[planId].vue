@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import PlanForm from '@/components/hr/lifecycle/PlanForm.vue'
 import { useHrOffboardingPlan } from '@/composables/useHrOffboarding'
 import { ApiError } from '@/composables/useApi'
@@ -13,7 +14,7 @@ const validId = computed(() => Number.isSafeInteger(planId.value) && planId.valu
 const query = useHrOffboardingPlan(computed(() => validId.value ? planId.value : null))
 const plan = computed(() => query.data.value)
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t(`hrOffboarding.errors.notFound`))))
-const backTo = computed(() => typeof route.query.returnTo === 'string' && route.query.returnTo.startsWith('/') ? route.query.returnTo : '/hr/offboarding/plans')
+const backTo = computed(() => safeReturnTo(route.query.returnTo, '/hr/offboarding/plans', ['/hr']))
 const exportedSteps = computed(() => plan.value?.steps.length ?? 0)
 const { mutateAsync: patchPlan, isPending: saving } = usePatchHrOffboardingPlan()
 const toggleError = ref<unknown>(null)

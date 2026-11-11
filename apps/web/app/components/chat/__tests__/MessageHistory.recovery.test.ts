@@ -2,8 +2,9 @@ import { afterEach, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
 vi.mock('@/components/chat/ChatAttachment.vue', () => ({ default: { render: () => null } }))
 vi.mock('@/composables/useApi', () => import('../../../composables/useApi'))
-vi.mock('@/composables/useBus', async () => ({ chatDeletedEvent: (await import('vue')).ref(null) }))
+vi.mock('@/composables/useBus', async () => ({ chatDeletedBatch: (await import('vue')).ref([]) }))
 vi.mock('@/utils/chatState', () => import('../../../utils/chatState'))
+import { chatDeletedBatch } from '@/composables/useBus'
 import MessageHistory from '../MessageHistory.vue'
 
 const apps: Array<() => void> = []
@@ -59,6 +60,13 @@ async function mount(api: ReturnType<typeof vi.fn>, options: { read?: (conversat
   const ids = () => setup.items.map((item: any) => item.id)
   return { page, ids, conversation, q, me, unmount, read: (id: number) => setup.acknowledgeRead(id), setup }
 }
+it('drops every message the other participants deleted for good in one bus frame, and only those of this conversation', async () => {
+  const history = await mount(vi.fn())
+  await history.page(messages(1, 5))
+  chatDeletedBatch.value = [{ conversationId: 1, messageId: 2 }, { conversationId: 2, messageId: 3 }, { conversationId: 1, messageId: 4 }]
+  await Vue.nextTick()
+  expect(history.ids()).toEqual([1, 3, 5])
+})
 it('fills a missed-event gap from the last known cursor before merging the latest query page', async () => {
   const api = vi.fn(async (_path, options) => ({ items: options.query.after === 50 ? messages(51, 100) : options.query.after === 100 ? messages(101, 150) : [], total: 150 }))
   const history = await mount(api)

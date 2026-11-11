@@ -2,11 +2,12 @@ import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { url, setup } from './commercial-helpers.js'
-import { acceptInvitation, issueInvitation, sendInvitationOutbox, InvitationError } from '../commercial/invitations.js'
+import { acceptInvitation, issueInvitation, sendInvitationOutbox, InvitationError, INVITATION_MAX_ATTEMPTS } from '../commercial/invitations.js'
 import { isAllowedInvitationOrigin } from '../commercial/invitation-tokens.js'
 import { invitationHttp } from '../commercial/invitation-http.js'
 import { SmtpMailAdapter, type MailAdapter, type MailMessage } from '../commercial/mail-adapter.js'
 import { createApp } from '../http.js'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { fixedReturnOrigin, tenantReturnOrigin } from '../commercial/return-origin.js'
 
 const d = url ? describe : describe.skip
@@ -62,11 +63,80 @@ d('admin invitations', () => {
     expect(links).toEqual([`https://acme-${key}.saas.example/invite/accept`, `https://globex-${key}.saas.example/invite/accept`])
     expect(sent.every(m => !m.text.includes('*'))).toBe(true)
   })
-  it('fails the send, without mailing, when the tenant has no usable origin', async () => {
+  const origin = fixedReturnOrigin('https://app.liwan.test')
+  const makeDue = () => pool.query("UPDATE commercial_outbox SET next_attempt_at=now() WHERE status='pending'")
+  const outbox = async () => (await pool.query("SELECT status, attempts, payload FROM commercial_outbox WHERE kind='invitation.send'")).rows[0]
+  it('retries a send that failed once and delivers it on a later pass without a vendor step', async () => {
+    const inv = await issue()
+    let calls = 0
+    const flaky: MailAdapter = { async send(m) { if (++calls === 1) throw new Error('smtp down'); sent.push(m); return { accepted: true, provider_message_id: 'p-' + m.message_id } } }
+    const logged: string[] = []
+    expect(await sendInvitationOutbox(pool, { mail: flaky, returnOrigin: origin, log: m => logged.push(m) })).toEqual({ sent: 0, failed: 0 })
+    expect(logged).toEqual([`invitation ${inv.id} send failed (attempt 1 of 5)`])
+    const pending = await outbox()
+    expect(pending.status).toBe('pending'); expect(pending.attempts).toBe(1)
+    expect(typeof pending.payload.token).toBe('string')
+    expect((await pool.query('SELECT delivery_status FROM admin_invitations')).rows[0].delivery_status).not.toBe('failed')
+    expect(await sendInvitationOutbox(pool, { mail: flaky, returnOrigin: origin })).toEqual({ sent: 0, failed: 0 }) // backing off, not due yet
+    await makeDue()
+    expect(await sendInvitationOutbox(pool, { mail: flaky, returnOrigin: origin })).toEqual({ sent: 1, failed: 0 })
+    expect((await pool.query('SELECT delivery_status FROM admin_invitations')).rows[0].delivery_status).toBe('sent')
+    const done = await outbox()
+    expect(done.status).toBe('done'); expect(done.payload.token).toBeUndefined()
+  })
+  it('fails an invitation for good only on the fifth failed attempt and scrubs the token then', async () => {
     await issue()
-    expect(await sendInvitationOutbox(pool, { mail, returnOrigin: tenantReturnOrigin(pool, ['https://*.saas.example']) })).toEqual({ sent: 0, failed: 1 })
-    expect(sent).toHaveLength(0)
+    const broken: MailAdapter = { async send() { throw new Error('smtp down') } }
+    for (let n = 1; n < INVITATION_MAX_ATTEMPTS; n++) {
+      await makeDue()
+      expect(await sendInvitationOutbox(pool, { mail: broken, returnOrigin: origin })).toEqual({ sent: 0, failed: 0 })
+      const row = await outbox()
+      expect(row.status).toBe('pending'); expect(row.attempts).toBe(n); expect(typeof row.payload.token).toBe('string')
+    }
+    await makeDue()
+    expect(await sendInvitationOutbox(pool, { mail: broken, returnOrigin: origin })).toEqual({ sent: 0, failed: 1 })
+    const row = await outbox()
+    expect(row.status).toBe('failed'); expect(row.payload.token).toBeUndefined(); expect(row.payload.error).toBe('smtp down')
     expect((await pool.query('SELECT delivery_status FROM admin_invitations')).rows[0].delivery_status).toBe('failed')
+    await makeDue()
+    expect(await sendInvitationOutbox(pool, { mail: broken, returnOrigin: origin })).toEqual({ sent: 0, failed: 0 })
+  })
+  /** A pool whose delivery-recording statement fails the first `times` calls, as a dropped connection would. */
+  const failingRecord = (times: number) => {
+    let left = times
+    return { query: (sql: string, ...rest: unknown[]) => sql.includes('WITH delivered') && left-- > 0 ? Promise.reject(new Error('connection reset')) : (pool.query as (...a: unknown[]) => Promise<unknown>)(sql, ...rest) } as unknown as Pool
+  }
+  it('records a delivery again without mailing again when only the recording failed', async () => {
+    const inv = await issue()
+    expect(await sendInvitationOutbox(failingRecord(2), { mail, returnOrigin: origin })).toEqual({ sent: 1, failed: 0 })
+    expect(sent).toHaveLength(1)
+    expect((await pool.query('SELECT delivery_status FROM admin_invitations WHERE id=$1', [inv.id])).rows[0].delivery_status).toBe('sent')
+    const done = await outbox()
+    expect(done.status).toBe('done'); expect(done.payload.token).toBeUndefined()
+  })
+  it('never marks a delivered mail failed when its recording keeps failing', async () => {
+    const inv = await issue()
+    const logged: string[] = []
+    expect(await sendInvitationOutbox(failingRecord(99), { mail, returnOrigin: origin, log: m => logged.push(m) })).toEqual({ sent: 0, failed: 0 })
+    expect(sent).toHaveLength(1)
+    expect(logged).toEqual([`invitation ${inv.id} was sent but its delivery could not be recorded`])
+    expect((await pool.query('SELECT delivery_status FROM admin_invitations WHERE id=$1', [inv.id])).rows[0].delivery_status).not.toBe('failed')
+    expect((await outbox()).attempts).toBe(0)
+  })
+  it('scrubs the token from the outbox row of an invitation that was superseded before it was sent', async () => {
+    const inv = await issue()
+    await pool.query('UPDATE admin_invitations SET revoked_at=now() WHERE id=$1', [inv.id])
+    expect(await sendInvitationOutbox(pool, { mail, returnOrigin: origin })).toEqual({ sent: 0, failed: 0 })
+    expect(sent).toHaveLength(0)
+    const done = await outbox()
+    expect(done.status).toBe('done'); expect(done.payload.token).toBeUndefined()
+  })
+  it('retries, without mailing, while the tenant has no usable origin', async () => {
+    await issue()
+    expect(await sendInvitationOutbox(pool, { mail, returnOrigin: tenantReturnOrigin(pool, ['https://*.saas.example']) })).toEqual({ sent: 0, failed: 0 })
+    expect(sent).toHaveLength(0)
+    expect((await outbox()).status).toBe('pending')
+    expect((await pool.query('SELECT delivery_status FROM admin_invitations')).rows[0].delivery_status).not.toBe('failed')
   })
   it('records local_capture for local SMTP host', async () => {
     await issue(); await sendInvitationOutbox(pool, { mail, returnOrigin: fixedReturnOrigin('http://localhost:3000'), smtpHost: '127.0.0.1' })
@@ -200,6 +270,25 @@ d('admin invitations', () => {
       const limited = await post('/v1/invitations/check', { token: 'q'.repeat(43) })
       expect(statuses[10]).toBe(429); expect(limited.status).toBe(429)
       expect((await post('/v1/invitations/accept', { token: 'q'.repeat(43), password: PW })).status).toBe(400)
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+  })
+  it('keys the invitation limit on the address the BFF signed, and ignores an unsigned or forged one', async () => {
+    const key = 'customer-test-key-'.repeat(4)
+    const config = { installationId: 'inv-bff', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'i', customerCommercialServiceKey: key,
+      inventoryPath: '', repositoryRoot: '', python: 'python3', stateDir: '' }
+    const server = createApp(pool, config).listen(0, '127.0.0.1')
+    await new Promise<void>(resolve => server.once('listening', resolve))
+    try {
+      const addr = server.address(); if (!addr || typeof addr === 'string') throw Error('missing address')
+      const path = '/v1/invitations/check'
+      const post = (headers: Record<string, string> = {}) => fetch(`http://127.0.0.1:${addr.port}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify({ token: 'q'.repeat(43) }) })
+      const signed = (ip: string, signingKey = key) => ({ 'x-liwan-client-ip': ip, ...signServiceRequest({ method: 'POST', path, body: `liwan-invitation-client:${ip}\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key: signingKey }) })
+      for (let n = 0; n < 10; n++) expect((await post(signed('203.0.113.7'))).status).toBe(200)
+      expect((await post(signed('203.0.113.7'))).status).toBe(429)
+      expect((await post(signed('203.0.113.8'))).status).toBe(200) // another visitor behind the same BFF
+      // Forged: a header without a valid signature, or signed with another key, is the BFF's own socket address.
+      for (let n = 0; n < 10; n++) expect((await post(n % 2 ? { 'x-liwan-client-ip': `198.51.100.${n}` } : signed(`198.51.100.${n}`, 'forged-test-key-'.repeat(4)))).status).toBe(200)
+      expect((await post({ 'x-liwan-client-ip': '198.51.100.99' })).status).toBe(429)
     } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
   })
   const port = process.env.LIWAN_MAILPIT_SMTP_PORT, api = process.env.LIWAN_MAILPIT_API_PORT

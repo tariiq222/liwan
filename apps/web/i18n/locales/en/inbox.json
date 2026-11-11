@@ -273,11 +273,9 @@
       },
       "noWindow": "The customer has not sent a message yet, so only an approved template can be sent.",
       "template": "Template",
-      "pickTemplate": "Pick an approved template",
       "param": "Variable {n} value",
       "preview": "Message preview",
       "noTemplates": "This channel has no approved templates. Ask a manager to sync templates from the channel settings.",
-      "templatesFailed": "Templates could not be loaded",
       "readOnly": "Read only",
       "readOnlyDescription": "You do not have permission to reply to conversations.",
       "attachments": "Add to the reply",
@@ -572,6 +570,12 @@
       "order": "Order cart"
     },
     "templates": {
+      "picker": {
+        "placeholder": "Choose an approved template",
+        "search": "Search templates by name",
+        "more": "Showing the first matches. Type to narrow the list.",
+        "failed": "Templates could not be loaded"
+      },
       "title": "Message templates",
       "hint": "WhatsApp templates that Meta reviews before they can be used to reply after the 24-hour window closes.",
       "pageTitle": "{name} templates",
@@ -1131,6 +1135,8 @@
         "openMessage": "Open the message in the conversation"
       },
       "picker": {
+        "search": "Search forms by name",
+        "more": "Showing the first matches. Type to narrow the list.",
         "label": "Form",
         "placeholder": "Choose a published form",
         "needChannel": "Choose a channel first",
@@ -1967,7 +1973,6 @@
         "channelRequired": "Choose a channel",
         "template": "Template",
         "templateHint": "Approved marketing and utility templates only.",
-        "templatePlaceholder": "Choose a template",
         "templateRequired": "Choose a template",
         "noTemplates": "This channel has no approved template usable in campaigns.",
         "audience": "Audience",

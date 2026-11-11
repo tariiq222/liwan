@@ -58,7 +58,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
   <SharedPageContainer>
     <SharedPageHeader :title="t('inbox.title')">
       <template v-if="can('inbox.channels.manage')" #actions>
-        <UButton to="/settings/apps/inbox/channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
+        <UButton to="/settings/apps/inbox#channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
       </template>
     </SharedPageHeader>
     <SharedConversationLayout :has-selection="hasSelection" :info-open="panelOpen">

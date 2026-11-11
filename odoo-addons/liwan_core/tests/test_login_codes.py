@@ -19,6 +19,8 @@ from odoo.addons.liwan_core.models.login_code import (
     DAILY_SENDS,
     HOURLY_SENDS,
     RESEND_COOLDOWN,
+    TENANT_CEILING_USERS,
+    USER_DAILY_SENDS,
 )
 
 PASSWORD = 'twelve-chars-ok'
@@ -166,6 +168,36 @@ class TestLoginCodeIssue(LoginCodeCase):
             email='One-Mailbox@EXAMPLE.test', groups='liwan_core.group_employee',
         )
         self.assertEqual(self.issue(channel='email', user=other).error, 'send_limit_reached')
+
+    def other_user(self, login):
+        user = new_test_user(self.env, login=login, password=PASSWORD, name=login, groups='liwan_core.group_employee')
+        user.liwan_mobile = OTHER_MOBILE
+        return user
+
+    def test_the_daily_cap_per_user_refuses_only_that_user(self):
+        other = self.other_user('code_other')
+        # The hourly caps are not under test: lift them so only the daily count can refuse.
+        with patch.object(login_code, 'HOURLY_SENDS', USER_DAILY_SENDS * 2):
+            for _ in range(USER_DAILY_SENDS):
+                self.clear_cooldown()
+                self.assertEqual(self.issue().error, '')
+            self.clear_cooldown()
+            self.assertEqual(self.issue().error, 'send_limit_reached')
+            self.assertEqual(self.issue(user=other).error, '')
+        self.assertFalse(self.env['liwan.login.code.alert'].search([]), 'one user at their cap raises no tenant alert')
+
+    def test_the_tenant_ceiling_is_out_of_reach_of_one_user(self):
+        self.assertEqual(DAILY_SENDS, USER_DAILY_SENDS * TENANT_CEILING_USERS)
+        self.assertGreater(DAILY_SENDS, USER_DAILY_SENDS)
+
+    def test_the_tenant_ceiling_refuses_when_many_users_together_exceed_it(self):
+        users = [self.other_user(f'code_many_{index}') for index in range(2)]
+        with patch.object(login_code, 'DAILY_SENDS', 2):
+            self.assertEqual(self.issue(user=users[0]).error, '')
+            self.assertEqual(self.issue(user=users[1]).error, '')
+            self.assertEqual(self.issue().error, 'daily_send_cap')
+        self.assertEqual(len(self.sent), 2)
+        self.assertEqual(self.env['liwan.login.code.alert'].search([], limit=1).attempts, 1)
 
     def test_the_daily_global_cap_alerts_instead_of_sending(self):
         self.patch(type(self.service), '_liwan_daily_sends', lambda model: DAILY_SENDS)

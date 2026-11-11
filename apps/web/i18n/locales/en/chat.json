@@ -46,6 +46,7 @@
     "channel": "Channel",
     "seen": "Seen",
     "typing": "{name} is typing…",
+    "typingMany": "{name} are typing…",
     "reply": "Reply",
     "star": "Star",
     "pin": "Pin",

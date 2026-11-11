@@ -78,4 +78,25 @@ describe('commercial scheduler', () => {
     await scheduler.tick(); await scheduler.usageIdle()
     expect(calls).toBe(0)
   });
+  it.each([[0, 'UPDATE commercial_outbox SET attempts = attempts + 1'], [4, "UPDATE commercial_outbox SET status='failed'"]])(
+    'an invitation.issue failure at %i earlier attempts is %s', async (attempts, expected) => {
+      vi.spyOn(console, 'debug').mockImplementation(() => {})
+      const writes: string[] = []
+      const pool = {
+        query: async (sql: string, params: unknown[] = []) => {
+          const text = String(sql)
+          if (text.includes('FOR UPDATE SKIP LOCKED') && (params[0] as string[]).includes('invitation.issue')) {
+            return { rows: [{ id: 'row-1', created_at: new Date(1000), payload: { subscription_id: 'sub-1' }, attempts }], rowCount: 1 }
+          }
+          if (text.includes('FROM subscriptions s JOIN customers c')) throw new Error('database_hiccup')
+          if (text.startsWith('UPDATE commercial_outbox')) writes.push(text.replace(/\s+/g, ' ').trim())
+          return { rows: [], rowCount: 0 }
+        },
+      }
+      const log = vi.fn()
+      await createCommercialScheduler({ pool: pool as never, config: {} as never, env: {}, log }).tick()
+      expect(writes).toHaveLength(1)
+      expect(writes[0]!.startsWith(expected)).toBe(true)
+      expect(log).toHaveBeenCalledWith(`invitation.issue row-1 failed (attempt ${attempts + 1})`, expect.objectContaining({ message: 'database_hiccup' }))
+    })
 });

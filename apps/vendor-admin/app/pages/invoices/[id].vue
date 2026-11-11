@@ -3,7 +3,7 @@ import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBad
 import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
-import { invoicesReturnTo, isNotAvailable, parseTransferAmount, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
+import { invoiceHasAiTopup, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 definePageMeta({ capability: 'vendor.billing.manage' })
@@ -54,6 +54,7 @@ const refundEligibility = computed(() => {
 // Asking for the refund of a paid invoice: the server decides whether it is allowed; the page states why it is not.
 const requestOpen = ref(false)
 const requestReason = ref('')
+const requestUnitsUsed = ref('')
 const requestBusy = ref(false)
 const requestFailure = ref<string | undefined>()
 const requestBlock = computed(() => (data.value ? refundRequestBlock(data.value) : null))
@@ -62,14 +63,17 @@ const requestBlockText = computed(() => {
   return requestBlock.value === 'windowClosed' ? t('vendor.invoices.refund.windowClosed', { days: data.value?.refund.window_days }) : t(`vendor.invoices.refund.${requestBlock.value}`)
 })
 const canRequestRefund = computed(() => canBilling.value && !unavailable.value && data.value?.status === 'paid' && requestBlock.value === null)
-const requestValid = computed(() => validRefundReason(requestReason.value))
-function openRequest() { requestOpen.value = true; requestReason.value = ''; requestFailure.value = undefined }
-function closeRequest() { requestOpen.value = false; requestReason.value = ''; requestFailure.value = undefined }
+const requestNeedsUnits = computed(() => (data.value ? invoiceHasAiTopup(data.value) : false))
+const requestUnits = computed(() => parseUnitsUsed(requestUnitsUsed.value))
+const requestUnitsError = computed(() => (requestNeedsUnits.value && requestUnitsUsed.value.trim() && requestUnits.value === null ? t('vendor.invoices.refund.request.unitsUsedInvalid') : undefined))
+const requestValid = computed(() => validRefundReason(requestReason.value) && (!requestNeedsUnits.value || requestUnits.value !== null))
+function openRequest() { requestOpen.value = true; requestReason.value = ''; requestUnitsUsed.value = ''; requestFailure.value = undefined }
+function closeRequest() { requestOpen.value = false; requestReason.value = ''; requestUnitsUsed.value = ''; requestFailure.value = undefined }
 async function requestRefund() {
   if (!hydrated.value || requestBusy.value || !canRequestRefund.value || !requestValid.value || !data.value) return
   requestBusy.value = true; requestFailure.value = undefined
   try {
-    await api.requestRefund(data.value.id, { reason: requestReason.value })
+    await api.requestRefund(data.value.id, { reason: requestReason.value, ...(requestNeedsUnits.value && requestUnits.value !== null ? { units_used: requestUnits.value } : {}) })
     closeRequest()
   } catch (cause) {
     requestFailure.value = t(refundErrorKey(cause))
@@ -162,7 +166,10 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
       <p class="text-sm text-muted">{{ t('vendor.invoices.refund.request.hint') }}</p>
       <SharedInlineConfirm v-if="requestOpen && canRequestRefund" :title="t('vendor.invoices.refund.request.confirmTitle')" :description="t('vendor.invoices.refund.request.confirmHint')"
         :confirm-label="t('vendor.invoices.refund.request.confirm')" :pending="requestBusy" :disabled="!hydrated || requestBusy || !requestValid" @confirm="requestRefund" @cancel="closeRequest">
-        <div class="mt-3"><UFormField :label="t('vendor.invoices.refund.reason')" required><UTextarea v-model="requestReason" :maxlength="1000" :disabled="!hydrated || requestBusy" class="w-full" /></UFormField></div>
+        <div class="mt-3 space-y-4">
+          <UFormField v-if="requestNeedsUnits" :label="t('vendor.invoices.refund.request.unitsUsed')" :help="t('vendor.invoices.refund.request.unitsUsedHint')" :error="requestUnitsError" required><UInput v-model="requestUnitsUsed" inputmode="numeric" dir="ltr" :disabled="!hydrated || requestBusy" class="w-full" data-testid="request-units-used" /></UFormField>
+          <UFormField :label="t('vendor.invoices.refund.reason')" required><UTextarea v-model="requestReason" :maxlength="1000" :disabled="!hydrated || requestBusy" class="w-full" /></UFormField>
+        </div>
       </SharedInlineConfirm>
       <div v-else class="flex flex-wrap items-center gap-3">
         <UButton color="primary" variant="soft" size="sm" :disabled="!hydrated || requestBusy || !canRequestRefund" :aria-describedby="requestBlock ? 'refund-request-blocked' : undefined" data-testid="request-refund-action" @click="openRequest">{{ t('vendor.invoices.refund.request.action') }}</UButton>

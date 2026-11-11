@@ -34,7 +34,6 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
   const sendNote = vi.fn(async (_body: Record<string, unknown>) => ({}))
   const mounted: Array<() => void> = []
   const unmounting: Array<() => void> = []
-  const templatesEnabled = Vue.ref(false)
   const notifyTyping = vi.fn()
   const uploadInboxFile = vi.fn(async (file: { name: string; size: number; type: string }) => ({ id: 41, name: file.name, mimetype: file.type, size: file.size }))
   const emitted: Array<[string, unknown]> = []
@@ -43,13 +42,12 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
-    ApiError, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
+    ApiError, InboxTemplatePicker: {}, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
     inboxUploadAccept, channelCarriesTemplates, inboxComposerActions, windowClosedDescriptionKey, windowClosedErrorKey, inboxTikTokErrorKey, emptyInboxDraft,
     buildCommerceContent, emptyCommerceDraft, buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
     inboxDrafts, cannedSuggestions, replyWindowOpen, templatePreview, TEMPLATE_CATEGORY_TONE, HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady,
     useSendInboxReply: () => ({ mutateAsync: sendReply, isPending: Vue.ref(false) }), useSendInboxNote: () => ({ mutateAsync: sendNote, isPending: Vue.ref(false) }),
     useInboxCannedReplies: () => ({ data: Vue.ref({ items: [], total: 0 }) }),
-    useInboxTemplates: (_channel: unknown, enabled: Vue.Ref<boolean>) => { templatesEnabled.value = enabled.value; return { data: Vue.ref({ items: [template], total: 1 }), isLoading: Vue.ref(false), isError: Vue.ref(false), refetch: vi.fn() } },
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
@@ -57,7 +55,10 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
   const scope = Vue.effectScope()
   const state = scope.run(() => component.setup(props, { expose: () => {}, emit: (name: string, value: unknown) => { emitted.push([name, value]); if (name === 'update:replyTo') props.replyTo = value as typeof props.replyTo } }))
   for (const fn of mounted) fn()
-  return { state, props, store, sendReply, sendNote, inboxDrafts, notifyTyping, uploadInboxFile, emitted, toast, unmount: () => { for (const fn of unmounting) fn(); scope.stop() } }
+  // The picker reads the chosen template by id and hands it to the composer; with no render here the test does the same.
+  const choose = () => { state.templateId.value = template.id; state.selectedTemplate.value = template }
+  const unchoose = () => { state.templateId.value = null; state.selectedTemplate.value = null }
+  return { state, props, choose, unchoose, store, sendReply, sendNote, inboxDrafts, notifyTyping, uploadInboxFile, emitted, toast, unmount: () => { for (const fn of unmounting) fn(); scope.stop() } }
 }
 
 describe('InboxComposer', () => {
@@ -179,8 +180,8 @@ describe('InboxComposer', () => {
   })
 
   it('keeps template parameters as a draft and clears them after the template is sent', async () => {
-    const { state, sendReply, inboxDrafts } = mountComposer(null)
-    state.templateId.value = TEMPLATE.id
+    const { state, sendReply, inboxDrafts, choose } = mountComposer(null)
+    choose()
     await Vue.nextTick()
     state.params.value = ['فهد']
     await Vue.nextTick()
@@ -345,10 +346,10 @@ describe('InboxComposer', () => {
   })
 
   it('does not quote a message when a template is sent', async () => {
-    const { state, props, sendReply } = mountComposer(null)
+    const { state, props, sendReply, choose } = mountComposer(null)
     props.replyTo = { id: 4, preview: 'سؤال' }
     expect(state.quoted.value).toBeNull()
-    state.templateId.value = TEMPLATE.id
+    choose()
     await Vue.nextTick()
     state.params.value = ['فهد']
     await state.submit()
@@ -361,14 +362,14 @@ describe('InboxComposer', () => {
       header: { type: 'text', text: 'طلب {{1}}', example: 'x' },
       buttons: [{ type: 'quick_reply', text: 'نعم' }, { type: 'url', text: 'تتبع', url: 'https://example.test/{{1}}', example: 'https://example.test/1' }, { type: 'copy_code', example: 'SAVE' }],
     }
-    const pick = async (state: ReturnType<typeof mountComposer>['state']) => {
-      state.templateId.value = 7
+    const pick = async (choose: () => void) => {
+      choose()
       await Vue.nextTick()
     }
 
     it('asks for the header value and one value per dynamic button, and sends them by position', async () => {
-      const { state, sendReply } = mountComposer(null, new Map(), FULL)
-      await pick(state)
+      const { state, sendReply, choose } = mountComposer(null, new Map(), FULL)
+      await pick(choose)
       expect(state.headerNeeds.value).toEqual({ kind: 'text' })
       expect(state.buttonInputs.value.map((button: { index: number }) => button.index)).toEqual([1, 2])
       state.params.value = ['فهد']
@@ -386,7 +387,7 @@ describe('InboxComposer', () => {
 
     it('keeps header and button values as a draft', async () => {
       const first = mountComposer(null, new Map(), FULL)
-      await pick(first.state)
+      await pick(first.choose)
       first.state.headerParam.value = 'A-1'
       first.state.buttonValues.value = ['4521', 'SAVE10']
       await Vue.nextTick()
@@ -399,8 +400,8 @@ describe('InboxComposer', () => {
     const MEDIA = { ...TEMPLATE, header: { type: 'image', example_attachment: null } }
 
     it('uploads the header file of the conversation and sends its id', async () => {
-      const { state, sendReply, uploadInboxFile } = mountComposer(null, new Map(), MEDIA)
-      await pick(state)
+      const { state, sendReply, uploadInboxFile, choose } = mountComposer(null, new Map(), MEDIA)
+      await pick(choose)
       state.params.value = ['فهد']
       expect(state.canSend.value).toBe(false)
       await state.onHeaderPicked({ target: { files: [{ name: 'a.png', type: 'image/png', size: 2048 }], value: 'a' } } as unknown as Event)
@@ -413,8 +414,8 @@ describe('InboxComposer', () => {
     })
 
     it('refuses a header file of the wrong kind or over the limit before uploading', async () => {
-      const { state, uploadInboxFile } = mountComposer(null, new Map(), MEDIA)
-      await pick(state)
+      const { state, uploadInboxFile, choose } = mountComposer(null, new Map(), MEDIA)
+      await pick(choose)
       const input = (name: string, type: string, size: number) => ({ target: { files: [{ name, type, size }], value: 'a' } }) as unknown as Event
       await state.onHeaderPicked(input('a.pdf', 'application/pdf', 100))
       expect(state.headerError.value).toBe('inbox.composer.headerWrongType.image')
@@ -425,8 +426,8 @@ describe('InboxComposer', () => {
     })
 
     it('waits for the header upload to finish', async () => {
-      const { state, uploadInboxFile } = mountComposer(null, new Map(), MEDIA)
-      await pick(state)
+      const { state, uploadInboxFile, choose } = mountComposer(null, new Map(), MEDIA)
+      await pick(choose)
       state.params.value = ['فهد']
       let finish: (value: unknown) => void = () => {}
       uploadInboxFile.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }) as never)
@@ -440,8 +441,8 @@ describe('InboxComposer', () => {
 
     it('sends a location header once valid coordinates are entered', async () => {
       const place = { ...TEMPLATE, header: { type: 'location' } }
-      const { state, sendReply } = mountComposer(null, new Map(), place)
-      await pick(state)
+      const { state, sendReply, choose } = mountComposer(null, new Map(), place)
+      await pick(choose)
       state.params.value = ['فهد']
       expect(state.canSend.value).toBe(false)
       state.headerLocation.value = { ...emptyLocationDraft(), latitude: '24.7', longitude: '46.6' }
@@ -452,8 +453,8 @@ describe('InboxComposer', () => {
 
     it('asks an authentication template for its code only', async () => {
       const auth = { ...TEMPLATE, category: 'authentication', otp_button_text: 'نسخ' }
-      const { state, sendReply } = mountComposer(null, new Map(), auth)
-      await pick(state)
+      const { state, sendReply, choose } = mountComposer(null, new Map(), auth)
+      await pick(choose)
       expect(state.buttonInputs.value).toEqual([])
       state.params.value = ['918273']
       expect(state.canSend.value).toBe(true)
@@ -462,25 +463,22 @@ describe('InboxComposer', () => {
       expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['918273'] })
     })
 
-    it('does not offer a template LiwanOS cannot fill', async () => {
-      const { state } = mountComposer(null, new Map(), { ...TEMPLATE, supported: false })
-      expect(state.templateItems.value).toEqual([])
-      state.templateId.value = 7
-      await Vue.nextTick()
-      expect(state.selectedTemplate.value).toBeUndefined()
-      expect(state.canSend.value).toBe(false)
+    it('does not offer a template LiwanOS cannot fill', () => {
+      const { state } = mountComposer(null)
+      expect(state.isSendableTemplate({ ...TEMPLATE, supported: false })).toBe(false)
+      expect(state.isSendableTemplate(TEMPLATE)).toBe(true)
     })
 
     it('starts every input empty when the template is deselected and chosen again', async () => {
-      const { state } = mountComposer(null, new Map(), FULL)
-      await pick(state)
+      const { state, choose, unchoose } = mountComposer(null, new Map(), FULL)
+      await pick(choose)
       state.params.value = ['فهد']
       state.headerParam.value = 'A-1'
       state.buttonValues.value = ['1', '2']
-      state.templateId.value = undefined
+      unchoose()
       await Vue.nextTick()
       expect(state.headerParam.value).toBe('')
-      state.templateId.value = 7
+      choose()
       await Vue.nextTick()
       expect(state.params.value).toEqual([''])
       expect(state.buttonValues.value).toEqual(['', ''])

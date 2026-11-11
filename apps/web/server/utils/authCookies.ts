@@ -12,6 +12,7 @@ export function authCookiesAreSecure(event: H3Event, upstreamHeaders: Record<str
 export function forwardAuthCookies(event: H3Event, headers: Headers, secure: boolean) {
   for (const cookie of headers.getSetCookie()) {
     const alreadySecure = /;\s*secure\s*(?:;|$)/i.test(cookie)
-    appendResponseHeader(event, 'set-cookie', secure && !alreadySecure ? `${cookie}; Secure` : cookie)
+    const hasSameSite = /;\s*samesite=/i.test(cookie)
+    appendResponseHeader(event, 'set-cookie', `${cookie}${secure && !alreadySecure ? '; Secure' : ''}${hasSameSite ? '' : '; SameSite=Lax'}`)
   }
 }

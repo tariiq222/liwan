@@ -78,7 +78,8 @@ const assignment = {
 
 function assignmentForm(update = vi.fn().mockResolvedValue(assignment)) {
   const create = vi.fn()
-  const form = setup('shifts/ShiftAssignmentForm.vue', { backTo: '/hr/shifts', employees: [], schedules: [], assignment }, {
+  const form = setup('shifts/ShiftAssignmentForm.vue', { backTo: '/hr/shifts', schedules: [], assignment }, {
+    EmployeeSearchSelect: {},
     useCreateHrShiftAssignment: () => ({ mutateAsync: create, isPending: Vue.ref(false) }),
     useUpdateHrShiftAssignment: () => ({ mutateAsync: update, isPending: Vue.ref(false) }),
   })

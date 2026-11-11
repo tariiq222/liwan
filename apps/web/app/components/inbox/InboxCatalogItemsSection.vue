@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import InboxCatalogItemTable from '@/components/inbox/InboxCatalogItemTable.vue'
 import { useInboxCatalogItems } from '@/composables/inbox/useInboxCatalog'
-import { listPageNumber } from '@/composables/useRouteListFilters'
+import { listPageNumber, useLastPageClamp } from '@/composables/useRouteListFilters'
 
 // The items of one catalog with a name search and a sync-status filter kept in the address (`?q=&sync_state=&page=`),
 // so a filtered list survives refresh and back. The add button opens the route-backed create panel.
@@ -21,6 +21,7 @@ const page = computed(() => listPageNumber(route.query.page))
 const query = useInboxCatalogItems(() => props.catalogId, () => ({ q: committedSearch.value.trim(), sync_state: syncState.value, limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const items = computed(() => query.data.value?.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / PAGE_SIZE)))
+useLastPageClamp({ page: () => page.value, total: () => query.data.value?.total, pageSize: PAGE_SIZE })
 const filtered = computed(() => !!(syncState.value || committedSearch.value.trim()))
 const stateItems = computed(() => [{ value: ALL, label: t('inbox.catalog.items.anyState') }, ...SYNC_STATES.map(value => ({ value, label: t(`inbox.catalog.sync.${value}`) }))])
 

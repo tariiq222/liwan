@@ -20,7 +20,7 @@ vi.stubGlobal('computed', Vue.computed)
 vi.stubGlobal('toValue', Vue.toValue)
 
 const { useDeleteInboxTemplate, useInboxChannelRef, useInboxChannelTemplates, useInboxTemplate, useSaveInboxTemplate, useUploadInboxTemplateSample } = await import('../useInboxSettings')
-const { APPROVED_TEMPLATES_QUERY, inboxKeys, useInboxTemplates } = await import('../useInbox')
+const { inboxKeys } = await import('../useInbox')
 const last = () => seen.at(-1)!
 
 beforeEach(() => {
@@ -61,16 +61,6 @@ describe('template queries', () => {
     expect(Vue.toValue(last().queryKey as never)).toEqual(inboxKeys.template(7))
     await last().queryFn!()
     expect($api).toHaveBeenCalledWith('/api/v1/inbox/templates/7', expect.anything())
-  })
-
-  it('asks the composer for approved templates only, in one page', async () => {
-    useInboxTemplates(4, true)
-    const queryKey = Vue.toValue(last().queryKey as Vue.MaybeRefOrGetter<readonly unknown[]>)
-    const signal = new AbortController().signal
-    expect(queryKey).toEqual(inboxKeys.templateList(4, APPROVED_TEMPLATES_QUERY))
-    await last().queryFn!({ queryKey, signal })
-    expect($api).toHaveBeenCalledWith('/api/v1/inbox/channels/4/templates', expect.objectContaining({ query: APPROVED_TEMPLATES_QUERY, signal }))
-    expect(APPROVED_TEMPLATES_QUERY).toEqual({ status: 'approved', limit: 200 })
   })
 })
 

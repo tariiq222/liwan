@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import RunCancel from '@/components/hr/lifecycle/RunCancel.vue'
 import RunSteps from '@/components/hr/lifecycle/RunSteps.vue'
 import DepartureForm from '@/components/hr/lifecycle/DepartureForm.vue'
@@ -25,7 +26,7 @@ const validId = computed(() => Number.isSafeInteger(employeeId.value) && employe
 const query = useHrDeparture(computed(() => validId.value ? employeeId.value : null))
 const departure = computed(() => query.data.value)
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t(`${NAMESPACE}.errors.notFound`))))
-const backTo = computed(() => typeof route.query.returnTo === 'string' && route.query.returnTo.startsWith('/') ? route.query.returnTo : '/hr/offboarding')
+const backTo = computed(() => safeReturnTo(route.query.returnTo, '/hr/offboarding', ['/hr']))
 const clearanceId = computed(() => departure.value?.clearance.run_id ?? null)
 const clearance = useHrOffboardingRun(clearanceId)
 const cleared = computed(() => {
