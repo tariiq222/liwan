@@ -184,6 +184,18 @@ class TestTikTokOAuth(LiwanInboxCase):
                 self.assertError(self.callback(state), 403, 'forbidden')
         self.assertFalse(self.channels())
 
+    def test_a_state_minted_for_another_host_is_refused(self):
+        # The signing secret is shared by every tenant of a shared deployment, so the signature alone
+        # does not prove the state was minted for this tenant.
+        self.login(self.manager)
+        exchange, profile = self.answer()
+        with exchange, profile:
+            for host in ('other-tenant.example', '', None, f'{HOST}.evil.example'):
+                self.assertError(self.callback(self.state(h=host)), 403, 'forbidden')
+            self.assertFalse(self.channels())
+            self.assertEqual(self.callback(self.state()).status_code, 302)
+        self.assertTrue(self.channels())
+
     def test_a_non_ascii_state_is_refused_not_raised(self):
         # A query string decodes to latin-1, so a `%FF` reaches the callback as a non-ASCII str; comparing
         # it with the ASCII signature raises TypeError and the callback would answer 500 instead of 403.
