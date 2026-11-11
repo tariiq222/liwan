@@ -325,7 +325,8 @@ function invitationClientAddress(req: IncomingMessage, pathname: string, service
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
   // Dedicated: the first LIWAN_PAYMENT_RETURN_ORIGINS entry. Shared: each customer's own tenant host, checked against that allowlist.
   const paymentRuntime: PaymentRuntime = {adapter:null,returnOrigin:returnOriginFromEnv(pool,process.env)}
-  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
+  // Payment routes fail closed without an adapter; the other routes stay available. The reason is logged, never the secret.
+  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch (e) { console.error('commercial payment adapter unavailable:', e instanceof Error ? e.message : e) }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
   const effect = config.internalEffect
   const setPassword: SetPassword | undefined = process.env.LIWAN_TENANCY_MODE === 'shared' && effect?.url && effect.ca
