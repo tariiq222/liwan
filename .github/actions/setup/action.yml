@@ -62,17 +62,30 @@ runs:
         lists="$cache/lists"
         mkdir -p "$archives/partial"
         packages=(build-essential libpq-dev libldap2-dev libsasl2-dev postgresql-client-16)
+        # A stalled mirror can hang apt without an error, so every call has a time limit (seconds) and the network path
+        # is retried.
         apt_get() {
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 \
+          local limit=$1
+          shift
+          sudo timeout "$limit" apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 \
             -o Dir::Cache::Archives="$archives" -o APT::Keep-Downloaded-Packages=true "$@"
         }
         # Install offline first, resolving with the package lists the cached archives were downloaded from (the
         # image's own lists may name other versions), so an Ubuntu mirror outage does not stop CI.
         offline=()
         if [ -d "$lists" ]; then offline=(-o Dir::State::Lists="$lists"); fi
-        if ! apt_get "${offline[@]}" install -y -q --no-install-recommends --no-download "${packages[@]}"; then
-          apt_get update -q
-          apt_get install -y -q --no-install-recommends "${packages[@]}"
+        if ! apt_get 300 "${offline[@]}" install -y -q --no-install-recommends --no-download "${packages[@]}"; then
+          installed=false
+          for attempt in 1 2 3; do
+            if apt_get 180 update -q && apt_get 420 install -y -q --no-install-recommends "${packages[@]}"; then
+              installed=true
+              break
+            fi
+            echo "::warning::apt attempt $attempt failed or stalled"
+            # A killed install leaves dpkg half-configured; finish it before the next attempt.
+            sudo dpkg --configure -a || true
+          done
+          [ "$installed" = true ]
           sudo rm -rf "$lists"
           sudo cp -a /var/lib/apt/lists "$lists"
         fi
