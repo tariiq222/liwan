@@ -100,7 +100,8 @@ class StagesForTest(unittest.TestCase):
 
     def test_every_stage_has_a_script_and_a_workflow_job(self):
         root = Path(ci_scope.__file__).resolve().parents[1]
-        scripts = sorted(path.stem for path in (root / 'deploy/ci').glob('*.sh') if path.stem != 'main-alert')
+        # main-alert and the nightly contract-fixtures job are workflow jobs outside the scope stages.
+        scripts = sorted(path.stem for path in (root / 'deploy/ci').glob('*.sh') if path.stem not in ('main-alert', 'contract-fixtures'))
         self.assertEqual(scripts, sorted(ALL))
         workflow = (root / '.github/workflows/ci.yml').read_text()
         for stage in ALL:

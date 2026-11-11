@@ -415,10 +415,15 @@ parsed with their strict schema by `src/fixtures.test.ts`, which runs in `npm te
 - Refresh: `python3 -B tools/contract_fixtures.py` (runs the Odoo tests of the manifest addons on a
   scratch database, slow). Drift check: `python3 -B tools/contract_fixtures.py --check`. Neither is part
   of `npm test`.
-- CI does not run the drift check: the recorded response is the largest one any running test produced, so it depends on
-  which addons' tests share the run, and the `odoo` shards split the manifest addons from the bridges that enrich their
-  routes (measured 2026-11-11: a mixed run of eight addons differed from the committed fixtures on eight routes). A sound CI
-  check is one dedicated job that runs `--check` as above (about the cost of the manifest addons' tests again).
+- CI runs the drift check in the nightly run only (the `schedule` event, or a manual dispatch with `full`), never on a pull
+  request or the push to `main`: the `contract-fixtures` job (`deploy/ci/contract-fixtures.sh`). It installs every release
+  module and runs the tests of the manifest addons alone, with `LIWAN_CONTRACT_FIXTURES` set, then
+  `tools/contract_fixtures.py --compare` judges the structure (key paths, JSON types, nullness) against the committed files.
+  It must stay a separate run: the recorded response is the largest one any running test produced, so mixing other addons'
+  tests in changes the result (measured 2026-11-11: a mixed run of eight addons differed on eight routes), which is why the
+  `odoo` shards do not check it. A red nightly run means a serializer changed without its zod contract and fixture following:
+  update the schema in `packages/contracts/src`, then refresh the fixtures locally as above and run
+  `npm -w packages/contracts run test`.
 
 ## 3. Playwright mock specs
 
