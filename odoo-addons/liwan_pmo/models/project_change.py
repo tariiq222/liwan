@@ -7,7 +7,7 @@ by the project manager. The decision fields are written on this model itself, wi
 """
 import math
 
-from psycopg2 import IntegrityError
+from psycopg2.errors import UniqueViolation
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, LockError, UserError, ValidationError
@@ -146,8 +146,8 @@ class LiwanProjectChange(models.Model):
         try:
             with self.env.cr.savepoint():
                 return super().create(vals_list)
-        except IntegrityError as error:
-            # A concurrent writer got the number first: the loser asks again.
+        except UniqueViolation as error:
+            # A concurrent writer got the number first: the loser asks again. Any other integrity error is not a clash.
             raise LiwanChangeState(self.env._("Another request is being raised on this project; try again.")) from error
 
     @api.model
