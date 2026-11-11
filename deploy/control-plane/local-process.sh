@@ -6,7 +6,7 @@ mode="${1:-}"; name="${2:-}"
 case "$mode:$name" in start:api|start:worker|start:shared-worker|start:runtime|stop:api|stop:worker|stop:shared-worker|stop:runtime|status:api|status:worker|status:shared-worker|status:runtime|recover:runtime) ;; *) printf 'Usage: local-process.sh start|stop|status|recover api|worker|shared-worker|runtime\n' >&2; exit 2;; esac
 HOME_DIR="${LIWAN_CONTROL_HOME:-$HOME/.local/share/liwan-saas-control-local}"
 ROOT="${LIWAN_REPOSITORY_ROOT:-$(cd "$(dirname "$0")/../.." && pwd -P)}"
-NODE_BIN="${LIWAN_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
+NODE_BIN="${LIWAN_NODE_BIN:-$(dirname "$(command -v node)")}"
 state="$HOME_DIR/processes"; mkdir -p "$HOME_DIR"; chmod 700 "$HOME_DIR"; [[ ! -e "$state" || ( -d "$state" && ! -L "$state" ) ]] || { printf 'Process path is not a private directory; refusing.\n' >&2; exit 12; }; [[ -d "$state" ]] || mkdir -m 700 "$state"; chmod 700 "$state"
 # `shared-worker` is the commercial scheduler (`run-local.sh` starts it only for
 # LIWAN_TENANCY_MODE=shared); a dedicated generation never records it.

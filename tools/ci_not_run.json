@@ -137,24 +137,6 @@
       "files": [
         "tools/shared_acceptance_live/proof8.spec.mjs"
       ]
-    },
-    {
-      "reason": "hard-pinned to the macOS developer workstation (/opt/homebrew/opt/node@22 and the /Users/tariq/code/odoo venv); passes there, fails on the Linux runner by design",
-      "files": [
-        "deploy/control-plane/test_actual_reservation_caller.py",
-        "deploy/control-plane/test_actual_runtime_lifecycle.py",
-        "deploy/control-plane/test_dead_recovery.py",
-        "deploy/control-plane/test_partial_runtime_stop.py",
-        "deploy/control-plane/test_reservation_recovery.py"
-      ]
-    },
-    {
-      "reason": "drives the local-runtime bash scripts and BSD ps lstart output of the control-plane local runtime; passes on macOS, not verified on the Linux runner, so not wired blind",
-      "files": [
-        "deploy/control-plane/test_run_local_ordering.py",
-        "deploy/control-plane/test_startup_publication.py",
-        "deploy/control-plane/test_stop_protocol.py"
-      ]
     }
   ]
 }

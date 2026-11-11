@@ -63,8 +63,8 @@ policies() {
     tools/shared_isolation_acceptance/ssr-boundary.test.mjs tools/shared_isolation_acceptance/acceptance.test.mjs \
     tools/shared_isolation_acceptance/known-regressions.test.mjs tools/shared_isolation_acceptance/t17-image-negative.test.mjs
   PYTHONPATH=deploy/shared python3 -B -m unittest deploy/shared/test_odoo_config.py
-  # The only control-plane runtime test that mocks every dependency; the others drive the macOS local runtime (see tools/ci_not_run.json).
-  python3 -B -m unittest deploy/control-plane/test_resource_guard.py
+  # The control-plane runtime tests drive the local-runtime scripts with fake docker/lsof/npm/curl and the Node on PATH (no Docker, database or fixed port).
+  python3 -B -m unittest deploy/control-plane/test_*.py
   python3 -B -m unittest tools/continuous_updates_acceptance/test_*.py
   PYTHONPATH=tools/documents_acceptance python3 -B -m unittest tools/documents_acceptance/test_acceptance.py
 }

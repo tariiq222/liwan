@@ -11,6 +11,7 @@ import threading
 import time
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from recover_generation import recover, pid_is_absent
 
 SCRIPT = Path(__file__).with_name('local-process.sh')
@@ -30,7 +31,7 @@ def make_generation(state: Path, pids: dict[str, int], generation: str = GENERAT
 
 class DeadGenerationRecovery(unittest.TestCase):
     def invoke(self, root: Path, action='recover'):
-        env = {**os.environ, 'LIWAN_CONTROL_HOME': str(root), 'LIWAN_REPOSITORY_ROOT': str(SCRIPT.parents[2]), 'LIWAN_NODE_BIN': '/opt/homebrew/opt/node@22/bin'}
+        env = {**os.environ, 'LIWAN_CONTROL_HOME': str(root), 'LIWAN_REPOSITORY_ROOT': str(SCRIPT.parents[2]), 'LIWAN_NODE_BIN': '/fake/node/bin'}
         return subprocess.run(['/bin/bash', str(SCRIPT), action, 'runtime'], env=env, capture_output=True, text=True, timeout=10)
 
     def test_all_dead_coherent_generation_is_archived_without_deletion(self):

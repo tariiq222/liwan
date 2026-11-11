@@ -10,6 +10,7 @@ or service is involved and no `ps` shim is used.
 import fcntl
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -20,10 +21,8 @@ import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PINNED = Path('/Users/tariq/code/odoo/.venv/bin/python')
-if not PINNED.exists():  # pragma: no cover
-    PINNED = Path(sys.executable)
-NODE22 = Path('/opt/homebrew/opt/node@22/bin/node')
+PINNED = Path(sys.executable)
+NODE22 = Path(shutil.which('node') or '/nonexistent/node')  # any Node >= 22 on PATH; the runtime scripts check the version
 SCRIPTS = ('run-local.sh', 'local-process.sh', 'status-local.sh', 'stop-local.sh',
            'process_lock.py', 'startup_handoff.py', 'begin_generation.py',
            'recover_generation.py', 'resource_guard.py', 'runtime-trap.sh',
