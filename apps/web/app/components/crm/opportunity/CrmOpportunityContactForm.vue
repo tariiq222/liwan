@@ -53,7 +53,7 @@ const snapshot = ref<CrmContactDraft>({
 const draft = ref<CrmContactDraft>({ ...snapshot.value })
 const attempted = ref(false)
 const dirty = defineModel<boolean>('dirty', { default: false })
-const patch = computed(() => contactPatch(snapshot.value, draft.value))
+const patch = computed(() => contactPatch({ contact_name: snapshot.value.contact_name, phone: snapshot.value.phone, email: snapshot.value.email, source: props.record.source?.id === snapshot.value.source_id ? props.record.source : null }, draft.value))
 watch(patch, value => { dirty.value = Object.keys(value).length > 0 }, { immediate: true })
 onBeforeUnmount(() => { dirty.value = false })
 
