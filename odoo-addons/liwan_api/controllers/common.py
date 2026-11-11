@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import functools
 import logging
+import math
 
 from psycopg2 import IntegrityError
 from psycopg2.errors import ReadOnlySqlTransaction
@@ -48,6 +49,18 @@ class ApiError(Exception):
         self.status, self.code, self.message, self.field, self.details = (
             status, code, message, field, details,
         )
+
+
+def transition_forbidden_error(error):
+    """403 ``transition_forbidden`` for an AccessError raised by a state transition.
+
+    LiwanOS's own text was written for the user; stock Odoo's text names models and record ids,
+    so the client gets a fixed message instead (the same rule as ``api_handler`` applies).
+    """
+    if _raised_by_liwan(error):
+        return ApiError(403, 'transition_forbidden', str(error))
+    _logger.info('api transition forbidden: %s', error)
+    return ApiError(403, 'transition_forbidden', request.env._("You do not have permission to do this"))
 
 
 def error_response(status, code, message, field=None, details=None):
@@ -477,3 +490,20 @@ def parse_positive_int(value, field):
     if parsed <= 0:
         raise ApiError(422, 'invalid', '%s must be positive' % field, field=field)
     return parsed
+
+
+def parse_number(value, field, *, maximum, positive=False):
+    """Parse a finite JSON number in ``0..maximum`` (``0 < value`` when ``positive``) → float.
+
+    Rejects bool, strings, containers, NaN and Infinity (Odoo's JSON reader accepts the last two
+    as numbers) and a value outside the range with ``ApiError(422, 'invalid', ..., field=field)``.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ApiError(422, 'invalid', f'{field} must be a number', field=field)
+    if not math.isfinite(value):
+        raise ApiError(422, 'invalid', f'{field} must be a finite number', field=field)
+    if value < 0 or (positive and value == 0):
+        raise ApiError(422, 'invalid', f'{field} must be {"positive" if positive else "zero or more"}', field=field)
+    if value > maximum:
+        raise ApiError(422, 'invalid', f'{field} must be at most {maximum:g}', field=field)
+    return float(value)

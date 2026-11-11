@@ -9,7 +9,7 @@ from odoo.exceptions import ValidationError
 from odoo.http import request
 from odoo.tools import html2plaintext
 
-from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_api.controllers.common import ApiError, parse_number
 from odoo.addons.liwan_api.serializers.attachment import dump_attachment
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_pmo.models.project_task import _validate_task_deliverables
@@ -29,6 +29,7 @@ EXCERPT_MAX = 140
 EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids', 'tag_ids',
                    'personal_stage_type_id', 'stage_id', 'milestone_id', 'deliverables', 'percent_complete'}
 MANAGER_FIELDS = EMPLOYEE_FIELDS | {'allocated_hours'}
+MAX_ALLOCATED_HOURS = 100_000
 
 
 def _today(task, today=None):
@@ -404,12 +405,7 @@ def parse_task_vals(payload, can_manage, task):
         elif key == 'milestone_id':
             vals[key] = _parse_milestone(task, value, key)
         elif key == 'allocated_hours':
-            # float() raises ValueError on 'x' and TypeError on a list/dict;
-            # both must surface as the contract's 422 shape, not a 500.
-            try:
-                vals[key] = float(value or 0)
-            except (TypeError, ValueError) as e:
-                raise ApiError(422, 'invalid', "allocated_hours must be a number", field=key) from e
+            vals[key] = 0.0 if value is None else parse_number(value, key, maximum=MAX_ALLOCATED_HOURS)
         elif key == 'name':
             if not isinstance(value, str) or not value.strip():
                 raise ApiError(422, 'invalid', "name must not be empty", field=key)
@@ -428,5 +424,6 @@ def parse_task_vals(payload, can_manage, task):
             except ValidationError as error:
                 raise ApiError(422, 'invalid', str(error), field=key) from error
         else:
-            vals[key] = value
+            # Every allowed key has a branch above; a key added without one must fail loudly.
+            raise NotImplementedError(f'no parser for task field {key!r}')
     return vals

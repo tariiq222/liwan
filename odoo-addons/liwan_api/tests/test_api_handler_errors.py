@@ -53,6 +53,30 @@ class TestApiHandlerNeutralErrors(TransactionCase):
         self.assertEqual(status, 403)
         self.assertEqual(body['message'], 'Only the organizer may confirm this meeting.')
 
+    @staticmethod
+    def _transition_error(action):
+        """The ``transition_forbidden_error`` answer for the AccessError ``action`` raises."""
+        try:
+            action()
+        except AccessError as error:
+            return common.transition_forbidden_error(error)
+        return None
+
+    def test_transition_forbidden_keeps_liwan_text_and_neutralises_stock_text(self):
+        def refuse():
+            message = 'Only the project manager can approve.'
+            raise AccessError(message)
+
+        request = mock.MagicMock()
+        request.env._.side_effect = lambda text: text
+        public = self.env.ref('base.public_user')
+        with mock.patch.object(common, 'request', request):
+            stock_error = self._transition_error(lambda: self.env['ir.config_parameter'].with_user(public).check_access('read'))
+            liwan_error = self._transition_error(refuse)
+        self.assertEqual((stock_error.status, stock_error.code), (403, 'transition_forbidden'))
+        self.assertEqual(stock_error.message, 'You do not have permission to do this')
+        self.assertEqual(liwan_error.message, 'Only the project manager can approve.')
+
     def test_missing_error_answers_fixed_not_found(self):
         def missing():
             message = 'hr.employee 9 does not exist'

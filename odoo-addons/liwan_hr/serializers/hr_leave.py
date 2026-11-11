@@ -2,11 +2,16 @@
 from odoo import fields
 from odoo.exceptions import AccessError, ValidationError
 
-from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.liwan_api.controllers.common import (
+    ApiError,
+    parse_number,
+    parse_positive_int,
+)
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 
 LEAVE_STATES = ('confirm', 'validate1', 'validate', 'refuse', 'cancel')
 REQUEST_FIELDS = {'leave_type_id', 'date_from', 'date_to', 'notes', 'employee_id'}
+MAX_ALLOCATION_DAYS = 1000
 ALLOCATION_FIELDS = {'employee_id', 'leave_type_id', 'number_of_days', 'date_from', 'date_to'}
 # The employee and the leave type identify the grant; an edit changes only its days and validity.
 ALLOCATION_PATCH_FIELDS = {'number_of_days', 'date_from', 'date_to'}
@@ -149,10 +154,7 @@ def parse_leave_request(payload):
 
 
 def _allocation_days(payload):
-    days = payload.get('number_of_days')
-    if isinstance(days, bool) or not isinstance(days, (int, float)) or days <= 0:
-        raise ApiError(422, 'invalid', "number_of_days must be a positive number", field='number_of_days')
-    return float(days)
+    return parse_number(payload.get('number_of_days'), 'number_of_days', maximum=MAX_ALLOCATION_DAYS, positive=True)
 
 
 def _check_allocation_range(date_from, date_to):
