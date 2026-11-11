@@ -34,8 +34,8 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
       if (options.undelivered) note = (await recordFulfillmentFailure(c, { order_id: order, reason: 'Fulfillment failed permanently', actor: 'commercial-fulfillment' }))[0]!
       if (options.vendorNote) {
         note = randomUUID()
-        await c.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-          VALUES($1,$2,$3,'credit_note','Customer asked for the money back',11500,'SAR',2,'pending','vendor:1','vendor')`, [note, invoice, customer])
+        await c.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+          VALUES($1,$2,$3,'credit_note','Customer asked for the money back',11500,'SAR',2,'pending','vendor:1','vendor','vendor_refund')`, [note, invoice, customer])
       }
       await enqueueOutbox(c, { kind: 'reconcile.refund', aggregate_id: order, dedupe_key: options.undelivered ? 'fulfillment-undelivered' : randomUUID(),
         payload: { attempt_id: attempt, automatic: true } })

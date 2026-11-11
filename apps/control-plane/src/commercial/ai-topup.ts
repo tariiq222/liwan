@@ -55,8 +55,8 @@ export async function refundTopup(pool: Pool, { order_id, actor, reason, units_u
     const { refund_window_days: days } = await billingSettings(client)
     if (!paid?.succeeded_at || !refundWindow(new Date(paid.succeeded_at), days).open) throw new CommercialHttpError('refund_window_closed', 409)
     const noteId = randomUUID()
-    await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-      VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending',$8,'vendor')`, [noteId, invoice.id, invoice.customer_id, reason, invoice.total_minor, invoice.currency, invoice.exponent, actorLabel(actor)])
+    await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+      VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending',$8,'vendor','vendor_refund')`, [noteId, invoice.id, invoice.customer_id, reason, invoice.total_minor, invoice.currency, invoice.exponent, actorLabel(actor)])
     await markTopupRefunded(client, order_id, actorLabel(actor), reason)
     await audit(client, actor, 'ai_topup.refunded', order_id, reason, { adjustment_id: noteId, units: Number(topup.units), amount_minor: Number(topup.amount_minor) })
     return { order_id, units: Number(topup.units), amount_minor: Number(topup.amount_minor), adjustment_id: noteId, granted_units: await grantedUnits(client, topup.customer_id) }
