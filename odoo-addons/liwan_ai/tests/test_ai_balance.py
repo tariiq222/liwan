@@ -184,7 +184,7 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         wire = self._item(None, cost=None, charge_paid=5)
         response = self.api('POST', '/api/v1/ai/usage', {'items': [wire]})
         self.assertEqual((response.status_code, response.json()['field']), (422, 'items.0.charge_paid'))
-        with self.assertRaises(Exception) as caught:
+        with self.assertRaises(ValidationError) as caught:
             self._record(self._item(15, charge_paid=0))
         self.assertEqual(caught.exception.liwan_field, 'charge_paid')
         self.assertFalse(self.Usage.search([]))
@@ -548,7 +548,7 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         ).sudo()
         self.assertEqual(charged.allowance_window_start, self.Balance._liwan_ai_window(fields.Datetime.now())[1])
         self.assertFalse(plain.allowance_window_start)
-        with self.assertRaises(Exception) as caught:
+        with self.assertRaises(ValidationError) as caught:
             self._record(self._item(15, allowance_window_start='2026-01-01T00:00:00Z'))
         self.assertEqual(caught.exception.liwan_field, 'allowance_window_start')
 

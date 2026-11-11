@@ -3,7 +3,13 @@ import threading
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import AccessDenied, LockError, UserError, ValidationError
+from odoo.exceptions import (
+    AccessDenied,
+    AccessError,
+    LockError,
+    UserError,
+    ValidationError,
+)
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_core.models.account_token import hash_token
@@ -493,7 +499,7 @@ class TestAccountInvitations(TransactionCase):
             self.service._liwan_resend_invitation(accepted, self._version(accepted))
         self.assertEqual((caught.exception.code, caught.exception.status), ('invitation_not_pending', 409))
         plain = new_test_user(self.env, login='plain_employee', groups='base.group_user')
-        with self.assertRaisesRegex(Exception, 'forbidden'):
+        with self.assertRaisesRegex(AccessError, 'forbidden'):
             self.env['liwan.access.service'].with_user(plain)._liwan_invite_account(
                 'X', 'x@example.com', self.assignments,
             )

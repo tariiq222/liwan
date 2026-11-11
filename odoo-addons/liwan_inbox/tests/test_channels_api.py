@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
+from odoo.exceptions import UserError
 from odoo.tests import tagged
 
 from .common import ACCESS_TOKEN, APP_SECRET, CHANNEL_KEYS, LiwanInboxCase
@@ -206,7 +207,7 @@ class TestChannelsApi(LiwanInboxCase):
         self.assertNotIn(APP_SECRET, secret_values['access_token_enc'])
         with patch.dict('os.environ', {'LIWAN_INBOX_SECRET_KEY': 'A' * 43 + '='}):
             self.channel.access_token_enc = secret_values['access_token_enc']
-            with self.assertRaisesRegex(Exception, 'cannot be decrypted'):
+            with self.assertRaisesRegex(UserError, 'cannot be decrypted'):
                 self.channel._liwan_credentials()
 
     def test_a_channels_only_role_reads_a_channel_that_has_a_department(self):
