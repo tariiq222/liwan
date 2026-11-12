@@ -246,7 +246,7 @@ it('waits for the own detail before requesting files and isolates the file cache
   await expect.poll(() => requests.length).toBe(2)
   view.me.value = { id: 9, company: { id: 1, name: 'First company' } }
   await expect.poll(() => requests.length).toBe(4)
-  expect(requests).toEqual(['/api/v1/documents/employee/me/8', '/api/v1/documents/8/files', '/api/v1/documents/employee/me/8', '/api/v1/documents/8/files'])
+  expect(requests).toEqual(['/api/v1/documents/employee/me/8', '/api/v1/documents/employee/me/8/files', '/api/v1/documents/employee/me/8', '/api/v1/documents/employee/me/8/files'])
   const files = view.client.getQueryCache().getAll().filter(query => query.queryKey[2] === 'files' && query.queryKey[3] === 8)
   expect(files.map(query => query.queryKey[7])).toEqual([7, 9])
 })

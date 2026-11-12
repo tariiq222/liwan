@@ -77,15 +77,15 @@ class AiController(http.Controller):
 
     # Two routes carry one fact (a run's usage rows) while the shared SaaS registry has no per-tenant recorder key. This session
     # route is the fallback for those deployments and for a run reported without the key. REMOVE IT, with the cookie spool in
-    # apps/web/server/utils/ai/usage.ts and `create`'s session branch, in the change that delivers that key (tracked in #557);
+    # apps/web/server/utils/ai/usage.ts and `_liwan_ai_record_own`, in the change that delivers that key (tracked in #557);
     # record_usage_service below is then the only path. This route refuses a non-null cost or charge: any user with ai.use can reach
     # it, and those figures are deducted from the tenant's balance, so only the recorder account may write them.
     @http.route('/api/v1/ai/usage', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(AI_FEATURE, operation='write')
     def record_usage(self, **payload):
-        request.env['liwan.access.service']._liwan_require_capability(AI_USE)
-        unknown = sorted(set(payload) - {'items'})
+        # ai.use is required by the model in the company the batch names, not here in the company the session works in now.
+        unknown = sorted(set(payload) - {'items', 'user_company_id'})
         if unknown:
             raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
         items = payload.get('items')
@@ -94,8 +94,10 @@ class AiController(http.Controller):
         for index, item in enumerate(items):
             if not isinstance(item, dict):
                 raise ApiError(422, 'invalid', 'each item must be an object', field=f'items.{index}')
+        if 'user_company_id' not in payload:
+            raise ApiError(422, 'invalid', 'user_company_id is required', field='user_company_id')
         try:
-            rows = request.env['liwan.ai.usage'].create(items)
+            rows = request.env['liwan.ai.usage']._liwan_ai_record_own(items, payload['user_company_id'])
         except ValidationError as error:
             raise as_api_error(error, 'items') from error
         return {'items': [dump_usage(row) for row in rows], 'total': len(rows)}

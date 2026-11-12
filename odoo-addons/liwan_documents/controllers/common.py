@@ -1,5 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+import unicodedata
 from datetime import timedelta
+from urllib.parse import quote
 
 from odoo import fields
 from odoo.http import request
@@ -9,6 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_nonneg_int,
     parse_positive_int,
 )
+from odoo.addons.liwan_documents.serializers.document import dump_files
 
 
 def require(capability):
@@ -64,3 +68,35 @@ def bool_arg(args, name, default='false'):
     if value not in ('true', 'false', '1', '0'):
         raise ApiError(422, 'invalid', f'{name} must be boolean', field=name)
     return value in ('true', '1')
+
+
+def files_page(document, files_path=None):
+    """The file list of an already authorized document, after the optional ``revision`` precondition."""
+    args = request.httprequest.args
+    limit, offset = page_args(args)
+    revision = parse_positive_int(args['revision'], 'revision') if 'revision' in args else None
+    if revision is not None and revision != document.revision:
+        raise ApiError(409, 'conflict', 'document was changed',
+                       details={'current_revision': document.revision})
+    return dump_files(document, limit=limit, offset=offset, q=args.get('q'), files_path=files_path)
+
+
+def attachment_disposition(filename):
+    """``attachment`` header with a readable ASCII fallback beside the UTF-8 name."""
+    ascii_name = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode()
+    stem, dot, extension = ascii_name.rpartition('.')
+    if not dot:
+        stem, extension = ascii_name, ''
+    stem = re.sub(r'[^A-Za-z0-9_-]+', '_', stem).strip('_') or 'download'
+    extension = re.sub(r'[^A-Za-z0-9]+', '', extension)
+    fallback = f'{stem}.{extension}' if extension else stem
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
+
+
+def file_download(document, file_id):
+    """The attachment response of one file of an already authorized document."""
+    file = request.env['liwan.document.files']._liwan_file(document, file_id)
+    stream = request.env['ir.binary']._get_stream_from(file.attachment_id)
+    response = stream.get_response(as_attachment=True)
+    response.headers['Content-Disposition'] = attachment_disposition(stream.download_name)
+    return response

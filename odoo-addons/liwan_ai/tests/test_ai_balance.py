@@ -182,7 +182,7 @@ class TestAiBalance(AiProbe, LiwanApiCase):
     def test_charge_paid_is_not_accepted_from_either_route(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         wire = self._item(None, cost=None, charge_paid=5)
-        response = self.api('POST', '/api/v1/ai/usage', {'items': [wire]})
+        response = self.api('POST', '/api/v1/ai/usage', {'user_company_id': self.employee.company_id.id, 'items': [wire]})
         self.assertEqual((response.status_code, response.json()['field']), (422, 'items.0.charge_paid'))
         with self.assertRaises(ValidationError) as caught:
             self._record(self._item(15, charge_paid=0))

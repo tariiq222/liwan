@@ -29,7 +29,7 @@ let runId = 'r_1' // what the fake service announces: the run id the start reque
 let usageStatus = 200
 let usageDelayMs = 0
 let usageAnsweredAt = 0
-let usageBatches: { items: Record<string, unknown>[] }[] = []
+let usageBatches: { user_company_id: number; items: Record<string, unknown>[] }[] = []
 let serviceUsageBatches: { user_id: number; user_company_id: number; items: Record<string, unknown>[] }[] = []
 let usageInvalid: string[] = []
 let companyAuthorizeStatus = 200
@@ -492,6 +492,7 @@ describe('provider usage', () => {
     await waitFor(() => usageBatches.length > 0)
     expect(usageInvalid).toEqual([])
     expect(usageBatches).toHaveLength(1)
+    expect(usageBatches[0]!.user_company_id).toBe(ME.company.id)
     const id = startedBody().new_run_id
     expect(usageBatches[0]!.items.map(item => [item.conversation_id, item.kind, item.outcome, item.input_tokens, item.output_tokens])).toEqual([
       [id, 'plan', 'retried', null, null], [id, 'plan', 'ok', 120, 7], [id, 'plan', 'ok', 200, 15], [id, 'title', 'ok', 20, 3],

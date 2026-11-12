@@ -234,10 +234,30 @@ class LiwanAiUsage(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Record the attempts of a batch as the signed-in user, each row once (the browser-session path)."""
+        """Record the attempts of a batch as the signed-in user in the company this environment works in, each row once."""
         self.env['liwan.entitlement.service'].require('ai.enabled')
         self.env['liwan.access.service']._liwan_require_capability(AI_USE)
         return self._liwan_ai_record(vals_list, self.env.user, self.env.company)
+
+    @api.model
+    def _liwan_ai_record_own(self, vals_list, company_id):
+        """Record the attempts of a batch the signed-in user made in ``company_id`` (the browser-session path).
+
+        A run reports after it ends, and the session may work in another company by then, so the batch names the company
+        the run started in. It must be an active membership of the caller (an archived company, one the caller does not
+        belong to and one that does not exist are refused alike); the write then runs in that one company, where the feature and
+        ``ai.use`` are required, so membership alone records nothing and a later switch never refuses a report.
+        """
+        if not isinstance(company_id, int) or isinstance(company_id, bool):
+            raise_invalid(self.env, 'user_company_id', 'user_company_id must be an integer')
+        if company_id not in self.env['liwan.access.service']._liwan_membership_company_ids():
+            raise_invalid(self.env, 'user_company_id', 'user_company_id must be a company the caller belongs to')
+        scoped = self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id], liwan_capability_scope=None)
+        # The same gates as ``create``, stated here: tools/route_gate_policy.py reads the capability of the session route
+        # from this method, and it must be the one evaluated in the named company.
+        scoped.env['liwan.entitlement.service'].require('ai.enabled')
+        scoped.env['liwan.access.service']._liwan_require_capability(AI_USE)
+        return scoped._liwan_ai_record(vals_list, scoped.env.user, scoped.env.company)
 
     @api.model
     def _liwan_ai_record_for(self, vals_list, user_id, company_id):
@@ -306,7 +326,8 @@ class LiwanAiUsage(models.Model):
                 existing = self._liwan_ai_existing(row)
                 if not existing:
                     # The index is unique per user, whatever the company: the same attempt is already held under another
-                    # company (a user who switched company mid-run). It is answered as a conflict, naming nothing of that row.
+                    # company (a report that names a different company than the first one did). It is answered as a conflict,
+                    # naming nothing of that row.
                     error = ValidationError(self.env._('This call was already reported.'))
                     error.liwan_field, error.liwan_code, error.liwan_status, error.liwan_index = 'call_id', 'duplicate', 409, index
                     raise error from None
