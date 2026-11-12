@@ -225,9 +225,34 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
+      postgres-trust:
+        # deploy/releases/test_backup_live.py logs in with password-less fixture roles, so it needs a trust-auth server.
+        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      mailpit:
+        image: axllent/mailpit:v1.27.10@sha256:b1f1be18af530d939a11ee8820b379e0c88eeec204d904bfad68862adced3a5a
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      LIWAN_BACKUP_PGPORT: "5433"
+      LIWAN_MAILPIT_SMTP_PORT: "1025"
+      LIWAN_MAILPIT_API_PORT: "8025"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
+        with:
+          # The backup live test installs psycopg2; the runner's system Python refuses pip installs.
+          python: 'true'
       - run: deploy/ci/control-plane.sh
       - uses: ./.github/actions/stage-pass
         if: success()
