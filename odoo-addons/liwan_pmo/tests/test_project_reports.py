@@ -132,7 +132,7 @@ class TestProjectReports(LiwanPmoCase):
             'name_ar': 'قارئ المشاريع فقط',
             'company_id': self.env.company.id,
             'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([
-                ('key', '=', 'pmo.projects.read'),
+                ('key', 'in', ('pmo.projects.read', 'pmo.finance.read')),
             ]).ids)],
         })
         reader = new_test_user(self.env, login='report_reader', password='report_reader_pass_123', groups='base.group_user')
@@ -146,7 +146,7 @@ class TestProjectReports(LiwanPmoCase):
             (row['task_count'], row['closed_task_count'], row['overdue_task_count'], row['progress']),
             (None, None, None, None),
         )
-        # Finance visibility is not gated by pmo.tasks.read.
+        # Finance visibility is gated by pmo.finance.read, not by pmo.tasks.read.
         self.assertIsNotNone(row['finance'])
 
     def test_report_totals_exact_decimal_aggregation_across_many_projects(self):

@@ -33,6 +33,7 @@ def _finance_project(project_id):
     # check here. Finance stays out of scope for archived projects.
     project = get_visible_record('project.project', project_id, archived_write=True)
     project._liwan_check_tool('finance')
+    project._liwan_check_finance_read()
     if not project.active:
         raise ApiError(404, 'not_found', "project not found")
     return project

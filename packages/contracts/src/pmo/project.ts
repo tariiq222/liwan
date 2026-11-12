@@ -62,6 +62,8 @@ export const ProjectDetailSchema = ProjectSchema.extend({
   completion_approver: UserRefSchema.nullable(),
   updated_at: z.string().regex(/^v\d+$/),
   tools: ProjectToolsStateSchema,
+  /** Whether the caller may read this project's budget, expenses and cost figures (`pmo.finance.read`). */
+  can_read_finance: z.boolean(),
   objectives: z.array(ProjectObjectiveSchema),
   success_criteria: z.string(),
   charter: ProjectCharterSchema.nullable(),

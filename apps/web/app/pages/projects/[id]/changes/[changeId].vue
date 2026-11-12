@@ -4,7 +4,7 @@ import { CHANGE_STATE_TONE } from '@/components/pmo/projects/changes/state'
 import ChangeDecisionPanel from '@/components/pmo/projects/changes/ChangeDecisionPanel.vue'
 import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { useProjectChange } from '@/composables/useProjectChanges'
-import { formatMoney } from '@/utils/projectFinance'
+import { formatChangeCost } from '@/utils/projectFinance'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -57,7 +57,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
         </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.changes.fields.scheduleDays')"><span dir="ltr" class="tabular-nums">{{ days(item.data.value.impact_schedule_days) }}</span></SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.changes.fields.cost')">
-          <span dir="ltr" class="tabular-nums">{{ item.data.value.currency ? formatMoney(item.data.value.impact_cost, item.data.value.currency) : item.data.value.impact_cost }}</span>
+          <span dir="ltr" class="tabular-nums">{{ formatChangeCost(item.data.value.impact_cost, item.data.value.currency) }}</span>
         </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.changes.fields.createdAt')" :value="formatLiwanDate(item.data.value.created_at) || null" />
         <SharedPropertyRow v-if="item.data.value.decided_by" :label="t('projects.changes.fields.decidedBy')" :value="item.data.value.decided_by.name" />

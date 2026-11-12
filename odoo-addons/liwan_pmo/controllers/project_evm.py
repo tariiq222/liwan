@@ -21,12 +21,13 @@ class ProjectEvmController(http.Controller):
     @api_handler
     @requires_feature(*FEATURES, operation='read')
     def get_evm(self, project_id):
-        # Cost is exposed, so the gate is the one of GET /projects/{id}/finance: pmo.projects.read on a visible project.
+        # Cost is exposed, so the gate is the one of GET /projects/{id}/finance: a visible project whose finance the caller may read.
         require_capabilities('pmo.projects.read')
         declare_read_capability_scope('pmo.projects.read')
         project = active_project(project_id)
         project._liwan_check_tool('planning')
         project._liwan_check_tool('finance')
+        project._liwan_check_finance_read()
         baseline = request.env['liwan.project.baseline'].search([('project_id', '=', project.id)], order='number desc', limit=1)
         if not baseline:
             raise ApiError(409, 'no_baseline', "take a baseline before reading earned value")

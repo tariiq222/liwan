@@ -62,7 +62,7 @@ const project: ProjectDetail = {
   description_html: '', manager: { id: 2, name: 'Mona' }, privacy_visibility: 'employees',
   date_start: null, date_end: '2031-06-30', tags: [], followers_count: 0, milestone_count: 0,
   allow_task_dependencies: false, completion_approval: 'none', completion_approver: null,
-  objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},
+  objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},can_read_finance:true,
   updated_at: 'v1',
   charter: {
     code: 'PRJ-000004', type: null, owning_unit: null, sponsor: null,

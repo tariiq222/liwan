@@ -25,6 +25,7 @@ ALLOWED = {
     'change_control_mode',
     'baseline_gate',
     'evm_progress_method',
+    'finance_readers',
 }
 
 

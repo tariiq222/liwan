@@ -116,6 +116,9 @@ class TestBranchAccess(TransactionCase):
 
     def test_custom_branch_delegation_preserves_parent_roles_and_revokes(self):
         self.grant(self.env.ref('liwan_core.role_system_admin'), self.parent)
+        # The actor delegates a branch role to themselves, so the company must run with the self-grant policy allowed.
+        admin_service = self.env['liwan.access.service']
+        admin_service._liwan_set_self_grant_policy(admin_service._liwan_access_policy_version(), 'allowed')
         custom = self.env['liwan.access.role'].with_company(self.branch).create({
             'name_ar': 'Branch reader',
             'permission_ids': [Command.set(self.reader.permission_ids.ids)],

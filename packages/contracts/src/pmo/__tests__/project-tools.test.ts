@@ -56,7 +56,7 @@ describe('server-owned project tool read state', () => {
       ...summary, stages: [], description_html: '', manager: null, privacy_visibility: 'employees',
       date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: null,
       completion_approval: 'none', completion_approver: null, updated_at: 'v1',
-      tools, objectives: [{ id: 5, goal: 'Deliver', metric: '', target: '' }], success_criteria: '20 requests',
+      tools, can_read_finance: true, objectives: [{ id: 5, goal: 'Deliver', metric: '', target: '' }], success_criteria: '20 requests',
       charter: null, phase_state: null, change_control_mode: 'optional',
     }
     const parsed = ProjectDetailSchema.parse(detail)

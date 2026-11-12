@@ -60,7 +60,7 @@ function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
     allow_task_dependencies: false,
     completion_approval: 'none',
     completion_approver: null,
-    objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},
+    objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},can_read_finance:true,
     updated_at: 'v4',
     charter: EMPTY_CHARTER,
     ...overrides,

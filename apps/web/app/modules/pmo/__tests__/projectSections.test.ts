@@ -16,6 +16,11 @@ describe('projectSections', () => {
   it('does not infer a grant from a company policy', () => expect(ids(7, projectOnly, opts)).toEqual(['summary', 'finance', 'governance']))
   it('shows meetings only with meetings.read', () => expect(ids(7, { role: 'employee', capabilities: ['pmo.projects.read', 'pmo.tasks.read'] }, opts)).not.toContain('meetings'))
   it('hides the tasks and governance tabs of an archived project', () => expect(ids(7, reader, { ...opts, active: false })).toEqual(['summary', 'meetings', 'finance']))
+  it('hides the finance tab only when the project says the caller cannot read finance', () => {
+    expect(ids(7, reader, { ...opts, canReadFinance: false })).toEqual(['summary', 'tasks', 'meetings', 'governance'])
+    expect(ids(7, reader, { ...opts, canReadFinance: true })).toContain('finance')
+    expect(ids(7, reader, opts)).toContain('finance')
+  })
   it('returns nothing before capabilities arrive', () => expect(projectSections(7, undefined, opts)).toEqual([]))
 })
 

@@ -43,7 +43,7 @@ describe('task lifecycle contracts', () => {
       id: 4, name: 'Project', status: null, progress: 0, task_count: 0, closed_task_count: 0, charter_state: 'draft', phase: 'initiating',
       active: true, can_manage: true, stages: [], description_html: '', manager: null,
       privacy_visibility: 'employees', date_start: null, date_end: null, tags: [], followers_count: 0,
-      milestone_count: 0, objectives: [], success_criteria: '', tools: { planning: { policy: 'enabled', enabled: true, can_toggle: false }, governance: { policy: 'enabled', enabled: true, can_toggle: false }, finance: { policy: 'enabled', enabled: true, can_toggle: false } }, completion_approval: 'none', completion_approver: null,
+      milestone_count: 0, objectives: [], success_criteria: '', tools: { planning: { policy: 'enabled', enabled: true, can_toggle: false }, governance: { policy: 'enabled', enabled: true, can_toggle: false }, finance: { policy: 'enabled', enabled: true, can_toggle: false } }, can_read_finance: true, completion_approval: 'none', completion_approver: null,
       updated_at: 'v1',
       phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
       charter: {
