@@ -1,6 +1,6 @@
 # Working company switch design
 
-Status: the owner asked for this design and approved the decisions in section 2 on 2026-11-12. Nothing is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run.
+Status: the owner asked for this design and approved the decisions in section 2 on 2026-11-12. It is built on the local branch `api-working-company-switch` and not pushed or merged; the plan records what was verified. One thing keeps it out of users' reach: no product path gives a user a second company (section 8).
 
 The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch-access-policy-design.md)) owns who may act in which company. This file adds one thing on top of it: how a person who belongs to several companies of a tenant chooses the one they are working in. It changes no capability and no policy mode. [2026-11-11-customers-and-catalog-foundation-design.md](2026-11-11-customers-and-catalog-foundation-design.md) depends on it, because "the branch that created the customer" is the working company of the user.
 
@@ -50,7 +50,7 @@ Both use `type='json2'`, `auth='user'` and the shared `api_handler`. The zod con
 
 The comparison already exists for one screen. Finance fiscal writes send `X-Liwan-Expected-User-Id` and `X-Liwan-Expected-Company-Id`, and the server answers `409 request_context_changed` when they differ from the session (`liwan_finance/controllers/finance_setup.py:47`). The Nuxt proxy and both edge guards already pass these two headers.
 
-The design moves that comparison into the shared request handler and reuses the same header and the same code. Every `/api/v1` request from the web client carries `X-Liwan-Expected-Company-Id` with the company id from the `me` it rendered. When the header is present and differs from the working company, the server answers `409 request_context_changed` and writes nothing. A request without the header is served as today, so server-side callers keep working. The fiscal write keeps its stricter form, which requires both headers. The header is a guard for the person, never a selector and never a security boundary.
+The design moves that comparison into the shared request handler and reuses the same header and the same code. Every `/api/v1` request from the web client carries `X-Liwan-Expected-Company-Id` with the company id from the `me` it rendered, except the switch itself, which names its target and so cannot save into the wrong company. The AI run calls carry it too, and the Nuxt AI entry point refuses a mismatch with the same code. When the header is present and differs from the working company, the server answers `409 request_context_changed` and writes nothing. A request without the header is served as today, so server-side callers keep working. The fiscal write keeps its stricter form, which requires both headers. The header is a guard for the person, never a selector and never a security boundary.
 
 ### 3.5 Audit
 
@@ -66,7 +66,7 @@ Every HR self-service route finds the caller's employee in the request company, 
 - A user with more than one company always sees the working company's name in the shell, so they know where their next save goes.
 - After a switch the client reloads `me` and `branding`; the organisation logo is loaded per company and is not part of the query tree. The identity key already includes the company (`apps/web/app/utils/sessionExpiry.ts:17`), so the existing access refresh disposes the private query tree and builds a new one; no cached list of the old company survives. This is the rule the employee self-service plan already set for a company switch (`docs/superpowers/plans/2026-10-22-employee-self-service.md:39`).
 - The client then goes to the home page, because the record on screen may not exist in the new company.
-- A `request_context_changed` answer makes the client reload `me` and tell the user that the working company changed in another tab.
+- A `request_context_changed` answer makes the client reload `me`. A refused read tells the user once that the working company changed in another tab; a refused write reports through its own error. Nothing is reported while the user's own switch is in progress.
 - The live socket is reconnected after a switch. It subscribes from the session and resubscribes only when it opens (`apps/web/app/composables/useBus.ts:396`).
 
 ## 5. What does not change
@@ -106,8 +106,8 @@ The four points this file first left open were read on 2026-11-12 and are settle
 
 | Point | Needs |
 | --- | --- |
-| Whether the onboarding steps and the operations "my requests" routes need the home company; they filter by user with no company today | A read by the implementer |
-| Whether session rotation at sign-in carries a stored working company into a new sign-in | A test in the first server task |
+| Membership management. An invitation creates one membership and binding a user to a branch replaces it, so no user can hold two companies through the product, and the switch has nobody to serve | An owner decision on who may add a membership, then its own design |
+| The onboarding steps and the operations "my requests" routes filter by user with no company and follow the working company | Left as they are; revisit with the first report |
 
 ## 9. Options rejected
 

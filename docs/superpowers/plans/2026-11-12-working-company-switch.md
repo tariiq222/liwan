@@ -1,6 +1,6 @@
 # Working company switch implementation plan
 
-> One branch in the main checkout, `api-working-company-switch`, and one pull request: the server, the contract and the web client change together. The change touches the session and authorization, so it takes the full path: an implementer per layer, a tester, and a reviewer separate from both. Nothing here is started.
+> One branch in the main checkout, `api-working-company-switch`, and one pull request: the server, the contract and the web client change together. The change touches the session and authorization, so it takes the full path: an implementer per layer, a tester, and a reviewer separate from both. Built on that branch on 2026-11-12 and not pushed; the boxes below record what was done and what was not.
 
 ## Goal
 
@@ -30,32 +30,39 @@ Read on `main` at `b3db19af2` by two read-only passes on 2026-11-12. Each is rec
 
 Owner: one implementer. Files: `odoo-addons/liwan_api/**`, `odoo-addons/liwan_finance/controllers/finance_setup.py`, the HR, documents and PMO files named below, `packages/contracts/src/common/me.ts`.
 
-- [ ] Write the failing tests first, on `LiwanApiCase`, for every server line of section 7 of the spec. Add the fixture: a tenant with a root and two sibling branches, a user homed in branch A with a membership and a role in branch B.
-- [ ] Add the working company function in `liwan_api/controllers/common.py` and make `_pin_current_company` call it. It returns the session's company when that is an active membership of the user, read through `liwan.access.service._liwan_membership_company_ids`, and the home company otherwise. Confirm that session rotation at sign-in keeps no stale value and that the bearer route resolves to the home company.
-- [ ] Add `POST /api/v1/me/company` in `liwan_api/controllers/me.py` and the `companies` and `home_company_id` fields in `liwan_api/serializers/user.py`. A company that is not an active membership answers `404 not_found`. Change `MeSchema` in `packages/contracts/src/common/me.ts` in the same commit and check `PreviousMeSchema` in `packages/contracts/src/common/__tests__/commercial.test.ts`.
-- [ ] Move the comparison from `finance_setup.py` into `liwan_api/controllers/common.py` and delete the finance copy with its constants. `api_handler` compares the company header with the working company on every request that carries it and answers `409 request_context_changed`. The fiscal write keeps its strict form by calling the shared function with both headers required.
-- [ ] Add one function that pins the home company for a personal read, and call it in the own-data paths: `/api/v1/hr/me`, leave (`hr_leave.py:179`, `:201`, and the own branch of `:220`), payslips (`payroll/payslips.py:46`, `:62`), warnings (`warnings/warning_records.py:124`), insurance (`insurance/own.py:19`), shifts (`shifts/hr_shifts.py:333`, `shifts/hr_roster.py:127`), assets (`assets/equipment.py:164`) and employee documents (`liwan_documents_hr/controllers/employee_documents.py:33`, `:54`). Replace the four employee lookups with the one in `liwan_hr/controllers/common.py`. Read `lifecycle/own_steps.py:22` and `liwan_operations/controllers/operations.py:206` first: they filter by user with no company and may need nothing.
-- [ ] Make `liwan_pmo/models/task_notifications.py:61` test membership, as line 275 of the same file does, so a member of the working company who is homed elsewhere is still notified.
-- [ ] Leave user administration as it is and prove it: an administrator switched into a branch lists and manages the users homed in that branch, and `_liwan_assert_user_scope` still answers `404` for a user homed elsewhere.
-- [ ] Run the scratch-database checks of `docs/agents/odoo-rules.md` for `liwan_api`, `liwan_core`, `liwan_platform`, `liwan_access_hr`, `liwan_hr`, `liwan_documents_hr`, `liwan_finance` and `liwan_pmo`, then `npm test` for the sudo gate, the architecture policy and the API surface. No new `sudo()` is expected.
+- [x] Write the failing tests first, on `LiwanApiCase`, for every server line of section 7 of the spec. Add the fixture: a tenant with a root and two sibling branches, a user homed in branch A with a membership and a role in branch B.
+- [x] Add the working company function in `liwan_api/controllers/common.py` and make `_pin_current_company` call it. It returns the session's company when that is an active membership of the user, read through `liwan.access.service._liwan_membership_company_ids`, and the home company otherwise. Confirm that session rotation at sign-in keeps no stale value and that the bearer route resolves to the home company.
+- [x] Add `POST /api/v1/me/company` in `liwan_api/controllers/me.py` and the `companies` and `home_company_id` fields in `liwan_api/serializers/user.py`. A company that is not an active membership answers `404 not_found`. Change `MeSchema` in `packages/contracts/src/common/me.ts` in the same commit and check `PreviousMeSchema` in `packages/contracts/src/common/__tests__/commercial.test.ts`.
+- [x] Move the comparison from `finance_setup.py` into `liwan_api/controllers/common.py` and delete the finance copy with its constants. `api_handler` compares the company header with the working company on every request that carries it and answers `409 request_context_changed`. The fiscal write keeps its strict form by calling the shared function with both headers required.
+- [x] Add one function that pins the home company for a personal read, and call it in the own-data paths: `/api/v1/hr/me`, leave (`hr_leave.py:179`, `:201`, and the own branch of `:220`), payslips (`payroll/payslips.py:46`, `:62`), warnings (`warnings/warning_records.py:124`), insurance (`insurance/own.py:19`), shifts (`shifts/hr_shifts.py:333`, `shifts/hr_roster.py:127`), assets (`assets/equipment.py:164`) and employee documents (`liwan_documents_hr/controllers/employee_documents.py:33`, `:54`). Replace the four employee lookups with the one in `liwan_hr/controllers/common.py`. Read `lifecycle/own_steps.py:22` and `liwan_operations/controllers/operations.py:206` first: they filter by user with no company and may need nothing.
+- [x] Make `liwan_pmo/models/task_notifications.py:61` test membership, as line 275 of the same file does, so a member of the working company who is homed elsewhere is still notified.
+- [x] Leave user administration as it is and prove it: an administrator switched into a branch lists and manages the users homed in that branch, and `_liwan_assert_user_scope` still answers `404` for a user homed elsewhere.
+- [x] Run the scratch-database checks of `docs/agents/odoo-rules.md` for `liwan_api`, `liwan_core`, `liwan_platform`, `liwan_access_hr`, `liwan_hr`, `liwan_documents_hr`, `liwan_finance` and `liwan_pmo`, then `npm test` for the sudo gate, the architecture policy and the API surface. No new `sudo()` is expected.
 
 ## Web tasks
 
 Owner: one implementer, after the contract commit. Files: `apps/web/app/**`, `apps/web/stories/shell/**`, `apps/web/i18n/locales/{ar,en}/common.json`.
 
-- [ ] `useApi.ts`: `$api` and `$download` send `X-Liwan-Expected-Company-Id` from the loaded `me`. `$download` gains the header path it lacks today. Nothing is sent before `me` is known.
-- [ ] A composable that posts the switch, then refreshes `me` and `branding`, reconnects the live socket and goes to the home page. The refreshed `me` changes the identity key, which disposes the private query tree through the existing `sessionQueryScope`.
-- [ ] `vue-query.ts`: handle `409 request_context_changed` globally, in the way tenant suspension is handled: refresh `me` and tell the user the working company changed in another tab. Add the message under `errors.codes` in both locales.
-- [ ] `AppUserMenu.vue`: a company group listing `me.companies`, shown only when there is more than one, with the current one marked. Update the header comment that says a company switch is not offered, the story in `apps/web/stories/shell/AppUserMenu.stories.ts` with its handlers, and the strings under `nav.userMenu`.
-- [ ] The shell shows the working company's name for a user with more than one company, next to the organisation card in `AppSidebar.vue`. Presentation follows [DESIGN.md](../../../DESIGN.md) and goes through the `liwan-design-page` flow.
-- [ ] Tests: `AppUserMenu.test.ts`, `useApi.test.ts`, `useMe.test.ts`, `useBus.test.ts`, `sessionExpiry.test.ts`, `identityView.test.ts`, and `tenantTransport.test.ts` for the header on a non-finance route. Then `npm -w apps/web run lint`.
-- [ ] Prove it on the isolated mock stack in Arabic and English, light and dark: switch, see the lists of the new company only, and trigger the stale-tab refusal from a second tab.
+- [x] `useApi.ts`: `$api` and `$download` send `X-Liwan-Expected-Company-Id` from the loaded `me`. `$download` gains the header path it lacks today. Nothing is sent before `me` is known.
+- [x] A composable that posts the switch, then refreshes `me` and `branding`, reconnects the live socket and goes to the home page. The refreshed `me` changes the identity key, which disposes the private query tree through the existing `sessionQueryScope`.
+- [x] `vue-query.ts`: handle `409 request_context_changed` globally, in the way tenant suspension is handled: refresh `me` and tell the user the working company changed in another tab. Add the message under `errors.codes` in both locales.
+- [x] `AppUserMenu.vue`: a company group listing `me.companies`, shown only when there is more than one, with the current one marked. Update the header comment that says a company switch is not offered, the story in `apps/web/stories/shell/AppUserMenu.stories.ts` with its handlers, and the strings under `nav.userMenu`.
+- [x] The shell shows the working company's name for a user with more than one company, next to the organisation card in `AppSidebar.vue`. Presentation follows [DESIGN.md](../../../DESIGN.md) and goes through the `liwan-design-page` flow.
+- [x] Tests: `AppUserMenu.test.ts`, `useApi.test.ts`, `useMe.test.ts`, `useBus.test.ts`, `sessionExpiry.test.ts`, `identityView.test.ts`, and `tenantTransport.test.ts` for the header on a non-finance route. Then `npm -w apps/web run lint`.
+- [ ] Prove it on the isolated mock stack in Arabic and English, light and dark: switch, see the lists of the new company only, and trigger the stale-tab refusal from a second tab. Done so far: the user menu story in Storybook, one company and several, Arabic light and English dark, with keyboard reach of the current company. The full flow against a server was not run in a browser, and the story has no mock for the switch call.
 
 ## Review and delivery
 
-- [ ] The tester runs the spec's section 7 end to end on a scratch database and the mock stack and reports each line as passed or failed.
-- [ ] The reviewer reads the diff against `REVIEW.md`, with attention to any path that reaches `env.company` before the pin, any personal route left on the working company, and any cache or socket that keeps the old company.
-- [ ] The coordinator rechecks both, then commits locally. Push, pull request and merge wait for the owner's words.
+- [x] The tester ran the suites on the integrated revision and mapped each line of the spec's section 7 to its tests; the mock stack part is the open box above.
+- [x] The reviewer reads the diff against `REVIEW.md`, with attention to any path that reaches `env.company` before the pin, any personal route left on the working company, and any cache or socket that keeps the old company.
+- [x] The coordinator rechecked both and committed locally. Push, pull request and merge wait for the owner's words.
+
+## Found while building
+
+- No product path gives a user a second company. An invitation creates one membership (`liwan_core/models/access_service.py:749`) and binding a user to a branch replaces it (`liwan_platform/models/tenant_profile.py:671`). Until membership management exists, nobody can reach the switch outside a test. It needs an owner decision on who may add a membership.
+- A user who was also a member of an archived company lost every membership. Fixed in this branch.
+- The generated `docs/api/*` files were stale on `main`. A task branch must not touch them (`tools/git_policy.py`); they are regenerated at integration.
+- Reported by the implementer and not verified: `liwan_operations/models/operation_request.py:198` reads the candidate approvers' companies under a single-company environment, which may fail for an approver who belongs to a company outside the actor's set.
 
 ## Not in this change
 
