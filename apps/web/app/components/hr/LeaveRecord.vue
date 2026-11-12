@@ -24,7 +24,7 @@ const ownQuery = useMyHrLeaveRequest(ownId)
 const managementQuery = useHrLeaveRequest(managementId)
 const query = computed(() => props.personal ? ownQuery : managementQuery)
 const leave = computed(() => query.value.data.value)
-const approvalQuery = useHrLeaveApproval(computed(() => leave.value ? id.value : null))
+const approvalQuery = useHrLeaveApproval(computed(() => leave.value ? id.value : null), () => !!props.personal)
 // Invalid ids have no record to load and use the same not-found state as an unknown positive id.
 const pageError = computed(() => query.value.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const sourcePaths = computed(() => props.personal ? ['/account/leave'] : ['/hr/leave'])
@@ -66,7 +66,7 @@ async function decide(kind: HrLeaveDecision, reason?: string) {
   if (!leave.value || !hydrated.value || writing.value) return
   decisionError.value = ''
   try {
-    await decision.mutateAsync({ id: leave.value.id, decision: kind, reason })
+    await decision.mutateAsync({ id: leave.value.id, decision: kind, reason, mine: !!props.personal })
     confirming.value = null
   } catch (cause) {
     decisionError.value = cause instanceof ApiError && cause.status === 409 ? t('hr.leave.cancellationConflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
@@ -96,7 +96,7 @@ async function withdraw() {
   if (!leave.value || !hydrated.value || writing.value) return
   decisionError.value = ''
   try {
-    await withdrawal.mutateAsync(leave.value.id)
+    await withdrawal.mutateAsync({ id: leave.value.id, mine: !!props.personal })
     await navigateTo(backTo.value, { replace: true })
   } catch (cause) {
     decisionError.value = cause instanceof ApiError && cause.status === 409 ? t('hr.leave.cancellationConflict') : cause instanceof ApiError ? cause.message : t('errors.generic')

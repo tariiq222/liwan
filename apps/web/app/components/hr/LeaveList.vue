@@ -122,7 +122,7 @@ async function decide(leave: HrLeave, kind: HrLeaveDecision, reason?: string) {
   if (!hydrated.value || writing.value) return
   decisionError.value = ''
   try {
-    await decision.mutateAsync({ id: leave.id, decision: kind, reason })
+    await decision.mutateAsync({ id: leave.id, decision: kind, reason, mine: !!props.personal })
     cancelling.value = null
     refusing.value = null
   } catch (cause) {
@@ -136,7 +136,7 @@ async function withdraw(leave: HrLeave) {
   if (!hydrated.value || writing.value) return
   decisionError.value = ''
   try {
-    await withdrawal.mutateAsync(leave.id)
+    await withdrawal.mutateAsync({ id: leave.id, mine: !!props.personal })
     withdrawing.value = null
   } catch (cause) {
     decisionError.value = cause instanceof ApiError && cause.status === 409 ? t('hr.leave.cancellationConflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
