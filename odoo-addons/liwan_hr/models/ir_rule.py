@@ -6,6 +6,13 @@ from odoo.fields import Domain
 # copies hr.salary.rule's company_id (payroll/models/hr_salary_rule.py:44-48, the computing environment's
 # company), never the payslip's, so a line answers through its slip (payroll/models/hr_payslip_line.py:13-15).
 PAYSLIP_PATHS = {'hr.payslip': '', 'hr.payslip.line': 'slip_id.'}
+# The insurance models fenced per company, with the path from each to the user of its enrollment's employee.
+INSURANCE_OWNER_PATHS = {
+    'liwan.hr.insurance.provider': 'plan_ids.enrollment_ids.employee_user_id',
+    'liwan.hr.insurance.plan': 'enrollment_ids.employee_user_id',
+    'liwan.hr.insurance.enrollment': 'employee_user_id',
+    'liwan.hr.insurance.dependent': 'employee_user_id',
+}
 
 
 class LiwanHrIrRule(models.Model):
@@ -55,9 +62,9 @@ class LiwanHrIrRule(models.Model):
         if model_name == 'liwan.hr.warning' and mode == 'read' and not self.env.su \
                 and not self.env.user.has_group('base.group_system'):
             domain &= self._liwan_warning_read_fence()
-        if model_name == 'liwan.hr.insurance.dependent' and mode == 'read' and not self.env.su \
+        if model_name in INSURANCE_OWNER_PATHS and mode == 'read' and not self.env.su \
                 and not self.env.user.has_group('base.group_system'):
-            domain &= self._liwan_insurance_dependent_read_fence()
+            domain &= self._liwan_insurance_read_fence(model_name)
         if model_name == 'liwan.hr.leave.settings' and not self.env.su:
             service = self.env['liwan.access.service']
             companies = set()
@@ -112,20 +119,32 @@ class LiwanHrIrRule(models.Model):
         return fence
 
     @api.model
-    def _liwan_insurance_dependent_read_fence(self):
-        """An employee reads their dependents only when the company's visibility policy shows them.
+    def _liwan_insurance_read_fence(self, model_name):
+        """Insurance readers read the rows of their companies; an employee reads the rows of their own enrollment.
 
-        The insurance readers of the current company always read them. For everyone else the policy decides, so a
-        company on `own_enrollment_only` shows an employee their enrollment and never the dependents under it.
+        The readers are those who hold ``hr.insurance.read`` in the owning company. Dependents of the employee's
+        own enrollment also follow the company's visibility policy. The insurance group and the native
+        (1, '=', 1) reader rules are unioned across companies, so the native rules alone would let an insurance
+        reader of one company read every row of another company where they only read employees.
         """
+        readers = self.env['liwan.access.service']._liwan_operation_capability_company_ids('hr.insurance.read')
+        own = Domain(INSURANCE_OWNER_PATHS[model_name], '=', self.env.uid)
+        if model_name == 'liwan.hr.insurance.dependent' and not self._liwan_insurance_shows_dependents():
+            own = Domain.FALSE
+        return Domain('company_id', 'in', sorted(readers)) | own
+
+    @api.model
+    def _liwan_insurance_shows_dependents(self):
+        """Whether the current company's visibility policy shows an employee the dependents of their enrollment."""
         company = self.env.company
-        service = self.env['liwan.access.service']
-        if service._liwan_has_capability(self.env.user, 'hr.insurance.read', company=company):
-            return Domain.TRUE
-        if not service._liwan_has_capability(self.env.user, 'hr.employees.read', company=company):
-            return Domain.FALSE
+        # The policy is readable by whoever reads employees in the current company; this must never raise for
+        # anyone else.
+        if not self.env['liwan.access.service']._liwan_has_capability(
+            self.env.user, 'hr.employees.read', company=company,
+        ):
+            return False
         policy = self.env['liwan.hr.insurance.settings']._liwan_effective(company)
-        return Domain.TRUE if policy['insurance_visibility'] == 'own_enrollment_and_dependents' else Domain.FALSE
+        return policy['insurance_visibility'] == 'own_enrollment_and_dependents'
 
     @api.model
     def _liwan_leave_extra_read_domain(self):
