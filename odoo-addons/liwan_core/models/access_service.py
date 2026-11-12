@@ -23,6 +23,8 @@ MOBILE_INDEX = 'res_users_liwan_mobile_unique'
 
 # Marks the one operation allowed to write res.company.liwan_self_grant_policy.
 SELF_GRANT_POLICY_MARKER = 'liwan_core.self_grant_policy'
+# Users whose whole proposed access one operation has already compared with the access they held before it.
+SELF_GRANT_CHECKED_MARKER = 'liwan_core.self_grant_checked'
 SELF_GRANT_POLICIES = ('restricted', 'allowed')
 
 # Registering the company for VAT decides whether tax shows anywhere: the system administrator role only,
@@ -600,13 +602,23 @@ class LiwanAccessService(models.AbstractModel):
         ) and not future_admin:
             self._liwan_assert_admin_survives(company, excluding_user=user)
         user._liwan_mark_access_managed()
+        added = self.env['liwan.access.role'].browse(set(role_ids) - existing_role_ids)
+        if user == self.env.user:
+            # One comparison of the final access with the access held now: the steps below pass through states
+            # (a role removed, its replacement not yet created) that must not count as the held access.
+            self._liwan_assert_self_grant(
+                user, company, self._liwan_capability_keys(user, company=company),
+                set(self.env['liwan.access.role'].browse(role_ids).permission_ids.mapped('key')),
+                added.mapped('key'),
+            )
         before = [{'role_id': a.role_id.id, 'role_key': a.role_id.key,
                    'scope': {'kind': 'company', 'id': company.id}} for a in existing]
         existing.filtered(lambda assignment: assignment.role_id.id not in role_ids)._liwan_access_unlink()
-        for role_id in set(role_ids) - existing_role_ids:
-            self.env['liwan.access.assignment']._liwan_access_create({
-                'user_id': user.id, 'role_id': role_id, 'company_id': company.id,
-            })
+        with marked(self.env, {SELF_GRANT_CHECKED_MARKER: {user.id}}):
+            for role in added:
+                self.env['liwan.access.assignment']._liwan_access_create({
+                    'user_id': user.id, 'role_id': role.id, 'company_id': company.id,
+                })
         after = [{'role_id': a.role_id.id, 'role_key': a.role_id.key,
                   'scope': {'kind': 'company', 'id': company.id}}
                  for a in self.env['liwan.access.assignment'].search([

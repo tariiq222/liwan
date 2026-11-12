@@ -2,6 +2,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
+from .access_service import SELF_GRANT_CHECKED_MARKER
+
 
 class LiwanAccessAssignment(models.Model):
     _name = 'liwan.access.assignment'
@@ -67,7 +69,7 @@ class LiwanAccessAssignment(models.Model):
         service = self.env['liwan.access.service']
         by_target = {}
         for user, company, role in grants:
-            if user == self.env.user:
+            if user == self.env.user and user.id not in self.env.cr.precommit.data.get(SELF_GRANT_CHECKED_MARKER, ()):
                 by_target.setdefault((user, company), self.env['liwan.access.role'])
                 by_target[user, company] |= role
         for (user, company), roles in by_target.items():

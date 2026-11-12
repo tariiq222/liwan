@@ -115,6 +115,39 @@ class TestSelfGrantPolicy(TransactionCase):
         self.assign(self.as_a, self.admin_b, self.system_role, self.payroll_like)
         self.assertIn(PROBE_KEY, self.service._liwan_capability_keys(self.admin_b))
 
+    def test_restricted_allows_swapping_a_held_role_for_one_with_the_same_permission(self):
+        twin = self.env['liwan.access.role']._liwan_access_create({
+            'name_ar': 'دور رواتب مماثل', 'permission_ids': [Command.set(self.probe.ids)],
+        })
+        self.assign(self.as_b, self.admin_a, self.system_role, self.payroll_like)
+        self.assign(self.as_a, self.admin_a, self.system_role, twin)
+        self.assertIn(PROBE_KEY, self.service._liwan_capability_keys(self.admin_a))
+        self.assertEqual(
+            self.env['liwan.access.assignment'].search([('user_id', '=', self.admin_a.id)]).role_id,
+            self.system_role | twin,
+        )
+
+    def test_restricted_allows_narrowing_the_access_in_one_replacement(self):
+        reading = self.env['liwan.access.permission'].search([('key', '=', 'access.roles.read')])
+        narrow = self.env['liwan.access.role']._liwan_access_create({
+            'name_ar': 'دور قراءة ضيق', 'permission_ids': [Command.set(reading.ids)],
+        })
+        self.assign(self.as_b, self.admin_a, self.system_role, self.payroll_like)
+        self.assign(self.as_a, self.admin_a, self.system_role, narrow)
+        self.assertNotIn(PROBE_KEY, self.service._liwan_capability_keys(self.admin_a))
+
+    def test_restricted_refuses_swapping_a_role_for_one_adding_a_new_permission(self):
+        reading = self.env['liwan.access.permission'].search([('key', '=', 'access.roles.read')])
+        held = self.env['liwan.access.role']._liwan_access_create({
+            'name_ar': 'دور قراءة محمول', 'permission_ids': [Command.set(reading.ids)],
+        })
+        self.assign(self.as_b, self.admin_a, self.system_role, held)
+        self.assert_refused(lambda: self.assign(self.as_a, self.admin_a, self.system_role, self.payroll_like))
+        self.assertEqual(
+            self.env['liwan.access.assignment'].search([('user_id', '=', self.admin_a.id)]).role_id,
+            self.system_role | held,
+        )
+
     def test_restricted_never_counts_the_employee_role_as_elevation(self):
         original = type(self.service)._liwan_builtin_role_grants
         self.patch(type(self.service), '_liwan_builtin_role_grants', lambda model: {
