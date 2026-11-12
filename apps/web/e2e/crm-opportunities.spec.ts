@@ -149,6 +149,35 @@ test('create panel adds an opportunity and a duplicate phone is refused', async 
   await expect(page.locator('main h1')).toHaveText('منى الجهني')
 })
 
+test('the contact editor corrects the phone of a pending record and the phone link follows it', async ({ page }) => {
+  await page.goto('/crm/opportunities/1')
+  await expect(page.getByTestId('crm-phone')).toHaveAttribute('href', 'tel:0501234567')
+  await page.getByTestId('crm-contact-edit').click()
+  await expect(page.getByTestId('crm-contact-form')).toBeVisible()
+  await page.getByTestId('crm-contact-phone').fill('0577000111')
+  await page.getByTestId('crm-contact-save').click()
+  await expect(page.getByTestId('crm-contact-form')).toHaveCount(0)
+  await expect(page.getByTestId('crm-phone')).toHaveAttribute('href', 'tel:0577000111')
+  await expect(page.getByTestId('crm-phone')).toContainText('0577000111')
+  // The server keeps the corrected number: a reload shows the same value.
+  await page.reload()
+  await expect(page.getByTestId('crm-phone')).toHaveAttribute('href', 'tel:0577000111')
+})
+
+test('a closed record offers no contact editor', async ({ page }) => {
+  await page.goto('/crm/opportunities/5')
+  await expect(page.locator('main h1')).toHaveText('فهد الحربي')
+  await expect(page.getByTestId('crm-contact-edit')).toHaveCount(0)
+  await expect(page.getByTestId('crm-contact-form')).toHaveCount(0)
+})
+
+test('an imported note is shown on the record, read-only', async ({ page }) => {
+  await page.goto('/crm/opportunities/1')
+  const notes = page.getByTestId('crm-notes')
+  await expect(notes).toContainText('اتصل بعد الظهر')
+  await expect(notes).toContainText('يسأل عن التوصيل')
+})
+
 test('the stage select leaves out the sold stage and the mock refuses it like the server', async ({ page }) => {
   await page.goto('/crm/opportunities/3')
   await page.getByTestId('crm-stage-select').click()

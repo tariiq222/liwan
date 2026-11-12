@@ -3,6 +3,10 @@ import { crmBellTitleInApp } from '../../utils/crmBell'
 import type { AppManifest } from '../types'
 import { crmAppCard } from './appCard'
 
+// The package sub-feature the server also requires for imports (`controllers/imports.py`), on top of `crm.leads.import`.
+// The create command carries no key of its own: the palette gates it by its target route's rule.
+const IMPORT_FEATURE = 'crm.import'
+
 const manifest: AppManifest = {
   id: 'crm',
   feature: 'crm.enabled',
@@ -11,7 +15,7 @@ const manifest: AppManifest = {
   nav: [
     { to: '/crm', labelKey: 'crm.nav.dashboard', icon: 'i-lucide-layout-dashboard', shortcut: 'x', capability: 'crm.leads.read' },
     { to: '/crm/opportunities', labelKey: 'crm.nav.opportunities', icon: 'i-lucide-handshake', shortcut: '', capability: 'crm.leads.read' },
-    { to: '/crm/imports', labelKey: 'crm.nav.imports', icon: 'i-lucide-file-up', shortcut: '', capability: 'crm.leads.import' },
+    { to: '/crm/imports', labelKey: 'crm.nav.imports', icon: 'i-lucide-file-up', shortcut: '', capability: 'crm.leads.import', feature: IMPORT_FEATURE },
   ],
   settings: {
     id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/settings/apps/crm',
@@ -40,7 +44,7 @@ const manifest: AppManifest = {
   contextLinks: () => [
     { id: 'crm-dashboard', labelKey: 'crm.nav.dashboard', icon: 'i-lucide-layout-dashboard', to: '/crm', capability: 'crm.leads.read', exact: true },
     { id: 'crm-opportunities', labelKey: 'crm.nav.opportunities', icon: 'i-lucide-handshake', to: '/crm/opportunities', capability: 'crm.leads.read' },
-    { id: 'crm-imports', labelKey: 'crm.nav.imports', icon: 'i-lucide-file-up', to: '/crm/imports', capability: 'crm.leads.import' },
+    { id: 'crm-imports', labelKey: 'crm.nav.imports', icon: 'i-lucide-file-up', to: '/crm/imports', capability: 'crm.leads.import', feature: IMPORT_FEATURE },
   ],
   landing: [{ path: '/crm', capability: 'crm.leads.read' }],
   appCard: crmAppCard,
@@ -50,8 +54,8 @@ const manifest: AppManifest = {
   routeCapabilities: [
     // Both keys create an opportunity (work for oneself, assign for anyone); the route also needs the read every CRM page needs.
     { pattern: /^\/crm\/opportunities\/new$/, capability: 'crm.leads.read', anyCapabilities: ['crm.leads.work', 'crm.leads.assign'] },
-    { pattern: /^\/crm\/imports\/new$/, capability: 'crm.leads.import' },
-    { pattern: /^\/crm\/imports(?:\/|$)/, capability: 'crm.leads.import' },
+    { pattern: /^\/crm\/imports\/new$/, capability: 'crm.leads.import', feature: IMPORT_FEATURE },
+    { pattern: /^\/crm\/imports(?:\/|$)/, capability: 'crm.leads.import', feature: IMPORT_FEATURE },
     { pattern: /^\/crm(?:\/|$)/, capability: 'crm.leads.read' },
   ],
   bell: {

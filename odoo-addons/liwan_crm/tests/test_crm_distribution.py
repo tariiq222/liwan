@@ -243,7 +243,13 @@ class TestCrmDistribution(LiwanCrmCase):
         self.assertEqual(len(self._rotation()), 1)
         self.assertEqual(len(leads.user_id), 2)
 
-    def test_a_create_race_on_first_use_rereads_the_other_transactions_row(self):
+    def test_a_visible_conflict_adopts_the_existing_row(self):
+        """A ``UniqueViolation`` means the row is visible to this snapshot, so the retry reads it.
+
+        This covers the visible half of the first-use race only. The invisible half -- a row
+        committed after this snapshot opened -- cannot be read in this transaction at all and is
+        reported as retryable; see ``test_crm_distribution_race`` for the real two-transaction test.
+        """
         self._settings(**self._pool(self.agents))
         winner = self.env['liwan.crm.rotation'].create({'company_id': self.company.id})
         model = type(self.env['liwan.crm.rotation'])

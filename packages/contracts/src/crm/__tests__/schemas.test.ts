@@ -165,6 +165,7 @@ describe('CRM opportunity probability', () => {
     contact_name: 'Customer',
     phone: '+966501234567',
     email: '',
+    notes: '',
     stage: { id: 1, name: 'New' },
     user: null,
     source: null,

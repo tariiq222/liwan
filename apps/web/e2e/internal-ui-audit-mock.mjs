@@ -54,8 +54,8 @@ const ME = {
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -634,10 +634,13 @@ async function handle(req, res) {
       const cookie = req.headers.cookie ?? ''
       const readOnlyPayroll = /(?:^|;\s*)mock_readonly=payroll(?:;|$)/.test(cookie)
       const noPolicy = /(?:^|;\s*)mock_readonly=no-policy(?:;|$)/.test(cookie)
+      // mock_features=no_crm_import removes the package sub-feature crm.import from both lists, like a plan without imports.
+      const noCrmImport = /(?:^|;\s*)mock_features=no_crm_import(?:;|$)/.test(cookie)
       const base = { ...ME }
       if (noPolicy) delete base.platform
       const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
-      // `mock_feature_off=<key>` closes named sub-features for this request, like a tenant that did not buy them.
+      // `mock_feature_off=<key>` closes named sub-features for this request, like a tenant that did not buy them;
+      // the gate spec turns `crm.import` off to test a plan without the import sub-feature.
       const off = featuresOffForRequest(req.headers.cookie)
       const without = keys => keys.filter(key => !off.includes(key))
       const closedPlatform = platform && off.length

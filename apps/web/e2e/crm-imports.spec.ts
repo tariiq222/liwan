@@ -8,7 +8,7 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 // Five data rows: three new, one whose phone the mock already holds (row 5) and one that is not a phone number (row 6).
 const LEADS_CSV = [
   'الاسم,الهاتف,البريد,ملاحظات',
-  'علي المالكي,0541112223,,',
+  'علي المالكي,0541112223,,اتصل بعد الظهر',
   'منى الغامدي,0542223334,mona@example.com,',
   'ياسر الشريف,0543334445,,',
   'أحمد مكرر,0501234567,,',
@@ -44,6 +44,7 @@ async function mapStandardColumns(page: Page) {
   await choose(page, 'name', 'الاسم')
   await choose(page, 'phone', 'الهاتف')
   await choose(page, 'email', 'البريد')
+  await choose(page, 'notes', 'ملاحظات')
   await choose(page, 'source', 'الموقع')
 }
 
@@ -74,6 +75,12 @@ test('upload, map, preview the counts, confirm and find the new records', async 
   await expect(page.getByRole('link', { name: 'منى الغامدي' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'ياسر الشريف' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'أحمد مكرر' })).toHaveCount(0)
+
+  // The mapped Notes column reaches the record: open an imported opportunity and read it there.
+  await page.goto('/crm/opportunities')
+  await page.getByRole('link', { name: 'علي المالكي' }).click()
+  await expect(page.locator('main h1')).toHaveText('علي المالكي')
+  await expect(page.getByTestId('crm-notes')).toContainText('اتصل بعد الظهر')
 
   await page.goto('/crm/imports')
   await expect(page.getByTestId('crm-import-batches')).toContainText('leads.csv')
@@ -182,4 +189,45 @@ test('the answers of the mock follow the contracts', async ({ page }) => {
   expect(created.ok()).toBe(true)
   const batches = await page.request.get('/api/v1/crm/imports')
   expect(CrmImportBatchListSchema.parse(await batches.json()).items[0]).toMatchObject({ created: 3, duplicate: 1, invalid: 1 })
+})
+
+test('without the crm.import feature the nav entry and the create command are hidden and the direct routes are refused', async ({ page, baseURL }) => {
+  // The mock drops crm.import from the identity of every request that carries this cookie, the server-side render included.
+  await page.context().addCookies([{ name: 'mock_feature_off', value: 'crm.import', url: baseURL! }])
+  await page.goto('/crm')
+  await expect(page.locator('main h1')).toHaveText('لوحة المتابعة')
+  const menu = page.getByTestId('application-navigation')
+  await expect(menu.locator('a[href="/crm/opportunities"]').first()).toBeVisible()
+  await expect(menu.locator('a[href="/crm/imports"]')).toHaveCount(0)
+
+  await page.getByRole('heading', { level: 1 }).click()
+  await page.keyboard.press('ControlOrMeta+k')
+  const palette = page.getByTestId('command-palette')
+  await expect(palette).toBeVisible()
+  // The palette lists only the first commands without a search term, so the command is looked up by name; a known command proves the search answers.
+  await palette.getByRole('textbox').fill('اجتماع جديد')
+  await expect(palette.getByRole('option', { name: 'اجتماع جديد', exact: true })).toBeVisible()
+  await palette.getByRole('textbox').fill('استيراد ملف')
+  await expect(palette.getByRole('option', { name: 'اجتماع جديد', exact: true })).toHaveCount(0)
+  await expect(palette.getByRole('option', { name: 'استيراد ملف', exact: true })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  for (const path of ['/crm/imports', '/crm/imports/new']) {
+    await page.goto(path)
+    // The route middleware refuses in place: the address stays and the page is the plan-denied 403 instead of the import screen.
+    await expect(page.locator('main h1'), path).toHaveText('هذه الصفحة غير متاحة في باقتك')
+    await expect(page.getByText('رمز الخطأ 403'), path).toBeVisible()
+    await expect(page.locator('input[type=file]'), path).toHaveCount(0)
+  }
+})
+
+test('with the crm.import feature the nav entry and the create command are shown', async ({ page }) => {
+  await page.goto('/crm')
+  await expect(page.getByTestId('application-navigation').locator('a[href="/crm/imports"]')).toBeVisible()
+  await page.getByRole('heading', { level: 1 }).click()
+  await page.keyboard.press('ControlOrMeta+k')
+  const palette = page.getByTestId('command-palette')
+  await expect(palette).toBeVisible()
+  await palette.getByRole('textbox').fill('استيراد ملف')
+  await expect(palette.getByRole('option', { name: 'استيراد ملف', exact: true })).toBeVisible()
 })
