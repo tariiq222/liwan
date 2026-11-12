@@ -3,7 +3,7 @@ from odoo import api, fields, models
 
 
 class LiwanInboxContact(models.Model):
-    """A customer of the company. Deliberately not a res.partner."""
+    """A person who writes to the company on a channel; once an action needs a customer, linked to one."""
     _name = 'liwan.inbox.contact'
     _description = 'Customer Messages contact'
     _order = 'name, id'
@@ -16,11 +16,35 @@ class LiwanInboxContact(models.Model):
     email = fields.Char()
     identity_ids = fields.One2many('liwan.inbox.contact.identity', 'contact_id')
     conversation_ids = fields.One2many('liwan.inbox.conversation', 'contact_id')
+    # The customer (a liwan_customers party) this contact is, linked the first time an action needs one.
+    partner_id = fields.Many2one('res.partner', ondelete='set null')
 
     @api.model
     def _liwan_phone_from_address(self, address):
         """E.164 form of a WhatsApp id (digits only)."""
         return '+' + address
+
+    def _liwan_customer(self, customer_id=None, create_new=False):
+        """The customer of this contact, resolved by liwan.customers.service as the caller and linked on first use.
+
+        A linked contact keeps its customer. Otherwise ``customer_id`` names an existing customer, ``create_new`` asks
+        for a new one, and without either a customer is made from the contact's name and phone unless customers with
+        that phone exist, which answers 409 ``conflict`` with them. A contact with no phone (TikTok) is made from its
+        name alone.
+        """
+        self.ensure_one()
+        if not self.partner_id:
+            service = self.env['liwan.customers.service']
+            values = None if customer_id is not None else self._liwan_customer_values()
+            self.partner_id = service._liwan_resolve(customer_id=customer_id, values=values, create_new=create_new)
+        return self.partner_id
+
+    def _liwan_customer_values(self):
+        """The identity of a new customer made from this contact; its phone in E.164, read as a channel address."""
+        values = {'name': self.name}
+        if self.phone:
+            values['phone'] = self.env['liwan.customers.service']._liwan_normalize_phone(self.phone, channel=True)
+        return values
 
 
 class LiwanInboxContactIdentity(models.Model):

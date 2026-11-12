@@ -2,7 +2,7 @@
 {
     'name': 'liwan Customer Messages and Payments',
     'summary': 'liwan platform: a Meta product catalog for WhatsApp, carts that become paid online orders',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

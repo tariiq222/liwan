@@ -210,11 +210,19 @@ def parse_order_patch(payload):
 
 
 def parse_checkout(payload):
-    """(template id or None, body or None) of a checkout body."""
-    check_fields_or_empty(payload, {'template_id', 'body'})
+    """(template id or None, body or None, customer id or None, create_new) of a checkout body.
+
+    ``customer_id`` names the existing customer of the contact and ``create_new`` asks for a new one; they answer a
+    customer conflict and exclude each other.
+    """
+    check_fields_or_empty(payload, {'template_id', 'body', 'customer_id', 'create_new'})
     template_id = parse_positive_int(payload['template_id'], 'template_id') if 'template_id' in payload else None
     body = parse_string(payload['body'], 'body', 1024) if 'body' in payload else None
-    return template_id, body
+    customer_id = parse_positive_int(payload['customer_id'], 'customer_id') if 'customer_id' in payload else None
+    create_new = parse_bool(payload['create_new'], 'create_new') if 'create_new' in payload else False
+    if customer_id is not None and 'create_new' in payload:
+        reject('customer_id and create_new exclude each other', 'create_new')
+    return template_id, body, customer_id, create_new
 
 
 def check_fields_or_empty(payload, allowed):

@@ -3,6 +3,7 @@ from datetime import timedelta
 
 # The purpose the inbox passes to liwan_core's secret_box: its HKDF info, so existing ciphertexts keep decrypting.
 SECRET_PURPOSE = 'liwan_inbox'
+INBOX_FEATURE = 'inbox.enabled'
 CHANNELS_LIMIT = 'inbox.channels'
 MESSAGES_OUT_LIMIT = 'inbox.messages_out'
 WHATSAPP_FEATURE = 'inbox.whatsapp'

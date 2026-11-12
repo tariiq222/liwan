@@ -171,12 +171,14 @@ class OrderController(http.Controller):
     @requires_feature('inbox.enabled', CATALOG_FEATURE, PAYMENTS_FEATURE, operation='write')
     @requires_capability(ORDERS_MANAGE)
     def checkout_order(self, order_id, **payload):
-        """Create the online order (once) and send its pay link; everything is undone when any step is refused."""
+        """Create the online order (once) for the contact's customer and send its pay link; everything is undone when
+        any step is refused. An unlinked contact whose phone matches customers answers 409 ``conflict`` with
+        ``details.candidates`` until the body names ``customer_id`` or sets ``create_new``."""
         order = get_order(order_id)
-        template_id, body = parse_checkout(payload)
+        template_id, body, customer_id, create_new = parse_checkout(payload)
         template = find_one('liwan.inbox.template', template_id, 'template_id') if template_id else None
         try:
-            message = order._liwan_checkout(template, body)
+            message = order._liwan_checkout(template, body, customer_id, create_new)
         except tuple(REFUSALS) as error:
             raise refusal(error) from error
         return {'order': dump_order(order), 'message_id': message.id}

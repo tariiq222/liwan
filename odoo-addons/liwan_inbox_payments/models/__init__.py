@@ -6,7 +6,7 @@ from . import (
     catalog_sync,
     channel,
     company,
-    contact,
+    customers_service,
     feature_registry,
     message,
     order,

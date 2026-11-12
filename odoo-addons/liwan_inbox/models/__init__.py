@@ -24,6 +24,7 @@ from . import (
     conversation_automation,
     conversation_cycle,
     cost_day,
+    customers_service,
     entitlement_service,
     event,
     feature_registry,

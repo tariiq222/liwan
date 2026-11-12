@@ -16,6 +16,12 @@ catalog button) and `inbox.orders.manage` (edit a cart, create the order, send t
   approved template with one `<origin>/pay/order/{{1}}` button after it). The order number is kept on the inbox order
   because agents hold no right on sale orders. Payment and cancellation reach the conversation through the
   `_action_confirm` and `_action_cancel` overrides of `sale.order`.
+- The order is placed for the contact's customer (`partner_id` on `liwan.inbox.contact`, owned by `liwan_inbox`). An
+  unlinked contact is resolved by `liwan.customers.service` as the agent: with no customer of the same phone one is
+  created from the contact's name and phone and linked; with candidates the checkout answers 409 `conflict` with
+  `details.candidates` (id, name, last four digits) until the body names `customer_id` or sets `create_new`. The
+  orders capability group implies `liwan_customers.group_customers_party_writer` and is registered as a pick
+  capability; no other partner right is granted.
 - The paid notice (`paid_notice_enabled`, `paid_notice_text` on the channel) is sent only inside the window.
 - Deleting a catalog is refused while any of its items is at Meta (or being sent or removed): unlist or delete the items
   and let the sync remove them first, so no item is left behind at Meta.
