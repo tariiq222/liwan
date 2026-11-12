@@ -61,8 +61,10 @@ async function mockAdmin(page: Page, options: { seats?: unknown; user?: ReturnTy
       if (Object.hasOwn(reads, path)) return route.fulfill(ok(reads[path]))
       return route.fulfill(refusal(404, 'not_found'))
     }
-    // A new account in a tenant at its user limit: the server's own refusal (the page shows its message, no seat copy of ours).
-    if (method === 'POST' && path === '/users' && options.fullTenant) return route.fulfill(refusal(403, 'feature_not_included', 'this limit has been reached'))
+    // A new account in a tenant at its user limit: the server's refusal names the limit, and the page words it from the locale.
+    if (method === 'POST' && path === '/users' && options.fullTenant) {
+      return route.fulfill(ok({ code: 'feature_not_included', message: 'this limit has been reached', details: { reason: 'limit', limit_key: 'users.limit' } }, 403))
+    }
     if (method === 'POST' && path === '/users') return route.fulfill(ok(pendingUser({ id: 30, name: 'خالد', login: 'khalid@example.com' }), 201))
     if (path === `/users/${user.id}/invitation/cancel`) return route.fulfill(ok(pendingUser({ active: false, invitation: null, allowed_actions: ['read', 'reactivate'] })))
     return route.fulfill(ok(user))
@@ -212,7 +214,7 @@ test.describe('the administrator screens', () => {
     const send = page.getByRole('button', { name: 'إرسال الدعوة', exact: true })
     await expect(send).toBeEnabled()
     await send.click()
-    await expect(page.getByRole('alert').filter({ hasText: 'this limit has been reached' })).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: 'بلغت الحد المسموح للمستخدمين في باقتك.' })).toBeVisible()
     expect(calls.map(call => `${call.method} ${call.path}`)).toEqual(['POST /users'])
     await page.unroute('**/api/v1/admin/**')
     await mockAdmin(page, { seats: { used: 3, limit: null, read_only: 0 } })
