@@ -6,8 +6,9 @@ from odoo import Command
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
+from .common import MANAGER_LOGIN, MANAGER_PASSWORD
 from .test_finance_partner_banks import VALID_IBAN
-from .write_common import INVOICES, PARTNERS, PASSWORD, LiwanFinanceWriteCase
+from .write_common import INVOICES, PARTNERS, PASSWORD, PAYMENTS, LiwanFinanceWriteCase
 from odoo.addons.liwan_core.models.protected_write import marked
 from odoo.addons.liwan_finance.models.res_partner import FINANCE_PARTNER_MARKER
 
@@ -102,6 +103,40 @@ class TestFinancePartnerParties(LiwanFinanceWriteCase):
         self.assertFalse(self.api('POST', f'{bank_route}/archive', json={}).json()['active'])
         archived = self.api('POST', f'{PARTNERS}/{partner.id}/archive', json={})
         self.assertEqual((archived.status_code, archived.json()['active']), (200, False), archived.text)
+
+    def _family(self, tag):
+        """A company party with one contact under it, made through the customers service."""
+        service = self.env['liwan.customers.service']
+        company = service._liwan_create({'name': f'Family {tag}', 'is_company': True, 'email': f'family.{tag}@example.test'})
+        contact = service._liwan_create({'name': f'Contact {tag}', 'parent_id': company.id, 'email': f'contact.{tag}@example.test'})
+        return company, contact
+
+    def _as_each_finance_manager(self):
+        """``(login, password)`` of a finance manager and of a system administrator who also manages finance."""
+        return ((MANAGER_LOGIN, MANAGER_PASSWORD), ('finance_party_admin', PASSWORD))
+
+    def test_an_invoice_of_a_party_contact_is_posted_and_paid(self):
+        for login, password in self._as_each_finance_manager():
+            with self.subTest(login=login):
+                self.authenticate(login, password)
+                company, contact = self._family(login)
+                invoice = self.posted_invoice(self.invoice_body(partner_id=contact.id))
+                paid = self.api('POST', PAYMENTS, json=self.pay_body([invoice]))
+                self.assertEqual(paid.status_code, 201, paid.text)
+                self.assertEqual(
+                    (company.name, company.email, contact.name, contact.email),
+                    (f'Family {login}', f'family.{login}@example.test', f'Contact {login}', f'contact.{login}@example.test'),
+                )
+                self.assertGreater(company.customer_rank, 0)
+
+    def test_an_address_edit_of_a_party_reaches_its_contact(self):
+        for login, password in self._as_each_finance_manager():
+            with self.subTest(login=login):
+                self.authenticate(login, password)
+                company, contact = self._family(login)
+                patched = self.api('PATCH', f'{PARTNERS}/{company.id}', json={'street': 'Olaya Street', 'city': 'Riyadh'})
+                self.assertEqual(patched.status_code, 200, patched.text)
+                self.assertEqual((contact.street, contact.city), ('Olaya Street', 'Riyadh'))
 
     def test_finance_code_cannot_write_a_party_name_outside_the_service(self):
         for user in (self.manager, self.admin):

@@ -43,6 +43,12 @@ describe('finance partner schemas', () => {
     expect(() => FinancePartnerCreateSchema.parse({})).toThrow()
   })
 
+  it('a partner name is at most 200 characters, as the customers service accepts', () => {
+    expect(FinancePartnerCreateSchema.parse({ name: 'N'.repeat(200) }).name).toHaveLength(200)
+    expect(() => FinancePartnerCreateSchema.parse({ name: 'N'.repeat(201) })).toThrow()
+    expect(() => FinancePartnerPatchSchema.parse({ name: 'N'.repeat(201) })).toThrow()
+  })
+
   it('a patch needs at least one known field', () => {
     expect(FinancePartnerPatchSchema.parse({ city: 'جدة' })).toEqual({ city: 'جدة' })
     expect(() => FinancePartnerPatchSchema.parse({})).toThrow()

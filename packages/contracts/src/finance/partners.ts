@@ -19,7 +19,8 @@ export const FinancePartnerSchema = z.object({
 export const FinancePartnerListSchema = list(FinancePartnerSchema)
 
 export const FinancePartnerCreateSchema = z.object({
-  name: text.trim().min(1),
+  // The customers service writes the name and accepts at most 200 characters.
+  name: text.trim().min(1).max(200),
   vat: text.optional(),
   company_registry: text.optional(),
   street: text.optional(),
