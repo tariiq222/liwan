@@ -4,6 +4,7 @@ import type { AdminUserDetail, CapabilitySource, EffectiveCapability, Permission
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { useAdminRoleDetails } from '@/composables/useAdminRoles'
 import { useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
+import RoleCheckboxes, { type RoleOption } from '@/components/access/users/RoleCheckboxes.vue'
 import CapabilityGroups from '@/components/access/users/CapabilityGroups.vue'
 import { permissionDiff } from '@/components/access/permissionDiff'
 import { builtinRoleDescription } from '@/utils/labelFallback'
@@ -51,12 +52,13 @@ const catalogMissing = computed(() => dirty.value && !props.permissionsLoading &
 const previewLoading = computed(() => dirty.value && (roleDetails.isFetching.value || !!props.permissionsLoading))
 const previewError = computed(() => dirty.value && (!!roleDetails.error.value || !!props.permissionsError || catalogMissing.value))
 const previewReady = computed(() => catalogReady.value && !props.permissionsLoading && !props.permissionsError && !roleDetails.isFetching.value && !roleDetails.error.value)
-function toggleRole(roleId: number, checked: boolean) {
-  const next = new Set(selectedRoleIds.value)
-  if (checked) next.add(roleId)
-  else next.delete(roleId)
-  draft.value.roleIds = [...next].sort((a, b) => a - b)
-}
+const roleOptions = computed<RoleOption[]>(() => props.roles.map((role) => ({
+  id: role.id,
+  name: role.name,
+  description: [roleDescription(role), t('access.roles.companyScope')],
+  warning: role.active ? undefined : t('access.roles.disabledExistingAssignments'),
+  disabled: (!role.active || !role.assignable) && !selectedRoleIds.value.includes(role.id),
+})))
 const retainedRoleCount = computed(() => selectedRoleIds.value.filter((id) => originalRoleIds.value.includes(id)).length)
 const addedRoleCount = computed(() => selectedRoleIds.value.filter((id) => !originalRoleIds.value.includes(id)).length)
 const removedRoleCount = computed(() => originalRoleIds.value.filter((id) => !selectedRoleIds.value.includes(id)).length)
@@ -111,24 +113,10 @@ async function saveAccess() {
 <template>
   <SharedSettingsCard id="user-access" v-bind="state" :title="t('access.users.rolesTitle')" :can-edit="canEdit" @save="saveAccess" @revert="revert" @reload="reload">
     <UAlert v-if="user.protected" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('access.protectedUser')" />
-    <fieldset :disabled="locked" class="grid min-w-0 gap-3">
-      <legend class="sr-only">{{ t('access.users.rolesTitle') }}</legend>
-      <UCheckbox
-        v-for="role in roles"
-        :key="role.id"
-        :model-value="selectedRoleIds.includes(role.id)"
-        :disabled="(!role.active || !role.assignable) && !selectedRoleIds.includes(role.id)"
-        @update:model-value="(value) => toggleRole(role.id, Boolean(value))"
-      >
-        <template #label><span class="font-medium">{{ roleLabel(role) }}</span></template>
-        <template #description>
-          <span class="block text-xs text-muted">{{ roleDescription(role) }}</span>
-          <span class="block text-xs text-muted">{{ t('access.roles.companyScope') }}</span>
-          <span v-if="!role.active" class="block text-xs text-warning">{{ t('access.roles.disabledExistingAssignments') }}</span>
-        </template>
-      </UCheckbox>
+    <div class="grid min-w-0 gap-3">
+      <RoleCheckboxes :model-value="selectedRoleIds" :roles="roleOptions" :legend="t('access.users.rolesTitle')" :disabled="locked" @update:model-value="draft.roleIds = [...$event].sort((a, b) => a - b)" />
       <UAlert v-if="dirty" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('access.users.assignmentDiff', { retained: retainedRoleCount, added: addedRoleCount, removed: removedRoleCount })" />
-    </fieldset>
+    </div>
     <section class="grid gap-2">
       <h3 class="text-sm font-medium text-highlighted">{{ t('access.users.currentCapabilities') }}</h3>
       <CapabilityGroups :capabilities="props.user.capabilities" :permissions="props.permissions" />

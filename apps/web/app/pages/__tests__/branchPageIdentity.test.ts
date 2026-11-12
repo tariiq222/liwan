@@ -29,6 +29,7 @@ function mountPage(delegation: boolean) {
     globals: { useMe: () => ({ me }), useRoute: () => ({ params: { userId: '9' } }), useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true) },
     modules: {
       '@/components/access/branches/BranchPolicyCard.vue': { __esModule: true, default: card },
+      '@/components/access/branches/BranchMembersCard.vue': { __esModule: true, default: Vue.defineComponent({ render: () => null }) },
       '@/components/access/branches/BranchPresetCard.vue': { __esModule: true, default: Vue.defineComponent({ render: () => null }) },
       '@/components/access/branches/UserBranchAccessCard.vue': { __esModule: true, default: card },
       '@/composables/useApi': { ApiError: class extends Error {} },
