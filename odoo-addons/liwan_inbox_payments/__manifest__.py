@@ -12,9 +12,9 @@
     # order, its expiry, payment and invoice. The bridge owns the link to the tenant's Meta commerce
     # catalog, the catalog items and their push to Meta, the public product image route, the minimal
     # editor of catalog products, the implementations of the inbox commerce hooks, and the carts that
-    # become online orders. sale (through payments) brings product and sale.order. liwan_customers: the
-    # orders capability implies its party writer group and the checkout resolves the customer through it.
-    'depends': ['liwan_inbox', 'liwan_payments', 'liwan_customers', 'sale'],
+    # become online orders. sale (through payments) brings product and sale.order. liwan_customers, whose
+    # party writer group the orders capability implies, comes through liwan_inbox: a bridge links two modules.
+    'depends': ['liwan_inbox', 'liwan_payments', 'sale'],
     'auto_install': ['liwan_inbox', 'liwan_payments'],
     'data': [
         'security/inbox_payments_capability_groups.xml',
