@@ -13607,6 +13607,9 @@
                   }
                 ]
               },
+              "notes": {
+                "type": "string"
+              },
               "package": {
                 "anyOf": [
                   {
@@ -13820,6 +13823,7 @@
               "contact_name",
               "phone",
               "email",
+              "notes",
               "stage",
               "user",
               "source",
@@ -15411,6 +15415,9 @@
                     }
                   ]
                 },
+                "notes": {
+                  "type": "string"
+                },
                 "package": {
                   "anyOf": [
                     {
@@ -15624,6 +15631,7 @@
                 "contact_name",
                 "phone",
                 "email",
+                "notes",
                 "stage",
                 "user",
                 "source",
@@ -15847,6 +15855,9 @@
               }
             ]
           },
+          "notes": {
+            "type": "string"
+          },
           "package": {
             "anyOf": [
               {
@@ -16060,6 +16071,7 @@
           "contact_name",
           "phone",
           "email",
+          "notes",
           "stage",
           "user",
           "source",
@@ -16611,6 +16623,16 @@
             ],
             "type": "object"
           },
+          "start_stage_mode": {
+            "items": {
+              "enum": [
+                "auto",
+                "stage"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
           "term_gender": {
             "items": {
               "enum": [
@@ -16656,6 +16678,7 @@
           "preset",
           "after_attempts",
           "distribution_mode",
+          "start_stage_mode",
           "visibility",
           "price_above_list",
           "term_gender",
@@ -16800,6 +16823,25 @@
                   },
                   "recycle_enabled": {
                     "type": "boolean"
+                  },
+                  "start_stage_id": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "start_stage_mode": {
+                    "enum": [
+                      "auto",
+                      "stage"
+                    ],
+                    "type": "string"
                   },
                   "terms": {
                     "additionalProperties": false,
@@ -17210,6 +17252,16 @@
                 ],
                 "type": "object"
               },
+              "start_stage_mode": {
+                "items": {
+                  "enum": [
+                    "auto",
+                    "stage"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "term_gender": {
                 "items": {
                   "enum": [
@@ -17255,6 +17307,7 @@
               "preset",
               "after_attempts",
               "distribution_mode",
+              "start_stage_mode",
               "visibility",
               "price_above_list",
               "term_gender",
@@ -17405,6 +17458,25 @@
               },
               "recycle_enabled": {
                 "type": "boolean"
+              },
+              "start_stage_id": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "start_stage_mode": {
+                "enum": [
+                  "auto",
+                  "stage"
+                ],
+                "type": "string"
               },
               "terms": {
                 "additionalProperties": false,
@@ -17616,6 +17688,8 @@
               "recycle_after_days",
               "recycle_cycles",
               "distribution_mode",
+              "start_stage_mode",
+              "start_stage_id",
               "distribution_user_ids",
               "visibility",
               "view_log_enabled",
@@ -17944,6 +18018,25 @@
           "recycle_enabled": {
             "type": "boolean"
           },
+          "start_stage_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_stage_mode": {
+            "enum": [
+              "auto",
+              "stage"
+            ],
+            "type": "string"
+          },
           "terms": {
             "additionalProperties": false,
             "properties": {
@@ -18236,6 +18329,25 @@
           "recycle_enabled": {
             "type": "boolean"
           },
+          "start_stage_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_stage_mode": {
+            "enum": [
+              "auto",
+              "stage"
+            ],
+            "type": "string"
+          },
           "terms": {
             "additionalProperties": false,
             "properties": {
@@ -18446,6 +18558,8 @@
           "recycle_after_days",
           "recycle_cycles",
           "distribution_mode",
+          "start_stage_mode",
+          "start_stage_id",
           "distribution_user_ids",
           "visibility",
           "view_log_enabled",
@@ -18623,6 +18737,14 @@
           "active"
         ],
         "type": "object"
+      },
+      "CrmStartStageModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "auto",
+          "stage"
+        ],
+        "type": "string"
       },
       "CrmTermLanguageSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
