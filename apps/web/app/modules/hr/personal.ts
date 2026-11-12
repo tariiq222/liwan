@@ -116,7 +116,7 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
         if (!await profile(api)) return missingEmployee(t)
         const [assignments, settings] = await Promise.all([
           api('/api/v1/hr/shifts/me', { schema: HrShiftAssignmentListSchema }),
-          api('/api/v1/hr/shifts/settings', { schema: HrShiftSettingsSchema }),
+          api('/api/v1/hr/shifts/settings', { query: { mine: '1' }, schema: HrShiftSettingsSchema }),
         ])
         const today = settings.today
         const upcoming = assignments.items.filter(item => !item.date_end || item.date_end >= today).sort((a, b) => (a.date_start ?? '').localeCompare(b.date_start ?? ''))

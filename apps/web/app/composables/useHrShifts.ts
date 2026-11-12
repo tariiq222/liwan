@@ -220,15 +220,19 @@ export function useDeleteHrShiftAssignment() {
   })
 }
 
-/** Current-company policy for employee readers and shift-policy managers. */
-export function useHrShiftSettings(enabled: MaybeRefOrGetter<boolean> = true) {
+/**
+ * Policy of the working company for employee readers and shift-policy managers. `mine` is the personal schedule's
+ * read: it is served from the home company, where the caller's shifts live, and needs only the personal capability.
+ */
+export function useHrShiftSettings(enabled: MaybeRefOrGetter<boolean> = true, options: { mine?: boolean } = {}) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
-  const { can } = useAccess()
+  const { can, canPersonal } = useAccess()
+  const mine = options.mine === true
   return useQuery({
-    queryKey: computed(() => [...hrShiftKeys.settings, identity.scope.value]),
-    enabled: computed(() => identity.ready.value && toValue(enabled) && (can('hr.employees.read') || can('hr.shifts.manage'))),
-    queryFn: () => $api('/api/v1/hr/shifts/settings', { schema: HrShiftSettingsSchema }),
+    queryKey: computed(() => mine ? [...hrShiftKeys.settings, identity.scope.value, 'mine'] : [...hrShiftKeys.settings, identity.scope.value]),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && (mine ? canPersonal('hr.employees.read') : can('hr.employees.read') || can('hr.shifts.manage'))),
+    queryFn: () => $api('/api/v1/hr/shifts/settings', { query: { mine: mine ? '1' : undefined }, schema: HrShiftSettingsSchema }),
   })
 }
 

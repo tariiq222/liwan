@@ -290,3 +290,96 @@ class TestPersonalRoutesFollowTheHomeCompany(WorkingCompanyCase):
         foreign = self.api('POST', f'/api/v1/hr/warnings/me/{self.warning_b.id}/acknowledge',
                            {'revision': self.warning_b.revision})
         self.assertEqual(foreign.status_code, 404, foreign.text)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestPersonalOnboardingStepsAndShiftSettings(WorkingCompanyCase):
+    """The own onboarding steps and the shift settings the personal schedule reads act in the home company."""
+
+    STEPS = '/api/v1/hr/self/onboarding-steps'
+    SETTINGS = '/api/v1/hr/shifts/settings'
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        use_hr_decision_path(cls)
+        manager_role = cls.env.ref('liwan_hr.role_hr_manager')
+        cls.hr_manager = cls._member('wc_hr_steps_manager', cls.branch_a, [cls.branch_a], {cls.branch_a: manager_role})
+        cls.env['hr.employee'].create({'name': 'Steps manager at A', 'user_id': cls.hr_manager.id, 'company_id': cls.branch_a.id})
+        # Homed in A with an HR role there; in B the account is a plain member with no HR role.
+        cls.roamer_hr = cls._member(
+            'wc_hr_settings_reader', cls.branch_a, [cls.branch_a, cls.branch_b], {cls.branch_a: manager_role},
+        )
+        # An HR manager of A who is itself being onboarded: a plain branch employee holds no read access to plan runs.
+        cls.newcomer = cls._member(
+            'wc_hr_newcomer', cls.branch_a, [cls.branch_a, cls.branch_b], {cls.branch_a: manager_role},
+        )
+        cls.newcomer_employee = cls.env['hr.employee'].create({
+            'name': 'Newcomer at A', 'user_id': cls.newcomer.id, 'company_id': cls.branch_a.id,
+        })
+        plan = cls.env['mail.activity.plan'].create({
+            'name': 'Steps plan A', 'res_model': 'hr.employee', 'hr_purpose': 'onboarding', 'company_id': cls.branch_a.id,
+        })
+        cls.env['mail.activity.plan.template'].create({
+            'plan_id': plan.id, 'summary': 'Sign the contract', 'activity_type_id': cls.env.ref('mail.mail_activity_data_todo').id,
+            'responsible_type': 'employee', 'delay_count': 0, 'delay_unit': 'days', 'delay_from': 'before_plan_date',
+        })
+        cls.plan = plan
+        cls.env['liwan.hr.shift.settings'].create({'company_id': cls.branch_a.id, 'day_reference': 'user'})
+
+    def setUp(self):
+        super().setUp()
+        for feature in ('hr.enabled', 'hr.onboarding', 'hr.shifts'):
+            set_hr_feature(self, feature)
+
+    def _launch_run(self):
+        self.sign_in('wc_hr_steps_manager')
+        launched = self.api('POST', '/api/v1/hr/onboarding/runs', json={
+            'employee_id': self.newcomer_employee.id, 'plan_id': self.plan.id,
+        })
+        self.assertEqual(launched.status_code, 201, launched.text)
+
+    def test_the_own_onboarding_steps_are_listed_and_finished_from_the_home_company(self):
+        self._launch_run()
+        self.sign_in('wc_hr_newcomer')
+        self.assertEqual(self.switch(self.branch_b).status_code, 200)
+        listed = self.api('GET', self.STEPS)
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual([item['summary'] for item in listed.json()['items']], ['Sign the contract'])
+        done = self.api('POST', f"{self.STEPS}/{listed.json()['items'][0]['id']}/done", json={})
+        self.assertEqual(done.status_code, 200, done.text)
+        self.assertEqual(self.api('GET', self.STEPS).json()['items'], [])
+        self.assertEqual(self.me()['company']['id'], self.branch_b.id)
+
+    def test_the_own_onboarding_steps_are_unchanged_in_the_home_company(self):
+        self._launch_run()
+        self.sign_in('wc_hr_newcomer')
+        listed = self.api('GET', self.STEPS)
+        self.assertEqual([item['summary'] for item in listed.json()['items']], ['Sign the contract'])
+        done = self.api('POST', f"{self.STEPS}/{listed.json()['items'][0]['id']}/done", json={})
+        self.assertEqual(done.status_code, 200, done.text)
+
+    def test_the_personal_shift_settings_are_the_home_company_ones_after_a_switch(self):
+        self.sign_in('wc_hr_settings_reader')
+        self.assertEqual(self.switch(self.branch_b).status_code, 200)
+        personal = self.api('GET', f'{self.SETTINGS}?mine=1')
+        self.assertEqual(personal.status_code, 200, personal.text)
+        self.assertEqual(personal.json()['day_reference'], 'user')
+        self.assertEqual(personal.json()['default_schedule']['id'], self.branch_a.resource_calendar_id.id)
+        refused = self.api('GET', self.SETTINGS)
+        self.assertEqual(refused.status_code, 403, refused.text)
+        self.assertEqual(self.me()['company']['id'], self.branch_b.id)
+
+    def test_both_shift_settings_reads_answer_the_same_at_home(self):
+        self.sign_in('wc_hr_settings_reader')
+        plain = self.api('GET', self.SETTINGS)
+        personal = self.api('GET', f'{self.SETTINGS}?mine=1')
+        self.assertEqual((plain.status_code, personal.status_code), (200, 200), plain.text)
+        self.assertEqual(plain.json(), personal.json())
+        self.assertEqual(plain.json()['day_reference'], 'user')
+
+    def test_the_settings_write_stays_in_the_working_company_even_with_the_marker(self):
+        self.sign_in('wc_hr_settings_reader')
+        self.assertEqual(self.switch(self.branch_b).status_code, 200)
+        refused = self.api('PATCH', f'{self.SETTINGS}?mine=1', {'day_reference': 'company', 'revision': 0})
+        self.assertEqual(refused.status_code, 403, refused.text)

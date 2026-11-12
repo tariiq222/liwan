@@ -3,7 +3,8 @@
 
 Whoever a step is assigned to (the new employee, their manager or coach) has no onboarding capability, so these
 routes serve the caller's own steps only: the runs a record rule lets them read, and of those the activities
-assigned to their user. Nothing else of the run or the employee is returned.
+assigned to their user. Nothing else of the run or the employee is returned. The steps belong to the person, so
+the routes act in the home company (``serves_own_data``), whatever company the session works in.
 """
 from odoo import http
 from odoo.http import request
@@ -14,6 +15,7 @@ from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
 from odoo.addons.liwan_hr.serializers.lifecycle.own_step import dump_own_step
 from odoo.addons.liwan_hr.serializers.lifecycle.run import parse_step_done
@@ -33,6 +35,7 @@ class HrOwnOnboardingStepController(http.Controller):
 
     @http.route('/api/v1/hr/self/onboarding-steps', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.onboarding', operation='read')
     @requires_capability('hr.employees.read')
     def list_own_steps(self, **_):
@@ -44,6 +47,7 @@ class HrOwnOnboardingStepController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.onboarding', operation='write')
     @requires_capability('hr.employees.read')
     def complete_own_step(self, activity_id, **payload):

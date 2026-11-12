@@ -32,6 +32,11 @@ def own_employee(*, public=False, required=False):
     return employee
 
 
+def asks_for_own_data(arguments):
+    """The ``serves_own_data`` predicate of a route that also serves other people: the client sends ``mine=1`` for the caller's own."""
+    return arguments.get('mine') == '1'
+
+
 def related_record(model, record_id, field):
     """A record a payload names (a manager, a department) among the current companies the caller may read.
 

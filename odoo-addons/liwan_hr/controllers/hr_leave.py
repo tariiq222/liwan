@@ -10,7 +10,7 @@ from odoo.exceptions import MissingError
 from odoo.fields import Domain
 from odoo.http import request
 
-from .common import own_employee
+from .common import asks_for_own_data, own_employee
 from odoo.addons.liwan_api.controllers.common import (
     OWN_DATA_CONTEXT,
     ApiError,
@@ -98,10 +98,6 @@ def _names_no_employee(arguments):
 def _requested_employee_id(arguments):
     """The employee a request names, or None when it names none: the one reading the predicates also use."""
     return None if _names_no_employee(arguments) else parse_positive_int(arguments['employee_id'], 'employee_id')
-
-
-def _asks_for_own_requests(arguments):
-    return arguments.get('mine') == '1'
 
 
 def _company_employee(employee_id):
@@ -205,7 +201,7 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/types', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @serves_own_data(_asks_for_own_requests)
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', operation='read')
     def list_leave_types(self, **_):
         _require('hr.leave.read')
@@ -232,7 +228,7 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/requests', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @serves_own_data(_asks_for_own_requests)
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', operation='read')
     def list_requests(self, **kwargs):
         _require('hr.leave.read')
@@ -252,7 +248,7 @@ class HrLeaveController(http.Controller):
         employee_id = _requested_employee_id(arguments)
         if employee_id is not None:
             domain.append(('employee_id', '=', employee_id))
-        if _asks_for_own_requests(arguments):
+        if asks_for_own_data(arguments):
             domain.append(('employee_id.user_id', '=', request.env.uid))
         Leave = request.env['hr.leave']
         leaves = Leave.search(domain, order='request_date_from desc, id desc', limit=limit, offset=offset)
@@ -262,7 +258,7 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @serves_own_data(_asks_for_own_requests)
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', operation='read')
     def get_request(self, leave_id):
         _require('hr.leave.read')
@@ -330,7 +326,7 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @serves_own_data(_asks_for_own_requests)
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', operation='write')
     @requires_capability('hr.leave.request', 'hr.leave.approve', match='any')
     def cancel_request(self, leave_id, **payload):

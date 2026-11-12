@@ -80,8 +80,10 @@ describe('personal schedule policy day', () => {
       { id: 2, employee: { id: 4, name: 'Sara' }, schedule: { id: 8, name: 'Expired' }, date_start: null, date_end: '2026-10-21' },
     ]
     const calls: string[] = []
+    const queries: Record<string, unknown> = {}
     const api = (async (path: string, options: any) => {
       calls.push(path)
+      queries[path] = options.query
       const data = path === '/api/v1/hr/me' ? employee : path.endsWith('/settings')
         ? { day_reference: 'company', company_timezone: 'Pacific/Honolulu', effective_timezone: 'Pacific/Honolulu', today, default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 0 }
         : { items: assignments, total: assignments.length }
@@ -89,6 +91,7 @@ describe('personal schedule policy day', () => {
     }) as import('../../types').AppSearchApi
     const summary = await manifest.personal!.find(entry => entry.section === 'schedule')!.summary!.load(api, translate)
     expect(calls).toContain('/api/v1/hr/shifts/settings')
+    expect(queries['/api/v1/hr/shifts/settings']).toEqual({ mine: '1' })
     expect(summary.rows?.map(row => row.label)).toEqual(['Ending today'])
   })
 })

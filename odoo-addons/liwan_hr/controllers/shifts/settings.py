@@ -9,7 +9,9 @@ from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
+from odoo.addons.liwan_hr.controllers.common import asks_for_own_data
 from odoo.addons.liwan_hr.serializers.shifts.settings import (
     dump_settings,
     parse_settings,
@@ -34,6 +36,7 @@ class HrShiftSettingsController(http.Controller):
 
     @http.route('/api/v1/hr/shifts/settings', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', 'hr.shifts', operation='read')
     @requires_capability('hr.employees.read', 'hr.shifts.manage', match='any')
     def get_settings(self, **_):
