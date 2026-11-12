@@ -123,7 +123,7 @@ function post(port, raw, signature) {
   })
 }
 
-/** One internal binding call, with the shared proxy token unless the test omits or replaces it.
+/** One internal binding call, with the relay token unless the test omits or replaces it.
  * Both methods name the caller's tenant; `body: null` sends no body at all. */
 async function bind(port, openId, { method = 'PUT', tenantId, token = PROXY_TOKEN, body = JSON.stringify({ tenant_id: tenantId }) } = {}) {
   const headers = { 'content-type': 'application/json' }
@@ -188,7 +188,7 @@ test('a valid delivery reaches the tenant unchanged and the answer waits for it'
     assert.deepEqual(forwarded.body, raw)
     assert.equal(forwarded.headers['tiktok-signature'], signature)
     assert.equal(forwarded.headers['content-type'], 'application/json')
-    // The public tenant hop never carries the shared proxy token or a registry revision: the shared
+    // The public tenant hop never carries the relay token or a registry revision: the shared
     // edge refuses any inbound X-Liwan-Proxy-Token (403), and the tenant's guard strips both on the
     // public hop anyway. The relay presents that secret only to its internal binding API.
     assert.equal(forwarded.headers['x-liwan-proxy-token'], undefined)

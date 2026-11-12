@@ -96,7 +96,9 @@ services:
       # codes with the platform app; a deployment without these keeps its own direct webhook, so an
       # empty value must render instead of stopping the stack.
       LIWAN_TIKTOK_RELAY_URL: ${LIWAN_TIKTOK_RELAY_URL:-http://tiktok-relay:8090}
-      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      # The relay's own token. Odoo never holds LIWAN_SHARED_PROXY_TOKEN, which makes the guard treat a caller as
+      # internal; Odoo needs only the relay's binding API. Empty leaves the relay unused (the connect still works).
+      LIWAN_TIKTOK_RELAY_TOKEN: ${LIWAN_TIKTOK_RELAY_TOKEN:-}
       LIWAN_TIKTOK_CLIENT_KEY: ${LIWAN_TIKTOK_CLIENT_KEY:-}
       LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:-}
       LIWAN_TIKTOK_REDIRECT_URI: ${LIWAN_TIKTOK_RELAY_HOST:+https://${LIWAN_TIKTOK_RELAY_HOST}/tiktok/oauth/callback}
@@ -163,7 +165,9 @@ services:
       # empty and the relay exits cleanly at start: `createTiktokRelay` refuses an empty secret by
       # design, so `start()` treats that one refusal as "this deployment runs no TikTok app".
       LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:-}
-      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      # Only Odoo holds the same value; the relay never sees the guard's LIWAN_SHARED_PROXY_TOKEN. A relay with an
+      # app secret refuses to start while this is shorter than 32 bytes.
+      LIWAN_TIKTOK_RELAY_TOKEN: ${LIWAN_TIKTOK_RELAY_TOKEN:-}
       LIWAN_TIKTOK_RELAY_PORT: "8090"
     volumes:
       - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
@@ -220,7 +224,7 @@ services:
     # No scheduled job runs against a recovered database: the validator refuses any other argument set.
     command: ["--max-cron-threads=0"]
     environment:
-      # No LIWAN_SHARED_PROXY_TOKEN: Odoo reads it only for the TikTok relay, which restore-odoo cannot reach, and the
+      # Without LIWAN_TIKTOK_RELAY_TOKEN here, on purpose. Odoo reads it only for the TikTok relay, which restore-odoo cannot reach, and a
       # live token must never sit in a service that opens restored customer data.
       LIWAN_TENANCY_MODE: shared
       # Marks this as the restore role: the validator then enforces `--max-cron-threads=0` and refuses anything else.

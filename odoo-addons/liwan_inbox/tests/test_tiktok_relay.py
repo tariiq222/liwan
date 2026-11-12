@@ -63,7 +63,7 @@ class TestTikTokRelay(LiwanInboxCase):
 
     def relay(self, url=RELAY_URL, token=PROXY_TOKEN):
         """The operator's relay configuration for one deployment, restored at the end of the test."""
-        return patch.dict(os.environ, {'LIWAN_TIKTOK_RELAY_URL': url, 'LIWAN_SHARED_PROXY_TOKEN': token})
+        return patch.dict(os.environ, {'LIWAN_TIKTOK_RELAY_URL': url, 'LIWAN_TIKTOK_RELAY_TOKEN': token})
 
     def grant(self, open_id=tt.BUSINESS_ID):
         now = fields.Datetime.now()
@@ -124,7 +124,7 @@ class TestTikTokRelay(LiwanInboxCase):
         request.assert_not_called()
         self.assertFalse(self.channels().tiktok_bound)
 
-    def test_a_relay_without_the_proxy_token_stays_unused(self):
+    def test_a_relay_without_its_token_stays_unused(self):
         channel = self.make_tiktok()
         with self.relay(token=''), patch.object(channel_tiktok.requests, 'request') as request:
             self.assertFalse(channel._liwan_tiktok_bind())
@@ -138,7 +138,7 @@ class TestTikTokRelay(LiwanInboxCase):
         self.assertFalse(self.channels())
         args, kwargs = request.call_args
         self.assertEqual(args, ('DELETE', f'{RELAY_URL}/internal/tiktok/bindings/{tt.BUSINESS_ID}'))
-        # The shared proxy token proves no tenant, so the unbind names this one, as the bind does.
+        # The relay token proves no tenant, so the unbind names this one, as the bind does.
         self.assertEqual(kwargs['json'], {'tenant_id': self.env.cr.dbname})
         self.assertNotIn(PROXY_TOKEN, str(kwargs['json']))
 

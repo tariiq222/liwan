@@ -145,7 +145,7 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
   const holdsProxyToken = value => equal(Buffer.from(proxyToken), Buffer.from(typeof value === 'string' ? value : ''))
 
   /** PUT/DELETE /internal/tiktok/bindings/<open_id>: the tenant's Odoo registers or removes the
-   * account it owns. The shared proxy token is the only caller identity; it proves no tenant, so
+   * account it owns. The relay token is the only caller identity; it proves no tenant, so
    * both methods carry the caller's tenant and resolve it in the active registry.
    *
    * A DELETE removes a binding only when it belongs to the caller's tenant. One held by another
@@ -271,13 +271,13 @@ function start() {
   }
   const port = Number(process.env.LIWAN_TIKTOK_RELAY_PORT ?? 8090)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw Error('invalid_relay_port')
-  if (Buffer.byteLength(process.env.LIWAN_SHARED_PROXY_TOKEN ?? '') < 32) throw Error('invalid_proxy_token')
+  if (Buffer.byteLength(process.env.LIWAN_TIKTOK_RELAY_TOKEN ?? '') < 32) throw Error('invalid_proxy_token')
   const bindingsPath = process.env.LIWAN_TIKTOK_BINDINGS_PATH
   const server = createTiktokRelay({
     clientSecret: process.env.LIWAN_TIKTOK_CLIENT_SECRET,
     registryPath: process.env.LIWAN_TENANT_REGISTRY_PATH,
     bindingsPath,
-    proxyToken: process.env.LIWAN_SHARED_PROXY_TOKEN,
+    proxyToken: process.env.LIWAN_TIKTOK_RELAY_TOKEN,
   })
   // Fail at start, not on the first delivery: an unreadable registry or bindings file is misconfiguration.
   readTenantRegistry(process.env.LIWAN_TENANT_REGISTRY_PATH)
