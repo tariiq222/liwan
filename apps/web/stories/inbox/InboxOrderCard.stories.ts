@@ -6,6 +6,14 @@ import { storyContext } from '../support/context'
 import { order, payment } from './inboxCommerceFixtures'
 
 const manage = http.get('/api/v1/me', () => HttpResponse.json({ ...me, capabilities: ['inbox.conversations.read', 'inbox.orders.manage'] }))
+const refuse = (status: number, body: object) => http.post('/api/v1/inbox/orders/:id/checkout', () => HttpResponse.json(body, { status }))
+const conflict = refuse(409, { code: 'conflict', message: 'customers with this phone exist', details: { candidates: [{ id: 41, name: 'منى العتيبي', phone_last4: '0003' }, { id: 42, name: 'منى سعد العتيبي', phone_last4: '0003' }] } })
+// The agent opens the checkout form and sends it; the server's answer decides what shows next.
+const sendCheckout = async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+  canvasElement.querySelector<HTMLButtonElement>('[data-testid="inbox-order-checkout"]')?.click()
+  await new Promise(resolve => setTimeout(resolve, 300))
+  canvasElement.querySelector<HTMLButtonElement>('[data-testid="inbox-order-checkout-submit"]')?.click()
+}
 const readOnly = http.get('/api/v1/me', () => HttpResponse.json({ ...me, capabilities: ['inbox.conversations.read'] }))
 
 const meta = {
@@ -44,3 +52,15 @@ export const NeedsAttention: Story = { args: { order: order({ state: 'ordered', 
 export const Dismissed: Story = { args: { order: order({ state: 'dismissed' }) } }
 export const ReadOnlyViewer: Story = { parameters: { msw: { handlers: { api: [readOnly] } } } }
 export const WithContext: Story = { args: { showContext: true } }
+export const CheckoutAsksWhichCustomer: Story = {
+  parameters: { msw: { handlers: { api: [manage, conflict] } } },
+  play: sendCheckout,
+}
+export const CheckoutCustomerGone: Story = {
+  parameters: { msw: { handlers: { api: [manage, refuse(404, { code: 'not_found', message: 'customer not found', field: 'customer_id' })] } } },
+  play: sendCheckout,
+}
+export const CheckoutInvalidPhone: Story = {
+  parameters: { msw: { handlers: { api: [manage, refuse(422, { code: 'invalid_phone', message: 'must be a valid phone number', field: 'phone' })] } } },
+  play: sendCheckout,
+}

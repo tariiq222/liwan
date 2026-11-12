@@ -1796,6 +1796,18 @@
       "noPayTemplate": "There is no approved template with a link button that ends in a variable. Create one from the channel's templates.",
       "payTemplate": "Pay link template",
       "linkSent": "Pay link sent",
+      "customer": {
+        "title": "Is this an existing customer?",
+        "description": "Customers with the same phone number as the contact already exist. Pick the right customer or create a new one, then the pay link is sent.",
+        "legend": "Matching customers",
+        "phoneEnds": "Phone ending in {last4}",
+        "noPhone": "No phone number",
+        "new": "New customer",
+        "newHint": "A new customer is created with these details.",
+        "confirm": "Continue",
+        "invalidPhone": "The contact's phone number is not valid. Pick an existing customer or correct the number, then try again.",
+        "notFound": "This customer is no longer available. Send again to see the matching customers."
+      },
       "quantityOf": "Quantity of {name}",
       "removeLine": "Remove {name}",
       "noLines": "No lines yet. Pick products from the catalog.",

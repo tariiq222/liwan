@@ -61,15 +61,20 @@ export const AppointmentBookingListQuerySchema = z.object({
   offset: z.number().int().nonnegative(),
 }).partial().strict()
 
-/** A new requester, created as a partner of the current company; phone and email follow the company's field policies. */
+/**
+ * A new requester, created as a customer of the current company; phone and email follow the company's field policies.
+ * The server checks the number (422 `invalid_phone`) and stores it as E.164, so the wire only bounds its length.
+ */
 export const AppointmentRequesterSchema = z.object({
   name: z.string().min(1).max(255),
-  phone: z.string().min(5).max(32).regex(/^\+?[0-9 ()-]+$/).nullable(),
+  phone: z.string().min(1).max(32).nullable(),
   email: z.string().max(255).nullable(),
 }).partial({ phone: true, email: true }).strict()
 
 /**
- * POST /appointments/bookings: exactly one of `requester_id` (an existing partner) and `requester`. `national_id` and
+ * POST /appointments/bookings: exactly one of `requester_id` (an existing customer) and `requester`. An inline requester
+ * whose phone matches customers answers 409 `conflict` (`CustomerConflictDetailsSchema` in `details`) until the body names
+ * one in `requester_id` or sets `create_new` (never together with `requester_id`). `national_id` and
  * `notes` and `visit_reason_id` follow the company's field policies. Without `start` the booking is pending; with it,
  * scheduled. `walk_in: true` (only while the company allows walk-ins) schedules it now, confirmed and arrived, and
  * excludes `start`.
@@ -79,6 +84,7 @@ export const AppointmentBookingCreateSchema = z.object({
   combination_id: positiveId,
   requester_id: positiveId,
   requester: AppointmentRequesterSchema,
+  create_new: z.boolean(),
   national_id: z.string().max(32).nullable(),
   notes: z.string().max(2000).nullable(),
   start: utcTimestamp,
@@ -90,6 +96,9 @@ export const AppointmentBookingCreateSchema = z.object({
 ).refine(
   body => !(body.walk_in && body.start !== undefined),
   { message: 'a walk-in starts now', path: ['start'] },
+).refine(
+  body => !(body.create_new !== undefined && body.requester_id !== undefined),
+  { message: 'requester_id and create_new exclude each other', path: ['create_new'] },
 )
 
 /** PATCH /appointments/bookings/{id}: the visit reason; null clears it unless the company requires one. */

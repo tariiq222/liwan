@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { InboxMessageCommerce, InboxTemplate } from '@liwan/contracts'
 import {
-  COMMERCE_LIMITS, addDraftSection, buildCommerceContent, cartLineRows, commerceProblem, commerceProductCount, commerceToDraft, emptyCommerceDraft, expiryCountdown, formatInboxMoney,
+  COMMERCE_LIMITS, addDraftSection, customerChoiceBody, customerConflict, buildCommerceContent, cartLineRows, commerceProblem, commerceProductCount, commerceToDraft, emptyCommerceDraft, expiryCountdown, formatInboxMoney,
   imageProblem, isPayLinkTemplate, linesTotal, normalizeCommerceDraft, orderBadge, orderLineRows, pickedIds, removeDraftSection, rowsTotal, toggleDraftProduct,
 } from '../inboxCommerce'
 
@@ -143,5 +143,24 @@ describe('pay-link templates', () => {
     expect(isPayLinkTemplate(template({ buttons: [url('https://x.test/a/{{1}}')] }))).toBe(false)
     expect(isPayLinkTemplate(template({ buttons: [url('https://x.test/pay/order/1')] }))).toBe(false)
     expect(isPayLinkTemplate(template({ supported: false, buttons: [url('https://x.test/pay/order/{{1}}')] }))).toBe(false)
+  })
+})
+
+describe('the customer step of a checkout', () => {
+  const candidates = [{ id: 5, name: 'منى', phone_last4: '0003' }]
+  const conflict = (details: unknown, status = 409, code = 'conflict') => Object.assign(new Error('x'), { status, code, details })
+
+  it('reads the candidates of a 409 conflict and nothing else', () => {
+    expect(customerConflict(conflict({ candidates }))).toEqual(candidates)
+    expect(customerConflict(conflict({ candidates: [] }))).toBeNull()
+    expect(customerConflict(conflict({ candidates }, 422, 'invalid'))).toBeNull()
+    expect(customerConflict(conflict({ candidates }, 409, 'order_locked'))).toBeNull()
+    expect(customerConflict(conflict(undefined))).toBeNull()
+    expect(customerConflict('boom')).toBeNull()
+  })
+
+  it('turns the choice into the checkout keys', () => {
+    expect(customerChoiceBody('new')).toEqual({ create_new: true })
+    expect(customerChoiceBody('5')).toEqual({ customer_id: 5 })
   })
 })

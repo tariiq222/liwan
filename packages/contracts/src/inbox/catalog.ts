@@ -401,10 +401,17 @@ export const InboxOrderPatchSchema = z.object({
 
 // Create the online order (once) and send its pay link: a link button inside the window, or `template_id` (an
 // approved template whose one url button ends in a variable after `<origin>/pay/order/`) once it has closed.
+// A contact with no customer whose phone matches customers answers 409 `conflict` (`CustomerConflictDetailsSchema`
+// in `details`) until the body names `customer_id` (use that customer) or sets `create_new`; never both.
 export const InboxOrderCheckoutSchema = z.object({
   template_id: Id.optional(),
   body: Body.optional(),
-}).strict()
+  customer_id: Id.optional(),
+  create_new: z.boolean().optional(),
+}).strict().refine(
+  body => body.customer_id === undefined || body.create_new === undefined,
+  { message: 'customer_id and create_new exclude each other', path: ['create_new'] },
+)
 
 export const InboxOrderCheckoutResultSchema = z.object({
   order: InboxOrderSchema,

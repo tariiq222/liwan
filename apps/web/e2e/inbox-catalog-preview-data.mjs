@@ -47,6 +47,11 @@ export function seedCatalog() {
     // Channel id -> Meta's commerce switches of that number.
     commerce: new Map([[1, { ...DEFAULT_COMMERCE }]]),
     orders: [],
+    // Contact id -> the customers whose phone matches a contact that is not yet linked to a customer: its first checkout
+    // answers 409 with them until the body names one or asks for a new customer. A contact whose stored phone does not
+    // validate answers 422 `invalid_phone` unless the body names a customer. Both end once the contact is linked.
+    candidates: new Map([[3, [{ id: 41, name: 'منى العتيبي', phone_last4: '0003' }, { id: 42, name: 'منى سعد العتيبي', phone_last4: '0003' }]]]),
+    invalidPhoneContacts: new Set([4]),
     // Item id -> when it was queued for Meta; the push cron is simulated by settleItems.
     queued: new Map(),
     ids: { catalog: 2, item: 7, order: 1, line: 1, reference: 12, product: 300 },
@@ -380,6 +385,25 @@ function buildLines(state, order, requested) {
 
 const WINDOW_OPEN = conv => !!conv.reply_window_ends_at && Date.parse(conv.reply_window_ends_at) > Date.now()
 
+/** What the customers service answers before an order is created: a refusal, or null once the contact's customer is settled. */
+function resolveCustomer(state, contactId, body) {
+  if (body.customer_id !== undefined && body.create_new !== undefined) return fail(422, 'invalid', 'customer_id and create_new exclude each other', 'create_new')
+  const candidates = state.catalog.candidates.get(contactId)
+  if (body.customer_id !== undefined) {
+    if (candidates && !candidates.some(candidate => candidate.id === body.customer_id)) return fail(404, 'not_found', 'customer not found', 'customer_id')
+    state.catalog.candidates.delete(contactId)
+    state.catalog.invalidPhoneContacts.delete(contactId)
+    return null
+  }
+  if (state.catalog.invalidPhoneContacts.has(contactId)) return fail(422, 'invalid_phone', 'must be a valid phone number', 'phone')
+  if (!candidates) return null
+  if (body.create_new === true) {
+    state.catalog.candidates.delete(contactId)
+    return null
+  }
+  return { status: 409, body: { code: 'conflict', message: 'customers with this phone exist', details: { candidates } } }
+}
+
 function checkout(state, order, body, ctx) {
   const conv = state.conversations.find(item => item.id === order.conversation_id)
   if (order.state === 'dismissed') return fail(409, 'order_locked', 'السلة متجاهَلة')
@@ -392,6 +416,8 @@ function checkout(state, order, body, ctx) {
     if (!template || template.status !== 'approved' || !template.buttons.some(button => button.type === 'url' && button.url.includes('/pay/order/') && button.url.endsWith('{{1}}'))) return fail(422, 'invalid', 'القالب لا يصلح لرابط الدفع', 'template_id')
   }
   if (order.state === 'cart') {
+    const refusal = resolveCustomer(state, conv.contact.id, body)
+    if (refusal) return refusal
     order.state = 'ordered'
     order.reference = `S${String(state.catalog.ids.reference++).padStart(5, '0')}`
     order.payment = { status: 'payable', refund_due: false, needs_attention: false, currency: 'SAR', amount_total: 0, amount_due: 0, expires_at: iso(Date.now() + HOUR) }

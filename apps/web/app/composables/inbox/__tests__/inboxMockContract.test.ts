@@ -11,7 +11,7 @@ import {
   InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxCatalogProductOptionListSchema,
   InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
   InboxTikTokConnectResponseSchema, InboxTikTokShortcutEnableResultSchema, InboxTikTokShortcutListSchema, InboxTikTokSyncAnswerSchema,
-  InboxEventListSchema, InboxEventSchema,
+  InboxEventListSchema, InboxEventSchema, ApiErrorSchema, CustomerConflictDetailsSchema,
 } from '@liwan/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -625,6 +625,35 @@ describe('inbox audit mock: catalog and orders', () => {
     expect(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, {}).body).toMatchObject({ code: 'window_closed' })
     expect(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, { template_id: 1 }).body).toMatchObject({ field: 'template_id' })
     expect(InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, { template_id: 8 }).body).order.state).toBe('ordered')
+  })
+
+  it('asks which customer an unlinked contact is, and creates nothing until the agent says', () => {
+    const made = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/3/orders', { lines: [{ catalog_item_id: 1, quantity: 1 }] }).body)
+    const path = `/api/v1/inbox/orders/${made.id}/checkout`
+    const conflict = call('POST', path, {})
+    expect(conflict.status).toBe(409)
+    const error = ApiErrorSchema.parse(conflict.body)
+    expect(error.code).toBe('conflict')
+    expect(CustomerConflictDetailsSchema.parse(error.details).candidates.map(candidate => candidate.id)).toEqual([41, 42])
+    expect(InboxOrderSchema.parse(call('GET', `/api/v1/inbox/orders/${made.id}`).body).state).toBe('cart')
+    expect(call('POST', path, { customer_id: 41, create_new: true }).status).toBe(422)
+    expect(call('POST', path, { customer_id: 99 }).status).toBe(404)
+    expect(InboxOrderCheckoutResultSchema.parse(call('POST', path, { customer_id: 42 }).body).order.state).toBe('ordered')
+  })
+
+  it('lets the agent ask for a new customer, and asks nothing of a contact that is linked afterwards', () => {
+    const first = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/3/orders', { lines: [{ catalog_item_id: 1, quantity: 1 }] }).body)
+    expect(InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${first.id}/checkout`, { create_new: true }).body).order.state).toBe('ordered')
+    const second = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/3/orders', { lines: [{ catalog_item_id: 2, quantity: 1 }] }).body)
+    expect(InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${second.id}/checkout`, {}).body).order.state).toBe('ordered')
+  })
+
+  it('refuses a contact whose stored phone is invalid unless the agent names a customer', () => {
+    const made = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/4/orders', { lines: [{ catalog_item_id: 1, quantity: 1 }] }).body)
+    const path = `/api/v1/inbox/orders/${made.id}/checkout`
+    expect(call('POST', path, {}).body).toMatchObject({ code: 'invalid_phone' })
+    expect(call('POST', path, { create_new: true }).status).toBe(422)
+    expect(InboxOrderCheckoutResultSchema.parse(call('POST', path, { customer_id: 7 }).body).order.state).toBe('ordered')
   })
 
   it('dismisses a cart, cancels an unpaid order, and receives a customer cart', () => {
