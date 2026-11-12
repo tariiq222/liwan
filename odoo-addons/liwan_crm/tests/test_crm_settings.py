@@ -342,6 +342,15 @@ class TestCrmSettings(LiwanCrmCase):
         with self.assertRaises(UniqueViolation), mute_logger('odoo.sql_db'), self.cr.savepoint():
             self.env['liwan.crm.settings'].create({'company_id': self.company.id})
 
+    def test_a_mode_only_patch_to_automatic_clears_the_chosen_stage(self):
+        contacted = self.env.ref('liwan_crm.stage_contacted')
+        self.env['liwan.crm.settings'].create({'company_id': self.company.id, 'start_stage_id': contacted.id})
+        row = self._rows()
+        self.assertEqual((row.start_stage_mode, row.start_stage_id), ('stage', contacted))
+        row.write({'start_stage_mode': 'auto'})
+        self.assertEqual(row.start_stage_id, self.env['crm.stage'], 'the stage is cleared with the mode')
+        self.assertEqual(row.start_stage_mode, 'auto')
+
     def test_a_preset_leaves_the_start_stage_choice_untouched(self):
         contacted = self.env.ref('liwan_crm.stage_contacted')
         self.env['liwan.crm.settings'].create({'company_id': self.company.id, 'start_stage_id': contacted.id})

@@ -233,6 +233,9 @@ class LiwanCrmSettings(models.Model):
 
     def write(self, vals):
         self.env.cr.cache.pop(TERM_MEMO, None)
+        # Switching to `auto` alone clears the stage: the pair is one fact, and the card resubmits both.
+        if vals.get('start_stage_mode') == 'auto' and 'start_stage_id' not in vals:
+            vals = {**vals, 'start_stage_id': False}
         rows = super().write(vals)
         if 'start_stage_id' in vals and 'start_stage_mode' not in vals:
             for row in self:

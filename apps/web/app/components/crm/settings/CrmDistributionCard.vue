@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CrmSettings } from '@liwan/contracts'
 import { useCrmSettingsCard } from '@/composables/crm/useCrmSettingsCard'
-import { useCrmStageChoices } from '@/composables/crm/useCrmLists'
+import { useCrmStages } from '@/composables/crm/useCrmLists'
 
 const props = defineProps<{ settings: CrmSettings; canEdit: boolean; reloadSettings: () => Promise<CrmSettings> }>()
 const { t } = useI18n()
@@ -36,7 +36,7 @@ const startModeItems = computed(() => [
 // The active open stages, from the same choices the record page's stage selector reads; a chosen
 // stage the company later archives or marks as won is refused by the server on the next save, and
 // the legacy rule takes over at runtime until then.
-const stages = useCrmStageChoices()
+const stages = useCrmStages()
 const stageItems = computed(() => (stages.data.value?.items ?? [])
   .filter(stage => stage.active && !stage.is_won)
   .map(stage => ({ value: stage.id, label: stage.name })))
