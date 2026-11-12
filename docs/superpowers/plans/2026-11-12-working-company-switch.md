@@ -1,6 +1,6 @@
 # Working company switch implementation plan
 
-> One branch in the main checkout, `api-working-company-switch`, and one pull request: the server, the contract and the web client change together. The change touches the session and authorization, so it takes the full path: an implementer per layer, a tester, and a reviewer separate from both. Built on that branch on 2026-11-12 and not pushed; the boxes below record what was done and what was not.
+> One branch in the main checkout, `api-working-company-switch`, and one pull request: the server, the contract and the web client change together. The change touches the session and authorization, so it takes the full path: an implementer per layer, a tester, and a reviewer separate from both. Built on that branch on 2026-11-12; the boxes below record what was done and what was not.
 
 ## Goal
 
@@ -55,7 +55,7 @@ Owner: one implementer, after the contract commit. Files: `apps/web/app/**`, `ap
 
 - [x] The tester ran the suites on the integrated revision and mapped each line of the spec's section 7 to its tests; the mock stack part is the open box above.
 - [x] The reviewer reads the diff against `REVIEW.md`, with attention to any path that reaches `env.company` before the pin, any personal route left on the working company, and any cache or socket that keeps the old company.
-- [x] The coordinator rechecked both and committed locally. Push, pull request and merge wait for the owner's words.
+- [x] The coordinator rechecked both and committed locally. The owner gave the word to publish on 2026-11-12.
 
 ## Found while building
 

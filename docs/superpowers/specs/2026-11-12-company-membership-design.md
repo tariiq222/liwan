@@ -1,6 +1,6 @@
 # Company membership design
 
-Status: the owner approved the decisions in section 2 on 2026-11-12, the last two after they came out of reading the code. It is built on the local branch `api-working-company-switch` and not pushed or merged; the plan records what was verified and what was not.
+Status: the owner approved the decisions in section 2 on 2026-11-12, the last two after they came out of reading the code. It is built on the branch `api-working-company-switch`; the plan records what was verified and what was not.
 
 [2026-11-12-working-company-switch-design.md](2026-11-12-working-company-switch-design.md) lets a session work in any company the user is a member of. This file adds the missing half: how a user becomes a member of a second company. Without it the switch has nobody to serve. The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch-access-policy-design.md)) keeps deciding what a member may do; this design creates and removes memberships and grants nothing else.
 

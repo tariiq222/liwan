@@ -1,6 +1,6 @@
 # Working company switch design
 
-Status: the owner asked for this design and approved the decisions in section 2 on 2026-11-12. It is built on the local branch `api-working-company-switch` and not pushed or merged; the plan records what was verified. One thing keeps it out of users' reach: no product path gives a user a second company (section 8).
+Status: the owner asked for this design and approved the decisions in section 2 on 2026-11-12. It is built on the branch `api-working-company-switch`, together with the [company membership](2026-11-12-company-membership-design.md) that gives a user a second company (section 8); the plan records what was verified.
 
 The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch-access-policy-design.md)) owns who may act in which company. This file adds one thing on top of it: how a person who belongs to several companies of a tenant chooses the one they are working in. It changes no capability and no policy mode. [2026-11-11-customers-and-catalog-foundation-design.md](2026-11-11-customers-and-catalog-foundation-design.md) depends on it, because "the branch that created the customer" is the working company of the user.
 

@@ -1,6 +1,6 @@
 # Company membership implementation plan
 
-> Built on the branch `api-working-company-switch`, after the working company switch it depends on: the switch has nobody to serve without it, so the two land in one pull request. The change is authorization, so it takes the full path: an implementer per layer, a tester, and a reviewer separate from both. Built on that branch on 2026-11-12 and not pushed; the boxes below record what was done and what was not.
+> Built on the branch `api-working-company-switch`, after the working company switch it depends on: the switch has nobody to serve without it, so the two land in one pull request. The change is authorization, so it takes the full path: an implementer per layer, a tester, and a reviewer separate from both. Built on that branch on 2026-11-12; the boxes below record what was done and what was not.
 
 ## Goal
 
@@ -56,7 +56,7 @@ Owner: one implementer, after the contract is committed. Files: `apps/web/app/**
 
 - [x] The tester runs the suites on the integrated revision and maps each line of the spec's section 5 to its tests.
 - [x] The reviewer reads the diff against `REVIEW.md`, with attention to any way to add an account of another tenant, to gain a capability through a membership, to remove a home company, or to learn about accounts without typing their full email.
-- [x] The coordinator rechecked both and committed locally. Push, pull request and merge wait for the owner's words.
+- [x] The coordinator rechecked both and committed locally. The owner gave the word to publish on 2026-11-12.
 - [ ] A run of the whole flow in a browser against a server: invite an existing account, confirm, switch company, act there, remove. Not done; the screens were checked one by one in Storybook only.
 
 ## Verified on `494dbee58`, clean tree
@@ -65,6 +65,7 @@ Owner: one implementer, after the contract is committed. Files: `apps/web/app/**
 - Web: `vue-tsc` clean, 710 files and 6468 tests passed.
 - `npm test` exit 0; contracts 968 tests and `tsc` clean; the six policy gates pass.
 - `tools/api_surface.py --check` reports the generated `docs/api/*` stale, as it must on a task branch.
+- After merging `main` again (`21264c4dd`): the six policy gates, `npm test`, the web type check and the same twelve addons (3778 tests, 0 failed) passed. With the pre-push fix below the twelve addons ran once more: 3779 tests, 0 failed, 0 errors.
 
 ## Found while building
 
@@ -72,4 +73,5 @@ Owner: one implementer, after the contract is committed. Files: `apps/web/app/**
 - `main` brought the self-grant policy during the build. The membership rows are created elevated, where that check stands down, so a root administrator could give themselves a role beyond the system administrator set. The check now runs in the caller's environment first.
 - Reading the root company's policy from a branch worked on `main` only because an earlier read had warmed the record cache. The policy values now have their own documented read.
 - `liwan_operations` failed to submit a request when a candidate reviewer belonged to a company the requester could not see. Fixed in two places without `sudo()`.
+- The pre-push review found that the root path answered `already_member` for an archived, pending or unmanaged account homed in the named branch. Only an account homed in the working company, or an addable one, is confirmed now; the test failed first.
 - An unmanaged legacy account cannot be added: its first assignment would mark it managed and drop the group capabilities it has in its home company. The session fixing AUDIT-022 is removing that legacy path; when it lands, this rule and its test go.
