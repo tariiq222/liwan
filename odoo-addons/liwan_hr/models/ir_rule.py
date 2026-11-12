@@ -49,6 +49,9 @@ class LiwanHrIrRule(models.Model):
         if (model_name in PAYSLIP_PATHS and mode == 'read' and not self.env.su
                 and not self.env.user.has_group('base.group_system')):
             domain &= self._liwan_payslip_read_fence(PAYSLIP_PATHS[model_name])
+        if model_name == 'liwan.hr.plan.run' and mode == 'read' and not self.env.su \
+                and not self.env.user.has_group('base.group_system'):
+            domain &= self._liwan_plan_run_read_fence()
         if model_name == 'liwan.hr.warning' and mode == 'read' and not self.env.su \
                 and not self.env.user.has_group('base.group_system'):
             domain &= self._liwan_warning_read_fence()
@@ -67,6 +70,23 @@ class LiwanHrIrRule(models.Model):
             domain &= (self.env['liwan.hr.leave.cancellation']._liwan_visibility_domain()
                        & Domain('leave_id', 'in', self.env['hr.leave']._search([])))
         return domain
+
+    @api.model
+    def _liwan_plan_run_read_fence(self):
+        """The area readers read the runs of their purpose in their own companies; a person reads the runs of their steps.
+
+        The area read groups and the employees-read group are unioned across companies, so the native rules alone
+        would let an onboarding reader of one company read every run of another company where they only read
+        employees. The own branch needs no company list: the base fence already limits the companies to those
+        where an ACL group of the model is projected.
+        """
+        service = self.env['liwan.access.service']
+        onboarding = service._liwan_operation_capability_company_ids('hr.onboarding.read')
+        offboarding = service._liwan_operation_capability_company_ids('hr.offboarding.read')
+        return ((Domain('hr_purpose', '=', 'onboarding') & Domain('company_id', 'in', onboarding))
+                | (Domain('hr_purpose', '=', 'offboarding') & Domain('company_id', 'in', offboarding))
+                | (Domain('hr_purpose', '=', 'onboarding')
+                   & (Domain('employee_user_id', '=', self.env.uid) | Domain('assignee_ids', 'in', [self.env.uid]))))
 
     @api.model
     def _liwan_warning_read_fence(self):
