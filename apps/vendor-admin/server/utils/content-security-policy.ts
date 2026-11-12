@@ -27,7 +27,8 @@ export function contentSecurityPolicy(nonce: string): string {
   ].join('; ')
 }
 
-/** Adds the nonce to every <script> opening tag of one rendered HTML chunk. */
+/** Adds the nonce to every <script> opening tag of one rendered HTML chunk. Nuxt escapes `<` inside its
+ * payload and config scripts, so a match is always a real tag; a hand-written inline script must do the same. */
 export function nonceScripts(chunk: string, nonce: string): string {
   return chunk.replace(/<script(?=[\s>])/gi, `<script nonce="${nonce}"`)
 }
