@@ -311,6 +311,15 @@ describe('AppointmentBooking schemas', () => {
     for (const bad of ['+' + '1'.repeat(32), '']) expect(() => create(bad)).toThrow()
   })
 
+  it('a requester name is at most 200 characters and an email at most 254, as the customers service accepts', () => {
+    const create = (requester: Record<string, string>) => AppointmentBookingCreateSchema.parse({ type_id: 1, requester })
+    expect(create({ name: 'N'.repeat(200) }).requester?.name).toHaveLength(200)
+    expect(() => create({ name: 'N'.repeat(201) })).toThrow()
+    const email = (length: number) => 'a'.repeat(length - '@example.com'.length) + '@example.com'
+    expect(create({ name: 'Sara', email: email(254) }).requester?.email).toHaveLength(254)
+    expect(() => create({ name: 'Sara', email: email(255) })).toThrow()
+  })
+
   it('create_new asks for a new customer when the phone matches, and excludes requester_id', () => {
     const inline = { type_id: 1, requester: { name: 'Sara', phone: '+966501234567' } }
     expect(AppointmentBookingCreateSchema.parse({ ...inline, create_new: true }).create_new).toBe(true)

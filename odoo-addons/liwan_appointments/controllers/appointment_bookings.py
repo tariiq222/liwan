@@ -31,6 +31,7 @@ from odoo.addons.liwan_appointments.models.resource_booking import (
     ATTENDANCE_TRANSITIONS,
 )
 from odoo.addons.liwan_appointments.serializers.appointment_booking import (
+    REQUESTER_FIELDS,
     booking_values,
     check_partner_contact,
     dump_booking,
@@ -295,15 +296,16 @@ class AppointmentBookingController(http.Controller):
 
         A new requester whose phone matches customers answers 409 ``conflict`` with ``details.candidates`` until the
         request names one in ``requester_id`` or sets ``create_new``. A ``requester_id`` that is no visible party
-        answers 422 ``invalid`` on ``requester_id``, and an invalid phone 422 ``invalid_phone`` on ``requester.phone``.
+        answers 422 ``invalid`` on ``requester_id``; the service's 422 on a requester value (``invalid_phone`` on the
+        phone, ``invalid`` on the name or the email) is answered on that value of the form, ``requester.<field>``.
         """
         service = request.env['liwan.customers.service']
         if parsed['requester_id'] is None:
             try:
                 return service._liwan_resolve(values=requester_values(parsed), create_new=parsed['create_new'])
             except LiwanAccessRule as error:
-                if error.code == 'invalid_phone':
-                    raise ApiError(422, 'invalid_phone', 'must be a valid phone number', field='requester.phone') from error
+                if error.status == 422 and error.field in REQUESTER_FIELDS:
+                    raise ApiError(422, error.code, error.message, field=f'requester.{error.field}') from error
                 raise
         try:
             partner = service._liwan_resolve(customer_id=parsed['requester_id'])

@@ -103,6 +103,14 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         self._error(self._create(self._sara(requester={'phone': '12'})), 422, 'invalid_phone', 'requester.phone')
         self.assertEqual(self.env['res.partner'].search_count([('name', '=', 'Sara Ali')]), count)
 
+    def test_the_services_refusal_of_a_name_or_an_email_names_the_form_field(self):
+        self._login()
+        long_email = '%s@example.com' % ('a' * 243)
+        self._error(self._create(self._sara(requester={'name': 'N' * 201})), 422, 'invalid', 'requester.name')
+        self._error(self._create(self._sara(requester={'email': long_email})), 422, 'invalid', 'requester.email')
+        accepted = self._create(self._sara(requester={'name': 'N' * 200}))
+        self.assertEqual(accepted.status_code, 200, accepted.text)
+
     def test_a_second_requester_with_the_same_phone_is_a_conflict_that_names_the_candidates(self):
         self._login()
         first = self._create(self._sara(create_new=False)).json()
@@ -175,6 +183,38 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         self.assertTrue(self.booking._liwan_confirms_on_schedule())
         self._settings(requester_confirmation=True)
         self.assertFalse(self.booking._liwan_confirms_on_schedule())
+
+    def test_a_party_requester_is_booked_scheduled_and_confirmed_with_its_meeting(self):
+        """The calendar side effects of a booking leave the party's identity alone, for a booker and an administrator."""
+        role = self.env['liwan.access.role'].create({
+            'name_ar': 'حجز المدير', 'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([
+                ('key', 'in', ('appointments.bookings.read', 'appointments.bookings.write')),
+            ]).ids)],
+        })
+        admin = new_test_user(
+            self.env, login='appointments_admin', password='appointments_admin_pass_123', name='Appointments admin',
+            groups='liwan_core.group_employee',
+        )
+        self.env['liwan.access.service']._liwan_replace_assignments(admin, [
+            {'role_id': self.env.ref(xmlid).id, 'company_id': self.env.company.id}
+            for xmlid in ('liwan_core.role_employee', 'liwan_core.role_system_admin')
+        ] + [{'role_id': role.id, 'company_id': self.env.company.id}])
+        self._settings(requester_confirmation=True)
+        for login in ('booker', 'admin'):
+            with self.subTest(login=login):
+                customer = self._customer(f'Party {login}', '+96650000002%d' % len(login), email=f'{login}@example.test')
+                self.env.flush_all()
+                self._login(login)
+                created = self._create({'requester_id': customer.id, 'start': self._slots()[0]})
+                self.assertEqual((created.status_code, created.json()['state']), (200, 'scheduled'), created.text)
+                confirmed = self.api('POST', '%s/%d/confirm' % (BOOKINGS, created.json()['id']))
+                self.assertEqual((confirmed.status_code, confirmed.json()['state']), (200, 'confirmed'), confirmed.text)
+                booking = self.env['resource.booking'].browse(created.json()['id'])
+                self.assertIn(customer, booking.meeting_id.partner_ids)
+                self.assertEqual(
+                    (customer.name, customer.email, customer.liwan_party), (f'Party {login}', f'{login}@example.test', True),
+                )
 
     def test_create_with_an_existing_requester_and_a_chosen_combination(self):
         self._login()

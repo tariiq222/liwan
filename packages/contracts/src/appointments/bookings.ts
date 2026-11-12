@@ -63,12 +63,13 @@ export const AppointmentBookingListQuerySchema = z.object({
 
 /**
  * A new requester, created as a customer of the current company; phone and email follow the company's field policies.
- * The server checks the number (422 `invalid_phone`) and stores it as E.164, so the wire only bounds its length.
+ * The server checks the number (422 `invalid_phone`) and stores it as E.164, so the wire only bounds its length. The
+ * name and email limits are the customers service's.
  */
 export const AppointmentRequesterSchema = z.object({
-  name: z.string().min(1).max(255),
+  name: z.string().min(1).max(200),
   phone: z.string().min(1).max(32).nullable(),
-  email: z.string().max(255).nullable(),
+  email: z.string().max(254).nullable(),
 }).partial({ phone: true, email: true }).strict()
 
 /**
