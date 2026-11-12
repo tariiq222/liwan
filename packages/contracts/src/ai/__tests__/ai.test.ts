@@ -165,10 +165,14 @@ describe('LiwanOS AI usage contracts', () => {
 
   it('batches 1 to 64 records and answers with the stored rows', () => {
     expect(AI_USAGE_BATCH_MAX).toBe(64)
-    expect(AiUsageBatchSchema.parse({ items: [record] }).items).toHaveLength(1)
-    expect(() => AiUsageBatchSchema.parse({ items: [] })).toThrow()
-    expect(() => AiUsageBatchSchema.parse({ items: Array.from({ length: 65 }, () => record) })).toThrow()
-    expect(AiUsageBatchSchema.parse({ items: Array.from({ length: 64 }, () => record) }).items).toHaveLength(64)
+    expect(AiUsageBatchSchema.parse({ user_company_id: 3, items: [record] }).items).toHaveLength(1)
+    expect(() => AiUsageBatchSchema.parse({ user_company_id: 3, items: [] })).toThrow()
+    expect(() => AiUsageBatchSchema.parse({ user_company_id: 3, items: Array.from({ length: 65 }, () => record) })).toThrow()
+    expect(AiUsageBatchSchema.parse({ user_company_id: 3, items: Array.from({ length: 64 }, () => record) }).items).toHaveLength(64)
+    // The batch names the company the run started in: required, a positive integer, and nothing else rides along.
+    expect(() => AiUsageBatchSchema.parse({ items: [record] })).toThrow()
+    for (const user_company_id of [0, -1, 1.5, '3', null, true]) expect(() => AiUsageBatchSchema.parse({ user_company_id, items: [record] }), String(user_company_id)).toThrow()
+    expect(() => AiUsageBatchSchema.parse({ user_company_id: 3, company_id: 3, items: [record] })).toThrow()
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: '' })).toThrow()
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: 'x'.repeat(65) })).toThrow()
     // The provider attempt's own id is what Odoo deduplicates a re-sent batch on (issue #557).

@@ -14,8 +14,10 @@ const ledgerEvent = (session: string) => ({ node: { req: { headers: { cookie: `s
 /** A request carrying a whole cookie jar, for when another cookie rides along with the session. */
 const cookieEvent = (cookie: string) => ({ node: { req: { headers: { cookie } } } }) as unknown as H3Event
 const event = ledgerEvent('plain')
+/** The run every flush reports for unless a test says otherwise: it started in company 1. */
+const RUN = { owner: { user: '7' }, company: '1' }
 /** A flush that observed nothing is the retry trigger for the rows an earlier refused report left behind. */
-const retried = (session: H3Event) => createUsageLedger().flush(session, 'r_retry')
+const retried = (session: H3Event) => createUsageLedger().flush(session, 'r_retry', RUN)
 const sent = () => odooJson.mock.calls.map(([, , , options]) => options as { body: { items: Record<string, unknown>[] }; signal: unknown })
 const logged = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.map(call => call[0])
 
@@ -57,7 +59,7 @@ describe('usage ledger', () => {
     ledger.observe('model_call', callEvent('c3', { kind: 'title' }))
     ledger.observe('model_usage', usageEvent('c3', { input_tokens: 20, output_tokens: 3 }))
     ledger.endStream()
-    await ledger.flush(event, 'r_1')
+    await ledger.flush(event, 'r_1', RUN)
     expect(odooJson).toHaveBeenCalledTimes(1)
     const [, method, path] = odooJson.mock.calls[0]!
     expect([method, path]).toEqual(['POST', '/api/v1/ai/usage'])
@@ -74,12 +76,12 @@ describe('usage ledger', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     ledger.observe('model_call', callEvent('a1'))
     ledger.observe('model_usage', usageEvent('a1', { cost: null, charge: 5 }))
-    await ledger.flush(event, 'r_bad')
+    await ledger.flush(event, 'r_bad', RUN)
     expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', cost: null, charge: null })])
   })
 
   it('strips cost and charge on the cookie path, which Odoo refuses from a session', async () => {
-    await ledgerOf(2).flush(ledgerEvent('cookie-cost'), 'r_cookie')
+    await ledgerOf(2).flush(ledgerEvent('cookie-cost'), 'r_cookie', RUN)
     expect(sent()[0]!.body.items.map(item => [item.cost, item.charge])).toEqual([[null, null], [null, null]])
   })
 
@@ -92,7 +94,7 @@ describe('usage ledger', () => {
     // Issue #557: the retry carries the same `call_id`, so Odoo's unique (user, conversation, call) index settles it.
     const session = ledgerEvent('resent')
     odooJson.mockRejectedValueOnce(new TypeError('answer never arrived'))
-    await ledgerOf(2).flush(session, 'r_resent')
+    await ledgerOf(2).flush(session, 'r_resent', RUN)
     expect(sent()[0]!.body.items.map(item => item.call_id)).toEqual(['0000000000000000', '0000000000000001'])
 
     advance(RETRY_AFTER_MS + 1)
@@ -106,7 +108,7 @@ describe('usage ledger', () => {
     const ledger = createUsageLedger()
     ledger.observe('model_call', callEvent('a1'))
     ledger.endStream()
-    await ledger.flush(event, 'r_1')
+    await ledger.flush(event, 'r_1', RUN)
     expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', input_tokens: null, output_tokens: null })])
   })
 
@@ -120,7 +122,7 @@ describe('usage ledger', () => {
     const ledger = createUsageLedger()
     expect(ledger.observe(name, callEvent('a1', patch))).toBe(true)
     ledger.endStream()
-    await ledger.flush(event, 'r_1')
+    await ledger.flush(event, 'r_1', RUN)
     expect(odooJson).not.toHaveBeenCalled()
     expect(spy.mock.calls.map(call => call[0])).toEqual(['[liwan-ai] skipped a malformed model_call event: MalformedUsageEvent'])
   })
@@ -134,7 +136,7 @@ describe('usage ledger', () => {
     const ledger = createUsageLedger()
     ledger.observe('model_call', callEvent('a1'))
     expect(ledger.observe('model_usage', usageEvent('a1', patch))).toBe(true)
-    await ledger.flush(event, 'r_1')
+    await ledger.flush(event, 'r_1', RUN)
     expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', input_tokens: null, output_tokens: null })])
   })
 
@@ -147,7 +149,7 @@ describe('usage ledger', () => {
     ledger.observe('model_usage', usageEvent('a1'))
     ledger.observe('model_usage', usageEvent('a1', { outcome: 'failed' }))
     ledger.endStream()
-    await ledger.flush(event, 'r_1')
+    await ledger.flush(event, 'r_1', RUN)
     expect(spy).toHaveBeenCalledTimes(3)
     expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ kind: 'plan', outcome: 'ok', input_tokens: 120 })])
   })
@@ -159,7 +161,7 @@ describe('usage ledger', () => {
       ledger.observe('model_call', callEvent(id))
       ledger.observe('model_usage', usageEvent(id))
     }
-    await ledger.flush(event, 'r_1')
+    await ledger.flush(event, 'r_1', RUN)
     expect(sent().map(call => call.body.items.length)).toEqual([64, 6])
     expect(sent().every(call => call.signal === null)).toBe(true)
     sent().forEach(call => AiUsageBatchSchema.parse(call.body))
@@ -167,13 +169,13 @@ describe('usage ledger', () => {
 
   it('sends nothing when no call was reported, and only once', async () => {
     const empty = createUsageLedger()
-    await empty.flush(event, 'r_1')
+    await empty.flush(event, 'r_1', RUN)
     expect(odooJson).not.toHaveBeenCalled()
     const ledger = createUsageLedger()
     ledger.observe('model_call', callEvent('a1'))
     ledger.endStream()
-    await ledger.flush(event, 'r_1')
-    await ledger.flush(event, 'r_1')
+    await ledger.flush(event, 'r_1', RUN)
+    await ledger.flush(event, 'r_1', RUN)
     expect(odooJson).toHaveBeenCalledTimes(1)
   })
 
@@ -183,12 +185,12 @@ describe('usage ledger', () => {
     const failing = createUsageLedger()
     failing.observe('model_call', callEvent('a1'))
     failing.endStream()
-    await expect(failing.flush(ledgerEvent('failed'), 'r_1')).resolves.toBeUndefined()
+    await expect(failing.flush(ledgerEvent('failed'), 'r_1', RUN)).resolves.toBeUndefined()
     odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom', message: 'secret detail from odoo' } })
     const refused = createUsageLedger()
     refused.observe('model_call', callEvent('b2'))
     refused.endStream()
-    await expect(refused.flush(ledgerEvent('refused'), 'r_1')).resolves.toBeUndefined()
+    await expect(refused.flush(ledgerEvent('refused'), 'r_1', RUN)).resolves.toBeUndefined()
     expect(spy.mock.calls.map(call => call[0])).toEqual([
       '[liwan-ai] usage report of 1 rows failed: TypeError', '[liwan-ai] usage report of 1 rows failed: UsageRefused',
     ])
@@ -201,18 +203,18 @@ describe('usage spool', () => {
     const session = ledgerEvent('refused-then-retried')
     odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom', message: 'secret detail from odoo' } })
     const refused = ledgerOf(1)
-    await refused.flush(session, 'r_a')
+    await refused.flush(session, 'r_a', RUN)
     expect(conversations(sent()[0]!)).toEqual(['r_a'])
 
     // A refused batch is due again after the retry window: a flush inside it reports only its own rows.
     const next = ledgerOf(1, 1)
-    await next.flush(session, 'r_b')
+    await next.flush(session, 'r_b', RUN)
     expect(sent().map(conversations)).toEqual([['r_a'], ['r_b']])
 
     // The next flush past the window carries what the refused one left behind first, then its own rows.
     advance(RETRY_AFTER_MS + 1)
     const later = ledgerOf(1, 2)
-    await later.flush(session, 'r_c')
+    await later.flush(session, 'r_c', RUN)
     expect(sent().map(conversations)).toEqual([['r_a'], ['r_b'], ['r_a', 'r_c']])
     expect(sent()[2]!.signal).toBeNull()
 
@@ -225,10 +227,10 @@ describe('usage spool', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const timedOut = ledgerEvent('timed-out')
     odooJson.mockRejectedValueOnce(new TypeError('secret detail from odoo'))
-    await ledgerOf(2).flush(timedOut, 'r_timeout')
+    await ledgerOf(2).flush(timedOut, 'r_timeout', RUN)
     const ended = ledgerEvent('ended-session')
     odooJson.mockResolvedValueOnce({ status: 401, body: { code: 'unauthorized', message: 'no session' } })
-    await ledgerOf(3).flush(ended, 'r_ended')
+    await ledgerOf(3).flush(ended, 'r_ended', RUN)
     expect(logged(spy)).toEqual([
       '[liwan-ai] usage report of 2 rows failed: TypeError',
       '[liwan-ai] usage report of 3 rows failed: UsageRefused',
@@ -248,7 +250,7 @@ describe('usage spool', () => {
     // Nine sessions at their own bound (256) hold 2304 rows, so the process bound is what drops the oldest 256.
     const sessions = Array.from({ length: 9 }, (_, index) => ledgerEvent(`bounded-${index}`))
     odooJson.mockResolvedValue({ status: 500, body: { code: 'boom' } })
-    for (const session of sessions) await ledgerOf(256).flush(session, 'r_bound')
+    for (const session of sessions) await ledgerOf(256).flush(session, 'r_bound', RUN)
     expect(logged(spy)).toContain('[liwan-ai] dropped 256 usage rows over the 2048-row spool bound: UsageSpoolOverflow')
     expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|claude-sonnet|r_bound|secret detail/)
 
@@ -269,11 +271,11 @@ describe('usage spool', () => {
     const quiet = ledgerEvent('quiet-tenant')
     const busy = ledgerEvent('busy-tenant')
     odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(2).flush(quiet, 'r_quiet')
+    await ledgerOf(2).flush(quiet, 'r_quiet', RUN)
 
     // The busy session reports far more than its own bound; only its own rows are dropped, oldest first.
     odooJson.mockResolvedValue({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(400).flush(busy, 'r_busy')
+    await ledgerOf(400).flush(busy, 'r_busy', RUN)
     expect(logged(spy)).toEqual([
       '[liwan-ai] usage report of 2 rows failed: UsageRefused',
       '[liwan-ai] dropped 144 usage rows of one session over the 256-row bound: UsageSessionOverflow',
@@ -295,7 +297,7 @@ describe('usage spool', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const anonymous = { node: { req: { headers: {} } } } as unknown as H3Event
     odooJson.mockRejectedValueOnce(new TypeError('answer never arrived'))
-    await expect(ledgerOf(3).flush(anonymous, 'r_anonymous')).resolves.toBeUndefined()
+    await expect(ledgerOf(3).flush(anonymous, 'r_anonymous', RUN)).resolves.toBeUndefined()
     expect(odooJson).not.toHaveBeenCalled()
     expect(logged(spy)).toEqual(['[liwan-ai] dropped 3 usage rows of a request with no session: UsageUnattributed'])
     expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|claude-sonnet|r_anonymous/)
@@ -310,7 +312,7 @@ describe('usage spool', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const session = ledgerEvent('aged')
     odooJson.mockResolvedValueOnce({ status: 403, body: { code: 'forbidden', message: 'no' } })
-    await ledgerOf(2).flush(session, 'r_aged')
+    await ledgerOf(2).flush(session, 'r_aged', RUN)
     spy.mockClear()
     advance(60 * 60 * 1000 + 1)
     await retried(session)
@@ -323,11 +325,11 @@ describe('usage spool', () => {
     const mine = ledgerEvent('owning-session')
     const other = ledgerEvent('another-session')
     odooJson.mockResolvedValueOnce({ status: 403, body: { code: 'forbidden', message: 'no' } })
-    await ledgerOf(1).flush(mine, 'r_mine')
+    await ledgerOf(1).flush(mine, 'r_mine', RUN)
     expect(sent()).toHaveLength(1)
 
     advance(RETRY_AFTER_MS + 1)
-    await ledgerOf(1, 1).flush(other, 'r_other')
+    await ledgerOf(1, 1).flush(other, 'r_other', RUN)
     expect(sent().map(conversations)).toEqual([['r_mine'], ['r_other']])
 
     await retried(mine)
@@ -337,15 +339,15 @@ describe('usage spool', () => {
   it('makes a flush that observed nothing a retry trigger for the rows an earlier refusal left behind', async () => {
     const session = ledgerEvent('quiet-run')
     odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(1).flush(session, 'r_failed')
+    await ledgerOf(1).flush(session, 'r_failed', RUN)
     expect(sent()).toHaveLength(1)
 
     advance(RETRY_AFTER_MS + 1)
-    await createUsageLedger().flush(session, 'r_quiet')
+    await createUsageLedger().flush(session, 'r_quiet', RUN)
     expect(sent().map(conversations)).toEqual([['r_failed'], ['r_failed']])
 
     // Accepted, so the spool is empty and the next run reports only its own rows.
-    await ledgerOf(1, 1).flush(session, 'r_loud')
+    await ledgerOf(1, 1).flush(session, 'r_loud', RUN)
     expect(sent().map(conversations)).toEqual([['r_failed'], ['r_failed'], ['r_loud']])
   })
 
@@ -354,7 +356,7 @@ describe('usage spool', () => {
     const arabic = cookieEvent('session_id=s1; liwan-locale=ar')
     const english = cookieEvent('session_id=s1; liwan-locale=en')
     odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(1).flush(arabic, 'r_locale')
+    await ledgerOf(1).flush(arabic, 'r_locale', RUN)
     expect(sent().map(conversations)).toEqual([['r_locale']])
 
     advance(RETRY_AFTER_MS + 1)
@@ -367,7 +369,7 @@ describe('usage spool', () => {
     const first = cookieEvent('session_id=s3')
     const second = cookieEvent('session_id=s4')
     odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(1).flush(first, 'r_first')
+    await ledgerOf(1).flush(first, 'r_first', RUN)
 
     advance(RETRY_AFTER_MS + 1)
     await retried(second)
@@ -378,7 +380,7 @@ describe('usage spool', () => {
     // `relay` chains `flush` last and nobody awaits it: a throw here would be an unhandled rejection on the server.
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const hostile = { get node(): never { throw new Error('secret request detail') } } as unknown as H3Event
-    await expect(ledgerOf(1).flush(hostile, 'r_1')).resolves.toBeUndefined()
+    await expect(ledgerOf(1).flush(hostile, 'r_1', RUN)).resolves.toBeUndefined()
     expect(JSON.stringify(spy.mock.calls)).not.toContain('secret request detail')
     spy.mockRestore()
   })
@@ -387,9 +389,9 @@ describe('usage spool', () => {
     const session = ledgerEvent('concurrent')
     let release!: () => void
     odooJson.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve({ status: 200, body: { items: [], total: 0 } }) }))
-    const first = ledgerOf(1).flush(session, 'r_one')
+    const first = ledgerOf(1).flush(session, 'r_one', RUN)
     await Promise.resolve()
-    const second = ledgerOf(1, 1).flush(session, 'r_two')
+    const second = ledgerOf(1, 1).flush(session, 'r_two', RUN)
     await Promise.resolve()
     expect(sent()).toHaveLength(1) // the second report waits for the first to settle
     release()
@@ -652,10 +654,65 @@ describe('usage ledger reporting with the recorder key', () => {
     expect(odooJson).toHaveBeenCalledTimes(3)
     expect(logged(spy)).toEqual(['[liwan-ai] LIWAN_AI_USAGE_KEY is set but is not an Odoo API key; reporting usage as the user instead: UsageKeyMalformed'])
   })
+})
 
-  it('without the run\'s user the session path is the only one (a caller that passes none)', async () => {
-    await ledgerOf(1, 800).flush(ledgerEvent('legacy-caller'), 'r_legacy')
-    expect(odooServiceUsageJson).not.toHaveBeenCalled()
-    expect(odooJson).toHaveBeenCalledTimes(1)
+/** A finished run is recorded in the company it started in: a later company switch of the session must not move or refuse it. */
+describe('usage ledger reporting with the session, per company', () => {
+  const runIn = (company: string) => ({ owner: { user: '7' }, company })
+  const bodies = () => odooJson.mock.calls.map(([, , , options]) => options as { body: { user_company_id: number; items: Record<string, unknown>[] }; signal: unknown; statesCompany: boolean })
+
+  it('names the company the run started in and states no company precondition', async () => {
+    await ledgerOf(2).flush(ledgerEvent('named-company'), 'r_named', runIn('4'))
+    expect(bodies()).toHaveLength(1)
+    const [{ body, signal, statesCompany }] = bodies() as [ReturnType<typeof bodies>[number]]
+    expect(AiUsageBatchSchema.parse(body).user_company_id).toBe(4)
+    expect(Object.keys(body).sort()).toEqual(['items', 'user_company_id'])
+    expect([signal, statesCompany]).toEqual([null, false])
+  })
+
+  it('reports two runs of one session that started in different companies as two requests, in order, each naming its own', async () => {
+    const session = ledgerEvent('two-companies')
+    odooJson.mockResolvedValueOnce({ status: 500, body: {} })
+    await ledgerOf(1).flush(session, 'r_home', runIn('4'))
+    advance(RETRY_AFTER_MS + 1)
+    await ledgerOf(1, 1).flush(session, 'r_branch', runIn('9'))
+    await ledgerOf(1, 2).flush(session, 'r_branch2', runIn('9'))
+    const calls = bodies()
+    expect(calls.map(call => [call.body.user_company_id, conversations(call)])).toEqual([
+      [4, ['r_home']], [4, ['r_home']], [9, ['r_branch']], [9, ['r_branch2']],
+    ])
+  })
+
+  it('keeps the rows of a company Odoo refuses and still reports the rows of another company', async () => {
+    const session = ledgerEvent('refused-company')
+    // The caller left company 4 after the run: Odoo refuses every batch that names it and accepts the others.
+    odooJson.mockImplementation(async (_event: unknown, _method: unknown, _path: unknown, options: { body: { user_company_id: number } }) => options.body.user_company_id === 4
+      ? { status: 422, body: { field: 'user_company_id' } }
+      : { status: 200, body: { items: [], total: 0 } })
+    await ledgerOf(1).flush(session, 'r_left', runIn('4'))
+    advance(RETRY_AFTER_MS + 1)
+    await ledgerOf(1, 1).flush(session, 'r_home', runIn('9'))
+    expect(bodies().map(call => [call.body.user_company_id, conversations(call)])).toEqual([[4, ['r_left']], [4, ['r_left']], [9, ['r_home']]])
+    // The refused rows wait for the next retry window; the accepted ones left the spool.
+    advance(RETRY_AFTER_MS + 1)
+    await retried(session)
+    expect(bodies().slice(3).map(call => [call.body.user_company_id, conversations(call)])).toEqual([[4, ['r_left']]])
+  })
+
+  it('defers the later rows of a company behind its failed batch, so one company is never reported out of order in a flush', async () => {
+    const session = ledgerEvent('ordered-company')
+    odooJson.mockResolvedValueOnce({ status: 500, body: {} })
+    await ledgerOf(70).flush(session, 'r_long', runIn('4'))
+    expect(bodies().map(call => call.body.items.length)).toEqual([64])
+    advance(RETRY_AFTER_MS + 1)
+    await retried(session)
+    expect(bodies().slice(1).map(call => call.body.items.length)).toEqual([64, 6])
+  })
+
+  it('drops a run with an unusable company by count and sends nothing', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    for (const company of ['', 'abc', '0', '-1', '4;9', '1.5']) await ledgerOf(1, 40).flush(ledgerEvent('no-company'), 'r_none', runIn(company))
+    expect(odooJson).not.toHaveBeenCalled()
+    expect(logged(spy)).toEqual(Array(6).fill('[liwan-ai] dropped 1 usage rows of a run with no usable company: UsageOwnerInvalid'))
   })
 })

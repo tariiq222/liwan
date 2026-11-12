@@ -197,7 +197,12 @@ const AiUsageFields = {
 /** One provider attempt as `POST /api/v1/ai/usage` records it. */
 export const AiUsageRecordSchema = z.object(AiUsageFields).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS).refine(pricedByBilling, PRICED_BY_BILLING)
 export type AiUsageRecord = z.infer<typeof AiUsageRecordSchema>
-export const AiUsageBatchSchema = z.object({ items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX) }).strict()
+/**
+ * One batch as `POST /api/v1/ai/usage` records it, reported with the user's own session after a run ended. The session may work
+ * in another company by then, so the batch names the company the run started in (`user_company_id`, the field name of the
+ * service route): Odoo records the rows there for the caller, who must belong to it and hold `ai.use` in it.
+ */
+export const AiUsageBatchSchema = z.object({ user_company_id: z.number().int().positive(), items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX) }).strict()
 export type AiUsageBatch = z.infer<typeof AiUsageBatchSchema>
 /**
  * The same batch as `POST /api/v1/ai/usage/service` records it: the Nuxt server reports it with the tenant's technical
