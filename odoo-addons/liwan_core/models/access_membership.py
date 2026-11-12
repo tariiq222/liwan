@@ -79,7 +79,9 @@ class LiwanMembershipService(models.AbstractModel):
 
     @api.model
     def _liwan_membership_branches(self, limit=None, offset=0):
-        """(branches, total): the branches a root administrator may add members to, by name then id.
+        """(branches, total): the branches a root administrator manages the members of, by name then id.
+
+        A read-only branch is listed too: its members are shown, and the write guard of the route refuses a change.
 
         The grant is checked in the caller's environment first; the branches are read elevated because the company
         record rule hides the ones the caller does not belong to, such as a new branch with no member yet.
