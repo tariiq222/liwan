@@ -13607,6 +13607,9 @@
                   }
                 ]
               },
+              "notes": {
+                "type": "string"
+              },
               "package": {
                 "anyOf": [
                   {
@@ -13820,6 +13823,7 @@
               "contact_name",
               "phone",
               "email",
+              "notes",
               "stage",
               "user",
               "source",
@@ -15411,6 +15415,9 @@
                     }
                   ]
                 },
+                "notes": {
+                  "type": "string"
+                },
                 "package": {
                   "anyOf": [
                     {
@@ -15624,6 +15631,7 @@
                 "contact_name",
                 "phone",
                 "email",
+                "notes",
                 "stage",
                 "user",
                 "source",
@@ -15847,6 +15855,9 @@
               }
             ]
           },
+          "notes": {
+            "type": "string"
+          },
           "package": {
             "anyOf": [
               {
@@ -16060,6 +16071,7 @@
           "contact_name",
           "phone",
           "email",
+          "notes",
           "stage",
           "user",
           "source",

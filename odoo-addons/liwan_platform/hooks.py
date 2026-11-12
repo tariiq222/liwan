@@ -3,3 +3,4 @@
 
 def post_init_hook(env):
     env['liwan.tenant.profile']._liwan_ensure_root_company()._liwan_apply_accounting_baseline()
+    env['liwan.entitlement.service']._liwan_recount_storage()

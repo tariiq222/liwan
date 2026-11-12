@@ -18,6 +18,8 @@ from odoo.addons.liwan_platform.models.entitlement_service import (
 _logger = logging.getLogger(__name__)
 # Set only by `_liwan_add_ai_paid`: the one writer of `ai_paid_total`.
 AI_PAID_CONTEXT = 'liwan_platform.ai_paid_total'
+# Set only by `_liwan_set_storage_used`: the one writer of `storage_used_bytes`.
+STORAGE_USED_CONTEXT = 'liwan_platform.storage_used_bytes'
 
 # LiwanOS's accounting baseline. The root company is Saudi before `account` installs, so stock
 # loads the `sa` chart and its VAT taxes (`account/models/ir_module.py`, `IrModuleModule.write`)
@@ -95,6 +97,13 @@ class LiwanTenantProfile(models.Model):
     # `liwan.ai.usage.charge_paid`, kept by `_liwan_add_ai_paid` under the profile row lock so no check sums the ledger.
     ai_paid_total = BigInteger(required=True, default=0)
     _ai_paid_total_positive = models.Constraint('CHECK(ai_paid_total >= 0)', 'the AI paid total cannot be negative')
+    # Bytes of every `type = 'binary'` attachment, the single source for storage claims and usage. It is an int8 because bytes
+    # pass the 2^31 limit of `fields.Integer` at 2 GiB. Claims move it under the row lock; `_liwan_recount_storage` rewrites it
+    # from the attachment table to repair drift (SQL deletes that bypass `unlink`, a changed limit, a daily cron).
+    storage_used_bytes = BigInteger(required=True, default=0)
+    _storage_used_bytes_positive = models.Constraint(
+        'CHECK(storage_used_bytes >= 0)', 'the storage total cannot be negative',
+    )
     _ai_trial_period = models.Constraint(
         'CHECK ((ai_trial_start IS NULL AND ai_trial_end IS NULL) '
         'OR (ai_trial_start IS NOT NULL AND ai_trial_end > ai_trial_start))',
@@ -307,6 +316,14 @@ class LiwanTenantProfile(models.Model):
         locked = self._liwan_lock()
         locked.with_context(**{AI_PAID_CONTEXT: True}).write({'ai_paid_total': locked.ai_paid_total + amount})
 
+    def _liwan_set_storage_used(self, total):
+        """Write the storage total under the row lock. The only writer of ``storage_used_bytes``; returns the previous total."""
+        self.ensure_one()
+        locked = self._liwan_lock()
+        previous = locked.storage_used_bytes
+        locked.with_context(**{STORAGE_USED_CONTEXT: True}).write({'storage_used_bytes': total})
+        return previous
+
     def _liwan_bump_quota_revision(self):
         self.ensure_one()
         locked = self._liwan_lock()
@@ -338,6 +355,8 @@ class LiwanTenantProfile(models.Model):
             # A new tenant has spent nothing: the total moves only through `_liwan_add_ai_paid` (the write guard is below),
             # and a start above zero would block the assistant for a tenant that never used it.
             raise ValidationError(self.env._('The AI paid total starts at zero and moves only through the AI deduction.'))
+        if any(vals.get('storage_used_bytes') for vals in vals_list):
+            raise ValidationError(self.env._('The storage total starts at zero and moves only through the storage service.'))
         if self.search([], limit=1) or len(vals_list) != 1:
             raise ValidationError(self.env._('liwan tenant profile is a singleton.'))
         if not self.env.su:
@@ -366,6 +385,8 @@ class LiwanTenantProfile(models.Model):
             raise AccessError(self.env._('Commercial classification is immutable; conversion requires a separate procedure.'))
         if (vals.get('valid_until') or vals.get('commercial_valid_until')) and any(record.commercial_mode == 'non_saas' for record in self):
             raise ValidationError(self.env._('Independent installations cannot have a subscription expiry.'))
+        if 'storage_used_bytes' in vals and not (self.env.su and self.env.context.get(STORAGE_USED_CONTEXT)):
+            raise AccessError(self.env._('The storage total is kept by the storage service only.'))
         if 'ai_paid_total' in vals:
             self._liwan_check_ai_paid(vals['ai_paid_total'])
         policy_keys = POLICY_FIELDS.intersection(vals)
@@ -417,6 +438,8 @@ class LiwanTenantProfile(models.Model):
             service._liwan_invalidate_storage_plan()
         result = super().write(next_vals)
         if storage_policy_changed:
+            # A new limit always starts from an exact total.
+            service._liwan_recount_storage()
             service._liwan_invalidate_storage_plan()
         if 'features' in next_vals:
             service._liwan_settle_excess()
@@ -486,6 +509,10 @@ class LiwanTenantProfile(models.Model):
         due = self.search([('trial_ends_at', '<=', service._liwan_trial_now())], limit=1)
         if due:
             due.with_context(**{OPERATOR_CONTEXT: True})._liwan_apply_post_trial()
+
+    @api.model
+    def _liwan_cron_recount_storage(self):
+        self.env['liwan.entitlement.service']._liwan_recount_and_settle_storage()
 
     def _liwan_check_ai_paid(self, value):
         """The running total of paid AI charges moves only up and only through ``_liwan_add_ai_paid``.

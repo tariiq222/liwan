@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+
 from odoo import api, models
 from odoo.exceptions import AccessError, MissingError
 from odoo.fields import Domain
@@ -7,12 +9,14 @@ from .entitlement_service_seats import BRANCH_LIMIT, USER_LIMIT
 from .read_only_guard import _owner_path
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
+_logger = logging.getLogger(__name__)
 STORAGE_LIMIT = 'storage.limit_mb'
 BYTES_PER_MIB = 1048576
 STORAGE_FLAG = 'liwan_storage_blocked'
 STORAGE_METADATA = ('file_size', 'type', 'res_model', 'res_field', 'res_id', 'url', 'public', 'mimetype', 'create_uid', STORAGE_FLAG)
 PLAN_KEY = 'liwan_platform.storage_plan'
 STORAGE_BATCH_SIZE = 250
+NO_STORAGE_CHANGES = (frozenset(), frozenset(), frozenset(), 0)
 
 
 class LiwanEntitlementStorage(models.AbstractModel):
@@ -37,9 +41,46 @@ class LiwanEntitlementStorage(models.AbstractModel):
         return cached[1:]
 
     @api.model
+    def _liwan_recount_storage(self):
+        """Rewrite the stored total from the attachment table and return ``(old, new)`` bytes.
+
+        ``storage_used_bytes`` is the single source for claims and usage; every create, resize and unlink moves it under the
+        profile row lock. The paths that bypass those hooks (stock asset bundles delete the previous bundle by SQL, an
+        attachment size set by SQL, a changed limit) are repaired here: after a technical asset is created, when the limit
+        changes, in the migration and by a daily cron.
+        """
+        profile = self._liwan_profile()._liwan_lock()
+        new = int(self._liwan_count_storage_bytes())
+        previous = profile._liwan_set_storage_used(new)
+        self._liwan_invalidate_storage_plan()
+        return previous, new
+
+    @api.model
+    def _liwan_repair_storage_drift(self, used, delta_bytes):
+        _logger.warning('storage total %s cannot take %s bytes: recounting', used, delta_bytes)
+        self._liwan_recount_storage()
+
+    @api.model
+    def _liwan_recount_and_settle_storage(self):
+        self._liwan_recount_storage()
+        self._liwan_settle_storage()
+
+    @api.model
+    def _liwan_storage_unchanged(self, limit, attachments_sudo):
+        """True when no attachment can be blocked or reopened, decided without reading attachments.
+
+        The stored total fits the limit (or there is none) and no attachment is flagged, so the plan is empty.
+        """
+        if limit is not None and self._liwan_profile().storage_used_bytes > limit * BYTES_PER_MIB:
+            return False
+        return not attachments_sudo.search_fetch([(STORAGE_FLAG, '=', True)], ['id'], limit=1)
+
+    @api.model
     def _liwan_scan_storage_plan(self, limit):
         # The global quota includes files hidden by parent or company rules. This search reads metadata only.
         attachments_sudo = self.env['ir.attachment'].sudo().with_context(skip_res_field_check=True)
+        if self._liwan_storage_unchanged(limit, attachments_sudo):
+            return NO_STORAGE_CHANGES
         flagged_domain = Domain(STORAGE_FLAG, '=', True)
         binary = Domain('type', '=', 'binary') & Domain('file_size', '>', 0)
         tracked = flagged_domain if limit is None else flagged_domain | binary

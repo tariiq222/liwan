@@ -2,7 +2,7 @@
 {
     'name': 'liwan Platform',
     'summary': 'liwan platform: tenant profile, entitlements and feature registry',
-    'version': '19.0.1.11.0',
+    'version': '19.0.1.12.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -13,6 +13,7 @@
         'security/liwan_branch_rules.xml',
         'data/maintenance_permission.xml',
         'data/trial_expiry_cron.xml',
+        'data/storage_recount_cron.xml',
     ],
     'post_init_hook': 'post_init_hook',
     'installable': True,
