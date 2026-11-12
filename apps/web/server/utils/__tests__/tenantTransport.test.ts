@@ -104,5 +104,10 @@ it('forwards the expected context in bound mode and never invents or accepts aut
     expect((await write(requestEvent(silent))).status).toBe(200)
     expect(lastHeaders()['x-liwan-expected-user-id']).toBeUndefined()
     expect(lastHeaders()['x-liwan-expected-company-id']).toBeUndefined()
+    // A request that records something already done leaves the tab's stated context out, whatever the browser sent.
+    seen.length = 0
+    expect((await tenantTransport(requestEvent(stating), base, '/api/v1/ai/usage', { method: 'POST', body: '{}', expectedContext: false })).status).toBe(200)
+    expect(lastHeaders()['x-liwan-expected-user-id']).toBeUndefined()
+    expect(lastHeaders()['x-liwan-expected-company-id']).toBeUndefined()
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
 })

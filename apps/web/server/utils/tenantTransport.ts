@@ -287,7 +287,7 @@ export async function legacyTenantResponse(event: H3Event, configuredUpstream: s
  * `authorization` is the server-held credential of the one request allowed to carry it (the AI usage report): any other
  * method or path is refused outright, so a caller cannot widen where the key goes. A browser's own `Authorization` header
  * is never read here: only this explicit option reaches the upstream. */
-export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; authorization?: string; signal?: AbortSignal; ignoreClientClose?: boolean; heavy?: HeavyBudget } = {}): Promise<Response> {
+export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; authorization?: string; signal?: AbortSignal; ignoreClientClose?: boolean; heavy?: HeavyBudget; expectedContext?: boolean } = {}): Promise<Response> {
   const binding = tenantUpstreamHeaders(event)
   if (!binding.host) throw failure()
   if (options.authorization !== undefined && (!isServiceAuthorizedRequest(options.method, path) || !BEARER_KEY.test(options.authorization))) throw failure()
@@ -297,9 +297,12 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   const headers: Record<string, string> = { ...binding }
   // Only explicitly selected application headers, never hop-by-hop or client authority.
   // The two expected-context headers state the identity a finance setup screen was read for; Odoo compares
-  // them with the authenticated session, so they never select a company and never grant access.
+  // them with the authenticated session, so they never select a company and never grant access. A request that records
+  // something already done (`expectedContext: false`) and a service-authorized request (the recorder's key speaks for
+  // no screen) never carry them.
+  const statesContext = options.expectedContext !== false && options.authorization === undefined
   for (const name of ['content-type', 'accept', 'if-none-match', 'if-modified-since', 'range',
-    'x-liwan-expected-user-id', 'x-liwan-expected-company-id']) {
+    ...(statesContext ? ['x-liwan-expected-user-id', 'x-liwan-expected-company-id'] : [])]) {
     const value = options.headers?.[name] ?? getHeader(event, name)
     if (value) headers[name] = value
   }

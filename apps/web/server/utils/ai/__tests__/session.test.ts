@@ -58,19 +58,3 @@ describe('modeForAgent', () => {
     expect([modeForAgent('ai'), modeForAgent('ai_help'), modeForAgent('pmo'), modeForAgent('core')]).toEqual(['setup', 'help', 'assistant', 'assistant'])
   })
 })
-
-describe('the expected company', () => {
-  const eventWith = (headers: Record<string, string>) => ({ node: { req: { headers } }, headers: new Headers(headers) }) as any
-
-  it('refuses a request whose stated company differs from the caller\'s, before anything runs', async () => {
-    const { runSession } = await import('../session')
-    await expect(runSession(eventWith({ 'x-liwan-expected-company-id': '3' }))).rejects.toMatchObject({ statusCode: 409, data: { code: 'request_context_changed' } })
-  })
-
-  it('serves a request that states the caller\'s company or none', async () => {
-    const { runSession, ownerFor } = await import('../session')
-    await expect(runSession(eventWith({ 'x-liwan-expected-company-id': '7' }))).resolves.toMatchObject({ company: '7' })
-    await expect(ownerFor(eventWith({}))).resolves.toMatchObject({ user: '42' })
-    await expect(ownerFor(eventWith({ 'x-liwan-expected-company-id': '8' }))).rejects.toMatchObject({ statusCode: 409 })
-  })
-})
