@@ -253,6 +253,7 @@ function projectDetail(p) {
     date_end: p.date_end,
     tags: [],
     followers_count: 1,
+    can_read_finance: true,
     milestone_count: tools.planning.enabled ? 0 : null,
     allow_task_dependencies: false,
     completion_approval: 'none',
@@ -348,6 +349,7 @@ function reportRow(p) {
 const SETTINGS = {
   project_creators: 'managers',
   planning_tool_policy:'optional', governance_tool_policy:'optional', finance_tool_policy:'optional',
+  finance_readers: 'managers',
   default_stages: [{ name: 'جديد', fold: false }, { name: 'جارٍ', fold: false }],
   require_manager_on_create: false,
   require_end_date_on_create: false,

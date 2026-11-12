@@ -259,6 +259,12 @@
         "disabled": "Unavailable",
         "governanceConflict": "Turn governance on, or switch off the charter, change and baseline requirements, in the same save.",
         "planningConflict": "Turn planning on, or switch off the baseline requirement, in the same save."
+      },
+      "financeReaders": {
+        "label": "Who sees project finance",
+        "hint": "Budget, costs and earned value. Project managers and owners always see them. With \"Project members\", members who can also view projects see them too.",
+        "managers": "Managers only",
+        "members": "Project members"
       }
     },
     "appearance": {

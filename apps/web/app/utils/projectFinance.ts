@@ -142,6 +142,12 @@ export function formatNullableAmount(value: number | null, currency: FinanceCurr
   return formatMoney(value, currency)
 }
 
+/** A change request's cost: a dash when the server withheld it (the reader lacks the finance permission). */
+export function formatChangeCost(cost: number | null, currency: FinanceCurrency | null): string {
+  if (cost === null) return '—'
+  return currency ? formatMoney(cost, currency) : String(cost)
+}
+
 export function formatNullablePercent(value: number | null, unknownLabel: string): string {
   if (value == null) return unknownLabel
   if (Number.isInteger(value)) return `${value}%`

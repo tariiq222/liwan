@@ -44,6 +44,9 @@ class TestProjectChange(LiwanPmoCase):
             groups='base.group_system,liwan_core.group_employee',
         )
         cls.project.write({'user_id': cls.manager.id, 'liwan_sponsor_id': cls.sponsor.id})
+        # The requester is a task assignee: the company lets its project members read (and so enter) the cost impact.
+        settings = cls.env['liwan.pmo.settings']
+        settings._params().set_param(settings._company_key('liwan_pmo.finance_readers'), 'members')
         cls.base = f'/api/v1/projects/{cls.project.id}/changes'
 
     # --- helpers --------------------------------------------------------------

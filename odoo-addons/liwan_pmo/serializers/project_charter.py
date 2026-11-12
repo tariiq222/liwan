@@ -60,7 +60,7 @@ def dump_user_ref(user):
 
 def dump_charter(project):
     project._liwan_check_tool('governance')
-    finance = project._liwan_tool_enabled('finance')
+    finance = project._liwan_tool_enabled('finance') and project._liwan_can_read_finance()
     amount = None if not finance or project.liwan_budget_state == 'unknown' else project.liwan_budget_amount
     return {
         'code': project.liwan_code or None,
@@ -97,6 +97,7 @@ def parse_charter_vals(payload, project=None):
         project._liwan_check_tool('governance')
         if isinstance(payload, dict) and {'budget_state', 'amount'}.intersection(payload):
             project._liwan_check_tool('finance')
+            project._liwan_check_finance_read()
     if not isinstance(payload, dict):
         raise ApiError(422, 'invalid', "charter must be an object", field='charter')
     unknown = set(payload) - CHARTER_WRITE_FIELDS

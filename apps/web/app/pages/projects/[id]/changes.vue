@@ -9,7 +9,7 @@ import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState
 import { useProjectMissing } from '@/composables/useProjects'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { formatMoney } from '@/utils/projectFinance'
+import { formatChangeCost } from '@/utils/projectFinance'
 
 const route = useRoute()
 const router = useRouter()
@@ -101,8 +101,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
         <template #state-cell="{ row }"><SharedStatusBadge :tone="CHANGE_STATE_TONE[row.original.state]" :label="t(`projects.changes.state.${row.original.state}`)" /></template>
         <template #days-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ days(row.original.impact_schedule_days) }}</span></template>
         <template #cost-cell="{ row }">
-          <span v-if="row.original.currency" dir="ltr" class="tabular-nums">{{ formatMoney(row.original.impact_cost, row.original.currency) }}</span>
-          <span v-else dir="ltr" class="tabular-nums">{{ row.original.impact_cost }}</span>
+          <span dir="ltr" class="tabular-nums">{{ formatChangeCost(row.original.impact_cost, row.original.currency) }}</span>
         </template>
         <template #requester-cell="{ row }"><SharedPersonAvatar :people="[row.original.requester]" /></template>
         <template #mobile-row="{ row: item }">
@@ -117,7 +116,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
             <dl class="grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
               <div><dt class="text-xs text-muted">{{ t('projects.changes.fields.category') }}</dt><dd>{{ item.category?.name ?? '—' }}</dd></div>
               <div><dt class="text-xs text-muted">{{ t('projects.changes.fields.scheduleDays') }}</dt><dd dir="ltr" class="tabular-nums">{{ days(item.impact_schedule_days) }}</dd></div>
-              <div><dt class="text-xs text-muted">{{ t('projects.changes.fields.cost') }}</dt><dd dir="ltr" class="tabular-nums">{{ item.currency ? formatMoney(item.impact_cost, item.currency) : item.impact_cost }}</dd></div>
+              <div><dt class="text-xs text-muted">{{ t('projects.changes.fields.cost') }}</dt><dd dir="ltr" class="tabular-nums">{{ formatChangeCost(item.impact_cost, item.currency) }}</dd></div>
             </dl>
           </div>
         </template>

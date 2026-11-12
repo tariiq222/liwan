@@ -133,6 +133,7 @@ class TestSettings(LiwanPmoCase):
                 'change_control_mode': 'optional',
                 'baseline_gate': 'warning',
                 'evm_progress_method': 'binary',
+                'finance_readers': 'managers',
                 'extensions': [],
             },
         )

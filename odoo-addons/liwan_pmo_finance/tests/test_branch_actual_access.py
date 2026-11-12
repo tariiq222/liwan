@@ -33,7 +33,7 @@ class TestBranchActualAccess(PmoFinanceCase):
         cls.branch_role = cls.env['liwan.access.role'].with_company(cls.branch)._liwan_access_create({
             'key': 'branch_project_totals', 'name_ar': 'قارئ إجمالي مشروع الفرع',
             'permission_ids': [Command.set(cls.env['liwan.access.permission'].search([
-                ('key', 'in', ['pmo.projects.read', 'finance.invoices.read']),
+                ('key', 'in', ['pmo.projects.read', 'pmo.finance.read', 'finance.invoices.read']),
             ]).ids)],
         })
         cls.env['liwan.access.assignment']._liwan_access_create({

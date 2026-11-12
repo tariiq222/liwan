@@ -77,7 +77,7 @@ const TODAY: ReadonlyArray<readonly [string, string | null, boolean]> = [
   ['documents.items.read', 'documents.enabled', false], ['documents.items.manage', 'documents.enabled', true],
   ['documents.items.archive', 'documents.enabled', true], ['documents.access.manage', 'documents.enabled', true], ['documents.library.manage', 'documents.enabled', true],
   ['pmo.projects.read', 'pmo.enabled', false], ['pmo.projects.create', 'pmo.enabled', true],
-  ['pmo.projects.manage', 'pmo.enabled', true], ['pmo.settings.manage', 'pmo.enabled', true],
+  ['pmo.projects.manage', 'pmo.enabled', true], ['pmo.finance.read', 'pmo.enabled', false], ['pmo.settings.manage', 'pmo.enabled', true],
   ['pmo.tasks.read', 'pmo.enabled', false], ['pmo.tasks.create', 'pmo.enabled', true],
   ['pmo.tasks.write', 'pmo.enabled', true], ['pmo.tasks.approve', 'pmo.enabled', true],
   ['settings.branding.manage', null, true],

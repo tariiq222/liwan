@@ -498,7 +498,7 @@ class TestProjectBaseline(LiwanPmoCase):
         reader = new_test_user(self.env, login='api_bl_reader', password='api_bl_reader_pass_123', name='Reader', groups='base.group_user')
         role = self.env['liwan.access.role'].create({
             'name_ar': 'قارئ المشاريع للأساس', 'company_id': self.env.company.id,
-            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([('key', '=', 'pmo.projects.read')]).ids)],
+            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([('key', 'in', ('pmo.projects.read', 'pmo.finance.read'))]).ids)],
         })
         self.env['liwan.access.assignment'].create({'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id})
         detail = self._call('api_bl_reader', 'GET', f'{self.base}/1')

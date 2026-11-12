@@ -675,6 +675,18 @@
       "handler": "policy",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/access/policy": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.roles.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "policy",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/branches": {
       "addon": "liwan_api",
       "auth": "user",
@@ -3951,6 +3963,22 @@
       "handler": "list_channels",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/channels/work": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.templates.manage",
+        "inbox.flows.manage",
+        "inbox.automation.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_work_channels",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/channels/{channel_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -4009,6 +4037,20 @@
       "handler": "read_commerce",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/channels/{channel_id}/events": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.channels.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_channel_events",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/channels/{channel_id}/flows": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -4049,7 +4091,8 @@
       "capability_keys": [
         "inbox.templates.manage",
         "inbox.channels.manage",
-        "inbox.campaigns.manage"
+        "inbox.campaigns.manage",
+        "inbox.flows.manage"
       ],
       "capability_match": "any",
       "capability_source": "decorator",
@@ -4257,7 +4300,8 @@
       "capability_keys": [
         "inbox.conversations.read",
         "inbox.settings.manage",
-        "inbox.automation.manage"
+        "inbox.automation.manage",
+        "inbox.channels.manage"
       ],
       "capability_match": "any",
       "capability_source": "decorator",
@@ -5826,6 +5870,19 @@
       "capability_source": "decorator",
       "feature_keys": [],
       "handler": "apply_preset",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/admin/access/policy": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.assign_roles",
+        "settings.company.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "update_policy",
       "no_capability_reason": null
     },
     "PATCH /api/v1/admin/branches/{branch_id}/seat": {
@@ -11041,6 +11098,20 @@
         "inbox.enabled"
       ],
       "handler": "create_department",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/events/{event_id}/retry": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.channels.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "retry_event",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/flows/{flow_id}/copy": {

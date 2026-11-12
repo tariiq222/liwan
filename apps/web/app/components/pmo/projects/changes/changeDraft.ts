@@ -6,15 +6,16 @@ export const NO_CATEGORY = 'none'
 /**
  * The editable state of one change request form. The write token is captured when the form opens (or is reloaded on
  * purpose), never from the live record: a refetch on window focus must not let a save overwrite another tab's edit.
+ * A change whose cost the server withheld (`impact_cost` null: no finance permission) has no cost to edit and sends none.
  */
-export function useChangeDraft(initial?: ProjectChange) {
+export function useChangeDraft(initial?: ProjectChange, canReadFinance = true) {
   const read = (item?: ProjectChange) => ({
     title: item?.title ?? '',
     description: item?.description ?? '',
     reason: item?.reason ?? '',
     categoryId: item?.category ? String(item.category.id) : NO_CATEGORY,
     scheduleDays: item?.impact_schedule_days ?? 0,
-    costInput: item ? String(item.impact_cost) : '0',
+    costInput: item ? String(item.impact_cost ?? '') : '0',
     impactScope: item?.impact_scope ?? '',
   })
   const start = read(initial)
@@ -25,12 +26,14 @@ export function useChangeDraft(initial?: ProjectChange) {
   const scheduleDays = ref<number | undefined>(start.scheduleDays)
   const costInput = ref(start.costInput)
   const impactScope = ref(start.impactScope)
+  const costHidden = ref(!canReadFinance || initial?.impact_cost === null)
   const token = ref(initial?.updated_at)
   const snapshot = () => JSON.stringify([title.value, description.value, reason.value, categoryId.value, scheduleDays.value, costInput.value, impactScope.value])
   const baseline = ref(snapshot())
   let initialCategory = start.categoryId
 
   const cost = computed(() => costInput.value.trim() === '' ? NaN : Number(costInput.value))
+  const costValid = computed(() => costHidden.value || Number.isFinite(cost.value))
   const dirty = computed(() => snapshot() !== baseline.value)
 
   /** The request body: the category is sent only when the user changed it, so an archived one is never resent. */
@@ -41,7 +44,7 @@ export function useChangeDraft(initial?: ProjectChange) {
       reason: reason.value,
       ...(categoryId.value !== initialCategory ? { category_id: categoryId.value === NO_CATEGORY ? null : Number(categoryId.value) } : {}),
       impact_schedule_days: scheduleDays.value,
-      impact_cost: cost.value,
+      ...(costHidden.value ? {} : { impact_cost: cost.value }),
       impact_scope: impactScope.value,
     }
   }
@@ -56,10 +59,11 @@ export function useChangeDraft(initial?: ProjectChange) {
     scheduleDays.value = next.scheduleDays
     costInput.value = next.costInput
     impactScope.value = next.impactScope
+    costHidden.value = !canReadFinance || item.impact_cost === null
     token.value = item.updated_at
     initialCategory = next.categoryId
     baseline.value = snapshot()
   }
 
-  return { title, description, reason, categoryId, scheduleDays, costInput, impactScope, token, cost, dirty, body, reload }
+  return { title, description, reason, categoryId, scheduleDays, costInput, impactScope, token, cost, costHidden, costValid, dirty, body, reload }
 }

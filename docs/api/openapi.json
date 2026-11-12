@@ -80,6 +80,7 @@
               "user.second_step_reset",
               "user.branch_roles_changed",
               "branch.policy_changed",
+              "access.policy_changed",
               "company.profile_changed",
               "company.branding_changed",
               "company.vat_registration_changed",
@@ -239,6 +240,7 @@
                     "user.second_step_reset",
                     "user.branch_roles_changed",
                     "branch.policy_changed",
+                    "access.policy_changed",
                     "company.profile_changed",
                     "company.branding_changed",
                     "company.vat_registration_changed",
@@ -371,6 +373,7 @@
               "user.second_step_reset",
               "user.branch_roles_changed",
               "branch.policy_changed",
+              "access.policy_changed",
               "company.profile_changed",
               "company.branding_changed",
               "company.vat_registration_changed",
@@ -462,6 +465,50 @@
           "action",
           "target",
           "result"
+        ],
+        "type": "object"
+      },
+      "AccessPolicyPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "self_grant": {
+            "enum": [
+              "restricted",
+              "allowed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "self_grant",
+          "expected_version"
+        ],
+        "type": "object"
+      },
+      "AccessPolicySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "self_grant": {
+            "enum": [
+              "restricted",
+              "allowed"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "self_grant",
+          "version"
         ],
         "type": "object"
       },
@@ -8931,6 +8978,7 @@
           "user.second_step_reset",
           "user.branch_roles_changed",
           "branch.policy_changed",
+          "access.policy_changed",
           "company.profile_changed",
           "company.branding_changed",
           "company.vat_registration_changed",
@@ -32551,6 +32599,14 @@
           "lines"
         ],
         "type": "object"
+      },
+      "FinanceReadersSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "managers",
+          "members"
+        ],
+        "type": "string"
       },
       "FinanceReconcileProposalListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -58919,6 +58975,130 @@
         ],
         "type": "string"
       },
+      "InboxChannelWorkListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "department": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "whatsapp",
+                    "tiktok"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "kind",
+                "department"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "InboxChannelWorkSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "department": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "whatsapp",
+              "tiktok"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "department"
+        ],
+        "type": "object"
+      },
       "InboxCommerceContentSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "oneOf": [
@@ -61260,6 +61440,117 @@
           "name"
         ],
         "type": "object"
+      },
+      "InboxEventListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "attempts": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "created_at": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                  "type": "string"
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "state": {
+                  "enum": [
+                    "pending",
+                    "done",
+                    "failed"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "state",
+                "attempts",
+                "error",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "InboxEventSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "created_at": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "done",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "attempts",
+          "error",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "InboxEventStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "pending",
+          "done",
+          "failed"
+        ],
+        "type": "string"
       },
       "InboxFirstResponseBucketsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -92675,7 +92966,10 @@
                   "type": "integer"
                 },
                 "impact_cost": {
-                  "type": "number"
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "impact_schedule_days": {
                   "maximum": 9007199254740991,
@@ -93035,7 +93329,10 @@
             "type": "integer"
           },
           "impact_cost": {
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "impact_schedule_days": {
             "maximum": 9007199254740991,
@@ -95542,6 +95839,9 @@
           "can_manage": {
             "type": "boolean"
           },
+          "can_read_finance": {
+            "type": "boolean"
+          },
           "change_control_mode": {
             "enum": [
               "off",
@@ -96354,6 +96654,7 @@
           "completion_approver",
           "updated_at",
           "tools",
+          "can_read_finance",
           "objectives",
           "success_criteria",
           "charter",
@@ -98610,6 +98911,13 @@
             ],
             "type": "string"
           },
+          "finance_readers": {
+            "enum": [
+              "managers",
+              "members"
+            ],
+            "type": "string"
+          },
           "finance_tool_policy": {
             "enum": [
               "enabled",
@@ -98832,6 +99140,13 @@
             },
             "type": "array"
           },
+          "finance_readers": {
+            "enum": [
+              "managers",
+              "members"
+            ],
+            "type": "string"
+          },
           "finance_tool_policy": {
             "enum": [
               "enabled",
@@ -98888,6 +99203,7 @@
           "planning_tool_policy",
           "governance_tool_policy",
           "finance_tool_policy",
+          "finance_readers",
           "default_stages",
           "require_manager_on_create",
           "require_end_date_on_create",
@@ -100645,6 +100961,14 @@
           "read_only"
         ],
         "type": "object"
+      },
+      "SelfGrantPolicySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "restricted",
+          "allowed"
+        ],
+        "type": "string"
       },
       "StageOrderBodySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -103386,6 +103710,80 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "apply_preset",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/access/policy": {
+      "get": {
+        "operationId": "liwan_api.AccessPolicyController.policy.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "policy",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessPolicyController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "policy",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_api.AccessPolicyController.update_policy.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_policy",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessPolicyController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "update_policy",
           "readonly": false,
           "route_type": "json2"
         }
@@ -129922,6 +130320,46 @@
         }
       }
     },
+    "/api/v1/inbox/channels/work": {
+      "get": {
+        "operationId": "liwan_inbox.ChannelController.list_work_channels.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The channels the caller works on (templates, forms or automation), as minimal references.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "ChannelController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_work_channels",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/inbox/channels/{channel_id}": {
       "delete": {
         "operationId": "liwan_inbox.ChannelController.delete_channel.delete",
@@ -130450,6 +130888,59 @@
         }
       }
     },
+    "/api/v1/inbox/channels/{channel_id}/events": {
+      "get": {
+        "operationId": "liwan_inbox.ChannelController.list_channel_events.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The channel's deliveries in one state, failed ones by default: what an operator may re-run.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "ChannelController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_channel_events",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/inbox/channels/{channel_id}/flows": {
       "get": {
         "operationId": "liwan_inbox.FlowController.list_flows.get",
@@ -130802,7 +131293,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "The id and name of a channel, for the pages of a user who manages its templates or campaigns but not the channel itself.",
+        "summary": "The id and name of a channel, for the pages of a user who works on its templates, campaigns or forms",
         "tags": [
           "liwan_inbox"
         ],
@@ -132830,7 +133321,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "list_departments",
+        "summary": "The departments to pick from; a channel manager reads them for the channel form and writes none.",
         "tags": [
           "liwan_inbox"
         ],
@@ -133094,6 +133585,59 @@
           ],
           "feature_operation": "write",
           "handler": "put_department_hours",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/events/{event_id}/retry": {
+      "post": {
+        "operationId": "liwan_inbox.ChannelController.retry_event.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Give a failed delivery a fresh set of attempts; a stored message is skipped by its provider id.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "ChannelController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "retry_event",
           "readonly": false,
           "route_type": "json2"
         }

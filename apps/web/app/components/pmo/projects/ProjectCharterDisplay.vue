@@ -6,6 +6,7 @@ import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const props = defineProps<{
   tools?: ProjectToolsState
+  canReadFinance?: boolean
   draft: CharterDraft
   milestones?: readonly CharterMilestone[]
   milestonesLoading?: boolean
@@ -169,7 +170,7 @@ function budgetAmount(): string {
       </div>
 
       <div class="grid min-w-0 gap-(--liwan-gap-card)">
-        <SharedRecordSection v-if="tools?.finance.enabled" variant="panel" id="project-charter-budget" :title="t('projects.charter.sections.planning')">
+        <SharedRecordSection v-if="tools?.finance.enabled && canReadFinance !== false" variant="panel" id="project-charter-budget" :title="t('projects.charter.sections.planning')">
           <dl class="grid gap-4">
             <div><dt class="text-xs text-muted">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="mt-1 text-sm text-default">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>
             <div v-if="budgetAmount()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.amount') }}</dt><dd class="mt-1 text-sm text-default"><bdi dir="ltr" class="tabular-nums">{{ budgetAmount() }}</bdi></dd></div>

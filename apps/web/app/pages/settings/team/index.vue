@@ -2,6 +2,8 @@
 import SettingsPreviewCard from '@/components/settings/SettingsPreviewCard.vue'
 import SettingsPreviewList from '@/components/settings/SettingsPreviewList.vue'
 import { useAdminAuditLog } from '@/composables/useAdminAudit'
+import SelfGrantPolicyCard from '@/components/access/SelfGrantPolicyCard.vue'
+import { useAccessPolicy } from '@/composables/useAccessPolicy'
 import { useBranchPolicy } from '@/composables/useBranchAccess'
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { useAdminUsers } from '@/composables/useAdminUsers'
@@ -17,6 +19,14 @@ const { can } = useAccess()
 // The branches card names the company type chosen for the tenant; the policy is read only by those who may edit it.
 const policy = useBranchPolicy(() => shows('branches') && can('access.users.assign_roles') && can('access.roles.read'))
 const presetLabel = computed(() => policy.data.value ? t(`access.branches.presets.${policy.data.value.preset === 'custom' ? 'customName' : policy.data.value.preset}`) : '')
+const accessPolicy = useAccessPolicy(() => shows('access-policy'))
+const canChangePolicy = computed(() => can('access.users.assign_roles') && can('settings.company.manage'))
+async function reloadAccessPolicy() {
+  const result = await accessPolicy.refetch()
+  if (result.isError) throw result.error
+  if (!result.data) throw new Error(t('errors.generic'))
+  return result.data
+}
 const users = useAdminUsers({ limit: PREVIEW_ROWS }, () => shows('users'))
 const roles = useAdminRoles({ limit: PREVIEW_ROWS }, () => shows('roles'))
 const events = useAdminAuditLog({ limit: PREVIEW_ROWS }, () => shows('access-log'))
@@ -44,6 +54,11 @@ const eventRows = computed(() => (events.data.value?.items ?? []).map(event => e
         <SettingsPreviewCard :title="t('access.roles.title')" :all-label="t('settings.preview.allRoles')" all-to="/settings/team/roles" test-id="team-roles-preview">
           <SettingsPreviewList :items="roleRows" :loading="roles.isLoading.value" :error="roles.error.value" :empty-text="t('access.roles.empty')" @retry="roles.refetch" />
         </SettingsPreviewCard>
+      </section>
+      <section v-if="shows('access-policy')" id="access-policy" class="liwan-settings-anchor">
+        <SharedPageState :loading="accessPolicy.isLoading.value" :error="accessPolicy.error.value" @retry="accessPolicy.refetch()">
+          <SelfGrantPolicyCard v-if="accessPolicy.data.value" :policy="accessPolicy.data.value" :can-edit="canChangePolicy" :reload-policy="reloadAccessPolicy" />
+        </SharedPageState>
       </section>
       <section v-if="shows('access-log')" id="access-log" class="liwan-settings-anchor">
         <SettingsPreviewCard :title="t('access.audit.title')" :all-label="t('settings.preview.allAccessLog')" all-to="/settings/team/access-log" test-id="team-access-log-preview">

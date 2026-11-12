@@ -95,7 +95,8 @@ const page = computed(() => Math.floor(filters.offset / FINANCE_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / FINANCE_PAGE)))
 const filtered = computed(() => Boolean(filters.q.trim()) || filters.kind !== 'all')
 const activeFilterCount = computed(() => Number(Boolean(filters.q.trim())) + Number(filters.kind !== 'all'))
-const notFound = computed(() => projectId.value === null || (list.error.value instanceof ApiError && [403, 404].includes(list.error.value.status)))
+const forbidden = computed(() => list.error.value instanceof ApiError && list.error.value.status === 403)
+const notFound = computed(() => projectId.value === null || (list.error.value instanceof ApiError && list.error.value.status === 404))
 
 function applyPatch(patch: Partial<FinanceListRouteState>) {
   Object.assign(filters, patchFinanceListRoute(filters, patch))
@@ -237,7 +238,8 @@ const emptiness = computed(() => summary.value
       <template v-if="canManage && !external" #actions>
         <UButton color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :to="newTo('expense')">{{ t('projects.finance.newExpense') }}</UButton>
       </template>
-      <ProjectNotFoundState v-if="notFound && !list.isLoading.value" embedded />
+      <SharedForbiddenState v-if="forbidden" :description="t('projects.finance.forbidden')" data-testid="project-finance-forbidden" />
+      <ProjectNotFoundState v-else-if="notFound && !list.isLoading.value" embedded />
       <template v-else>
         <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
         <SharedEmptyState v-if="emptiness === 'bare'" bordered :title="t('projects.finance.empty')" :description="canManage ? t('projects.finance.emptyHint') : undefined" />
@@ -256,7 +258,7 @@ const emptiness = computed(() => summary.value
               </template>
             </FilterBar>
           </template>
-          <SharedPageState :loading="list.isLoading.value && !list.data.value" :error="notFound ? null : list.error.value" :empty="false" @retry="list.refetch">
+          <SharedPageState :loading="list.isLoading.value && !list.data.value" :error="notFound || forbidden ? null : list.error.value" :empty="false" @retry="list.refetch">
             <div v-if="summary && showEmpty" class="p-(--liwan-card-pad)">
               <SharedEmptyState :title="t('projects.finance.filteredEmpty')" :description="t('projects.finance.filteredEmptyHint')" />
             </div>

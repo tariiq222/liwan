@@ -410,6 +410,8 @@ export function charterPatchBody(
   draft: CharterDraft,
   expectedUpdatedAt: string,
   originalDates: NativeDateSnapshot,
+  /** False when the finance tool is off or the caller lacks `pmo.finance.read`: the server refuses a charter write that names the budget. */
+  withBudget = true,
 ): ProjectPatch {
   const patch: ProjectPatch = {
     name: draft.name.trim(),
@@ -418,6 +420,7 @@ export function charterPatchBody(
     charter: charterWriteFromDraft(draft),
     expected_updated_at: expectedUpdatedAt,
   }
+  if (!withBudget) { delete patch.charter?.budget_state; delete patch.charter?.amount }
   if (datesChangedFromOriginal(draft, originalDates)) {
     if (!draft.dateStart && draft.dateEnd) {
       patch.date = draft.dateEnd

@@ -114,7 +114,7 @@ describe('contextual module links', () => {
     expect(contextLinksForModule('settings', employee)).toEqual([])
     const ids = (identity: typeof admin, path?: string) => contextLinksForModule('settings', identity, path).map(link => link.id)
     expect(ids(admin)).toEqual(['settings-overview', 'settings-company', 'settings-team'])
-    expect(ids(admin, '/settings/team/roles/3')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'users', 'roles', 'access-log'])
+    expect(ids(admin, '/settings/team/roles/3')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'users', 'roles', 'access-policy', 'access-log'])
     expect(ids(admin, '/settings/company')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'branding'])
     expect(ids({ ...admin, capabilities: [...admin.capabilities, 'settings.company.read'] }, '/settings/company#contact')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'profile', 'address', 'contact', 'branding'])
     const open = contextLinksForModule('settings', admin, '/settings/team/users').filter(link => link.section)

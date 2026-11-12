@@ -79,6 +79,7 @@ const CAPABILITIES = [
   'pmo.projects.read',
   'pmo.projects.create',
   'pmo.projects.manage',
+  'pmo.finance.read',
   'pmo.settings.manage',
   'pmo.tasks.read',
   'pmo.tasks.create',
@@ -147,7 +148,7 @@ const AUDIT_SUMMARY = {
 describe('access capability and reference schemas', () => {
   it("lists today's capability catalog and accepts any well-formed key", () => {
     expect(KNOWN_CAPABILITIES).toEqual(CAPABILITIES)
-    expect(KNOWN_CAPABILITIES).toHaveLength(58)
+    expect(KNOWN_CAPABILITIES).toHaveLength(59)
     for (const key of [...CAPABILITIES, 'sales.orders.read', 'sales.orders.write', 'customer_acme.reports.export']) {
       expect(CapabilitySchema.parse(key)).toBe(key)
     }
@@ -388,6 +389,7 @@ describe('admin input schemas and fail-closed security fields', () => {
       'user.second_step_reset',
       'user.branch_roles_changed',
       'branch.policy_changed',
+      'access.policy_changed',
       'company.profile_changed',
       'company.branding_changed',
       'company.vat_registration_changed',
