@@ -40,10 +40,16 @@ class TestStorageLimitNotification(TransactionCase):
         self.env['ir.config_parameter'].set_param('mail.default.from', 'LiwanOS <no-reply@liwanos.com>')
         self.env['ir.config_parameter'].set_param('web.base.url', 'https://tenant.example.com')
         self.service = self.env['liwan.entitlement.service']
-        self.used = 0
-        self.patch(type(self.service), '_liwan_count_storage_bytes', lambda model: self.used)
         self._set_mode('saas')
         self._set_limit(LIMIT_MB)
+
+    @property
+    def used(self):
+        return self.service._liwan_profile().storage_used_bytes
+
+    @used.setter
+    def used(self, value):
+        self.service._liwan_profile()._liwan_set_storage_used(value)
 
     def _set_limit(self, limit_mb):
         self.profile.with_context(**{OPERATOR_CONTEXT: True}).write({

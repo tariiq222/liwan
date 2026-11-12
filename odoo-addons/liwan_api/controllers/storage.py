@@ -25,7 +25,7 @@ class StorageController(http.Controller):
         if request.env.company == service._liwan_profile().root_company_id:
             summary = {
                 'limit_mb': service._liwan_limit_value('storage.limit_mb'),
-                'used_bytes': service._liwan_count_storage_bytes(),
+                'used_bytes': service._liwan_profile().storage_used_bytes,
                 'blocked_bytes': service._liwan_blocked_storage_bytes(),
             }
         return {
