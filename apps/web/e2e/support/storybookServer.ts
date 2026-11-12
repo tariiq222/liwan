@@ -53,6 +53,9 @@ export async function startStorybookServer(): Promise<{ base: string, close: () 
  * build is a failure, not a silent skip.
  */
 export function requireStorybook(): void {
+  // The static build is served on its own port: the suite's Origin header (playwright.config.ts, for the /api/v1
+  // proxy) would name another origin and stop the stories from rendering.
+  test.use({ extraHTTPHeaders: {} })
   if (storybookBuilt) return
   if (process.env.LIWAN_REQUIRE_STORYBOOK === '1') {
     test('Storybook build is present', () => {
