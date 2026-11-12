@@ -195,7 +195,8 @@ class OperationRequest(models.Model):
                     capability, candidates = entry['capability'], self._operations_resolve_reviewers(resolver)
                 else:
                     capability, candidates = 'operations.requests.review', definition.operations_reviewer_ids
-                users = candidates.filtered(lambda u: u.active and not u.share and self.company_id in u.company_ids and u != self.requester_id and u not in subjects)
+                service = self.env['liwan.access.service']
+                users = candidates.filtered(lambda u: u.active and not u.share and self.company_id.id in service._liwan_membership_company_ids(u) and u != self.requester_id and u not in subjects)
                 users = users.filtered(lambda u: self.env['liwan.access.service']._liwan_has_capability(u, capability, company=self.company_id))
                 skipped = not users and bool(entry and entry.get('skip_when_empty'))
                 if not users and not skipped:
