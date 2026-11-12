@@ -141,10 +141,10 @@ export function useHrShiftAssignment(id: MaybeRefOrGetter<number | null>) {
 export function useMyHrShiftAssignments(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
-  const { can } = useAccess()
+  const { canPersonal } = useAccess()
   return useQuery({
     queryKey: computed(() => [...hrShiftKeys.mine, identity.scope.value]),
-    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && canPersonal('hr.employees.read')),
     queryFn: () => $api('/api/v1/hr/shifts/me', { schema: HrShiftAssignmentListSchema }),
   })
 }
@@ -274,10 +274,10 @@ export function useHrShiftRoster(weekStart: MaybeRefOrGetter<string>, offset: Ma
 export function useMyHrShiftWeek(weekStart: MaybeRefOrGetter<string>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
-  const { can } = useAccess()
+  const { canPersonal } = useAccess()
   return useQuery({
     queryKey: computed(() => [...hrShiftKeys.myWeek, toValue(weekStart), identity.scope.value]),
-    enabled: computed(() => identity.ready.value && !!toValue(weekStart) && toValue(enabled) && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && !!toValue(weekStart) && toValue(enabled) && canPersonal('hr.employees.read')),
     queryFn: () => $api('/api/v1/hr/shifts/me/week', {
       query: { week_start: toValue(weekStart) },
       schema: HrShiftMyWeekSchema,

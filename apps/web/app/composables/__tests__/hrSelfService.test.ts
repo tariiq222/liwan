@@ -34,7 +34,7 @@ describe('Self-service HR queries', () => {
     const calls: Array<[string, Record<string, unknown>]> = []
     const allowed = ref(true)
     vi.stubGlobal('useApi', () => ({ $api: async (path: string, options: Record<string, unknown>) => { calls.push([path, options]); return null } }))
-    vi.stubGlobal('useAccess', () => ({can: (capability: string) => allowed.value && capability === 'hr.employees.read'}))
+    vi.stubGlobal('useAccess', () => ({canPersonal: (capability: string) => allowed.value && capability === 'hr.employees.read'}))
     const query = useMyHrProfile() as unknown as CapturedQuery
     expect(await query.queryFn()).toBeNull()
     expect(calls[0]![0]).toBe('/api/v1/hr/me')
@@ -45,7 +45,7 @@ describe('Self-service HR queries', () => {
   it('never enables an own shift read without employee read access', async () => {
     const { useMyHrShiftAssignments } = await import('../useHrShifts')
     vi.stubGlobal('useApi', () => ({ $api: vi.fn() }))
-    vi.stubGlobal('useAccess', () => ({can: () => false}))
+    vi.stubGlobal('useAccess', () => ({canPersonal: () => false}))
     const query = useMyHrShiftAssignments(computed(() => true)) as unknown as CapturedQuery
     expect(toValue(query.enabled)).toBe(false)
   })
@@ -54,7 +54,7 @@ describe('Self-service HR queries', () => {
     const { useMyHrPayslips, useMyHrPayslip } = await import('../useHrPayslips')
     const { useMyHrShiftAssignments } = await import('../useHrShifts')
     vi.stubGlobal('useApi', () => ({$api:vi.fn()}))
-    vi.stubGlobal('useAccess', () => ({can:() => true}))
+    vi.stubGlobal('useAccess', () => ({canPersonal: () => true}))
     const queries = [useMyHrProfile(), useMyHrLeaveRequest(ref(7)), useHrLeaveBalances(), useHrLeaveRequests({scope:'mine',limit:25,offset:0}), useMyHrAssets(), useMyHrPayslips({ limit: 25, offset: 0 }), useMyHrPayslip(ref(7)), useMyHrShiftAssignments()] as unknown as CapturedQuery[]
     const firstKeys = queries.map(query => toValue(query.queryKey))
     identity.value = {id:2,company:{id:3}}

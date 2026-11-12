@@ -31,11 +31,11 @@ export function fetchMyHrPayslip($api: Api, payslipId: number) {
 /** Gated by the employee read capability, not the payroll one: every employee reads their own approved payslips. */
 export function useMyHrPayslips(page: MaybeRefOrGetter<HrMyPayslipPage>) {
   const { $api } = useApi()
-  const { can } = useAccess()
+  const { canPersonal } = useAccess()
   const identity = useHrOwnIdentity()
   return useQuery({
     queryKey: computed(() => [...hrMyPayslipKeys.page(toValue(page)), identity.scope.value]),
-    enabled: computed(() => identity.ready.value && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && canPersonal('hr.employees.read')),
     queryFn: () => fetchMyHrPayslips($api, toValue(page)),
     placeholderData: previous => previous,
   })
@@ -43,11 +43,11 @@ export function useMyHrPayslips(page: MaybeRefOrGetter<HrMyPayslipPage>) {
 
 export function useMyHrPayslip(payslipId: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
-  const { can } = useAccess()
+  const { canPersonal } = useAccess()
   const identity = useHrOwnIdentity()
   return useQuery({
     queryKey: computed(() => [...hrMyPayslipKeys.one(toValue(payslipId) ?? 0), identity.scope.value]),
-    enabled: computed(() => identity.ready.value && can('hr.employees.read') && !!toValue(payslipId)),
+    enabled: computed(() => identity.ready.value && canPersonal('hr.employees.read') && !!toValue(payslipId)),
     queryFn: () => fetchMyHrPayslip($api, toValue(payslipId) as number),
   })
 }

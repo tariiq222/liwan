@@ -82,7 +82,7 @@ function autoImports(can: (capability: string) => boolean, file: string): Record
   return {
     ref: Vue.ref, computed: Vue.computed, nextTick: Vue.nextTick,
     useI18n: () => ({ t: fakeT() }),
-    useAccess: () => ({ can }),
+    useAccess: () => ({ can, canPersonal: can }),
     useHydrated: () => Vue.ref(true),
     useRoute: () => ({ params: { employeeId: '7', departmentId: '3' }, query: {}, hash: '', path: `/hr/${file}` }),
     useRouter: () => ({ resolve: () => ({ fullPath: '/hr' }), replace: () => undefined }),

@@ -20,7 +20,7 @@ const requestLeave = { id: 'hr.new-leave', labelKey: 'hr.leave.new', icon: 'i-lu
 /** HR contributes only employee-owned data; the shell never imports HR components or schemas. */
 export const hrPersonalEntries: AppPersonalEntry[] = [
   {
-    id: 'hr-profile', section: 'profile', labelKey: 'hr.self.profile', descriptionKey: 'hr.self.profileDesc', icon: 'i-lucide-user-round',
+    id: 'hr-profile', section: 'profile', servedFromHomeCompany: true, labelKey: 'hr.self.profile', descriptionKey: 'hr.self.profileDesc', icon: 'i-lucide-user-round',
     to: '/account/profile', capability: 'hr.employees.read',
     summary: {
       queryKey: ['hr', 'personal', 'profile'],
@@ -31,7 +31,7 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
     },
   },
   {
-    id: 'hr-onboarding', section: 'profile', labelKey: 'hr.self.onboarding', descriptionKey: 'hr.self.onboardingDesc', icon: 'i-lucide-list-checks',
+    id: 'hr-onboarding', section: 'profile', servedFromHomeCompany: true, labelKey: 'hr.self.onboarding', descriptionKey: 'hr.self.onboardingDesc', icon: 'i-lucide-list-checks',
     to: '/account/onboarding', capability: 'hr.employees.read', feature: 'hr.onboarding',
     summary: {
       queryKey: ['hr', 'onboarding', 'personal'],
@@ -42,7 +42,7 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
     },
   },
   {
-    id: 'hr-leave', section: 'leave', labelKey: 'hr.self.leave', descriptionKey: 'hr.self.leaveDesc', icon: 'i-lucide-calendar-days',
+    id: 'hr-leave', section: 'leave', servedFromHomeCompany: true, labelKey: 'hr.self.leave', descriptionKey: 'hr.self.leaveDesc', icon: 'i-lucide-calendar-days',
     to: '/account/leave', capability: 'hr.leave.read', requiredCapabilities: ['hr.employees.read'], primaryAction: requestLeave,
     summary: {
       queryKey: ['hr', 'leave', 'personal'],
@@ -60,7 +60,7 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
     },
   },
   {
-    id: 'hr-pay', section: 'pay', labelKey: 'hr.self.pay', descriptionKey: 'hr.self.payDesc', icon: 'i-lucide-receipt',
+    id: 'hr-pay', section: 'pay', servedFromHomeCompany: true, labelKey: 'hr.self.pay', descriptionKey: 'hr.self.payDesc', icon: 'i-lucide-receipt',
     to: '/account/pay', capability: 'hr.employees.read', feature: 'hr.payroll',
     summary: {
       queryKey: ['hr', 'payroll', 'personal'],
@@ -72,7 +72,7 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
     },
   },
   {
-    id: 'hr-assets', section: 'assets', labelKey: 'hr.self.assets', descriptionKey: 'hr.self.assetsDesc', icon: 'i-lucide-package-check',
+    id: 'hr-assets', section: 'assets', servedFromHomeCompany: true, labelKey: 'hr.self.assets', descriptionKey: 'hr.self.assetsDesc', icon: 'i-lucide-package-check',
     to: '/account/assets', capability: 'hr.employees.read', feature: 'hr.assets',
     summary: {
       queryKey: ['hr', 'assets', 'personal'],
@@ -84,7 +84,7 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
     },
   },
   {
-    id: 'hr-warnings', section: 'profile', labelKey: 'hr.self.warnings', descriptionKey: 'hr.self.warningsDesc', icon: 'i-lucide-triangle-alert',
+    id: 'hr-warnings', section: 'profile', servedFromHomeCompany: true, labelKey: 'hr.self.warnings', descriptionKey: 'hr.self.warningsDesc', icon: 'i-lucide-triangle-alert',
     to: '/account/warnings', capability: 'hr.employees.read', feature: 'hr.warnings',
     summary: {
       queryKey: ['hr', 'warnings', 'personal'],
@@ -96,7 +96,7 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
     },
   },
   {
-    id: 'hr-insurance', section: 'profile', labelKey: 'hr.self.insurance', descriptionKey: 'hr.self.insuranceDesc', icon: 'i-lucide-heart-pulse',
+    id: 'hr-insurance', section: 'profile', servedFromHomeCompany: true, labelKey: 'hr.self.insurance', descriptionKey: 'hr.self.insuranceDesc', icon: 'i-lucide-heart-pulse',
     to: '/account/insurance', capability: 'hr.employees.read', feature: 'hr.insurance',
     summary: {
       queryKey: ['hr', 'insurance', 'personal'],
@@ -108,7 +108,7 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
     },
   },
   {
-    id: 'hr-schedule', section: 'schedule', labelKey: 'hr.self.schedule', descriptionKey: 'hr.self.scheduleDesc', icon: 'i-lucide-calendar-clock',
+    id: 'hr-schedule', section: 'schedule', servedFromHomeCompany: true, labelKey: 'hr.self.schedule', descriptionKey: 'hr.self.scheduleDesc', icon: 'i-lucide-calendar-clock',
     to: '/account/schedule', capability: 'hr.employees.read', feature: 'hr.shifts',
     summary: {
       queryKey: ['hr', 'shifts', 'personal'],

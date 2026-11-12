@@ -11,10 +11,10 @@ const STEPS_PATH = '/api/v1/hr/self/onboarding-steps'
 export function useMyHrOnboardingSteps(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
-  const { can } = useAccess()
+  const { canPersonal } = useAccess()
   return useQuery({
     queryKey: computed(() => [...hrOwnOnboardingKey, identity.scope.value]),
-    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && canPersonal('hr.employees.read')),
     queryFn: () => $api(STEPS_PATH, { schema: HrOwnOnboardingStepListSchema }),
   })
 }

@@ -199,10 +199,10 @@ export function useHrInsuranceSummary(enabled: MaybeRefOrGetter<boolean> = true)
 export function useMyHrInsurance(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
-  const { can } = useAccess()
+  const { canPersonal } = useAccess()
   return useInfiniteQuery({
     queryKey: computed(() => [...hrInsuranceKeys.mine, identity.scope.value]),
-    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && canPersonal('hr.employees.read')),
     queryFn: ({ pageParam }) => $api(`${BASE}/me`, { query: { limit: HR_INSURANCE_PAGE_SIZE, offset: pageParam }, schema: HrInsuranceOwnListSchema }),
     initialPageParam: 0,
     getNextPageParam: (_last, pages) => nextOwnHrInsuranceOffset(pages),

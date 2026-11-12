@@ -215,6 +215,12 @@ export interface AppPersonalEntry {
   feature?: string
   requiredCapabilities?: string[]
   primaryAction?: AppCommand
+  /**
+   * The server serves this page, and the pages beneath its `to`, from the account's home company whatever company the session
+   * works in, so its navigation entry, route gate and in-page checks follow the capabilities held there (`home_capabilities`).
+   * Declare it only for the routes the server marks `serves_own_data`; an entry without it follows the working company.
+   */
+  servedFromHomeCompany?: true
   summary?: {
     queryKey: readonly unknown[]
     load: (api: AppSearchApi, t: (key: string, params?: Record<string, unknown>) => string) => Promise<AppPersonalSummary>

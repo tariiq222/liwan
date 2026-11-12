@@ -8,6 +8,8 @@ import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 export type AccessIdentity = {
   role?: string
   capabilities?: readonly string[]
+  /** What the account holds in its home company, where the personal pages are served from. */
+  home_capabilities?: readonly string[]
   modules?: readonly string[]
   entitlements?: Record<string, boolean | number | null>
   platform?: {
@@ -21,6 +23,20 @@ export type AccessIdentity = {
 export const INTERNAL_LIWAN_ACCESS = 'liwan.internal'
 /** UI predicate for the shared inbox; this is not a server capability grant. */
 export const NOTIFICATION_ACCESS = 'liwan.notifications'
+/**
+ * The personal identity: the same account with the capabilities it holds in its home company. Only the personal pages an
+ * application declares `servedFromHomeCompany` follow these; every other page, including the other `/account` pages,
+ * ordinary navigation, application landings and settings, stays on the working company's capabilities.
+ */
+export function personalIdentity<T extends AccessIdentity>(identity: T): T {
+  return identity && identity.home_capabilities ? { ...identity, capabilities: identity.home_capabilities } : identity
+}
+/** A path of a personal entry that declares `servedFromHomeCompany`: the entry's own page or a page beneath it. */
+export function isPersonalPath(path: string): boolean {
+  const normalized = normalizedPath(path)
+  return activeManifests().some(manifest => (manifest.personal ?? []).some(entry =>
+    entry.servedFromHomeCompany === true && (normalized === entry.to || normalized.startsWith(`${entry.to}/`))))
+}
 export function hasCapability(identity: AccessIdentity, capability: string): boolean {
   if (capability === INTERNAL_LIWAN_ACCESS) return Array.isArray(identity?.capabilities)
   if (capability === NOTIFICATION_ACCESS) {
@@ -51,6 +67,7 @@ function destinations(): readonly Destination[] {
 }
 /** `feature` is an entry's explicit sub-feature (manifest `feature`), required on top of the capability's own gates. */
 export function canReach(identity: AccessIdentity, capability: string, path?: string, feature?: string): boolean {
+  if (path && isPersonalPath(path)) identity = personalIdentity(identity)
   if (capability === INTERNAL_LIWAN_ACCESS && path === '/') return hasCapability(identity, capability)
   if (capability === NOTIFICATION_ACCESS) {
     return hasCapability(identity, capability) && canUse(identity, capability)
@@ -67,6 +84,7 @@ export function canReach(identity: AccessIdentity, capability: string, path?: st
  * `tenant_read_only` marks a write-only closure on a read-only tenant, `feature_not_included` any other.
  */
 export function planDenialCode(identity: AccessIdentity, path: string): 'feature_not_included' | 'tenant_read_only' | null {
+  if (isPersonalPath(path)) identity = personalIdentity(identity)
   const capability = requiredCapabilityForPath(path)
   const featuresClosed = (write: boolean) => [featureForPath(path), requiredFeatureForPath(path)].some(key => !hasFeature(identity, key ?? null, write))
   if (featuresClosed(false)) return 'feature_not_included'
@@ -138,6 +156,7 @@ function settingsCardsOpeningPage(path: string): string[] | null {
  */
 export function canReachPath(identity: AccessIdentity, path: string): boolean {
   const normalized = normalizedPath(path)
+  if (isPersonalPath(normalized)) identity = personalIdentity(identity)
   if (/^\/settings\/team\/users\/[^/]+\/branches$/.test(normalized) && !hasCapability(identity, 'access.roles.read')) return false
   // The branches page serves two rights: editing the branch access policy, and adding a branch (company administration).
   if (normalized === '/settings/team/branches') {
