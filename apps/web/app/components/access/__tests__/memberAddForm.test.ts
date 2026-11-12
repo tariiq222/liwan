@@ -1,6 +1,8 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
+import { ApiError as RealApiError } from '../../../composables/useApi'
+import { accessErrorMessage } from '../../../utils/accessErrors'
 import { setupSfc, mutation } from './sfcSetup'
 
 class ApiError extends Error {
@@ -46,5 +48,18 @@ describe('adding a member to a branch', () => {
     other.state.roleIds.value = [4]
     await other.state.submit()
     expect(other.state.error.value).toBe('mapped:already')
+  })
+
+  it('shows the self-grant policy text when the caller adds their own account with roles beyond it', async () => {
+    const t = (key: string) => key === 'access.errors.self_grant_restricted' ? 'policy text' : key
+    const refused = new RealApiError(403, 'self_grant_restricted', 'raw', 'assignments', { roles: ['payroll'], permissions: ['payroll.manage'] })
+    const { state } = setupSfc(resolve(import.meta.dirname, '../users/MemberAddForm.vue'), { companyId: 7, roles: [] }, {
+      ApiError: RealApiError, RoleCheckboxes: {}, accessErrorMessage, useAddMembership: () => mutation(async () => { throw refused }),
+      useI18n: () => ({ t, locale: Vue.ref('en') }),
+    })
+    state.login.value = 'me@example.com'
+    state.roleIds.value = [4]
+    await state.submit()
+    expect(state.error.value).toBe('policy text')
   })
 })

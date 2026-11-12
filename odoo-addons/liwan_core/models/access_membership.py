@@ -252,6 +252,14 @@ class LiwanMembershipService(models.AbstractModel):
         self._liwan_lock_company(company)
         self.env.invalidate_all()
         user = self._liwan_membership_account(login, company)
+        if user == self.env.user:
+            # The assignment rows are created in the elevated environment, where the self-grant check stands down:
+            # a root administrator adding their own account meets the receiving company's policy here, as the caller.
+            roles = self._liwan_membership_env()['liwan.access.role'].browse(role_ids)
+            self._liwan_assert_self_grant(
+                user, company, self._liwan_capability_keys(user, company=company),
+                set(roles.permission_ids.mapped('key')), roles.mapped('key'),
+            )
         with self.env.cr.savepoint():
             user.write({'company_ids': [Command.link(company.id)]})
             self._liwan_clear_branch_cache()

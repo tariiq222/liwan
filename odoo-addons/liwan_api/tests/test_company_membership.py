@@ -2,6 +2,7 @@
 """Company membership: adding an account of the tenant to a second company, changing its roles there, removing it."""
 from unittest import mock
 
+from odoo.fields import Command
 from odoo.http import root
 from odoo.tests import tagged
 
@@ -474,3 +475,76 @@ class TestMembershipAudit(MembershipCase):
         changed = self.audit('user.membership_roles_changed')
         self.assertEqual(changed.mapped('company_id'), self.branch_b)
         self.assertEqual(changed.mapped('actor_id'), self.b_admin)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestMembershipSelfGrant(MembershipCase):
+    """A root administrator adding their own account to a branch meets the self-grant policy of the branch's root."""
+
+    PROBE_KEY = 'probe_membership.salaries.manage'
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        group = cls.env['res.groups'].create({'name': 'Membership self-grant probe'})
+        cls.env['ir.model.data'].create({
+            'module': 'liwan_core', 'name': f'membership_probe_{group.id}', 'model': 'res.groups', 'res_id': group.id,
+        })
+        probe = cls.env['liwan.access.permission'].create({
+            'key': cls.PROBE_KEY, 'name_ar': cls.PROBE_KEY, 'name_en': cls.PROBE_KEY, 'domain': 'probe_membership',
+            'group_xmlid': f'liwan_core.membership_probe_{group.id}', 'custom_role_allowed': True,
+            'resource': 'salaries', 'action': 'manage', 'description_ar': cls.PROBE_KEY,
+        })
+        cls.elevating = cls.env['liwan.access.role'].create({
+            'key': 'test_membership_elevating', 'name_ar': 'Elevating', 'type': 'built_in',
+            'permission_ids': [Command.set(probe.ids)],
+        })
+
+    def traces(self, user):
+        """The audit and bell rows that name USER."""
+        return (
+            self.env['liwan.access.audit'].search_count([('target_id', '=', user.id), ('action', 'like', 'user.membership')]),
+            self.env['mail.message'].search_count([('model', '=', 'res.users'), ('res_id', '=', user.id)]),
+        )
+
+    def test_a_root_administrator_adds_themselves_with_the_administrator_and_employee_roles(self):
+        self.assertEqual(self.root_company.liwan_self_grant_policy, 'restricted')
+        self.sign_in('wc_root_admin')
+        own = self.add('wc_root_admin', self.fresh_branch, self.admin_role, self.employee_role, company_id=self.fresh_branch)
+        self.assertEqual(own.status_code, 201, own.text)
+        self.assertEqual(self.assigned(self.root_admin, self.fresh_branch), self.admin_role | self.employee_role)
+
+    def test_a_root_administrator_cannot_add_themselves_with_a_role_beyond_them_under_restricted(self):
+        self.sign_in('wc_root_admin')
+        before = self.traces(self.root_admin)
+        refused = self.add('wc_root_admin', self.fresh_branch, self.elevating, company_id=self.fresh_branch)
+        refusal(self, refused, 403, 'self_grant_restricted')
+        self.assertEqual(refused.json()['details'], {'roles': [self.elevating.key], 'permissions': [self.PROBE_KEY]})
+        self.env.invalidate_all()
+        self.assertNotIn(self.fresh_branch, self.root_admin.company_ids)
+        self.assertFalse(self.assigned(self.root_admin, self.fresh_branch))
+        self.assertEqual(self.traces(self.root_admin), before)
+
+    def test_the_allowed_policy_lets_a_root_administrator_add_themselves_with_any_role(self):
+        service = self.env['liwan.access.service'].with_user(self.root_admin).with_company(self.root_company)
+        service._liwan_set_self_grant_policy(service._liwan_access_policy()['version'], 'allowed')
+        self.sign_in('wc_root_admin')
+        own = self.add('wc_root_admin', self.fresh_branch, self.admin_role, self.elevating, company_id=self.fresh_branch)
+        self.assertEqual(own.status_code, 201, own.text)
+        self.assertEqual(self.assigned(self.root_admin, self.fresh_branch), self.admin_role | self.elevating)
+
+    def test_adding_another_account_with_the_same_role_is_not_a_self_grant(self):
+        self.sign_in('wc_root_admin')
+        other = self.add('mb_member', self.fresh_branch, self.elevating, company_id=self.fresh_branch)
+        self.assertEqual(other.status_code, 201, other.text)
+        self.assertEqual(self.assigned(self.member, self.fresh_branch), self.elevating)
+
+    def test_a_member_cannot_change_their_own_roles_here(self):
+        self.sign_in('wc_roamer')
+        self.switch(self.branch_b)
+        version = next(item for item in self.memberships().json()['items'] if item['id'] == self.roamer.id)['version']
+        changed = self.api('PATCH', f'{MEMBERSHIPS}/{self.roamer.id}', {
+            'expected_version': version, 'assignments': self.grants(self.branch_b, self.admin_role, self.elevating),
+        })
+        refusal(self, changed, 422, 'self_access_change')
+        self.assertEqual(self.assigned(self.roamer, self.branch_b), self.admin_role)
