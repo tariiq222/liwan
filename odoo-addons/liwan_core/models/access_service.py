@@ -414,16 +414,26 @@ class LiwanAccessService(models.AbstractModel):
         return company.browse(int(company.parent_path.split('/')[0]))
 
     @api.model
+    def _liwan_policy_values(self, company=None):
+        """(self-grant policy, policy version) of the root COMPANY follows, readable from any branch of the tenant.
+
+        A caller working in a branch need not belong to the root company, whose record ``res_company_rule_employee``
+        then hides. Only these two settings are read elevated; the record itself stays in the caller's environment.
+        """
+        root = self._liwan_policy_company(company).sudo()
+        return root.liwan_self_grant_policy, f'p{root.id}-v{root.liwan_access_policy_version}'
+
+    @api.model
     def _liwan_access_policy_version(self):
-        company = self._liwan_policy_company()
-        return f'p{company.id}-v{company.liwan_access_policy_version}'
+        return self._liwan_policy_values()[1]
 
     @api.model
     def _liwan_access_policy(self):
         self._liwan_require_capability('access.roles.read')
+        self_grant, version = self._liwan_policy_values()
         return {
-            'self_grant': self._liwan_policy_company().liwan_self_grant_policy,
-            'version': self._liwan_access_policy_version(),
+            'self_grant': self_grant,
+            'version': version,
         }
 
     @api.model
@@ -460,7 +470,7 @@ class LiwanAccessService(models.AbstractModel):
         KEYS_BEFORE / KEYS_AFTER are the permission keys USER holds in COMPANY before and after the change.
         Keys already held, the system administrator grants and the Employee role (self-service) never count.
         """
-        if self.env.is_superuser() or user != self.env.user or self._liwan_policy_company(company).liwan_self_grant_policy == 'allowed':
+        if self.env.is_superuser() or user != self.env.user or self._liwan_policy_values(company)[0] == 'allowed':
             return
         grants = self._liwan_builtin_role_grants()
         elevated = set(keys_after) - set(keys_before) - grants['liwan_core.role_system_admin'] \

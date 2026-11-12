@@ -62,6 +62,25 @@ class TestAccessPolicyRoutes(LiwanApiCase):
                 self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'), response.text)
         self.assertTrue(self.env['liwan.access.audit'].search([('action', '=', 'access.policy_changed')]))
 
+    def test_a_member_of_a_branch_only_reads_the_root_policy_and_cannot_change_it(self):
+        branch = self.env['res.company'].create({'name': 'Policy route branch', 'parent_id': self.company.id})
+        branch_admin = new_test_user(self.env, login='policy_api_branch', password='policy_api_branch_123',
+                                     groups='base.group_user', company_id=branch.id, company_ids=[Command.set([branch.id])])
+        self.env['liwan.access.service']._liwan_replace_assignments(
+            branch_admin, [{'role_id': self.system_role.id, 'company_id': branch.id}],
+        )
+        self.authenticate('policy_api_admin', 'policy_api_pass_123')
+        root = self.api('GET', '/api/v1/admin/access/policy').json()
+        self.authenticate('policy_api_branch', 'policy_api_branch_123')
+        state = self.api('GET', '/api/v1/admin/access/policy')
+        self.assertEqual(state.status_code, 200, state.text)
+        self.assertEqual(state.json(), root)
+        refused = self.api('PATCH', '/api/v1/admin/access/policy', json={
+            'self_grant': 'allowed', 'expected_version': root['version'],
+        })
+        self.assertEqual(refused.status_code, 403, refused.text)
+        self.assertEqual(self.company.liwan_self_grant_policy, 'restricted')
+
     def test_restricted_self_grant_answers_403_with_details(self):
         self.authenticate('policy_api_admin', 'policy_api_pass_123')
         user = self.env['res.users'].browse(self.admin.id)
