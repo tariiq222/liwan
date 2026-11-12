@@ -103,6 +103,13 @@ class TestAddMembership(MembershipCase):
         refusal(self, self.add('wc_plain', self.branch_b), 409, 'already_member')
         refusal(self, self.add('wc_b_user', self.branch_b), 409, 'already_member')
 
+    def test_the_root_path_confirms_only_an_addable_account_homed_in_the_named_branch(self):
+        self.sign_in('wc_root_admin')
+        refusal(self, self.add('mb_member', self.branch_a, company_id=self.branch_a), 409, 'already_member')
+        for login in ('mb_gone', 'mb_pending', 'mb_legacy'):
+            with self.subTest(login=login):
+                refusal(self, self.add(login, self.branch_a, company_id=self.branch_a), 404, 'not_found')
+
     def test_an_unmanaged_legacy_account_keeps_its_home_capabilities_because_it_cannot_be_added(self):
         service = self.env['liwan.access.service']
         managed, _home = service._liwan_identity_management_state(self.legacy)

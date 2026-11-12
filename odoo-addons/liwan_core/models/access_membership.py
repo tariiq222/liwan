@@ -103,12 +103,14 @@ class LiwanMembershipService(models.AbstractModel):
 
         Every account that cannot be added answers the same ``not_found`` as an unknown login, so a typed email
         teaches nothing but the name and home company of an addable account. Only a login the caller could already
-        know about, one that belongs to the company already, answers ``already_member``.
+        know about answers ``already_member``: an account homed in the working company, whose accounts the caller
+        administers, or an addable account that belongs to the company already. On the root path the named branch
+        is not the working company, so an archived, pending or unmanaged account homed there stays ``not_found``.
         """
         user = self._liwan_membership_env()['res.users'].search([('login', '=', login)], limit=1)
         if self._liwan_membership_reserved(user):
             raise _not_found()
-        if user.company_id == company:
+        if user.company_id == company == self.env.company:
             msg = 'already_member'
             raise LiwanAccessRule(msg, field='login', status=409)
         if not self._liwan_membership_addable(user):
