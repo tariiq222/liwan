@@ -15,12 +15,12 @@ from odoo.addons.liwan_api.serializers.common import iso
 KIND = 'access_membership'
 READ_PERMISSION = 'access.users.read'
 PERSON_BODIES = {
-    True: 'تمت إضافتك إلى %(company)s. بدّل المؤسسة من قائمة المستخدم لتعمل فيها.',
+    True: 'تمت إضافتك إلى %(company)s. بدّل الشركة من قائمة المستخدم لتعمل فيها.',
     False: 'أُزيلت عضويتك في %(company)s.',
 }
 READER_BODIES = {
-    True: 'أضاف %(actor)s الحساب %(person)s إلى %(company)s. حسابه الأصلي في %(home)s.',
-    False: 'أزال %(actor)s الحساب %(person)s من %(company)s. حسابه الأصلي في %(home)s.',
+    True: 'أضاف %(actor)s حساب %(person)s إلى %(company)s. الشركة الأصلية للحساب: %(home)s.',
+    False: 'أزال %(actor)s حساب %(person)s من %(company)s. الشركة الأصلية للحساب: %(home)s.',
 }
 
 
