@@ -182,6 +182,14 @@ REVIEWED_E2E_TOOLING = {
 # jiti loads the TypeScript contracts into the vendor admin's mock control service (e2e only).
 REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescript', 'jiti'}
 
+# Packages the source already imported through a parent package (nuxt, @nuxt/ui, @tanstack/vue-query, @nuxtjs/i18n)
+# and that are now declared at their locked versions, so a parent upgrade cannot remove them silently
+# (tools/undeclared_imports.py). Owner approval 2026-11-13 (Tariq, in chat). None is a second UI library.
+REVIEWED_DECLARED_IMPORTS = {
+    '@iconify/vue', '@tanstack/query-core', '@tiptap/core', '@vue/runtime-core', 'devalue', 'esbuild', 'h3',
+    'hookable', 'node-mock-http', 'ofetch', 'pg', 'tailwind-variants', 'ufo', 'vue-i18n',
+}
+
 # Version changes from the baseline that the owner approved under docs/UPDATE_POLICY.md.
 # Only the exact recorded specifier passes; any other change still needs review.
 REVIEWED_VERSIONS = {
@@ -966,7 +974,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source
     # below), since Storybook is a viewer, not a second UI library.
-    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING | REVIEWED_E2E_TOOLING | REVIEWED_TEST_TOOLING
+    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING | REVIEWED_E2E_TOOLING | REVIEWED_TEST_TOOLING | REVIEWED_DECLARED_IMPORTS
     names = legacy_names(baseline)
     has_ui = '@nuxt/ui' in json.loads(current.get('apps/web/package.json', '{}')).get('dependencies', {})
     baseline_versions = dependency_versions(baseline)
