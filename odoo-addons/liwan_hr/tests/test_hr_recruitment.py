@@ -219,6 +219,40 @@ class TestHrRecruitment(LiwanHrCase):
         self.assertEqual(applicant.company_id, self.env.company)
         self.assertEqual(applicant.stage_id, self._first_stage_of(self.job))
 
+    def test_an_applicant_with_a_customers_email_gets_its_own_contact_and_stays_editable(self):
+        partners = self.env['res.partner']
+        if 'liwan_party' not in partners._fields:
+            self.skipTest('the customers service (liwan_party) is not installed in this run, e.g. the liwan_hr standalone stage')
+        customer = partners.create({
+            'name': 'Customer Omar', 'email': 'omar.customer@example.com', 'phone': '+966500000001', 'liwan_party': True,
+        })
+        # Recruitment only: an HR manager is a protected actor, whom the liwan_core guard keeps off any partner write.
+        self._user_with_capabilities('hr_party_recruiter', 'Party recruiter', ['hr.recruitment.read', 'hr.recruitment.manage'])
+        self.authenticate('hr_party_recruiter', 'hr_party_recruiter_pass_123')
+        created = self.api('POST', '/api/v1/hr/recruitment/applicants', json={
+            'partner_name': 'Omar', 'job_id': self.job.id, 'email_from': 'omar.customer@example.com',
+            'partner_phone': '+966500000099',
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        applicant = self.env['hr.applicant'].browse(created.json()['id'])
+        patched = self.api('PATCH', f'/api/v1/hr/recruitment/applicants/{applicant.id}', json={
+            'partner_name': 'Omar Saleh', 'partner_phone': '+966500000098',
+        })
+        self.assertEqual(patched.status_code, 200, patched.text)
+        self.assertNotEqual(applicant.partner_id, customer)
+        self.assertFalse(applicant.partner_id.liwan_party)
+        # An applicant linked to a customer before this rule is moved to a contact of its own on its next edit.
+        applicant.partner_id = customer
+        relinked = self.api('PATCH', f'/api/v1/hr/recruitment/applicants/{applicant.id}', json={
+            'partner_name': 'Omar S.', 'partner_phone': '+966500000097',
+        })
+        self.assertEqual(relinked.status_code, 200, relinked.text)
+        self.assertNotEqual(applicant.partner_id, customer)
+        self.assertEqual(
+            (customer.name, customer.email, customer.phone),
+            ('Customer Omar', 'omar.customer@example.com', '+966500000001'),
+        )
+
     def test_stage_and_priority_patch(self):
         applicant = self._applicant('Nour')
         other_stage = self.env.ref('hr_recruitment.stage_job2')
