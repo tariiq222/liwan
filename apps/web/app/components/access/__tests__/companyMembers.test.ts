@@ -2,6 +2,7 @@ import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { setupSfc, mutation } from './sfcSetup'
+import { heldRoleOptions } from '../memberRoles'
 
 class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message) }
@@ -13,14 +14,14 @@ const member = (id: number, roleIds: number[], version = `v${id}`) => ({
   assignments: roleIds.map(roleId => ({ id: 100 + roleId, role: role(roleId), scope: { kind: 'company', id: 1, name: 'Here' } })),
 })
 
-function members(over: { companyId?: number, caps?: string[], update?: (...args: any[]) => Promise<unknown>, remove?: (...args: any[]) => Promise<unknown> } = {}) {
+function members(over: { companyId?: number, roles?: unknown[], caps?: string[], update?: (...args: any[]) => Promise<unknown>, remove?: (...args: any[]) => Promise<unknown> } = {}) {
   const caps = over.caps ?? ['access.users.grant', 'access.users.assign_roles']
   const refetch = vi.fn(async () => undefined)
   const update = vi.fn(over.update ?? (async () => ({})))
   const remove = vi.fn(over.remove ?? (async () => undefined))
   const memberships = vi.fn((..._args: unknown[]) => ({ data: Vue.ref({ items: [member(21, [4]), member(22, [])], total: 2 }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch }))
-  const { state } = setupSfc(resolve(import.meta.dirname, '../users/CompanyMembers.vue'), { roles: [], ...(over.companyId ? { companyId: over.companyId } : {}) }, {
-    ApiError, RoleCheckboxes: {}, accessErrorMessage: (cause: Error) => `mapped:${cause.message}`,
+  const { state } = setupSfc(resolve(import.meta.dirname, '../users/CompanyMembers.vue'), { roles: over.roles ?? [], ...(over.companyId ? { companyId: over.companyId } : {}) }, {
+    ApiError, RoleCheckboxes: {}, heldRoleOptions, accessErrorMessage: (cause: Error) => `mapped:${cause.message}`,
     useAccess: () => ({ can: (key: string) => caps.includes(key) }), useMe: () => ({ me: Vue.ref({ company: { id: 1 } }) }),
     useMemberships: memberships, useUpdateMembershipRoles: () => mutation(update), useRemoveMembership: () => mutation(remove),
   })
@@ -94,6 +95,18 @@ describe('the members of a company', () => {
     await state.confirmRemove()
     expect(remove).not.toHaveBeenCalled()
     expect(members().state.canRemove(withRoles)).toBe(true)
+  })
+
+  it('offers Change roles only to someone who may also read the roles', () => {
+    expect(members().state.canChangeRoles.value).toBe(false)
+    expect(members({ caps: ['access.users.grant', 'access.users.assign_roles', 'access.roles.read'] }).state.canChangeRoles.value).toBe(true)
+    expect(members({ caps: ['access.users.grant', 'access.roles.read'] }).state.canChangeRoles.value).toBe(false)
+  })
+
+  it('shows a role the member holds even when it is inactive, warned and clearable', () => {
+    const { state } = members({ roles: [{ id: 4, name: { ar: 'x', en: 'x' }, active: false, assignable: true }] })
+    state.startEdit(state.items.value[0])
+    expect(state.optionsFor(state.items.value[0])).toEqual([{ id: 4, name: { ar: 'x', en: 'x' }, warning: 'access.roles.disabledExistingAssignments', disabled: false }])
   })
 
   it('is hidden from someone without grant', () => {

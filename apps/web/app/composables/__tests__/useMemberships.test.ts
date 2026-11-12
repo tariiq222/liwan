@@ -4,7 +4,7 @@ import { membershipKeys, useAddMembership, useMemberships, useRemoveMembership, 
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(async () => ({})), invalidate: vi.fn(async () => undefined), refresh: vi.fn(async () => undefined) }))
 vi.mock('@tanstack/vue-query', () => ({
-  keepPreviousData: {}, useQuery: (options: unknown) => options, useMutation: (options: unknown) => options,
+  useQuery: (options: unknown) => options, useMutation: (options: unknown) => options,
   useQueryClient: () => ({ invalidateQueries: mocks.invalidate }),
 }))
 vi.mock('../useAdminUsers', () => ({ ACCESS_MUTATION_GC_TIME: 0 }))
@@ -29,6 +29,11 @@ describe('membership calls', () => {
     await branch.queryFn({})
     expect(mocks.api).toHaveBeenLastCalledWith('/api/v1/admin/memberships', expect.objectContaining({ query: { company_id: 7, limit: 200, offset: 0 } }))
     expect(toValue(own.enabled as never)).toBe(true)
+  })
+
+  it('never shows the previous list while another company\'s loads', () => {
+    stub(1)
+    expect(useMemberships(undefined)).not.toHaveProperty('placeholderData')
   })
 
   it('keeps the same branch in two working companies apart', () => {

@@ -10,16 +10,16 @@ class ApiError extends Error {
 const idle = () => ({ data: Vue.ref(undefined), isLoading: Vue.ref(false), error: Vue.ref(null) })
 const EXISTING = { existing_account: { name: 'نورة', home_company: { id: 2, name: 'فرع الرياض' } } }
 
-function dialog(over: { grant?: () => Promise<unknown>, grantEmployee?: () => Promise<unknown>, employeeId?: string } = {}) {
+function dialog(over: { grant?: () => Promise<unknown>, grantEmployee?: () => Promise<unknown>, employeeId?: string, atSeatLimit?: boolean } = {}) {
   const add = vi.fn(async () => ({ id: 21, name: 'نورة' }))
   const { state } = setupSfc(resolve(import.meta.dirname, '../settings/team/users/new.vue'), {}, {
     ApiError, ExistingAccountDetailsSchema, ExistingAccountConfirm: {}, EmployeeAccountPicker: {}, RoleCheckboxes: {},
-    owningListBack: () => '/settings/team/users', accessErrorMessage: (cause: ApiError) => `mapped:${cause.code}`, adminListQuery: () => ({}),
+    owningListBack: () => '/settings/team/users', accessErrorMessage: (cause: ApiError) => `mapped:${cause.code}`, membershipErrorMessage: (cause: ApiError) => cause.code === 'not_found' ? 'access.members.emailNotFound' : `mapped:${cause.code}`, adminListQuery: () => ({}),
     useAccess: () => ({ can: () => true }), useMe: () => ({ me: Vue.ref({ company: { id: 1 } }) }),
     useRoute: () => ({ query: over.employeeId ? { employee_id: over.employeeId } : {}, hash: '' }), useRouter: () => ({ resolve: (to: string) => ({ fullPath: to }) }),
     useRecordListPaths: () => [], useEmployeeAccountBridge: () => ({ available: Vue.ref(true) }),
     useAdminRoles: () => ({ ...idle(), data: Vue.ref({ items: [] }) }), useAdminPermissionCatalog: idle, useAdminRoleDetails: idle, useAdminUser: idle,
-    useAdminUserSeats: () => ({ data: Vue.ref(undefined) }),
+    useAdminUserSeats: () => ({ data: Vue.ref(over.atSeatLimit ? { used: 5, limit: 5, read_only: 0 } : undefined) }),
     useGrantAdminAccount: () => mutation(over.grant ?? (async () => ({ id: 5, login: 'a@example.com' }))),
     useGrantEmployeeAccount: () => mutation(over.grantEmployee ?? (async () => ({ id: 6, login: 'e@example.com' }))),
     useReactivateAdminUser: () => mutation(vi.fn()), useUpdateAdminUserAccess: () => mutation(vi.fn()), useAddMembership: () => mutation(add),
@@ -87,6 +87,42 @@ describe('inviting an email that already has an account in another company', () 
     await state.confirmMembership()
     expect(state.membershipError.value).toBe('mapped:already_member')
     expect(state.existing.value).not.toBeNull()
+  })
+})
+
+describe('inviting at the seat limit', () => {
+  const fill = (state: any) => {
+    state.name.value = 'نورة'
+    state.login.value = 'noura@example.com'
+    state.selectedRoleIds.value = [4]
+  }
+  it('still sends the request, so an existing account of the organisation (which takes no seat) reaches the confirm step', async () => {
+    const { state } = dialog({ atSeatLimit: true, grant: exists(EXISTING) })
+    expect(state.atSeatLimit.value).toBe(true)
+    fill(state)
+    await state.submit()
+    expect(state.existing.value).not.toBeNull()
+  })
+
+  it('shows the server\'s seat-limit refusal for a new account', async () => {
+    const { state } = dialog({ atSeatLimit: true, grant: async () => { throw new ApiError(403, 'feature_not_included', 'Your plan limit was reached', undefined, { reason: 'limit', limit_key: 'users.limit' }) } })
+    fill(state)
+    await state.submit()
+    expect(state.existing.value).toBeNull()
+    expect(state.errorKey.value).toBe('mapped:feature_not_included')
+  })
+})
+
+describe('the confirm step\'s refusals', () => {
+  it('say the same thing as the add form when the email cannot be added', async () => {
+    const { state, add } = dialog({ grant: exists(EXISTING) })
+    add.mockRejectedValueOnce(new ApiError(404, 'not_found', 'x'))
+    state.name.value = 'نورة'
+    state.login.value = 'noura@example.com'
+    state.selectedRoleIds.value = [4]
+    await state.submit()
+    await state.confirmMembership()
+    expect(state.membershipError.value).toBe('access.members.emailNotFound')
   })
 })
 

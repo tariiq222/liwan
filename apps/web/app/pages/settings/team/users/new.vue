@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { owningListBack } from '@/utils/recordListOrigin'
-import { accessErrorMessage } from '@/utils/accessErrors'
+import { accessErrorMessage, membershipErrorMessage } from '@/utils/accessErrors'
 import EmployeeAccountPicker from '@/components/access/users/EmployeeAccountPicker.vue'
 import { useAdminUser, useAdminUserSeats, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
 import { useEmployeeAccountBridge, useGrantEmployeeAccount } from '@/composables/useEmployeeAccounts'
@@ -62,7 +62,8 @@ const loginInvalid = computed(() => login.value.trim() !== '' && !/^[^\s@]+@[^\s
 const loginMissing = computed(() => login.value.trim() === '' || loginInvalid.value)
 // A stopped account keeps its own login, so only a new account needs an address here.
 const identityMissing = computed(() => mode.value === 'employee' ? employeeBlocked.value || (!isReactivation.value && loginMissing.value) : name.value.trim() === '' || loginMissing.value)
-// A pending invitation holds a seat, and so does a reactivated account: the form shows which seat this one is and stops at the limit.
+// A pending invitation holds a seat, and so does a reactivated account: the form shows which seat this one is. At the limit the request still goes out:
+// an existing account of the organisation takes no seat and reaches the confirm step, and a new one gets the server's seat-limit refusal.
 const seats = useAdminUserSeats(computed(() => !forbidden.value))
 const seatLimit = computed(() => seats.data.value?.limit ?? null)
 const seatNumber = computed(() => (seats.data.value?.used ?? 0) + 1)
@@ -83,7 +84,7 @@ async function submit() {
   const selectedRoleIdsSnapshot = selectedRoleIds.value.slice()
   const reactivating = isReactivation.value
   const companyId = me.value?.company.id
-  if (identityMissing.value || selectedRoleIdsSnapshot.length === 0 || !companyId || !hydrated.value || atSeatLimit.value) return
+  if (identityMissing.value || selectedRoleIdsSnapshot.length === 0 || !companyId || !hydrated.value) return
   const assignments = selectedRoleIdsSnapshot.map((role_id) => ({ role_id, scope: { kind: 'company' as const, id: companyId } }))
   try {
     let user: Awaited<ReturnType<typeof grant.mutateAsync>>
@@ -121,7 +122,7 @@ async function confirmMembership() {
     existing.value = null
     added.value = { name: member.name }
   } catch (error) {
-    membershipError.value = accessErrorMessage(error, t)
+    membershipError.value = membershipErrorMessage(error, t)
   }
 }
 function declineMembership() {
@@ -207,7 +208,7 @@ function inviteAnother() {
             type="submit"
             color="primary"
             :label="isReactivation ? t('access.users.reactivateAccount') : t('access.users.sendInvitation')"
-            :disabled="!hydrated || busy || roles.isLoading.value || existingUser.isLoading.value || identityMissing || selectedRoleIds.length === 0 || atSeatLimit"
+            :disabled="!hydrated || busy || roles.isLoading.value || existingUser.isLoading.value || identityMissing || selectedRoleIds.length === 0"
           />
         </div>
       </SharedFormActions>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ApiError } from '@/composables/useApi'
 import { useAddMembership } from '@/composables/useMemberships'
-import { accessErrorMessage } from '@/utils/accessErrors'
+import { membershipErrorMessage } from '@/utils/accessErrors'
 import RoleCheckboxes, { type RoleOption } from '@/components/access/users/RoleCheckboxes.vue'
 
 // Adds an existing account of the organisation to a branch by the email typed in full. `companyId` is the branch the root
@@ -31,8 +30,7 @@ async function submit() {
     roleIds.value = []
     emit('added', member.name)
   } catch (cause) {
-    // Every email that cannot be added answers the same 404 (unknown, archived, support or not yet accepted): one message that claims nothing.
-    error.value = cause instanceof ApiError && cause.code === 'not_found' ? t('access.members.emailNotFound') : accessErrorMessage(cause, t)
+    error.value = membershipErrorMessage(cause, t)
   }
 }
 </script>

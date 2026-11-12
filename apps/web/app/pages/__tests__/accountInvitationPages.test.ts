@@ -135,8 +135,9 @@ describe('administrator screens never take or show a password', () => {
     expect(newUser).toContain('data-testid="seat-line"')
     expect(newUser).toContain("t('access.users.sendInvitation')")
     expect(newUser).toContain("'access.users.invitationSentTitle'")
-    expect(newUser).toMatch(/:disabled="[^"]*atSeatLimit"/)
-    expect(newUser).toContain('if (identityMissing.value || selectedRoleIdsSnapshot.length === 0 || !companyId || !hydrated.value || atSeatLimit.value) return')
+    // At the limit the request still goes out: an existing account takes no seat, a new one gets the server's refusal.
+    expect(newUser).not.toMatch(/:disabled="[^"]*atSeatLimit"/)
+    expect(newUser).toContain('if (identityMissing.value || selectedRoleIdsSnapshot.length === 0 || !companyId || !hydrated.value) return')
   })
 
   it('the employee path suggests the work email as the login and lets the administrator change it', () => {

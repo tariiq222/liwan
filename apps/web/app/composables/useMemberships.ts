@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   MembershipInputSchema,
   MembershipListSchema,
@@ -28,7 +28,6 @@ export function useMemberships(companyId: MaybeRefOrGetter<number | undefined>, 
   const { me } = useMe()
   return useQuery({
     queryKey: computed(() => membershipKeys.list(me.value?.company.id, toValue(companyId))),
-    placeholderData: keepPreviousData,
     enabled: computed(() => !!me.value && toValue(enabled)),
     queryFn: ({ signal }) => $api('/api/v1/admin/memberships', {
       query: { company_id: toValue(companyId), limit: MEMBERSHIP_PAGE_SIZE, offset: 0 },

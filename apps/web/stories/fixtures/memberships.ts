@@ -10,8 +10,8 @@ export const membersMe = MeSchema.parse({
 export const membersReaderMe = MeSchema.parse({ ...membersMe, capabilities: membersMe.capabilities.filter(key => key !== 'access.users.assign_roles') })
 
 export const memberRoles = [
-  { id: 4, name: { ar: 'مدير المبيعات', en: 'Sales manager' } },
-  { id: 5, name: { ar: 'قارئ المالية', en: 'Finance reader' } },
+  { id: 4, name: { ar: 'مدير المبيعات', en: 'Sales manager' }, active: true, assignable: true },
+  { id: 5, name: { ar: 'قارئ المالية', en: 'Finance reader' }, active: true, assignable: true },
 ]
 const company = { id: 1, name: 'شركة المثال' }
 const role = (id: number, key: string, ar: string, en: string) => ({ id, key, name: { ar, en }, type: 'custom' as const, protected: false })

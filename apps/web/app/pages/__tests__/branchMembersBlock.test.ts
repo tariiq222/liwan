@@ -10,8 +10,9 @@ describe('the branch members block', () => {
   it('is drawn only for a holder of access.users.grant, and only when the company has branches below it', () => {
     expect(page).toMatch(/<SharedRecordSection v-if="can\('access\.users\.grant'\) && query\.data\.value\.branches\.length" id="branch-members"/)
   })
-  it('offers each branch its own roles: the company-wide ones and that branch\'s', () => {
-    expect(page).toContain('role.company_id === null || role.company_id === branchId')
+  it('hands the policy\'s roles to every branch card, which applies the one role rule', () => {
+    expect(page).toContain(':roles="query.data.value.roles"')
+    expect(read('app/components/access/branches/BranchMembersCard.vue')).toContain('offerableRoles(props.roles, props.branch.id)')
   })
   it('passes the branch to the list and the add form so every call names company_id', () => {
     const card = read('app/components/access/branches/BranchMembersCard.vue')

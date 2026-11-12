@@ -3,17 +3,20 @@ import type { Membership } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useMemberships, useRemoveMembership, useUpdateMembershipRoles } from '@/composables/useMemberships'
 import { accessErrorMessage } from '@/utils/accessErrors'
-import RoleCheckboxes, { type RoleOption } from '@/components/access/users/RoleCheckboxes.vue'
+import RoleCheckboxes from '@/components/access/users/RoleCheckboxes.vue'
+import { heldRoleOptions, type RoleCandidate } from '@/components/access/memberRoles'
 
 // The members of a company whose account belongs to another company, with the roles they hold here. `companyId` names a
 // branch below the working company (the root company managing it); without it the list is the working company's.
-const props = defineProps<{ roles: RoleOption[]; companyId?: number }>()
+const props = defineProps<{ roles: RoleCandidate[]; companyId?: number }>()
 const { t, locale } = useI18n()
 const { can } = useAccess()
 const { me } = useMe()
 const hydrated = useHydrated()
 const canGrant = computed(() => can('access.users.grant'))
 const canAssign = computed(() => can('access.users.assign_roles'))
+// Changing roles offers the company's roles, so it needs to read them as well as to assign them.
+const canChangeRoles = computed(() => canAssign.value && can('access.roles.read'))
 // A member who holds roles here is removed only by someone who may also take those roles away.
 const canRemove = (member: Membership) => canGrant.value && (canAssign.value || member.assignments.length === 0)
 const targetCompanyId = computed(() => props.companyId ?? me.value?.company.id)
@@ -25,6 +28,13 @@ const editing = ref<{ id: number; roleIds: number[] } | null>(null)
 const removing = ref<Membership | null>(null)
 const message = ref('')
 const busy = computed(() => update.isPending.value || remove.isPending.value)
+const optionsFor = (member: Membership) => heldRoleOptions(
+  props.roles,
+  targetCompanyId.value,
+  member.assignments.flatMap(({ role }) => role.id === null ? [] : [{ id: role.id, name: role.name }]),
+  editing.value?.roleIds ?? [],
+  t('access.roles.disabledExistingAssignments'),
+)
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 const roleIdsOf = (member: Membership) => member.assignments.map(assignment => assignment.role.id).filter((id): id is number => id !== null)
 
@@ -93,12 +103,12 @@ async function confirmRemove() {
               <span v-else class="text-sm text-muted">{{ t('access.members.noRolesHere') }}</span>
             </div>
             <div v-if="editing?.id !== member.id && removing?.id !== member.id" class="flex flex-wrap gap-2">
-              <UButton v-if="canAssign" size="sm" color="neutral" variant="outline" :label="t('access.members.changeRoles')" :disabled="!hydrated || busy" data-testid="member-change-roles" @click="startEdit(member)" />
+              <UButton v-if="canChangeRoles" size="sm" color="neutral" variant="outline" :label="t('access.members.changeRoles')" :disabled="!hydrated || busy" data-testid="member-change-roles" @click="startEdit(member)" />
               <UButton v-if="canRemove(member)" size="sm" color="neutral" variant="outline" :label="t('access.members.remove')" :disabled="!hydrated || busy" data-testid="member-remove" @click="startRemove(member)" />
             </div>
           </div>
           <form v-if="editing?.id === member.id" class="mt-3 grid gap-3" @submit.prevent="saveRoles(member)">
-            <RoleCheckboxes v-model="editing.roleIds" :roles="props.roles" :legend="t('access.members.rolesIn', { company: member.company.name })" :empty-text="t('access.members.noRoles')" :disabled="!hydrated || busy" />
+            <RoleCheckboxes v-model="editing.roleIds" :roles="optionsFor(member)" :legend="t('access.members.rolesIn', { company: member.company.name })" :empty-text="t('access.members.noRoles')" :disabled="!hydrated || busy" />
             <SharedFormActions>
               <div class="ms-auto flex flex-wrap items-center gap-2">
                 <UButton type="button" color="neutral" variant="outline" :label="t('app.cancel')" :disabled="busy" @click="editing = null" />

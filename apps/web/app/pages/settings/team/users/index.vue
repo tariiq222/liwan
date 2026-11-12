@@ -30,7 +30,6 @@ const { departmentFilter } = useEmployeeAccountBridge()
 const query = useAdminUsers(() => ({ ...filters, department_id: departmentFilter.value ? filters.department_id : undefined }), computed(() => !forbidden.value))
 const roles = useAdminRoles({}, computed(() => !forbidden.value && can('access.roles.read')))
 const departments = useHrDepartments()
-const assignableRoles = computed(() => (roles.data.value?.items ?? []).filter(role => role.active && role.assignable).map(role => ({ id: role.id, name: role.name })))
 const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ?? 25)) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? 25))))
 const items = computed(() => query.data.value?.items ?? [])
@@ -129,7 +128,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
       </template>
     </SharedListCard>
     <SharedRecordSection v-if="!forbidden && can('access.users.grant')" id="members" variant="panel" :title="t('access.members.title')" :description="t('access.members.description')">
-      <CompanyMembers :roles="assignableRoles" />
+      <CompanyMembers :roles="roles.data.value?.items ?? []" />
     </SharedRecordSection>
   </SharedListPage>
 </template>

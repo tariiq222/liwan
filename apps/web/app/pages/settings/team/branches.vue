@@ -75,7 +75,6 @@ async function submitBranch() {
 const forbidden = computed(() => !can('access.users.assign_roles') || !can('access.roles.read'))
 const query = useBranchPolicy(computed(() => !forbidden.value))
 // Only the root company has branches below it; a branch is shown no member block. A branch's roles are its own and the company-wide ones.
-const branchMemberRoles = (branchId: number) => (query.data.value?.roles ?? []).filter(role => role.active && (role.company_id === null || role.company_id === branchId))
 async function reloadPolicy() {
   const result = await query.refetch()
   if (result.isError) throw result.error
@@ -141,7 +140,7 @@ async function reloadPolicy() {
         <BranchPolicyCard :policy="query.data.value" :reload-policy="reloadPolicy" />
         <SharedRecordSection v-if="can('access.users.grant') && query.data.value.branches.length" id="branch-members" variant="panel" :title="t('access.members.branchTitle')" :description="t('access.members.branchDescription')">
           <ul class="grid gap-(--liwan-gap-card)">
-            <BranchMembersCard v-for="branch in query.data.value.branches" :key="branch.id" :branch="branch" :roles="branchMemberRoles(branch.id)" />
+            <BranchMembersCard v-for="branch in query.data.value.branches" :key="branch.id" :branch="branch" :roles="query.data.value.roles" />
           </ul>
         </SharedRecordSection>
       </div>
