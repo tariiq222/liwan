@@ -1,12 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import UserError
 
-from odoo.addons.phone_validation.tools.phone_validation import phone_format
-
-# Arabic-Indic (U+0660..) and Eastern Arabic-Indic (U+06F0..) digits read as ASCII digits.
-ARABIC_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789')
-DEFAULT_COUNTRY = 'base.sa'
 NAME_MAX = 200
 EMAIL_MAX = 254
 # The engine field holding an opportunity's company-defined custom values
@@ -63,24 +57,6 @@ class CrmLead(models.Model):
     def _compute_expected_revenue(self):
         for lead in self:
             lead.expected_revenue = lead.liwan_final_price
-
-    @api.model
-    def _liwan_normalize_phone(self, raw, company):
-        """E.164 form of ``raw`` read in ``company``'s country (Saudi Arabia when unset), or False.
-
-        A number without a country code is read as local. A number stock ``phone_validation``
-        cannot parse as a valid number is invalid.
-        """
-        if not isinstance(raw, str) or not raw.strip():
-            return False
-        country = company.country_id or self.env.ref(DEFAULT_COUNTRY)
-        try:
-            return phone_format(
-                raw.translate(ARABIC_DIGITS).strip(), country.code, country.phone_code,
-                force_format='E164', raise_exception=True,
-            )
-        except UserError:
-            return False
 
     @api.model
     def _liwan_is_duplicate_phone(self, error):

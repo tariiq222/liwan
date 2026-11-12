@@ -92,14 +92,19 @@ class TestCrmOpportunities(LiwanCrmCase):
             '050-123-4567': '+966501234567', '\u200f\u202a0501234567\u202c': '+966501234567',
         }
         for raw, e164 in cases.items():
-            self.assertEqual(self.env['crm.lead']._liwan_normalize_phone(raw, self.company), e164, raw)
+            self.assertEqual(self.env['liwan.customers.service']._liwan_normalize_phone(raw), e164, raw)
 
     def test_phone_country_defaults_to_saudi_arabia(self):
         self.company.country_id = False
-        self.assertEqual(self.env['crm.lead']._liwan_normalize_phone('0501234567', self.company), '+966501234567')
+        self.assertEqual(self.env['liwan.customers.service']._liwan_normalize_phone('0501234567'), '+966501234567')
+
+    def test_a_branch_in_another_country_reads_a_national_number_in_the_tenant_phone_country(self):
+        branch = self.env['res.company'].create({'name': 'Branch abroad', 'country_id': self.env.ref('base.ae').id})
+        service = self.env['liwan.customers.service'].with_company(branch)
+        self.assertEqual(service._liwan_normalize_phone('0501234567'), '+966501234567')
 
     def test_invalid_phone_is_refused(self):
-        self.assertFalse(self.env['crm.lead']._liwan_normalize_phone('12', self.company))
+        self.assertIsNone(self.env['liwan.customers.service']._liwan_phone_or_none('12'))
         response = self.create(self.agent, phone='12')
         self.assertEqual((response.status_code, response.json()['field']), (422, 'phone'))
         self.assertEqual(response.json()['details'], {'reason': 'invalid_phone'})
