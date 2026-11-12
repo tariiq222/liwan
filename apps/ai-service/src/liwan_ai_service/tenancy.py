@@ -2,13 +2,29 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import stat
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Protocol
 
 # A Postgres database name reaches a conninfo parameter, never SQL: refuse anything outside this shape.
 DATABASE_NAME = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
+
+
+@dataclass(frozen=True)
+class _Snapshot:
+    """One parsed registry publication, immutable once built: the file identity it was read under."""
+
+    signature: tuple[int, ...]
+    mapping: Mapping[str, str]
+    databases: tuple[str, ...]
+
+
+_NO_TENANTS = _Snapshot((), MappingProxyType({}), ())
 
 
 class UnknownTenant(Exception):
@@ -47,36 +63,57 @@ class DedicatedDirectory(TenantDirectory):
 class RegistryDirectory(TenantDirectory):
     """Shared SaaS: the read-only tenant registry the edge reads, mapped tenant id -> database.
 
-    Read on every call, with no cache, exactly like the Nuxt edge: disabling a tenant applies to the
-    next request. A pending publication barrier or an unusable file denies every tenant, because an
-    interrupted publication must never fall back to the previous enable.
+    Parsed once per publication, like the Nuxt edge: every call stats the file, and a new identity
+    ``(dev, ino, size, mtime_ns, ctime_ns)`` is read again, so disabling or removing a tenant applies to
+    the next request. A pending publication barrier, an unusable file or a file that changes while it is
+    read denies every tenant, because an interrupted publication must never fall back to the previous enable.
     """
 
     def __init__(self, path: str) -> None:
         self.path = Path(path)
+        self._barrier = Path(f"{path}.pending")
+        self._snapshot: _Snapshot | None = None
 
     def database_for(self, tenant: str) -> str:
-        database = self._mapping().get(tenant)
+        database = self._current().mapping.get(tenant)
         if database is None:
             msg = "tenant not served"
             raise UnknownTenant(msg)
         return database
 
     def databases(self) -> list[str]:
-        return sorted(set(self._mapping().values()))
+        return list(self._current().databases)
 
-    def _mapping(self) -> dict[str, str]:
-        barrier = Path(f"{self.path}.pending")
-        if _publication_pending(barrier):
-            return {}
+    def _current(self) -> _Snapshot:
+        if _publication_pending(self._barrier):
+            return _NO_TENANTS
+        signature = _signature(self.path)
+        if signature is None:
+            return _NO_TENANTS
+        snapshot = self._snapshot
+        if snapshot is None or snapshot.signature != signature:
+            snapshot = self._read(signature)
+            if snapshot is None:
+                return _NO_TENANTS
+            self._snapshot = snapshot  # one attribute swap: a concurrent reader sees the old or the new snapshot
+        # The writer may start a publication while this call is in flight, or finish one and remove its barrier.
+        if _publication_pending(self._barrier) or _signature(self.path) != signature:
+            return _NO_TENANTS
+        return snapshot
+
+    def _read(self, signature: tuple[int, ...]) -> _Snapshot | None:
         try:
-            document = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):  # missing, unreadable, undecodable or invalid JSON: serve no tenant
-            return {}
-        # The writer may start a new publication while this read is in flight.
-        if _publication_pending(barrier):
-            return {}
-        return _enabled_targets(document)
+            text = self.path.read_text(encoding="utf-8")
+        except (OSError, ValueError):  # unreadable or undecodable: serve no tenant, and read it again next call
+            return None
+        if _signature(self.path) != signature:  # replaced or rewritten during the read: never bind an uncertain snapshot
+            return None
+        try:
+            document = json.loads(text)
+        except ValueError:  # invalid JSON: this publication serves no tenant
+            document = None
+        mapping = _enabled_targets(document)
+        return _Snapshot(signature, MappingProxyType(mapping), tuple(sorted(set(mapping.values()))))
 
 
 class MemoryDirectory(TenantDirectory):
@@ -171,6 +208,17 @@ def _publication_pending(barrier: Path) -> bool:
     except OSError:
         return True
     return True
+
+
+def _signature(path: Path) -> tuple[int, ...] | None:
+    """The registry file's identity; ``None`` when it is missing, unreadable or not a regular file."""
+    try:
+        info = os.stat(path)
+    except OSError:
+        return None
+    if not stat.S_ISREG(info.st_mode):
+        return None
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
 def _enabled_targets(document: object) -> dict[str, str]:
