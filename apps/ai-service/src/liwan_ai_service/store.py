@@ -7,6 +7,7 @@ bootstrap of a tenant database's ``liwan_ai`` schema; the runtime only validates
 from __future__ import annotations
 
 import asyncio
+import re
 import secrets
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -328,17 +329,6 @@ TENANT_TABLES = (
 )  # the version marker last: it is written last
 
 
-# DEFAULT_LEAVER_RETENTION_DAYS and MAX_LEAVER_RETENTION_DAYS, written out: statements stay literal.
-ADD_LEAVER_RETENTION = (
-    "ALTER TABLE ai_tenant_config ADD COLUMN IF NOT EXISTS leaver_retention_days INTEGER NOT NULL DEFAULT 30"
-    " CHECK (leaver_retention_days BETWEEN 0 AND 365)"
-)
-# The generic provider's endpoint beside the key: the column, and its constraint under the name CREATE_TENANT_SCHEMA gives it.
-ADD_KEY_BASE_URL = (
-    "ALTER TABLE ai_tenant_config ADD COLUMN IF NOT EXISTS key_base_url TEXT",
-    "ALTER TABLE ai_tenant_config DROP CONSTRAINT IF EXISTS ai_tenant_config_key_base_url_check",
-    "ALTER TABLE ai_tenant_config ADD CONSTRAINT ai_tenant_config_key_base_url_check CHECK (key_base_url IS NULL OR key_provider IS NOT NULL)",
-)
 TENANT_TABLES_QUERY = (
     "SELECT to_regclass('ai_runs'), to_regclass('checkpoints'), to_regclass('checkpoint_blobs'), to_regclass('checkpoint_writes'),"
     " to_regclass('checkpoint_migrations'), to_regclass('ai_tenant_config'), to_regclass('ai_memory'), to_regclass('ai_outbox'),"
@@ -346,15 +336,111 @@ TENANT_TABLES_QUERY = (
 )  # the tables of TENANT_TABLES, in its order
 
 
+# How ``format_type`` names each type the tenant DDL declares; a type missing here fails at import, never at runtime.
+CATALOG_TYPES = {
+    "bigint": "bigint", "bigserial": "bigint", "boolean": "boolean", "bytea": "bytea", "integer": "integer",
+    "jsonb": "jsonb", "text": "text", "timestamptz": "timestamp with time zone", "vector": "vector",
+}
+TABLE_CONSTRAINTS = frozenset({"CHECK", "CONSTRAINT", "PRIMARY", "UNIQUE", "FOREIGN", "EXCLUDE"})
+CREATE_TABLE = re.compile(r"CREATE TABLE (?:IF NOT EXISTS )?(\w+) \(", re.IGNORECASE)
+
+
+def _top_level_items(body: str) -> list[str]:
+    """``body`` split on the commas outside parentheses and string literals."""
+    items, depth, quoted, start = [], 0, False, 0
+    for index, char in enumerate(body):
+        if char == "'":
+            quoted = not quoted
+        elif quoted:
+            continue
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif char == "," and depth == 0:
+            items.append(body[start:index])
+            start = index + 1
+    items.append(body[start:])
+    return [item.strip() for item in items]
+
+
+def _outside_parentheses(text: str) -> str:
+    kept, depth = [], 0
+    for char in text:
+        depth += char == "("
+        if depth == 0:
+            kept.append(char)
+        depth -= char == ")"
+    return "".join(kept)
+
+
+def _table_body(statement: str, opened: int) -> str:
+    """The text between the parenthesis at ``opened - 1`` and its matching close."""
+    depth, quoted = 1, False
+    for index in range(opened, len(statement)):
+        char = statement[index]
+        if char == "'":
+            quoted = not quoted
+        elif not quoted and char in "()":
+            depth += 1 if char == "(" else -1
+            if depth == 0:
+                return statement[opened:index]
+    msg = f"unbalanced CREATE TABLE: {statement[:60]}"
+    raise ValueError(msg)
+
+
+def defined_columns(statements: tuple[str, ...]) -> dict[str, frozenset[tuple[str, str, bool]]]:
+    """``{table: {(column, catalog type, not null)}}`` read from the CREATE TABLE statements: the one schema definition."""
+    tables: dict[str, frozenset[tuple[str, str, bool]]] = {}
+    for statement in statements:
+        match = CREATE_TABLE.search(statement)
+        if not match:
+            continue
+        columns: dict[str, tuple[str, bool]] = {}
+        primary_key: set[str] = set()
+        for item in _top_level_items(_table_body(statement, match.end())):
+            words = item.split()
+            if words[0].upper() in TABLE_CONSTRAINTS:
+                if words[0].upper() == "PRIMARY":
+                    primary_key.update(name.strip() for name in item[item.index("(") + 1:item.rindex(")")].split(","))
+                continue
+            declared = _outside_parentheses(item).upper()  # a CHECK's own "IS NOT NULL" never marks the column
+            columns[words[0]] = (CATALOG_TYPES[words[1].lower()], "NOT NULL" in declared or "PRIMARY KEY" in declared)
+        tables[match.group(1)] = frozenset(
+            (name, kind, not_null or name in primary_key) for name, (kind, not_null) in columns.items()
+        )
+    return tables
+
+
+TENANT_COLUMNS = defined_columns((*CREATE_RUNS, *CREATE_TENANT_SCHEMA, *CREATE_MEMORY, *CREATE_KNOWLEDGE))
+TENANT_COLUMNS_QUERY = (
+    "SELECT c.relname, a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull FROM pg_attribute a"
+    " JOIN pg_class c ON c.oid = a.attrelid"
+    " WHERE c.relnamespace = current_schema()::regnamespace AND c.relname = ANY(%s) AND a.attnum > 0 AND NOT a.attisdropped"
+)
+
+
+async def _require_defined_columns(conn) -> None:
+    """Refuse a schema whose columns differ from this release's definition (an older bootstrap, a hand edit)."""
+    rows = await (await conn.execute(TENANT_COLUMNS_QUERY, (list(TENANT_COLUMNS),))).fetchall()
+    actual: dict[str, set[tuple[str, str, bool]]] = {table: set() for table in TENANT_COLUMNS}
+    for table, column, kind, not_null in rows:
+        actual[table].add((column, kind, not_null))
+    for table, expected in TENANT_COLUMNS.items():
+        if actual[table] != expected:
+            differing = sorted({column for column, *_ in actual[table] ^ expected})
+            msg = f"ai_state_incompatible: {table} columns differ from this release ({', '.join(differing)})"
+            raise StateCompatibilityError(msg)
+
+
 async def _tenant_tables(conn):
     return await (await conn.execute(TENANT_TABLES_QUERY)).fetchone()
 
 
-async def upgrade_tenant(conn) -> None:
-    """Bring a schema bootstrapped by an earlier release up to this one: every statement is idempotent."""
-    await conn.execute(ADD_LEAVER_RETENTION)
-    for statement in ADD_KEY_BASE_URL:
-        await conn.execute(statement)
+async def create_tenant_tables(conn, retention_days: int) -> None:
+    """The clean tenant schema of this release, created once; nothing here alters an existing table."""
+    for statement in CREATE_TENANT_SCHEMA:
+        await conn.execute(statement, {"retention_days": retention_days} if "%(" in statement else None)
     for statement in CREATE_MEMORY:
         await conn.execute(statement)
     await grant_outbox(conn)
@@ -371,6 +457,7 @@ async def validate_tenant(conn, checkpoint_version: int) -> None:
     if not all(tables):
         raise StateCompatibilityError("ai_state_incompatible")  # partial state (an incomplete restore) is never skipped
     await require_vector(conn)
+    await _require_defined_columns(conn)
     version = await (await conn.execute("SELECT state_version, checkpoint_version FROM ai_tenant_schema WHERE singleton")).fetchone()
     migration = await (await conn.execute("SELECT max(v) FROM checkpoint_migrations")).fetchone()
     if (not version or len(version) != 2 or version != (AI_STATE_VERSION, checkpoint_version) or migration != (checkpoint_version,)):
@@ -395,18 +482,14 @@ async def initialize_tenant(conninfo: str, retention_days: int = DEFAULT_RETENTI
             try:
                 await require_vector(conn)  # before any DDL: a schema without pgvector is not half-bootstrapped
                 tables = await _tenant_tables(conn)
-                if tables[-1]:  # the version marker is written last, so its presence means a finished bootstrap
-                    async with conn.transaction():
-                        await upgrade_tenant(conn)
+                if tables[-1]:  # the version marker is written last: a finished bootstrap is validated, never altered
                     await validate_tenant(conn, checkpoint_version)
                     return
                 # Both setups are idempotent, so a bootstrap interrupted before the marker simply completes here.
                 await checkpointer.setup()
                 await PostgresRunStore(pool).setup()
                 async with conn.transaction():
-                    for statement in CREATE_TENANT_SCHEMA:
-                        await conn.execute(statement, {"retention_days": retention_days} if "%(" in statement else None)
-                    await upgrade_tenant(conn)
+                    await create_tenant_tables(conn, retention_days)
                     await conn.execute(INSERT_TENANT_SCHEMA, (AI_STATE_VERSION, checkpoint_version))
             finally:
                 await conn.execute(f"SELECT pg_advisory_unlock({TENANT_LOCK[0]}, {TENANT_LOCK[1]})")

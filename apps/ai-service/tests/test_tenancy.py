@@ -1,5 +1,7 @@
 """The tenant directory: deployment config maps a tenant to its own database, and nothing else does."""
 import json
+import os
+from pathlib import Path
 
 import pytest
 
@@ -128,3 +130,99 @@ def test_directory_for_uses_validated_settings_not_the_process_environment(tmp_p
     assert isinstance(directory_for(None, "shared", None, None), MemoryDirectory)
     assert isinstance(directory_for("postgresql://ai@db/ai", "dedicated", "acme_db", None), DedicatedDirectory)
     assert isinstance(directory_for("postgresql://ai@db/ai", "shared", None, str(tmp_path / "r.json")), RegistryDirectory)
+
+
+def count_reads(monkeypatch):
+    reads = []
+    original = Path.read_text
+
+    def counting(self, *args, **kwargs):
+        reads.append(self)
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", counting)
+    return reads
+
+
+def test_registry_is_parsed_once_per_publication(tmp_path, monkeypatch):
+    path = tmp_path / "registry.json"
+    directory = RegistryDirectory(write_registry(path, [TENANT]))
+    reads = count_reads(monkeypatch)
+    for _ in range(1000):
+        assert directory.database_for("t_1") == "acme_db"
+    assert directory.databases() == ["acme_db"]
+    assert len(reads) == 1
+
+
+def test_registry_disable_and_removal_apply_to_the_next_call(tmp_path, monkeypatch):
+    path = tmp_path / "registry.json"
+    later = {**TENANT, "host": "t3.example.sa", "tenantId": "t_3", "database": "gamma_db", "filestore": "gamma_db"}
+    directory = RegistryDirectory(write_registry(path, [TENANT, later]))
+    reads = count_reads(monkeypatch)
+    assert directory.database_for("t_3") == "gamma_db"
+    write_registry(path, [TENANT, {**later, "enabled": False}], snapshot_revision=2)
+    with pytest.raises(UnknownTenant):
+        directory.database_for("t_3")
+    replacement = tmp_path / "next.json"  # an atomic publication: a new inode renamed over the old one
+    write_registry(replacement, [later], snapshot_revision=3)
+    os.replace(replacement, path)
+    with pytest.raises(UnknownTenant):
+        directory.database_for("t_1")
+    assert directory.database_for("t_3") == "gamma_db"
+    assert directory.databases() == ["gamma_db"]
+    assert len(reads) == 3
+
+
+def test_registry_cached_snapshot_still_honours_the_barrier_and_a_missing_file(tmp_path):
+    path = tmp_path / "registry.json"
+    directory = RegistryDirectory(write_registry(path, [TENANT]))
+    assert directory.database_for("t_1") == "acme_db"
+    barrier = tmp_path / "registry.json.pending"
+    barrier.write_text("", encoding="utf-8")
+    with pytest.raises(UnknownTenant):
+        directory.database_for("t_1")
+    barrier.unlink()
+    assert directory.database_for("t_1") == "acme_db"
+    path.unlink()
+    with pytest.raises(UnknownTenant):  # a removed registry never serves the last snapshot
+        directory.database_for("t_1")
+    assert directory.databases() == []
+
+
+def test_registry_never_binds_a_file_rewritten_during_its_read(tmp_path, monkeypatch):
+    path = tmp_path / "registry.json"
+    directory = RegistryDirectory(write_registry(path, [TENANT]))
+    original = Path.read_text
+
+    def rewritten_meanwhile(self, *args, **kwargs):
+        text = original(self, *args, **kwargs)
+        write_registry(path, [], snapshot_revision=2)
+        return text
+
+    monkeypatch.setattr(Path, "read_text", rewritten_meanwhile)
+    with pytest.raises(UnknownTenant):
+        directory.database_for("t_1")
+    monkeypatch.undo()
+    assert directory.databases() == []  # the rewritten publication, read afresh
+
+
+def test_registry_cache_hit_denies_a_publication_finished_during_the_call(tmp_path, monkeypatch):
+    from liwan_ai_service import tenancy
+
+    path = tmp_path / "registry.json"
+    directory = RegistryDirectory(write_registry(path, [TENANT]))
+    assert directory.database_for("t_1") == "acme_db"
+    checks = []
+    original = tenancy._publication_pending
+
+    def publish_between_checks(barrier):
+        checks.append(barrier)
+        if len(checks) == 2:  # barrier created, t_1 disabled by an atomic rename, barrier removed: all after the stat
+            replacement = tmp_path / "next.json"
+            write_registry(replacement, [{**TENANT, "enabled": False}], snapshot_revision=2)
+            os.replace(replacement, path)
+        return original(barrier)
+
+    monkeypatch.setattr(tenancy, "_publication_pending", publish_between_checks)
+    with pytest.raises(UnknownTenant):
+        directory.database_for("t_1")

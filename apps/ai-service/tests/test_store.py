@@ -169,3 +169,20 @@ async def test_create_uses_the_given_id_and_refuses_a_taken_one():
     assert record is not None and record.run_id == run_id
     assert await store.create(run_id, "7", "second") is None
     assert (await store.get(run_id)).title == "first"
+
+
+def test_defined_columns_reads_the_create_table_statements():
+    from liwan_ai_service.store import TENANT_COLUMNS, defined_columns
+
+    columns = defined_columns((
+        "CREATE TABLE IF NOT EXISTS t (id BIGSERIAL PRIMARY KEY, note TEXT CHECK (note IS NOT NULL OR id > 0),"
+        " kind TEXT NOT NULL CHECK (kind IN ('a,b', 'c')), at TIMESTAMPTZ, CHECK (at IS NULL OR kind = 'a'))",
+        "CREATE TABLE p (a TEXT, b INTEGER NOT NULL, PRIMARY KEY (a, b))",
+        "CREATE INDEX IF NOT EXISTS t_kind ON t (kind)",
+    ))
+    assert columns == {
+        "t": frozenset({("id", "bigint", True), ("note", "text", False), ("kind", "text", True),
+                        ("at", "timestamp with time zone", False)}),
+        "p": frozenset({("a", "text", True), ("b", "integer", True)}),
+    }
+    assert ("key_base_url", "text", False) in TENANT_COLUMNS["ai_tenant_config"]

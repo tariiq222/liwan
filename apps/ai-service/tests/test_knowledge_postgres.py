@@ -66,7 +66,7 @@ async def pool():
     await admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
     conninfo = make_conninfo(base, options=f"-c search_path={schema}")
     await initialize_tenant(conninfo)
-    await initialize_tenant(conninfo)  # the upgrade path of a finished schema
+    await initialize_tenant(conninfo)  # a finished schema is only validated
     opened = AsyncConnectionPool(conninfo, min_size=1, max_size=4, kwargs={"autocommit": True, "prepare_threshold": 0}, open=False)
     await opened.open()
     try:
