@@ -3,7 +3,7 @@
 import base64
 import calendar
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from odoo import Command, fields
 from odoo.tests import tagged
@@ -207,6 +207,16 @@ class TestTikTokSend(TikTokCase):
             self.run_outbox()
         self.assertEqual((message.delivery_state, message.attempts), ('queued', 1))
         self.assertAlmostEqual((message.next_attempt_at - before).total_seconds(), 60, delta=5)
+
+    def test_a_server_error_on_a_send_fails_unconfirmed_and_is_never_sent_again(self):
+        message = self.queued(self.reply({'body': 'Hello'}).json()['id'])
+        answer = MagicMock(status_code=503)
+        answer.json.side_effect = ValueError
+        with patch.object(tiktok.requests, 'request', return_value=answer) as request:
+            self.run_outbox()
+            self.run_outbox()
+        self.assertEqual(request.call_count, 1, 'TikTok may hold the message, so it is never sent a second time')
+        self.assertEqual((message.delivery_state, message.unconfirmed, message.attempts), ('failed', True, 1))
 
     def test_a_reconnect_needed_failure_is_not_retried(self):
         message = self.queued(self.reply({'body': 'Hello'}).json()['id'])

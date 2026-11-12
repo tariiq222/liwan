@@ -74,9 +74,17 @@ class TestOutbox(LiwanInboxCase):
             'components': [{'type': 'body', 'parameters': [{'type': 'text', 'text': 'Sara'}]}],
         })
 
-    def test_server_errors_retry_with_exponential_backoff_then_fail_after_five(self):
+    def test_a_server_error_on_a_send_fails_unconfirmed_and_is_never_sent_again(self):
         message = self.queue()
         mocked = MagicMock(return_value=response(503, {'error': {'message': 'Service unavailable'}}))
+        self.run_outbox(mocked)
+        self.assertEqual((message.delivery_state, message.attempts, message.unconfirmed), ('failed', 1, True))
+        self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 1)
+
+    def test_throttling_retries_with_exponential_backoff_then_fail_after_five(self):
+        message = self.queue()
+        mocked = MagicMock(return_value=response(429, {'error': {'message': 'Service unavailable'}}))
         for attempt, minutes in enumerate((1, 2, 4, 8), start=1):
             before = fields.Datetime.now()
             self.run_outbox(mocked)

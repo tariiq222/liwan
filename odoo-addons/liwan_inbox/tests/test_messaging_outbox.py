@@ -73,7 +73,7 @@ class TestMessagingOutbox(LiwanInboxCase):
 
     def test_a_retry_after_the_upload_does_not_upload_again(self):
         message = self.queue_file()
-        failing = MagicMock(side_effect=[response(200, {'id': 'media-9'}), response(503, {'error': {'message': 'down'}})])
+        failing = MagicMock(side_effect=[response(200, {'id': 'media-9'}), response(429, {'error': {'message': 'down'}})])
         self.run_outbox(failing)
         self.assertEqual((message.delivery_state, message.attempts, message.media_id), ('queued', 1, 'media-9'))
         message.next_attempt_at = fields.Datetime.now() - timedelta(seconds=1)

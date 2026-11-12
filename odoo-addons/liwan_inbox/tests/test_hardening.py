@@ -413,9 +413,9 @@ class TestTemplateRemovalAndMediaStreams(LiwanInboxCase):
         for failure in (urllib3.exceptions.ProtocolError('cut'), urllib3.exceptions.ReadTimeoutError(None, 'u', 'slow'),
                         requests.ConnectionError('reset'), OSError('io')):
             stream = MagicMock(status_code=200)
-            stream.raw.read.side_effect = failure
-            answers = [provider_response(200, {'url': 'https://media.example/x', 'mime_type': 'image/jpeg'}), stream]
-            with patch.object(requests, 'request', side_effect=answers):
+            stream.iter_content.side_effect = failure
+            meta = provider_response(200, {'url': 'https://lookaside.fbsbx.com/x', 'mime_type': 'image/jpeg'})
+            with patch.object(requests, 'request', return_value=meta), patch.object(requests, 'get', return_value=stream):
                 self.store_event(self.channel, wa.inbound_media(provider_id=f'wamid.{type(failure).__name__}'))
                 self.env['liwan.inbox.event']._liwan_run_events()
             message = self.env['liwan.inbox.message'].search([('provider_message_id', '=', f'wamid.{type(failure).__name__}')])
