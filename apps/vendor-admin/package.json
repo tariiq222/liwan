@@ -9,8 +9,7 @@
     "postinstall": "nuxt prepare",
     "test": "vitest run",
     "lint": "vue-tsc --build --noEmit",
-    "e2e": "nuxt build && playwright test --project=prod",
-    "e2e:dev": "E2E_TARGET=dev playwright test --project=dev"
+    "e2e": "nuxt build && playwright test --project=prod"
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.151",

@@ -7,10 +7,11 @@ mode="${1:-runtime}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
 DEPLOY="$ROOT/deploy/control-plane"
 HOME_DIR="${LIWAN_CONTROL_HOME:-$HOME/.local/share/liwan-saas-control-local}"
-NODE_BIN="${LIWAN_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
+NODE_BIN="${LIWAN_NODE_BIN:-$(dirname "$(command -v node)")}"
 NODE="$NODE_BIN/node"; NPM="$NODE_BIN/npm"
 COMPOSE=(docker compose -p liwan-saas-control-local -f "$DEPLOY/compose.yml")
-[[ -x "$NODE" && "$($NODE --version)" == v22.* ]] || { printf 'Node 22 required.\n' >&2; exit 2; }
+NODE_VERSION="$("$NODE" --version 2>/dev/null || true)"; NODE_VERSION="${NODE_VERSION#v}"
+[[ -x "$NODE" && "${NODE_VERSION%%.*}" =~ ^[0-9]+$ ]] && (( ${NODE_VERSION%%.*} >= 22 )) || { printf 'Node 22 or newer required.\n' >&2; exit 2; }
 for f in control-db-password control-service-key control-database-url inventory-v2.json runtime.env; do [[ -f "$HOME_DIR/$f" ]] || { printf 'Missing private runtime file: %s\n' "$f" >&2; exit 3; }; done
 mkdir -p "$HOME_DIR"; chmod 700 "$HOME_DIR"
 if [[ -e "$HOME_DIR/processes" ]]; then [[ -d "$HOME_DIR/processes" && ! -L "$HOME_DIR/processes" ]] || { printf 'Process path is not a private directory; refusing.\n' >&2; exit 4; }; else mkdir -m 700 "$HOME_DIR/processes"; fi

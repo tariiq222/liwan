@@ -4,7 +4,7 @@ set +v
 set -euo pipefail
 HOME_DIR="${LIWAN_CONTROL_HOME:-$HOME/.local/share/liwan-saas-control-local}"
 ROOT="${LIWAN_REPOSITORY_ROOT:-$(cd "$(dirname "$0")/../.." && pwd -P)}"
-NODE_BIN="${LIWAN_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
+NODE_BIN="${LIWAN_NODE_BIN:-$(dirname "$(command -v node)")}"
 state="$HOME_DIR/processes"
 proc_start() { ps -p "$1" -o lstart= 2>/dev/null | xargs || true; }
 # The supervisor is exec'd through startup_handoff as /bin/bash, while a direct

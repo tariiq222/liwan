@@ -125,3 +125,10 @@ inbox-channel-access.spec.ts
 inbox-delivery-uncertain.spec.ts
 inbox-feature-gates.spec.ts
 inbox-failed-delivery.spec.ts
+documents-library.spec.ts
+header-toolbar-overlap.spec.ts
+responsive-widths.spec.ts
+shell-persistence.spec.ts
+my-tasks-detail.spec.ts
+tasmim6-my-tasks-list.spec.ts
+tasmim6-my-tasks-record.spec.ts

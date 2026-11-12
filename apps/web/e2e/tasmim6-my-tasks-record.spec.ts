@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { login, open, DESKTOP, PHONE, rows, mobileRows, fitsWidth, expectFrameOwnsH1, typeThenOpen } from './support/tasmim6'
 
-test.skip(process.env.E2E_MY_TASKS !== '1', 'Requires the isolated e2e/my-tasks-mock.mjs server (E2E_MY_TASKS=1)')
 import { SSR_TASKS } from './my-tasks-fixtures.mjs'
 const ID = Object.keys(SSR_TASKS)[0]
 

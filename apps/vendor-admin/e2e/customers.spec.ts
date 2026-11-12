@@ -22,7 +22,7 @@ test.describe('Plan 6e: vendor customers', () => {
     test('a state filter keeps the other query keys and an unknown state falls back to all', async ({ page }) => {
       await open(page, '/customers?state=bogus&q=&source=retained')
       await expect(rows(page)).toHaveCount(3)
-      await page.getByRole('button', { name: 'البحث والفلاتر', exact: true }).click()
+      await expect(page.getByRole('region', { name: 'البحث والفلاتر' })).toBeVisible()
       await page.getByRole('button', { name: 'مفعّل', exact: true }).click()
       await expect.poll(() => new URL(page.url()).searchParams.get('state')).toBe('active')
       expect(new URL(page.url()).searchParams.get('source')).toBe('retained')

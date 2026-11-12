@@ -36,7 +36,8 @@ function addonsPath() {
   if (oca.status !== 0) throw new Error(`pinned OCA addons are not ready: ${oca.stderr}`)
   return `${ODOO_ROOT}/addons,${root}odoo-addons,${oca.stdout.trim()}`
 }
-const ODOO_ROOT = process.env.LIWAN_ODOO_ROOT || '/Users/tariq/code/odoo'
+const ODOO_ROOT = process.env.LIWAN_ODOO_ROOT
+if (!ODOO_ROOT) throw new Error('set LIWAN_ODOO_ROOT to the Odoo 19 source checkout')
 const PG_HOST = process.env.LIWAN_PG_HOST || '127.0.0.1'
 const PG_USER = process.env.LIWAN_PG_USER || 'odoo'
 const PG_PASSWORD = process.env.LIWAN_PG_PASSWORD || 'odoo'

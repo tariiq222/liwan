@@ -522,10 +522,18 @@ class TestE2EMockStage(unittest.TestCase):
     def test_the_main_specs_are_sharded_and_the_long_list_runs_in_the_last_shard_only(self):
         script = commands('e2e-mock')
         self.assertIn('npx playwright test ${SHARD:+--shard="$SHARD"} "${SPECS[@]}"', script)
-        guard = 'if [ -n "$SHARD" ] && [ "${SHARD%/*}" != "${SHARD#*/}" ]; then exit 0; fi'
+        guard = 'if [ -n "$SHARD" ] && [ "${SHARD%/*}" != "${SHARD#*/}" ]; then'
         self.assertEqual(script.count(guard), 1)
         self.assertLess(script.index(guard), script.index('ci-mock-long-list-specs.txt'))
         self.assertGreater(script.index(guard), script.index('"${SPECS[@]}"'))
+        self.assertLess(script.index('exit 0', script.index(guard)), script.index('ci-mock-long-list-specs.txt'))
+
+    def test_the_tenant_isolation_checks_run_once_in_the_first_shard(self):
+        script = commands('e2e-mock')
+        self.assertIn('if [ -n "$SHARD" ] && [ "${SHARD%/*}" != 1 ]; then FIRST_SHARD=false; fi', script)
+        # Once before a non-last shard exits, once after the long list of the unsharded (or one-shard) run.
+        self.assertEqual(script.count('if [ "$FIRST_SHARD" = true ]; then tenancy_isolation; fi'), 2)
+        self.assertIn('deploy/ci/lib/tenancy-isolation.sh', script)
 
 
 class TestRtlStoriesStage(unittest.TestCase):

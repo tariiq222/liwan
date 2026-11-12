@@ -2,6 +2,8 @@
 # CI stage: the mock-backed Playwright specs against a production Nuxt build.
 #   deploy/ci/e2e-mock.sh              run every spec (the local full check)
 #   deploy/ci/e2e-mock.sh --shard k/N  run shard k of N of the main spec list; the long-list specs run in shard N only
+# The first shard (or the unsharded run, at its end) also runs the tenant-isolation checks on the built server
+# (deploy/ci/lib/tenancy-isolation.sh): they need a second, shared-mode build, so they stay out of the long-list shard.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 SHARD=""
@@ -53,8 +55,17 @@ done
 curl -fs "$E2E_BASE_URL/login" >/dev/null
 mapfile -t SPECS < <(sed 's#^#e2e/#' e2e/ci-mock-specs.txt)
 npx playwright test ${SHARD:+--shard="$SHARD"} "${SPECS[@]}"
+FIRST_SHARD=true
+if [ -n "$SHARD" ] && [ "${SHARD%/*}" != 1 ]; then FIRST_SHARD=false; fi
+tenancy_isolation() {
+  cleanup
+  ../../deploy/ci/lib/tenancy-isolation.sh
+}
 # The long-list specs below run once, in the last shard.
-if [ -n "$SHARD" ] && [ "${SHARD%/*}" != "${SHARD#*/}" ]; then exit 0; fi
+if [ -n "$SHARD" ] && [ "${SHARD%/*}" != "${SHARD#*/}" ]; then
+  if [ "$FIRST_SHARD" = true ]; then tenancy_isolation; fi
+  exit 0
+fi
 
 # The scroll and navigation specs need lists taller than a viewport: a second mock pads the task fixture to 60 rows and a
 # second server from the same build serves it. The default fixture keeps its four tasks for every other spec.
@@ -74,3 +85,4 @@ curl -fs "http://localhost:$LONG_WEB_PORT/login" >/dev/null
 test -s e2e/ci-mock-long-list-specs.txt
 mapfile -t LONG_SPECS < <(sed 's#^#e2e/#' e2e/ci-mock-long-list-specs.txt)
 E2E_BASE_URL="http://localhost:$LONG_WEB_PORT" npx playwright test "${LONG_SPECS[@]}"
+if [ "$FIRST_SHARD" = true ]; then tenancy_isolation; fi

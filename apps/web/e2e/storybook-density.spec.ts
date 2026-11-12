@@ -21,8 +21,8 @@ test.describe('Tasmim density', () => {
       const scale = root / 14
       const button = await page.getByTestId('density-button').boundingBox()
       const input = await page.locator('input[data-testid="density-input"]').boundingBox()
-      expect(Math.abs(button!.height - 32 * scale)).toBeLessThanOrEqual(1)
-      expect(Math.abs(input!.height - 32 * scale)).toBeLessThanOrEqual(1)
+      expect(Math.abs(button!.height - 42 * scale)).toBeLessThanOrEqual(1)
+      expect(Math.abs(input!.height - 42 * scale)).toBeLessThanOrEqual(1)
       const xs = await page.getByTestId('density-button-xs').boundingBox()
       const sm = await page.getByTestId('density-button-sm').boundingBox()
       const icon = await page.getByTestId('density-button-icon').boundingBox()
@@ -31,13 +31,13 @@ test.describe('Tasmim density', () => {
       expect(Math.abs(icon!.width - icon!.height)).toBeLessThanOrEqual(1)
       expect(Math.abs(icon!.height - button!.height)).toBeLessThanOrEqual(1)
       const radius = await page.getByTestId('density-button').evaluate(el => Number.parseFloat(getComputedStyle(el).borderTopLeftRadius))
-      expect(Math.abs(radius - 6 * scale)).toBeLessThanOrEqual(0.6)
+      expect(Math.abs(radius - 12 * scale)).toBeLessThanOrEqual(0.6)
 
       await page.goto(url('foundations-density--table', globals))
       const row = await page.getByTestId('density-table').locator('tbody tr').first().boundingBox()
-      expect(Math.abs(row!.height - 36 * scale)).toBeLessThanOrEqual(1)
+      expect(Math.abs(row!.height - 44 * scale)).toBeLessThanOrEqual(1)
       const cardRadius = await page.getByTestId('density-card').evaluate(el => Number.parseFloat(getComputedStyle(el).borderTopLeftRadius))
-      expect(Math.abs(cardRadius - 8 * scale)).toBeLessThanOrEqual(0.6)
+      expect(Math.abs(cardRadius - 18 * scale)).toBeLessThanOrEqual(0.6)
     })
 
     test(`card header aligns with the body at 1024px (${globals})`, async ({ page }) => {

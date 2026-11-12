@@ -83,7 +83,6 @@ async function open(page: Page, path: string) {
 }
 
 
-test.skip(process.env.E2E_MY_TASKS !== '1', 'Requires the isolated e2e/my-tasks-mock.mjs server (E2E_MY_TASKS=1)')
 // … copy `person`, `stamp`, `Row`, `personal`, `project`, `toItem`, `fixtureList`, `mockList`, `delayMe`, `open` from my-tasks-list.spec.ts …
 
 test.describe('Plan 6a: my tasks list', () => {

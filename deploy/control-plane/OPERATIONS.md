@@ -4,7 +4,7 @@ This is a local management-service harness, not production hosting. It creates a
 
 ## Prerequisites / observed version
 
-Use Node 22 (`.nvmrc` is 22). Node 22.22.2 is present at `/opt/homebrew/opt/node@22/bin/node`; host default `node` may resolve to Node 24.21.0, which this runtime refuses. Dependencies are installed in this worktree with the lockfile. The Odoo interpreter used if the worker reaches the existing CLI is `/Users/tariq/code/odoo/.venv/bin/python` (Python 3.12.13). This executor has an empty version-2 inventory, so it performs no target operation.
+Use Node 22 or newer (`.nvmrc` pins the repository's version). The scripts use the `node` on PATH unless `LIWAN_NODE_BIN` names another `bin` directory. Dependencies are installed in this worktree with the lockfile. The Odoo interpreter used if the worker reaches the existing CLI is `LIWAN_CLI_PYTHON` (default: `python3` on PATH). This executor has an empty version-2 inventory, so it performs no target operation.
 
 Recheck host ports immediately before use: control DB `127.0.0.1:55432`, API `127.0.0.1:14179`. Do not use ports 5432/5433/5434/5436. The DB is one dedicated container in Compose project `liwan-saas-control-local`, runtime database name `liwan_control` (not the contract suggested `liwan_control_scratch_p1runtime`), image `postgres:16` pinned to the observed local image digest. There is no automatic pull/build/update; `pull_policy: never` fails if the pinned image is not already cached. The digest records this Docker local image identity only, not portable registry provenance.
 
@@ -12,7 +12,7 @@ Recheck host ports immediately before use: control DB `127.0.0.1:55432`, API `12
 
 ```sh
 export LIWAN_CONTROL_HOME="$HOME/.local/share/liwan-saas-control-local"
-export LIWAN_NODE_BIN=/opt/homebrew/opt/node@22/bin
+export LIWAN_NODE_BIN=/path/to/node/bin  # optional; defaults to the node on PATH
 LIWAN_CONTROL_HOME="$LIWAN_CONTROL_HOME" LIWAN_NODE_BIN="$LIWAN_NODE_BIN" deploy/control-plane/init-local.sh
 LIWAN_CONTROL_HOME="$LIWAN_CONTROL_HOME" LIWAN_NODE_BIN="$LIWAN_NODE_BIN" deploy/control-plane/run-local.sh
 # From another terminal:

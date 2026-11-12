@@ -1,132 +1,46 @@
 {
   "not_run": [
     {
-      "reason": "needs the built Storybook (apps/web/storybook-static, served by e2e/support/storybookServer); the e2e-mock stage builds no Storybook and rtl-stories runs only the e2e-rtl suite",
+      "reason": "opens every story in three locale and appearance modes and fails on any failed request or console error; 25 stories still request unmocked /api routes (404) and the run takes about 12 minutes on 4 workers, so rtl-stories does not run it",
       "files": [
-        "apps/web/e2e/storybook-density.spec.ts",
-        "apps/web/e2e/storybook-display-templates.spec.ts",
-        "apps/web/e2e/storybook-shell.spec.ts",
-        "apps/web/e2e/storybook-smoke.spec.ts",
-        "apps/web/e2e/storybook-templates.spec.ts",
-        "apps/web/e2e/storybook-visual.spec.ts",
-        "apps/web/e2e/ux-foundations-visual.spec.ts"
+        "apps/web/e2e/storybook-smoke.spec.ts"
       ]
     },
     {
-      "reason": "plain mock-stack Playwright spec with no guard, not yet in e2e/ci-mock-specs.txt; a later change moves it into that list",
+      "reason": "compares screenshots with 704 committed -darwin.png baselines and has no linux baselines, so it cannot pass on the ubuntu CI runners",
       "files": [
-        "apps/web/e2e/header-toolbar-overlap.spec.ts",
-        "apps/web/e2e/list-toolbar-layout.spec.ts",
-        "apps/web/e2e/responsive-widths.spec.ts",
-        "apps/web/e2e/shell-persistence.spec.ts"
+        "apps/web/e2e/storybook-visual.spec.ts"
       ]
     },
     {
-      "reason": "skipped unless E2E_PROJECT_POPUPS=1 (isolated synthetic project API); no CI stage sets it",
+      "reason": "stale: fails on the mock stack today: /hr/insurance at 1280px rtl scrolls inside its card (scroll 954 > client 937); needs an apps/web/app layout fix before it joins e2e/ci-mock-specs.txt",
       "files": [
-        "apps/web/e2e/documents-library.spec.ts"
+        "apps/web/e2e/list-toolbar-layout.spec.ts"
       ]
     },
     {
-      "reason": "skipped unless E2E_BASE_URL=http://127.0.0.1:4387 with INTERNAL_UI_AUDIT_SHOTS set (internal-ui-audit-with-server.py starts the mock API); no CI stage sets it",
+      "reason": "stale: skipped unless E2E_MY_TASKS=1 and fails with it on the mock stack today (list: paging and the 390/768/1440 table-and-cards checks; new: the create flow never reaches /my-tasks/42); needs triage before it joins e2e/ci-mock-specs.txt",
       "files": [
-        "apps/web/e2e/internal-ui-audit.spec.ts"
-      ]
-    },
-    {
-      "reason": "skipped unless E2E_MEETINGS_LIVE_DB naming one of the three scratch meetings databases (a live scratch Odoo); no CI stage sets it",
-      "files": [
-        "apps/web/e2e/meetings-ux-live.spec.ts"
-      ]
-    },
-    {
-      "reason": "skipped unless E2E_MEETINGS_UX=1 (isolated synthetic meetings fixture); no CI stage sets it",
-      "files": [
-        "apps/web/e2e/meetings-ux.spec.ts"
-      ]
-    },
-    {
-      "reason": "skipped unless E2E_MODULE_UI=1 (isolated synthetic module preview); no CI stage sets it",
-      "files": [
-        "apps/web/e2e/module-ui-rollout.spec.ts"
-      ]
-    },
-    {
-      "reason": "skipped unless E2E_MY_TASKS=1 (isolated e2e/my-tasks-mock.mjs server); no CI stage sets it",
-      "files": [
-        "apps/web/e2e/my-tasks-detail.spec.ts",
         "apps/web/e2e/my-tasks-list.spec.ts",
-        "apps/web/e2e/my-tasks-new.spec.ts",
-        "apps/web/e2e/tasmim6-my-tasks-list.spec.ts",
-        "apps/web/e2e/tasmim6-my-tasks-record.spec.ts"
+        "apps/web/e2e/my-tasks-new.spec.ts"
       ]
     },
     {
-      "reason": "skipped unless E2E_MY_TASKS_STATEFUL=1 (isolated in-memory my-tasks preview); no CI stage sets it",
+      "reason": "stale: skipped unless E2E_MY_TASKS_STATEFUL=1 (my-tasks-mock.mjs with MY_TASKS_STATEFUL=1) and fails with it today: the created task heading never appears",
       "files": [
         "apps/web/e2e/my-tasks-preview.spec.ts"
       ]
     },
     {
-      "reason": "skipped unless E2E_BASE_URL=http://127.0.0.1:3985 (isolated project-charts fixture); no CI stage sets it",
+      "reason": "stale: skipped unless E2E_MEETINGS_UX=1 (meetings-ux-mock.mjs) and fails with it today: all 12 tests stop at the unauthenticated POST /api/v1/meetings-test/reset (401)",
       "files": [
-        "apps/web/e2e/project-dashboard.spec.ts"
+        "apps/web/e2e/meetings-ux.spec.ts"
       ]
     },
     {
-      "reason": "skipped unless E2E_PHASE_LIVE_DB naming the disposable phase-review database (a live scratch Odoo); no CI stage sets it",
-      "files": [
-        "apps/web/e2e/project-phase-live.spec.ts"
-      ]
-    },
-    {
-      "reason": "skipped unless E2E_PHASE1_ISOLATED=1 (isolated phase-one runtime); no CI stage sets it",
-      "files": [
-        "apps/web/e2e/projects-phase1.spec.ts"
-      ]
-    },
-    {
-      "reason": "skipped unless E2E_PHASES_ISOLATED=1 (isolated phases integration runtime); no CI stage sets it",
-      "files": [
-        "apps/web/e2e/projects-phases-integration.spec.ts"
-      ]
-    },
-    {
-      "reason": "skipped unless E2E_SELF_SERVICE=1 (isolated fixture with an unlinked admin account); no CI stage sets it",
+      "reason": "skipped unless E2E_SELF_SERVICE=1 and needs an admin account with no linked employee, which the mock stack does not provide (fails there at the Self-service sidebar); no seed in the repo creates such an account",
       "files": [
         "apps/web/e2e/self-service.spec.ts"
-      ]
-    },
-    {
-      "reason": "serves the built Storybook (apps/web/storybook-static) for the my-tasks stories and writes screenshots to E2E_MY_TASKS_VISUAL_DIR; no CI stage builds Storybook for it",
-      "files": [
-        "apps/web/e2e/my-tasks-visual.spec.ts"
-      ]
-    },
-    {
-      "reason": "vendor-admin Playwright prod project (npm run e2e in apps/vendor-admin builds Nuxt and drives a mock control plane); deploy/ci/vendor-admin.sh runs only lint, vitest and the build, so no stage runs them",
-      "files": [
-        "apps/vendor-admin/e2e/ai-provider.spec.ts",
-        "apps/vendor-admin/e2e/auth.spec.ts",
-        "apps/vendor-admin/e2e/bundles.spec.ts",
-        "apps/vendor-admin/e2e/clients.spec.ts",
-        "apps/vendor-admin/e2e/commercial-date-hydration.spec.ts",
-        "apps/vendor-admin/e2e/commercial-smoke.spec.ts",
-        "apps/vendor-admin/e2e/customers.spec.ts",
-        "apps/vendor-admin/e2e/invoices.spec.ts",
-        "apps/vendor-admin/e2e/operations.spec.ts",
-        "apps/vendor-admin/e2e/overview.spec.ts",
-        "apps/vendor-admin/e2e/pages-smoke.spec.ts",
-        "apps/vendor-admin/e2e/plans.spec.ts",
-        "apps/vendor-admin/e2e/price-breakdown.spec.ts",
-        "apps/vendor-admin/e2e/screens.spec.ts",
-        "apps/vendor-admin/e2e/team.spec.ts"
-      ]
-    },
-    {
-      "reason": "vendor-admin Playwright dev project (E2E_TARGET=dev against nuxt dev); no CI stage starts the dev server",
-      "files": [
-        "apps/vendor-admin/e2e/step-up.dev.spec.ts"
       ]
     },
     {
@@ -162,31 +76,6 @@
       "reason": "live by design: Chromium proof against the live acceptance edge on 127.0.0.1:443 (Caddy local CA), run by hand from tools/shared_acceptance_live",
       "files": [
         "tools/shared_acceptance_live/proof8.spec.mjs"
-      ]
-    },
-    {
-      "reason": "needs a built Nuxt server (apps/web/.output/server/index.mjs), which the static stage does not build; it fails with ERR_MODULE_NOT_FOUND without it",
-      "files": [
-        "tools/shared_isolation_acceptance/isolation-matrix.test.mjs",
-        "tools/shared_isolation_acceptance/operational-ssr.test.mjs"
-      ]
-    },
-    {
-      "reason": "hard-pinned to the macOS developer workstation (/opt/homebrew/opt/node@22 and the /Users/tariq/code/odoo venv); passes there, fails on the Linux runner by design",
-      "files": [
-        "deploy/control-plane/test_actual_reservation_caller.py",
-        "deploy/control-plane/test_actual_runtime_lifecycle.py",
-        "deploy/control-plane/test_dead_recovery.py",
-        "deploy/control-plane/test_partial_runtime_stop.py",
-        "deploy/control-plane/test_reservation_recovery.py"
-      ]
-    },
-    {
-      "reason": "drives the local-runtime bash scripts and BSD ps lstart output of the control-plane local runtime; passes on macOS, not verified on the Linux runner, so not wired blind",
-      "files": [
-        "deploy/control-plane/test_run_local_ordering.py",
-        "deploy/control-plane/test_startup_publication.py",
-        "deploy/control-plane/test_stop_protocol.py"
       ]
     }
   ]

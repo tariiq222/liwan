@@ -114,9 +114,9 @@ merged result and supplies release evidence.
 | `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, owner and claim state, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, a summary line and the rule report (`tools/wt.py`). |
 | `npm run wt -- gc [--apply] [--branch codex/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`liwan_scratch_e2e`, hand-named and `tools/odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. After a merge `--apply` falls under the standing authorization in `docs/agents/integration-rules.md`. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
 | `npm run check:audit` | `npm audit` gate: fails on a high or critical advisory in production dependencies, or a critical one in any dependency. Needs registry access. The CI `static` stage runs it when a change touches `package.json` or `package-lock.json`; the daily `audit` workflow runs it on `main`. |
-| `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` stage. |
+| `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. The rulesets are pinned by sha256 in `tools/semgrep_rules.lock.json` and read from a verified cache (`~/.cache/liwan-semgrep-rules`, the Actions cache in CI) or the registry; a ruleset that changed upstream fails the gate until `python3 -B tools/semgrep_gate.py --update-lock` is reviewed and committed. Needs network when the cache lacks a ruleset, sends no usage data, exits 3 when semgrep or the registry is unavailable or a ruleset changed upstream. Also runs in the CI `static` stage. |
 | `npm run review:jev -- --base <ref> --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against the base (`tools/jev_review.mjs`; `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Suspended by owner decision 2026-11-10 (see `REVIEW.md`): do not run it in reviews. |
-| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage, a matrix of four shards (`deploy/ci/rtl-stories.sh --shard k/N`, Playwright `--shard=k/N` over the story tests, each job building Storybook itself); `fullyParallel` in the config splits the one spec file per test. |
+| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage, a matrix of four shards (`deploy/ci/rtl-stories.sh --shard k/N`, Playwright `--shard=k/N` over the story tests, each job building Storybook itself); `fullyParallel` in the config splits the one spec file per test. The last shard (or an unsharded run) then runs the Storybook behaviour specs in `apps/web/e2e` on the same build: `storybook-density`, `storybook-shell`, `storybook-templates`, `storybook-display-templates` and `my-tasks-visual`. |
 
 Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
@@ -339,7 +339,8 @@ with a 5xx. It checks the route surface, not bridge-specific fields inside a sid
 the bridge's own tests. Run one locally with the environment of `deploy/ci/odoo.sh` plus `ISOLATION_PORT`, for example
 `deploy/ci/odoo-app-standalone.sh liwan_hr` or `deploy/ci/odoo-bridge.sh liwan_tasks_pmo`. The
 control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
-`vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds every production image
+`vendor-admin` has its own prepare, types, tests and build checks, then runs its Playwright specs against that build and
+the mock control service. The `image` stage builds every production image
 (Odoo, web, vendor-admin, ai-service, proxy and guard) under owned `liwan-<name>:ci-<run id>` tags. It
 installs the release in the Odoo image and checks it is hardened, starts web, vendor-admin, ai-service
 and guard without external services (web answers `/login`, vendor-admin serves a built static asset because its pages need the control plane, ai-service `/healthz`, guard
@@ -446,6 +447,14 @@ How the stage runs (`deploy/ci/e2e-mock.sh`):
   second server from the same build (`WEB_PORT + 10`): the scroll-restoration and navigation specs need a list taller than a
   viewport, and every other spec keeps the four-task fixture its counts assume.
 - A spec belongs in `ci-mock-specs.txt` only if it passes in that run. The gate is never edited to hide a failure.
+- Tenant isolation on the built server runs in the first shard (at the end of an unsharded run), through
+  `deploy/ci/lib/tenancy-isolation.sh`: it stops the servers, builds a second, shared-mode copy
+  (`LIWAN_TENANCY_MODE=shared`, about two minutes on the runner) and runs `node --test` over three files:
+  `tools/shared_isolation_acceptance/isolation-matrix.test.mjs` (ten tenants through the real guard, 90 directional
+  pairs per surface), `tools/shared_isolation_acceptance/operational-ssr.test.mjs` (SSR payloads, browser hydration,
+  entitlement revocation) and `tools/shared_isolation_acceptance/build-mode.test.mjs` (both builds refuse a
+  mismatched, invalid or mutated tenancy mode). The upstream is synthetic, so real-Odoo isolation is not proven there.
+  It stays out of the last shard, which already carries the long-list run.
 
 A spec that signs in to Odoo and writes real data needs a scratch stack. Such a journey
 either runs in the `e2e-odoo` stage below or is covered by an addon test plus a mock spec, in which case it is deleted.
@@ -479,8 +488,9 @@ desktop and mobile screenshots of `/ai` and the open disclosure at 375px.
 
 ### Running the my-tasks specs
 
-The standalone list, new and detail specs use `e2e/my-tasks-mock.mjs`, behind the flag `E2E_MY_TASKS=1`.
-The shared audit mock's module-preview profile also includes task capabilities. Both paths supply
+The detail spec and the `tasmim6-my-tasks-*` specs run in the `e2e-mock` stage on the shared audit mock, whose
+module-preview profile includes task capabilities. The standalone list and new specs still use `e2e/my-tasks-mock.mjs`,
+behind the flag `E2E_MY_TASKS=1`; they fail there today and are registered as stale in `tools/ci_not_run.json`. Both paths supply
 first-paint reads on the server, while `page.route` handles browser requests. The
 wrapper listens on `MOCK_PORT`, starts the audit mock on `MOCK_PORT + 1000` (the upstream), adds the tasks
 capabilities to `GET /api/v1/me`, and answers the first-paint reads of `/my-tasks/<id>` (the task, its
@@ -599,7 +609,7 @@ scenario yet (`--check` exits 1 on a gap).
 | --- | --- |
 | `npm -w apps/vendor-admin run lint` | Type check (`vue-tsc --build --noEmit`); CI step `vendor-admin`. |
 | `npm -w apps/vendor-admin run test` | Unit tests (vitest); CI step `vendor-admin`. |
-| `npm -w apps/vendor-admin run e2e` | Playwright against the mock control service in `apps/vendor-admin/e2e`, on a production build; `e2e:dev` runs the `*.dev.spec.ts` specs on `nuxt dev`. Not a CI step. |
+| `npm -w apps/vendor-admin run e2e` | Playwright against the mock control service in `apps/vendor-admin/e2e`, on a production build (`apps/vendor-admin/e2e/live-control.spec.ts` excluded); CI step `vendor-admin`. |
 | `PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs` | Live proof: sign-in, enrollment and team management against the real control plane with real WebAuthn verification. Needs local Postgres; scratch database `liwan_control_scratch_p3live`. Details in `apps/vendor-admin/README.md`. Not a CI step. |
 
 Local evidence only; it does not establish deployment readiness.
