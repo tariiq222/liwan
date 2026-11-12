@@ -15,8 +15,9 @@ DB=liwan_scratch_p1outage
 ODOO_PORT=18179
 WEB_PORT=13109
 PG_PORT=55439
-ODOO_ROOT=/Users/tariq/code/odoo
-PYTHON="$ODOO_ROOT/.venv/bin/python"
+# The upstream Odoo checkout and its interpreter, the same variables the CI Odoo stages read.
+ODOO_ROOT="${ODOO_ROOT:?set ODOO_ROOT to the upstream Odoo checkout}"
+PYTHON="${ODOO_PYTHON:-$ODOO_ROOT/.venv/bin/python}"
 ODOO_BIN="$ODOO_ROOT/odoo-bin"
 STOCK_ADDONS="$ODOO_ROOT/addons"
 ADDONS="$ROOT/odoo-addons"
@@ -32,7 +33,6 @@ port_free() {
 }
 
 check_identity() {
-  [[ "$ROOT" == /Users/tariq/code/webvue-saas-outage-fixture ]] || fail 'unexpected worktree root'
   [[ "$(git -C "$ROOT" branch --show-current)" == codex/saas-outage-fixture ]] || fail 'wrong task branch'
   [[ -x "$PYTHON" && -f "$ODOO_BIN" && -d "$STOCK_ADDONS/project" && -d "$ADDONS/liwan_hr" ]] || fail 'required Odoo/worktree paths missing'
   local py_major node_major

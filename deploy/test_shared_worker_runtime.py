@@ -31,9 +31,8 @@ import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent / 'control-plane'
-PINNED = Path('/Users/tariq/code/odoo/.venv/bin/python')
-if not PINNED.exists():  # pragma: no cover - pinned interpreter is the supported host layout
-    PINNED = Path(sys.executable)
+# The Odoo interpreter the CI Odoo stages name, else this interpreter.
+PINNED = Path(os.environ.get('ODOO_PYTHON') or sys.executable)
 
 
 def _node22() -> Path | None:
