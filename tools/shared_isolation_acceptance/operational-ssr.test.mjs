@@ -44,7 +44,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
     }
     if (req.url === '/api/v1/me') {
       if (req.headers.cookie !== `session_id=${tenant.tenantId}`) { res.writeHead(403); res.end('{}'); return }
-      res.end(JSON.stringify({ id: tenant.uid, name: tenant.marker, login: tenant.marker, email: `${tenant.tenantId}@example.invalid`, lang: 'en', tz: 'UTC', role: 'employee', capabilities: ['pmo.projects.read'], entitlements: { 'pmo.enabled': !revokedProjects.has(tenant.tenantId) }, company: { id: tenant.uid, name: tenant.marker } }))
+      res.end(JSON.stringify({ id: tenant.uid, name: tenant.marker, login: tenant.marker, email: `${tenant.tenantId}@example.invalid`, lang: 'en', tz: 'UTC', role: 'employee', capabilities: ['pmo.projects.read'], entitlements: { 'pmo.enabled': !revokedProjects.has(tenant.tenantId) }, company: { id: tenant.uid, name: tenant.marker }, companies: [{ id: tenant.uid, name: tenant.marker }], home_company_id: tenant.uid, home_capabilities: ['pmo.projects.read'] }))
     } else if (req.url === '/api/v1/branding') res.end(JSON.stringify({ name: tenant.marker, logo_url: '/fixture-logo.svg', primary_color: '#18181b', font: 'test' }))
     else { res.writeHead(404); res.end('{}') }
   })
