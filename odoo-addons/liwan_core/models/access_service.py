@@ -69,6 +69,8 @@ ARABIC_MESSAGES = {
     'user_inactive': 'الحساب موقوف.',
     'user_read_only': 'هذا الحساب للقراءة فقط ولا يمكنه التعديل. اطلب من مسؤول الحسابات إعادة مقعده الكامل.',
     'branch_read_only': 'هذا الفرع للقراءة فقط ولا يقبل التعديل حتى يُفعَّل مقعد الفرع.',
+    'already_member': 'هذا الحساب عضو في المؤسسة مسبقًا.',
+    'home_company': 'هذه هي المؤسسة الأصلية للحساب. لا تُزال منه عضوية المؤسسة الأصلية.',
     'storage_excess_blocked': 'هذا الملف يتجاوز سعة التخزين المتاحة. حرّر مساحة أو زد السعة لفتحه.',
 }
 
@@ -727,6 +729,7 @@ class LiwanAccessService(models.AbstractModel):
         PARTNER_ID reuses an existing contact. A user whose invitation was cancelled is invited again in place.
         """
         self._liwan_require_capability('access.users.grant')
+        self._liwan_assert_login_not_homed_elsewhere(login)
         existing = self.env['res.users'].with_context(active_test=False).search([('login', '=', login)], limit=1)
         if existing:
             user = self._liwan_reinvite(existing, name, partner_id)

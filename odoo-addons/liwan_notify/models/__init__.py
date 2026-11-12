@@ -6,4 +6,5 @@ from . import (
     notify_service,
     storage_limit_notification,
     user_access_notification,
+    user_membership_notification,
 )

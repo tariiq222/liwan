@@ -3,6 +3,7 @@ import functools
 import json
 import os
 import re
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 from odoo.fields import Command
@@ -305,9 +306,9 @@ class WorkingCompanyCase(LiwanApiCase):
                                      {cls.root_company: cls.admin_role})
 
     @classmethod
-    def _member(cls, login, home, companies, roles):
+    def _member(cls, login, home, companies, roles, groups='liwan_core.group_employee'):
         user = new_test_user(
-            cls.env, login=login, password=PASSWORD, name=login, groups='liwan_core.group_employee',
+            cls.env, login=login, password=PASSWORD, name=login, groups=groups,
             company_id=home.id, company_ids=[Command.set([company.id for company in companies])],
         )
         for company, role in roles.items():
@@ -337,3 +338,91 @@ class WorkingCompanyCase(LiwanApiCase):
     def use_session(self, sid):
         self.opener = Opener(self)
         self.opener.cookies.set('session_id', sid, domain=HOST)
+
+
+MEMBERSHIPS = '/api/v1/admin/memberships'
+
+
+class MembershipCase(WorkingCompanyCase):
+    """``WorkingCompanyCase`` plus the people a membership operation meets.
+
+    ``b_admin`` and ``a_admin`` administer only their own home branch; ``member`` is homed in A with the employee role
+    and belongs to no other company; ``root_plain`` is a root employee with no grant; ``support`` is a vendor support
+    account and ``pending`` an invitee who never accepted; ``gone`` is an archived account. ``fresh_branch`` is a branch
+    below the root that no one belongs to yet.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # The membership routes take an email address as the login, so every fixture login is one.
+        for user in (cls.roamer, cls.archived_member, cls.plain, cls.b_user, cls.root_admin):
+            user.login = cls.mail(user.login)
+        cls.b_admin = cls._member(cls.mail('mb_b_admin'), cls.branch_b, [cls.branch_b], {cls.branch_b: cls.admin_role})
+        cls.a_admin = cls._member(cls.mail('mb_a_admin'), cls.branch_a, [cls.branch_a], {cls.branch_a: cls.admin_role})
+        cls.member = cls._member(cls.mail('mb_member'), cls.branch_a, [cls.branch_a], {cls.branch_a: cls.employee_role})
+        cls.root_plain = cls._member(cls.mail('mb_root_plain'), cls.root_company, [cls.root_company],
+                                     {cls.root_company: cls.employee_role})
+        cls.support = cls._member(cls.mail('mb_support'), cls.branch_a, [cls.branch_a], {},
+                                  groups='liwan_core.group_employee,liwan_core.group_vendor_support')
+        cls.pending = cls._member(cls.mail('mb_pending'), cls.branch_a, [cls.branch_a], {cls.branch_a: cls.employee_role})
+        cls.env['liwan.access.service']._liwan_tokens()._liwan_issue(cls.pending, 'invite')
+        cls.legacy = cls._member(cls.mail('mb_legacy'), cls.branch_a, [cls.branch_a], {},
+                                 groups='liwan_core.group_employee,liwan_core.group_access_admin')
+        cls.portal = cls._member(cls.mail('mb_portal'), cls.branch_a, [cls.branch_a], {}, groups='base.group_portal')
+        cls.gone = cls._member(cls.mail('mb_gone'), cls.branch_a, [cls.branch_a], {cls.branch_a: cls.employee_role})
+        cls.gone.active = False
+        cls.fresh_branch = cls.env['res.company'].create({'name': 'Membership fresh branch', 'parent_id': cls.root_company.id})
+        cls.other_tree = cls.env['res.company'].create({'name': 'Membership other tree'})
+
+    @staticmethod
+    def mail(login):
+        """The email address of a fixture login: a short name stands for ``<name>@example.test``."""
+        return login if '@' in login else f'{login}@example.test'
+
+    def sign_in(self, login):
+        return super().sign_in(self.mail(login))
+
+    def grants(self, company, *roles):
+        return [{'role_id': role.id, 'scope': {'kind': 'company', 'id': company.id}} for role in roles]
+
+    def add(self, login, target, *roles, company_id=None, **extra):
+        """POST a membership of ``login`` in ``target`` with ``roles``; ``company_id`` names the company in the payload."""
+        payload = {'login': self.mail(login), 'assignments': self.grants(target, *roles), **extra}
+        if company_id is not None:
+            payload['company_id'] = company_id.id if hasattr(company_id, 'id') else company_id
+        return self.api('POST', MEMBERSHIPS, payload)
+
+    def grant_only_role(self, *keys):
+        """A built-in role that holds the given permissions (``access.users.grant`` and what it needs by default)."""
+        keys = keys or ('access.users.grant', 'access.users.read', 'access.roles.read')
+        permissions = self.env['liwan.access.permission'].search([('key', 'in', list(keys))])
+        return self.env['liwan.access.role'].create({
+            'key': 'test_grant_only', 'name_ar': 'Grant only', 'type': 'built_in', 'permission_ids': [(6, 0, permissions.ids)],
+        })
+
+    def memberships(self, company_id=None):
+        return self.api('GET', MEMBERSHIPS + (f'?company_id={company_id.id}' if company_id else ''))
+
+    def assigned(self, user, company):
+        return self.env['liwan.access.assignment'].search([
+            ('user_id', '=', user.id), ('company_id', '=', company.id),
+        ]).role_id
+
+    @contextmanager
+    def undone(self):
+        """Run a block and take back what it wrote, caches included (a savepoint alone leaves the ormcache stale)."""
+        with closing(self.env.cr.savepoint()):
+            yield
+        self.env.invalidate_all()
+        self.env.registry.clear_cache()
+
+    def set_mode(self, mode):
+        """Fixture-only conversion of the tenant between the two commercial modes."""
+        source = {'saas': 'control_plane', 'non_saas': 'local_policy'}[mode]
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        self.env.cr.execute(
+            'UPDATE liwan_tenant_profile SET commercial_mode=%s, entitlement_source=%s, valid_until=NULL WHERE id=%s',
+            [mode, source, profile.id],
+        )
+        profile.invalidate_recordset()

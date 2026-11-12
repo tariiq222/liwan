@@ -91,6 +91,24 @@ def dump_permission(permission, scope_kinds):
     }
 
 
+def dump_membership(user, company):
+    """A member of COMPANY whose home is another company, with their roles there.
+
+    ``user`` and ``company`` come from the membership service's elevated environment: the caller cannot read an
+    account homed elsewhere, so the serializer reads through the records it is given.
+    """
+    service = user.env['liwan.access.service']
+    return {
+        'id': user.id,
+        'name': user.name,
+        'login': user.login,
+        'home_company': {'id': user.company_id.id, 'name': user.company_id.name},
+        'company': {'id': company.id, 'name': company.name},
+        'assignments': [assignment_ref(item) for item in service._liwan_membership_assignments(user, company)],
+        'version': service._liwan_membership_version(user, company),
+    }
+
+
 def _capability_sources(user, assignments):
     sources = {}
     for assignment in assignments:
