@@ -41,7 +41,7 @@ function pendingUser(overrides: Record<string, unknown> = {}) {
 }
 
 /** The administrator routes this spec needs; `seats` is the answer of `/users/seats` and `user` the account the detail pages read. */
-async function mockAdmin(page: Page, options: { seats?: unknown; user?: ReturnType<typeof pendingUser> } = {}) {
+async function mockAdmin(page: Page, options: { seats?: unknown; user?: ReturnType<typeof pendingUser>; fullTenant?: boolean } = {}) {
   const calls: { method: string; path: string; body: unknown }[] = []
   const user = options.user ?? pendingUser()
   const reads: Record<string, unknown> = {
@@ -61,6 +61,8 @@ async function mockAdmin(page: Page, options: { seats?: unknown; user?: ReturnTy
       if (Object.hasOwn(reads, path)) return route.fulfill(ok(reads[path]))
       return route.fulfill(refusal(404, 'not_found'))
     }
+    // A new account in a tenant at its user limit: the server's own refusal (the page shows its message, no seat copy of ours).
+    if (method === 'POST' && path === '/users' && options.fullTenant) return route.fulfill(refusal(403, 'feature_not_included', 'this limit has been reached'))
     if (method === 'POST' && path === '/users') return route.fulfill(ok(pendingUser({ id: 30, name: 'خالد', login: 'khalid@example.com' }), 201))
     if (path === `/users/${user.id}/invitation/cancel`) return route.fulfill(ok(pendingUser({ active: false, invitation: null, allowed_actions: ['read', 'reactivate'] })))
     return route.fulfill(ok(user))
@@ -200,14 +202,18 @@ test.describe('the administrator screens', () => {
     expect(calls).toEqual([{ method: 'POST', path: '/users', body: { name: 'خالد', login: 'khalid@example.com', assignments: [{ role_id: expect.any(Number), scope: { kind: 'company', id: expect.any(Number) } }] } }])
   })
 
-  test('at the seat limit the form says so and cannot send; without a limit it shows no seat line', async ({ page }) => {
-    await mockAdmin(page, { seats: { used: 10, limit: 10, read_only: 0 } })
+  test('at the seat limit the form warns but still sends, and a new account gets the server\'s refusal; without a limit it shows no seat line', async ({ page }) => {
+    const calls = await mockAdmin(page, { seats: { used: 10, limit: 10, read_only: 0 }, fullTenant: true })
     await page.goto('/settings/team/users/new')
     await expect(page.getByRole('alert').filter({ hasText: 'وصل اشتراكك إلى الحد الأقصى' })).toBeVisible()
     await fieldFor(page, 'name').fill('خالد')
     await fieldFor(page, 'login').fill('khalid@example.com')
     await page.getByRole('checkbox').first().check()
-    await expect(page.getByRole('button', { name: 'إرسال الدعوة', exact: true })).toBeDisabled()
+    const send = page.getByRole('button', { name: 'إرسال الدعوة', exact: true })
+    await expect(send).toBeEnabled()
+    await send.click()
+    await expect(page.getByRole('alert').filter({ hasText: 'this limit has been reached' })).toBeVisible()
+    expect(calls.map(call => `${call.method} ${call.path}`)).toEqual(['POST /users'])
     await page.unroute('**/api/v1/admin/**')
     await mockAdmin(page, { seats: { used: 3, limit: null, read_only: 0 } })
     await page.goto('/settings/team/users/new')

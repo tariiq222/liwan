@@ -209,7 +209,7 @@ test('an employee withdraws a request that is still waiting for a decision', asy
   await row.getByTestId('row-actions-menu').click()
   await page.getByRole('menuitem', { name: 'سحب الطلب' }).click()
   // Withdrawing deletes the request, so it asks first.
-  const withdrawn = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
+  const withdrawn = page.waitForResponse(response => new URL(response.url()).pathname.endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
   await page.getByRole('button', { name: 'سحب الطلب' }).last().click()
   expect((await withdrawn).status()).toBe(200)
   // The request is gone and its day is no longer held against the balance.
@@ -287,7 +287,7 @@ test('company policies support direct employee and manager-only cancellation wit
       }
       await page.getByTestId('hr-leave-record-cancel').click()
       await page.getByTestId('hr-leave-confirm-reason').fill(`Policy ${policy}`)
-      const cancelled = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
+      const cancelled = page.waitForResponse(response => new URL(response.url()).pathname.endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
       await page.getByTestId('inline-confirm-action').click()
       const result = await (await cancelled).json()
       expect(result.state).toBe('cancel')
