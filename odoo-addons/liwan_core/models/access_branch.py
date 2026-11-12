@@ -120,8 +120,10 @@ class LiwanBranchAccessService(models.AbstractModel):
                 target_ids = set(metadata.env['res.users'].browse(user.id).company_ids.ids)
                 if not self.env.su:
                     target_ids &= set(metadata.env.user.company_ids.ids)
-                companies = metadata.env['res.company'].browse(sorted(target_ids))
-                cache[key] = tuple(companies.filtered('active').ids)
+                # Searched, not read: the company record rule hides an archived company, so reading one
+                # would fail the whole list instead of leaving that company out.
+                companies = metadata.env['res.company'].with_context(active_test=True).search([('id', 'in', sorted(target_ids))])
+                cache[key] = tuple(sorted(companies.ids))
             except AccessError:
                 cache[key] = ()
         return list(cache[key])
