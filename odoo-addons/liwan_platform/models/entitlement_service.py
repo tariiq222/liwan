@@ -391,13 +391,14 @@ class LiwanEntitlementService(models.AbstractModel):
         if limit_key == 'users.limit':
             return self._liwan_count_users()
         if limit_key == 'storage.limit_mb':
-            return -(-int(self._liwan_count_storage_bytes()) // 1048576)
+            return -(-self._liwan_profile().storage_used_bytes // 1048576)
         if limit_key == 'branches.extra_limit':
             return self._liwan_count_full_branches()
         return 0
 
     @api.model
     def _liwan_count_storage_bytes(self):
+        """The recount: bytes of every binary attachment. Claims and usage read ``storage_used_bytes`` instead."""
         self.env['ir.attachment'].flush_model(['type', 'file_size'])
         self.env.cr.execute(
             """
@@ -428,28 +429,37 @@ class LiwanEntitlementService(models.AbstractModel):
 
     @api.model
     def _liwan_claim_storage(self, delta_bytes):
-        if delta_bytes <= 0:
-            if delta_bytes < 0:
-                self._liwan_profile()._liwan_bump_quota_revision()
+        """Apply ``delta_bytes`` to the stored total under the profile row lock; no attachment is read.
+
+        PostgreSQL holds the row lock until commit, so concurrent claims serialize and a limit stays exact, while the work
+        under the lock is constant.
+        """
+        if delta_bytes == 0:
             return True
-        self._liwan_assert_lifecycle(write=True)
-        self._liwan_profile()._liwan_lock()
-        limit_mb = self._liwan_limit_value('storage.limit_mb')
-        if limit_mb is None:
-            self._liwan_profile()._liwan_bump_quota_revision()
+        if delta_bytes > 0:
+            self._liwan_assert_lifecycle(write=True)
+        profile = self._liwan_profile()._liwan_lock()
+        used = profile.storage_used_bytes
+        if used + delta_bytes < 0:
+            # The total undercounts: the caller has already applied its change, so the recount is the exact answer.
+            self._liwan_repair_storage_drift(used, delta_bytes)
+            profile._liwan_bump_quota_revision()
             return True
-        if not isinstance(limit_mb, int) or isinstance(limit_mb, bool) or limit_mb < 0:
-            code = 'tenant_configuration_invalid'
-            raise LiwanAccessRule(code, 'tenant limit payload is invalid', status=503)
-        current = self._liwan_count_storage_bytes()
-        if current + delta_bytes > limit_mb * 1048576:
-            code = 'feature_not_included'
-            raise LiwanAccessRule(
-                code, 'this limit has been reached', status=403,
-                details={'reason': 'limit', 'limit_key': 'storage.limit_mb'},
-            )
-        self._liwan_profile()._liwan_bump_quota_revision()
-        self._liwan_storage_claimed(current, current + delta_bytes, limit_mb * 1048576)
+        limit_mb = self._liwan_limit_value('storage.limit_mb') if delta_bytes > 0 else None
+        if limit_mb is not None:
+            if not isinstance(limit_mb, int) or isinstance(limit_mb, bool) or limit_mb < 0:
+                code = 'tenant_configuration_invalid'
+                raise LiwanAccessRule(code, 'tenant limit payload is invalid', status=503)
+            if used + delta_bytes > limit_mb * 1048576:
+                code = 'feature_not_included'
+                raise LiwanAccessRule(
+                    code, 'this limit has been reached', status=403,
+                    details={'reason': 'limit', 'limit_key': 'storage.limit_mb'},
+                )
+        profile._liwan_set_storage_used(used + delta_bytes)
+        profile._liwan_bump_quota_revision()
+        if limit_mb is not None:
+            self._liwan_storage_claimed(used, used + delta_bytes, limit_mb * 1048576)
         return True
 
     @api.model

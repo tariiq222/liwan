@@ -46,6 +46,12 @@ class LiwanPlatformIrAttachment(models.Model):
     datas = StorageProtectedBinary()
     db_datas = StorageProtectedBinary(copy=False)
     liwan_storage_blocked = fields.Boolean(default=False, readonly=True, copy=False)
+    # The predicate is written as the ORM renders `liwan_storage_blocked = True`, or PostgreSQL would not use the index.
+    # Lets the settlement ask "is anything blocked?" without reading attachments.
+    _liwan_storage_blocked_idx = models.Index('(id) WHERE liwan_storage_blocked IS TRUE')
+
+    def _liwan_binary_bytes(self):
+        return sum(row.file_size for row in self if row.type == 'binary')
 
     def _liwan_storage_record_ref(self):
         """Applications can supply an owner ref after the attachment's ordinary read checks."""
@@ -140,17 +146,28 @@ class LiwanPlatformIrAttachment(models.Model):
         if ordinary_bytes:
             service._liwan_claim_storage(ordinary_bytes + technical_bytes)
         elif technical_bytes and self.env.registry.ready:
-            service._liwan_profile()._liwan_bump_quota_revision()
+            # Generated assets count toward the total but are never refused.
+            profile = service._liwan_profile()._liwan_lock()
+            profile._liwan_set_storage_used(profile.storage_used_bytes + technical_bytes)
+            profile._liwan_bump_quota_revision()
         service._liwan_invalidate_storage_plan()
         result = super().create(vals_list)
         service._liwan_invalidate_storage_plan()
+        if self.env.registry.ready:
+            # Stock content checks can shrink an image after the claim; settle the difference with the stored sizes.
+            correction = result._liwan_binary_bytes() - ordinary_bytes - technical_bytes
+            if correction:
+                service._liwan_claim_storage(correction)
+            if correction < 0:
+                # A negative correction can trigger a drift recount that lands above the limit.
+                service._liwan_settle_storage()
         if technical_bytes and self.env.registry.ready:
             # Stock AssetsBundle removes the previous bundle after create using SQL.
-            # Settle after that replacement, with the profile still locked.
+            # Recount the total and settle after that replacement, with the profile still locked.
             callbacks = self.env.cr.precommit
             if ASSET_SETTLE_PENDING not in callbacks.data:
                 callbacks.data[ASSET_SETTLE_PENDING] = True
-                callbacks.add(service._liwan_settle_storage)
+                callbacks.add(service._liwan_recount_and_settle_storage)
         return result
 
     def write(self, vals):
@@ -162,8 +179,10 @@ class LiwanPlatformIrAttachment(models.Model):
         size = self._liwan_vals_bytes(vals)
         content_changed = bool(CONTENT_FIELDS.intersection(vals))
         eligibility_changed = bool(ELIGIBILITY_FIELDS.intersection(vals))
-        extra = 0
-        if content_changed or 'type' in vals:
+        extra = before = 0
+        measured = content_changed or 'type' in vals
+        if measured:
+            before = self._liwan_binary_bytes()
             for attachment in self:
                 target_type = vals.get('type', attachment.type)
                 target_size = size if content_changed else attachment.file_size
@@ -171,7 +190,7 @@ class LiwanPlatformIrAttachment(models.Model):
                     raise ValidationError(self.env._('A URL attachment cannot contain file bytes.'))
                 previous = attachment.file_size if attachment.type == 'binary' else 0
                 extra += (target_size if target_type == 'binary' else 0) - previous
-        if extra:
+        if extra > 0:
             service._liwan_claim_storage(extra)
         elif eligibility_changed:
             service._liwan_profile()._liwan_bump_quota_revision()
@@ -181,7 +200,11 @@ class LiwanPlatformIrAttachment(models.Model):
         result = super().write(vals)
         if storage_changed:
             service._liwan_invalidate_storage_plan()
-        if extra < 0 or eligibility_changed:
+        # Settle the real change against what was claimed: a shrink, or a stock content check that resized the file.
+        correction = self._liwan_binary_bytes() - before - max(extra, 0) if measured else 0
+        if correction:
+            service._liwan_claim_storage(correction)
+        if correction < 0 or eligibility_changed:
             service._liwan_settle_storage()
         return result
 
@@ -189,10 +212,12 @@ class LiwanPlatformIrAttachment(models.Model):
         size = sum(self.filtered(lambda row: row.type == 'binary').mapped('file_size'))
         service = self.env['liwan.entitlement.service']
         if size:
-            service._liwan_claim_storage(-size)
+            # Lock the profile before the attachment rows, the same order as create and write.
+            service._liwan_profile()._liwan_lock()
         service._liwan_invalidate_storage_plan()
         result = super().unlink()
         service._liwan_invalidate_storage_plan()
         if size:
+            service._liwan_claim_storage(-size)
             service._liwan_settle_storage()
         return result
