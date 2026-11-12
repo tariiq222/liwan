@@ -74,7 +74,8 @@ class ProjectTools(models.Model):
         """Projects the caller works on: manages or sponsors, follows, or holds one of their tasks."""
         # The sponsor is a governance field: resolved here, outside the tool restriction, it never narrows the caller's query.
         with self._liwan_tool_restriction_lifted():
-            sponsored = self._search([('liwan_sponsor_id', '=', self.env.uid)])
+            # Archived projects too: the callers search with active_test=False, as the sponsor predicate used to.
+            sponsored = self.with_context(active_test=False)._search([('liwan_sponsor_id', '=', self.env.uid)])
         member = (Domain('user_id', '=', self.env.uid)
                   | Domain('id', 'in', sponsored)
                   | Domain('message_follower_ids.partner_id', '=', self.env.user.partner_id.id))

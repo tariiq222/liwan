@@ -326,6 +326,18 @@ class TestProjectFinanceReaders(LiwanPmoCase):
         self.assertTrue(self.fin.with_user(self.sponsor)._liwan_can_read_finance())
         self.assertEqual(Entry.with_user(self.assignee).search([]), self.budget | self.expense)
 
+    def test_the_sponsor_of_an_archived_project_still_reads_its_money(self):
+        self._mode('members')
+        self.fin.active = False
+        # Entries of an archived project stay hidden (project_finance.py: the active-project floor); the membership
+        # decision itself must still count the sponsor, as the per-record capability does.
+        project = self.fin.with_user(self.sponsor).with_context(active_test=False)
+        self.assertTrue(project._liwan_can_read_finance())
+        self.assertEqual(project._liwan_finance_readable(), project)
+        # Built from an ordinary context, as the archived child-project query builds it.
+        Project = self.env['project.project'].with_user(self.sponsor)
+        self.assertIn(self.fin, Project.with_context(active_test=False).search(Project._liwan_member_domain()))
+
     # --- settings -----------------------------------------------------------------------
     def test_the_setting_is_validated_and_needs_the_settings_capability(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
