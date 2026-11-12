@@ -394,6 +394,19 @@ class LiwanAccessService(models.AbstractModel):
         }
 
     @api.model
+    def _liwan_home_capabilities(self, user=None):
+        """The capability keys USER holds in their home company, listed as ``_liwan_identity`` lists them there.
+
+        The request may work in another company; this evaluates in the home company alone, with the same pin a
+        personal route pinned home gets, so the list equals ``capabilities`` while the session works at home.
+        It describes the caller's own account and grants nothing.
+        """
+        user = user or self.env.user
+        home = user.company_id.id
+        at_home = self.with_context(allowed_company_ids=[home], liwan_pinned_company_ids=[home], liwan_capability_scope=None)
+        return at_home._liwan_identity(user.with_env(at_home.env))['capabilities']
+
+    @api.model
     def _liwan_bump_policy(self, companies):
         self._liwan_clear_branch_cache()
         company_ids = list(set(companies.ids))

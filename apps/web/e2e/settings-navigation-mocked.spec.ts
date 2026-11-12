@@ -24,7 +24,7 @@ const CAPABILITIES = [
 
 const ME = {
   id: 2, name: 'مدير النظام', login: 'admin', email: 'admin@example.com', lang: 'ar_001',
-  tz: 'Asia/Riyadh', role: 'admin', roles: [], capabilities: [...CAPABILITIES],
+  tz: 'Asia/Riyadh', role: 'admin', roles: [], capabilities: [...CAPABILITIES], home_capabilities: [...CAPABILITIES],
   access_policy_version: 1, company: { id: 1, name: 'ليوان' }, companies: [{ id: 1, name: 'ليوان' }], home_company_id: 1,
   modules: ['liwan_chat', 'liwan_hr', 'liwan_pmo'],
   entitlements: {

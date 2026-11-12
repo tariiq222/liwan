@@ -1,15 +1,17 @@
 import { BrandingSchema, MeSchema } from '@liwan/contracts'
 import type { ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
 
+const SHELL_CAPABILITIES = [
+  'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.settings.manage',
+  'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'documents.items.read',
+  'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage',
+]
+
 // A workspace user who sees every application and the administration module.
 export const shellMe = MeSchema.parse({
   id: 7, name: 'سارة القحطاني', login: 'sara', email: 'sara@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
   role: 'admin', roles: [], access_policy_version: 1, company: { id: 1, name: 'شركة المثال' }, companies: [{ id: 1, name: 'شركة المثال' }], home_company_id: 1,
-  capabilities: [
-    'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.settings.manage',
-    'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'documents.items.read',
-    'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage',
-  ],
+  capabilities: SHELL_CAPABILITIES, home_capabilities: SHELL_CAPABILITIES,
   modules: ['liwan_pmo', 'liwan_meetings', 'liwan_hr', 'liwan_documents'],
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,

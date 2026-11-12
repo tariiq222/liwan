@@ -32,7 +32,7 @@ describe('module registry', () => {
     const me = MeSchema.parse({
       id: 1, name: 'Admin', login: 'admin', email: '', lang: 'ar_001', tz: '',
       role: 'admin', company: { id: 1, name: 'liwan' }, companies: [{ id: 1, name: 'liwan' }], home_company_id: 1,
-      roles: [], capabilities: ['pmo.tasks.read'], access_policy_version: 1,
+      roles: [], capabilities: ['pmo.tasks.read'], home_capabilities: ['pmo.tasks.read'], access_policy_version: 1,
       modules: ['liwan_pmo'],
       entitlements: { 'pmo.enabled': true },
       platform: {

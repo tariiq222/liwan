@@ -11,7 +11,7 @@ import {
 const me = {
   id: 7, name: 'Synthetic User', login: 'synthetic', email: 's@example.test', mobile: null,
   mobile_required: false, lang: 'ar_001', tz: 'Asia/Riyadh', role: 'employee', roles: [],
-  capabilities: [], access_policy_version: 1, company: { id: 1, name: 'Synthetic' }, companies: [{ id: 1, name: 'Synthetic' }], home_company_id: 1,
+  capabilities: [], access_policy_version: 1, company: { id: 1, name: 'Synthetic' }, companies: [{ id: 1, name: 'Synthetic' }], home_company_id: 1, home_capabilities: [],
   appearance: { mode: 'light', font_size: 'small' }, modules: [], entitlements: {},
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,

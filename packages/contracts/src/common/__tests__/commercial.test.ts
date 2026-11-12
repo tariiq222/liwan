@@ -5,7 +5,7 @@ import { MeCommercialSchema, MePlatformSchema, MeSchema } from '../me'
 
 const legacy = {
   id: 1, name: 'Test', login: 'test', email: '', lang: 'ar_001', tz: 'UTC',
-  role: 'employee', company: { id: 1, name: 'Institution' }, companies: [{ id: 1, name: 'Institution' }], home_company_id: 1,
+  role: 'employee', company: { id: 1, name: 'Institution' }, companies: [{ id: 1, name: 'Institution' }], home_company_id: 1, home_capabilities: [],
   platform: {
     schema_version: 1, policy_revision: 3, state: 'active', valid_until: null,
     read_only: false, readable_features: ['pmo.enabled'], writable_features: ['pmo.enabled'],

@@ -60,6 +60,7 @@ def dump_me(user):
         'company': {'id': user.env.company.id, 'name': user.env.company.name},
         'companies': dump_switchable_companies(user),
         'home_company_id': user.company_id.id,
+        'home_capabilities': service._liwan_home_capabilities(user),
         # The account is above the purchased seats: it reads and exports everything but takes no writes.
         'read_only': read_only,
         'appearance': dump_appearance(user),

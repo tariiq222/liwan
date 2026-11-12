@@ -67,6 +67,38 @@ class TestWorkingCompany(WorkingCompanyCase):
         self.assertEqual(set(me['capabilities']), set(held))
         self.assertEqual(self.create_role().status_code, 403)
 
+    def test_the_home_capabilities_stay_those_of_the_home_company_after_a_switch(self):
+        # Homed in A with the employee and administrator roles, a member of B with no role there. The employee role
+        # is empty in the foundation alone (applications add its keys, HR self-service among them), so the
+        # administrator role is what makes the two companies differ in every install.
+        user = self._member('wc_home_staff', self.branch_a, [self.branch_a, self.branch_b], {self.branch_a: self.admin_role})
+        self.env['liwan.access.assignment'].create({'user_id': user.id, 'role_id': self.employee_role.id, 'company_id': self.branch_a.id})
+        self.sign_in('wc_home_staff')
+        at_home = self.me()
+        self.assertEqual(at_home['home_capabilities'], at_home['capabilities'])
+        employee_keys = set(self.employee_role.permission_ids.mapped('key'))
+        admin_keys = set(self.admin_role.permission_ids.mapped('key'))
+        self.assertLessEqual(employee_keys | admin_keys, set(at_home['home_capabilities']))
+        switched = self.switch(self.branch_b)
+        self.assertEqual(switched.status_code, 200, switched.text)
+        self.assertEqual(switched.json()['home_capabilities'], at_home['capabilities'])
+        me = self.me()
+        held_in_b = self.env['liwan.access.service'].with_user(user).with_company(self.branch_b)._liwan_capability_keys(
+            user, company=self.branch_b,
+        )
+        self.assertEqual(me['capabilities'], sorted(held_in_b))
+        self.assertNotIn('access.users.assign_roles', me['capabilities'])
+        self.assertIn('access.users.assign_roles', me['home_capabilities'])
+        self.assertEqual(me['home_capabilities'], at_home['capabilities'])
+        self.assertEqual(me['home_capabilities'], sorted(me['home_capabilities']))
+
+    def test_an_administrator_switched_into_a_branch_keeps_the_home_capabilities_of_home(self):
+        self.sign_in('wc_roamer')
+        at_home = self.me()
+        self.switch(self.branch_b)
+        me = self.me()
+        self.assertEqual(me['home_capabilities'], at_home['capabilities'])
+
     def test_a_company_the_caller_cannot_switch_to_answers_like_one_that_does_not_exist(self):
         self.sign_in('wc_roamer')
         answers = [
@@ -198,6 +230,7 @@ class TestWorkingCompany(WorkingCompanyCase):
         finished = self.api('POST', '/api/v1/auth/verify', {'code': sent[-1].split()[-1]})
         self.assertEqual(finished.status_code, 200, finished.text)
         self.assertEqual(finished.json()['company']['id'], self.branch_a.id)
+        self.assertEqual(finished.json()['home_capabilities'], finished.json()['capabilities'])
         self.assertEqual(self.me()['company']['id'], self.branch_a.id)
 
 

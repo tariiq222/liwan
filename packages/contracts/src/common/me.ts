@@ -78,6 +78,11 @@ export const MeSchema = z.object({
   companies: z.array(MeCompanySchema),
   /** The company the user is employed in: seats and the employee record stay there whatever `company` is. */
   home_company_id: z.number().int().positive(),
+  /**
+   * The capability keys the user holds in the home company, whatever `company` is; equal to `capabilities` while the
+   * session works in the home company. Personal pages pinned to the home company read it; it grants nothing.
+   */
+  home_capabilities: z.array(CapabilitySchema),
   /** True when the account is above the purchased seats: it reads and exports everything but takes no writes. */
   read_only: z.boolean().optional().default(false),
   appearance: MeAppearanceSchema.optional(),
