@@ -328,17 +328,6 @@ TENANT_TABLES = (
 )  # the version marker last: it is written last
 
 
-# DEFAULT_LEAVER_RETENTION_DAYS and MAX_LEAVER_RETENTION_DAYS, written out: statements stay literal.
-ADD_LEAVER_RETENTION = (
-    "ALTER TABLE ai_tenant_config ADD COLUMN IF NOT EXISTS leaver_retention_days INTEGER NOT NULL DEFAULT 30"
-    " CHECK (leaver_retention_days BETWEEN 0 AND 365)"
-)
-# The generic provider's endpoint beside the key: the column, and its constraint under the name CREATE_TENANT_SCHEMA gives it.
-ADD_KEY_BASE_URL = (
-    "ALTER TABLE ai_tenant_config ADD COLUMN IF NOT EXISTS key_base_url TEXT",
-    "ALTER TABLE ai_tenant_config DROP CONSTRAINT IF EXISTS ai_tenant_config_key_base_url_check",
-    "ALTER TABLE ai_tenant_config ADD CONSTRAINT ai_tenant_config_key_base_url_check CHECK (key_base_url IS NULL OR key_provider IS NOT NULL)",
-)
 TENANT_TABLES_QUERY = (
     "SELECT to_regclass('ai_runs'), to_regclass('checkpoints'), to_regclass('checkpoint_blobs'), to_regclass('checkpoint_writes'),"
     " to_regclass('checkpoint_migrations'), to_regclass('ai_tenant_config'), to_regclass('ai_memory'), to_regclass('ai_outbox'),"
@@ -350,11 +339,10 @@ async def _tenant_tables(conn):
     return await (await conn.execute(TENANT_TABLES_QUERY)).fetchone()
 
 
-async def upgrade_tenant(conn) -> None:
-    """Bring a schema bootstrapped by an earlier release up to this one: every statement is idempotent."""
-    await conn.execute(ADD_LEAVER_RETENTION)
-    for statement in ADD_KEY_BASE_URL:
-        await conn.execute(statement)
+async def create_tenant_tables(conn, retention_days: int) -> None:
+    """The clean tenant schema of this release, created once; nothing here alters an existing table."""
+    for statement in CREATE_TENANT_SCHEMA:
+        await conn.execute(statement, {"retention_days": retention_days} if "%(" in statement else None)
     for statement in CREATE_MEMORY:
         await conn.execute(statement)
     await grant_outbox(conn)
@@ -395,18 +383,14 @@ async def initialize_tenant(conninfo: str, retention_days: int = DEFAULT_RETENTI
             try:
                 await require_vector(conn)  # before any DDL: a schema without pgvector is not half-bootstrapped
                 tables = await _tenant_tables(conn)
-                if tables[-1]:  # the version marker is written last, so its presence means a finished bootstrap
-                    async with conn.transaction():
-                        await upgrade_tenant(conn)
+                if tables[-1]:  # the version marker is written last: a finished bootstrap is validated, never altered
                     await validate_tenant(conn, checkpoint_version)
                     return
                 # Both setups are idempotent, so a bootstrap interrupted before the marker simply completes here.
                 await checkpointer.setup()
                 await PostgresRunStore(pool).setup()
                 async with conn.transaction():
-                    for statement in CREATE_TENANT_SCHEMA:
-                        await conn.execute(statement, {"retention_days": retention_days} if "%(" in statement else None)
-                    await upgrade_tenant(conn)
+                    await create_tenant_tables(conn, retention_days)
                     await conn.execute(INSERT_TENANT_SCHEMA, (AI_STATE_VERSION, checkpoint_version))
             finally:
                 await conn.execute(f"SELECT pg_advisory_unlock({TENANT_LOCK[0]}, {TENANT_LOCK[1]})")

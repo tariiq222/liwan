@@ -162,6 +162,30 @@ async def test_initialize_tenant_is_idempotent():
         await drop_schema(schema)
 
 
+SCHEMA_CATALOG = (
+    "SELECT c.oid, c.xmin::text, array(SELECT a.attname FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 ORDER BY a.attnum),"
+    " array(SELECT k.oid FROM pg_constraint k WHERE k.conrelid = c.oid ORDER BY k.oid)"
+    " FROM pg_class c WHERE c.relnamespace = %s::regnamespace ORDER BY c.oid"
+)
+
+
+async def test_initialize_tenant_runs_no_ddl_on_a_finished_schema():
+    """A second bootstrap only validates: every relation, column and constraint keeps its catalog row untouched."""
+    schema = f"tenant_{uuid4().hex[:12]}"
+    await create_schema(schema)
+    conninfo = schema_conninfo(schema)
+    try:
+        await initialize_tenant(conninfo)
+        async with await psycopg.AsyncConnection.connect(base_url(), autocommit=True) as conn:
+            before = await (await conn.execute(SCHEMA_CATALOG, (schema,))).fetchall()
+        await initialize_tenant(conninfo)
+        async with await psycopg.AsyncConnection.connect(base_url(), autocommit=True) as conn:
+            after = await (await conn.execute(SCHEMA_CATALOG, (schema,))).fetchall()
+        assert before and after == before
+    finally:
+        await drop_schema(schema)
+
+
 async def test_initialize_tenant_completes_a_bootstrap_interrupted_before_its_marker():
     schema = f"tenant_{uuid4().hex[:12]}"
     await create_schema(schema)

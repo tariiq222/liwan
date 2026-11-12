@@ -253,7 +253,7 @@ a public name does not resolve, so a host this process cannot resolve is accepte
 destination every time it connects (`deploy/ai-egress/render.sh`). The host files (`tenant_egress.py`) are one hostname per line, written
 atomically; a failed write answers 503 `ai_egress_unavailable` after the key was saved, and the same save may be repeated.
 
-A tenant schema bootstrapped by an earlier release is upgraded in place: re-running `--initialize-tenant <db>` adds `key_base_url` and its constraint (idempotent), like the other columns added since.
+The tenant schema has one definition, created whole by `--initialize-tenant <db>`; re-running it on a finished schema only validates it and runs no DDL. A development schema bootstrapped before a column was added is recreated on a fresh scratch database (no tenant holds AI state yet).
 
 ## Service token
 
