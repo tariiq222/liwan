@@ -25,7 +25,7 @@ class TestFinanceInvoices(LiwanFinanceCase):
         super().setUpClass()
         cls.bill = cls.env['account.move'].with_company(cls.company).create({
             'move_type': 'in_invoice',
-            'partner_id': cls.env['res.partner'].create({'name': 'Gulf Supplies'}).id,
+            'partner_id': cls.env['res.partner'].create({'name': 'Gulf Supplies', 'liwan_party': True}).id,
             'invoice_date': '2026-09-01',
             'invoice_line_ids': [(0, 0, {'name': 'Paper', 'quantity': 2, 'price_unit': 50})],
         })

@@ -78,7 +78,7 @@ class LiwanFinanceCase(LiwanApiCase):
         # The two charts exist only inside this transaction, so no statistics describe them yet. Without them the
         # planner nested-loops the stock account search behind a mis_builder report: seconds per balance sheet.
         cls.env.cr.execute('ANALYZE account_account, account_account_res_company_rel, res_company')
-        cls.partner = cls.env['res.partner'].create({'name': 'Al Noor Trading'})
+        cls.partner = cls.env['res.partner'].create({'name': 'Al Noor Trading', 'liwan_party': True})
         cls.manager = new_test_user(
             cls.env, login=MANAGER_LOGIN, password=MANAGER_PASSWORD, name='Finance Manager',
             groups='liwan_core.group_employee', company_id=cls.company.id, company_ids=[Command.set(cls.company.ids)],

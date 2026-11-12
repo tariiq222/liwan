@@ -131,14 +131,14 @@ class TestFinanceStatements(LiwanFinanceOcaCase):
         self.assertEqual((block['amount_due'], block['buckets']['days_31_60'], block['buckets']['total']), (750, 750, 750))
 
     def test_a_partner_without_items_has_an_empty_statement(self):
-        quiet = self.env['res.partner'].create({'name': 'Quiet Customer'})
+        quiet = self.env['res.partner'].create({'name': 'Quiet Customer', 'liwan_party': True})
         for query in (f'?partner_id={quiet.id}&date_from=2026-10-01&date_to=2026-10-31', f'?partner_id={quiet.id}&type=outstanding&date_to=2026-10-31'):
             with self.subTest(query=query):
                 statement = self._get('partner-statement', query)
                 self.assertEqual((statement['partner']['id'], statement['currencies']), (quiet.id, []))
 
     def test_a_contact_of_a_company_has_no_statement(self):
-        contact = self.env['res.partner'].create({'name': 'Accounts clerk', 'parent_id': self.partner.id})
+        contact = self.env['res.partner'].create({'name': 'Accounts clerk', 'parent_id': self.partner.id, 'liwan_party': True})
         query = f'?partner_id={contact.id}&type=outstanding&date_to=2026-11-30'
         self.assertRefused(self.api('GET', f'{REPORTS}/partner-statement{query}'), 422, 'invalid', 'partner_id')
 

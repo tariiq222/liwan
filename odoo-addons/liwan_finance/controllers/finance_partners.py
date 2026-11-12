@@ -10,6 +10,8 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.liwan_api.controllers.vat import check_vat
+from odoo.addons.liwan_core.models.protected_write import marked
+from odoo.addons.liwan_finance.models.res_partner import FINANCE_PARTNER_MARKER
 from odoo.addons.liwan_finance.serializers.parsing import require_nonempty
 from odoo.addons.liwan_finance.serializers.partner import (
     dump_partner,
@@ -19,33 +21,23 @@ from odoo.addons.liwan_finance.serializers.partner import (
 )
 
 PARTNER_KINDS = {'customer': 'customer_rank', 'vendor': 'supplier_rank'}
-
-
-def tenant_company_partner_ids():
-    """The partners of every company of the database, whichever of them the caller belongs to (ids only)."""
-    return request.env['res.company'].sudo().with_context(active_test=False).search([]).partner_id.ids
+# What liwan.customers.service writes of a partner; Finance writes the rest under its own marker.
+IDENTITY_KEYS = ('name', 'is_company')
 
 
 def company_partners_domain(company=None):
-    """The customers and vendors of the pinned companies.
+    """The customers and vendors of the pinned companies: the commercial parties of liwan_customers.
 
-    Odoo partners that are system records stay out: users, the partners of every company of the
-    tenant (also the ones the caller does not belong to, such as the parent of a branch) and
-    employee work contacts. They belong to access, settings and HR, not to Finance.
-    ``employee`` is the stored flag hr adds to res.partner; it only exists when hr is installed,
-    which Finance does not depend on.
+    A party is never a user's partner, a company's partner or an employee work contact, so those stay out
+    without being named. The pinned request set: a parent session reads its branches' parties, a branch session
+    only its own, and the shared (company-less) ones, which the default customer sharing creates.
     """
     domain = [
-        # The pinned request set: a parent session reads its branches' partners,
-        # a branch session only its own, and the shared (company-less) ones.
+        ('liwan_party', '=', True),
         '|', ('company_id', '=', False), ('company_id', 'in', request.env.companies.ids),
-        ('user_ids', '=', False),
-        ('id', 'not in', tenant_company_partner_ids()),
     ]
     if company is not None:
         domain += request.env['res.partner']._check_company_domain(company)
-    if 'employee' in request.env['res.partner']._fields:
-        domain.append(('employee', '=', False))
     return domain
 
 
@@ -79,14 +71,20 @@ def _relation(parsed, field, model, current):
     return _global_record(model, parsed[field], field) if parsed[field] else request.env[model]
 
 
-def _partner_values(parsed, partner=None):
-    """ORM values for the parsed keys.
+def _identity(parsed):
+    """The identity values of a parsed body, which liwan.customers.service writes."""
+    return {key: parsed[key] for key in IDENTITY_KEYS if key in parsed}
 
-    A new partner belongs to the current company and defaults to its country, so the VAT
-    check has a country to validate against; the state must belong to the partner's country.
+
+def _partner_values(parsed, partner=None):
+    """The accounting values of the parsed keys, which Finance writes itself.
+
+    A new partner defaults to the current company's country, so the VAT check has a country to validate against;
+    the state must belong to the partner's country. The company of a new partner is the customers service's.
     """
     values = {
-        key: value for key, value in parsed.items() if key not in ('customer', 'vendor', 'state_id', 'country_id')
+        key: value for key, value in parsed.items()
+        if key not in ('customer', 'vendor', 'state_id', 'country_id', *IDENTITY_KEYS)
     }
     for kind, field in PARTNER_KINDS.items():
         if kind in parsed:
@@ -101,9 +99,14 @@ def _partner_values(parsed, partner=None):
         values['state_id'] = state.id
     if 'vat' in parsed or 'country_id' in parsed:
         check_vat(country, parsed.get('vat', partner.vat if partner else ''), parsed.get('name', partner.name if partner else ''))
-    if not partner:
-        values['company_id'] = request.env.company.id
     return values
+
+
+def _write_accounting(partner, values):
+    """Write Finance's own fields of a party under the Finance marker of the liwan_core write guard."""
+    if values:
+        with marked(request.env, {FINANCE_PARTNER_MARKER: partner.ids}):
+            partner.write(values)
 
 
 class FinancePartnerController(http.Controller):
@@ -136,9 +139,12 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def create_partner(self, **payload):
         require_capability('finance.partners.manage')
-        values = _partner_values(parse_partner_create(payload))
-        partner = request.env['res.partner'].create(values)
-        request.env['liwan.finance.audit.event']._liwan_log('partner_created', partner, fields_written=values)
+        parsed = parse_partner_create(payload)
+        values = _partner_values(parsed)
+        identity = _identity(parsed)
+        partner = request.env['liwan.customers.service']._liwan_create(identity)
+        _write_accounting(partner, values)
+        request.env['liwan.finance.audit.event']._liwan_log('partner_created', partner, fields_written={**identity, **values})
         return request.make_json_response(dump_partner(partner), status=201)
 
     @http.route('/api/v1/finance/partners/<int:partner_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -148,9 +154,12 @@ class FinancePartnerController(http.Controller):
         require_capability('finance.partners.manage')
         partner = find_partner(partner_id)
         require_nonempty(payload)
-        values = _partner_values(parse_partner_patch(payload), partner)
-        partner.write(values)
-        request.env['liwan.finance.audit.event']._liwan_log('partner_changed', partner, fields_written=values)
+        parsed = parse_partner_patch(payload)
+        values = _partner_values(parsed, partner)
+        identity = _identity(parsed)
+        request.env['liwan.customers.service']._liwan_update(partner, identity)
+        _write_accounting(partner, values)
+        request.env['liwan.finance.audit.event']._liwan_log('partner_changed', partner, fields_written={**identity, **values})
         return dump_partner(partner)
 
     @http.route('/api/v1/finance/partners/<int:partner_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -159,7 +168,7 @@ class FinancePartnerController(http.Controller):
     def archive_partner(self, partner_id, **_):
         require_capability('finance.partners.manage')
         partner = find_partner(partner_id)
-        partner.action_archive()
+        request.env['liwan.customers.service']._liwan_archive(partner)
         request.env['liwan.finance.audit.event']._liwan_log('partner_archived', partner)
         return dump_partner(partner)
 
@@ -169,6 +178,6 @@ class FinancePartnerController(http.Controller):
     def unarchive_partner(self, partner_id, **_):
         require_capability('finance.partners.manage')
         partner = find_partner(partner_id)
-        partner.action_unarchive()
+        request.env['liwan.customers.service']._liwan_restore(partner)
         request.env['liwan.finance.audit.event']._liwan_log('partner_unarchived', partner)
         return dump_partner(partner)
