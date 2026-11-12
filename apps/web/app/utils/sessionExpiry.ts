@@ -10,6 +10,11 @@ export function isPossibleSessionExpiry(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401
 }
 
+/** The session works in another company than this tab was loaded for: the server refused the request and wrote nothing. */
+export function isRequestContextChanged(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409 && error.code === 'request_context_changed'
+}
+
 type SessionIdentity = { id: number, company: { id: number } }
 
 /** One mounted private view belongs to one user and active company. */

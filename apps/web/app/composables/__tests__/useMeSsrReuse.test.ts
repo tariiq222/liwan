@@ -25,7 +25,7 @@ function installed(file: string, bindings: Record<string, unknown>, server: bool
 }
 const identity = (id = 5, companyId = 1) => ({
   id, name: `User ${id}`, login: `user-${id}`, email: `user-${id}@example.test`, lang: 'ar', tz: 'Asia/Riyadh',
-  role: 'employee', company: { id: companyId, name: `Company ${companyId}` }, capabilities: ['hr.employees.read'],
+  role: 'employee', company: { id: companyId, name: `Company ${companyId}` }, companies: [{ id: companyId, name: `Company ${companyId}` }], home_company_id: companyId, capabilities: ['hr.employees.read'],
 })
 function deferred<T>() {
   let resolve!: (value: T) => void

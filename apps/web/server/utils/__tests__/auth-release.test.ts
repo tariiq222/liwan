@@ -35,7 +35,7 @@ beforeAll(async () => {
     }
     if (failure) { res.writeHead(500); res.end(JSON.stringify({ error: { code: 'synthetic_failure' } })); return }
     res.setHeader('set-cookie', 'session_id=rotated-session; HttpOnly; Path=/')
-    if (req.url === '/api/v1/me') res.end(JSON.stringify({ id: 7, name: 'User', login: 'user', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', capabilities: ['access.users.read'], company: { id: 1, name: 'Company' } }))
+    if (req.url === '/api/v1/me') res.end(JSON.stringify({ id: 7, name: 'User', login: 'user', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', capabilities: ['access.users.read'], company: { id: 1, name: 'Company' }, companies: [{ id: 1, name: 'Company' }], home_company_id: 1 }))
     else res.end(JSON.stringify(req.url === '/web/session/authenticate' ? { result: { uid: 7 } } : { result: {} }))
   })
   await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))

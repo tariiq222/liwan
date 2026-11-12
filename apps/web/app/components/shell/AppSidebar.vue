@@ -22,7 +22,11 @@ const navigation = useApplicationNavigation()
 const coreItems = useCoreApps()
 
 const prefix = computed(() => props.surface === 'drawer' ? 'mobile-' : '')
-const tenantName = computed(() => branding.value?.name?.trim() || me.value?.company.name || '')
+// A person who can work in several companies of the tenant always sees which one the next save goes to: the card
+// names the working company then. With one company it names the tenant (its branding), as before.
+const tenantName = computed(() => (me.value?.companies.length ?? 0) > 1
+  ? me.value!.company.name
+  : branding.value?.name?.trim() || me.value?.company.name || '')
 const initial = (text: string) => Array.from(text.trim())[0]?.toLocaleUpperCase() ?? '?'
 const onAppsPage = computed(() => route.path === '/apps' || route.path.startsWith('/apps/'))
 

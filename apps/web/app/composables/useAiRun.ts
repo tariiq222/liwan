@@ -1,6 +1,7 @@
 import { computed, getCurrentScope, onScopeDispose, ref, watch } from 'vue'
-import { AiEventSchema, AiRunDetailSchema, type AiConversationMode, type AiEvent, type AiRecordRef, type AiRunMode, type AiRunStatus, type AiRunStatusValue } from '@liwan/contracts'
+import { AiEventSchema, AiRunDetailSchema, type AiConversationMode, type AiEvent, type AiRecordRef, type Me, type AiRunMode, type AiRunStatus, type AiRunStatusValue } from '@liwan/contracts'
 import { useAiStreamingRun } from './useAiConversation'
+import { EXPECTED_COMPANY_HEADER } from './useApi'
 
 export type AiThreadItem =
   | { kind: 'user'; text: string }
@@ -118,6 +119,7 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
   // The run `load()` is reading now: the surface is opening it even before the answer names it.
   const loadingRunId = ref<string | null>(null)
   const { t } = useI18n()
+  const loadedMe = useNuxtData<Me | null>('me').data
 
   // One controller owns every request of the open conversation; leaving the page or switching conversation cancels them.
   let lifecycle = new AbortController()
@@ -182,6 +184,10 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     if (refused) {
       setLimit(refused, typeof details?.resets_at === 'string' ? details.resets_at : null)
       status.value = 'limit_reached'
+    } else if (response.status === 409 && code === 'request_context_changed') {
+      // The working company changed in another tab: reload the identity (it replaces this tab's views) and say why.
+      void refreshNuxtData('me')
+      fail(t('errors.codes.request_context_changed'))
     } else if (response.status === 503 && code === 'ai_unavailable') {
       unavailable.value = true
       status.value = 'idle'
@@ -227,7 +233,7 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     const { signal } = lifecycle
     let accepted = false
     try {
-      const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal })
+      const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...(loadedMe.value ? { [EXPECTED_COMPANY_HEADER]: String(loadedMe.value.company.id) } : {}) }, body: JSON.stringify(body), signal })
       if (!response.ok || !response.body) {
         await refuse(response)
         return false

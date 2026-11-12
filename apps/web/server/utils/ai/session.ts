@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { createError } from 'h3'
+import { createError, getHeader } from 'h3'
 import { AI_HELP_AGENT, AI_SETUP_AGENT, AiToolsResponseSchema, type AiAgent, type AiConversationMode, type AiPolicy, type AiTool } from '@liwan/contracts'
 import { tenantRequest } from '../tenantRequest'
 import { toolCallBudget } from './executor'
@@ -27,11 +27,23 @@ function ownerTenant(event: H3Event, companyId: number): string {
   return `company:${companyId}`
 }
 
+/**
+ * A tab states the company it was loaded for. When the session works in another one, the request is refused unprocessed
+ * (409 `request_context_changed`), like the Odoo routes do, so a stale tab never runs or approves anything in the new company.
+ */
+function assertExpectedCompany(event: H3Event, company: number) {
+  const expected = getHeader(event, 'x-liwan-expected-company-id')
+  if (expected !== undefined && expected !== String(company)) {
+    throw createError({ statusCode: 409, data: { code: 'request_context_changed', message: 'the working company changed since this page was opened' } })
+  }
+}
+
 /** The caller as the AI service knows them (the tenant and the user id), and their current company. Any upstream denial is forwarded as is. */
 async function callerFor(event: H3Event): Promise<{ owner: Owner; company: string }> {
   const me = await odooJson(event, 'GET', '/api/v1/me')
   if (me.status !== 200) forwardUpstream(me)
   const meBody = me.body as { id: number; company: { id: number } }
+  assertExpectedCompany(event, meBody.company.id)
   return { owner: { tenant: ownerTenant(event, meBody.company.id), user: String(meBody.id) }, company: String(meBody.company.id) }
 }
 

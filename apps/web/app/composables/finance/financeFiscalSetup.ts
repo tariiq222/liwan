@@ -1,5 +1,5 @@
 import type { FinanceSetup, FinanceSetupFiscalInput } from '@liwan/contracts'
-import { ApiError } from '../useApi'
+import { ApiError, EXPECTED_COMPANY_HEADER } from '../useApi'
 import { saveErrorMessage } from '../../utils/formFeedback'
 
 /**
@@ -175,6 +175,6 @@ export function sameFinanceSetupScope(left: FinanceSetupScope | null, right: Fin
 export function financeExpectedContextHeaders(scope: FinanceSetupScope): Record<string, string> {
   return {
     'X-Liwan-Expected-User-Id': String(scope.userId),
-    'X-Liwan-Expected-Company-Id': String(scope.companyId),
+    [EXPECTED_COMPANY_HEADER]: String(scope.companyId),
   }
 }

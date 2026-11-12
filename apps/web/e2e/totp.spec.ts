@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 // branch: given the Nitro endpoints, does the second step render, submit and navigate on success.
 const ME = {
   id: 1, name: 'Admin', login: 'admin', email: '', lang: 'ar_001', tz: '',
-  role: 'admin', company: { id: 1, name: 'liwan' }, mobile: null, mobile_required: false,
+  role: 'admin', company: { id: 1, name: 'liwan' }, companies: [{ id: 1, name: 'liwan' }], home_company_id: 1, mobile: null, mobile_required: false,
   roles: [], capabilities: ['pmo.tasks.read'], access_policy_version: 1,
   modules: ['liwan_pmo'],
   entitlements: { 'pmo.enabled': true },

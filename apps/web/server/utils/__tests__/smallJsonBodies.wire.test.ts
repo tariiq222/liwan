@@ -31,7 +31,7 @@ beforeAll(async () => {
     if (req.url === '/api/v1/me') {
       if (principalReset) { req.socket.destroy(); return }
       if (principalStatus !== 200) { res.statusCode = principalStatus; res.end('{}'); return }
-      res.end(JSON.stringify({ id: 7, name: 'U', login: 'u', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', capabilities: ['settings.branding.manage'], company: { id: 1, name: 'C' } })); return
+      res.end(JSON.stringify({ id: 7, name: 'U', login: 'u', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', capabilities: ['settings.branding.manage'], company: { id: 1, name: 'C' }, companies: [{ id: 1, name: 'C' }], home_company_id: 1 })); return
     }
     forwarded++
     res.end(JSON.stringify(req.url?.endsWith('/check') ? { usable: true } : req.url?.endsWith('/accept') ? { login: 'u' } : { ok: true }))

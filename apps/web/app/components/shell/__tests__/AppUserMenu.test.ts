@@ -5,7 +5,7 @@ import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 const component = resolve(__dirname, '../AppUserMenu.vue')
 const messages = {
-  'nav.userMenu.label': 'قائمة المستخدم', 'nav.userMenu.services': 'خدماتي', 'nav.userMenu.more': 'المزيد',
+  'nav.userMenu.label': 'قائمة المستخدم', 'nav.userMenu.company': 'الشركة', 'errors.generic': 'حدث خطأ', 'nav.userMenu.services': 'خدماتي', 'nav.userMenu.more': 'المزيد',
   'nav.userMenu.accountPassword': 'حسابي وكلمة المرور', 'nav.userMenu.appearance': 'المظهر', 'nav.userMenu.light': 'فاتح', 'nav.userMenu.dark': 'داكن',
   'nav.language': 'اللغة', 'nav.logout': 'تسجيل الخروج', 'bus.connected': 'متصل', 'bus.disconnected': 'غير متصل', 'account.logoutFailed': 'تعذر إنهاء الجلسة',
   'hr.self.profile': 'ملفي الوظيفي', 'hr.self.leave': 'إجازاتي', 'hr.self.pay': 'قسائم الراتب', 'hr.leave.new': 'طلب إجازة',
@@ -20,12 +20,13 @@ const ENTRIES = [
 const LEAVE_ACTION = { id: 'hr.new-leave', labelKey: 'hr.leave.new', icon: 'i-lucide-calendar-plus', to: '/account/leave/new' }
 
 // The dropdown is a Nuxt UI primitive: the stub keeps the items the component hands it and renders the trigger and the custom slots.
-function setup(over: { mode?: string, role?: boolean, signedOut?: boolean, signOutResult?: boolean, hydrated?: boolean, employee?: boolean, entries?: boolean } = {}) {
+function setup(over: { mode?: string, role?: boolean, signedOut?: boolean, signOutResult?: boolean, hydrated?: boolean, employee?: boolean, entries?: boolean, companies?: number, switchFails?: boolean, switching?: boolean } = {}) {
   const captured: { items: Item[][] } = { items: [] }
   const setMode = vi.fn()
   const choose = vi.fn()
   const signOut = vi.fn(async () => over.signOutResult ?? true)
   const toast = { add: vi.fn() }
+  const switchCompany = vi.fn(async (_id: number) => { if (over.switchFails) throw new Error('تعذر التبديل') })
   const SharedSegmentedControl = Vue.defineComponent({
     props: { modelValue: String, items: { type: Array, default: () => [] }, label: String },
     emits: ['update:modelValue'],
@@ -41,7 +42,8 @@ function setup(over: { mode?: string, role?: boolean, signedOut?: boolean, signO
       return () => { captured.items = props.items as Item[][]; return Vue.h('div', { 'data-menu': '' }, [slots.default?.(), slots.employee?.(), slots.appearance?.(), slots.language?.()]) }
     },
   })
-  const me = Vue.ref(over.signedOut ? null : { id: 4, company: { id: 1 }, name: 'سارة العتيبي', roles: over.role === false ? [] : [{ name: { ar: 'مديرة المبيعات', en: 'Sales manager' } }] })
+  const companies = Array.from({ length: over.companies ?? 1 }, (_, index) => ({ id: index + 1, name: `الشركة ${index + 1}` }))
+  const me = Vue.ref(over.signedOut ? null : { id: 4, company: companies[0], companies, name: 'سارة العتيبي', roles: over.role === false ? [] : [{ name: { ar: 'مديرة المبيعات', en: 'Sales manager' } }] })
   const entries = over.entries === false ? [] : ENTRIES
   const render = () => renderShared(component, {}, {}, {
     hydrated: over.hydrated ?? true,
@@ -54,9 +56,11 @@ function setup(over: { mode?: string, role?: boolean, signedOut?: boolean, signO
       '@/composables/useAppearance': { useAppearance: () => ({ mode: Vue.ref(over.mode ?? 'light'), setMode }) },
       '@/composables/useLocaleChoice': { useLocaleChoice: () => ({ languages: [{ code: 'ar', name: 'العربية' }, { code: 'en', name: 'English' }], other: Vue.ref({ code: 'en', name: 'English' }), choose }) },
       '@/composables/useSignOut': { useSignOut: () => signOut },
+      '@/utils/companySwitch': { companySwitching: Vue.ref(over.switching ?? false) },
+      '@/composables/useSwitchCompany': { useSwitchCompany: () => switchCompany },
     },
   })
-  return { captured, setMode, choose, signOut, toast, render }
+  return { captured, setMode, choose, signOut, switchCompany, toast, render }
 }
 const flat = (items: Item[][]) => items.flat()
 const find = (items: Item[][], label: string) => flat(items).find(item => item.label === label)!
@@ -122,10 +126,54 @@ describe('AppUserMenu items', () => {
     expect(html.match(/>سارة العتيبي</g)?.length).toBe(2)
   })
 
-  it('offers no company switch, presence status, notification preferences or automatic appearance', async () => {
+  it('lists no companies for a person who belongs to one', async () => {
     const { captured, render } = setup()
-    const html = await render()
+    await render()
+    expect(flat(captured.items).map(item => item.label)).not.toContain('الشركة')
     expect(flat(captured.items).map(item => item.icon)).not.toContain('i-lucide-building-2')
+  })
+
+  it('lists the companies under the card for a person who belongs to several, the working one a checked item that does nothing', async () => {
+    const { captured, switchCompany, render } = setup({ companies: 3 })
+    await render()
+    expect(captured.items.map(group => group.map(item => item.label ?? item.slot)).slice(0, 2)).toEqual([
+      ['employee'], ['الشركة', 'الشركة 1', 'الشركة 2', 'الشركة 3'],
+    ])
+    // A checked item stays in keyboard navigation and is announced as checked; a disabled one is skipped and silent.
+    const current = find(captured.items, 'الشركة 1') as Item & { checked?: boolean, disabled?: boolean }
+    expect(current).toMatchObject({ type: 'checkbox', checked: true })
+    expect(current.disabled).toBeUndefined()
+    const event = { preventDefault: vi.fn() } as unknown as Event
+    current.onSelect!(event)
+    expect(event.preventDefault).toHaveBeenCalled()
+    expect(switchCompany).not.toHaveBeenCalled()
+    expect(find(captured.items, 'الشركة 2')).toMatchObject({ icon: 'i-lucide-building-2' })
+  })
+
+  it('makes the other companies unselectable while a switch is running', async () => {
+    const { captured, render } = setup({ companies: 3, switching: true })
+    await render()
+    expect(find(captured.items, 'الشركة 2')).toMatchObject({ disabled: true })
+    expect(find(captured.items, 'الشركة 3')).toMatchObject({ disabled: true })
+  })
+
+  it('switches to the company that is picked, and reports a refused switch with a toast', async () => {
+    const ok = setup({ companies: 3 })
+    await ok.render()
+    find(ok.captured.items, 'الشركة 3').onSelect!(new Event('select'))
+    await Vue.nextTick()
+    expect(ok.switchCompany).toHaveBeenCalledWith(3)
+    expect(ok.toast.add).not.toHaveBeenCalled()
+
+    const failed = setup({ companies: 2, switchFails: true })
+    await failed.render()
+    find(failed.captured.items, 'الشركة 2').onSelect!(new Event('select'))
+    await new Promise(resolve => setTimeout(resolve))
+    expect(failed.toast.add).toHaveBeenCalledWith({ title: 'تعذر التبديل', color: 'error' })
+  })
+
+  it('offers no presence status, notification preferences or automatic appearance', async () => {
+    const html = await setup().render()
     expect(html).not.toContain('data-item="auto"')
   })
 

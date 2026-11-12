@@ -21,7 +21,7 @@ function plugin(hydrating = false, publicRoute = false) {
   const bindings = {
     ...Query, ...ssr, ...Vue, ...sessionExpiry, ...sessionQueries, defineNuxtPlugin: (value: any) => value,
     useState: () => Vue.ref(null), useRouter: () => ({ currentRoute: Vue.ref({ meta: { access: publicRoute ? 'public' : undefined }, fullPath: '/pay/invoice/1' }) }),
-    isPossibleSessionExpiry: (error: unknown) => error instanceof ApiError && error.status === 401,
+    companySwitching: Vue.ref(false), isPossibleSessionExpiry: (error: unknown) => error instanceof ApiError && error.status === 401,
     useMe: () => ({ me: Vue.ref(null), ownershipIdentity: Vue.ref(null), refresh: async () => { identityRefreshes++ } }), onTenantSuspension: () => {},
     keepBuiltInsOutOfIdTree: () => {}, clearChatDrafts: () => {}, dropToastsWhileSuspended: () => {}, useToast: () => ({ toasts: Vue.ref([]) }),
   }
@@ -41,6 +41,7 @@ describe('one classified retry owner', () => {
     const fetch = createFetch({ fetch: async () => { requests++; return new Response(JSON.stringify({ code: 'unavailable', message: 'failure' }), { status, headers: { 'content-type': 'application/json' } }) } })
     vi.stubGlobal('$fetch', fetch)
     vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: () => false, locale: Vue.ref('en') }))
+    vi.stubGlobal('useNuxtData', () => ({ data: Vue.ref(null) }))
     const { $api } = useApi()
     const { client } = plugin()
     client.setDefaultOptions({ queries: { ...client.getDefaultOptions().queries, retryDelay: 0 } })
@@ -60,6 +61,7 @@ describe('one classified retry owner', () => {
     let requests = 0
     vi.stubGlobal('$fetch', createFetch({ fetch: async () => { requests++; throw new DOMException('Cancelled', 'AbortError') } }))
     vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: () => false, locale: Vue.ref('en') }))
+    vi.stubGlobal('useNuxtData', () => ({ data: Vue.ref(null) }))
     const { $api } = useApi()
     const { client } = plugin()
     client.setDefaultOptions({ queries: { ...client.getDefaultOptions().queries, retryDelay: 0 } })

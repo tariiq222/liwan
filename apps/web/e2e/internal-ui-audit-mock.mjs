@@ -44,7 +44,7 @@ const ME = {
   role: 'admin',
   roles: [{ id: 1, key: 'admin', name: { ar: 'مدير', en: 'Admin' }, type: 'built_in', protected: true, source: 'assignment' }],
   capabilities: CAPABILITIES, access_policy_version: 1,
-  company: { id: 1, name: 'LiwanOS' },
+  company: { id: 1, name: 'LiwanOS' }, companies: [{ id: 1, name: 'LiwanOS' }], home_company_id: 1,
   modules: ['liwan_chat', 'liwan_hr', 'liwan_documents', 'liwan_pmo'],
   entitlements: {
     'pmo.enabled': true, 'pmo.baselines': true, 'pmo.evm': true, 'pmo.change_control': true, 'meetings.enabled': true, 'tasks.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,

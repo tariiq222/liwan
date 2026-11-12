@@ -4,7 +4,7 @@ import type { ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/sh
 // A workspace user who sees every application and the administration module.
 export const shellMe = MeSchema.parse({
   id: 7, name: 'سارة القحطاني', login: 'sara', email: 'sara@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
-  role: 'admin', roles: [], access_policy_version: 1, company: { id: 1, name: 'شركة المثال' },
+  role: 'admin', roles: [], access_policy_version: 1, company: { id: 1, name: 'شركة المثال' }, companies: [{ id: 1, name: 'شركة المثال' }], home_company_id: 1,
   capabilities: [
     'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.settings.manage',
     'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'documents.items.read',
@@ -71,3 +71,9 @@ export const switcherApps = [
   { id: 'hr', label: 'الموارد البشرية', icon: 'i-lucide-users', to: '/hr' },
   { id: 'finance', label: 'المالية', icon: 'i-lucide-landmark', to: '/finance' },
 ]
+
+/** The same user, who may also work in two branches of the tenant; the working company is the first. */
+export const multiCompanyShellMe = MeSchema.parse({
+  ...shellMe,
+  companies: [{ id: 1, name: 'شركة المثال' }, { id: 2, name: 'فرع جدة' }, { id: 3, name: 'فرع الدمام' }],
+})

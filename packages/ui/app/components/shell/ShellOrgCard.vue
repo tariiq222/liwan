@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The organisation card under the brand: the tenant's logo, or its initial on the ink tile, and its name.
-// It is a static card: LiwanOS keeps one organisation per sign-in, so there is nothing to switch.
+// It is a static card: it names where the person works and switches nothing. The application decides the name.
 const props = defineProps<{ name: string; initial: string; logoUrl?: string | null }>()
 </script>
 

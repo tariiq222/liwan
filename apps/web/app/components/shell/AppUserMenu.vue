@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/vue-query'
 import { useAppearance } from '@/composables/useAppearance'
 import { useLocaleChoice } from '@/composables/useLocaleChoice'
 import { useSignOut } from '@/composables/useSignOut'
+import { useSwitchCompany } from '@/composables/useSwitchCompany'
+import { companySwitching } from '@/utils/companySwitch'
 import { personalAction, personalEntries } from '@/composables/nav/personalModel'
 
 // The user at the far end of the top bar: avatar (with the live-connection dot), name, first role and a chevron. The menu
@@ -11,7 +13,9 @@ import { personalAction, personalEntries } from '@/composables/nav/personalModel
 // entry is declared by its application through `personal` and filtered by the same permission and feature checks as
 // the /account hub), a quick leave request, the account page, the appearance and language switches and sign out.
 // «المزيد» opens the existing /account hub. Not offered because the product has no support for them: a presence status,
-// per-user notification preferences, an automatic (follow the system) appearance and a company switch.
+// per-user notification preferences and an automatic (follow the system) appearance. A person who belongs to more than
+// one company of the tenant also gets the list of them under the card: the working one is marked, another one switches
+// the whole session to it.
 const { t, locale } = useI18n()
 const { me } = useMe()
 const { $api } = useApi()
@@ -19,6 +23,7 @@ const { connected } = useBus()
 const hydrated = useHydrated()
 const toast = useToast()
 const signOut = useSignOut()
+const switchCompany = useSwitchCompany()
 const { mode, setMode } = useAppearance()
 const { languages, choose } = useLocaleChoice()
 
@@ -61,8 +66,24 @@ async function leave() {
   if (!(await signOut())) toast.add({ title: t('account.logoutFailed'), color: 'error' })
 }
 
+const companies = computed(() => me.value?.companies ?? [])
+async function switchTo(companyId: number) {
+  try {
+    await switchCompany(companyId)
+  } catch (cause) {
+    toast.add({ title: cause instanceof Error ? cause.message : t('errors.generic'), color: 'error' })
+  }
+}
+
 const items = computed<DropdownMenuItem[][]>(() => [
   [{ slot: 'employee', onSelect: keepOpen }],
+  ...(companies.value.length > 1 ? [[
+    { type: 'label' as const, label: t('nav.userMenu.company') },
+    // The working company is a checked item: it stays reachable by keyboard and is announced as checked, and selecting it does nothing.
+    ...companies.value.map(company => company.id === me.value?.company.id
+      ? { type: 'checkbox' as const, label: company.name, icon: 'i-lucide-building-2', checked: true, onSelect: keepOpen }
+      : { label: company.name, icon: 'i-lucide-building-2', disabled: companySwitching.value, onSelect: () => { void switchTo(company.id) } }),
+  ]] : []),
   ...(linked.value && services.value.length ? [[
     { type: 'label' as const, label: t('nav.userMenu.services') },
     ...services.value.map(entry => ({ label: t(entry.labelKey), icon: entry.icon, to: entry.to })),

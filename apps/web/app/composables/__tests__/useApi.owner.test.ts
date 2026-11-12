@@ -14,6 +14,7 @@ function fixture(publicView = false, component = true) {
   if (component) app.provide(sessionQueryOwnerKey, scope.current.value)
   scope.bind()
   vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: () => false, locale: { value: 'en' } }))
+  vi.stubGlobal('useNuxtData', () => ({ data: { value: null } }))
   const api = app.runWithContext(useApi)
   return { scope, ...api }
 }
