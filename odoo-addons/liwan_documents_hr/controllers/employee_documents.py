@@ -7,6 +7,7 @@ from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
 from odoo.addons.liwan_documents.controllers.common import (
     archived_arg,
@@ -18,11 +19,11 @@ from odoo.addons.liwan_documents.serializers.document import (
     dump_detail,
     dump_summaries,
 )
-from odoo.addons.liwan_hr.controllers.common import own_public_employee
+from odoo.addons.liwan_hr.controllers.common import own_employee
 
 
 def own_document_domain():
-    employee = own_public_employee()
+    employee = own_employee(public=True)
     return [
         ('company_id', '=', request.env.company.id),
         ('employee_id', '=', employee.id),
@@ -32,6 +33,7 @@ def own_document_domain():
 class EmployeeDocuments(http.Controller):
     @http.route('/api/v1/documents/employee/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('documents.enabled', 'hr.enabled', operation='read')
     @requires_capability('documents.items.read', 'hr.employees.read')
     def list_own_documents(self, **_):
@@ -53,6 +55,7 @@ class EmployeeDocuments(http.Controller):
 
     @http.route('/api/v1/documents/employee/me/<int:document_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('documents.enabled', 'hr.enabled', operation='read')
     @requires_capability('documents.items.read', 'hr.employees.read')
     def get_own_document(self, document_id, **_):

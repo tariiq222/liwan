@@ -14,12 +14,13 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_page,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
+from odoo.addons.liwan_hr.controllers.common import own_employee
 from odoo.addons.liwan_hr.controllers.shifts.hr_shifts import (
     assignable_schedule,
     attendance_lines,
     current_employee,
-    own_employee,
     reject_self_assignment,
 )
 from odoo.addons.liwan_hr.serializers.shifts.hr_roster import (
@@ -126,11 +127,12 @@ class HrShiftRosterController(http.Controller):
 
     @http.route('/api/v1/hr/shifts/me/week', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.shifts', operation='read')
     @requires_capability('hr.employees.read')
     def my_week(self, **_):
         week_start = _week_start_arg()
-        employee = own_employee()
+        employee = own_employee(required=True)
         return {
             'week_start': fields.Date.to_string(week_start),
             **_dump_week(employee, week_start)[0],

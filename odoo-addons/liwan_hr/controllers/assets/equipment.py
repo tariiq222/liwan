@@ -7,7 +7,6 @@ from .common import (
     company_category,
     company_employee,
     current_company,
-    own_employee,
     reject_own_custody,
     scoped_equipment,
 )
@@ -18,7 +17,9 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_positive_int,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
+from odoo.addons.liwan_hr.controllers.common import own_employee
 from odoo.addons.liwan_hr.serializers.assets.common import reject_unknown
 from odoo.addons.liwan_hr.serializers.assets.equipment import (
     dump_equipment,
@@ -163,6 +164,7 @@ class HrAssetsEquipmentController(http.Controller):
 
     @http.route('/api/v1/hr/assets/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.assets', operation='read')
     @requires_capability('hr.employees.read')
     def list_my_equipment(self, **_):

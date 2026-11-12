@@ -23,7 +23,9 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_positive_int,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
+from odoo.addons.liwan_hr.controllers.common import own_employee
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 from odoo.addons.liwan_hr.serializers.shifts.hr_shift import (
     dump_assignment,
@@ -132,15 +134,6 @@ def _current_assignment(assignment_id):
     if not row:
         _missing('hr.employee.calendar', assignment_id)
     return row
-
-
-def own_employee():
-    employee = request.env.user.employee_ids.filtered(
-        lambda record: record.company_id == request.env.company,
-    )[:1]
-    if not employee:
-        raise ApiError(422, 'invalid', 'the current user has no employee record in this company')
-    return employee
 
 
 def reject_self_assignment(employee):
@@ -332,11 +325,12 @@ class HrShiftController(http.Controller):
 
     @http.route('/api/v1/hr/shifts/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.shifts', operation='read')
     @requires_capability('hr.employees.read')
     def my_assignments(self, **_):
         """The caller's own planning rows in the current company."""
-        employee = own_employee()
+        employee = own_employee(required=True)
         limit, offset = parse_page(request.httprequest.args)
         domain = [
             ('company_id', '=', request.env.company.id),

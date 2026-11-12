@@ -7,8 +7,12 @@ from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
-from odoo.addons.liwan_hr.controllers.hr_leave import _current_leave
+from odoo.addons.liwan_hr.controllers.hr_leave import (
+    _asks_for_own_requests,
+    _current_leave,
+)
 from odoo.addons.liwan_hr_operations.models.common import KIND
 from odoo.addons.liwan_hr_operations.serializers.leave_approval import (
     dump_approval,
@@ -26,6 +30,7 @@ class HrLeaveApprovalController(http.Controller):
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/approval', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data(_asks_for_own_requests)
     @requires_feature(*FEATURES, operation='read')
     @requires_capability('hr.leave.read')
     def get_approval(self, leave_id, **_):
