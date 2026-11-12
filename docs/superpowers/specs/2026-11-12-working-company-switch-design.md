@@ -106,7 +106,7 @@ The four points this file first left open were read on 2026-11-12 and are settle
 
 | Point | Needs |
 | --- | --- |
-| Membership management. An invitation creates one membership and binding a user to a branch replaces it, so no user can hold two companies through the product, and the switch has nobody to serve | An owner decision on who may add a membership, then its own design |
+| Membership management. An invitation creates one membership and binding a user to a branch replaces it, so no user can hold two companies through the product, and the switch has nobody to serve | Owner decision of 2026-11-12: the person who may give an account adds the membership, as when an employee is given an account. That is the capability `access.users.grant` in the company receiving the member, held by `system_admin` and by any custom role a tenant gives it to; the built-in HR manager role does not carry it. Giving an employee an account always creates a new one today (`liwan_access_hr/models/access_service.py:192`), and an invitation for an existing login only revives a cancelled one (`liwan_core/models/access_service.py:730`). Its own design follows |
 | The onboarding steps and the operations "my requests" routes filter by user with no company and follow the working company | Left as they are; revisit with the first report |
 
 ## 9. Options rejected
