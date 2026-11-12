@@ -15,6 +15,7 @@ from odoo.addons.liwan_crm.models.crm_settings import (
     PRESETS,
     PRICE_ABOVE_LIST,
     RANGES,
+    START_STAGE_MODES,
     TERM_FORMS,
     TERM_GENDERS,
     TERM_KEYS,
@@ -30,11 +31,13 @@ ENUMS = {
     'distribution_mode': DISTRIBUTION_MODES,
     'visibility': VISIBILITIES,
     'price_above_list': PRICE_ABOVE_LIST,
+    'start_stage_mode': START_STAGE_MODES,
 }
 BOOLEANS = ('recycle_enabled', 'view_log_enabled', 'discount_allowed')
-# Plain fields a values patch may carry; `preset` changes only through a preset patch.
+# Plain fields a values patch may carry; `preset` changes only through a preset patch. The chosen
+# stage is not a scalar: the route resolves it against the company's stages, or refuses it.
 SCALAR_FIELDS = (*RANGES, *ENUMS, *BOOLEANS)
-WRITABLE = (*SCALAR_FIELDS, 'terms', 'distribution_user_ids', 'lead_properties')
+WRITABLE = (*SCALAR_FIELDS, 'terms', 'distribution_user_ids', 'lead_properties', 'start_stage_id')
 
 
 def dump_terms(effective):
@@ -57,6 +60,7 @@ def dump_settings(effective, revision, users, lead_properties_definition):
     values = {name: effective[name] for name in (
         'preset', *SCALAR_FIELDS, 'distribution_user_ids',
     )}
+    values['start_stage_id'] = effective['start_stage_id'].id if effective['start_stage_id'] else None
     values['terms'] = dump_terms(effective)
     values['lead_properties'] = dump_definition(lead_properties_definition)
     return {
@@ -122,6 +126,7 @@ def parse_settings_patch(payload, current_definition):
             parse_definition(values['lead_properties'], 'lead_properties', current_definition)
             if 'lead_properties' in values else None
         ),
+        'start_stage_id': _parse_start_stage(values['start_stage_id']) if 'start_stage_id' in values else False,
     }
 
 
@@ -178,3 +183,12 @@ def _parse_term_text(text):
 def _terms_error():
     message = f'terms: known terms and languages, singular/plural of 1 to {TERM_MAX_LENGTH} characters, gender m or f'
     return ApiError(422, 'invalid', message, field='terms')
+
+
+def _parse_start_stage(stage_id):
+    """The wire value: an id the route resolves, or None when the body carried an explicit null."""
+    if stage_id is None:
+        return None
+    if type(stage_id) is not int:
+        raise ApiError(422, 'invalid', 'must be a stage id or null', field='start_stage_id')
+    return stage_id

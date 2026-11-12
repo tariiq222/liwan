@@ -104,8 +104,14 @@ class CrmLeadFlow(models.Model):
             lead.write({'user_id': False, 'company_id': lead.company_id.id})
 
     def _liwan_first_stage(self):
-        """The stage a restarted opportunity starts in: the seeded "new" stage while active, else the
-        first open (not won) stage by sequence."""
+        """The stage a new or restarted opportunity starts in: the company's chosen start stage when
+        it picked one, else the seeded "new" stage while active and then the first open stage by
+        sequence — the same rule the setting leaves in place by default."""
+        settings = self.env['liwan.crm.settings']._liwan_effective()
+        if settings['start_stage_mode'] == 'stage' and settings['start_stage_id']:
+            stage = self.env['crm.stage'].browse(settings['start_stage_id'].id)
+            if stage.active and not stage.is_won:
+                return stage
         new = self.env.ref('liwan_crm.stage_new', raise_if_not_found=False)
         if new and new.active and not new.is_won:
             return new

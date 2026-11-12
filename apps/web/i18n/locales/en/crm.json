@@ -88,7 +88,11 @@
         "onImport": "Chosen at import",
         "onImportHint": "The person importing picks the assignment for each file.",
         "members": "Agents in the rotation",
-        "membersHint": "The CRM agents who receive opportunities."
+        "membersHint": "The CRM agents who receive opportunities.",
+        "startStage": "Start stage",
+        "startStageHint": "The stage every new or restarted opportunity starts in. “Automatic” keeps the seeded “new” stage while it is open.",
+        "startStageAuto": "Automatic",
+        "startStageChosen": "Choose a stage"
       },
       "privacy": {
         "title": "Privacy",
