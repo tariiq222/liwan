@@ -101,7 +101,7 @@ export function useDocumentFiles(id: MaybeRefOrGetter<number | null>, params: Ma
     queryFn: ({ queryKey, signal }) => {
       assertDocumentCompany(companyId.value, queryKey[1])
       if (options.personal) assertEmployeeDocumentIdentity(identity.value, queryKey[1], Number(queryKey[7]))
-      return $api(`/api/v1/documents/${queryKey[3]}/files`, { query: { ...queryKey[5], revision: queryKey[4] }, signal, schema: DocumentFileListSchema })
+      return $api(`/api/v1/documents/${options.personal ? 'employee/me/' : ''}${queryKey[3]}/files`, { query: { ...queryKey[5], revision: queryKey[4] }, signal, schema: DocumentFileListSchema })
     },
   })
   watch(query.error, async cause => {

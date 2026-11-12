@@ -2,16 +2,14 @@
 from odoo import http
 from odoo.http import request
 
-from .common import current_document, page_args, require
+from .common import current_document, files_page, require
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_positive_int,
     requires_feature,
 )
 from odoo.addons.liwan_documents.serializers.document import (
     dump_detail,
-    dump_files,
     parse_revision,
     strict,
 )
@@ -26,17 +24,7 @@ class Files(http.Controller):
     @requires_feature('documents.enabled', operation='read')
     def list_files(self, document_id, **kwargs):
         require('documents.items.read')
-        limit, offset = page_args(request.httprequest.args)
-        document = current_document(document_id)
-        args = request.httprequest.args
-        revision = parse_positive_int(args['revision'], 'revision') if 'revision' in args else None
-        if revision is not None and revision != document.revision:
-            raise ApiError(409, 'conflict', 'document was changed',
-                           details={'current_revision': document.revision})
-        return dump_files(
-            document, limit=limit, offset=offset,
-            q=request.httprequest.args.get('q'),
-        )
+        return files_page(current_document(document_id))
 
     @http.route(
         '/api/v1/documents/<int:document_id>/files',

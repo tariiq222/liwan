@@ -35,6 +35,13 @@ describe('document contracts', () => {
     expect(schema('DocumentFileSchema').safeParse({ ...file, download_url: '/web/content/4?access_token=x' }).success).toBe(false)
     expect(schema('DocumentFileSchema').safeParse({ ...file, attachment_id: 4 }).success).toBe(false)
   })
+  it('accepts the personal download URL and refuses look-alikes', () => {
+    const personal = '/api/v1/documents/employee/me/3/files/7/download'
+    expect(schema('DocumentFileSchema').parse({ ...file, download_url: personal }).download_url).toBe(personal)
+    for (const url of ['/api/v1/documents/employee/3/files/7/download', '/api/v1/documents/employee/me/0/files/7/download', '/api/v1/documents/employee/me/3/files/7/download?x=1', '/api/v1/documents/employee/me/employee/me/3/files/7/download']) {
+      expect(schema('DocumentFileSchema').safeParse({ ...file, download_url: url }).success).toBe(false)
+    }
+  })
   it('requires positive integer revision and a nonempty strict patch', () => {
     const s = schema('DocumentPatchSchema')
     expect(s.parse({ expected_revision: 1, body: '' })).toEqual({ expected_revision: 1, body: '' })
