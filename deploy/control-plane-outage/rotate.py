@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / 'deploy/control-plane-outage'
 STATE = FIXTURE / 'state'
 # The upstream Odoo checkout and its interpreter, the same variables the CI Odoo stages read.
+if not os.environ.get('ODOO_ROOT'):
+    raise SystemExit('set ODOO_ROOT to the upstream Odoo checkout')
 ODOO = Path(os.environ['ODOO_ROOT'])
 PYTHON = Path(os.environ.get('ODOO_PYTHON') or ODOO / '.venv/bin/python')
 ODOO_BIN = ODOO / 'odoo-bin'

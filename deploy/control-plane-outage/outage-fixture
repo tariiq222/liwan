@@ -16,7 +16,8 @@ ODOO_PORT=18179
 WEB_PORT=13109
 PG_PORT=55439
 # The upstream Odoo checkout and its interpreter, the same variables the CI Odoo stages read.
-ODOO_ROOT="${ODOO_ROOT:?set ODOO_ROOT to the upstream Odoo checkout}"
+# Read lazily: `status` and `stop` need no Odoo checkout; check_identity refuses to start without it.
+ODOO_ROOT="${ODOO_ROOT:-}"
 PYTHON="${ODOO_PYTHON:-$ODOO_ROOT/.venv/bin/python}"
 ODOO_BIN="$ODOO_ROOT/odoo-bin"
 STOCK_ADDONS="$ODOO_ROOT/addons"
@@ -33,6 +34,7 @@ port_free() {
 }
 
 check_identity() {
+  [[ -n "$ODOO_ROOT" ]] || fail 'set ODOO_ROOT to the upstream Odoo checkout'
   [[ "$(git -C "$ROOT" branch --show-current)" == codex/saas-outage-fixture ]] || fail 'wrong task branch'
   [[ -x "$PYTHON" && -f "$ODOO_BIN" && -d "$STOCK_ADDONS/project" && -d "$ADDONS/liwan_hr" ]] || fail 'required Odoo/worktree paths missing'
   local py_major node_major
