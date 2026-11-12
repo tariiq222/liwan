@@ -1,3 +1,4 @@
+import { ApiErrorSchema, CustomerConflictDetailsSchema } from '../../index'
 import {
   AppointmentAttendanceRecordSchema,
   AppointmentBookingCancelSchema,
@@ -303,10 +304,34 @@ describe('AppointmentBooking schemas', () => {
     expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, company_id: 1 })).toThrow()
   })
 
-  it('a requester phone is 5 to 32 phone characters, like the server', () => {
+  it('a requester phone is 1 to 32 characters; the server validates the number', () => {
     const create = (phone: string) => AppointmentBookingCreateSchema.parse({ type_id: 1, requester: { name: 'Sara', phone } })
     expect(create('+' + '1'.repeat(31)).requester?.phone).toHaveLength(32)
-    for (const bad of ['+' + '1'.repeat(32), '1234', 'abc12345']) expect(() => create(bad)).toThrow()
+    expect(create('0501234567').requester?.phone).toBe('0501234567')
+    for (const bad of ['+' + '1'.repeat(32), '']) expect(() => create(bad)).toThrow()
+  })
+
+  it('a requester name is at most 200 characters and an email at most 254, as the customers service accepts', () => {
+    const create = (requester: Record<string, string>) => AppointmentBookingCreateSchema.parse({ type_id: 1, requester })
+    expect(create({ name: 'N'.repeat(200) }).requester?.name).toHaveLength(200)
+    expect(() => create({ name: 'N'.repeat(201) })).toThrow()
+    const email = (length: number) => 'a'.repeat(length - '@example.com'.length) + '@example.com'
+    expect(create({ name: 'Sara', email: email(254) }).requester?.email).toHaveLength(254)
+    expect(() => create({ name: 'Sara', email: email(255) })).toThrow()
+  })
+
+  it('create_new asks for a new customer when the phone matches, and excludes requester_id', () => {
+    const inline = { type_id: 1, requester: { name: 'Sara', phone: '+966501234567' } }
+    expect(AppointmentBookingCreateSchema.parse({ ...inline, create_new: true }).create_new).toBe(true)
+    expect(AppointmentBookingCreateSchema.parse({ ...inline, create_new: false }).create_new).toBe(false)
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, create_new: true })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ ...inline, create_new: 'yes' })).toThrow()
+  })
+
+  it('the 409 a matching phone answers carries the candidates the customers contract defines', () => {
+    const error = { code: 'conflict', message: 'customers with this phone exist', details: { candidates: [{ id: 5, name: 'Sara', phone_last4: '4567' }] } }
+    expect(ApiErrorSchema.parse(error).code).toBe('conflict')
+    expect(CustomerConflictDetailsSchema.parse(error.details).candidates).toHaveLength(1)
   })
 
   it('read-only callers get null contact fields', () => {

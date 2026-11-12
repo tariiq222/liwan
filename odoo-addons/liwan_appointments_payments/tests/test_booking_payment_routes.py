@@ -29,7 +29,8 @@ class TestBookingPaymentRoutes(LiwanPaidBookingCase):
     def setUpClass(cls):
         super().setUpClass()
         # The booking routes ask an existing requester for the contact fields the company requires.
-        cls.customer.phone = '+966500000009'
+        # The booking route names a requester only among customers (liwan_party).
+        cls.customer.write({'phone': '+966500000009', 'liwan_party': True})
 
     def type_url(self, booking_type=None):
         return f'/api/v1/appointments/types/{(booking_type or self.paid_type).id}/payment'

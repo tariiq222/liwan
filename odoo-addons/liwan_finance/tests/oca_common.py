@@ -90,6 +90,6 @@ class LiwanFinanceOcaCase(LiwanFinanceWriteCase):
         cls.env['account.payment.register'].with_context(
             active_model='account.move', active_ids=cls.invoice.ids,
         ).create({'amount': 400, 'payment_date': '2026-10-19', 'journal_id': cls.bank.id}).action_create_payments()
-        cls.riyadh = cls.env['res.partner'].create({'name': 'Riyadh Supplies'})
+        cls.riyadh = cls.env['res.partner'].create({'name': 'Riyadh Supplies', 'liwan_party': True})
         cls.sale_late = cls.sale(cls.riyadh, 100, '2026-11-20')
         cls.sale_current = cls.sale(cls.riyadh, 200, '2026-12-15')

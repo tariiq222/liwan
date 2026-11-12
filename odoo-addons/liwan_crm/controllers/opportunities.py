@@ -75,10 +75,10 @@ def filter_domain(filters, default_status='open'):
 
 
 def _normalized_phone(raw, lead=None):
-    """E.164 phone for the current company; 422 when invalid or held by another opportunity."""
+    """E.164 phone in the tenant's phone country; 422 when invalid or held by another opportunity."""
     company = request.env.company
     Lead = request.env['crm.lead']
-    phone = Lead._liwan_normalize_phone(raw, company)
+    phone = request.env['liwan.customers.service']._liwan_phone_or_none(raw)
     if not phone:
         raise ApiError(422, 'invalid', 'invalid phone', field='phone', details={'reason': INVALID_PHONE_REASON})
     if (not lead or lead.phone_sanitized != phone) and Lead._liwan_find_duplicate(phone, company):

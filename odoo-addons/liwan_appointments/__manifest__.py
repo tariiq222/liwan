@@ -2,17 +2,18 @@
 {
     'name': 'liwan Appointments',
     'summary': 'liwan platform: the Appointments application — /api/v1/appointments',
-    'version': '19.0.1.7.0',
+    'version': '19.0.1.8.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
     # liwan_api: shared api_handler/ApiError + LiwanApiCase. An application depends
     # on liwan_api and no other application (spec R3); it owns its capabilities,
     # groups, role and record rule (spec R2).
+    # liwan_customers: the one writer of a customer; a booking's requester is a customer resolved through it.
     # resource_booking (OCA/calendar, AGPL-3): the internal booking engine — types, availability,
     # resource combinations, computed states and the calendar.event of each booking. Its portal
     # pages stay closed by the liwan_platform guard; LiwanOS serves its own routes.
-    'depends': ['liwan_api', 'resource_booking'],
+    'depends': ['liwan_api', 'liwan_customers', 'resource_booking'],
     'data': [
         'security/appointments_capability_groups.xml',
         'security/ir.model.access.csv',

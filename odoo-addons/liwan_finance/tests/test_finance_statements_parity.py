@@ -49,7 +49,7 @@ class TestFinanceStatementsParity(LiwanFinanceOcaCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.basma = cls.env['res.partner'].create({'name': 'Basma Contracting'})
+        cls.basma = cls.env['res.partner'].create({'name': 'Basma Contracting', 'liwan_party': True})
         old = cls._invoice('out_invoice', cls.basma, 800, '2026-03-10', '2026-04-10')
         cls._pay(old, 300, '2026-05-02')
         cls._pay(old, 200, '2026-10-25')    # after most of the aged dates

@@ -1,10 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import requests
 
 from odoo import fields
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import BASE_URL, CATALOG_ID, LiwanCatalogCase
@@ -26,7 +28,8 @@ class OrderCase(LiwanCatalogCase):
         cls.item = cls.synced(cls.make_item(cls.catalog))
         cls.item2 = cls.synced(cls.make_item(cls.catalog, cls.product2))
         cls.conversation = cls.make_conversation()
-        # The customer's accounting partner exists already: it carries the SAR price list the gateway needs.
+        # The customer exists already as a party: it carries the SAR price list the gateway needs.
+        cls.customer.liwan_party = True
         cls.conversation.contact_id.partner_id = cls.customer
         cls.counter_cart = 0
 
@@ -165,13 +168,6 @@ class TestCheckout(OrderCase):
         sent = self.run_outbox().call_args.kwargs['json']['interactive']
         self.assertEqual((sent['type'], sent['action']['parameters']['url']), ('cta_url', message.cta_url))
 
-    def test_the_partner_is_made_once_and_reused(self):
-        contact = self.conversation.contact_id
-        contact.partner_id = False
-        partner = contact._liwan_partner()
-        self.assertEqual((partner.name, partner.phone), (contact.name, contact.phone))
-        self.assertEqual(contact._liwan_partner(), partner)
-
     def test_a_second_checkout_sends_a_new_link_for_the_same_order(self):
         order = self.deliver_cart([cart_line('SHIRT-1')])
         first = self.checkout(order).json()
@@ -221,6 +217,167 @@ class TestCheckout(OrderCase):
         self.login_user(self.reader_only)
         self.assertError(self.checkout(order), 403, 'forbidden')
         self.assertEqual(self.get(self.order_path(order)).status_code, 200)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestCheckoutCustomer(OrderCase):
+    """Placing an order resolves the contact's customer through liwan.customers.service, as the agent."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # A new customer takes the company's first price list: make it the SAR one the gateway needs, as a Saudi
+        # tenant's is (a run without the Saudi chart would otherwise price in the base currency).
+        pricelists = cls.env['product.pricelist'].search([])
+        cls.customer.property_product_pricelist.sequence = min(pricelists.mapped('sequence')) - 1
+
+    def unlinked_order(self):
+        """A cart of a new conversation whose contact has no customer yet."""
+        conversation = self.make_conversation()
+        return conversation.contact_id, self.deliver_cart([cart_line('SHIRT-1')], conversation=conversation)
+
+    def party(self, name, phone, **values):
+        """An existing customer, with the SAR price list the gateway needs."""
+        return self.env['res.partner'].create({
+            'name': name, 'phone': phone, 'liwan_party': True,
+            'property_product_pricelist': self.customer.property_product_pricelist.id, **values,
+        })
+
+    def parties(self):
+        return self.env['res.partner'].with_context(active_test=False).search([('liwan_party', '=', True)])
+
+    def test_an_unlinked_contact_without_a_match_gets_one_new_customer_that_is_reused(self):
+        contact, order = self.unlinked_order()
+        before = self.parties()
+        response = self.checkout(order)
+        self.assertEqual(response.status_code, 200, response.text)
+        created = self.parties() - before
+        self.assertEqual(len(created), 1)
+        self.assertEqual(contact.partner_id, created)
+        self.assertEqual((created.name, created.phone), (contact.name, contact.phone))
+        again = self.deliver_cart([cart_line('SHIRT-1')], conversation=order.conversation_id)
+        self.assertEqual(self.checkout(again).status_code, 200)
+        self.assertEqual((contact.partner_id, self.parties() - before), (created, created))
+
+    def test_matching_customers_answer_conflict_and_nothing_is_made_or_linked(self):
+        for count in (1, 2):
+            with self.subTest(count=count):
+                contact, order = self.unlinked_order()
+                known = self.env['res.partner']
+                for index in range(count):
+                    known |= self.party(f'Known {count}-{index}', contact.phone)
+                before = self.parties()
+                response = self.checkout(order)
+                self.assertError(response, 409, 'conflict')
+                self.assertEqual(response.json()['details'], {'candidates': [
+                    {'id': partner.id, 'name': partner.name, 'phone_last4': contact.phone[-4:]}
+                    for partner in known.sorted(lambda partner: (partner.name, partner.id))
+                ]})
+                self.assertEqual(self.parties(), before)
+                self.assertFalse(self.reload(contact).partner_id)
+                self.assertEqual(self.reload(order).state, 'cart')
+
+    def test_the_agent_names_the_customer_or_asks_for_a_new_one(self):
+        contact, order = self.unlinked_order()
+        known = self.party('Known', contact.phone)
+        self.assertError(self.checkout(order), 409, 'conflict')
+        response = self.checkout(order, {'customer_id': known.id})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.reload(contact).partner_id, known)
+        other, second = self.unlinked_order()
+        twin = self.party('Twin', other.phone)
+        before = self.parties()
+        response = self.checkout(second, {'create_new': True})
+        self.assertEqual(response.status_code, 200, response.text)
+        created = self.parties() - before
+        self.assertEqual(len(created), 1)
+        self.assertNotEqual(created, twin)
+        self.assertEqual((self.reload(other).partner_id, created.phone), (created, other.phone))
+
+    def test_the_customer_keys_are_validated(self):
+        contact, order = self.unlinked_order()
+        elsewhere = self.env['res.company'].create({'name': 'Elsewhere'})
+        hidden = self.party('Hidden', '+966511112222', company_id=elsewhere.id)
+        for payload in (
+            {'customer_id': 'x'}, {'customer_id': 0}, {'customer_id': True}, {'create_new': 'yes'}, {'create_new': 1},
+            {'customer_id': hidden.id, 'create_new': True}, {'customer_id': None},
+        ):
+            with self.subTest(payload=payload):
+                self.assertError(self.checkout(order, payload), 422, 'invalid')
+        plain = self.env['res.partner'].create({'name': 'Not a party'})
+        for customer in (plain, hidden, self.agent.partner_id):
+            with self.subTest(customer=customer.name):
+                self.assertError(self.checkout(order, {'customer_id': customer.id}), 404, 'not_found')
+        self.assertFalse(self.reload(contact).partner_id)
+        self.assertEqual(self.reload(order).state, 'cart')
+
+    def test_the_new_customer_company_follows_the_sharing_setting(self):
+        contact, order = self.unlinked_order()
+        self.assertTrue(contact.company_id)
+        self.assertEqual(self.checkout(order).status_code, 200)
+        self.assertFalse(contact.partner_id.company_id)
+        self.env['liwan.customers.settings']._liwan_current().sharing = 'branch'
+        other, second = self.unlinked_order()
+        self.assertEqual(self.checkout(second).status_code, 200)
+        self.assertEqual(self.reload(other).partner_id.company_id, self.env.company)
+
+    def test_a_contact_without_a_phone_gets_a_customer_from_its_name(self):
+        contact, order = self.unlinked_order()
+        contact.phone = False
+        self.assertEqual(self.checkout(order).status_code, 200)
+        self.assertEqual((contact.partner_id.name, contact.partner_id.phone, contact.partner_id.liwan_party), (contact.name, False, True))
+
+    def test_a_contact_linked_to_a_partner_that_is_no_active_party_is_resolved_again(self):
+        archived = self.party('Archived customer', '+966522223333', active=False)
+        for linked in (self.env['res.partner'].create({'name': 'Not a party'}), archived):
+            with self.subTest(linked=linked.name):
+                contact, order = self.unlinked_order()
+                contact.partner_id = linked
+                before = self.parties()
+                response = self.checkout(order)
+                self.assertEqual(response.status_code, 200, response.text)
+                created = self.parties() - before
+                self.assertEqual((len(created), self.reload(contact).partner_id), (1, created))
+                self.assertEqual(self.env['sale.order'].search([('partner_id', '=', linked.id)]).ids, [])
+
+    def test_a_relinked_contact_honours_the_customer_conflict_answer(self):
+        contact, order = self.unlinked_order()
+        contact.partner_id = self.env['res.partner'].create({'name': 'Not a party'})
+        known = self.party('Known again', contact.phone)
+        self.assertError(self.checkout(order), 409, 'conflict')
+        response = self.checkout(order, {'customer_id': known.id})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.reload(contact).partner_id, known)
+
+    def test_a_checkout_for_a_party_with_a_contact_leaves_its_identity_alone(self):
+        contact, order = self.unlinked_order()
+        family = self.party('Family Co', '+966544445555', is_company=True, email='family@example.test')
+        self.party('Family contact', '+966544446666', parent_id=family.id, email='member@example.test')
+        contact.partner_id = family
+        response = self.checkout(order)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.reload(order)._liwan_sale_orders().partner_id, family)
+        self.assertEqual((family.name, family.phone, family.email), ('Family Co', '+966544445555', 'family@example.test'))
+
+    def test_an_orders_holder_who_is_not_an_administrator_writes_parties_only(self):
+        agent = self.agent
+        self.assertFalse(agent.has_group('base.group_system') or agent.has_group('base.group_erp_manager'))
+        self.assertFalse(self.env['liwan.access.service']._liwan_has_capability(agent, 'customers.read'))
+        self.assertTrue(agent.has_group('liwan_customers.group_customers_party_writer'))
+        partners = self.env['res.partner'].with_user(agent)
+        with self.assertRaises(AccessError):
+            partners.browse(self.customer.id).write({'name': 'Renamed'})
+        with self.assertRaises(AccessError):
+            partners.create({'name': 'Plain partner'})
+        with self.assertRaises(AccessError):
+            partners.browse(self.party('Known', '+966533334444').id).write({'name': 'Around the service'})
+
+    def test_no_elevated_partner_create_remains(self):
+        self.assertFalse(hasattr(type(self.env['liwan.inbox.contact']), '_liwan_partner'))
+        self.assertNotIn('liwan_inbox_payments', self.env['liwan.inbox.contact']._fields['partner_id']._module or '')
+        source = Path(__file__).parents[2] / 'liwan_inbox' / 'models' / 'contact.py'
+        self.assertNotIn('sudo(', source.read_text())
+        self.assertFalse((Path(__file__).parents[1] / 'models' / 'contact.py').exists())
 
 
 @tagged('post_install', '-at_install', 'liwan')

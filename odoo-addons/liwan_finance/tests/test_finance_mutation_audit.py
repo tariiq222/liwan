@@ -185,6 +185,7 @@ class TestFinanceMutationAudit(LiwanFinanceWriteCase):
         branch_partner = self.env['res.partner'].with_company(branch).create({
             'name': 'Audit Branch Customer',
             'company_id': branch.id,
+            'liwan_party': True,
         })
         branch_partner.with_company(branch).write({
             'property_account_receivable_id': branch_accounts.filtered(

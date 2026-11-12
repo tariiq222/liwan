@@ -10,9 +10,9 @@
     # follow-up reminders. crm and product are stock Odoo; crm_phonecall is the pinned OCA/crm
     # module (deploy/oca-addons.json). An application depends on no other application (spec R3);
     # it owns its capabilities, groups, roles and record rules (spec R2).
-    'depends': ['liwan_api', 'liwan_notify', 'crm', 'product', 'crm_phonecall'],
-    # Stock phone_validation normalises phones only with this library (pinned in deploy/odoo).
-    'external_dependencies': {'python': ['openpyxl', 'phonenumbers']},
+    'depends': ['liwan_api', 'liwan_customers', 'liwan_notify', 'crm', 'product', 'crm_phonecall'],
+    # liwan_customers: the one phone normaliser (E.164 in the tenant's phone country).
+    'external_dependencies': {'python': ['openpyxl']},
     'data': [
         'security/crm_capability_groups.xml',
         'security/ir.model.access.csv',

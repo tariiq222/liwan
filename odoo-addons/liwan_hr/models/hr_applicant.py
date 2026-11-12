@@ -8,6 +8,28 @@ HIRE_FRAME_ATTRIBUTE = '_liwan_hr_native_recruitment_hire'
 class LiwanHrApplicant(models.Model):
     _inherit = 'hr.applicant'
 
+    # A commercial party (liwan_customers' ``liwan_party``, present only when that service is installed) has one
+    # writer, the customers service. Stock links an applicant to the partner of its email and then writes the
+    # applicant's name, email and phone onto that partner, so an applicant never resolves to a party: it gets a
+    # contact of its own.
+
+    def _liwan_is_party(self, partner):
+        return 'liwan_party' in partner._fields and partner.liwan_party
+
+    def _partner_find_from_emails(self, records_emails, avoid_alias=True, ban_emails=None,
+                                  filter_found=None, additional_values=None, no_create=False):
+        def not_a_party(partner):
+            return not self._liwan_is_party(partner) and (not filter_found or filter_found(partner))
+
+        return super()._partner_find_from_emails(
+            records_emails, avoid_alias=avoid_alias, ban_emails=ban_emails, filter_found=not_a_party,
+            additional_values=additional_values, no_create=no_create,
+        )
+
+    def _inverse_partner_email(self):
+        self.filtered(lambda applicant: self._liwan_is_party(applicant.partner_id)).partner_id = False
+        return super()._inverse_partner_email()
+
     def _get_employee_create_vals(self):
         vals = super()._get_employee_create_vals()
         vals['company_id'] = self.company_id.id

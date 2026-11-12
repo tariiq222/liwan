@@ -35,13 +35,13 @@ class LiwanFinanceWriteCase(LiwanFinanceCase):
         cls.other_sale_vat = cls._tax(cls.other_company, 'sale')
         cls.bank = cls._journal(cls.company, 'bank')
         cls.other_bank = cls._journal(cls.other_company, 'bank')
-        cls.vendor = cls.env['res.partner'].create({'name': 'Gulf Supplies'})
+        cls.vendor = cls.env['res.partner'].create({'name': 'Gulf Supplies', 'liwan_party': True})
         cls.other_payment = cls.env['account.payment'].with_company(cls.other_company).create({
             'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': cls.partner.id,
             'amount': 10, 'date': '2026-10-18', 'journal_id': cls.other_bank.id,
         })
         cls.foreign_partner = cls.env['res.partner'].create({
-            'name': 'Foreign Co Customer', 'company_id': cls.other_company.id,
+            'name': 'Foreign Co Customer', 'company_id': cls.other_company.id, 'liwan_party': True,
         })
 
     def setUp(self):

@@ -22,7 +22,7 @@ class TestFinancePartners(LiwanFinanceWriteCase):
         self.assertEqual(result.status_code, 200, result.text)
         return {row['id'] for row in result.json()['items']}
 
-    def test_creates_a_saudi_partner_in_the_current_company_with_the_whitelisted_shape(self):
+    def test_creates_a_shared_saudi_party_with_the_whitelisted_shape(self):
         body = self._create(
             vat=SAUDI_VAT, company_registry='1010123456', street='King Fahd Rd', city='Riyadh',
             is_company=True, customer=True,
@@ -32,7 +32,8 @@ class TestFinancePartners(LiwanFinanceWriteCase):
         self.assertEqual((body['customer'], body['vendor'], body['active']), (True, False, True))
         self.assertEqual(body['country'], {'id': self.env.ref('base.sa').id, 'name': 'Saudi Arabia'})
         partner = self.env['res.partner'].browse(body['id'])
-        self.assertEqual((partner.company_id, partner.customer_rank), (self.company, 1))
+        # The customers service decides the company: the default sharing (establishment) leaves it unset.
+        self.assertEqual((partner.liwan_party, partner.company_id.id, partner.customer_rank), (True, False, 1))
 
     def test_a_vat_that_is_not_a_saudi_15_digit_number_is_a_422_invalid_vat(self):
         for vat in ('123', '400000000000003', '30000000000000x', '300000000000004'):

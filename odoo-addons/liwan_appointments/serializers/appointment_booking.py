@@ -1,10 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Wire shapes and request parsing of the staff booking routes.
 
-The requester of a booking is one ``res.partner`` (the engine's ``partner_ids``). A request names an
-existing partner (``requester_id``) or sends ``requester`` (name, phone, email) to create one in the
-current company. ``national_id`` and ``notes`` belong to the booking, not the partner, and are sent
-beside the requester in both forms. The company's field policies (``phone_field``, ``email_field``,
+The requester of a booking is one customer (a ``res.partner`` party, the engine's ``partner_ids``). A request
+names an existing customer (``requester_id``) or sends ``requester`` (name, phone, email); the controller resolves
+either through ``liwan.customers.service``, which answers 409 ``conflict`` with the candidates when customers with
+that phone exist, until the request names one in ``requester_id`` or sets ``create_new``. ``national_id`` and
+``notes`` belong to the booking, not the customer, and are sent beside the requester in both forms. The company's field policies (``phone_field``, ``email_field``,
 ``national_id_field``, ``notes_field``: required, optional or hidden) decide which of these are
 accepted. ``requester_confirmation`` is enforced by the controller: while it is true a booking that
 staff schedule stays ``scheduled`` until confirmed; while it is false staff scheduling confirms it.
@@ -34,11 +35,10 @@ MINUTES_PER_HOUR = 60
 MAX_NOTES_LENGTH = 2000
 MAX_NATIONAL_ID_LENGTH = 32
 UTC_TIMESTAMP = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z')
-PHONE = re.compile(r'\+?[0-9 ()\-]+')
-PHONE_LENGTH = (5, 32)
+PHONE_MAX_LENGTH = 32
 TRUE_FALSE = ('true', 'false')
 CREATE_FIELDS = (
-    'type_id', 'combination_id', 'requester_id', 'requester', 'national_id', 'notes', 'start', 'walk_in', 'visit_reason_id',
+    'type_id', 'combination_id', 'requester_id', 'requester', 'create_new', 'national_id', 'notes', 'start', 'walk_in', 'visit_reason_id',
 )
 REQUESTER_FIELDS = ('name', 'phone', 'email')
 
@@ -148,6 +148,7 @@ def parse_booking_create(payload, settings, now):
     """Validate a create body into the values the controller resolves inside the current company.
 
     Returns ``type_id``, ``combination_id`` (or None), ``requester_id`` or ``requester`` (the other is None),
+    ``create_new`` (a new customer is wanted although customers with the phone exist),
     ``national_id``, ``notes`` and ``visit_reason_id`` (False when absent), ``start`` (None for a pending invitation)
     and ``walk_in``. A walk-in starts now (to the minute) and skips the notice and horizon limits of ``start``.
     """
@@ -155,12 +156,14 @@ def parse_booking_create(payload, settings, now):
     require_fields(payload, ('type_id',))
     if ('requester_id' in payload) == ('requester' in payload):
         raise ApiError(422, 'invalid', 'send exactly one of requester_id and requester', field='requester')
+    create_new = _parse_create_new(payload)
     walk_in = _parse_walk_in(payload, settings)
     return {
         'type_id': parse_positive_int(payload['type_id'], 'type_id'),
         'combination_id': parse_positive_int(payload['combination_id'], 'combination_id') if 'combination_id' in payload else None,
         'requester_id': parse_positive_int(payload['requester_id'], 'requester_id') if 'requester_id' in payload else None,
         'requester': _parse_requester(payload['requester'], settings) if 'requester' in payload else None,
+        'create_new': create_new,
         'national_id': _policy_value(payload, 'national_id', settings, 'national_id', parse_national_id),
         'notes': _policy_value(payload, 'notes', settings, 'notes', parse_notes),
         'visit_reason_id': _parse_visit_reason(payload, settings),
@@ -208,12 +211,10 @@ def parse_booking_schedule(payload, settings, now):
     }
 
 
-def requester_values(parsed, company_id):
-    """The ``res.partner`` values of a new requester."""
+def requester_values(parsed):
+    """The identity values of a new customer: only what the request gives, the phone as typed."""
     requester = parsed['requester']
-    return {
-        'name': requester['name'], 'phone': requester['phone'], 'email': requester['email'], 'company_id': company_id,
-    }
+    return {key: requester[key] for key in REQUESTER_FIELDS if requester[key]}
 
 
 def check_partner_contact(partner, settings):
@@ -240,10 +241,8 @@ def parse_notes(value, field):
 
 
 def _parse_phone(value, field):
-    value = parse_text(value, field)
-    if not PHONE_LENGTH[0] <= len(value) <= PHONE_LENGTH[1] or not PHONE.fullmatch(value):
-        raise ApiError(422, 'invalid', 'must be a phone number', field=field)
-    return value
+    """Only the text shape; the customers service validates the number and answers 422 ``invalid_phone``."""
+    return parse_text(value, field, max_length=PHONE_MAX_LENGTH)
 
 
 def _parse_email(value, field):
@@ -266,6 +265,15 @@ def _parse_requester(value, settings):
         'phone': _policy_value(value, 'phone', settings, 'requester.phone', _parse_phone),
         'email': _policy_value(value, 'email', settings, 'requester.email', _parse_email),
     }
+
+
+def _parse_create_new(payload):
+    create_new = payload.get('create_new', False)
+    if type(create_new) is not bool:
+        raise ApiError(422, 'invalid', 'must be true or false', field='create_new')
+    if 'create_new' in payload and 'requester_id' in payload:
+        raise ApiError(422, 'invalid', 'requester_id and create_new exclude each other', field='create_new')
+    return create_new
 
 
 def _parse_walk_in(payload, settings):

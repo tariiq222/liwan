@@ -120,9 +120,9 @@ class TestFinanceBranchAccess(LiwanFinanceCase):
         unrelated_account = self.env['account.account'].search([
             ('company_ids', 'in', self.other_company.ids), ('account_type', '=', 'income'),
         ], limit=1)
-        branch_partner = self.env['res.partner'].create({'name': 'Branch customer', 'company_id': self.branch.id})
-        parent_partner = self.env['res.partner'].create({'name': 'Ancestor customer', 'company_id': self.company.id})
-        unrelated_partner = self.env['res.partner'].create({'name': 'Unrelated customer', 'company_id': self.other_company.id})
+        branch_partner = self.env['res.partner'].create({'name': 'Branch customer', 'company_id': self.branch.id, 'liwan_party': True})
+        parent_partner = self.env['res.partner'].create({'name': 'Ancestor customer', 'company_id': self.company.id, 'liwan_party': True})
+        unrelated_partner = self.env['res.partner'].create({'name': 'Unrelated customer', 'company_id': self.other_company.id, 'liwan_party': True})
         plan = self.env['account.analytic.plan'].create({'name': 'Invoice owner plan'})
         branch_analytic, parent_analytic, foreign_analytic = self.env['account.analytic.account'].create([
             {'name': 'Branch invoice project', 'plan_id': plan.id, 'company_id': self.branch.id},
@@ -256,7 +256,7 @@ class TestFinanceBranchAccess(LiwanFinanceCase):
             'name': 'Branch desk', 'company_id': self.branch.id, 'profile_id': old_profile.id,
             'purchase_value': 500, 'date_start': '2026-01-01',
         })
-        branch_partner = self.env['res.partner'].create({'name': 'Branch vendor', 'company_id': self.branch.id})
+        branch_partner = self.env['res.partner'].create({'name': 'Branch vendor', 'company_id': self.branch.id, 'liwan_party': True})
         route = f'/api/v1/finance/assets/{asset.id}'
         response = self.api('PATCH', route, json={'profile_id': new_profile.id, 'partner_id': branch_partner.id})
         self.assertEqual(response.status_code, 200, response.text)
@@ -427,7 +427,7 @@ class TestFinanceBranchAccess(LiwanFinanceCase):
             'line_ids': [Command.create({'name': 'Owner debit', 'account_id': debit.id, 'debit': 10}),
                          Command.create({'name': 'Owner credit', 'account_id': credit.id, 'credit': 10})],
         })
-        partner = self.env['res.partner'].create({'name': 'Owner entry partner', 'company_id': self.branch.id})
+        partner = self.env['res.partner'].create({'name': 'Owner entry partner', 'company_id': self.branch.id, 'liwan_party': True})
         plan = self.env['account.analytic.plan'].create({'name': 'Owner entry plan'})
         analytic = self.env['account.analytic.account'].create({
             'name': 'Owner entry analytic', 'plan_id': plan.id, 'company_id': self.branch.id,
@@ -459,7 +459,7 @@ class TestFinanceBranchAccess(LiwanFinanceCase):
         foreign_analytic = self.env['account.analytic.account'].create({
             'name': 'Foreign entry analytic', 'plan_id': plan.id, 'company_id': self.other_company.id,
         })
-        foreign_partner = self.env['res.partner'].create({'name': 'Foreign entry partner', 'company_id': self.other_company.id})
+        foreign_partner = self.env['res.partner'].create({'name': 'Foreign entry partner', 'company_id': self.other_company.id, 'liwan_party': True})
         for values, field in (
             ({'account_id': foreign_account.id}, 'lines[0].account_id'),
             ({'partner_id': foreign_partner.id}, 'lines[0].partner_id'),

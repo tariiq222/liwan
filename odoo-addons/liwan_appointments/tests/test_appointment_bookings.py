@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import UTC, datetime, timedelta
 
-from odoo.exceptions import ConcurrencyError, ValidationError
+from odoo.exceptions import AccessError, ConcurrencyError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanAppointmentsCase
@@ -43,7 +43,8 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         return self.api('POST', BOOKINGS, json={'type_id': self.booking_type.id, **body})
 
     def _sara(self, **extra):
-        return {'requester': {'name': 'Sara Ali', 'phone': '+966500000001', **extra.pop('requester', {})}, **extra}
+        """Sara's inline requester; ``create_new`` is on by default so repeated bookings do not meet the phone conflict."""
+        return {'requester': {'name': 'Sara Ali', 'phone': '+966500000001', **extra.pop('requester', {})}, 'create_new': True, **extra}
 
     def _error(self, result, status, code, field=None):
         body = result.json()
@@ -72,7 +73,96 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         self.assertEqual((body['requester']['phone'], body['requester']['email']), ('+966500000001', 'sara@example.com'))
         self.assertEqual((body['notes'], body['national_id']), ('First visit', None))
         partner = self.env['res.partner'].browse(body['requester']['id'])
-        self.assertEqual(partner.company_id, self.env.company)
+        self.assertTrue(partner.liwan_party)
+        self.assertFalse(partner.company_id)
+        self.assertEqual(partner.phone, '+966500000001')
+
+    def test_the_new_customer_follows_the_sharing_setting(self):
+        self.env['liwan.customers.settings']._liwan_current().sharing = 'branch'
+        self.env.flush_all()
+        self._login()
+        body = self._create(self._sara()).json()
+        self.assertEqual(self.env['res.partner'].browse(body['requester']['id']).company_id, self.env.company)
+
+    def test_a_typed_national_phone_is_stored_as_e164_and_shown_on_the_guest_page(self):
+        self._login()
+        body = self._create(self._sara(requester={'phone': '٠٥٠٠٠٠٠٠٠٢'})).json()
+        self.assertEqual(body['requester']['phone'], '+966500000002')
+        booking = self.env['resource.booking'].browse(body['id'])
+        booking._portal_ensure_token()
+        self.env.flush_all()
+        guest = self.api(
+            'GET', '/api/v1/public/appointments/bookings/%d?access_token=%s' % (booking.id, booking.access_token),
+        ).json()
+        self.assertEqual(guest['requester']['phone'], '+966500000002')
+
+    def test_an_invalid_phone_is_refused_with_invalid_phone_and_creates_nothing(self):
+        self._login()
+        count = self.env['res.partner'].search_count([('name', '=', 'Sara Ali')])
+        self._error(self._create(self._sara(requester={'phone': 'abc'})), 422, 'invalid_phone', 'requester.phone')
+        self._error(self._create(self._sara(requester={'phone': '12'})), 422, 'invalid_phone', 'requester.phone')
+        self.assertEqual(self.env['res.partner'].search_count([('name', '=', 'Sara Ali')]), count)
+
+    def test_the_services_refusal_of_a_name_or_an_email_names_the_form_field(self):
+        self._login()
+        long_email = '%s@example.com' % ('a' * 243)
+        self._error(self._create(self._sara(requester={'name': 'N' * 201})), 422, 'invalid', 'requester.name')
+        self._error(self._create(self._sara(requester={'email': long_email})), 422, 'invalid', 'requester.email')
+        accepted = self._create(self._sara(requester={'name': 'N' * 200}))
+        self.assertEqual(accepted.status_code, 200, accepted.text)
+
+    def test_a_second_requester_with_the_same_phone_is_a_conflict_that_names_the_candidates(self):
+        self._login()
+        first = self._create(self._sara(create_new=False)).json()
+        bookings = self.env['resource.booking'].search_count([])
+        count = self.env['res.partner'].search_count([('name', '=', 'Sara Ali')])
+        result = self._create(self._sara(requester={'name': 'Sarah A.'}, create_new=False))
+        self._error(result, 409, 'conflict')
+        self.assertEqual(
+            result.json()['details'], {'candidates': [{'id': first['requester']['id'], 'name': 'Sara Ali', 'phone_last4': '0001'}]},
+        )
+        self.assertEqual(self.env['resource.booking'].search_count([]), bookings)
+        self.assertEqual(self.env['res.partner'].search_count([('name', 'in', ('Sara Ali', 'Sarah A.'))]), count)
+
+    def test_create_new_makes_a_second_customer_and_requester_id_reuses_the_first(self):
+        self._login()
+        first = self._create(self._sara()).json()['requester']['id']
+        second = self._create(self._sara(create_new=True))
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertNotEqual(second.json()['requester']['id'], first)
+        reused = self._create({'requester_id': first})
+        self.assertEqual((reused.status_code, reused.json()['requester']['id']), (200, first), reused.text)
+
+    def test_create_new_is_strict_and_excludes_requester_id(self):
+        self._login()
+        customer = self._customer('Existing', '+966500000011')
+        self.env.flush_all()
+        self._error(self._create({'requester_id': customer.id, 'create_new': False}), 422, 'invalid', 'create_new')
+        for value in ('true', 1, None):
+            self._error(self._create(self._sara(create_new=value)), 422, 'invalid', 'create_new')
+
+    def test_only_a_customer_can_be_the_requester(self):
+        user_partner = self.employee.partner_id
+        company_partner = self.env.company.partner_id
+        plain = self.env['res.partner'].create({'name': 'Plain partner', 'phone': '+966500000012'})
+        archived = self._customer('Archived', '+966500000013', active=False)
+        self.env.flush_all()
+        self._login()
+        for partner_id in (user_partner.id, company_partner.id, plain.id, archived.id, 999999999):
+            self._error(self._create({'requester_id': partner_id}), 422, 'invalid', 'requester_id')
+
+    def test_a_booking_holder_who_is_not_an_administrator_cannot_write_a_non_party_partner(self):
+        plain = self.env['res.partner'].create({'name': 'Plain partner'})
+        self.env.flush_all()
+        booker = self.booker.with_user(self.booker)
+        self.assertTrue(booker.has_group('liwan_customers.group_customers_party_writer'))
+        self.assertFalse(booker.has_group('base.group_system'))
+        with self.assertRaises(AccessError):
+            plain.with_user(self.booker).write({'name': 'Renamed'})
+        with self.assertRaises(AccessError):
+            self.env['res.partner'].with_user(self.booker).create({'name': 'Direct'})
+        with self.assertRaises(AccessError):
+            self.employee.partner_id.with_user(self.booker).write({'phone': '+966500000099'})
 
     def test_create_with_a_start_schedules_it_and_the_company_confirms_it_by_default(self):
         body = self._scheduled()
@@ -94,34 +184,65 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         self._settings(requester_confirmation=True)
         self.assertFalse(self.booking._liwan_confirms_on_schedule())
 
+    def test_a_party_requester_is_booked_scheduled_and_confirmed_with_its_meeting(self):
+        """The calendar side effects of a booking leave the party's identity alone, for a booker and an administrator."""
+        role = self.env['liwan.access.role'].create({
+            'name_ar': 'حجز المدير', 'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([
+                ('key', 'in', ('appointments.bookings.read', 'appointments.bookings.write')),
+            ]).ids)],
+        })
+        admin = new_test_user(
+            self.env, login='appointments_admin', password='appointments_admin_pass_123', name='Appointments admin',
+            groups='liwan_core.group_employee',
+        )
+        self.env['liwan.access.service']._liwan_replace_assignments(admin, [
+            {'role_id': self.env.ref(xmlid).id, 'company_id': self.env.company.id}
+            for xmlid in ('liwan_core.role_employee', 'liwan_core.role_system_admin')
+        ] + [{'role_id': role.id, 'company_id': self.env.company.id}])
+        self._settings(requester_confirmation=True)
+        for login in ('booker', 'admin'):
+            with self.subTest(login=login):
+                customer = self._customer(f'Party {login}', '+96650000002%d' % len(login), email=f'{login}@example.test')
+                self.env.flush_all()
+                self._login(login)
+                created = self._create({'requester_id': customer.id, 'start': self._slots()[0]})
+                self.assertEqual((created.status_code, created.json()['state']), (200, 'scheduled'), created.text)
+                confirmed = self.api('POST', '%s/%d/confirm' % (BOOKINGS, created.json()['id']))
+                self.assertEqual((confirmed.status_code, confirmed.json()['state']), (200, 'confirmed'), confirmed.text)
+                booking = self.env['resource.booking'].browse(created.json()['id'])
+                self.assertIn(customer, booking.meeting_id.partner_ids)
+                self.assertEqual(
+                    (customer.name, customer.email, customer.liwan_party), (f'Party {login}', f'{login}@example.test', True),
+                )
+
     def test_create_with_an_existing_requester_and_a_chosen_combination(self):
         self._login()
         other = self._create_combination(self.env.company, 'Room B')
         self.booking_type.combination_rel_ids = [(0, 0, {'combination_id': other.id})]
         # The default policy requires a phone on the requester.
-        self.employee.partner_id.phone = '+966500000003'
+        customer = self._customer('Existing customer', '+966500000003')
         self.env.flush_all()
         start = self._slots(combination_id=other.id)[0]
-        result = self._create({
-            'requester_id': self.employee.partner_id.id, 'combination_id': other.id, 'start': start,
-        })
+        result = self._create({'requester_id': customer.id, 'combination_id': other.id, 'start': start})
         self.assertEqual(result.status_code, 200, result.text)
-        self.assertEqual((result.json()['combination_id'], result.json()['requester']['id']), (other.id, self.employee.partner_id.id))
+        self.assertEqual((result.json()['combination_id'], result.json()['requester']['id']), (other.id, customer.id))
 
     def test_a_taken_slot_is_a_409_conflict_and_creates_nothing(self):
         self._login()
         start = self._slots()[0]
         self.assertEqual(self._create({**self._sara(), 'start': start, 'combination_id': self.combination.id}).status_code, 200)
         count = self.env['res.partner'].search_count([('name', '=', 'Sara Ali')])
-        result = self._create({**self._sara(), 'start': start, 'combination_id': self.combination.id})
+        result = self._create({**self._sara(create_new=True), 'start': start, 'combination_id': self.combination.id})
         self._error(result, 409, 'conflict')
+        self.assertNotIn('candidates', result.json().get('details') or {})
         self.assertEqual(self.env['res.partner'].search_count([('name', '=', 'Sara Ali')]), count)
 
     def test_a_start_with_no_free_resource_is_a_409(self):
         self._login()
         start = self._slots()[0]
         self.assertEqual(self._create({**self._sara(), 'start': start}).status_code, 200)
-        self._error(self._create({**self._sara(), 'start': start}), 409, 'conflict')
+        self._error(self._create({**self._sara(create_new=True), 'start': start}), 409, 'conflict')
 
     def test_a_start_with_seconds_is_refused_by_the_staff_routes_too(self):
         """#548: the staff create and schedule routes share the alignment check, so 08:00:59Z never becomes 08:00Z."""
@@ -156,7 +277,6 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
             ({**sara, 'requester_id': self.employee.partner_id.id}, 'requester'),
             ({'requester': 'Sara'}, 'requester'),
             ({'requester': {'phone': '+966500000001'}}, 'requester.name'),
-            ({'requester': {'name': 'Sara', 'phone': 'abc'}}, 'requester.phone'),
             ({'requester': {'name': 'Sara', 'phone': '+966500000001', 'email': 'nope'}}, 'requester.email'),
             ({'requester': {'name': 'Sara', 'phone': '+966500000001', 'vat': '1'}}, 'requester.vat'),
             ({**sara, 'start': '2030-01-01'}, 'start'),
@@ -165,7 +285,6 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
             ({**sara, 'combination_id': self._create_combination(self.env.company, 'Unlisted').id}, 'combination_id'),
             ({**sara, 'combination_id': 0}, 'combination_id'),
             ({**sara, 'notes': 'x' * 2001}, 'notes'),
-            ({'requester_id': 999999999}, 'requester_id'),
         )
         for body, field in cases:
             self.env.flush_all()
@@ -178,9 +297,10 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         for type_id in (foreign_type.id, 999999999):
             self._error(self.api('POST', BOOKINGS, json={'type_id': type_id, **self._sara()}), 422, 'invalid', 'type_id')
 
-    def test_a_foreign_company_partner_is_not_a_requester(self):
+    def test_a_customer_of_another_branch_is_refused_when_customers_are_per_branch(self):
         other = self.env['res.company'].create({'name': 'Partner company'})
-        partner = self.env['res.partner'].create({'name': 'Foreign requester', 'company_id': other.id, 'phone': '+966500000009'})
+        self.env['liwan.customers.settings']._liwan_current().sharing = 'branch'
+        partner = self._customer('Foreign requester', '+966500000009', company_id=other.id)
         self.env.flush_all()
         self._login()
         self._error(self._create({'requester_id': partner.id}), 422, 'invalid', 'requester_id')
@@ -204,12 +324,12 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         self.env['liwan.appointment.settings'].create({
             'company_id': self.env.company.id, 'email_field': 'required', 'phone_field': 'required',
         })
-        self.employee.partner_id.write({'email': False, 'phone': False})
+        customer = self._customer('Bare customer')
         self.env.flush_all()
-        self._error(self._create({'requester_id': self.employee.partner_id.id}), 422, 'invalid', 'requester_id')
-        self.employee.partner_id.write({'email': 'emp@example.com', 'phone': '+966500000002'})
+        self._error(self._create({'requester_id': customer.id}), 422, 'invalid', 'requester_id')
+        customer.write({'email': 'emp@example.com', 'phone': '+966500000002'})
         self.env.flush_all()
-        self.assertEqual(self._create({'requester_id': self.employee.partner_id.id}).status_code, 200)
+        self.assertEqual(self._create({'requester_id': customer.id}).status_code, 200)
 
     # --- list and detail ---
 

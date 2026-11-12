@@ -92,7 +92,7 @@ class TestFinancePartnerBanks(LiwanFinanceWriteCase):
 
     def test_an_account_of_another_partner_is_a_404(self):
         account = self.add()
-        other = self.env['res.partner'].create({'name': 'Other vendor'})
+        other = self.env['res.partner'].create({'name': 'Other vendor', 'liwan_party': True})
         self.assertEqual(self.api('PATCH', self.route(other, f'/{account["id"]}'), json={'holder_name': 'x'}).status_code, 404)
         self.assertEqual(self.api('GET', self.route(self.foreign_partner)).status_code, 404)
 

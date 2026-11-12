@@ -1,5 +1,6 @@
 import {
-  INBOX_COMMERCE_LIMITS, InboxCommerceContentSchema,
+  CustomerConflictDetailsSchema, INBOX_COMMERCE_LIMITS, InboxCommerceContentSchema,
+  type CustomerCandidate,
   type InboxCatalogItemReview, type InboxCatalogItemSyncState, type InboxCatalogState, type InboxCommerceContent, type InboxMessageCommerce, type InboxOrder, type InboxOrderPaymentStatus, type InboxOrderState, type InboxTemplate,
 } from '@liwan/contracts'
 import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
@@ -231,6 +232,23 @@ export const rowsTotal = (rows: readonly OrderLineRow[]) => linesTotal(rows.map(
 
 /** Whether the cart can still be edited, checked out or dropped. */
 export const orderIsCart = (order: { state: InboxOrderState }) => order.state === 'cart'
+
+// ---------------------------------------------------------------- the customer step of a checkout
+
+/** The value of the "new customer" choice; a candidate's value is its id as text. */
+export const NEW_CUSTOMER = 'new'
+
+/** The customers a checkout's 409 `conflict` offers, or null when the error is anything else. */
+export function customerConflict(error: unknown): CustomerCandidate[] | null {
+  const failure = error as { status?: number; code?: string; details?: unknown } | null
+  if (failure?.status !== 409 || failure.code !== 'conflict') return null
+  const parsed = CustomerConflictDetailsSchema.safeParse(failure.details)
+  return parsed.success ? parsed.data.candidates : null
+}
+
+/** The checkout keys that answer the step: use that customer, or create a new one. */
+export const customerChoiceBody = (choice: string): { customer_id: number } | { create_new: true } =>
+  choice === NEW_CUSTOMER ? { create_new: true } : { customer_id: Number(choice) }
 
 // ---------------------------------------------------------------- catalog statuses
 

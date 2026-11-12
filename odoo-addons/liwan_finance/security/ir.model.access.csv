@@ -44,3 +44,5 @@ access_finance_audit_setup_event,finance audit setup manage: liwan.finance.audit
 access_finance_audit_closing_event,finance audit closing manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_closing_manage,0,0,1,0
 access_finance_audit_zatca_manage_event,finance audit zatca manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_zatca_manage,0,0,1,0
 access_finance_audit_zatca_submit_event,finance audit zatca submit: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_zatca_submit,0,0,1,0
+access_finance_partners_manage_partner_bank,finance partners manage: res.partner.bank,base.model_res_partner_bank,group_cap_finance_partners_manage,1,1,1,0
+access_finance_partners_manage_bank,finance partners manage: res.bank,base.model_res_bank,group_cap_finance_partners_manage,1,1,1,0

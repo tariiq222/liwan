@@ -127,9 +127,13 @@ the unique `(company, key)` constraint and is not covered by a test (the test ca
   route first. Receipts can be read but have no write route (404). Line taxes must be of the
   document's kind (sale taxes on customer documents, purchase taxes on vendor ones). Numbers are
   below 10^12 in absolute value; dates are exactly `YYYY-MM-DD`.
-- Partners exclude Odoo system records: users' partners, the companies' own partners and employee
-  work contacts (the stored `employee` flag of hr when hr is installed; no dependency on hr).
-  They are 404 on every partner route. A model the caller cannot read at all is 403.
+- Partners are the commercial parties of `liwan_customers` (`liwan_party`) that are shared or belong to a
+  pinned company. Users' partners, the companies' own partners and employee work contacts are never parties:
+  they are 404 on every partner route and a 422 `invalid` when a document names them. The identity of a
+  partner (`name`, `is_company`, archive and restore) is written through `liwan.customers.service`, which
+  also decides the company of a new one from the customers sharing setting; Finance writes its accounting
+  fields (`vat`, `company_registry`, address, country, state, ranks) under its own marker of the `liwan_core`
+  partner write guard. A model the caller cannot read at all is 403.
 - Odoo refusals are 422 `invalid` with its message, except: `invalid_vat` (partner VAT, checked
   by `base_vat`: Saudi numbers are 15 digits starting and ending with 3; a new partner defaults
   to the company country so the check always has a country), `period_locked` (a lock date covers
@@ -148,7 +152,9 @@ group implies the least stock group that lets the ORM do the operation (document
 
 - the read capabilities (`entries.read` included), the setup and report capabilities and `partners.read`:
   `account.group_account_readonly` (partners: nothing, every internal user reads `res.partner`);
-- `partners.manage`: `base.group_partner_manager`;
+- `partners.manage`: `liwan_customers.group_customers_party_writer` (writes commercial parties only) plus its own
+  read, write and create rows on `res.partner.bank` and `res.bank`; the stock `base.group_partner_manager` is not
+  implied;
 - `invoices.manage`, `invoices.post`, `payments.manage`, `entries.manage`, `entries.post`: `account.group_account_invoice`;
 
 - `statements.read`, `zakat.read`, `bank.read`: `account.group_account_readonly`;

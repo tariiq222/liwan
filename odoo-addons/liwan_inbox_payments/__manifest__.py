@@ -2,7 +2,7 @@
 {
     'name': 'liwan Customer Messages and Payments',
     'summary': 'liwan platform: a Meta product catalog for WhatsApp, carts that become paid online orders',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -12,7 +12,8 @@
     # order, its expiry, payment and invoice. The bridge owns the link to the tenant's Meta commerce
     # catalog, the catalog items and their push to Meta, the public product image route, the minimal
     # editor of catalog products, the implementations of the inbox commerce hooks, and the carts that
-    # become online orders. sale (through payments) brings product and sale.order.
+    # become online orders. sale (through payments) brings product and sale.order. liwan_customers, whose
+    # party writer group the orders capability implies, comes through liwan_inbox: a bridge links two modules.
     'depends': ['liwan_inbox', 'liwan_payments', 'sale'],
     'auto_install': ['liwan_inbox', 'liwan_payments'],
     'data': [

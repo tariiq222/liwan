@@ -13,7 +13,7 @@ function run(file: string, bindings: Record<string, unknown>, props: Record<stri
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const base = {
     _defineComponent: Vue.defineComponent, _mergeModels: (Vue as unknown as Record<string, unknown>).mergeModels, _useModel: Vue.useModel, _unref: Vue.unref,
-    InboxOrderActions: {}, InboxOrderLines: {}, InboxOrderEditor: {}, InboxProductPicker: {}, InboxTemplatePicker: {}, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
+    InboxOrderActions: {}, InboxOrderCustomerStep: {}, InboxOrderLines: {}, InboxOrderEditor: {}, InboxProductPicker: {}, InboxTemplatePicker: {}, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }), ...commerce, ...bindings,
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
@@ -67,17 +67,42 @@ describe('InboxOrderCard', () => {
   })
 })
 
+describe('InboxOrderCustomerStep', () => {
+  const candidates = [{ id: 5, name: 'منى', phone_last4: '0003' }, { id: 6, name: 'منى سعد', phone_last4: null }]
+
+  it('lists each candidate by name and phone ending, then the new customer last', () => {
+    const state = run('InboxOrderCustomerStep.vue', {}, { candidates })
+    expect(state.items).toEqual([
+      { value: '5', label: 'منى', description: 'inbox.orders.customer.phoneEnds' },
+      { value: '6', label: 'منى سعد', description: 'inbox.orders.customer.noPhone' },
+      { value: 'new', label: 'inbox.orders.customer.new', description: 'inbox.orders.customer.newHint' },
+    ])
+  })
+
+  it('answers only once something is picked', () => {
+    const emitted: Array<[string, unknown]> = []
+    const state = run('InboxOrderCustomerStep.vue', {}, { candidates }, emitted)
+    state.confirm()
+    expect(emitted).toEqual([])
+    state.choice = 'new'
+    state.confirm()
+    expect(emitted).toEqual([['choose', 'new']])
+  })
+})
+
 describe('InboxOrderActions', () => {
-  function mount(props: Record<string, unknown>, can = true) {
-    const checkout = vi.fn(async (_input: unknown) => ({}))
+  function mount(props: Record<string, unknown>, can = true, answer: (input: unknown) => Promise<unknown> = async () => ({})) {
+    const checkout = vi.fn(answer)
     const cancel = vi.fn()
+    const toasts: Array<{ title: string; color: string }> = []
     const state = run('InboxOrderActions.vue', {
+      useToast: () => ({ add: (toast: { title: string; color: string }) => toasts.push(toast) }),
       useAccess: () => ({ can: () => can }),
       useInboxOrder: () => ({ data: Vue.ref(undefined), isPending: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
       useCheckoutInboxOrder: () => ({ mutateAsync: checkout, isPending: Vue.ref(false) }),
       useCancelInboxOrder: () => ({ mutate: cancel, isPending: Vue.ref(false) }),
     }, { orderId: 7, state: 'cart', paymentStatus: null, conversationId: 3, channelId: 1, windowOpen: true, ...props })
-    return { state, checkout, cancel }
+    return { state, checkout, cancel, toasts }
   }
 
   it('offers the actions only to an order manager, for a cart or an unpaid order', () => {
@@ -107,6 +132,51 @@ describe('InboxOrderActions', () => {
     state.templateId = 4 // chosen in the picker, which searches the channel's templates on the server
     await state.submitCheckout()
     expect(checkout).toHaveBeenCalledWith({ id: 7, body: { template_id: 4 } })
+  })
+
+  const refusal = (status: number, code: string, details?: unknown) => Object.assign(new Error('refused'), { status, code, details })
+  const candidates = [{ id: 5, name: 'منى', phone_last4: '0003' }, { id: 6, name: 'منى سعد', phone_last4: '0003' }]
+
+  it('stops at the customer step when the phone matches customers, and sends nothing else', async () => {
+    const { state, toasts } = mount({}, true, async () => { throw refusal(409, 'conflict', { candidates }) })
+    state.step = 'checkout'
+    await state.submitCheckout()
+    expect(state.step).toBe('customer')
+    expect(state.candidates).toEqual(candidates)
+    expect(toasts).toEqual([])
+  })
+
+  it('repeats the checkout with the chosen customer, keeping the link message', async () => {
+    const { state, checkout } = mount({})
+    state.step = 'customer'
+    state.body = 'ادفع'
+    await state.chooseCustomer('6')
+    expect(checkout).toHaveBeenCalledWith({ id: 7, body: { body: 'ادفع', customer_id: 6 } })
+    expect(state.step).toBeNull()
+  })
+
+  it('asks for a new customer with create_new', async () => {
+    const { state, checkout } = mount({ windowOpen: false })
+    state.step = 'customer'
+    state.templateId = 4
+    await state.chooseCustomer('new')
+    expect(checkout).toHaveBeenCalledWith({ id: 7, body: { template_id: 4, create_new: true } })
+  })
+
+  it('goes back to the form when a chosen customer is gone, with the clear message', async () => {
+    const { state, toasts } = mount({}, true, async () => { throw refusal(404, 'not_found') })
+    state.step = 'customer'
+    await state.chooseCustomer('5')
+    expect(state.step).toBe('checkout')
+    expect(toasts).toEqual([{ title: 'inbox.orders.customer.notFound', color: 'error' }])
+  })
+
+  it('tells the agent what to do when the contact phone is not valid', async () => {
+    const { state, toasts } = mount({}, true, async () => { throw refusal(422, 'invalid_phone') })
+    state.step = 'checkout'
+    await state.submitCheckout()
+    expect(state.step).toBe('checkout')
+    expect(toasts).toEqual([{ title: 'inbox.orders.customer.invalidPhone', color: 'error' }])
   })
 
   it('cancels only after the inline confirmation', () => {

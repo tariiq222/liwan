@@ -93,7 +93,7 @@ class TestFinanceCompanyIsolation(CompanyIsolationCase):
             })
             cls.env['account.chart.template'].try_loading('sa', company)
         cls.env.cr.execute('ANALYZE account_account, account_account_res_company_rel, res_company')
-        cls.shared_partner = cls.env['res.partner'].create({'name': 'Shared Partner'})
+        cls.shared_partner = cls.env['res.partner'].create({'name': 'Shared Partner', 'liwan_party': True})
         # Analytic plans are database-wide in Odoo 19 (no company field); only the
         # accounts under a plan carry a company.
         cls.analytic_plan = cls.env['account.analytic.plan'].create({'name': 'Isolation Plan'})
@@ -101,7 +101,7 @@ class TestFinanceCompanyIsolation(CompanyIsolationCase):
         for tag, company in cls.by_tag.items():
             cls.recs[tag] = {
                 'partner': cls.env['res.partner'].create({
-                    'name': f'Partner {tag.upper()}', 'company_id': company.id,
+                    'name': f'Partner {tag.upper()}', 'company_id': company.id, 'liwan_party': True,
                 }),
             }
         for tag in cls.chart_tags:
@@ -281,7 +281,9 @@ class TestFinanceCompanyIsolation(CompanyIsolationCase):
             self.assertNotIn(self.recs[tag]['partner'].id, ids, tag)
 
     def test_partner_create_scopes_to_the_current_company(self):
-        """A partner created from a P1 session belongs to P1 and is hidden from P2."""
+        """Under the customers sharing ``branch``, a partner created from a P1 session belongs to P1 and is hidden from
+        P2 (the default sharing, ``establishment``, shares it: tests/test_finance_partner_parties.py)."""
+        self.env['liwan.customers.settings']._liwan_current().sharing = 'branch'
         self.env_in(self.company_p1)
         response = self.api('POST', '/api/v1/finance/partners', json={'name': 'Created In P1'})
         self.assertEqual(response.status_code, 201, response.text[:200])

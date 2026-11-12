@@ -172,15 +172,18 @@ class LiwanInboxOrder(models.Model):
 
     # checkout
 
-    def _liwan_place(self):
-        """Make the online order of a cart: every line needs a catalog product; prices come from Odoo, not from the cart."""
+    def _liwan_place(self, customer_id=None, create_new=False):
+        """Make the online order of a cart for the contact's customer: every line needs a catalog product; prices come
+        from Odoo, not from the cart. ``customer_id`` and ``create_new`` answer a customer conflict
+        (``liwan.inbox.contact._liwan_customer``).
+        """
         self.ensure_one()
         self._liwan_require_cart()
         unknown = self.line_ids.filtered(lambda line: not line.product_id or not line.catalog_item_id._liwan_orderable())
         if unknown:
             raise OrderLinesInvalid(self.env._('Remove the products that are not in the catalog: %(ids)s', ids=', '.join(unknown.mapped('retailer_id'))))
         service = self.env['liwan.payments.service']
-        partner = self.conversation_id.contact_id._liwan_partner()
+        partner = self.conversation_id.contact_id._liwan_customer(customer_id, create_new)
         sale_order = service._liwan_new_order(self.company_id, partner)
         for line in self.line_ids:
             line.sale_order_line_id = service._liwan_add_line(sale_order, line.product_id, line.quantity).id
@@ -190,8 +193,10 @@ class LiwanInboxOrder(models.Model):
     def _liwan_summary_text(self):
         return f'طلبك جاهز للدفع: {len(self.line_ids)} منتج، الإجمالي {self._liwan_total():.2f} {self._liwan_currency()}'
 
-    def _liwan_checkout(self, template=None, body=None):
+    def _liwan_checkout(self, template=None, body=None, customer_id=None, create_new=False):
         """Create the online order once and send its pay link: a link button inside the window, or an approved template.
+
+        ``customer_id`` and ``create_new`` are used when the order is placed (``_liwan_place``).
 
         :return: the queued message.
         :raise OrderLocked: a dismissed order cannot be paid.
@@ -205,7 +210,7 @@ class LiwanInboxOrder(models.Model):
         if not window_open and not template:
             raise WindowClosed(self.env._('The 24-hour reply window is closed; send the pay link in an approved template.'))
         if self.state == 'cart':
-            self._liwan_place()
+            self._liwan_place(customer_id, create_new)
         path = self.env['liwan.payments.service']._liwan_payment_path(self._liwan_sale_orders())
         Message = self.env['liwan.inbox.message']
         if window_open:

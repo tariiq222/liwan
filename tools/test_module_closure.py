@@ -44,10 +44,11 @@ class RealManifestClosureTest(unittest.TestCase):
     def test_tier_closures_match_the_closures_read_by_hand_from_the_manifests(self):
         # Expected values written out from the manifests, not computed: liwan_hr depends on liwan_api and liwan_notify, and
         # the auto_install bridge liwan_access_hr joins once liwan_api and liwan_hr are in; liwan_appointments depends on
-        # liwan_api alone (plus Odoo's resource_booking) and has no bridge with the base modules.
+        # liwan_api and the shared service liwan_customers (plus Odoo's resource_booking) and has no bridge with the
+        # base modules.
         expected = {
             'people': {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_notify', 'liwan_hr', 'liwan_access_hr'},
-            'appointments': {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_appointments'},
+            'appointments': {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_customers', 'liwan_appointments'},
         }
         tiers = _release_tiers()
         for tier, modules in expected.items():

@@ -33,6 +33,7 @@
     "liwan_registry_probe": 3,
     "liwan_integrations_sa": 3,
     "liwan_payments": 3,
+    "liwan_customers": 3,
     "liwan_documents_hr": 5,
     "liwan_access_hr": 5,
     "liwan_pmo_finance": 5,

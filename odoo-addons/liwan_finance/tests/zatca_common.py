@@ -160,11 +160,11 @@ class LiwanZatcaCase(LiwanFinanceWriteCase):
         cls.sale_journal.edi_format_ids = cls.env.ref('l10n_sa_edi.edi_sa_zatca')
         address = {'country_id': saudi_arabia.id, 'state_id': state.id, 'city': 'Riyadh', 'zip': '12222', 'street': 'Olaya St'}
         cls.b2b_buyer = cls.env['res.partner'].create({
-            'name': 'Al Noor Company', 'company_type': 'company', 'vat': BUYER_VAT, **address,
+            'name': 'Al Noor Company', 'company_type': 'company', 'liwan_party': True, 'vat': BUYER_VAT, **address,
             'l10n_sa_edi_building_number': '1234', 'l10n_sa_edi_plot_identification': '1234',
             'l10n_sa_edi_additional_identification_scheme': 'CRN', 'l10n_sa_edi_additional_identification_number': '1010010000',
         })
-        cls.b2c_buyer = cls.env['res.partner'].create({'name': 'Sara Individual', 'company_type': 'person', **address})
+        cls.b2c_buyer = cls.env['res.partner'].create({'name': 'Sara Individual', 'company_type': 'person', 'liwan_party': True, **address})
         cls.submitter = cls.user_with('zatca_submitter', ['finance.zatca.read', 'finance.zatca.submit', 'finance.invoices.read'])
         cls.reader = cls.user_with('zatca_reader', ['finance.zatca.read', 'finance.invoices.read'])
         cls.env['liwan.integration.connection']._liwan_ensure_default_connections()

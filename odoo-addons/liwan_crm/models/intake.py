@@ -249,7 +249,7 @@ class LiwanCrmIntake(models.AbstractModel):
             return {}, 'name_too_long'
         if not raw_phone:
             return {}, 'missing_phone'
-        phone = self.env['crm.lead']._liwan_normalize_phone(raw_phone, company)
+        phone = self.env['liwan.customers.service']._liwan_phone_or_none(raw_phone)
         if not phone:
             return {}, 'invalid_phone'
         if email and (len(email) > EMAIL_MAX or not email_normalize(email)):
