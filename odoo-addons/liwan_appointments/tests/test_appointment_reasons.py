@@ -146,7 +146,7 @@ class TestAppointmentReasons(LiwanAppointmentsCase):
 
     def _create(self, **extra):
         return self.api('POST', BOOKINGS, json={
-            'type_id': self.booking_type.id, 'requester': {'name': 'Sara Ali', 'phone': '+966500000001'}, **extra,
+            'type_id': self.booking_type.id, 'requester': {'name': 'Sara Ali', 'phone': '+966500000001'}, 'create_new': True, **extra,
         })
 
     def test_the_visit_reason_is_stored_and_shown(self):

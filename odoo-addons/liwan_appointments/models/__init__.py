@@ -4,6 +4,7 @@ from . import (
     appointment_reason,
     appointment_service,
     appointment_settings,
+    customers_service,
     feature_registry,
     guest_limit,
     guest_service,

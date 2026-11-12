@@ -1,7 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-PERMISSIONS = frozenset({'appointments.bookings.read', 'appointments.bookings.write', 'appointments.bookings.manage'})
+BOOKINGS_WRITE = 'appointments.bookings.write'
+PERMISSIONS = frozenset({'appointments.bookings.read', BOOKINGS_WRITE, 'appointments.bookings.manage'})
 EMPLOYEE_PERMISSIONS = frozenset({'appointments.bookings.read'})
 PERMISSION_DEPENDENCIES = {
     'appointments.bookings.manage': {'appointments.bookings.write'},

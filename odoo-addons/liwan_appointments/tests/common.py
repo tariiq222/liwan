@@ -49,6 +49,11 @@ class LiwanAppointmentsCase(LiwanApiCase):
         cls.booking = cls._create_booking(cls.booking_type, cls.combination)
 
     @classmethod
+    def _customer(cls, name, phone=None, **values):
+        """A customer (a party of liwan_customers) made the way the service makes one; ``phone`` must be valid."""
+        return cls.env['res.partner'].create({'name': name, 'phone': phone, 'liwan_party': True, **values})
+
+    @classmethod
     def _create_combination(cls, company, name, user=None):
         resource = cls.env['resource.resource'].create({'name': name, 'user_id': user.id if user else False})
         return cls.env['resource.booking.combination'].create({

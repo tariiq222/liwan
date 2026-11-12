@@ -52,6 +52,7 @@ from odoo.addons.liwan_appointments.serializers.appointment_slot import (
     type_day_bounds,
 )
 from odoo.addons.liwan_appointments.serializers.payload import reject_unknown
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 BOOKING = 'resource.booking'
 LIST_ORDER = 'start desc nulls last, id desc'
@@ -290,15 +291,26 @@ class AppointmentBookingController(http.Controller):
 
     @staticmethod
     def _requester(parsed, settings):
-        """The requester partner: an existing one the caller may see in the current company, or a new one."""
-        Partner = request.env['res.partner']
+        """The requester customer, resolved through ``liwan.customers.service``: the named party, or a new one.
+
+        A new requester whose phone matches customers answers 409 ``conflict`` with ``details.candidates`` until the
+        request names one in ``requester_id`` or sets ``create_new``. A ``requester_id`` that is no visible party
+        answers 422 ``invalid`` on ``requester_id``, and an invalid phone 422 ``invalid_phone`` on ``requester.phone``.
+        """
+        service = request.env['liwan.customers.service']
         if parsed['requester_id'] is None:
-            return Partner.create(requester_values(parsed, request.env.company.id))
-        partner = Partner.search([
-            ('id', '=', parsed['requester_id']), ('company_id', 'in', [False, request.env.company.id]),
-        ])
-        if not partner:
-            raise ApiError(422, 'invalid', 'unknown record for the current company', field='requester_id')
+            try:
+                return service._liwan_resolve(values=requester_values(parsed), create_new=parsed['create_new'])
+            except LiwanAccessRule as error:
+                if error.code == 'invalid_phone':
+                    raise ApiError(422, 'invalid_phone', 'must be a valid phone number', field='requester.phone') from error
+                raise
+        try:
+            partner = service._liwan_resolve(customer_id=parsed['requester_id'])
+        except LiwanAccessRule as error:
+            if error.status != 404:
+                raise
+            raise ApiError(422, 'invalid', 'unknown record for the current company', field='requester_id') from error
         check_partner_contact(partner, settings)
         return partner
 
