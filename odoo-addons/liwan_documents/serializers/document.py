@@ -107,7 +107,8 @@ def dump_tag(tag):
     return {'id': tag.id, 'name': tag.name}
 
 
-def dump_file(document, file, *, editable, archivable):
+def dump_file(document, file, *, editable, archivable, files_path=None):
+    files_path = files_path or f'/api/v1/documents/{document.id}/files'
     lock_owner = not file.locked_by or file.locked_by.id == document.env.uid
     return {
         'id': file.id,
@@ -117,7 +118,7 @@ def dump_file(document, file, *, editable, archivable):
         'active': file.active,
         'is_locked': bool(file.locked_by),
         'is_lock_editor': file.locked_by.id == document.env.uid,
-        'download_url': f'/api/v1/documents/{document.id}/files/{file.id}/download',
+        'download_url': f'{files_path}/{file.id}/download',
         'allowed_actions': {
             'archive': bool(file.active and archivable and lock_owner),
             'restore': bool(not file.active and archivable and lock_owner),
@@ -174,7 +175,7 @@ def dump_detail(document):
     return {**dump_summary(document), 'body': document.body or ''}
 
 
-def dump_files(document, *, limit, offset, q=None):
+def dump_files(document, *, limit, offset, q=None, files_path=None):
     document._liwan_require('read')
     domain = [('directory_id', '=', document.directory_id.id)]
     if not document.env['liwan.access.service']._liwan_has_capability(
@@ -188,7 +189,10 @@ def dump_files(document, *, limit, offset, q=None):
     editable = document._liwan_can('write')
     archivable = document._liwan_can('archive')
     return {
-        'items': [dump_file(document, file, editable=editable, archivable=archivable) for file in files],
+        'items': [
+            dump_file(document, file, editable=editable, archivable=archivable, files_path=files_path)
+            for file in files
+        ],
         'total': model.search_count(domain),
         'revision': document.revision,
     }

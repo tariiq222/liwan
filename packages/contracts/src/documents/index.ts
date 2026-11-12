@@ -20,7 +20,7 @@ export const DocumentContextOptionListSchema = z.object({
 export const DocumentFileSchema = z.object({
   id, name: z.string(), mimetype: z.string(), file_size: z.number().int().nonnegative(), active: z.boolean(),
   is_locked: z.boolean(), is_lock_editor: z.boolean(),
-  download_url: z.string().regex(/^\/api\/v1\/documents\/[1-9]\d*\/files\/[1-9]\d*\/download$/),
+  download_url: z.string().regex(/^\/api\/v1\/documents\/(?:employee\/me\/)?[1-9]\d*\/files\/[1-9]\d*\/download$/),
   allowed_actions: z.object({ archive: z.boolean(), restore: z.boolean(), lock: z.boolean(), unlock: z.boolean() }).strict(),
 }).strict()
 export const DocumentFileListSchema = z.object({ items: z.array(DocumentFileSchema), total: z.number().int().nonnegative(), revision }).strict()

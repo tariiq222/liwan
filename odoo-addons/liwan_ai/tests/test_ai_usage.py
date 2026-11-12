@@ -42,7 +42,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         })
 
     def _post(self, *items):
-        return self.api('POST', '/api/v1/ai/usage', {'items': list(items)})
+        return self.api('POST', '/api/v1/ai/usage', {'user_company_id': self.employee.company_id.id, 'items': list(items)})
 
     @staticmethod
     def _attempt(index):
@@ -217,7 +217,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self._assert_422(self.api('POST', '/api/v1/ai/usage', {}), 'items')
         self._assert_422(self.api('POST', '/api/v1/ai/usage', {'items': ITEM}), 'items')
         self._assert_422(self._post(ITEM, 'x'), 'items.1')
-        self._assert_422(self.api('POST', '/api/v1/ai/usage', {'items': [ITEM], 'extra': 1}), 'extra', 'unknown_field')
+        self._assert_422(self.api('POST', '/api/v1/ai/usage', {'user_company_id': self.employee.company_id.id, 'items': [ITEM], 'extra': 1}), 'extra', 'unknown_field')
         self.assertEqual(len(self._post(*[self._attempt(index) for index in range(64)]).json()['items']), 64)
 
     def test_one_bad_item_rejects_the_whole_batch(self):

@@ -580,7 +580,8 @@ async function handle(req, res) {
   if (method === 'POST' && path === '/api/v1/ai/usage') {
     let batch = {}
     try { batch = JSON.parse(await readBody(req) || '{}') } catch { batch = {} }
-    if (!Array.isArray(batch.items) || !batch.items.length) return json(res, 422, { code: 'invalid', message: 'items are required' })
+    if (!Array.isArray(batch.items) || !batch.items.length) return json(res, 422, { code: 'invalid', message: 'items are required', field: 'items' })
+    if (!Number.isInteger(batch.user_company_id) || batch.user_company_id < 1) return json(res, 422, { code: 'invalid', message: 'user_company_id is required', field: 'user_company_id' })
     const rows = batch.items.map((item, index) => ({ ...item, id: AI_USAGE.length + index + 1 }))
     AI_USAGE.push(...rows)
     return json(res, 200, { items: rows, total: rows.length })

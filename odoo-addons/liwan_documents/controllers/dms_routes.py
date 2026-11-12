@@ -1,16 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import re
-import unicodedata
-from urllib.parse import quote
-
 from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
+from .common import current_document, file_download
 from odoo.addons.dms.controllers.main import OnboardingController
 from odoo.addons.dms.controllers.portal import CustomerPortal
 from odoo.addons.liwan_api.controllers.common import (
-    ApiError,
     api_handler,
     requires_feature,
 )
@@ -50,18 +46,6 @@ class DocumentNativeUpload(OnboardingController):
         raise AccessError(msg)
 
 
-def attachment_disposition(filename):
-    """``attachment`` header with a readable ASCII fallback beside the UTF-8 name."""
-    ascii_name = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode()
-    stem, dot, extension = ascii_name.rpartition('.')
-    if not dot:
-        stem, extension = ascii_name, ''
-    stem = re.sub(r'[^A-Za-z0-9_-]+', '_', stem).strip('_') or 'download'
-    extension = re.sub(r'[^A-Za-z0-9]+', '', extension)
-    fallback = f'{stem}.{extension}' if extension else stem
-    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
-
-
 class DocumentDownload(http.Controller):
     @http.route(
         '/api/v1/documents/<int:document_id>/files/<int:file_id>/download',
@@ -76,16 +60,4 @@ class DocumentDownload(http.Controller):
         request.env['liwan.access.service']._liwan_require_capability(
             'documents.items.read',
         )
-        document = (
-            request.env['liwan.document']
-            .with_context(active_test=False)
-            .search([('id', '=', document_id)], limit=1)
-        )
-        if not document:
-            raise ApiError(404, 'not_found', 'document not found')
-        document._liwan_require('read')
-        file = request.env['liwan.document.files']._liwan_file(document, file_id)
-        stream = request.env['ir.binary']._get_stream_from(file.attachment_id)
-        response = stream.get_response(as_attachment=True)
-        response.headers['Content-Disposition'] = attachment_disposition(stream.download_name)
-        return response
+        return file_download(current_document(document_id), file_id)

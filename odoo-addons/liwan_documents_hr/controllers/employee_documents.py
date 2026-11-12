@@ -11,6 +11,8 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_documents.controllers.common import (
     archived_arg,
+    file_download,
+    files_page,
     list_filter_domain,
     page_args,
     require,
@@ -28,6 +30,17 @@ def own_document_domain():
         ('company_id', '=', request.env.company.id),
         ('employee_id', '=', employee.id),
     ] if employee else [('id', '=', 0)]
+
+
+def own_document(document_id):
+    """The caller's own employee document in the request company, readable by them, or the not-found."""
+    document = request.env['liwan.document'].with_context(active_test=False).search([
+        *own_document_domain(), ('id', '=', document_id),
+    ], limit=1)
+    if not document:
+        raise ApiError(404, 'not_found', 'document not found')
+    document._liwan_require('read')
+    return document
 
 
 class EmployeeDocuments(http.Controller):
@@ -59,10 +72,23 @@ class EmployeeDocuments(http.Controller):
     @requires_feature('documents.enabled', 'hr.enabled', operation='read')
     @requires_capability('documents.items.read', 'hr.employees.read')
     def get_own_document(self, document_id, **_):
-        document = request.env['liwan.document'].with_context(active_test=False).search([
-            *own_document_domain(), ('id', '=', document_id),
-        ], limit=1)
-        if not document:
-            raise ApiError(404, 'not_found', 'document not found')
-        document._liwan_require('read')
-        return dump_detail(document)
+        return dump_detail(own_document(document_id))
+
+    @http.route('/api/v1/documents/employee/me/<int:document_id>/files', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @serves_own_data()
+    @requires_feature('documents.enabled', 'hr.enabled', operation='read')
+    @requires_capability('documents.items.read', 'hr.employees.read')
+    def list_own_document_files(self, document_id, **_):
+        return files_page(own_document(document_id), f'/api/v1/documents/employee/me/{document_id}/files')
+
+    @http.route(
+        '/api/v1/documents/employee/me/<int:document_id>/files/<int:file_id>/download',
+        type='http', auth='user', methods=['GET', 'HEAD'], readonly=True,
+    )
+    @api_handler
+    @serves_own_data()
+    @requires_feature('documents.enabled', 'hr.enabled', operation='read')
+    @requires_capability('documents.items.read', 'hr.employees.read')
+    def download_own_document_file(self, document_id, file_id, **_):
+        return file_download(own_document(document_id), file_id)
