@@ -161,6 +161,18 @@ test('the first-hop window matches the Python constant the channel documents', (
   assert.ok(TENANT_WINDOW_SECONDS > SIGNATURE_MAX_AGE_SECONDS, 'the second hop admits a forward the first accepted')
 })
 
+test('the healthcheck route answers GET and HEAD without touching a tenant', async () => {
+  const f = await fixture()
+  try {
+    for (const method of ['GET', 'HEAD']) {
+      const response = await fetch(`http://127.0.0.1:${f.port}/healthz`, { method })
+      assert.equal(response.status, 200, method)
+    }
+    assert.equal((await fetch(`http://127.0.0.1:${f.port}/healthz`, { method: 'POST' })).status, 404)
+    assert.equal(f.tenant.requests.length, 0)
+  } finally { await f.close() }
+})
+
 test('a valid delivery reaches the tenant unchanged and the answer waits for it', async () => {
   const f = await fixture()
   try {

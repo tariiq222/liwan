@@ -77,10 +77,13 @@ Environment:
 Dockerfile healthcheck is `node deploy/shared/healthcheck.mjs`: local TCP connect to
 127.0.0.1:$LIWAN_GUARD_PORT, 2-second timeout, no output or database selection.
 This is **liveness only**, not registry freshness/upstream/readiness proof. No public
-health route was added or exempted from tenant checks. Nuxt should use equivalent
-loopback TCP liveness on port 3000 in the shared overlay, never untrusted `/login`.
-There must be no web→guard health dependency cycle. Guard startup may depend on web
-TCP liveness. Real routed tenant probes remain a separate acceptance gate.
+health route was added or exempted from tenant checks. In the shared overlay Nuxt's
+probe fetches the public static `/favicon.ico` on loopback port 3000 (served before the
+tenant boundary, no proxy token, no upstream), never untrusted `/login`; Odoo's fetches
+`/web/health?db_server_status=1`, which answers without a tenant database and fails when no
+HTTP worker answers or PostgreSQL is unreachable; the TikTok relay answers its internal
+`/healthz`. There must be no web→guard health dependency cycle. Real routed tenant probes
+remain a separate acceptance gate.
 
 `odoo.conf` is an INCOMPLETE reference, not a runnable secret config. The actual
 `deploy/odoo/entrypoint.sh` invokes `odoo_secure.py` with `/etc/odoo/odoo.conf`;

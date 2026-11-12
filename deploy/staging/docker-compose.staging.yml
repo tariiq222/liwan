@@ -72,10 +72,11 @@ services:
     read_only: true
     tmpfs: ["/tmp"]
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login', { signal: AbortSignal.timeout(3000) }).then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
     depends_on:
       odoo: { condition: service_healthy }
 
@@ -113,10 +114,12 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     healthcheck:
-      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8069/web/health', timeout=2)"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
+      # An HTTP worker answers and the database server is reachable (AUDIT-058).
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8069/web/health?db_server_status=1', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
     depends_on:
       db: { condition: service_healthy }
 

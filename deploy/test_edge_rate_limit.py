@@ -310,21 +310,30 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                 redirect = f'https://{configured}/tiktok/oauth/callback' if configured else ''
                 self.assertEqual(services['odoo']['environment']['LIWAN_TIKTOK_REDIRECT_URI'], redirect)
 
-    def test_shared_overlay_odoo_healthcheck(self) -> None:
-        """Behavioral: shared overlay replaces /web/health with a TCP listener probe; base remains /web/health."""
-        shared = self._render_shared({})
-        shared_hc = shared['services']['odoo'].get('healthcheck', {})
-        shared_test = ' '.join(shared_hc.get('test', []))
-        self.assertNotIn('/web/health', shared_test)
-        self.assertIn('8069', shared_test)
-        self.assertIn('socket', shared_test)
-        self.assertIn('/opt/venv/bin/python', shared_test)
-
-        base = self._render_base({})
-        base_hc = base['services']['odoo'].get('healthcheck', {})
-        base_test = ' '.join(base_hc.get('test', []))
-        self.assertIn('/web/health', base_test)
-        self.assertNotIn('socket', base_test)
+    def test_healthchecks_probe_http_readiness_not_a_tcp_port(self) -> None:
+        """Behavioral (AUDIT-058): every Odoo, web and relay probe makes an HTTP request; Odoo's also checks PostgreSQL."""
+        shared = self._render_shared({}, profiles=('tiktok', 'restore'))['services']
+        base = self._render_base({})['services']
+        probes = {
+            ('shared', 'odoo'): shared['odoo'], ('shared', 'web'): shared['web'],
+            ('shared', 'restore-odoo'): shared['restore-odoo'], ('shared', 'tiktok-relay'): shared['tiktok-relay'],
+            ('base', 'odoo'): base['odoo'], ('base', 'web'): base['web'],
+        }
+        for (overlay, name), service in probes.items():
+            with self.subTest(overlay=overlay, service=name):
+                hc = service['healthcheck']
+                test = ' '.join(hc['test'])
+                self.assertNotIn('socket', test)
+                self.assertNotIn('net\').connect', test)
+                self.assertTrue('urlopen(' in test or 'fetch(' in test, test)
+                if name.endswith('odoo'):
+                    self.assertIn('/web/health?db_server_status=1', test)
+                # Rendered timings: unhealthy after about 30s of failures once started, never 20 retries.
+                self.assertLessEqual(int(hc['retries']), 3)
+                self.assertTrue(hc.get('start_period'), hc)
+        # The shared web probe reads a public static file: no proxy token, no upstream call.
+        self.assertIn('/favicon.ico', ' '.join(shared['web']['healthcheck']['test']))
+        self.assertIn('/healthz', ' '.join(shared['tiktok-relay']['healthcheck']['test']))
 
     def test_shared_caddyfile_rate_limit_exempts_static_assets(self) -> None:
         """Behavioral: caddy adapt in built image verifies static asset exemptions in liwan_web."""

@@ -25,6 +25,7 @@ export const BINDINGS_HEADER = 'x-liwan-proxy-token'
 const WEBHOOK_ROUTE = '/tiktok/webhook'
 const OAUTH_ROUTE = '/tiktok/oauth/callback'
 const BINDINGS_ROUTE = '/internal/tiktok/bindings/'
+const HEALTH_ROUTE = '/healthz'
 const TENANT_WEBHOOK_PATH = '/api/v1/inbox/hooks/tiktok'
 const TENANT_CALLBACK_PATH = '/api/v1/inbox/tiktok/callback'
 const MAX_WEBHOOK_BYTES = 1024 * 1024
@@ -246,6 +247,8 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
     let path
     try { path = new URL(req.url, 'http://relay.invalid').pathname } catch { return send(res, 400, 'invalid_path') }
     let route = null
+    // Container healthcheck: proves the HTTP loop answers. The edge forwards only /tiktok/*, so it is internal.
+    if (path === HEALTH_ROUTE && ['GET', 'HEAD'].includes(req.method)) return send(res, 200, 'ok')
     if (path === WEBHOOK_ROUTE) route = webhook
     else if (path === OAUTH_ROUTE) route = oauth
     else if (path.startsWith(BINDINGS_ROUTE)) route = (request, response) => bindingsRoute(request, response, path.slice(BINDINGS_ROUTE.length))

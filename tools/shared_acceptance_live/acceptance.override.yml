@@ -51,8 +51,8 @@ services:
       start_period: 10s
 
   # web: NO healthcheck or depends_on override in r2. The committed shared overlay
-  # already replaces the base /login healthcheck with the loopback TCP 3000 liveness
-  # check, and the committed ordering (web depends on odoo: service_healthy from the
+  # already replaces the base /login healthcheck with a loopback HTTP probe of the
+  # static /favicon.ico, and the committed ordering (web depends on odoo: service_healthy from the
   # base file; guard on web+odoo healthy; proxy on guard healthy) is exercised
   # unchanged, so r2 proves production ordering rather than a harness-shaped one.
   # Only the image tag is pinned (base compose declares build-only, so the image

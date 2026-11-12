@@ -81,9 +81,10 @@ services:
     volumes:
       - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
       - ${LIWAN_RESTORE_REGISTRY_DIR:-./data/restore-registry}:/etc/liwan-restore:ro
-    # Liveness only: no tokenless HTTP auth bypass and no guard dependency cycle.
+    # A real HTTP answer from the Nitro server: a public static file, served before the tenant boundary, needs no
+    # proxy token and no upstream, so there is no auth bypass and no guard dependency cycle. Timing comes from the base file.
     healthcheck:
-      test: ["CMD", "node", "-e", "const s=require('node:net').connect(3000,'127.0.0.1',()=>{s.end();process.exit(0)});s.setTimeout(2000,()=>process.exit(1));s.on('error',()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/favicon.ico', { signal: AbortSignal.timeout(3000) }).then(r => process.exit(r.status === 200 ? 0 : 1), () => process.exit(1))"]
 
   odoo:
     # Validation runs before the existing secure launcher; no CLI overrides.
@@ -106,10 +107,11 @@ services:
       - guard_odoo
       - database
       - relay_odoo
-    # TCP listener check: shared mode dbfilter=^%h$ / list_db=False means localhost selects no DB,
-    # so /web/health cannot pass. The venv python exists in the image (deploy/odoo/Dockerfile).
+    # dbfilter=^%h$ selects no database for 127.0.0.1, so Odoo answers /web/health (auth='none') without one; the
+    # db_server_status check opens a PostgreSQL connection. The probe fails when no HTTP worker answers or the database
+    # server is unreachable. Timing comes from the base file; the venv python exists in the image (deploy/odoo/Dockerfile).
     healthcheck:
-      test: ["CMD", "/opt/venv/bin/python", "-c", "import socket; s = socket.socket(); s.settimeout(2); s.connect(('127.0.0.1', 8069)); s.close()"]
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=3)"]
     volumes:
       - ${LIWAN_SHARED_ODOO_CONFIG:?set LIWAN_SHARED_ODOO_CONFIG to validated external secret config}:/etc/odoo/odoo.conf:ro
       - odoo_data:/var/lib/odoo
@@ -172,11 +174,13 @@ services:
     read_only: true
     tmpfs: ["/tmp"]
     networks: [edge, relay_odoo]
+    # The relay's own /healthz answer (the edge forwards only /tiktok/*, so it is not public).
     healthcheck:
-      test: ["CMD", "node", "-e", "const s=require('node:net').connect(8090,'127.0.0.1',()=>{s.end();process.exit(0)});s.setTimeout(2000,()=>process.exit(1));s.on('error',()=>process.exit(1))"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/healthz', { signal: AbortSignal.timeout(3000) }).then(r => process.exit(r.status === 200 ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # The restore profile (`--profile restore`, the only profile tools/shared_saas_lifecycle/odoo_backup.py selects) is
   # the isolated copy of Postgres and Odoo that a verified backup is restored into. Neither service starts with the
@@ -225,11 +229,13 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     expose: ["8069", "8072"]
+    # Same readiness probe as `odoo`: an HTTP worker answers and the restore database server is reachable.
     healthcheck:
-      test: ["CMD", "/opt/venv/bin/python", "-c", "import socket; s = socket.socket(); s.settimeout(2); s.connect(('127.0.0.1', 8069)); s.close()"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
     volumes:
       # A validated external config whose db_host is restore-db, never a copy of the live one. The default is the
       # incomplete reference file, which the shared startup validator rejects, so the service cannot start unconfigured.
