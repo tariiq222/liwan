@@ -5,8 +5,9 @@ import os
 import re
 from pathlib import Path
 
+from odoo.fields import Command
 from odoo.tests import HttpCase, new_test_user
-from odoo.tests.common import HOST
+from odoo.tests.common import HOST, Opener
 
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -263,3 +264,76 @@ def assert_isolation_discovery(case, addon, expected):
         len(rules), expected,
         f'{addon}: the GET record-route inventory moved; update the expected count and say why in the PR',
     )
+
+
+PASSWORD = 'working_company_pass_123'
+NOT_FOUND_ID = 999999999
+ROLES = '/api/v1/admin/roles'
+SWITCH = '/api/v1/me/company'
+
+
+class WorkingCompanyCase(LiwanApiCase):
+    """A tenant root with two sibling branches A and B.
+
+    ``roamer`` is homed in A, administers both branches and is a member of both. ``archived_member`` administers A and is
+    also a member of a branch that is archived.
+    ``plain`` is homed in A and is a member of B and C with no role there; ``outside_branch`` has no member. ``b_user`` is homed in B. ``root_admin`` is homed in the root and belongs to
+    no branch.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Company = cls.env['res.company']
+        cls.root_company = cls.env.company
+        cls.branch_a = Company.create({'name': 'Switch branch A', 'parent_id': cls.root_company.id})
+        cls.branch_b = Company.create({'name': 'Switch branch B', 'parent_id': cls.root_company.id})
+        cls.branch_c = Company.create({'name': 'Switch branch C', 'parent_id': cls.root_company.id})
+        cls.archived_branch = Company.create({'name': 'Switch archived branch', 'parent_id': cls.root_company.id})
+        cls.outside_branch = Company.create({'name': 'Switch outside branch', 'parent_id': cls.root_company.id})
+        cls.admin_role = cls.env.ref('liwan_core.role_system_admin')
+        cls.employee_role = cls.env.ref('liwan_core.role_employee')
+        cls.roamer = cls._member('wc_roamer', cls.branch_a, [cls.branch_a, cls.branch_b],
+                                 {cls.branch_a: cls.admin_role, cls.branch_b: cls.admin_role})
+        cls.archived_member = cls._member('wc_archived_member', cls.branch_a, [cls.branch_a, cls.archived_branch],
+                                          {cls.branch_a: cls.admin_role})
+        cls.archived_branch.active = False
+        cls.plain = cls._member('wc_plain', cls.branch_a, [cls.branch_a, cls.branch_b, cls.branch_c],
+                                {cls.branch_a: cls.employee_role})
+        cls.b_user = cls._member('wc_b_user', cls.branch_b, [cls.branch_b], {cls.branch_b: cls.employee_role})
+        cls.root_admin = cls._member('wc_root_admin', cls.root_company, [cls.root_company],
+                                     {cls.root_company: cls.admin_role})
+
+    @classmethod
+    def _member(cls, login, home, companies, roles):
+        user = new_test_user(
+            cls.env, login=login, password=PASSWORD, name=login, groups='liwan_core.group_employee',
+            company_id=home.id, company_ids=[Command.set([company.id for company in companies])],
+        )
+        for company, role in roles.items():
+            cls.env['liwan.access.assignment'].create({'user_id': user.id, 'role_id': role.id, 'company_id': company.id})
+        return user
+
+    def sign_in(self, login):
+        return self.authenticate(login, PASSWORD)
+
+    def me(self):
+        response = self.api('GET', '/api/v1/me')
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def switch(self, company):
+        return self.api('POST', SWITCH, {'company_id': company.id})
+
+    def create_role(self, name='Switch role', headers=None):
+        payload = {'name': {'ar': name, 'en': None}, 'description': '',
+                   'permissions': ['access.users.read', 'access.roles.read']}
+        return self.url_open(ROLES, json=payload, headers={'Content-Type': 'application/json', **(headers or {})},
+                             method='POST')
+
+    def role_company(self, role_id):
+        return self.env['liwan.access.role'].browse(role_id).company_id
+
+    def use_session(self, sid):
+        self.opener = Opener(self)
+        self.opener.cookies.set('session_id', sid, domain=HOST)

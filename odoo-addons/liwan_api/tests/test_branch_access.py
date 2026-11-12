@@ -132,7 +132,9 @@ class TestBranchGateScope(TransactionCase):
             self.assertEqual(req.env['liwan.access.service']._liwan_scoped_company_ids(), [self.branch.id])
 
     def request(self):
-        request = SimpleNamespace(env=api.Environment(self.env.cr, self.user.id, {'allowed_company_ids': [self.company.id]}))
+        request = SimpleNamespace(
+            env=api.Environment(self.env.cr, self.user.id, {'allowed_company_ids': [self.company.id]}), session={},
+        )
 
         def update_context(**values):
             request.env = request.env(context={**request.env.context, **values})

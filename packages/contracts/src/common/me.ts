@@ -50,6 +50,13 @@ export const MeCommercialSchema = z.object({
 }).strict()
 export type MeCommercial = z.infer<typeof MeCommercialSchema>
 
+/** A company of the tenant the signed-in user belongs to. */
+export const MeCompanySchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
+export type MeCompany = z.infer<typeof MeCompanySchema>
+/** Body of `POST /api/v1/me/company`: the company the session should work in. */
+export const MeCompanyInputSchema = z.object({ company_id: z.number().int().positive() }).strict()
+export type MeCompanyInput = z.infer<typeof MeCompanyInputSchema>
+
 export const MeSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
@@ -65,7 +72,12 @@ export const MeSchema = z.object({
   roles: z.array(MeRoleSchema).optional().default([]),
   capabilities: z.array(CapabilitySchema).optional().default([]),
   access_policy_version: z.number().int().nonnegative().optional().default(0),
-  company: z.object({ id: z.number().int().positive(), name: z.string() }),
+  /** The company this session works in. */
+  company: MeCompanySchema,
+  /** The active companies the user may switch to, the working one included. */
+  companies: z.array(MeCompanySchema),
+  /** The company the user is employed in: seats and the employee record stay there whatever `company` is. */
+  home_company_id: z.number().int().positive(),
   /** True when the account is above the purchased seats: it reads and exports everything but takes no writes. */
   read_only: z.boolean().optional().default(false),
   appearance: MeAppearanceSchema.optional(),

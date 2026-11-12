@@ -1,4 +1,4 @@
-import { BrandingSchema, KNOWN_LIWAN_MODULE_IDS, MeAppearancePatchSchema, MeSchema } from '../index'
+import { BrandingSchema, KNOWN_LIWAN_MODULE_IDS, MeAppearancePatchSchema, MeCompanyInputSchema, MeSchema } from '../index'
 
 describe('BrandingSchema', () => {
   it('accepts the shape served by GET /api/v1/branding', () => {
@@ -17,14 +17,14 @@ describe('MeSchema', () => {
   it('accepts the shape served by GET /api/v1/me', () => {
     const me = MeSchema.parse({
       id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
-      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
+      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' }, companies: [{ id: 1, name: 'Erada' }], home_company_id: 1,
     })
     expect(me.role).toBe('employee')
   })
   it('carries the personal appearance and validates its patch', () => {
     const me = MeSchema.parse({
       id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
-      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
+      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' }, companies: [{ id: 1, name: 'Erada' }], home_company_id: 1,
       appearance: { mode: 'dark', font_size: 'large' },
     })
     expect(me.appearance).toEqual({ mode: 'dark', font_size: 'large' })
@@ -33,15 +33,41 @@ describe('MeSchema', () => {
     expect(() => MeAppearancePatchSchema.parse({})).toThrow()
     expect(() => MeAppearancePatchSchema.parse({ font_size: 'huge' })).toThrow()
   })
+  it('carries the working company, the companies it may switch to and the home company', () => {
+    const base = {
+      id: 2, name: 'Sara', login: 'emp', email: '', lang: 'ar_001', tz: '', role: 'employee',
+      company: { id: 2, name: 'Branch B' },
+    }
+    const me = MeSchema.parse({
+      ...base, home_company_id: 1, companies: [{ id: 1, name: 'Branch A' }, { id: 2, name: 'Branch B' }],
+    })
+    expect(me.home_company_id).toBe(1)
+    expect(me.companies.map(company => company.id)).toEqual([1, 2])
+    expect(() => MeSchema.parse(base)).toThrow()
+    expect(() => MeSchema.parse({ ...base, home_company_id: 1 })).toThrow()
+    expect(() => MeSchema.parse({ ...base, companies: [] })).toThrow()
+    expect(() => MeSchema.parse({ ...base, companies: [{ id: 0, name: 'x' }] })).toThrow()
+    expect(() => MeSchema.parse({ ...base, home_company_id: 'one' })).toThrow()
+  })
+  it('validates the body that switches the working company', () => {
+    expect(MeCompanyInputSchema.parse({ company_id: 2 })).toEqual({ company_id: 2 })
+    for (const body of [{}, { company_id: 0 }, { company_id: '2' }, { company_id: 2, other: 1 }]) {
+      expect(MeCompanyInputSchema.safeParse(body).success).toBe(false)
+    }
+    expect(() => MeSchema.parse({
+      id: 2, name: 'x', login: 'x', email: '', lang: 'ar_001', tz: '', role: 'employee',
+      company: { id: 1, name: 'c', extra: 1 }, companies: [], home_company_id: 1,
+    })).toThrow()
+  })
   it('rejects unknown roles', () => {
     expect(() => MeSchema.parse({
-      id: 2, name: 'x', login: 'x', email: '', lang: 'ar_001', tz: '', role: 'root', company: { id: 1, name: 'c' },
+      id: 2, name: 'x', login: 'x', email: '', lang: 'ar_001', tz: '', role: 'root', company: { id: 1, name: 'c' }, companies: [{ id: 1, name: 'c' }], home_company_id: 1,
     })).toThrow()
   })
   it('accepts tenant modules, entitlements, and platform state', () => {
     const me = MeSchema.parse({
       id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
-      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
+      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' }, companies: [{ id: 1, name: 'Erada' }], home_company_id: 1,
       modules: ['liwan_pmo', 'liwan_meetings', 'liwan_hr'],
       entitlements: { 'pmo.enabled': true, 'users.limit': null, 'projects.max_projects': 12 },
       platform: {
@@ -58,7 +84,7 @@ describe('MeSchema', () => {
   it("accepts a newer application's module id and rejects malformed ones", () => {
     const base = {
       id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
-      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
+      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' }, companies: [{ id: 1, name: 'Erada' }], home_company_id: 1,
     }
     expect(MeSchema.parse({ ...base, modules: ['liwan_sales', 'customer_acme_reports'] }).modules)
       .toEqual(['liwan_sales', 'customer_acme_reports'])

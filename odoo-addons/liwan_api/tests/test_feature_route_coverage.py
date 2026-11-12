@@ -7,6 +7,7 @@ BASE_PATHS = {
     '/api/v1/me/password',
     '/api/v1/me/mobile',
     '/api/v1/me/appearance',
+    '/api/v1/me/company',
     '/api/v1/me/profile',
     '/api/v1/me/devices',
     '/api/v1/branding',
