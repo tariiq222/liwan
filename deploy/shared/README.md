@@ -54,7 +54,8 @@ Odoo sessions are unwrapped only on the Odoo hop after tenant binding verificati
 Environment:
 - all shared processes: `LIWAN_TENANCY_MODE=shared` (unset/dedicated keeps Nuxt legacy behavior)
 - guard + Nuxt: `LIWAN_TENANT_REGISTRY_PATH`, read-only mount of atomically published registry;
-  `LIWAN_SHARED_PROXY_TOKEN`, random >=32-byte secret, no logs
+  `LIWAN_SHARED_PROXY_TOKEN`, random >=32-byte secret, no logs. Only guard and Nuxt hold it; see
+  "Shared secrets and their reach".
 - guard: `LIWAN_SESSION_KEYS` JSON map key-id → >=32-byte random secret;
   `LIWAN_SESSION_ACTIVE_KID`, `LIWAN_GUARD_PORT` (default 8080),
   `LIWAN_GUARD_ODOO_URL`, `LIWAN_GUARD_WEB_URL`, `LIWAN_GUARD_WS_URL`
@@ -71,16 +72,37 @@ Environment:
   `INTERNAL_EFFECT_TLS_KEY`, `INTERNAL_EFFECT_TLS_CERT` (absolute paths); the certificate SAN must
   match the URL host. Put the channel on an internal-only network that only these two join.
 
+## Shared secrets and their reach
+
+Each secret below is one value for the whole shared stack. Generate every one with at least 32 random
+bytes (`openssl rand -hex 32`), keep them distinct, and never reuse one for another purpose.
+
+| Secret | Held by | What a holder can do |
+| --- | --- | --- |
+| `LIWAN_SHARED_PROXY_TOKEN` | guard, web | The guard treats its holder as internal: identity headers and `/api/v1` pass straight to Odoo for any tenant in the registry. |
+| `LIWAN_TIKTOK_RELAY_TOKEN` | odoo, tiktok-relay (`tiktok` profile only) | Register or remove a TikTok account binding for a tenant on the relay. It opens nothing on the guard. Leave it empty when the stack runs no TikTok app; a relay with an app secret refuses to start without it. |
+| `AI_SERVICE_TOKEN` | web, ai | Call ai-service for any tenant: the tenant and user travel as plain `x-liwan-tenant` / `x-liwan-user` headers. |
+| `CUSTOMER_COMMERCIAL_SERVICE_KEY` | web, control-api | Sign a commercial principal (tenant and capabilities) that the control plane accepts. |
+| `AI_DB_PASSWORD` (role `liwan_ai`) | ai | Connect to its own `liwan_ai` database and to each tenant database that `ai/tenant_schema.sql` opened to it; `PUBLIC` keeps no `CONNECT`. |
+
+Odoo and `restore-odoo` never receive `LIWAN_SHARED_PROXY_TOKEN`, and `restore-odoo` receives no relay token
+either. The last three rows still reach every tenant: narrowing them needs a per-tenant signature from Nuxt that
+ai-service and the control plane verify, or a role per tenant database, which are code changes outside the
+deployment templates (AUDIT-042, open).
+
 ## Health and startup packaging (t8)
 
 `start.mjs` rejects invalid mode/port/token/registry before listening. The guard
 Dockerfile healthcheck is `node deploy/shared/healthcheck.mjs`: local TCP connect to
 127.0.0.1:$LIWAN_GUARD_PORT, 2-second timeout, no output or database selection.
 This is **liveness only**, not registry freshness/upstream/readiness proof. No public
-health route was added or exempted from tenant checks. Nuxt should use equivalent
-loopback TCP liveness on port 3000 in the shared overlay, never untrusted `/login`.
-There must be no web→guard health dependency cycle. Guard startup may depend on web
-TCP liveness. Real routed tenant probes remain a separate acceptance gate.
+health route was added or exempted from tenant checks. In the shared overlay Nuxt's
+probe fetches the public static `/favicon.ico` on loopback port 3000 (served before the
+tenant boundary, no proxy token, no upstream), never untrusted `/login`; Odoo's fetches
+`/web/health?db_server_status=1`, which answers without a tenant database and fails when no
+HTTP worker answers or PostgreSQL is unreachable; the TikTok relay answers its internal
+`/healthz`. There must be no web→guard health dependency cycle. Real routed tenant probes
+remain a separate acceptance gate.
 
 `odoo.conf` is an INCOMPLETE reference, not a runnable secret config. The actual
 `deploy/odoo/entrypoint.sh` invokes `odoo_secure.py` with `/etc/odoo/odoo.conf`;
@@ -266,7 +288,7 @@ so a deployment cannot expose a restore by forgetting to set it. `trusted_proxie
 administrator therefore reaches a restored copy only through an operator, which is the intended review step: a
 restore is a recovery artefact, not a service. Expiry and unpublish remain future work; today a published route
 stays until the operator removes it from the restore registry file.
-`restore-odoo` is deliberately given no `LIWAN_SHARED_PROXY_TOKEN`: Odoo reads it only for the TikTok relay.
+`restore-odoo` is deliberately given no `LIWAN_TIKTOK_RELAY_TOKEN`: Odoo reads it only for the TikTok relay.
 
 **Operator prerequisite: wildcard DNS and a wildcard certificate.** The Caddyfile serves
 `*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid}`, but without both of the following a restore host is not served:
@@ -374,8 +396,9 @@ Configuration (all operator-owned, never in Git):
 - `LIWAN_TIKTOK_CLIENT_KEY`, `LIWAN_TIKTOK_CLIENT_SECRET`, `LIWAN_TIKTOK_REDIRECT_URI`:
   the platform TikTok app (D1). Odoo and the operator script read them; in shared hosting
   the redirect URI is `https://$LIWAN_TIKTOK_RELAY_HOST/tiktok/oauth/callback`.
-- `LIWAN_SHARED_PROXY_TOKEN`: the shared internal token, already required by guard and
-  Nuxt; the relay's binding route and Odoo's registration call use it.
+- `LIWAN_TIKTOK_RELAY_TOKEN`: the relay's own >=32-byte token, held by the relay and Odoo
+  only; the relay's binding route checks it and Odoo's registration call sends it. It is
+  never the guard's `LIWAN_SHARED_PROXY_TOKEN`.
 - `LIWAN_TIKTOK_BINDINGS_PATH` (default shown in Compose:
   `/var/lib/liwan/tiktok-bindings.json`), on the `tiktok_bindings` named volume. The image
   creates `/var/lib/liwan` owned by `node`, so the unprivileged relay can write the volume.

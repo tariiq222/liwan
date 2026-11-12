@@ -41,10 +41,12 @@ services:
     read_only: true
     tmpfs: ["/tmp"]
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login', { signal: AbortSignal.timeout(3000) }).then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      # Failures in the first 120s do not count; afterwards three misses in a row (about 30s) mark it unhealthy.
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
     depends_on:
       odoo: { condition: service_healthy }
 
@@ -74,10 +76,12 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     healthcheck:
-      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8069/web/health', timeout=2)"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8069/web/health?db_server_status=1', timeout=3)"]
+      # Failures in the first 120s do not count; afterwards three misses in a row (about 30s) mark it unhealthy.
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
     depends_on:
       db: { condition: service_healthy }
 
@@ -126,10 +130,12 @@ services:
     read_only: true
     tmpfs: ["/tmp"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=3)"]
+      # Failures in the first 120s do not count; afterwards three misses in a row (about 30s) mark it unhealthy.
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
     depends_on:
       db: { condition: service_healthy }
       ai-egress: { condition: service_started }

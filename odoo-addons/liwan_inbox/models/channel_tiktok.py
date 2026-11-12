@@ -30,7 +30,7 @@ RELAY_TOKEN_HEADER = 'X-Liwan-Proxy-Token'
 
 
 def _liwan_tiktok_relay_config():
-    """The shared relay's base URL and proxy token from the operator environment, or None (D13).
+    """The shared relay's base URL and its own token from the operator environment, or None (D13).
 
     The URL is operator configuration: without it the tenant keeps its own direct webhook (the
     `non_saas` topology) and no relay call is made. It is never a condition on the customer type (R6).
@@ -38,9 +38,10 @@ def _liwan_tiktok_relay_config():
     url = (os.environ.get('LIWAN_TIKTOK_RELAY_URL') or '').strip().rstrip('/')
     if not url:
         return None
-    token = (os.environ.get('LIWAN_SHARED_PROXY_TOKEN') or '').strip()
+    # The relay's own token: the guard's LIWAN_SHARED_PROXY_TOKEN never reaches Odoo.
+    token = (os.environ.get('LIWAN_TIKTOK_RELAY_TOKEN') or '').strip()
     if not token:
-        _logger.warning('LIWAN_TIKTOK_RELAY_URL is set without LIWAN_SHARED_PROXY_TOKEN; the relay stays unused')
+        _logger.warning('LIWAN_TIKTOK_RELAY_URL is set without LIWAN_TIKTOK_RELAY_TOKEN; the relay stays unused')
         return None
     return url, token
 
@@ -48,7 +49,7 @@ def _liwan_tiktok_relay_config():
 def _liwan_tiktok_relay_answer(dbname, channel_id, method, open_id):
     """The shared relay's answer to one binding call, or None when this deployment runs no relay.
 
-    Both the bind and the unbind name this tenant, because the shared proxy token alone proves no
+    Both the bind and the unbind name this tenant, because the relay token alone proves no
     tenant: the relay removes a binding only for the tenant that owns it. A binding never makes a
     connect or a delete fail: the failure is logged without the token, and the cron retries an
     unbound channel.

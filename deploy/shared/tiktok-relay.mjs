@@ -25,6 +25,7 @@ export const BINDINGS_HEADER = 'x-liwan-proxy-token'
 const WEBHOOK_ROUTE = '/tiktok/webhook'
 const OAUTH_ROUTE = '/tiktok/oauth/callback'
 const BINDINGS_ROUTE = '/internal/tiktok/bindings/'
+const HEALTH_ROUTE = '/healthz'
 const TENANT_WEBHOOK_PATH = '/api/v1/inbox/hooks/tiktok'
 const TENANT_CALLBACK_PATH = '/api/v1/inbox/tiktok/callback'
 const MAX_WEBHOOK_BYTES = 1024 * 1024
@@ -144,7 +145,7 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
   const holdsProxyToken = value => equal(Buffer.from(proxyToken), Buffer.from(typeof value === 'string' ? value : ''))
 
   /** PUT/DELETE /internal/tiktok/bindings/<open_id>: the tenant's Odoo registers or removes the
-   * account it owns. The shared proxy token is the only caller identity; it proves no tenant, so
+   * account it owns. The relay token is the only caller identity; it proves no tenant, so
    * both methods carry the caller's tenant and resolve it in the active registry.
    *
    * A DELETE removes a binding only when it belongs to the caller's tenant. One held by another
@@ -246,6 +247,8 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
     let path
     try { path = new URL(req.url, 'http://relay.invalid').pathname } catch { return send(res, 400, 'invalid_path') }
     let route = null
+    // Container healthcheck: proves the HTTP loop answers. The edge forwards only /tiktok/*, so it is internal.
+    if (path === HEALTH_ROUTE && ['GET', 'HEAD'].includes(req.method)) return send(res, 200, 'ok')
     if (path === WEBHOOK_ROUTE) route = webhook
     else if (path === OAUTH_ROUTE) route = oauth
     else if (path.startsWith(BINDINGS_ROUTE)) route = (request, response) => bindingsRoute(request, response, path.slice(BINDINGS_ROUTE.length))
@@ -268,13 +271,13 @@ function start() {
   }
   const port = Number(process.env.LIWAN_TIKTOK_RELAY_PORT ?? 8090)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw Error('invalid_relay_port')
-  if (Buffer.byteLength(process.env.LIWAN_SHARED_PROXY_TOKEN ?? '') < 32) throw Error('invalid_proxy_token')
+  if (Buffer.byteLength(process.env.LIWAN_TIKTOK_RELAY_TOKEN ?? '') < 32) throw Error('invalid_proxy_token')
   const bindingsPath = process.env.LIWAN_TIKTOK_BINDINGS_PATH
   const server = createTiktokRelay({
     clientSecret: process.env.LIWAN_TIKTOK_CLIENT_SECRET,
     registryPath: process.env.LIWAN_TENANT_REGISTRY_PATH,
     bindingsPath,
-    proxyToken: process.env.LIWAN_SHARED_PROXY_TOKEN,
+    proxyToken: process.env.LIWAN_TIKTOK_RELAY_TOKEN,
   })
   // Fail at start, not on the first delivery: an unreadable registry or bindings file is misconfiguration.
   readTenantRegistry(process.env.LIWAN_TENANT_REGISTRY_PATH)

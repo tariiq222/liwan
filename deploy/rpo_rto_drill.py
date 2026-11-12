@@ -24,7 +24,7 @@ Usage (from repo root, after `python3 deploy/odoo/ODOO_COMMIT`-pinned Odoo is
 available locally, matching the restore-drill stage, `deploy/ci/restore-drill.sh`):
 
     python3 -B deploy/rpo_rto_drill.py \
-        --odoo-root /Users/tariq/code/odoo \
+        --odoo-root "$ODOO_ROOT" \
         --repeat 2 \
         --output-dir /tmp/liwan-rpo-rto-drill-<date>
 
