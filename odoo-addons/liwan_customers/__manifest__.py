@@ -11,6 +11,8 @@
     # api_handler, the feature gate and LiwanApiCase; phone_validation: phone_sanitized on res.partner, which the
     # candidate search reads.
     'depends': ['liwan_api', 'phone_validation'],
+    # The phone normaliser of the service parses numbers with it, through phone_validation.
+    'external_dependencies': {'python': ['phonenumbers']},
     'data': [
         'security/customers_capability_groups.xml',
         'security/ir.model.access.csv',

@@ -9,8 +9,8 @@ _logger = logging.getLogger('odoo.addons.liwan_inbox.migrations')
 def migrate(cr, version):
     """The partners a checkout linked to contacts before liwan_customers become customers (parties).
 
-    ``liwan.customers.service._liwan_adopt`` adopts a partner that is no user's and no company's partner, clears its
-    company (customers are shared by default) and normalises its phone; any other stays linked as it is.
+    ``liwan.customers.service._liwan_adopt`` adopts a partner whose family holds no user's partner, no company's
+    partner and no employee work contact, clears its company (customers are shared by default) and normalises its phone; any other stays linked as it is.
     """
     if not version:
         return

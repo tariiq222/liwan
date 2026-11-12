@@ -1,4 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_res_partner_customers_party_writer,res.partner customers party writer,base.model_res_partner,group_customers_party_writer,1,1,1,0
+access_res_partner_bank_customers_manage,res.partner.bank customers manage,base.model_res_partner_bank,group_cap_customers_manage,1,1,0,0
 access_liwan_customers_settings_user,liwan.customers.settings user,model_liwan_customers_settings,base.group_user,1,0,0,0
 access_liwan_customers_settings_manage,liwan.customers.settings manager,model_liwan_customers_settings,group_cap_customers_settings_manage,1,1,0,0

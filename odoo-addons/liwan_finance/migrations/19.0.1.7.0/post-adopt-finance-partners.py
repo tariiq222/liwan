@@ -10,9 +10,9 @@ def migrate(cr, version):
     """Make the partners Finance listed before liwan_customers into commercial parties.
 
     The old Finance filter selected every partner with no user that is no company's partner and no employee work
-    contact (the stored ``employee`` flag exists only when hr is installed). ``_liwan_adopt`` marks them, clears
-    their company (the default sharing) and skips a family that holds an account. A partner already a party is not
-    selected again, so a second run adopts nothing.
+    contact. ``_liwan_adopt`` marks them, clears their company (the default sharing) and skips a family that holds
+    an account or an employee work contact. A partner already a party is not selected again, so a second run adopts
+    nothing.
     """
     if not version:
         return
@@ -23,7 +23,5 @@ def migrate(cr, version):
         ('user_ids', '=', False),
         ('id', 'not in', list(env['res.company']._liwan_company_partner_ids())),
     ]
-    if 'employee' in partners._fields:
-        domain.append(('employee', '=', False))
     adopted, skipped = env['liwan.customers.service']._liwan_adopt(partners.search(domain))
     _logger.info('liwan_finance: adopted %d partners as customers, skipped %d', len(adopted), len(skipped))

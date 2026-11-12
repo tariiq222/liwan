@@ -112,8 +112,57 @@ class TestPartyGuard(TransactionCase):
         self.assertTrue(all(adopted.mapped('liwan_party')))
         self.assertFalse(adopted.company_id)
         self.assertEqual(legacy.phone, '+966501112233')
-        self.assertEqual(bad_phone.phone, '12')
+        self.assertFalse(bad_phone.phone)
         self.assertFalse(self.account.partner_id.liwan_party)
+
+    def test_adopt_skips_an_employee_work_contact_and_its_family(self):
+        # The stored base flag every employee work contact carries; hr computes it, and it exists without hr too.
+        holder = self.env['res.partner'].create({'name': 'Holder of an employee contact', 'is_company': True})
+        worker = self.env['res.partner'].create({'name': 'Worker', 'parent_id': holder.id, 'employee': True})
+        legacy = self.env['res.partner'].create({'name': 'Legacy beside'})
+        adopted, skipped = self.service._liwan_adopt(holder | worker | legacy)
+        self.assertEqual((adopted, skipped), (legacy, holder | worker))
+        self.assertFalse(holder.liwan_party or worker.liwan_party)
+
+    def test_adopt_skips_an_hr_employee_work_contact(self):
+        if 'hr.employee' not in self.env:
+            self.skipTest('hr is not installed in this run: the stored employee flag is covered by the test above')
+        contact = self.env['res.partner'].create({'name': 'HR work contact'})
+        self.env['hr.employee'].create({'name': 'HR employee', 'work_contact_id': contact.id})
+        self.assertTrue(contact.employee)
+        adopted, skipped = self.service._liwan_adopt(contact)
+        self.assertEqual((adopted, skipped), (contact.browse(), contact))
+        self.assertFalse(contact.liwan_party)
+
+    def test_adopt_never_adopts_a_child_under_a_skipped_parent(self):
+        parent = self.env['res.partner'].create({'name': 'Parent with an account', 'is_company': True})
+        child = self.env['res.partner'].create({'name': 'Plain child', 'parent_id': parent.id})
+        self.account.partner_id.parent_id = parent
+        adopted, skipped = self.service._liwan_adopt(child | parent)
+        self.assertEqual((adopted, skipped), (child.browse(), child | parent))
+        self.assertFalse(child.liwan_party)
+
+    def test_adopt_moves_a_phone_that_does_not_validate_into_the_note(self):
+        for raw in ('12', '050-123 ext 4'):
+            with self.subTest(raw=raw):
+                partner = self.env['res.partner'].create({'name': 'Legacy phone', 'phone': raw, 'comment': '<p>Earlier note</p>'})
+                adopted, _skipped = self.service._liwan_adopt(partner)
+                self.assertEqual(adopted, partner)
+                self.assertFalse(partner.phone)
+                self.assertIn(f'Legacy phone, not a valid number: {raw}', str(partner.comment))
+                self.assertIn('Earlier note', str(partner.comment))
+
+    def test_adopt_reads_a_national_number_in_the_partners_country(self):
+        emirati = self.env['res.partner'].create({
+            'name': 'Emirati legacy', 'phone': '050 123 4567', 'country_id': self.env.ref('base.ae').id,
+        })
+        countryless = self.env['res.partner'].create({'name': 'Countryless legacy', 'phone': '050 123 4567'})
+        self.service._liwan_adopt(emirati | countryless)
+        self.assertEqual((emirati.phone, countryless.phone), ('+971501234567', '+966501234567'))
+
+    def test_the_candidate_last_digits_come_from_the_sanitized_number(self):
+        spaced = self.env['res.partner'].create({'name': 'Spaced', 'phone': '+966 50 123 45 67', 'liwan_party': True})
+        self.assertEqual(self.service._liwan_candidate_ref(spaced)['phone_last4'], '4567')
 
     def test_adopt_runs_as_the_superuser_only(self):
         legacy = self.env['res.partner'].create({'name': 'Legacy'})

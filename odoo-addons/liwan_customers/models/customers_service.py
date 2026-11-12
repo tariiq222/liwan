@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from markupsafe import Markup
+
 from odoo import api, models
 from odoo.exceptions import AccessError, UserError
 from odoo.tools import email_normalize
@@ -16,6 +18,8 @@ NAME_MAX = 200
 EMAIL_MAX = 254
 # The identity values a caller gives for a new or an edited customer.
 IDENTITY_KEYS = frozenset({'name', 'phone', 'email', 'is_company', 'parent_id'})
+# Adoption moves a legacy phone that does not validate into the partner's internal note, where staff still read it.
+LEGACY_PHONE_NOTE = Markup('<p>Legacy phone, not a valid number: %s</p>')
 
 
 def _refuse_invalid(field, message):
@@ -81,17 +85,18 @@ class LiwanCustomersService(models.AbstractModel):
         return root.country_id.with_env(self.env) or self.env.ref(DEFAULT_PHONE_COUNTRY)
 
     @api.model
-    def _liwan_normalize_phone(self, raw, channel=False):
+    def _liwan_normalize_phone(self, raw, channel=False, country=None):
         """The E.164 form of ``raw``, or 422 ``invalid_phone`` on ``phone``.
 
-        ``channel`` reads a messaging address (a WhatsApp number has no ``+``) as international.
+        ``channel`` reads a messaging address (a WhatsApp number has no ``+``) as international. A number without a
+        prefix is read in ``country``, else in the tenant's phone country.
         """
         if not isinstance(raw, str) or not raw.strip():
             _refuse_phone()
         number = raw.translate(ARABIC_DIGITS).strip()
         if channel and not number.startswith('+'):
             number = f'+{number}'
-        country = self._liwan_phone_country()
+        country = country or self._liwan_phone_country()
         try:
             return phone_format(number, country.code, country.phone_code, force_format='E164', raise_exception=True)
         except UserError:
@@ -132,11 +137,11 @@ class LiwanCustomersService(models.AbstractModel):
         return partners.search(domain, order='name, id', limit=limit, offset=offset), partners.search_count(domain)
 
     @api.model
-    def _liwan_phone_or_none(self, raw):
+    def _liwan_phone_or_none(self, raw, country=None):
         """The E.164 form of ``raw`` when it is a valid phone, else None: a search text or a legacy number may be
         something else, and is then simply not read as a phone."""
         try:
-            return self._liwan_normalize_phone(raw)
+            return self._liwan_normalize_phone(raw, country=country)
         except LiwanAccessRule:
             return None
 
@@ -165,22 +170,29 @@ class LiwanCustomersService(models.AbstractModel):
 
     @api.model
     def _liwan_candidate_ref(self, partner):
-        """What a pick holder may see of a party: its name and the last four digits of its phone."""
-        return {'id': partner.id, 'name': partner.name, 'phone_last4': partner.phone[-4:] if partner.phone else None}
+        """What a pick holder may see of a party: its name and the last four digits of its phone (E.164, so digits)."""
+        number = partner.phone_sanitized
+        return {'id': partner.id, 'name': partner.name, 'phone_last4': number[-4:] if number else None}
 
     @api.model
     def _liwan_create(self, values):
         """A new party from ``values`` (``name`` required; ``phone``, ``email``, ``is_company``, ``parent_id``)."""
-        vals = self._liwan_identity_values(values, required=True)
-        sharing = self.env['liwan.customers.settings']._liwan_current().sharing
-        vals.update(liwan_party=True, company_id=self.env.company.id if sharing == 'branch' else False)
+        company = self._liwan_new_company()
+        vals = self._liwan_identity_values(values, required=True, company=company)
+        vals.update(liwan_party=True, company_id=company.id)
         with marked(self.env, {PARTY_CREATE_MARKER: [self.env.uid]}):
             return self.env['res.partner'].create(vals)
 
     @api.model
+    def _liwan_new_company(self):
+        """The company a new party gets from the sharing setting: none (shared), or the current branch."""
+        sharing = self.env['liwan.customers.settings']._liwan_current().sharing
+        return self.env.company if sharing == 'branch' else self.env['res.company']
+
+    @api.model
     def _liwan_update(self, customer, values):
         """Write the identity ``values`` given on ``customer`` (a party from ``_liwan_customer``)."""
-        vals = self._liwan_identity_values(values, required=False, customer=customer)
+        vals = self._liwan_identity_values(values, required=False, customer=customer, company=customer.company_id)
         if vals:
             self._liwan_write(customer, vals)
         return customer
@@ -201,8 +213,9 @@ class LiwanCustomersService(models.AbstractModel):
             customer.write(vals)
 
     @api.model
-    def _liwan_identity_values(self, values, required, customer=None):
-        """The ``res.partner`` values of the identity ``values``: checked, the phone normalised."""
+    def _liwan_identity_values(self, values, required, company, customer=None):
+        """The ``res.partner`` values of the identity ``values`` of a party owned by ``company`` (empty when shared):
+        checked, the phone normalised."""
         unknown = sorted(set(values) - IDENTITY_KEYS)
         if unknown:
             _refuse_invalid(unknown[0], f'{unknown[0]} is not a customer field')
@@ -227,17 +240,20 @@ class LiwanCustomersService(models.AbstractModel):
             vals['is_company'] = bool(values['is_company'])
         if 'parent_id' in values:
             parent_id = values['parent_id']
-            vals['parent_id'] = False if parent_id is None else self._liwan_parent(parent_id, customer).id
+            vals['parent_id'] = False if parent_id is None else self._liwan_parent(parent_id, company, customer).id
         return vals
 
     @api.model
-    def _liwan_parent(self, parent_id, customer=None):
-        """A parent is an active company party the caller can see, never the customer itself."""
+    def _liwan_parent(self, parent_id, company, customer=None):
+        """A parent is an active company party the caller can see, never the customer itself, shared with at least
+        everyone the customer is shared with: its company is unset or the customer's ``company``."""
         parent = self.env['res.partner'].search(
             [('id', '=', parent_id), ('liwan_party', '=', True), ('is_company', '=', True)], limit=1,
         )
         if not parent or parent == customer:
             _refuse_invalid('parent_id', 'the parent must be a company customer')
+        if parent.company_id and parent.company_id != company:
+            _refuse_invalid('parent_id', 'the parent must be shared with the customer')
         return parent
 
     # ---- migrations ----
@@ -246,29 +262,38 @@ class LiwanCustomersService(models.AbstractModel):
     def _liwan_adopt(self, partners):
         """Make the partners a consumer created before this service into parties: ``(adopted, skipped)``.
 
-        For a consumer's migration, which runs as the superuser. A partner is adopted with its contacts when none of
-        them is a user's or a company's partner and its parent is a party or adopted with it; it then loses its
-        company (establishment is the default sharing) and its phone is normalised when it validates.
+        For a consumer's migration, which runs as the superuser. A family is decided at its root, the given partner
+        whose parent is not given too: it is adopted with every contact under it when none of them is a user's
+        partner, a company's partner or an employee work contact, and its parent, if any, is already a party.
+        An adopted partner loses its company (establishment is the default sharing) and its phone is normalised in the
+        partner's country, else the tenant's; a phone that does not validate moves into the partner's internal note.
         """
         if not self.env.is_superuser():
             msg = 'use_liwan_customers_migration: adopting partners runs in a migration'
             raise AccessError(msg)
         partners = partners.with_context(active_test=False)
-        families = {partner: partners.search([('id', 'child_of', partner.id)]) for partner in partners}
+        roots = partners.filtered(lambda partner: partner.parent_id not in partners)
+        families = {root: partners.search([('id', 'child_of', root.id)]) for root in roots}
         everyone = partners.browse().union(*families.values())
         company_partners = self.env['res.company']._liwan_company_partner_ids(everyone.ids)
-        accounts = everyone.filtered(lambda partner: partner.user_ids or partner.id in company_partners)
-        adopted = skipped = partners.browse()
-        for partner, family in families.items():
-            parent = partner.parent_id
-            if family & accounts or (parent and not parent.liwan_party and parent not in partners):
-                skipped |= partner
-            else:
+        excluded = everyone.filtered(
+            lambda partner: partner.user_ids or partner.employee or partner.id in company_partners,
+        )
+        adopted = partners.browse()
+        for root, family in families.items():
+            parent = root.parent_id
+            if not (family & excluded or (parent and not parent.liwan_party)):
                 adopted |= family
         for partner in adopted:
-            vals = {'liwan_party': True, 'company_id': False}
-            number = partner.phone and self._liwan_phone_or_none(partner.phone)
-            if number:
-                vals['phone'] = number
-            partner.write(vals)
-        return adopted.with_context(active_test=True), skipped.with_context(active_test=True)
+            partner.write({'liwan_party': True, 'company_id': False, **self._liwan_adopted_phone(partner)})
+        return adopted.with_context(active_test=True), (partners - adopted).with_context(active_test=True)
+
+    @api.model
+    def _liwan_adopted_phone(self, partner):
+        """The phone values of an adopted partner: its number in E.164, or none with the number kept in its note."""
+        if not partner.phone:
+            return {}
+        number = self._liwan_phone_or_none(partner.phone, country=partner.country_id or None)
+        if number:
+            return {'phone': number}
+        return {'phone': False, 'comment': LEGACY_PHONE_NOTE % partner.phone + (partner.comment or '')}

@@ -118,6 +118,37 @@ class TestCustomersRoutes(CustomersCase):
                 self.assertEqual(response.status_code, 422, response.text)
                 self.assertEqual(response.json()['field'], 'parent_id')
 
+    def test_a_parent_must_share_the_customers_scope(self):
+        branch_parent = self.env['res.partner'].create(
+            {'name': 'Branch A company', 'is_company': True, 'liwan_party': True, 'company_id': self.branch_a.id},
+        )
+        shared_parent = self.env['res.partner'].create({'name': 'Shared company', 'is_company': True, 'liwan_party': True})
+        self.sign_in('cu_a_staff')
+        refused = self.create_customer({'name': 'Shared contact', 'parent_id': branch_parent.id})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'parent_id'), refused.text)
+        shared = self.created({'name': 'Shared contact', 'parent_id': shared_parent.id})
+        moved = self.api('PATCH', f'{CUSTOMERS}/{shared["id"]}', {'parent_id': branch_parent.id})
+        self.assertEqual((moved.status_code, moved.json()['field']), (422, 'parent_id'), moved.text)
+        self.settings.sharing = 'branch'
+        self.assertEqual(self.created({'name': 'Branch contact', 'parent_id': branch_parent.id})['parent']['id'], branch_parent.id)
+        self.assertEqual(self.created({'name': 'Branch contact 2', 'parent_id': shared_parent.id})['parent']['id'], shared_parent.id)
+
+    def test_a_customers_manager_without_finance_renames_a_party_with_a_bank_account(self):
+        self.sign_in('cu_a_staff')
+        customer = self.created({'name': 'Banked customer'})
+        bank = self.env['res.partner.bank'].create({
+            'acc_number': 'SA0380000000608010167519', 'partner_id': customer['id'], 'acc_holder_name': 'Banked customer',
+        })
+        renamed = self.api('PATCH', f'{CUSTOMERS}/{customer["id"]}', {'name': 'Banked customer renamed'})
+        self.assertEqual(renamed.status_code, 200, renamed.text)
+        self.assertEqual(bank.acc_holder_name, 'Banked customer renamed')
+        as_staff = bank.with_user(self.a_staff).with_company(self.branch_a)
+        for vals in ({'acc_holder_name': 'Around the service'}, {'acc_number': 'SA4420000001234567891234'}):
+            with self.subTest(vals=vals), self.assertRaisesRegex(AccessError, 'use_liwan_customers_service'):
+                as_staff.write(vals)
+        with marked(self.env, {PARTY_MARKER: [customer['id']]}), self.assertRaises(AccessError):
+            as_staff.write({'acc_number': 'SA4420000001234567891234'})
+
     def test_a_strict_payload(self):
         self.sign_in('cu_a_staff')
         for payload in ({}, {'name': ''}, {'name': 'X', 'vat': '1'}, {'name': 'X', 'is_company': 'yes'},
