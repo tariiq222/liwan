@@ -45,6 +45,7 @@ class CrmSettingsController(http.Controller):
         vals = parsed['vals']
         if parsed['user_ids'] is not None:
             vals['distribution_user_ids'] = [Command.set(_existing_company_users(parsed['user_ids']))]
+        vals.update(_start_stage(parsed.get('start_stage_id', False)))
         model = request.env['liwan.crm.settings']
         row = model._liwan_current()
         revision = parsed['revision']
@@ -82,3 +83,20 @@ def _existing_company_users(user_ids):
     if set(users.ids) != set(user_ids):
         raise ApiError(422, 'invalid', 'every user must belong to the current company', field='distribution_user_ids')
     return users.ids
+
+
+def _start_stage(stage_id):
+    """The start-stage choice of a values patch: the chosen stage must be an active open stage of
+    the company, and a chosen stage switches the mode to `stage`; clearing the stage clears the mode
+    too. `False` (a preset patch, or the body omitted it) keeps every other field untouched."""
+
+    if stage_id is False:
+        return {}
+    if stage_id is None:
+        return {'start_stage_id': False, 'start_stage_mode': 'auto'}
+    stage = request.env['crm.stage'].search(
+        [('id', '=', stage_id), ('active', '=', True), ('is_won', '=', False)], limit=1,
+    )
+    if not stage:
+        raise ApiError(422, 'invalid', 'the start stage must be an active open stage', field='start_stage_id')
+    return {'start_stage_id': stage.id, 'start_stage_mode': 'stage'}
