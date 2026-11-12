@@ -76,8 +76,12 @@ def dump_report_row(project, can_read_tasks, task_values, finance_summary):
 
 
 def finance_summaries_by_project(projects):
-    """Build one finance summary per project from a single readable search."""
-    enabled_projects = projects.filtered(lambda project: project._liwan_tool_enabled('finance'))
+    """Build one finance summary per project from a single readable search.
+
+    A project whose finance the caller may not read, or whose finance tool is off, has no summary (``None``):
+    it counts in no total and never raises the over-budget attention.
+    """
+    enabled_projects = projects.filtered(lambda project: project._liwan_tool_enabled('finance'))._liwan_finance_readable()
     Finance = projects.env['liwan.project.finance.entry']
     entry_ids_by_project = {project.id: [] for project in projects}
     if enabled_projects:

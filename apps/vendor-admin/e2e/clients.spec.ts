@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectNoSecondH1, fitsWidth, hydrated, login, navigateClient, open, rows } from './commercial-helpers'
+import { expectNoSecondH1, fitsWidth, hydrated, login, mobileRows, navigateClient, open, rows } from './commercial-helpers'
 test.beforeEach(async ({ page }) => { await login(page) })
 
 test('the client list creates a client under customers and carries its return target', async ({ page }) => {
@@ -59,6 +59,6 @@ test('a workspace without a customer keeps its own page with the summary, worksp
 
 test('on a 390px phone the rows keep their information and fit the width', async ({ page }) => {
  await page.setViewportSize({width:390,height:844}); await open(page,'/customers')
- await expect(rows(page).first()).toBeAttached(); await expect(page.locator('table')).toBeHidden(); expect(await fitsWidth(page)).toBe(true)
+ await expect(mobileRows(page).first()).toBeVisible(); await expect(page.locator('table')).toBeHidden(); expect(await fitsWidth(page)).toBe(true)
  await open(page,'/customers/cust-alpha?tab=operations'); expect(await fitsWidth(page)).toBe(true)
 })

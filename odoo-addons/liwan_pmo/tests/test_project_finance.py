@@ -79,6 +79,8 @@ class TestProjectFinance(LiwanPmoCase):
         self.assertEqual(self.api('GET', self._url()).json()['total'], 1)
 
     def test_employee_cannot_manage_but_can_read(self):
+        # The employee holds a task of the project; the company widens the finance readers to its members.
+        self.env['liwan.pmo.settings']._params().set_param(self.env['liwan.pmo.settings']._company_key('liwan_pmo.finance_readers'), 'members')
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         budget = self._create(kind='budget', title='B', amount=100)
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -516,7 +518,7 @@ class TestProjectFinance(LiwanPmoCase):
             'name_ar': 'قارئ المشاريع لهذا الاختبار',
             'company_id': self.env.company.id,
             'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([
-                ('key', '=', 'pmo.projects.read'),
+                ('key', 'in', ('pmo.projects.read', 'pmo.finance.read')),
             ]).ids)],
         })
         Assignment.create({

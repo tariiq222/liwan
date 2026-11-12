@@ -28,13 +28,40 @@ class TestProviderError(CampaignCase):
         return raised.exception
 
     def test_the_error_code_of_meta_is_kept_and_decides_whether_a_retry_may_help(self):
-        for code, retryable in ((131049, False), (131050, False), (190, False), (130429, True), (131056, True), (80007, True), (4, True), (131057, True), (131000, True)):
+        for code, retryable in ((131049, False), (131050, False), (190, False), (130429, True), (131056, True), (80007, True), (4, True), (131057, True)):
             with self.subTest(code=code):
                 error = self.call(error_response(code))
                 self.assertEqual((error.code, error.retryable, str(error)), (code, retryable, 'boom'))
 
-    def test_a_server_error_is_retryable_and_a_missing_code_is_none(self):
-        self.assertEqual((self.call(meta_error('down', 503)).retryable, self.call(meta_error('down', 503)).code), (True, None))
+    def test_a_send_that_failed_without_a_refusal_is_unconfirmed_and_never_retried(self):
+        for name, answer in (
+            ('503', meta_error('down', 503)), ('504', meta_error('timeout', 504)),
+            ('131000', error_response(131000)), ('131016', error_response(131016)),
+        ):
+            with self.subTest(case=name):
+                error = self.call(answer)
+                self.assertEqual((error.retryable, error.unconfirmed), (False, True))
+
+    def test_a_refusal_of_a_send_stays_retryable(self):
+        for name, answer in (('429', meta_error('slow down', 429)), ('130429', error_response(130429))):
+            with self.subTest(case=name):
+                error = self.call(answer)
+                self.assertEqual((error.retryable, error.unconfirmed), (True, False))
+
+    def test_a_repeatable_call_retries_a_server_error_and_the_ambiguous_codes(self):
+        for name, answer in (('503', meta_error('down', 503)), ('131000', error_response(131000)), ('131016', error_response(131016))):
+            with self.subTest(case=name), patch.object(requests, 'request', return_value=answer):
+                with self.assertRaises(errors.ProviderError) as raised:
+                    whatsapp.mark_read(CREDENTIALS, 'wamid.X')
+                self.assertEqual((raised.exception.retryable, raised.exception.unconfirmed), (True, False))
+
+    def test_a_reaction_is_repeatable_so_a_server_error_is_retryable(self):
+        with patch.object(requests, 'request', return_value=meta_error('down', 503)):
+            with self.assertRaises(errors.ProviderError) as raised:
+                whatsapp.send_reaction(CREDENTIALS, '966500000000', 'wamid.X', '👍')
+        self.assertEqual((raised.exception.retryable, raised.exception.unconfirmed), (True, False))
+
+    def test_a_missing_code_is_none(self):
         self.assertEqual(self.call(error_response('x')).code, None)
         self.assertEqual(self.call(error_response(True)).code, None)
 

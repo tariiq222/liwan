@@ -5,13 +5,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
 HOME_DIR="${LIWAN_CONTROL_HOME:-$HOME/.local/share/liwan-saas-control-local}"
 export LIWAN_CONTROL_HOME="$HOME_DIR"
-NODE_BIN="${LIWAN_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
+NODE_BIN="${LIWAN_NODE_BIN:-$(dirname "$(command -v node)")}"
 export PATH="$NODE_BIN:$PATH"
 NODE="$NODE_BIN/node"
 NPM="$NODE_BIN/npm"
 TEST_DB=liwan_control_scratch_p1tests5
 RUNTIME_DB=liwan_control
-[[ "$($NODE --version)" == v22.* ]] || { printf 'Node 22 is required.\n' >&2; exit 2; }
+NODE_VERSION="$("$NODE" --version)"; NODE_VERSION="${NODE_VERSION#v}"
+(( ${NODE_VERSION%%.*} >= 22 )) || { printf 'Node 22 or newer is required.\n' >&2; exit 2; }
 [[ -f "$HOME_DIR/control-db-password" && -f "$HOME_DIR/control-database-url" ]] || { printf 'Initialize local runtime first.\n' >&2; exit 3; }
 [[ ! -e "$HOME_DIR/processes/runtime.pid" ]] || { printf 'Stop only the owned runtime first; refusing concurrent test mutation.\n' >&2; exit 4; }
 [[ ! -e "$HOME_DIR/$TEST_DB.created" ]] || { printf 'Refusing to reuse a previous test database.\n' >&2; exit 5; }

@@ -50,7 +50,7 @@ test.describe('Tasmim shell (desktop)', () => {
       const block = page.getByTestId('navigation-app-block')
       await expect(block).toHaveText(locale === 'ar' ? 'المشاريع' : 'Projects')
       await expect(page.getByTestId('navigation-app-back')).toHaveAttribute('href', '/apps')
-      await expect(page.getByTestId('application-navigation')).toHaveCSS('background-color', 'rgb(250, 250, 250)')
+      await expect(page.getByTestId('application-navigation')).toHaveCSS('background-color', 'rgb(249, 250, 251)')
     })
   }
 
@@ -64,15 +64,17 @@ test.describe('Tasmim shell (desktop)', () => {
   })
 
   test('a branch folds on its own button and keeps the current route', async ({ page }) => {
-    await open(page, 'shell-appsidebar--application', 'locale:ar;appearance:light')
+    await open(page, 'shell-shellnavsection--branches', 'locale:ar;appearance:light')
     const current = page.url()
-    const tasks = page.getByTestId('context-link-tasks')
-    await expect(tasks).toHaveAttribute('aria-expanded', 'false')
-    await tasks.click()
-    await expect(page.getByTestId('submenu-tasks')).toBeVisible()
-    await expect(page.getByTestId('context-link-projects')).toHaveAttribute('aria-expanded', 'true')
-    await tasks.click()
-    await expect(page.getByTestId('submenu-tasks')).toHaveCount(0)
+    const planning = page.getByTestId('context-link-planning')
+    // The branch that holds the current page starts open.
+    await expect(planning).toHaveAttribute('aria-expanded', 'true')
+    await expect(page.getByTestId('submenu-planning')).toBeVisible()
+    await planning.click()
+    await expect(planning).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByTestId('submenu-planning')).toHaveCount(0)
+    await planning.click()
+    await expect(page.getByTestId('submenu-planning')).toBeVisible()
     expect(page.url()).toBe(current)
   })
 
@@ -105,8 +107,8 @@ test.describe('Tasmim shell (desktop)', () => {
     const search = page.getByTestId('global-search-trigger')
     await expect(search).toBeEnabled()
     await expect(search).toHaveAccessibleName('بحث')
-    // Every icon button of the bar is one 40px button.
-    for (const [id, size] of [['notification-bell', 40]] as const) {
+    // Every icon button of the capsule is one 34px button (DESIGN.md, top bar).
+    for (const [id, size] of [['notification-bell', 34]] as const) {
       const area = await box(page, id)
       expect(area.width).toBeCloseTo(size, 0)
       expect(area.height).toBeCloseTo(size, 0)

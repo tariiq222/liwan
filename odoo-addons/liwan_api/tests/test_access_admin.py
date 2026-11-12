@@ -353,7 +353,7 @@ class TestAccessAdminRoles(LiwanApiCase):
         # reader of owner decision D-7 and the finance mapping).
         total = (
             12 + 31 * ('liwan_hr' in installed) + 5 * ('liwan_documents' in installed)
-            + 8 * ('liwan_pmo' in installed) + 4 * ('liwan_meetings' in installed)
+            + 9 * ('liwan_pmo' in installed) + 4 * ('liwan_meetings' in installed)
         )
         # An application added later adds capabilities; today's are exact.
         owners = self.env['liwan.access.service']._liwan_capability_map()

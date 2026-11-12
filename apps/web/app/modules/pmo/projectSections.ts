@@ -29,10 +29,11 @@ const DEFINITIONS: Array<Omit<ProjectSection, 'to'> & { segment: string }> = [
 export function projectSections(
   projectId: number,
   identity: AccessIdentity,
-  options: { active: boolean; tools?: ProjectToolsState },
+  options: { active: boolean; tools?: ProjectToolsState; canReadFinance?: boolean },
 ): ProjectSection[] {
   return DEFINITIONS
     .filter(definition => projectSectionAvailable(definition.id, options.tools))
+    .filter(definition => definition.id !== 'finance' || options.canReadFinance !== false)
     .filter(definition => options.active || !ARCHIVED_HIDDEN.includes(definition.id))
     .filter(definition => hasCapability(identity, definition.capability))
     .sort((a, b) => (PROJECT_SECTION_IDS as readonly string[]).indexOf(a.id) - (PROJECT_SECTION_IDS as readonly string[]).indexOf(b.id))

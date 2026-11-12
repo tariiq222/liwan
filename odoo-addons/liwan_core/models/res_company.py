@@ -3,7 +3,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tools import reset_cached_properties
 
-from .access_service import VAT_PERMISSION
+from .access_service import SELF_GRANT_POLICY_MARKER, VAT_PERMISSION
 from .protected_write import is_marked_write, marked
 from .res_partner import (
     PARTNER_BRANDING_MARKER,
@@ -36,6 +36,13 @@ class ResCompany(models.Model):
     liwan_branch_access_mode = fields.Selection(
         [('isolated', 'Isolated'), ('delegated', 'Delegated'), ('inherited', 'Inherited')],
         default='delegated', required=True, readonly=True,
+    )
+
+    # Whether an administrator may grant themselves access beyond system administration (read-only: written
+    # only by the marker-guarded liwan.access.service._liwan_set_self_grant_policy).
+    liwan_self_grant_policy = fields.Selection(
+        [('restricted', 'Restricted'), ('allowed', 'Allowed')],
+        default='restricted', required=True, readonly=True,
     )
 
     font = fields.Selection(
@@ -77,6 +84,10 @@ class ResCompany(models.Model):
                 and self.env.company.id not in self.env.cr.precommit.data.get('liwan_core.branch_policy', set())):
             msg = 'use_protected_liwan_access_operation'
             raise AccessError(msg)
+        policy_allowed = is_marked_write(self, SELF_GRANT_POLICY_MARKER, {'liwan_self_grant_policy'}, vals)
+        if 'liwan_self_grant_policy' in vals and not self.env.is_superuser() and not policy_allowed:
+            msg = 'use_protected_liwan_access_operation'
+            raise AccessError(msg)
         profile_allowed = is_marked_write(
             self, COMPANY_PROFILE_MARKER, COMPANY_PROFILE_FIELDS | self._liwan_company_profile_extension_fields(), vals,
         )
@@ -95,7 +106,7 @@ class ResCompany(models.Model):
                 is_marked_write(self, marker, fields, vals)
                 for marker, fields in self._liwan_application_write_fields().items()
             )
-            if not (branding_allowed or profile_allowed or application_allowed or (
+            if not (branding_allowed or profile_allowed or application_allowed or policy_allowed or (
                 set(vals) == {'liwan_branch_access_mode'}
                 and self.id in self.env.cr.precommit.data.get('liwan_core.branch_policy', set())
             )):

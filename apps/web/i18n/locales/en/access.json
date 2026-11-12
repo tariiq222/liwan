@@ -367,7 +367,8 @@
         "userSecondStepReset": "Second sign-in step reset",
         "companyProfileChanged": "Company profile changed",
         "companyBrandingChanged": "Company branding changed",
-        "companyVatRegistrationChanged": "VAT registration changed"
+        "companyVatRegistrationChanged": "VAT registration changed",
+        "accessPolicyChanged": "Self-grant policy changed"
       }
     },
     "members": {
@@ -431,7 +432,17 @@
       "invitation_not_pending": "This invitation is no longer pending.",
       "invitation_pending": "This account has not accepted its invitation yet. Resend the invitation instead.",
       "user_inactive": "This account is disabled. Reactivate it first.",
-      "invalid_token": "The link is invalid or has expired."
+      "invalid_token": "The link is invalid or has expired.",
+      "self_grant_restricted": "Company policy stops you from granting yourself permissions beyond the system administrator set. Ask another administrator to grant them."
+    },
+    "selfGrant": {
+      "title": "Granting access to yourself",
+      "description": "Sets whether a user can give themselves roles or permissions beyond the system administrator set.",
+      "restricted": "Restricted (recommended)",
+      "restrictedHint": "A user cannot grant themselves permissions beyond the system administrator set. Another administrator grants them.",
+      "allowed": "Allowed",
+      "allowedHint": "Anyone who manages access can grant themselves any role or permission.",
+      "ownAccessNotice": "Company policy stops you from granting yourself permissions beyond the system administrator set. Ask another administrator to grant them."
     }
   }
 }

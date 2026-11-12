@@ -2,6 +2,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
+from .access_service import SELF_GRANT_CHECKED_MARKER
+
 
 class LiwanAccessAssignment(models.Model):
     _name = 'liwan.access.assignment'
@@ -61,6 +63,21 @@ class LiwanAccessAssignment(models.Model):
                 msg = 'role_not_assignable'
                 raise ValidationError(msg)
 
+    @api.model
+    def _liwan_check_self_grant(self, grants):
+        """GRANTS is ``(user, company, role)`` triples about to exist; refuse the caller's own elevation."""
+        service = self.env['liwan.access.service']
+        by_target = {}
+        for user, company, role in grants:
+            if user == self.env.user and user.id not in self.env.cr.precommit.data.get(SELF_GRANT_CHECKED_MARKER, ()):
+                by_target.setdefault((user, company), self.env['liwan.access.role'])
+                by_target[user, company] |= role
+        for (user, company), roles in by_target.items():
+            before = service._liwan_capability_keys(user, company=company)
+            service._liwan_assert_self_grant(
+                user, company, before, before | set(roles.permission_ids.mapped('key')), roles.mapped('key'),
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
         if self.env.user._liwan_is_customer_actor():
@@ -81,6 +98,11 @@ class LiwanAccessAssignment(models.Model):
         if any(not role.active for role in roles):
             msg = 'role_disabled'
             raise ValidationError(msg)
+        self._liwan_check_self_grant([
+            (self.env['res.users'].browse(vals['user_id']), self.env['res.company'].browse(vals['company_id']),
+             self.env['liwan.access.role'].browse(vals['role_id']))
+            for vals in vals_list
+        ])
         assignments = super().create(vals_list)
         self.env['liwan.access.service']._liwan_clear_branch_cache()
         assignments.mapped('user_id')._liwan_sync_capability_groups()
@@ -103,6 +125,13 @@ class LiwanAccessAssignment(models.Model):
             if not role.active:
                 msg = 'role_disabled'
                 raise ValidationError(msg)
+        if {'user_id', 'company_id', 'role_id'} & set(vals):
+            self._liwan_check_self_grant([
+                (self.env['res.users'].browse(vals.get('user_id', assignment.user_id.id)),
+                 self.env['res.company'].browse(vals.get('company_id', assignment.company_id.id)),
+                 self.env['liwan.access.role'].browse(vals.get('role_id', assignment.role_id.id)))
+                for assignment in self
+            ])
         result = super().write(vals)
         self.env['liwan.access.service']._liwan_clear_branch_cache()
         (old_users | self.mapped('user_id'))._liwan_sync_capability_groups()

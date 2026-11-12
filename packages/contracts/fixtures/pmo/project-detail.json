@@ -130,5 +130,6 @@
       "policy": "enabled"
     }
   },
+  "can_read_finance": true,
   "updated_at": "v3"
 }

@@ -1,7 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import datetime
+import hashlib
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from semgrep_gate import blocking, select_files, unjustified_suppressions
+from semgrep_gate import LOCK, RulesetError, blocking, load_lock, pinned_ruleset, select_files, unjustified_suppressions, update_lock
 
 
 class TestSemgrepGate(unittest.TestCase):
@@ -46,3 +51,48 @@ class TestSemgrepGate(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestPinnedRulesets(unittest.TestCase):
+    BODY = b'rules: []\n'
+    DIGEST = hashlib.sha256(BODY).hexdigest()
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix='liwan-semgrep-test-'))
+        self.fetched = []
+
+    def fetch(self, body):
+        def serve(ruleset):
+            self.fetched.append(ruleset)
+            return body
+        return serve
+
+    def test_the_lock_pins_each_ruleset_by_sha256(self):
+        lock = load_lock(LOCK)
+        self.assertEqual(sorted(lock), ['p/python', 'p/secrets', 'p/typescript'])
+        for digest in lock.values():
+            self.assertRegex(digest, r'^[0-9a-f]{64}$')
+        datetime.date.fromisoformat(json.loads(LOCK.read_text())['reviewed'])
+
+    def test_a_matching_download_is_cached_and_reused(self):
+        path = pinned_ruleset('p/x', self.DIGEST, self.tmp, self.fetch(self.BODY))
+        self.assertEqual(path.read_bytes(), self.BODY)
+        self.assertEqual(pinned_ruleset('p/x', self.DIGEST, self.tmp, self.fetch(b'unused')), path)
+        self.assertEqual(self.fetched, ['p/x'])
+
+    def test_a_changed_ruleset_fails_closed_and_is_not_cached(self):
+        with self.assertRaisesRegex(RulesetError, 'changed upstream'):
+            pinned_ruleset('p/x', self.DIGEST, self.tmp, self.fetch(b'rules: [changed]\n'))
+        self.assertEqual(list(self.tmp.glob('*')), [])
+
+    def test_a_tampered_cache_file_is_fetched_again(self):
+        (self.tmp / f'{self.DIGEST}.yml').write_bytes(b'tampered')
+        path = pinned_ruleset('p/x', self.DIGEST, self.tmp, self.fetch(self.BODY))
+        self.assertEqual(path.read_bytes(), self.BODY)
+        self.assertEqual(self.fetched, ['p/x'])
+
+    def test_update_lock_pins_what_the_registry_serves_now(self):
+        lock = self.tmp / 'lock.json'
+        lock.write_text(json.dumps({'reviewed': '2000-01-01', 'rulesets': {'p/x': '0' * 64}}))
+        update_lock(lock, self.fetch(self.BODY), datetime.date(2026, 11, 12))
+        self.assertEqual(json.loads(lock.read_text()), {'reviewed': '2026-11-12', 'rulesets': {'p/x': self.DIGEST}})

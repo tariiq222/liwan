@@ -52,7 +52,7 @@ while :; do /bin/sleep 0.05; done
 def build_fixture_layout(root):
     """Real argv/identity layout under root; node is a symlink to this interpreter."""
     node_bin = root / 'node22' / 'bin'; node_bin.mkdir(parents=True)
-    process_image = subprocess.check_output(['/bin/ps', '-p', str(os.getpid()), '-o', 'comm='], text=True).strip()
+    process_image = own_process_image()
     node_link = node_bin / 'node'; os.symlink(process_image, node_link)
     tsx = root / 'node_modules' / 'tsx' / 'dist' / 'cli.mjs'; tsx.parent.mkdir(parents=True)
     tsx.write_text('import time\ntime.sleep(600)\n')
@@ -62,6 +62,12 @@ def build_fixture_layout(root):
         path.parent.mkdir(parents=True, exist_ok=True); path.write_text('// stand-in\n')
         entries[name] = path
     return node_bin, node_link, tsx, entries
+
+
+def own_process_image():
+    """Absolute path of this interpreter's image. macOS `ps comm=` prints it; procps (Linux) prints only the short name."""
+    comm = subprocess.check_output(['/bin/ps', '-p', str(os.getpid()), '-o', 'comm='], text=True).strip()
+    return comm if os.path.isabs(comm) else os.path.realpath(sys.executable)
 
 
 def lstart(pid):

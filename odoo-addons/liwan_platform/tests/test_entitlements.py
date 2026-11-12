@@ -253,12 +253,12 @@ class TestEntitlements(TransactionCase):
                 self.assertIn(value['owner'], installed_owners, key)
         self.assertEqual(capability_map['settings.maintenance.manage']['owner'], 'liwan_platform')
         # 12 core capabilities (the VAT registration among them), plus 31 for HR (25, and 6 payroll: its four keys, the audit reader
-        # of owner decision D-7 and the finance mapping), 8 for PMO and 4 for meetings (55), the
+        # of owner decision D-7 and the finance mapping), 9 for PMO (its finance reader among them) and 4 for meetings (56), the
         # fourth being meetings.settings.manage (#162). Document permissions belong to the documents app.
-        expected = 12 + 31 * ('liwan_hr' in apps) + 8 * ('liwan_pmo' in apps) + 4 * ('liwan_meetings' in apps)
+        expected = 12 + 31 * ('liwan_hr' in apps) + 9 * ('liwan_pmo' in apps) + 4 * ('liwan_meetings' in apps)
         self.assertEqual(len(release_map), expected)
         if apps == set(self.APP_BOOLEANS):
-            self.assertEqual(len(release_map), 55)
+            self.assertEqual(len(release_map), 56)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._liwan_feature_map())
 

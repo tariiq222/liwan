@@ -31,11 +31,16 @@ export const ProjectSettingsExtensionSchema = z.discriminatedUnion('kind', [
   z.object({ ...extensionBase, kind: z.literal('boolean'), value: z.boolean() }).strict(),
 ])
 
+/** Who reads a project's budget, expenses and cost figures: its manager and the company's project managers, or every member. */
+export const FinanceReadersSchema = z.enum(['managers', 'members'])
+export type FinanceReaders = z.infer<typeof FinanceReadersSchema>
+
 export const ProjectSettingsSchema = z.object({
   project_creators: ProjectCreatorsSchema,
   planning_tool_policy: ProjectToolPolicySchema,
   governance_tool_policy: ProjectToolPolicySchema,
   finance_tool_policy: ProjectToolPolicySchema,
+  finance_readers: FinanceReadersSchema,
   default_stages: z.array(DefaultStageSchema).min(1).max(20),
   require_manager_on_create: z.boolean(),
   require_end_date_on_create: z.boolean(),

@@ -32,9 +32,7 @@ ROOT = HERE.parents[1]
 RUN_LOCAL = HERE / 'run-local.sh'
 GEN = '1234567890abcdef1234567890abcdef'
 RELATIVE = 'deploy/control-plane/run-local.sh'
-PINNED = Path('/Users/tariq/code/odoo/.venv/bin/python')
-if not PINNED.exists():  # pragma: no cover - pinned interpreter is the supported host layout
-    PINNED = Path(sys.executable)
+PINNED = Path(sys.executable)
 
 
 class ActualReservationCaller(unittest.TestCase):

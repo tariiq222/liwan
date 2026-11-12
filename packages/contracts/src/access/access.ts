@@ -61,6 +61,7 @@ export const KNOWN_CAPABILITIES = [
   'pmo.projects.read',
   'pmo.projects.create',
   'pmo.projects.manage',
+  'pmo.finance.read',
   'pmo.settings.manage',
   'pmo.tasks.read',
   'pmo.tasks.create',
@@ -325,11 +326,23 @@ export const SeatUsageSchema = z.object({
 }).strict()
 export type SeatUsage = z.infer<typeof SeatUsageSchema>
 
+/**
+ * Company policy on an administrator granting access to themselves (GET/PATCH /admin/access/policy).
+ * `restricted` (the default) refuses a self-grant of anything beyond what system administration implies;
+ * `allowed` suits a company run by its owner.
+ */
+export const SelfGrantPolicySchema = z.enum(['restricted', 'allowed'])
+export type SelfGrantPolicy = z.infer<typeof SelfGrantPolicySchema>
+export const AccessPolicySchema = z.object({ self_grant: SelfGrantPolicySchema, version: z.string().min(1) }).strict()
+export type AccessPolicy = z.infer<typeof AccessPolicySchema>
+export const AccessPolicyPatchSchema = z.object({ self_grant: SelfGrantPolicySchema, expected_version: z.string().trim().min(1) }).strict()
+export type AccessPolicyPatch = z.infer<typeof AccessPolicyPatchSchema>
+
 export const AuditActionSchema = z.enum([
   'user.granted', 'user.invited', 'user.invitation_resent', 'user.invitation_login_changed', 'user.invitation_cancelled',
   'user.reset_link_sent', 'user.password_set', 'user.employee_linked', 'user.employee_unlinked', 'user.roles_changed', 'user.disabled', 'user.reactivated',
   'user.password_reset', 'user.mobile_set', 'user.seat_changed', 'user.reset_link_requested', 'user.second_step_reset',
-  'user.branch_roles_changed', 'branch.policy_changed',
+  'user.branch_roles_changed', 'branch.policy_changed', 'access.policy_changed',
   'user.membership_added', 'user.membership_roles_changed', 'user.membership_removed',
   'company.profile_changed', 'company.branding_changed', 'company.vat_registration_changed',
   'employee.archived_access_disabled', 'role.created',

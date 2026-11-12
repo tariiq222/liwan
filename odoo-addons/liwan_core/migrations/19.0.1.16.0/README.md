@@ -1,0 +1,1 @@
+`res.company.liwan_self_grant_policy` is a new required column with the default `restricted`. The column default fills every existing company, so there is no data change and no migration script. Existing role assignments are kept; the policy applies to future self-grants only.

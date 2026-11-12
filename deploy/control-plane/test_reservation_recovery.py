@@ -14,12 +14,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from recover_generation import recover_reservation, _runtime_candidate, _runtime_candidates_present, _process_snapshot
 
 HERE = Path(__file__).resolve().parent
 GEN = '1234567890abcdef1234567890abcdef'
 ROOT = HERE.parents[1]
-NODE_BIN = Path('/opt/homebrew/opt/node@22/bin')
+NODE_BIN = Path('/fake/node/bin')  # only a path string for command-line matching; never executed
 
 
 def rows_with_coordinator(begin_pid, coord_pid=2000):

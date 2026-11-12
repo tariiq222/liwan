@@ -36,7 +36,8 @@ test.describe('Tasmim page templates', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await open(page, 'shared-datatable--default')
     const items = page.locator('li[data-shortcut-row]')
-    await expect(page.locator('tbody tr[data-shortcut-row]')).toHaveCount(3)
+    await expect(items).toHaveCount(3)
+    await expect(page.locator('tbody tr[data-shortcut-row]')).toHaveCount(0)
     await page.keyboard.press('j')
     await expect(items.nth(0)).toBeFocused()
     await page.keyboard.press('j')
@@ -131,13 +132,13 @@ test.describe('Tasmim form template', () => {
 
   test('the create panel dialog is named by its heading', async ({ page }) => {
     await open(page, 'shared-createpanel--form')
-    await expect(page.getByRole('dialog', { name: 'مهمة جديدة' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'مهمة مشروع جديدة' })).toBeVisible()
   })
 
   test('the Form template asks before closing a dirty draft and stays when told to', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await open(page, 'shared-createpanel--form-template')
-    const panel = page.getByRole('dialog', { name: 'مهمة جديدة' })
+    const panel = page.getByRole('dialog', { name: 'مهمة مشروع جديدة' })
     const name = panel.getByRole('textbox', { name: /عنوان المهمة/ })
     await expect(name).toBeEnabled()
     await name.fill('تقرير الربع')
@@ -153,7 +154,7 @@ test.describe('Tasmim form template', () => {
   test('a clean Form template closes without asking', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await open(page, 'shared-createpanel--form-template')
-    const panel = page.getByRole('dialog', { name: 'مهمة جديدة' })
+    const panel = page.getByRole('dialog', { name: 'مهمة مشروع جديدة' })
     await expect(panel).toBeVisible()
     await panel.getByRole('button', { name: 'إغلاق' }).click()
     await expect(page.getByTestId('unsaved-changes-dialog')).toHaveCount(0)

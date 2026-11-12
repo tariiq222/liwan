@@ -4,7 +4,10 @@
          nothing else of the analytic items (no income, no other cost center). Group rules of one model are ORed, so every stock group that has an
          ACL on account.analytic.line and no group rule of its own gets an allow-all rule here: without it, a user
          of that group who is also a project reader would lose the items of every other cost center the moment
-         this rule exists. account.group_account_invoice and account.group_account_readonly (so also the
+         this rule exists. This rule is the floor for the totals only: which project's cost the caller may read
+         is decided by liwan_pmo's pmo.finance.read (the finance and EVM routes and the project reports refuse or
+         leave out a project whose finance the caller may not read), so it needs no change here.
+         account.group_account_invoice and account.group_account_readonly (so also the
          accountant and manager groups that imply them) already carry an allow-all rule in stock account. -->
     <record id="rule_analytic_line_project_cost_centers" model="ir.rule">
         <field name="name">LiwanOS project readers: items of project cost centers</field>

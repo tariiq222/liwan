@@ -3,6 +3,7 @@ import { joinList } from '@/utils/listFormat'
 import type { AdminUserDetail, CapabilitySource, EffectiveCapability, PermissionDefinition, RoleSummary } from '@liwan/contracts'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { useAdminRoleDetails } from '@/composables/useAdminRoles'
+import { useAccessPolicy } from '@/composables/useAccessPolicy'
 import { useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
 import RoleCheckboxes, { type RoleOption } from '@/components/access/users/RoleCheckboxes.vue'
 import CapabilityGroups from '@/components/access/users/CapabilityGroups.vue'
@@ -15,7 +16,11 @@ const emit = defineEmits<{ saved: []; retry: [] }>()
 const { t, te, locale } = useI18n()
 const hydrated = useHydrated()
 const { me } = useMe()
+const { can } = useAccess()
 const update = useUpdateAdminUserAccess()
+const viewingSelf = computed(() => me.value?.id === props.user.id)
+const accessPolicy = useAccessPolicy(() => viewingSelf.value && can('access.roles.read'))
+const selfGrantRestricted = computed(() => viewingSelf.value && accessPolicy.data.value?.self_grant === 'restricted')
 const roleIdsOf = (user: AdminUserDetail) => user.assignments.map((assignment) => assignment.role.id).filter((id): id is number => id !== null).sort((a, b) => a - b)
 const companyId = computed(() => me.value?.company.id ?? null)
 const { draft, state, save, revert, reload } = useSettingsForm({
@@ -113,6 +118,7 @@ async function saveAccess() {
 <template>
   <SharedSettingsCard id="user-access" v-bind="state" :title="t('access.users.rolesTitle')" :can-edit="canEdit" @save="saveAccess" @revert="revert" @reload="reload">
     <UAlert v-if="user.protected" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('access.protectedUser')" />
+    <UAlert v-if="selfGrantRestricted" color="info" variant="subtle" icon="i-lucide-info" :title="t('access.selfGrant.ownAccessNotice')" />
     <div class="grid min-w-0 gap-3">
       <RoleCheckboxes :model-value="selectedRoleIds" :roles="roleOptions" :legend="t('access.users.rolesTitle')" :disabled="locked" @update:model-value="draft.roleIds = [...$event].sort((a, b) => a - b)" />
       <UAlert v-if="dirty" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('access.users.assignmentDiff', { retained: retainedRoleCount, added: addedRoleCount, removed: removedRoleCount })" />

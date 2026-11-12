@@ -42,8 +42,8 @@ function useCard<Draft extends Fields>(read: (settings: ProjectSettings) => Draf
 const creation = useCard(({ project_creators, require_manager_on_create, require_end_date_on_create }) => (
   { project_creators, require_manager_on_create, require_end_date_on_create }
 ))
-const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method, planning_tool_policy, governance_tool_policy, finance_tool_policy }) => (
-  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method, planning_tool_policy, governance_tool_policy, finance_tool_policy }
+const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method, planning_tool_policy, governance_tool_policy, finance_tool_policy, finance_readers }) => (
+  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method, planning_tool_policy, governance_tool_policy, finance_tool_policy, finance_readers }
 ), draft => {
   const governanceRequired = draft.require_charter_approval || draft.change_control_mode === 'required' || draft.baseline_gate === 'required'
   if (governanceRequired && draft.governance_tool_policy !== 'enabled') throw new ApiError(422, 'invalid', t('settings.projects.tools.governanceConflict'), 'governance_tool_policy')
@@ -91,6 +91,7 @@ const closeWithOpenTasksItems = computed(() => [
   { value: 'block', label: t('settings.projects.closeWithOpenTasks.block') },
   { value: 'allow_with_warning', label: t('settings.projects.closeWithOpenTasks.allowWithWarning') },
 ])
+const financeReadersItems = computed(() => (['managers', 'members'] as const).map(value => ({ value, label: t(`settings.projects.financeReaders.${value}`) })))
 const registerTransitionItems = computed(() => [
   { value: 'sequence', label: t('settings.projects.registerTransitions.sequence') },
   { value: 'free', label: t('settings.projects.registerTransitions.free') },
@@ -208,6 +209,9 @@ function onDeleteStage(id: number | string) {
     </SharedSettingRow>
     <SharedSettingRow id="project-close-open-tasks" :label="t('settings.projects.closeWithOpenTasks.label')" :description="t('settings.projects.closeWithOpenTasks.hint')">
       <SharedSegmentedControl v-model="approval.draft.value.close_with_open_tasks" data-testid="settings-close-with-open-tasks" :items="closeWithOpenTasksItems" :label="t('settings.projects.closeWithOpenTasks.label')" :disabled="approvalLocked" />
+    </SharedSettingRow>
+    <SharedSettingRow id="project-finance-readers" :label="t('settings.projects.financeReaders.label')" :description="t('settings.projects.financeReaders.hint')">
+      <SharedSegmentedControl v-model="approval.draft.value.finance_readers" data-testid="settings-finance-readers" :items="financeReadersItems" :label="t('settings.projects.financeReaders.label')" :disabled="approvalLocked" />
     </SharedSettingRow>
     <SharedSettingRow id="project-register-transitions" :label="t('settings.projects.registerTransitions.label')" :description="t('settings.projects.registerTransitions.hint')">
       <SharedSegmentedControl v-model="approval.draft.value.register_status_transitions" data-testid="settings-register-transitions" :items="registerTransitionItems" :label="t('settings.projects.registerTransitions.label')" :disabled="approvalLocked" />

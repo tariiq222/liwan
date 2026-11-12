@@ -72,3 +72,16 @@ class TestPmoAiTools(LiwanPmoCase):
         self.assertIn('success_criteria', properties)
         self.assertEqual(properties['objectives']['items']['required'], ['goal'])
         self.assertEqual(set(properties['objectives']['items']['properties']), {'goal', 'metric', 'target'})
+
+    def test_the_finance_summary_tool_keeps_its_capability_and_the_route_refuses_a_non_reader(self):
+        tool = self.env['liwan.ai.tool.registry']._liwan_ai_tool_map()['pmo.get_project_finance_summary']
+        self.assertEqual(tool['capability'], 'pmo.projects.read')
+        self.project.write({'company_id': self.env.company.id})
+        path = tool['route']['path'].replace('{project_id}', str(self.project.id))
+        # api_emp reads the project and holds one of its tasks, but the company keeps finance to the managers.
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertIn(tool['name'], {item['name'] for item in self.api('GET', '/api/v1/ai/tools').json()['items']})
+        refused = self.api(tool['route']['method'], path)
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'forbidden'))
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api(tool['route']['method'], path).status_code, 200)

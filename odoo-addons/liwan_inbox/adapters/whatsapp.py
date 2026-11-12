@@ -12,9 +12,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
 import requests
-import urllib3
 
-from odoo.addons.liwan_inbox.adapters import errors
+from odoo.addons.liwan_inbox.adapters import errors, media_download
 
 GRAPH_API_VERSION = 'v26.0'
 GRAPH_BASE = 'https://graph.facebook.com'
@@ -22,6 +21,9 @@ TIMEOUT_SECONDS = 10
 UPLOAD_TIMEOUT_SECONDS = 60
 TYPING_TIMEOUT_SECONDS = 3
 MAX_MEDIA_BYTES = 16 * 1024 * 1024
+MEDIA_DEADLINE_SECONDS = 60
+# The only host Meta serves a media file from; the download carries the access token, so nothing else may get it.
+MEDIA_HOSTS = frozenset({'lookaside.fbsbx.com'})
 MAX_TEMPLATE_PAGES = 10
 MEDIA_KINDS = frozenset({'image', 'document', 'audio', 'video', 'sticker'})
 TEXT_KINDS = frozenset({'text', 'location', 'contacts'})
@@ -55,8 +57,11 @@ MARKETING_PATH = 'marketing_messages'
 CLOUD_PATH = 'messages'
 PRODUCT_POLICY = 'CLOUD_API_FALLBACK'
 HELD_STATUS = 'held_for_quality_assessment'
-# Meta error codes that a later attempt may cure: throughput, WABA and app rate limits, pair rate, maintenance, unknown.
-RETRYABLE_CODES = frozenset({130429, 80007, 4, 131056, 131057, 131000, 131016})
+# Meta error codes of a refusal that a later attempt may cure: throughput, WABA and app rate limits, pair rate, maintenance.
+RETRYABLE_CODES = frozenset({130429, 80007, 4, 131056, 131057})
+# Meta error codes of a failure that does not say whether Meta acted: "something went wrong", "service unavailable".
+# Repeating a read is safe; a send may already have gone out, so it is left unconfirmed.
+AMBIGUOUS_CODES = frozenset({131000, 131016})
 MARKETING_ONBOARDING = {'ELIGIBLE': 'eligible', 'ONBOARDED': 'onboarded'}
 NO_REASON = 'NONE'
 NON_DIGITS = re.compile(r'\D')
@@ -755,7 +760,7 @@ def _error_code(response):
     return code if isinstance(code, int) and not isinstance(code, bool) else None
 
 
-def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', headers=None, **kwargs):
+def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', headers=None, sends_message=False, **kwargs):
     headers = {'Authorization': f'{scheme} {credentials.access_token}', **(headers or {})}
     try:
         response = requests.request(method, url, headers=headers, timeout=timeout, **kwargs)
@@ -769,7 +774,12 @@ def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', he
         raise errors.ProviderError(f'provider unreachable: {type(error).__name__}', retryable=True) from None
     if response.status_code >= 400:
         code = _error_code(response)
-        retryable = response.status_code >= 500 or response.status_code == 429 or code in RETRYABLE_CODES
+        # An answer that does not prove a refusal (5xx, an ambiguous code) may follow an accepted send: for a send it
+        # is unconfirmed, never retried automatically. Only an explicit refusal (429, throttling) is retried.
+        ambiguous = response.status_code >= 500 or code in AMBIGUOUS_CODES
+        if ambiguous and sends_message:
+            raise errors.ProviderError(_error_text(response), retryable=False, unconfirmed=True, code=code)
+        retryable = ambiguous or response.status_code == 429 or code in RETRYABLE_CODES
         raise errors.ProviderError(_error_text(response), retryable=retryable, code=code)
     return response
 
@@ -798,11 +808,13 @@ def graph_request(method, path, credentials, timeout=TIMEOUT_SECONDS, **kwargs):
     return _json_dict(_call(method, _graph(path), credentials, timeout=timeout, **kwargs))
 
 
-def _deliver(credentials, to, kind, content, context_id=None, path=CLOUD_PATH, extra=None):
+def _deliver(credentials, to, kind, content, context_id=None, path=CLOUD_PATH, extra=None, sends_message=True):
     payload = {'messaging_product': 'whatsapp', 'to': to, 'type': kind, kind: content, **(extra or {})}
     if context_id:
         payload['context'] = {'message_id': context_id}
-    response = _call('POST', _graph(f'{credentials.phone_number_id}/{path}'), credentials, json=payload)
+    response = _call(
+        'POST', _graph(f'{credentials.phone_number_id}/{path}'), credentials, json=payload, sends_message=sends_message,
+    )
     messages = _json_dict(response).get('messages')
     first = messages[0] if isinstance(messages, list) and messages and isinstance(messages[0], dict) else {}
     if not isinstance(first.get('id'), str):
@@ -811,8 +823,8 @@ def _deliver(credentials, to, kind, content, context_id=None, path=CLOUD_PATH, e
     return SendResult(first['id'], first.get('message_status') == HELD_STATUS)
 
 
-def _send(credentials, to, kind, content, context_id=None):
-    return _deliver(credentials, to, kind, content, context_id).provider_id
+def _send(credentials, to, kind, content, context_id=None, sends_message=True):
+    return _deliver(credentials, to, kind, content, context_id, sends_message=sends_message).provider_id
 
 
 def send_text(credentials, to, body, context_id=None):
@@ -946,7 +958,8 @@ def send_commerce(credentials, to, content, catalog_id, context_id=None):
 
 def send_reaction(credentials, to, message_id, emoji):
     """React to a message with `emoji`; an empty emoji removes the reaction."""
-    return _send(credentials, to, 'reaction', {'message_id': message_id, 'emoji': emoji})
+    # Sending the reaction again only replaces the same reaction, so it is repeatable like a read.
+    return _send(credentials, to, 'reaction', {'message_id': message_id, 'emoji': emoji}, sends_message=False)
 
 
 def mark_read(credentials, message_id, typing=False):
@@ -965,17 +978,10 @@ def fetch_media(credentials, media_id):
     if not isinstance(meta.get('url'), str):
         message = 'malformed provider response'
         raise errors.ProviderError(message, retryable=False)
-    response = _call('GET', meta['url'], credentials, stream=True)
-    try:
-        content = response.raw.read(MAX_MEDIA_BYTES + 1, decode_content=True)
-    except (requests.RequestException, urllib3.exceptions.HTTPError, OSError) as error:
-        message = f'media download failed: {type(error).__name__}'
-        raise errors.ProviderError(message, retryable=True) from None
-    finally:
-        response.close()
-    if len(content) > MAX_MEDIA_BYTES:
-        message = 'media is too large'
-        raise errors.ProviderError(message, retryable=False)
+    content, _content_type = media_download.download(
+        meta['url'], MEDIA_HOSTS.__contains__, {'Authorization': f'Bearer {credentials.access_token}'},
+        TIMEOUT_SECONDS, MEDIA_DEADLINE_SECONDS, MAX_MEDIA_BYTES,
+    )
     return Media(content=content, mimetype=meta.get('mime_type') or 'application/octet-stream')
 
 

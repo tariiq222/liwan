@@ -15,6 +15,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from .project_charter import LiwanChangeRequired, LiwanCharterState
 from .project_constants import BASELINE_NOTE_MAX, TASK_CANCELED_STATE
 from .project_governance import _create_values, _next_project_number
+from .project_tools import FINANCE_READ
 
 
 def _check_project(project, manage=False):
@@ -48,7 +49,10 @@ class LiwanProjectBaseline(models.Model):
     _inherit = 'liwan.project.child.visibility'
     _liwan_tool_key = 'planning'
     _liwan_required_features = ('pmo.baselines',)
-    _liwan_tool_field_map = {'finance': {'budget_total', 'currency_id', 'planned_value_share'}, 'governance': {'change_id'}}
+    _liwan_tool_field_map = {
+        'finance': {'budget_total', 'currency_id', 'planned_value_share'}, 'governance': {'change_id'},
+        FINANCE_READ: {'budget_total'},
+    }
     _description = 'Project schedule and cost baseline'
     _liwan_scope = 'company'
     _order = 'number desc, id desc'
@@ -221,7 +225,10 @@ class LiwanProjectBaselineTask(models.Model):
     _inherit = 'liwan.project.child.visibility'
     _liwan_tool_key = 'planning'
     _liwan_required_features = ('pmo.baselines',)
-    _liwan_tool_field_map = {'finance': {'budget_total', 'currency_id', 'planned_value_share'}, 'governance': {'change_id'}}
+    _liwan_tool_field_map = {
+        'finance': {'budget_total', 'currency_id', 'planned_value_share'}, 'governance': {'change_id'},
+        FINANCE_READ: {'planned_value_share'},
+    }
     _description = 'Task line of a project baseline'
     _liwan_scope = 'company'
     _order = 'planned_start asc, planned_end asc, id asc'

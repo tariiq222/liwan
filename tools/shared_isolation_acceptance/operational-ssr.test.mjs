@@ -1,12 +1,18 @@
 import http from 'node:http'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { readFileSync } from 'node:fs'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { chromium } from '@playwright/test'
+
+const projectDetail = JSON.parse(readFileSync(new URL('../../packages/contracts/fixtures/pmo/project-detail.json', import.meta.url)))
+// The SSR probe page: the project record, fetched through useApi + Vue Query during SSR.
+const projectPage = tenant => `/projects/${tenant.uid}`
+const projectApi = tenant => `/api/v1/projects/${tenant.uid}`
 
 const root = new URL('../../', import.meta.url).pathname
 const artifact = resolve(process.env.LIWAN_ACCEPTANCE_ARTIFACT ?? join(root, 'apps/web/.output'))
@@ -32,9 +38,9 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
       res.writeHead(206, { 'content-type': 'application/octet-stream', 'content-range': 'bytes 1-2/4', 'content-disposition': 'attachment; filename="fixture.bin"', 'connection': 'x-private-hop', 'x-private-hop': 'must-not-forward' }); res.end(Buffer.from([1, 255])); return
     }
     if (req.url === '/api/v1/unchanged') { res.writeHead(304, { etag: '"fixture"' }); res.end(); return }
-    if (req.url === '/api/v1/projects?minimal=1') {
+    if (req.url === projectApi(tenant)) {
       if (req.headers.cookie !== `session_id=${tenant.tenantId}`) { res.writeHead(403); res.end('{}'); return }
-      res.end(JSON.stringify([{ id: tenant.uid, name: `PROJECT_${tenant.marker}` }])); return
+      res.end(JSON.stringify({ ...projectDetail, id: tenant.uid, name: `PROJECT_${tenant.marker}` })); return
     }
     if (req.url === '/api/v1/me') {
       if (req.headers.cookie !== `session_id=${tenant.tenantId}`) { res.writeHead(403); res.end('{}'); return }
@@ -69,14 +75,14 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
       verify(response, tenant)
       const payload = response.text.match(/<script[^>]+id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)?.[1]
       assert.ok(payload?.includes(`PROJECT_${tenant.marker}`), 'query-specific project missing from SSR payload')
-      const markup = response.text.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-      assert.ok(markup.includes(`PROJECT_${tenant.marker}`), 'query-specific project missing from rendered HTML')
+      // Record pages render their loading state on the server and reveal the cached record only once hydrated
+      // (apps/web/app/pages/projects/[id].vue), so the project reaches the markup in the browser check below.
     }
     await Promise.all(Array.from({length:12}, async (_,i) => {
-      const tenant=tenants[i%2];verifyQuery(await request(tenant,'/search'),tenant)
+      const tenant=tenants[i%2];verifyQuery(await request(tenant,projectPage(tenant)),tenant)
     }))
-    for(let i=0;i<3;i++)for(const tenant of tenants)verifyQuery(await request(tenant,'/search'),tenant)
-    for(const tenant of tenants)assert.ok(calls.some(c=>c.path==='/api/v1/projects?minimal=1'&&c.host===tenant.host&&c.cookie===`session_id=${tenant.tenantId}`))
+    for(let i=0;i<3;i++)for(const tenant of tenants)verifyQuery(await request(tenant,projectPage(tenant)),tenant)
+    for(const tenant of tenants)assert.ok(calls.some(c=>c.path===projectApi(tenant)&&c.host===tenant.host&&c.cookie===`session_id=${tenant.tenantId}`))
     for (const tenant of tenants) assert.ok(calls.some(c => c.path === '/api/v1/me' && c.host === tenant.host && c.cookie === `session_id=${tenant.tenantId}`))
     const browser = await chromium.launch({ headless: true })
     try {
@@ -102,35 +108,38 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
         }
       })
       for (const tenant of [...tenants, tenants[0]]) {
-        await page.goto(`http://${tenant.host}/search`)
-        await page.getByTestId('search-page').waitFor({ timeout: 5000 })
-        await page.getByText(`PROJECT_${tenant.marker}`).waitFor()
+        await page.goto(`http://${tenant.host}${projectPage(tenant)}`)
+        await page.getByText(`PROJECT_${tenant.marker}`).first().waitFor({ timeout: 5000 })
         assert.ok(!(await page.locator('body').innerText()).includes(`PROJECT_${tenants.find(t => t !== tenant).marker}`), 'foreign project visible after hydration')
         assert.ok(!(await page.content()).includes(`PROJECT_${tenants.find(t => t !== tenant).marker}`), 'foreign project in hydrated DOM')
-        await page.goto(`http://${tenant.host}/account`)
-        await page.getByText(tenant.marker).first().waitFor()
+        // Client-side navigation inside the projects app: the record page's shell links back to the project list.
         await page.locator('a[href="/projects"]').first().click()
         await page.waitForURL(`http://${tenant.host}/projects`)
         await page.getByText(tenant.marker).first().waitFor()
         assert.ok(!(await page.locator('body').innerText()).includes(tenants.find(t => t !== tenant).marker), 'foreign identity visible after client navigation')
+        await page.goto(`http://${tenant.host}/account`)
+        await page.getByText(tenant.marker).first().waitFor()
       }
       for (const tenant of tenants) {
-        assert.ok(visits.some(v => v.host === tenant.host && v.path === '/search' && v.cookie === `session_id=${tenant.tenantId}`))
+        assert.ok(visits.some(v => v.host === tenant.host && v.path === projectPage(tenant) && v.cookie === `session_id=${tenant.tenantId}`))
         assert.ok(visits.some(v => v.host === tenant.host && v.path === '/api/v1/me' && v.cookie === `session_id=${tenant.tenantId}`), 'client navigation must fetch tenant-bound identity')
       }
       assert.deepEqual(browserErrors, [], 'browser hydration errors')
-      console.log('Browser: A→B→A full navigation hydrated project markers and client account→projects navigation; no foreign visible markers. Synthetic network interception; no same-origin session swap or real Odoo proof.')
+      console.log('Browser: A→B→A full navigation hydrated project markers and client project→project-list navigation and /account; no foreign visible markers. Synthetic network interception; no same-origin session swap or real Odoo proof.')
       await context.close()
     } finally { await browser.close() }
-    for (const call of calls.filter(c => c.path === '/api/v1/projects?minimal=1')) {
+    for (const call of calls.filter(c => c.path.startsWith('/api/v1/projects/'))) {
       assert.equal(call.token, token)
       assert.equal(call.revision, '1')
     }
-    const projectCallsA = () => calls.filter(c => c.path === '/api/v1/projects?minimal=1' && c.host === tenants[0].host).length
+    const projectCallsA = () => calls.filter(c => c.path === projectApi(tenants[0]) && c.host === tenants[0].host).length
     const beforeRevocation = projectCallsA()
     revokedProjects.add('a')
-    const [revoked, stillAllowed] = await Promise.all(tenants.map(t => request(t, '/search')))
-    verify(revoked, tenants[0])
+    const [revoked, stillAllowed] = await Promise.all(tenants.map(t => request(t, projectPage(t))))
+    // A revoked entitlement answers the record page with the plan's 403 page, still in the tenant's own identity.
+    assert.equal(revoked.status, 403, revoked.text.slice(0, 500))
+    assert.ok(revoked.text.includes(tenants[0].marker), 'own identity missing from the revoked page')
+    assert.ok(!revoked.text.includes(tenants[1].marker), 'foreign identity leaked into the revoked page')
     assert.ok(!revoked.text.includes(`PROJECT_${tenants[0].marker}`), 'revoked request reused prior query data')
     assert.equal(projectCallsA(), beforeRevocation, 'disabled query still reached upstream')
     verifyQuery(stillAllowed, tenants[1])
@@ -174,7 +183,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
     assert.equal(partial.headers['x-private-hop'], undefined)
     const unchanged = await request(tenants[1], '/api/v1/unchanged', { 'if-none-match': '"fixture"' })
     assert.equal(unchanged.status, 304); assert.equal(unchanged.text, ''); assert.equal(unchanged.headers.etag, '"fixture"')
-    console.log('SSR: 24 initial /account identity checks; 18 /search useApi+Vue Query markup/payload checks, then A entitlement revocation versus allowed B. Synthetic upstream; browser hydration above is intercepted and does not prove same-origin session switching or real Odoo.')
+    console.log('SSR: 24 initial /account identity checks; 18 project-record useApi+Vue Query payload checks, then A entitlement revocation versus allowed B. Synthetic upstream; browser hydration above is intercepted and does not prove same-origin session switching or real Odoo.')
   } finally {
     clearTimeout(timer)
     if (child && child.exitCode === null) child.kill('SIGTERM')

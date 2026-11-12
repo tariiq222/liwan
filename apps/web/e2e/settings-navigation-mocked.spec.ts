@@ -42,6 +42,7 @@ const BRANDING = { name: 'ليوان', logo_url: '/web/binary/company_logo?compa
 const PROJECT_SETTINGS = {
   project_creators: 'managers',
   planning_tool_policy: 'optional', governance_tool_policy: 'optional', finance_tool_policy: 'optional',
+  finance_readers: 'managers',
   default_stages: [{ name: 'جديد', fold: false }, { name: 'جارٍ', fold: false }],
   require_manager_on_create: false,
   require_end_date_on_create: false,

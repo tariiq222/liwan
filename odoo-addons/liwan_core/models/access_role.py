@@ -155,7 +155,13 @@ class LiwanAccessRole(models.Model):
         return self._liwan_do_write(vals)
 
     def _liwan_do_write(self, vals):
+        held = self._liwan_self_held_keys() if 'permission_ids' in vals and not self.env.is_superuser() else {}
         result = super().write(vals)
+        service = self.env['liwan.access.service']
+        for company, before in held.items():
+            service._liwan_assert_self_grant(
+                self.env.user, company, before, before | set(self.permission_ids.mapped('key')), self.mapped('key'),
+            )
         self.env['liwan.access.service']._liwan_clear_branch_cache()
         self.env.cr.execute(
             'UPDATE liwan_access_role SET version = COALESCE(version, 0) + 1 WHERE id = ANY(%s)',
@@ -171,6 +177,12 @@ class LiwanAccessRole(models.Model):
             self.assignment_ids.mapped('company_id') | self.mapped('company_id'),
         )
         return result
+
+    def _liwan_self_held_keys(self):
+        """``{company: keys}`` the caller holds today in each company where they hold one of these roles."""
+        service = self.env['liwan.access.service']
+        companies = self.assignment_ids.filtered(lambda assignment: assignment.user_id == self.env.user).company_id
+        return {company: service._liwan_capability_keys(self.env.user, company=company) for company in companies}
 
     def unlink(self):
         if self.env.user._liwan_is_customer_actor():

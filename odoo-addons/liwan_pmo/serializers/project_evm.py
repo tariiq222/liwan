@@ -29,6 +29,7 @@ def build_evm(project, baseline, today=None):
     """
     project._liwan_check_tool('planning')
     project._liwan_check_tool('finance')
+    project._liwan_check_finance_read()
     if not project.env['liwan.entitlement.service']._liwan_feature_read('pmo.evm'):
         raise AccessError(project.env._('Earned value is not available.'))
     method = project.env['liwan.pmo.settings'].evm_progress_method()

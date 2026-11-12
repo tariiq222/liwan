@@ -8,6 +8,7 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 
 PROJECT_READ = 'pmo.projects.read'
 PROJECT_MANAGE = 'pmo.projects.manage'
+PROJECT_FINANCE = 'pmo.finance.read'
 FINANCE_FEATURE = 'finance.enabled'
 
 
@@ -16,7 +17,7 @@ class PmoFinanceCase(AnalyticCase):
 
     ``project`` is linked to the cost center ``alpha`` (a custom plan) and carries every posted document of
     ``_post_documents``; ``other_project`` is linked to ``beta`` (the stock project plan); ``manual_project`` has
-    no cost center. Users: ``owner`` (project manager and cost center manager), ``reader`` (project reader
+    no cost center. Users: ``owner`` (project manager and cost center manager), ``reader`` (project and finance reader
     only), ``line_reader`` (project and cost center reader), ``finance_manager`` (cost center manager who does not manage the project), ``project_manager`` (project manager without
     any finance capability), ``pmo_manager`` (the PMO manager group, no finance capability), ``settings_admin`` and ``employee`` (an ordinary employee of the company).
     """
@@ -38,12 +39,12 @@ class PmoFinanceCase(AnalyticCase):
         cls.expense_account = cls.env['account.account'].search([
             ('company_ids', 'in', cls.company.id), ('account_type', '=', 'expense'),
         ], limit=1)
-        cls.owner = cls.user_with('pf_owner', [PROJECT_READ, PROJECT_MANAGE, 'finance.analytic.read', 'finance.analytic.manage'])
-        cls.finance_manager = cls.user_with('pf_finance_manager', [PROJECT_READ, 'finance.analytic.read', 'finance.analytic.manage'])
-        cls.reader = cls.user_with('pf_reader', [PROJECT_READ])
-        cls.line_reader = cls.user_with('pf_line_reader', [PROJECT_READ, 'finance.analytic.read'])
-        cls.project_manager = cls.user_with('pf_project_manager', [PROJECT_READ, PROJECT_MANAGE])
-        cls.settings_admin = cls.user_with('pf_settings_admin', [PROJECT_READ, 'pmo.settings.manage'])
+        cls.owner = cls.user_with('pf_owner', [PROJECT_READ, PROJECT_FINANCE, PROJECT_MANAGE, 'finance.analytic.read', 'finance.analytic.manage'])
+        cls.finance_manager = cls.user_with('pf_finance_manager', [PROJECT_READ, PROJECT_FINANCE, 'finance.analytic.read', 'finance.analytic.manage'])
+        cls.reader = cls.user_with('pf_reader', [PROJECT_READ, PROJECT_FINANCE])
+        cls.line_reader = cls.user_with('pf_line_reader', [PROJECT_READ, PROJECT_FINANCE, 'finance.analytic.read'])
+        cls.project_manager = cls.user_with('pf_project_manager', [PROJECT_READ, PROJECT_FINANCE, PROJECT_MANAGE])
+        cls.settings_admin = cls.user_with('pf_settings_admin', [PROJECT_READ, PROJECT_FINANCE, 'pmo.settings.manage'])
         cls.employee = cls._company_employee('pf_employee')
         cls.pmo_manager = new_test_user(
             cls.env, login='pf_pmo_manager', password=PASSWORD, name='pf_pmo_manager',

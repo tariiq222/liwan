@@ -9,6 +9,7 @@ const messages: Record<string, string> = {
   'access.errors.last_access_admin': 'last admin',
   'access.errors.self_access_change': 'self change text',
   'access.errors.role_disabled': 'role disabled text',
+  'access.errors.self_grant_restricted': 'self grant text',
 }
 const t = (key: string) => messages[key] ?? key
 
@@ -19,6 +20,11 @@ describe('access error messages', () => {
   it('translates self_access_change and role_disabled, not the raw code', () => {
     expect(accessErrorMessage(new ApiError(422, 'self_access_change', 'self_access_change'), t)).toBe('self change text')
     expect(accessErrorMessage(new ApiError(422, 'role_disabled', 'role_disabled'), t)).toBe('role disabled text')
+  })
+  it('translates a refused self-grant, which the server answers with 403', () => {
+    const error = new ApiError(403, 'self_grant_restricted', 'raw', 'assignments', { roles: ['hr_manager'], permissions: ['hr.employees.read'] })
+    expect(accessErrorMessage(error, t)).toBe('self grant text')
+    expect(accessSaveError(error, t)).toMatchObject({ status: 403, code: 'self_grant_restricted', field: 'assignments', message: 'self grant text' })
   })
   it('builds the missing-dependency text from the named permissions in details', () => {
     const named = (key: string, params?: Record<string, unknown>) => key === 'access.errors.missingDependencyNamed' ? `${params?.permission} needs ${params?.missing}` : key

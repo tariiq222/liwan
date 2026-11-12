@@ -16,6 +16,7 @@ export const AUDIT_ACTION_LABELS: Record<AccessAuditSummary['action'], string> =
   'user.employee_unlinked': 'access.audit.actions.userEmployeeUnlinked',
   'user.branch_roles_changed': 'access.audit.actions.userBranchRolesChanged',
   'branch.policy_changed': 'access.audit.actions.branchPolicyChanged',
+  'access.policy_changed': 'access.audit.actions.accessPolicyChanged',
   'user.roles_changed': 'access.audit.actions.userRolesChanged',
   'user.disabled': 'access.audit.actions.userDisabled',
   'user.reactivated': 'access.audit.actions.userReactivated',

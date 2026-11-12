@@ -21,6 +21,12 @@ MIN_PASSWORD_LENGTH = 12
 MOBILE_SEPARATORS = str.maketrans('', '', ' -()')
 MOBILE_INDEX = 'res_users_liwan_mobile_unique'
 
+# Marks the one operation allowed to write res.company.liwan_self_grant_policy.
+SELF_GRANT_POLICY_MARKER = 'liwan_core.self_grant_policy'
+# Users whose whole proposed access one operation has already compared with the access they held before it.
+SELF_GRANT_CHECKED_MARKER = 'liwan_core.self_grant_checked'
+SELF_GRANT_POLICIES = ('restricted', 'allowed')
+
 # Registering the company for VAT decides whether tax shows anywhere: the system administrator role only,
 # never a custom role and never the vendor support role.
 VAT_PERMISSION = 'settings.company.vat.manage'
@@ -71,6 +77,7 @@ ARABIC_MESSAGES = {
     'branch_read_only': 'هذا الفرع للقراءة فقط ولا يقبل التعديل حتى يُفعَّل مقعد الفرع.',
     'already_member': 'هذا الحساب عضو في المؤسسة مسبقًا.',
     'home_company': 'هذه هي المؤسسة الأصلية للحساب. لا تُزال منه عضوية المؤسسة الأصلية.',
+    'self_grant_restricted': 'سياسة الشركة تمنعك من منح نفسك صلاحيات تتجاوز مسؤول النظام. اطلب من مسؤول آخر منحك إياها.',
     'storage_excess_blocked': 'هذا الملف يتجاوز سعة التخزين المتاحة. حرّر مساحة أو زد السعة لفتحه.',
 }
 
@@ -401,6 +408,71 @@ class LiwanAccessService(models.AbstractModel):
         companies.modified(['liwan_access_policy_version'])
 
     @api.model
+    def _liwan_policy_company(self, company=None):
+        """The company whose access policy applies to COMPANY (default: the current one): a branch follows its root."""
+        company = company or self.env.company
+        return company.browse(int(company.parent_path.split('/')[0]))
+
+    @api.model
+    def _liwan_access_policy_version(self):
+        company = self._liwan_policy_company()
+        return f'p{company.id}-v{company.liwan_access_policy_version}'
+
+    @api.model
+    def _liwan_access_policy(self):
+        self._liwan_require_capability('access.roles.read')
+        return {
+            'self_grant': self._liwan_policy_company().liwan_self_grant_policy,
+            'version': self._liwan_access_policy_version(),
+        }
+
+    @api.model
+    def _liwan_set_self_grant_policy(self, expected_version, value):
+        # The policy lives on the root company, so the caller needs both capabilities there, not only in a branch.
+        company = self._liwan_policy_company()
+        for key in ('access.users.assign_roles', 'settings.company.manage'):
+            if not self._liwan_has_capability(self.env.user, key, company=company):
+                msg = 'forbidden'
+                raise AccessError(msg)
+        if value not in SELF_GRANT_POLICIES:
+            msg = 'invalid'
+            raise LiwanAccessRule(msg, field='self_grant')
+        self._liwan_lock_company(company)
+        self.env.invalidate_all()
+        current = self._liwan_access_policy_version()
+        if not isinstance(expected_version, str) or expected_version != current:
+            msg = 'conflict'
+            raise LiwanAccessRule(msg, 'access policy was changed', status=409, details={'current_version': current})
+        before = {'self_grant': company.liwan_self_grant_policy}
+        if before['self_grant'] != value:
+            with marked(self.env, {SELF_GRANT_POLICY_MARKER: {company.id}}):
+                company.write({'liwan_self_grant_policy': value})
+            self._liwan_bump_policy(company)
+            self.env['liwan.access.audit']._liwan_log(
+                'access.policy_changed', company, before=before, after={'self_grant': value},
+            )
+        return self._liwan_access_policy()
+
+    @api.model
+    def _liwan_assert_self_grant(self, user, company, keys_before, keys_after, roles=()):
+        """Refuse USER, when they are the caller, a grant beyond the system administrator set under a restricted company.
+
+        KEYS_BEFORE / KEYS_AFTER are the permission keys USER holds in COMPANY before and after the change.
+        Keys already held, the system administrator grants and the Employee role (self-service) never count.
+        """
+        if self.env.is_superuser() or user != self.env.user or self._liwan_policy_company(company).liwan_self_grant_policy == 'allowed':
+            return
+        grants = self._liwan_builtin_role_grants()
+        elevated = set(keys_after) - set(keys_before) - grants['liwan_core.role_system_admin'] \
+            - grants['liwan_core.role_employee']
+        if elevated:
+            msg = 'self_grant_restricted'
+            raise LiwanAccessRule(
+                msg, status=403, field='assignments',
+                details={'roles': sorted(set(roles)), 'permissions': sorted(elevated)},
+            )
+
+    @api.model
     def _liwan_user_version(self, user):
         return 'u%s-r%s' % (user.id, user.liwan_access_version)
 
@@ -532,13 +604,23 @@ class LiwanAccessService(models.AbstractModel):
         ) and not future_admin:
             self._liwan_assert_admin_survives(company, excluding_user=user)
         user._liwan_mark_access_managed()
+        added = self.env['liwan.access.role'].browse(set(role_ids) - existing_role_ids)
+        if user == self.env.user:
+            # One comparison of the final access with the access held now: the steps below pass through states
+            # (a role removed, its replacement not yet created) that must not count as the held access.
+            self._liwan_assert_self_grant(
+                user, company, self._liwan_capability_keys(user, company=company),
+                set(self.env['liwan.access.role'].browse(role_ids).permission_ids.mapped('key')),
+                added.mapped('key'),
+            )
         before = [{'role_id': a.role_id.id, 'role_key': a.role_id.key,
                    'scope': {'kind': 'company', 'id': company.id}} for a in existing]
         existing.filtered(lambda assignment: assignment.role_id.id not in role_ids)._liwan_access_unlink()
-        for role_id in set(role_ids) - existing_role_ids:
-            self.env['liwan.access.assignment']._liwan_access_create({
-                'user_id': user.id, 'role_id': role_id, 'company_id': company.id,
-            })
+        with marked(self.env, {SELF_GRANT_CHECKED_MARKER: {user.id}}):
+            for role in added:
+                self.env['liwan.access.assignment']._liwan_access_create({
+                    'user_id': user.id, 'role_id': role.id, 'company_id': company.id,
+                })
         after = [{'role_id': a.role_id.id, 'role_key': a.role_id.key,
                   'scope': {'kind': 'company', 'id': company.id}}
                  for a in self.env['liwan.access.assignment'].search([

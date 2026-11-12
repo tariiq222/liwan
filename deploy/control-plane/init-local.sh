@@ -9,7 +9,8 @@ export LIWAN_CONTROL_HOME="$HOME_DIR"
 NODE_BIN="${LIWAN_NODE_BIN:-$(dirname "$(command -v node)")}"
 NODE="$NODE_BIN/node"
 COMPOSE=(docker compose -p liwan-saas-control-local -f "$DEPLOY/compose.yml")
-if [[ ! -x "$NODE" ]] || [[ "$($NODE --version)" != v22.* ]]; then printf 'Node 22 is required; set LIWAN_NODE_BIN to its bin directory.\n' >&2; exit 2; fi
+NODE_VERSION="$("$NODE" --version 2>/dev/null || true)"; NODE_VERSION="${NODE_VERSION#v}"
+if [[ ! -x "$NODE" ]] || [[ ! "${NODE_VERSION%%.*}" =~ ^[0-9]+$ ]] || (( ${NODE_VERSION%%.*} < 22 )); then printf 'Node 22 or newer is required; set LIWAN_NODE_BIN to its bin directory.\n' >&2; exit 2; fi
 for port in 55432 14179; do if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then printf 'Required loopback port %s is occupied.\n' "$port" >&2; exit 3; fi; done
 mkdir -p "$HOME_DIR"; chmod 700 "$HOME_DIR"
 for path in "$HOME_DIR/logs" "$HOME_DIR/operator-state" "$HOME_DIR/processes"; do mkdir -p "$path"; chmod 700 "$path"; done
@@ -30,7 +31,7 @@ export CONTROL_SERVICE_KEY='$(<"$HOME_DIR/control-service-key")'
 export LIWAN_CLI_INVENTORY='$HOME_DIR/inventory-v2.json'
 export LIWAN_CLI_STATE_DIR='$HOME_DIR/operator-state'
 export LIWAN_REPOSITORY_ROOT='$ROOT'
-export LIWAN_CLI_PYTHON='/Users/tariq/code/odoo/.venv/bin/python'
+export LIWAN_CLI_PYTHON='${LIWAN_CLI_PYTHON:-$(command -v python3)}'
 EOF
 chmod 600 "$HOME_DIR"/{control-db-password,control-service-key,control-database-url,runtime.env,inventory-v2.json}
 unset DB_PASSWORD
