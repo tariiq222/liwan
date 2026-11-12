@@ -444,6 +444,21 @@ class TestCrmImport(LiwanCrmCase):
         self.assertEqual(lead.liwan_import_batch_id.id, response.json()['id'])
         self.assertFalse(lead.user_id)
 
+    def test_an_imported_note_reaches_the_opportunity_detail(self):
+        response = self.commit(
+            b'Name,Phone,Notes\nSara,0501234567,"Call after noon\nAsk about delivery"\n',
+            mapping={'name': 'Name', 'phone': 'Phone', 'notes': 'Notes'},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        lead = self.lead_of('+966501234567')
+        detail = self.as_manager().api('GET', f'/api/v1/crm/opportunities/{lead.id}')
+        self.assertEqual(detail.status_code, 200, detail.text)
+        notes = detail.json()['notes']
+        self.assertIn('Call after noon', notes)
+        self.assertIn('Ask about delivery', notes)
+        self.assertNotIn('<', notes)
+        self.assertEqual(notes, html2plaintext(lead.description).strip())
+
     def test_commit_revalidates_instead_of_trusting_a_preview(self):
         content = csv_bytes('Sara,0501234567')
         self.assertEqual(self.preview(content).json()['new'], 1)

@@ -32,6 +32,21 @@ retries (four days) and is shown as needing attention after an hour; after that 
 released and the money is due back. No pay link is offered for an order that could not be invoiced
 once paid (invoice when paid on, and no sales journal in the company).
 
+## Gateway keys
+
+The Paymob secret, HMAC and API keys are stored encrypted (`liwan_core.models.secret_box`, purpose
+`liwan_payments`, the platform master key `LIWAN_INBOX_SECRET_KEY`); stock's own fields are computed
+views over the ciphertext columns, so stock code reads plaintext and a database dump holds none.
+`data/neutralize.sql` empties the ciphertext columns of a neutralized copy.
+
+## Reconciliation
+
+A cron every 15 minutes (`_liwan_cron_reconcile_paymob`) asks Paymob about each checkout left draft or
+pending for more than 30 minutes and less than a day, at most 50 per run, the ones asked longest ago first.
+An answer that says the payment succeeded or is pending goes through the same path as the webhook, so a lost
+notification does not strand a payment; a decline, a missing answer or a failed query changes nothing. An
+unanswered gateway checkout also holds its order from expiring for two hours.
+
 ## Refunds
 
 What a cancelled order gives back follows the refund rules of its products (a company default, which a

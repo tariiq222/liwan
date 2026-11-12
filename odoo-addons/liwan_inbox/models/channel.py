@@ -5,8 +5,8 @@ import secrets
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from . import secret_box
-from .constants import CHANNEL_FEATURES
+from .constants import CHANNEL_FEATURES, SECRET_PURPOSE
+from odoo.addons.liwan_core.models import secret_box
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters.whatsapp import Credentials
 
@@ -129,9 +129,9 @@ class LiwanInboxChannel(models.Model):
         """The ciphertext column values for the given plain secrets (only those given)."""
         values = {}
         if access_token is not None:
-            values['access_token_enc'] = secret_box.encrypt(self.env, access_token)
+            values['access_token_enc'] = secret_box.encrypt(self.env, SECRET_PURPOSE, access_token)
         if app_secret is not None:
-            values['app_secret_enc'] = secret_box.encrypt(self.env, app_secret)
+            values['app_secret_enc'] = secret_box.encrypt(self.env, SECRET_PURPOSE, app_secret)
         return values
 
     def _liwan_credentials(self):
@@ -144,7 +144,7 @@ class LiwanInboxChannel(models.Model):
         return Credentials(
             phone_number_id=self.phone_number_id,
             business_account_id=self.business_account_id,
-            access_token=secret_box.decrypt(self.env, self.access_token_enc),
+            access_token=secret_box.decrypt(self.env, SECRET_PURPOSE, self.access_token_enc),
         )
 
     def _liwan_test_connection(self):
@@ -157,18 +157,18 @@ class LiwanInboxChannel(models.Model):
 
     def _liwan_app_secret(self):
         self.ensure_one()
-        return secret_box.decrypt(self.env, self.app_secret_enc) if self.app_secret_enc else None
+        return secret_box.decrypt(self.env, SECRET_PURPOSE, self.app_secret_enc) if self.app_secret_enc else None
 
     def _liwan_verify_token(self):
         """The plain webhook handshake token of the channel (compared in constant time by the hook)."""
         self.ensure_one()
-        return secret_box.decrypt(self.env, self.verify_token_enc) if self.verify_token_enc else ''
+        return secret_box.decrypt(self.env, SECRET_PURPOSE, self.verify_token_enc) if self.verify_token_enc else ''
 
     def _liwan_rotate_verify_token(self):
         """Replace the handshake token and return the new one once, for the administrator to paste into Meta."""
         self.ensure_one()
         token = _new_verify_token()
-        self.write({'verify_token_enc': secret_box.encrypt(self.env, token)})
+        self.write({'verify_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, token)})
         return token
 
     def _liwan_auto_message(self, purpose):

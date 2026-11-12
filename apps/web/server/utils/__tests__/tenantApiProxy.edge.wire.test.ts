@@ -91,7 +91,7 @@ async function fixture(mode: 'shared' | 'dedicated') {
   }
   function call(path: string, sid?: string, body?: Buffer, extra: Record<string, string> = {}) {
     return new Promise<{ status: number; headers: http.IncomingHttpHeaders; body: Buffer }>((resolve, reject) => {
-      const request = http.request(new URL(path, guardUrl), { method: body ? 'POST' : 'GET', headers: { host: tenant.host, ...(sid ? { cookie: cookie(sid) } : {}), ...extra } }, response => {
+      const request = http.request(new URL(path, guardUrl), { method: body ? 'POST' : 'GET', headers: { host: tenant.host, 'sec-fetch-site': 'same-origin', ...(sid ? { cookie: cookie(sid) } : {}), ...extra } }, response => {
         const chunks: Buffer[] = []
         response.on('data', chunk => chunks.push(Buffer.from(chunk)))
         response.on('end', () => resolve({ status: response.statusCode!, headers: response.headers, body: Buffer.concat(chunks) }))
@@ -172,7 +172,7 @@ it.each(['shared', 'dedicated'] as const)('%s rejects a forged slow API upload b
   let upload: http.ClientRequest | undefined
   try {
     const response = await new Promise<{ status: number; body: string }>((resolve, reject) => {
-      upload = http.request(new URL('/api/v1/tasks', wire.guardUrl), { method: 'POST', headers: { host: tenant.host, cookie: wire.cookie('forged'), 'content-type': 'application/json', 'content-length': '100000' } }, reply => {
+      upload = http.request(new URL('/api/v1/tasks', wire.guardUrl), { method: 'POST', headers: { host: tenant.host, 'sec-fetch-site': 'same-origin', cookie: wire.cookie('forged'), 'content-type': 'application/json', 'content-length': '100000' } }, reply => {
         let body = ''; reply.on('data', chunk => { body += chunk }); reply.on('end', () => resolve({ status: reply.statusCode!, body }))
       })
       upload.on('error', reject)
@@ -231,6 +231,8 @@ it('the actual direct Caddy routing sends API to web and preserves legacy Odoo/W
     return patterns!.some(pattern => pattern.endsWith('*') ? path.startsWith(pattern.slice(0, -1)) : path === pattern)
   })?.target
   for (const path of ['/api/v1/tasks', '/api/v1/branding', '/api/v1/auth/totp', '/api/auth/login', '/login']) expect(destination(path)).toBe('web:3000')
-  for (const path of ['/web/health', '/report/barcode']) expect(destination(path)).toBe('odoo:8069')
+  expect(destination('/web/health')).toBe('odoo:8069')
+  // Reports embed their QR inline, so the stock barcode route is not forwarded to Odoo (AUDIT-098).
+  for (const path of ['/report/barcode', '/report/barcode/']) expect(destination(path)).toBe('web:3000')
   expect(destination('/websocket')).toBe('odoo:8072')
 })

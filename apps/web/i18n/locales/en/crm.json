@@ -178,7 +178,11 @@
         "viewList": "List",
         "viewBoard": "Stage board",
         "empty": "Nothing here yet. Add the first record.",
-        "results": "{shown} of {total}"
+        "results": "{shown} of {total}",
+        "export": "Export CSV",
+        "exporting": "Exporting…",
+        "exportFailed": "Could not export the opportunities. Try again.",
+        "auditLink": "View log"
       },
       "cols": {
         "phone": "Phone",
@@ -235,7 +239,8 @@
         "closedWon": "Closed as sold.",
         "closedLost": "Closed as lost.",
         "probabilitySaved": "Probability saved",
-        "customFieldsSaved": "Fields saved"
+        "customFieldsSaved": "Fields saved",
+        "notes": "Imported notes"
       },
       "call": {
         "title": "Record a call",
@@ -279,6 +284,13 @@
         "confirmBody": "It leaves the follow-up. Someone with the assign capability can reopen it.",
         "confirm": "Close as lost",
         "done": "Closed as lost"
+      },
+      "contact": {
+        "title": "Correct contact data",
+        "edit": "Edit contact data",
+        "submit": "Save contact data",
+        "saved": "Contact data saved",
+        "invalidEmail": "Enter a valid email address."
       },
       "form": {
         "contact": "Name",
@@ -443,6 +455,15 @@
         "agentsEmpty": "No agent has records.",
         "conversionHint": "Records created this month and how many of them were won."
       }
+    },
+    "audit": {
+      "title": "View log",
+      "cols": {
+        "user": "User",
+        "viewedAt": "Viewed at"
+      },
+      "empty": "No views have been recorded yet",
+      "footer": "Showing {shown} of {total}"
     }
   },
   "errors": {

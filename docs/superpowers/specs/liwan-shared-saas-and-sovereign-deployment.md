@@ -50,11 +50,10 @@
 - `/api/v1/*` عبر القناة الداخلية الموثوقة، ومنها تنزيل المرفقات.
 - `/web/image/res.company/<id>/logo/32x32` و`/web/image/hr.employee/<id>/avatar_128` بشروط استعلام محددة.
 - `/web/binary/company_logo` بمعاملين اثنين فقط.
-- `/report/barcode` للصورة الثابتة.
 - `/websocket`.
 - `/web/session/authenticate` و`/web/session/destroy` عبر القناة الداخلية.
 
-لا يُقدَّم أي مسار محتوى ثنائي عام من Odoo، ولا أي مسار RPC عام، ولا مدير قواعد البيانات. تُنزَّل المرفقات عبر `/api/v1/.../attachments/<id>/download` فقط.
+لا يُقدَّم `/report/barcode`: رمز QR فاتورة ZATCA يُضمَّن داخل ملف PDF نفسه. لا يُقدَّم أي مسار محتوى ثنائي عام من Odoo، ولا أي مسار RPC عام، ولا مدير قواعد البيانات. تُنزَّل المرفقات عبر `/api/v1/.../attachments/<id>/download` فقط.
 
 ## 4. هوية الاتصال وقاعدة البيانات
 
@@ -173,7 +172,6 @@
 | شعار الشركة المصغّر | `/web/image/res.company/<id>/logo/32x32` | 90 |
 | شعار الشركة | `/web/binary/company_logo` | 90 |
 | صورة الموظف | `/web/image/hr.employee/<id>/avatar_128` | 90 |
-| باركود التقرير | `/report/barcode` | 90 |
 | تنزيل مرفق | `/api/v1/.../attachments/<id>/download` | 90 |
 | تصدير الشركة | لم يُبنَ بعد | 90 عند بنائه |
 

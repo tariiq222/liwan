@@ -347,7 +347,7 @@ it('legacy preserves JSON bytes, cookies, status and metadata while removing aut
   const wire = await fixture('legacy')
   try {
     const payload = Buffer.from('{"text":"Arabic العربية"}')
-    const request = wire.begin('/api/v1/echo', false, { method: 'POST', body: payload, headers: { 'content-type': 'application/json', host: 'forged.invalid', connection: 'x-request-hop', 'x-request-hop': 'private', 'proxy-authorization': 'private-proxy-credential' } })
+    const request = wire.begin('/api/v1/echo', false, { method: 'POST', body: payload, headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', host: 'forged.invalid', connection: 'x-request-hop', 'x-request-hop': 'private', 'proxy-authorization': 'private-proxy-credential' } })
     const response = await request.result
     const incoming = await request.headers
     expect(response.status).toBe(201)

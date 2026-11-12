@@ -11,9 +11,9 @@ from odoo.tests import tagged
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_core.models import secret_box
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
-from odoo.addons.liwan_inbox.models import secret_box
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import SECRET_PURPOSE, TIKTOK_FEATURE
 
 BUSINESS_ID = 'business-open-id-tokens'
 REDIRECT_URI = 'https://liwan.test/api/v1/inbox/tiktok/callback'
@@ -45,8 +45,8 @@ class TestTikTokTokens(LiwanInboxCase):
         now = fields.Datetime.now()
         return self.env['liwan.inbox.channel'].create({
             'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': BUSINESS_ID, 'state': 'connected',
-            'access_token_enc': secret_box.encrypt(self.env, OLD_ACCESS),
-            'refresh_token_enc': secret_box.encrypt(self.env, OLD_REFRESH),
+            'access_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, OLD_ACCESS),
+            'refresh_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, OLD_REFRESH),
             'token_expires_at': now + access_expires_in,
             'refresh_expires_at': now + refresh_expires_in,
         })
@@ -75,8 +75,8 @@ class TestTikTokTokens(LiwanInboxCase):
         config, refresh_token = refresh.call_args.args
         self.assertEqual((config.client_key, refresh_token), (tt.CLIENT_KEY, OLD_REFRESH))
         self.assertEqual(credentials.access_token, NEW_ACCESS)
-        self.assertEqual(secret_box.decrypt(self.env, channel.access_token_enc), NEW_ACCESS)
-        self.assertEqual(secret_box.decrypt(self.env, channel.refresh_token_enc), NEW_REFRESH)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.access_token_enc), NEW_ACCESS)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.refresh_token_enc), NEW_REFRESH)
         self.assertEqual(channel.token_expires_at, grant.expires_at)
         self.assertEqual(channel.refresh_expires_at, grant.refresh_expires_at)
         self.assertEqual((channel.state, channel.last_error), ('connected', False))
@@ -90,7 +90,7 @@ class TestTikTokTokens(LiwanInboxCase):
         with patch.object(tiktok, 'refresh_tokens', return_value=grant):
             credentials = channel._liwan_credentials()
         self.assertEqual(credentials.access_token, NEW_ACCESS)
-        self.assertEqual(secret_box.decrypt(self.env, channel.access_token_enc), NEW_ACCESS)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.access_token_enc), NEW_ACCESS)
         channel.invalidate_recordset(['state'])
         self.assertEqual(channel.state, 'disabled')
 
@@ -134,7 +134,7 @@ class TestTikTokTokens(LiwanInboxCase):
         self.assertEqual(refresh.call_count, 1)
         self.assertEqual(channel.state, 'error')
         self.assertIn('reconnect', channel.last_error.lower())
-        self.assertEqual(secret_box.decrypt(self.env, channel.refresh_token_enc), OLD_REFRESH)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.refresh_token_enc), OLD_REFRESH)
 
     def test_a_transient_refresh_failure_keeps_the_channel_connected(self):
         channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
@@ -145,8 +145,8 @@ class TestTikTokTokens(LiwanInboxCase):
         self.assertIs(raised, transient)
         self.assertEqual(channel.state, 'connected')
         self.assertFalse(channel.last_error)
-        self.assertEqual(secret_box.decrypt(self.env, channel.refresh_token_enc), OLD_REFRESH)
-        self.assertEqual(secret_box.decrypt(self.env, channel.access_token_enc), OLD_ACCESS)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.refresh_token_enc), OLD_REFRESH)
+        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.access_token_enc), OLD_ACCESS)
 
     def test_a_channel_without_tokens_asks_for_a_reconnect(self):
         channel = self.env['liwan.inbox.channel'].create({

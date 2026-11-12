@@ -7,7 +7,7 @@
  * pins this object's header names to the set the dedicated Caddyfile sets.
  *
  * Only documents from the Nuxt upstream carry them. Odoo answers JSON, PDF reports
- * and binary downloads, where a document CSP breaks report and barcode rendering,
+ * and binary downloads, where a document CSP breaks report rendering,
  * exactly as the dedicated edge explains above its own `header` block.
  */
 export const DOCUMENT_SECURITY_HEADERS = Object.freeze({

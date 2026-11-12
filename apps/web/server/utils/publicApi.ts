@@ -22,22 +22,26 @@ export const MAX_PUBLIC_API_BODY = 16 * 1024
 // sign-in (which needs the pre-login session cookie) and the inbox provider webhooks (WhatsApp and TikTok sign
 // every POST with HMAC; Odoo verifies it). Everything under the public namespace is public too, without cookies;
 // everything else requires a session cookie.
+// The inbox provider webhooks: WhatsApp and TikTok call them from their own servers and sign every POST.
+export const WHATSAPP_HOOK_PATH = '/api/v1/inbox/hooks/whatsapp'
+export const TIKTOK_HOOK_PATH = '/api/v1/inbox/hooks/tiktok'
+export const PROVIDER_HOOK_PATHS: ReadonlySet<string> = new Set([WHATSAPP_HOOK_PATH, TIKTOK_HOOK_PATH])
 export const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
   ['/api/v1/branding', ['GET', 'HEAD']],
   ['/api/v1/auth/channels', ['GET']],
   ['/api/v1/auth/code', ['POST']],
   ['/api/v1/auth/verify', ['POST']],
   ['/api/v1/auth/device', ['POST']],
-  ['/api/v1/inbox/hooks/whatsapp', ['GET', 'POST']],
-  ['/api/v1/inbox/hooks/tiktok', ['POST']],
+  [WHATSAPP_HOOK_PATH, ['GET', 'POST']],
+  [TIKTOK_HOOK_PATH, ['POST']],
 ])
 export const PUBLIC_BODY_LIMITS = new Map<string, number>([
   ['/api/v1/auth/channels', MAX_PUBLIC_MFA_BODY],
   ['/api/v1/auth/code', MAX_PUBLIC_MFA_BODY],
   ['/api/v1/auth/verify', MAX_PUBLIC_MFA_BODY],
   ['/api/v1/auth/device', MAX_PUBLIC_MFA_BODY],
-  ['/api/v1/inbox/hooks/whatsapp', MAX_PUBLIC_HOOK_BODY],
-  ['/api/v1/inbox/hooks/tiktok', MAX_PUBLIC_HOOK_BODY],
+  [WHATSAPP_HOOK_PATH, MAX_PUBLIC_HOOK_BODY],
+  [TIKTOK_HOOK_PATH, MAX_PUBLIC_HOOK_BODY],
 ])
 
 export function isPublicApiPath(apiPath: string): boolean {

@@ -15,11 +15,11 @@ import requests
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from . import secret_box
 from .channel import INVALID, SECRET_GROUPS
-from .constants import TIKTOK_TOKEN_MARGIN
+from .constants import SECRET_PURPOSE, TIKTOK_TOKEN_MARGIN
 from .tiktok_shortcut import AUDIT_STATUSES, AUTO_TYPES, ENABLED_FIELDS
 from .tiktok_sync import ACTIVE_STATES
+from odoo.addons.liwan_core.models import secret_box
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 
@@ -138,8 +138,8 @@ class LiwanInboxChannel(models.Model):
     def _liwan_tiktok_token_values(self, grant):
         """The encrypted fields of one grant, without the account identity or the channel state."""
         return {
-            'access_token_enc': secret_box.encrypt(self.env, grant.access_token),
-            'refresh_token_enc': secret_box.encrypt(self.env, grant.refresh_token),
+            'access_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, grant.access_token),
+            'refresh_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, grant.refresh_token),
             'token_expires_at': grant.expires_at,
             'refresh_expires_at': grant.refresh_expires_at,
         }
@@ -163,7 +163,7 @@ class LiwanInboxChannel(models.Model):
         if not (self.access_token_enc and self.refresh_token_enc):
             self._liwan_tiktok_reconnect_required()
         if self.token_expires_at and self.token_expires_at - TIKTOK_TOKEN_MARGIN > fields.Datetime.now():
-            return tiktok.Credentials(self.tiktok_business_id, secret_box.decrypt(self.env, self.access_token_enc))
+            return tiktok.Credentials(self.tiktok_business_id, secret_box.decrypt(self.env, SECRET_PURPOSE, self.access_token_enc))
         return self._liwan_tiktok_refresh()
 
     def _liwan_tiktok_lock(self):
@@ -176,7 +176,7 @@ class LiwanInboxChannel(models.Model):
             self._liwan_tiktok_reconnect_required()
         config = self._liwan_tiktok_config()
         try:
-            grant = tiktok.refresh_tokens(config, secret_box.decrypt(self.env, self.refresh_token_enc))
+            grant = tiktok.refresh_tokens(config, secret_box.decrypt(self.env, SECRET_PURPOSE, self.refresh_token_enc))
         except errors.ProviderError as error:
             # A transient failure (rate limit, 5xx, network) is retried by the caller: only a refused
             # authorization means the customer has to reconnect the account.

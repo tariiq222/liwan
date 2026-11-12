@@ -152,7 +152,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
     finally { clearTimeout(abortTimer) }
     verify(await request(tenants[1]), tenants[1])
     const oversized = await new Promise((resolveUpload, reject) => {
-      const req = http.request({ host: '127.0.0.1', port: address.port, method: 'POST', path: '/api/v1/upload-probe', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', 'content-type': 'application/json' }, timeout: 10000 }, res => { res.resume(); res.on('end', () => resolveUpload(res.statusCode)) })
+      const req = http.request({ host: '127.0.0.1', port: address.port, method: 'POST', path: '/api/v1/upload-probe', headers: { host: tenants[0].host, 'sec-fetch-site': 'same-origin', cookie: 'session_id=a', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', 'content-type': 'application/json' }, timeout: 10000 }, res => { res.resume(); res.on('end', () => resolveUpload(res.statusCode)) })
       req.on('error', reject); req.on('timeout', () => req.destroy(Error('upload_timeout')))
       req.end(Buffer.alloc(16 * 1024 * 1024 + 1, 65))
     })
@@ -164,7 +164,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
       let finished = false
       let drip, deadline
       const finish = value => { if (finished) return; finished = true; clearInterval(drip); clearTimeout(deadline); resolveSlow(value) }
-      const req = http.request({ host: '127.0.0.1', port: address.port, method: 'POST', path: '/api/v1/slow-upload', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', 'content-type': 'application/json' } }, res => { res.resume(); res.on('end', () => finish(`status:${res.statusCode}`)) })
+      const req = http.request({ host: '127.0.0.1', port: address.port, method: 'POST', path: '/api/v1/slow-upload', headers: { host: tenants[0].host, 'sec-fetch-site': 'same-origin', cookie: 'session_id=a', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', 'content-type': 'application/json' } }, res => { res.resume(); res.on('end', () => finish(`status:${res.statusCode}`)) })
       req.on('error', error => finish(error.code ?? error.message))
       req.write('{')
       drip = setInterval(() => req.write(' '), 1000)

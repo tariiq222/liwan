@@ -3,8 +3,8 @@ import { appManifests, manifestForPath, withManifests } from '../manifests'
 import { canUse, featureForCapability, featureForPath, hasFeature, MODULE_FEATURES } from '../registry'
 import { canReach, canReachPath, firstAllowedPath, hasCapability, isNavPathActive, postLoginPath, requiredCapabilityForPath } from '../../utils/accessPolicy'
 import type { AppManifest } from '../types'
-import { allNavItems, contextLinksForModule } from '../../composables/nav/shellModules'
-import { goKeyProblems } from '../../composables/nav/paletteModel'
+import { allNavItems, contextLinksForModule, useNav } from '../../composables/nav/shellModules'
+import { goKeyProblems, visibleCommands } from '../../composables/nav/paletteModel'
 import { isContextLinkActive } from '../../composables/useShellNavigation'
 import { appCommands } from '../surfaces'
 import { SHELL_RESERVED_KEYS } from '@liwan/ui/app/composables/shortcuts/keymap'
@@ -120,6 +120,42 @@ describe('app manifests', () => {
     expect(hasCapability({ capabilities: ['meetings.read'] }, 'liwan.notifications')).toBe(true)
     const onlyHr = { capabilities: ['meetings.read'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
     expect(canReach(onlyHr, 'liwan.notifications')).toBe(false)
+  })
+
+  describe('the CRM import surface needs the package sub-feature as well as the capability', () => {
+    const capabilities = ['crm.leads.read', 'crm.leads.import']
+    const platform = (features: string[]) => ({ readable_features: features, writable_features: features })
+    const packaged = { capabilities, platform: platform(['crm.enabled', 'crm.import']) }
+    const withoutImport = { capabilities, platform: platform(['crm.enabled']) }
+    const withoutCapability = { capabilities: ['crm.leads.read'], platform: platform(['crm.enabled', 'crm.import']) }
+    const importPaths = ['/crm/imports', '/crm/imports/new', '/crm/imports/7']
+    const importNav = (identity: typeof packaged) => useNav(identity).filter(item => item.to === '/crm/imports').map(item => item.to)
+    const importLinks = (identity: typeof packaged) => contextLinksForModule('crm', identity, '/crm').filter(link => link.id === 'crm-imports').map(link => link.id)
+    const importCommands = (identity: typeof packaged) => visibleCommands(identity).filter(command => command.id === 'crm.import').map(command => command.id)
+
+    it('shows the nav entry, the context link, the create command and the direct routes with both', () => {
+      expect(importNav(packaged)).toEqual(['/crm/imports'])
+      expect(importLinks(packaged)).toEqual(['crm-imports'])
+      expect(importCommands(packaged)).toEqual(['crm.import'])
+      for (const path of importPaths) expect(canReachPath(packaged, path), path).toBe(true)
+    })
+    it('hides every import surface and refuses the direct routes once crm.import is not in the package', () => {
+      expect(importNav(withoutImport)).toEqual([])
+      expect(importLinks(withoutImport)).toEqual([])
+      expect(importCommands(withoutImport)).toEqual([])
+      for (const path of importPaths) expect(canReachPath(withoutImport, path), path).toBe(false)
+    })
+    it('refuses the import routes when only the sub-feature is writable, since the pages write', () => {
+      const readOnly = { capabilities, platform: { readable_features: ['crm.enabled', 'crm.import'], writable_features: ['crm.enabled'] } }
+      expect(canReachPath(readOnly, '/crm/imports/new')).toBe(false)
+    })
+    it('still hides them without the capability, and leaves the rest of CRM open without crm.import', () => {
+      expect(importNav(withoutCapability)).toEqual([])
+      expect(importCommands(withoutCapability)).toEqual([])
+      expect(canReachPath(withoutCapability, '/crm/imports')).toBe(false)
+      for (const path of ['/crm', '/crm/opportunities', '/crm/opportunities/9']) expect(canReachPath(withoutImport, path), path).toBe(true)
+      expect(useNav(withoutImport).filter(item => item.to.startsWith('/crm')).map(item => item.to)).toEqual(['/crm', '/crm/opportunities'])
+    })
   })
 
   describe('a manifest registered for a new application', () => {

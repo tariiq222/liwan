@@ -155,7 +155,7 @@ class TestWebSecurityHeaders(unittest.TestCase):
         for route in _proxy_routes(adapted, ODOO_DIALS):
             with self.subTest(handle=route['handle']):
                 self.assertEqual(_response_headers(route), {},
-                                 'the report/barcode/download answers must carry no document headers')
+                                 'the report and download answers must carry no document headers')
 
     def test_browser_receives_the_headers_and_keeps_a_stricter_referrer(self):
         """Behavioral: the real edge response, including the `?` default losing to the app."""

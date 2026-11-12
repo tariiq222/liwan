@@ -4,7 +4,12 @@ import logging
 from odoo import Command, api, fields, models
 from odoo.exceptions import LockError
 
-from .payer_service import OPEN_CHECKOUT, checkout_open, payment_on_its_way
+from .payer_service import (
+    OPEN_CHECKOUT,
+    awaiting_gateway,
+    checkout_open,
+    payment_on_its_way,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -169,9 +174,11 @@ class SaleOrder(models.Model):
     def _liwan_expire_if_unpaid(self):
         """Cancel this order through stock ``_action_cancel`` if it is still unpaid past its deadline.
 
-        An order with a payment on its way, or with a checkout opened less than ``OPEN_CHECKOUT`` ago,
-        is left to a later run, so a payer already on the gateway page is not cancelled under them; an
-        order whose checkout is being started right now (row locked) too.
+        An order with a payment on its way, with a checkout opened less than ``OPEN_CHECKOUT`` ago, or with a
+        gateway checkout still unanswered less than ``AWAIT_GATEWAY`` after it was created (the
+        reconciliation may yet learn a payment whose notification was lost), is left to a later run, so a
+        payer already on the gateway page is not cancelled under them; an order whose checkout is being
+        started right now (row locked) too.
         """
         self.ensure_one()
         try:
@@ -183,6 +190,7 @@ class SaleOrder(models.Model):
         if (
             self.state not in ('draft', 'sent') or not self._liwan_past_deadline()
             or payment_on_its_way(self.transaction_ids, now) or checkout_open(self.transaction_ids, now - OPEN_CHECKOUT)
+            or awaiting_gateway(self.transaction_ids, now)
         ):
             return
         self._action_cancel()
