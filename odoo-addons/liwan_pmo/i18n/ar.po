@@ -573,9 +573,9 @@ msgstr "لا يمكن تغيير حقول هوية القيد المالي."
 #. odoo-python
 #: code:addons/liwan_pmo/models/project_finance.py:0
 msgid ""
-"Finance entry requires pmo.projects.read and a readable active current-"
-"company project."
-msgstr "يتطلب القيد المالي صلاحية pmo.projects.read ومشروعًا نشطًا مقروءًا في الشركة الحالية."
+"Finance entry requires pmo.finance.read on a readable active current-company "
+"project."
+msgstr "يتطلب القيد المالي صلاحية pmo.finance.read على مشروع نشط مقروء في الشركة الحالية."
 
 #. module: liwan_pmo
 #: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_priority__high
@@ -1956,3 +1956,8 @@ msgstr "لا يمكن تغيير مشروع الهدف."
 #: code:addons/liwan_pmo/models/project_tools.py:0
 msgid "Project records require readable projects and tasks in the allowed companies."
 msgstr "تتطلب هذه السجلات صلاحية قراءة المشاريع والمهام المرتبطة بها."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "You are not allowed to read the finance of this project."
+msgstr "ليست لديك صلاحية قراءة مالية هذا المشروع."

@@ -34,17 +34,17 @@ class PmoAccessCompositionCase(TransactionCase):
 
 @tagged('liwan', 'liwan_access')
 class TestPmoAccessComposition(PmoAccessCompositionCase):
-    """PMO owns its eight capabilities and registers them without other applications."""
+    """PMO owns its nine capabilities and registers them without other applications."""
 
     def _keys(self, role_xmlid):
         return set(self.env.ref(role_xmlid).permission_ids.mapped('key'))
 
-    def test_pmo_owns_eight_capabilities_and_their_groups(self):
+    def test_pmo_owns_nine_capabilities_and_their_groups(self):
         catalog = self.service._liwan_capability_map()
-        self.assertEqual(len(PMO_PERMISSIONS), 8)
+        self.assertEqual(len(PMO_PERMISSIONS), 9)
         self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'liwan_pmo'}, set(PMO_PERMISSIONS))
         permissions = self.Permission.search([('key', 'in', sorted(PMO_PERMISSIONS))])
-        self.assertEqual(len(permissions), 8)
+        self.assertEqual(len(permissions), 9)
         xmlids = permissions.get_external_id()
         for permission in permissions:
             self.assertTrue(xmlids[permission.id].startswith('liwan_pmo.permission_'), permission.key)
@@ -72,7 +72,7 @@ class TestPmoAccessComposition(PmoAccessCompositionCase):
     def test_pmo_registers_the_project_scope_kind(self):
         kinds = self.service._liwan_scope_kind_map()
         self.assertEqual(kinds['project']['owner'], 'liwan_pmo')
-        self.assertEqual(set(kinds['project']['permissions']), {'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve'})
+        self.assertEqual(set(kinds['project']['permissions']), {'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve', 'pmo.finance.read'})
         self.assertEqual(set(kinds['project']['roles']), {'project_owner', 'project_creation_policy'})
         self.assertEqual(set(kinds['project']['roles']['project_owner']['grants']), set(PROJECT_CONTEXTUAL_PERMISSIONS))
         self.assertEqual(set(kinds['project']['roles']['project_creation_policy']['grants']), {'pmo.projects.create'})

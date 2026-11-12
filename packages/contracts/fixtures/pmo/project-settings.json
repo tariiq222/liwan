@@ -44,6 +44,7 @@
     }
   ],
   "finance_tool_policy": "optional",
+  "finance_readers": "managers",
   "governance_tool_policy": "optional",
   "overdue_digest_enabled": true,
   "planning_tool_policy": "optional",

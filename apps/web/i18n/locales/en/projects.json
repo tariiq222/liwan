@@ -730,7 +730,8 @@
         "negative": "The amount cannot be negative",
         "referencedBudget": "This budget row is used by expenses. Unlink or delete those expenses first."
       },
-      "actionsNamed": "Actions for {name}"
+      "actionsNamed": "Actions for {name}",
+      "forbidden": "You do not have access to this project's finance. Ask the project manager."
     },
     "reports": {
       "title": "Reports",

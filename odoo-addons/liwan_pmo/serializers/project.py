@@ -80,6 +80,7 @@ def dump_project_detail(project):
         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in project.tag_ids],
         'followers_count': len(project._liwan_followers()),
         'tools': project._liwan_tool_state(),
+        'can_read_finance': project._liwan_can_read_finance(),
         'objectives': [{'id': row.id, 'goal': row.goal, 'metric': row.metric or '', 'target': row.target or ''}
                        for row in project.liwan_objective_ids],
         'success_criteria': project.liwan_success or '',

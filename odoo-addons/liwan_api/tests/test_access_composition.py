@@ -33,7 +33,7 @@ PAYROLL = frozenset({
 PMO = frozenset({
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
     'pmo.settings.manage', 'pmo.tasks.read', 'pmo.tasks.create',
-    'pmo.tasks.write', 'pmo.tasks.approve',
+    'pmo.tasks.write', 'pmo.tasks.approve', 'pmo.finance.read',
 })
 MEETINGS = frozenset({'meetings.read', 'meetings.create', 'meetings.manage', 'meetings.settings.manage'})
 EMPLOYEE = frozenset({
@@ -85,7 +85,8 @@ DEPENDENCIES = {
     'hr.payroll.audit.read': {'hr.payroll.read'},
     'hr.payroll.finance.manage': {'hr.payroll.read'},
     'pmo.projects.create': {'pmo.projects.read'},
-    'pmo.projects.manage': {'pmo.projects.read'},
+    'pmo.projects.manage': {'pmo.projects.read', 'pmo.finance.read'},
+    'pmo.finance.read': {'pmo.projects.read'},
     'pmo.settings.manage': {'pmo.projects.read'},
     'pmo.tasks.create': {'pmo.tasks.read', 'pmo.projects.read'},
     'pmo.tasks.write': {'pmo.tasks.read'},
@@ -127,10 +128,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_has_the_approved_55_keys_each_owned_by_one_addon(self):
+    def test_catalog_has_the_approved_56_keys_each_owned_by_one_addon(self):
         catalog = self.service._liwan_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 55)
+        self.assertEqual(len(self._release(catalog)), 56)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))

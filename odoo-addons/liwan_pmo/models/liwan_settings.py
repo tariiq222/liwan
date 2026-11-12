@@ -18,12 +18,14 @@ PARAM_REGISTER_TRANSITIONS = 'liwan_pmo.register_status_transitions'
 PARAM_CHANGE_CONTROL_MODE = 'liwan_pmo.change_control_mode'
 PARAM_BASELINE_GATE = 'liwan_pmo.baseline_gate'
 PARAM_EVM_PROGRESS_METHOD = 'liwan_pmo.evm_progress_method'
+PARAM_FINANCE_READERS = 'liwan_pmo.finance_readers'
 CREATORS = ('managers', 'employees')
 CLOSE_WITH_OPEN_TASKS = ('block', 'allow_with_warning')
 REGISTER_TRANSITIONS = ('sequence', 'free')
 CHANGE_CONTROL_MODES = ('off', 'optional', 'required')
 BASELINE_GATES = ('off', 'warning', 'required')
 EVM_PROGRESS_METHODS = ('binary', 'manual')
+FINANCE_READERS = ('managers', 'members')
 # Choice settings kept as company-suffixed parameters: API key -> (parameter, allowed values, default).
 TOOL_POLICIES = ('enabled', 'optional', 'disabled')
 PSC_CHOICES = {
@@ -34,6 +36,7 @@ PSC_CHOICES = {
     'change_control_mode': (PARAM_CHANGE_CONTROL_MODE, CHANGE_CONTROL_MODES, 'optional'),
     'baseline_gate': (PARAM_BASELINE_GATE, BASELINE_GATES, 'warning'),
     'evm_progress_method': (PARAM_EVM_PROGRESS_METHOD, EVM_PROGRESS_METHODS, 'binary'),
+    'finance_readers': (PARAM_FINANCE_READERS, FINANCE_READERS, 'managers'),
 }
 APPROVAL_DEFAULTS = ('none', 'project_manager')
 MAX_STAGES = 20

@@ -197,6 +197,7 @@ class LiwanProjectFinanceEntry(models.Model):
             raise AccessError(self.env._("The project is outside the active current company."))
         project._liwan_check_visible_current()
         project._liwan_check_tool('finance')
+        project._liwan_check_finance_read()
         if manage:
             project._liwan_check_manage()
             project._liwan_check_tool_write('finance')
@@ -218,11 +219,16 @@ class LiwanProjectFinanceEntry(models.Model):
         project read would - including *raising* `AccessError` when the
         caller lacks `pmo.projects.read`, matching `project.project.search()`'s
         own behaviour and `search()`'s existing raising contract on this
-        model. `_check_access` (a non-raising contract) checks the capability
+        model. Only the projects whose finance the caller may read
+        (`pmo.finance.read`, possibly contextual) are in the subquery.
+        `_check_access` (a non-raising contract) checks the capability
         itself before ever calling this, so it never hits that raise.
         """
         Project = self.env['project.project'].with_context(active_test=True)
-        return Project._search(Domain([('active', '=', True), ('company_id', 'in', self.env.companies.ids)]) & Project._liwan_tool_domain('finance'))
+        return Project._search(
+            Domain([('active', '=', True), ('company_id', 'in', self.env.companies.ids)])
+            & Project._liwan_tool_domain('finance') & Project._liwan_finance_readable_domain(),
+        )
 
     @api.model
     def _search(
@@ -267,7 +273,7 @@ class LiwanProjectFinanceEntry(models.Model):
         forbidden = self - visible
         if forbidden:
             return forbidden, lambda: AccessError(self.env._(
-                "Finance entry requires pmo.projects.read and a readable active current-company project.",
+                "Finance entry requires pmo.finance.read on a readable active current-company project.",
             ))
         return None
 

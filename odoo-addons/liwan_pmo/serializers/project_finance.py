@@ -75,6 +75,7 @@ def build_finance_summary(project, entries=None, externals=None):
     not fix that, since the comparison itself must already be exact.
     """
     project._liwan_check_tool('finance')
+    project._liwan_check_finance_read()
     if entries is None:
         entries = project.env['liwan.project.finance.entry'].search([('project_id', '=', project.id)])
     source = project.env['liwan.project.actual.source']

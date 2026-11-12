@@ -20,7 +20,7 @@ describe('settings pages', () => {
     expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance', 'storage'])
     expect(page('company').parts.every(part => part.to === undefined)).toBe(true)
     expect(page('team').to).toBe('/settings/team')
-    expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/branches', '/settings/team/access-log'])
+    expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/branches', undefined, '/settings/team/access-log'])
   })
   it('registers the storage page as a company-administration system part', () => {
     const path = '/settings/system/storage'

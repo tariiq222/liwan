@@ -6,8 +6,11 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Domain
 
+from .access_service import FINANCE_READ_PERMISSION
 from .project_constants import CHARTER_MANAGER_FIELDS
 
+# A field-map key beside the tool keys: the fields behind the pmo.finance.read capability, read per project.
+FINANCE_READ = 'finance_read'
 TOOL_KEYS = ('planning', 'governance', 'finance')
 TOOL_FIELDS = {f'liwan_{key}_enabled': key for key in TOOL_KEYS}
 FINANCE_FIELDS = {'liwan_budget_state', 'liwan_budget_amount'}
@@ -49,6 +52,8 @@ class ProjectTools(models.Model):
 
     def _liwan_tool_domain(self, key):
         """SQL-ready project domain, resolved fresh for each pinned readable company."""
+        if key == FINANCE_READ:
+            return self._liwan_finance_readable_domain()
         if key not in TOOL_KEYS:
             msg = self.env._('Unknown project tool.')
             raise ValidationError(msg)
@@ -64,18 +69,22 @@ class ProjectTools(models.Model):
                 domain |= branch & Domain(f'liwan_{key}_enabled', '=', True)
         return domain
 
+    def _liwan_member_domain(self):
+        """Projects the caller works on: manages or sponsors, follows, or holds one of their tasks."""
+        member = (Domain('user_id', '=', self.env.uid)
+                  | Domain('liwan_sponsor_id', '=', self.env.uid)
+                  | Domain('message_follower_ids.partner_id', '=', self.env.user.partner_id.id))
+        Task = self.env['project.task'].with_context(active_test=False)
+        if Task.has_access('read') and self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'pmo.tasks.read'):
+            tasks = Task._search([('user_ids', 'in', self.env.uid), ('company_id', 'in', self.env.companies.ids)])
+            member |= Domain('id', 'in', tasks.select(Task._field_to_sql(Task._table, 'project_id', tasks)))
+        return member
+
     def _liwan_archived_child_project_query(self):
         """Readable core children retain archived member access without widening project ACLs."""
         domain = Domain('company_id', 'in', self.env.companies.ids)
         if not self._liwan_is_manager():
-            member = (Domain('user_id', '=', self.env.uid)
-                      | Domain('liwan_sponsor_id', '=', self.env.uid)
-                      | Domain('message_follower_ids.partner_id', '=', self.env.user.partner_id.id))
-            Task = self.env['project.task'].with_context(active_test=False)
-            if Task.has_access('read') and self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'pmo.tasks.read'):
-                tasks = Task._search([('user_ids', 'in', self.env.uid), ('company_id', 'in', self.env.companies.ids)])
-                member |= Domain('id', 'in', tasks.select(Task._field_to_sql(Task._table, 'project_id', tasks)))
-            domain &= Domain('active', '=', True) | (Domain('active', '=', False) & member)
+            domain &= Domain('active', '=', True) | (Domain('active', '=', False) & self._liwan_member_domain())
         marker = self.env.cr.precommit.data
         previous = marker.get(CHILD_PROJECT_QUERY_MARKER)
         # This private, server-owned scope permits sponsor membership to be queried
@@ -89,6 +98,40 @@ class ProjectTools(models.Model):
                 marker.pop(CHILD_PROJECT_QUERY_MARKER, None)
             else:
                 marker[CHILD_PROJECT_QUERY_MARKER] = previous
+
+    def _liwan_can_read_finance(self):
+        """Whether the caller may read this project's budget, expenses and cost figures."""
+        self.ensure_one()
+        return self.env['liwan.access.service']._liwan_has_capability(
+            self.env.user, FINANCE_READ_PERMISSION, record=self,
+        )
+
+    def _liwan_check_finance_read(self):
+        for project in self:
+            if not project._liwan_can_read_finance():
+                raise AccessError(self.env._('You are not allowed to read the finance of this project.'))
+
+    def _liwan_finance_readable_domain(self):
+        """SQL-ready domain of the projects whose finance the caller may read: the same decision as the capability."""
+        # Decided per allowed company: the capability, the setting and the grant of one company never open another's.
+        service = self.env['liwan.access.service']
+        user = self.env.user
+        domain = Domain.FALSE
+        for company in self.env.companies:
+            readable = Domain('user_id', '=', self.env.uid)
+            if service._liwan_has_capability(user, FINANCE_READ_PERMISSION, company=company):
+                readable = Domain.TRUE
+            elif (
+                self.env['liwan.pmo.settings'].with_company(company)._core_values()['finance_readers'] == 'members'
+                and service._liwan_has_capability(user, 'pmo.projects.read', company=company)
+            ):
+                readable |= self._liwan_member_domain()
+            domain |= Domain('company_id', '=', company.id) & readable
+        return domain
+
+    def _liwan_finance_readable(self):
+        """The projects of this recordset whose finance the caller may read, in one query."""
+        return self.browse(self._search(Domain('id', 'in', self.ids) & self._liwan_finance_readable_domain()))
 
     def _liwan_check_tool(self, key):
         self.ensure_one()
@@ -133,6 +176,8 @@ class ProjectTools(models.Model):
             for key, names in groups.items():
                 if names.intersection(vals):
                     project._liwan_check_tool_write(key)
+            if FINANCE_FIELDS.intersection(vals):
+                project._liwan_check_finance_read()
 
     def _liwan_check_tool_create_vals(self, vals):
         policies = self.env['liwan.pmo.settings']._core_values()
@@ -147,6 +192,11 @@ class ProjectTools(models.Model):
                 policy = policies[f'{key}_tool_policy']
                 if policy != 'enabled' and not (policy == 'optional' and vals.get(f'liwan_{key}_enabled')):
                     raise AccessError(self.env._('This project tool is not enabled.'))
+        # A budget is entered by who will read it: a finance reader, or the project's own manager.
+        if FINANCE_FIELDS.intersection(vals) and vals.get('user_id', self.env.uid) != self.env.uid and not self.env['liwan.access.service']._liwan_has_capability(
+            self.env.user, FINANCE_READ_PERMISSION,
+        ):
+            raise AccessError(self.env._('You are not allowed to read the finance of this project.'))
 
     def read(self, fields=None, load='_classic_read'):
         fields = tool_read_fields(self, fields)
@@ -176,6 +226,7 @@ class ProjectTools(models.Model):
             'liwan_charter_approved_at', 'liwan_charter_return_note',
         },
         'finance': FINANCE_FIELDS | {'currency_id'},
+        FINANCE_READ: FINANCE_FIELDS,
     }
 
 
@@ -252,7 +303,10 @@ def check_tool_fields(records, names):
                 raise AccessError(records.env._('This project tool is not enabled.'))
             for project in projects:
                 for key in keys:
-                    project._liwan_check_tool(key)
+                    if key == FINANCE_READ:
+                        project._liwan_check_finance_read()
+                    else:
+                        project._liwan_check_tool(key)
 
     for relations, field, property_name, tail in property_paths:
         owners = records.mapped('.'.join(relations)) if relations else records
@@ -261,6 +315,11 @@ def check_tool_fields(records, names):
             target = getter(owner)
             if isinstance(target, models.BaseModel):
                 check_tool_fields(target, ['/'.join(tail)])
+
+
+def _field_group_open(project, key):
+    """Whether the fields of a field-map group may be read on PROJECT: the tool is on, or the caller reads its finance."""
+    return project._liwan_can_read_finance() if key == FINANCE_READ else project._liwan_tool_enabled(key)
 
 
 def tool_read_fields(records, names):
@@ -274,7 +333,7 @@ def tool_read_fields(records, names):
     if 'liwan_percent_complete' in records._fields and not records.env['liwan.entitlement.service']._liwan_feature_read('pmo.evm'):
         hidden.add('liwan_percent_complete')
     for key, tool_fields in records._liwan_tool_field_map.items():
-        if any(not project.has_access('read') or not project._liwan_tool_enabled(key) for project in projects):
+        if any(not project.has_access('read') or not _field_group_open(project, key) for project in projects):
             hidden.update(tool_fields)
     return [name for name in records._fields if name not in hidden]
 

@@ -96,7 +96,9 @@ const isIndependentTaskRecord = computed(() => {
   const match = route.path.match(/^\/projects\/\d+\/tasks\/(\d+)\/?$/)
   return projectId.value !== null && !!match && Number.isInteger(Number(match[1])) && Number(match[1]) > 0
 })
-const routeAllowed = computed(() => isIndependentTaskRecord.value || (!!projectData.value && !notFound.value && projectSectionAvailable(route.path.split('/')[3] ?? 'summary', projectData.value.tools)))
+// The finance pages and the earned-value page are money: a reader without `pmo.finance.read` on this project gets the forbidden state, not an empty page.
+const financeForbidden = computed(() => projectData.value?.can_read_finance === false && ['finance', 'evm'].includes(route.path.split('/')[3] ?? ''))
+const routeAllowed = computed(() => isIndependentTaskRecord.value || (!!projectData.value && !notFound.value && !financeForbidden.value && projectSectionAvailable(route.path.split('/')[3] ?? 'summary', projectData.value.tools)))
 const activatedPaths = reactive(new Set<string>())
 watch([() => route.path, routeAllowed], ([path, allowed]) => { if (allowed) activatedPaths.add(path) }, {immediate:true})
 // One status badge after the title (the archived badge joins it on an archived project); the owner and the dates are a muted line under it.
@@ -163,7 +165,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
       />
       <!-- Finance, governance and the milestones and baselines: a pill strip under the header's divider. -->
       <div class="mt-3 flex min-w-0 flex-col gap-3 empty:hidden">
-        <ProjectWorkspaceTabs v-if="project?.tools.finance.enabled && activeProjectSection(route.path) === 'finance'" level="finance" :project-id="project.id" />
+        <ProjectWorkspaceTabs v-if="project?.tools.finance.enabled && !financeForbidden && activeProjectSection(route.path) === 'finance'" level="finance" :project-id="project.id" />
         <ProjectWorkspaceTabs v-if="showGovernanceTabs" level="governance" :project-id="projectId!" />
         <ProjectWorkspaceTabs v-if="showPlanningTabs && projectId" :project-id="projectId" :active="project?.active" level="planning" />
       </div>
@@ -176,6 +178,9 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
     <ProjectNotFoundState v-if="notFound && !isIndependentTaskRecord" />
     <SharedPageContainer v-else-if="!projectData && !isIndependentTaskRecord">
       <SharedPageState :loading="!error && (isLoading || !hydrated)" :error="error" @retry="refetch()" />
+    </SharedPageContainer>
+    <SharedPageContainer v-else-if="financeForbidden">
+      <SharedForbiddenState :description="t('projects.finance.forbidden')" data-testid="project-finance-forbidden" />
     </SharedPageContainer>
     <SharedPageContainer v-else-if="project && !routeAllowed">
       <UAlert color="neutral" variant="subtle" :title="t('projects.tools.unavailable')" :description="t('projects.tools.policyChanged')" />

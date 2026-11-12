@@ -96,6 +96,9 @@ class TestProjectExtensionPoints(LiwanPmoCase):
                 {'actual_source': 'external', 'actual_account': ACCOUNT,
                  'can_read_actual_lines': True, 'can_choose_actual_account': True},
             )
+            # The employee holds a task of the project and the company lets its members read finance.
+            settings = self.env['liwan.pmo.settings']
+            settings._params().set_param(settings._company_key('liwan_pmo.finance_readers'), 'members')
             self.authenticate('api_emp', 'api_emp_pass_123')
             employee = self.api('GET', self._url('/summary')).json()
             # The source alone decides who may choose; the project manager role is not asked.
@@ -170,6 +173,8 @@ class TestProjectExtensionPoints(LiwanPmoCase):
                 self.assertEqual(response.json()['actual_account'], ACCOUNT)
                 self.assertEqual(mocks['_liwan_set_actual_account'].call_args.args, (self.project, account_id))
             # The project manager is not a gate: the source decides who may link a cost center.
+            settings = self.env['liwan.pmo.settings']
+            settings._params().set_param(settings._company_key('liwan_pmo.finance_readers'), 'members')
             self.authenticate('api_emp', 'api_emp_pass_123')
             self.assertEqual(self.api('PATCH', url, {'account_id': 7}).status_code, 200)
             self.assertEqual(mocks['_liwan_set_actual_account'].call_args.args, (self.project, 7))

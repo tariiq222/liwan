@@ -49,7 +49,7 @@ export const project = ProjectSchema.parse({
 })
 
 export const projectDetail = ProjectDetailSchema.parse({
-  tools: {planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}}, objectives:[{id:1,goal:'إطلاق الخدمة',metric:'',target:''}], success_criteria:'إطلاق الخدمة خلال شهر',
+  tools: {planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}}, can_read_finance: true, objectives:[{id:1,goal:'إطلاق الخدمة',metric:'',target:''}], success_criteria:'إطلاق الخدمة خلال شهر',
   ...project, stages: [], description_html: '', privacy_visibility: 'employees', date_start: '2026-01-01',
   tags: [], followers_count: 0, milestone_count: 1, allow_task_dependencies: false,
   completion_approval: 'none', completion_approver: null, updated_at: 'v1',
