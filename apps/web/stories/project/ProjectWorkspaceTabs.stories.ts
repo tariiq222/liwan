@@ -13,7 +13,7 @@ const meta = {
     components: { ProjectWorkspaceTabs },
     setup: () => {
       const router = useRouter()
-      onMounted(() => router.push('/projects/1/governance'))
+      onMounted(() => router.push('/projects/1/charter'))
       return { args }
     },
     template: '<ProjectWorkspaceTabs v-bind="args" />',

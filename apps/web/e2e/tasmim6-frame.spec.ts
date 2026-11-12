@@ -4,7 +4,7 @@ import { openProjectMenu, projectMenuItem, PROJECT_SETTINGS_ITEM } from './suppo
 
 const SECTIONS: [string, string][] = [
   ['/projects/2', 'summary'], ['/projects/2/tasks', 'execution'], ['/projects/2/milestones', 'milestones'],
-  ['/projects/2/schedule', 'schedule'], ['/projects/2/finance', 'finance'], ['/projects/2/updates', 'updates'],
+  ['/projects/2/finance', 'finance'], ['/projects/2/updates', 'updates'],
   ['/projects/2/meetings', 'meetings'], ['/projects/2/stakeholders', 'governance'], ['/projects/2/raci', 'governance'],
   ['/projects/2/register', 'governance'], ['/projects/2/charter', 'governance'], ['/projects/2/settings', ''],
 ]

@@ -80,8 +80,7 @@
         "utils/project*",
         "utils/taskCreatePolicy",
         "utils/milestonePayload",
-        "utils/charterSteps",
-        "utils/legacyProjectTab"
+        "utils/charterSteps"
       ]
     },
     "meetings": {

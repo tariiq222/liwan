@@ -91,13 +91,6 @@ test.describe('project tasks toolbar', () => {
     await expect(page.locator('tbody tr[data-shortcut-row]').first()).toBeVisible()
   })
 
-  test('the old planning links land on the timeline view', async ({ page }) => {
-    await login(page)
-    await page.goto('/projects/1/schedule?scale=month')
-    await expect(page).toHaveURL(/\/projects\/1\/tasks\?(?=.*view=timeline)(?=.*scale=month)/)
-    await expect(page.getByTestId('schedule-gantt-scroller')).toBeVisible()
-  })
-
   test('the columns menu hides and shows columns and remembers the choice', async ({ page }) => {
     await open(page, '/projects/1/tasks')
     const headers = page.locator('thead th')

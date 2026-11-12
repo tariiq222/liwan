@@ -22,7 +22,7 @@ export function activeProjectSection(path: string): ProjectSectionId | null {
   if (head === 'evm') return 'finance'
   // The summary hosts the updates; planning pages open from the tasks and belong to that tab.
   if (head === 'updates') return 'summary'
-  if (head === 'schedule' || head === 'milestones' || head === 'baselines') return 'tasks'
+  if (head === 'milestones' || head === 'baselines') return 'tasks'
   if (GOVERNANCE_SEGMENTS.has(head)) return 'governance'
   return SECTION_SEGMENTS.has(head as ProjectSectionId) ? head as ProjectSectionId : null
 }

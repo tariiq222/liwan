@@ -24,13 +24,11 @@ test('a milestone viewer reads deliverables without edit controls', async ({ pag
   await expect(page.getByTestId('milestone-detail-menu')).toHaveCount(0)
 })
 
-test('both timeline links and the former schedule editor lead to one task record', async ({ page }) => {
+test('a timeline bar leads to its task record', async ({ page }) => {
   await open(page, '/projects/1/tasks?view=timeline&scale=month')
   await page.locator('.schedule-gantt-task').first().click()
   await expect(page).toHaveURL(/\/projects\/1\/tasks\/101\?.*#schedule$/)
   await expect(page.getByTestId('project-task-schedule-section')).toBeVisible()
   await page.getByTestId('task-detail-back').click()
   await expect(page).toHaveURL(/\/projects\/1\/tasks\?view=timeline&scale=month$/)
-  await open(page, '/projects/1/schedule/tasks/101?returnTo=%2Fprojects%2F1%2Fschedule%3Fscale%3Dmonth')
-  await expect(page).toHaveURL(/\/projects\/1\/tasks\/101\?.*#schedule$/)
 })
