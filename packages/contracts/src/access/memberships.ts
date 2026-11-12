@@ -31,6 +31,12 @@ export type Membership = z.infer<typeof MembershipSchema>
 export const MembershipListSchema = z.object({ items: z.array(MembershipSchema), total: z.number().int().nonnegative() }).strict()
 export type MembershipList = z.infer<typeof MembershipListSchema>
 
+/** A branch below the tenant root that its administrator may add members to, whether or not they belong to it. */
+export const MembershipBranchSchema = z.object({ id: IdSchema, name: z.string() }).strict()
+export type MembershipBranch = z.infer<typeof MembershipBranchSchema>
+export const MembershipBranchListSchema = z.object({ items: z.array(MembershipBranchSchema), total: z.number().int().nonnegative() }).strict()
+export type MembershipBranchList = z.infer<typeof MembershipBranchListSchema>
+
 /**
  * Add an existing account of the tenant to a company, by the email the administrator typed.
  * `company_id` names a branch below the root company; only an administrator of the root company may send it, and

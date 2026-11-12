@@ -91,6 +91,11 @@ def dump_permission(permission, scope_kinds):
     }
 
 
+def dump_membership_branch(company):
+    """A branch below the root company, read in the membership service's elevated environment."""
+    return {'id': company.id, 'name': company.name}
+
+
 def dump_membership(user, company):
     """A member of COMPANY whose home is another company, with their roles there.
 

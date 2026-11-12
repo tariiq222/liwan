@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   AuditActionSchema,
   ExistingAccountDetailsSchema,
+  MembershipBranchListSchema,
+  MembershipBranchSchema,
   MembershipInputSchema,
   MembershipListSchema,
   MembershipQuerySchema,
@@ -32,6 +34,22 @@ describe('membership shapes', () => {
     expect(() => MembershipSchema.parse({ ...member, home_company: { ...home, extra: 1 } })).toThrow()
     expect(() => MembershipSchema.parse({ id: 7 })).toThrow()
     expect(() => MembershipListSchema.parse({ items: [member], total: 1, version: 'x' })).toThrow()
+  })
+})
+
+describe('membership branches', () => {
+  it('lists the branches below the root by id and name with the full count', () => {
+    expect(MembershipBranchSchema.parse(company)).toEqual(company)
+    expect(MembershipBranchListSchema.parse({ items: [company, home], total: 5 })).toEqual({ items: [company, home], total: 5 })
+    expect(MembershipBranchListSchema.parse({ items: [], total: 0 }).items).toEqual([])
+  })
+
+  it('is strict about every field the server does not send', () => {
+    expect(() => MembershipBranchSchema.parse({ ...company, active: true })).toThrow()
+    expect(() => MembershipBranchSchema.parse({ id: 0, name: 'x' })).toThrow()
+    expect(() => MembershipBranchListSchema.parse({ items: [company] })).toThrow()
+    expect(() => MembershipBranchListSchema.parse({ items: [company], total: -1 })).toThrow()
+    expect(() => MembershipBranchListSchema.parse({ items: [company], total: 1, next: 2 })).toThrow()
   })
 })
 

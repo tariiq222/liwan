@@ -13,6 +13,7 @@ from odoo.addons.liwan_api.tests.common import (
 )
 
 USERS = '/api/v1/admin/users'
+BRANCHES = f'{MEMBERSHIPS}/branches'
 
 
 def refusal(test, response, status, code):
@@ -409,6 +410,76 @@ class TestListChangeAndRemoveMemberships(MembershipCase):
 
 
 @tagged('post_install', '-at_install', 'liwan')
+class TestMembershipBranches(MembershipCase):
+    """``GET /api/v1/admin/memberships/branches``: the branches a root administrator may add members to."""
+
+    def branches(self, query=''):
+        return self.api('GET', BRANCHES + query)
+
+    def expected(self):
+        Company = self.env['res.company']
+        return Company.search([
+            ('id', 'child_of', self.root_company.id), ('id', '!=', self.root_company.id),
+        ]).sorted(lambda company: (company.name, company.id))
+
+    def test_a_root_administrator_lists_every_active_branch_below_the_root_in_every_branch_mode(self):
+        for mode in ('isolated', 'delegated', 'inherited'):
+            with self.subTest(mode=mode), self.undone():
+                self.root_company.write({'liwan_branch_access_mode': mode})
+                self.sign_in('wc_root_admin')
+                listed = self.branches()
+                self.assertEqual(listed.status_code, 200, listed.text)
+                body = listed.json()
+                expected = self.expected()
+                self.assertEqual(body, {
+                    'items': [{'id': company.id, 'name': company.name} for company in expected],
+                    'total': len(expected),
+                })
+                ids = {item['id'] for item in body['items']}
+                self.assertIn(self.fresh_branch.id, ids)
+                self.assertLessEqual({self.branch_a.id, self.branch_b.id, self.branch_c.id, self.outside_branch.id}, ids)
+                self.assertNotIn(self.archived_branch.id, ids)
+                self.assertNotIn(self.other_tree.id, ids)
+                self.assertNotIn(self.root_company.id, ids)
+
+    def test_the_list_pages_with_limit_and_offset_and_counts_every_branch(self):
+        self.sign_in('wc_root_admin')
+        expected = [{'id': company.id, 'name': company.name} for company in self.expected()]
+        self.assertGreater(len(expected), 2)
+        first = self.branches('?limit=2')
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(first.json(), {'items': expected[:2], 'total': len(expected)})
+        rest = self.branches('?limit=2&offset=2')
+        self.assertEqual(rest.json(), {'items': expected[2:4], 'total': len(expected)})
+        refusal(self, self.branches('?offset=-1'), 422, 'invalid')
+        refusal(self, self.branches('?company_id=1'), 400, 'unsupported_filter')
+
+    def test_every_listed_branch_is_accepted_by_the_add_route(self):
+        self.sign_in('wc_root_admin')
+        for item in self.branches().json()['items']:
+            with self.subTest(branch=item['name']), self.undone():
+                # A root employee belongs to no branch, so every listed branch can take it.
+                added = self.add('mb_root_plain', self.env['res.company'].browse(item['id']), self.employee_role,
+                                 company_id=item['id'])
+                self.assertEqual(added.status_code, 201, added.text)
+
+    def test_a_branch_administrator_gets_an_empty_list(self):
+        self.sign_in('mb_b_admin')
+        listed = self.branches()
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(listed.json(), {'items': [], 'total': 0})
+        self.sign_in('wc_roamer')
+        self.switch(self.branch_b)
+        self.assertEqual(self.branches().json(), {'items': [], 'total': 0})
+
+    def test_a_caller_without_the_grant_is_refused(self):
+        self.sign_in('mb_root_plain')
+        refusal(self, self.branches(), 403, 'forbidden')
+        self.sign_in('wc_plain')
+        refusal(self, self.branches(), 403, 'forbidden')
+
+
+@tagged('post_install', '-at_install', 'liwan')
 class TestAccountExistsDetails(MembershipCase):
 
     def invite(self, login, **extra):
@@ -509,10 +580,11 @@ class TestMembershipSelfGrant(MembershipCase):
 
     def traces(self, user):
         """The audit and bell rows that name USER."""
-        return (
-            self.env['liwan.access.audit'].search_count([('target_id', '=', user.id), ('action', 'like', 'user.membership')]),
-            self.env['mail.message'].search_count([('model', '=', 'res.users'), ('res_id', '=', user.id)]),
-        )
+        audit = self.env['liwan.access.audit'].search_count([('target_id', '=', user.id), ('action', 'like', 'user.membership')])
+        # ``mail.message`` comes with liwan_notify, outside liwan_api's dependencies: the foundation-alone run has no bell.
+        if 'mail.message' not in self.env:
+            return audit, 0
+        return audit, self.env['mail.message'].search_count([('model', '=', 'res.users'), ('res_id', '=', user.id)])
 
     def test_a_root_administrator_adds_themselves_with_the_administrator_and_employee_roles(self):
         self.assertEqual(self.root_company.liwan_self_grant_policy, 'restricted')

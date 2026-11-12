@@ -15,7 +15,10 @@ from odoo.addons.liwan_api.controllers.common import (
     clear_security_caches_after_commit,
     parse_positive_int,
 )
-from odoo.addons.liwan_api.serializers.access import dump_membership
+from odoo.addons.liwan_api.serializers.access import (
+    dump_membership,
+    dump_membership_branch,
+)
 from odoo.addons.liwan_platform.models.read_only_guard import assert_writable
 
 MEMBERSHIPS = '/api/v1/admin/memberships'
@@ -48,6 +51,16 @@ class AccessMembershipsController(http.Controller):
         args, limit, offset = parse_query({'company_id', 'limit', 'offset'})
         company, users, total = service._liwan_list_memberships(_company_id(args.get('company_id')), limit, offset)
         return {'items': [dump_membership(user, company) for user in users], 'total': total}
+
+    @http.route(f'{MEMBERSHIPS}/branches', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    def branches(self):
+        """The branches below the root company a root administrator may add members to, members or not."""
+        service = request.env['liwan.access.service']
+        service._liwan_require_capability('access.users.grant')
+        _args, limit, offset = parse_query({'limit', 'offset'})
+        companies, total = service._liwan_membership_branches(limit, offset)
+        return {'items': [dump_membership_branch(company) for company in companies], 'total': total}
 
     @http.route(MEMBERSHIPS, type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

@@ -15,7 +15,7 @@ own environment: the capability in the working company, the root-or-branch rule,
 administrator.
 """
 from odoo import api, models
-from odoo.fields import Command
+from odoo.fields import Command, Domain
 
 from .access_service import LiwanAccessRule
 
@@ -37,8 +37,8 @@ class LiwanMembershipService(models.AbstractModel):
         """The elevated environment of the few membership reads and writes the caller's record rules hide.
 
         Only the records of this module run in it: the account (found by login or id, homed elsewhere), the target
-        branch and its roles for a root administrator who is not a member of it, the ``company_ids`` write and the
-        assignment rows of the receiving company. Every decision is taken before, in the caller's environment, and
+        branch, its roles and the list of the branches below the root for a root administrator who is not a member
+        of them, the ``company_ids`` write and the assignment rows of the receiving company. Every decision is taken before, in the caller's environment, and
         the extension hooks, the audit and the capability checks run there too.
         """
         return self.env['res.users'].sudo().with_context(active_test=False).env
@@ -53,15 +53,41 @@ class LiwanMembershipService(models.AbstractModel):
         """
         self._liwan_require_capability('access.users.grant')
         current = self.env.company
-        companies = self._liwan_membership_env()['res.company']
         if company_id is None or company_id == current.id:
-            return companies.browse(current.id)
-        branch = companies.with_context(active_test=True).search([
-            ('id', '=', company_id), ('id', 'child_of', current.id), ('id', '!=', current.id),
-        ])
-        if current.parent_id or not branch:
+            return self._liwan_membership_env()['res.company'].browse(current.id)
+        branch = self._liwan_membership_branch_model().search(self._liwan_membership_branch_domain() & Domain('id', '=', company_id))
+        if not branch:
             raise _not_found(COMPANY_NOT_FOUND)
         return branch
+
+    @api.model
+    def _liwan_membership_branch_model(self):
+        """``res.company`` in the elevated environment, active companies only: the root administrator need not belong."""
+        return self._liwan_membership_env()['res.company'].with_context(active_test=True)
+
+    @api.model
+    def _liwan_membership_branch_domain(self):
+        """The branches the root path accepts: the active companies strictly below the working company.
+
+        Only the tenant's root company has a root path, so a working company that is itself a branch accepts none.
+        The list of branches and every write that names one read this one domain, so they never disagree.
+        """
+        current = self.env.company
+        if current.parent_id:
+            return Domain.FALSE
+        return Domain('id', 'child_of', current.id) & Domain('id', '!=', current.id)
+
+    @api.model
+    def _liwan_membership_branches(self, limit=None, offset=0):
+        """(branches, total): the branches a root administrator may add members to, by name then id.
+
+        The grant is checked in the caller's environment first; the branches are read elevated because the company
+        record rule hides the ones the caller does not belong to, such as a new branch with no member yet.
+        """
+        self._liwan_require_capability('access.users.grant')
+        domain = self._liwan_membership_branch_domain()
+        Companies = self._liwan_membership_branch_model()
+        return Companies.search(domain, order='name, id', limit=limit, offset=offset), Companies.search_count(domain)
 
     @api.model
     def _liwan_technical_user_ids(self):
