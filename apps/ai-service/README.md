@@ -253,7 +253,7 @@ a public name does not resolve, so a host this process cannot resolve is accepte
 destination every time it connects (`deploy/ai-egress/render.sh`). The host files (`tenant_egress.py`) are one hostname per line, written
 atomically; a failed write answers 503 `ai_egress_unavailable` after the key was saved, and the same save may be repeated.
 
-The tenant schema has one definition, created whole by `--initialize-tenant <db>`; re-running it on a finished schema only validates it and runs no DDL. A development schema bootstrapped before a column was added is recreated on a fresh scratch database (no tenant holds AI state yet).
+The tenant schema has one definition, created whole by `--initialize-tenant <db>`; re-running it on a finished schema only validates it and runs no DDL. Bootstrap and runtime compare every column (name, type, nullability) of the service's own tables with the CREATE TABLE statements, so a development schema bootstrapped before a column was added is refused with `ai_state_incompatible` naming the columns; recreate it on a fresh scratch database (no tenant holds AI state yet).
 
 ## Service token
 

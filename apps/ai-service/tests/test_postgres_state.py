@@ -186,6 +186,41 @@ async def test_initialize_tenant_runs_no_ddl_on_a_finished_schema():
         await drop_schema(schema)
 
 
+async def test_a_schema_missing_a_defined_column_is_refused():
+    """An older bootstrap (no key_base_url) is refused by the bootstrap and the runtime check, never at the first query."""
+    schema = f"tenant_{uuid4().hex[:12]}"
+    await create_schema(schema)
+    conninfo = schema_conninfo(schema)
+    try:
+        await initialize_tenant(conninfo)
+        async with await psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
+            await conn.execute("ALTER TABLE ai_tenant_config DROP COLUMN key_base_url")
+            with pytest.raises(StateCompatibilityError, match=r"ai_state_incompatible: ai_tenant_config .*key_base_url"):
+                await validate_tenant(conn, len(AsyncPostgresSaver.MIGRATIONS) - 1)
+        with pytest.raises(StateCompatibilityError, match="key_base_url"):
+            await initialize_tenant(conninfo)
+    finally:
+        await drop_schema(schema)
+
+
+async def test_a_column_of_another_type_or_nullability_is_refused():
+    schema = f"tenant_{uuid4().hex[:12]}"
+    await create_schema(schema)
+    conninfo = schema_conninfo(schema)
+    try:
+        await initialize_tenant(conninfo)
+        async with await psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
+            await conn.execute("ALTER TABLE ai_runs ALTER COLUMN title_locked DROP NOT NULL")
+            with pytest.raises(StateCompatibilityError, match="title_locked"):
+                await validate_tenant(conn, len(AsyncPostgresSaver.MIGRATIONS) - 1)
+            await conn.execute("ALTER TABLE ai_runs ALTER COLUMN title_locked SET NOT NULL")
+            await conn.execute("ALTER TABLE ai_leavers ADD COLUMN note TEXT")  # a remnant column is refused too
+            with pytest.raises(StateCompatibilityError, match="note"):
+                await validate_tenant(conn, len(AsyncPostgresSaver.MIGRATIONS) - 1)
+    finally:
+        await drop_schema(schema)
+
+
 async def test_initialize_tenant_completes_a_bootstrap_interrupted_before_its_marker():
     schema = f"tenant_{uuid4().hex[:12]}"
     await create_schema(schema)
