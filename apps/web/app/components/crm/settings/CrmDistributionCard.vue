@@ -51,7 +51,7 @@ const stageItems = computed(() => (stages.data.value?.items ?? [])
       <SharedPersonPicker id="distribution-members" v-model="members" multiple value-key="user_id" :known="props.settings.distribution_users" :disabled="locked" />
     </SharedSettingRow>
     <SharedSettingRow :label="t('crm.settings.distribution.startStage')" name="start-stage-mode" :description="t('crm.settings.distribution.startStageHint')">
-      <USelect id="start-stage-mode" v-model="draft.start_stage_mode" class="w-full min-w-44" :items="startModeItems" :disabled="locked" />
+      <USelect id="start-stage-mode" :model-value="draft.start_stage_mode" class="w-full min-w-44" :items="startModeItems" :disabled="locked" @update:model-value="value => { draft.start_stage_mode = value as 'auto' | 'stage'; if (value === 'auto') draft.start_stage_id = null }" />
     </SharedSettingRow>
     <SharedSettingRow v-if="draft.start_stage_mode === 'stage'" :label="t('crm.settings.distribution.startStageChosen')" name="start-stage-id">
       <USelect id="start-stage-id" :model-value="draft.start_stage_id ?? undefined" class="w-full min-w-44" :items="stageItems" :disabled="locked" @update:model-value="value => (draft.start_stage_id = value ?? null)" />

@@ -72,7 +72,7 @@ DEFAULTS = {
 # the tenant-wide lists are never touched by a preset.
 _PRESET_FIELDS = (
     'followup_attempts', 'followup_interval_hours', 'after_attempts', 'recycle_enabled',
-    'recycle_after_days', 'recycle_cycles', 'distribution_mode', 'start_stage_mode', 'visibility',
+    'recycle_after_days', 'recycle_cycles', 'distribution_mode', 'visibility',
     'view_log_enabled', 'view_log_retention_months', 'discount_allowed', 'discount_max_percent', 'price_above_list',
 )
 PRESETS = {

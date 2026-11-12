@@ -342,6 +342,18 @@ class TestCrmSettings(LiwanCrmCase):
         with self.assertRaises(UniqueViolation), mute_logger('odoo.sql_db'), self.cr.savepoint():
             self.env['liwan.crm.settings'].create({'company_id': self.company.id})
 
+    def test_a_preset_leaves_the_start_stage_choice_untouched(self):
+        contacted = self.env.ref('liwan_crm.stage_contacted')
+        self.env['liwan.crm.settings'].create({'company_id': self.company.id, 'start_stage_id': contacted.id})
+        self.assertEqual(self._rows().start_stage_mode, 'stage')
+        body = self.as_manager().api('GET', URL).json()
+        response = self.as_manager().api('PATCH', URL, json={'revision': body['revision'], 'preset': 'general'})
+        self.assertEqual(response.status_code, 200, response.text)
+        values = response.json()['values']
+        self.assertEqual(values['preset'], 'general')
+        self.assertEqual(values['start_stage_mode'], 'stage', 'a preset never disables the chosen stage')
+        self.assertEqual(values['start_stage_id'], contacted.id)
+
     def test_the_start_stage_choice_is_a_stage_or_null_and_keeps_the_mode_in_step(self):
         contacted = self.env.ref('liwan_crm.stage_contacted')
         won = self.env.ref('liwan_crm.stage_won')
