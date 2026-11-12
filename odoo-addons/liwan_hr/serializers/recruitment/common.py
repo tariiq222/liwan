@@ -4,11 +4,6 @@ from odoo.tools import email_normalize
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
 
 
-def ref(record):
-    """The ``{id, name}`` reference every recruitment serializer uses."""
-    return {'id': record.id, 'name': record.name} if record else None
-
-
 def optional_id(value, field):
     """A relation id, or False to clear it; 422 on anything that is not a positive integer."""
     if value is None or value is False or (isinstance(value, str) and not value):

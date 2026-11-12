@@ -20,6 +20,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_page,
     requires_feature,
 )
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.controllers.common import hr_rule_handler
 from odoo.addons.liwan_hr.serializers.lifecycle.departure import (
     clearance_done,
@@ -28,7 +29,6 @@ from odoo.addons.liwan_hr.serializers.lifecycle.departure import (
     parse_departure_create,
     parse_departure_patch,
 )
-from odoo.addons.liwan_hr.serializers.lifecycle.fields import ref
 
 
 def _departure_reason(reason_id):

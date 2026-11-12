@@ -12,6 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.audiences import search_term
 from odoo.addons.liwan_inbox.controllers.campaign_parsing import (
@@ -78,7 +79,7 @@ def render_preview(template, params, contact):
         return lambda match: given.get((location, int(match.group(1)))) or match.group(0)
 
     return {
-        'contact': {'id': contact.id, 'name': contact.name} if contact else None,
+        'contact': ref(contact),
         'header_text': PLACEHOLDER.sub(fill('header'), template.header_text) if template.header_type == 'text' and template.header_text else None,
         'body': PLACEHOLDER.sub(fill('body'), template.body or ''),
         'footer': template.footer or None,

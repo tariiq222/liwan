@@ -5,6 +5,7 @@ from odoo import fields
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_pmo.models.project_project import VISIBILITY_VALUES
 from odoo.addons.liwan_pmo.serializers.dates import parse_date
 from odoo.addons.liwan_pmo.serializers.project_charter import (
@@ -24,10 +25,6 @@ CREATE_FIELDS = {
     'date_end', 'tag_ids', 'allow_task_dependencies', 'objectives', 'success_criteria',
 }
 COMPLETION_APPROVAL_VALUES = ('none', 'project_manager', 'specific_user')
-
-
-def _user_ref(user):
-    return {'id': user.id, 'name': user.name} if user else None
 
 
 def dump_stage(project, stage):
@@ -58,7 +55,7 @@ def dump_project(project):
     return {
         'id': project.id,
         'name': project.name,
-        'manager': _user_ref(project.user_id),
+        'manager': ref(project.user_id),
         'date_end': fields.Date.to_string(project.date) if project.date else None,
         'status': STATUS_TO_API.get(project.last_update_status),
         **dump_project_task_summary(project),
@@ -87,7 +84,7 @@ def dump_project_detail(project):
         'milestone_count': len(project.milestone_ids) if project._liwan_tool_enabled('planning') else None,
         'allow_task_dependencies': bool(project.allow_task_dependencies and project._liwan_tool_enabled('planning')),
         'completion_approval': project.liwan_completion_approval or 'none',
-        'completion_approver': _user_ref(project.liwan_completion_approver_id),
+        'completion_approver': ref(project.liwan_completion_approver_id),
         'updated_at': project._liwan_updated_at(),
         'charter': dump_charter(project) if project._liwan_tool_enabled('governance') else None,
         'phase_state': project._liwan_phase_state() if project._liwan_tool_enabled('governance') else None,

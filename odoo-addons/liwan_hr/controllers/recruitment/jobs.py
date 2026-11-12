@@ -11,7 +11,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_hr.serializers.recruitment.common import ref
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.serializers.recruitment.job import (
     dump_job,
     dump_stage,

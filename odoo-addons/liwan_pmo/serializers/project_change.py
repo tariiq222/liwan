@@ -2,11 +2,8 @@
 import math
 
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
-from odoo.addons.liwan_api.serializers.common import iso
-from odoo.addons.liwan_pmo.serializers.project_charter import (
-    dump_currency,
-    dump_user_ref,
-)
+from odoo.addons.liwan_api.serializers.common import iso, ref
+from odoo.addons.liwan_pmo.serializers.project_charter import dump_currency
 
 CHANGE_WRITE_FIELDS = {
     'title', 'description', 'reason', 'category_id', 'impact_schedule_days', 'impact_cost', 'impact_scope',
@@ -24,14 +21,14 @@ def dump_change(change, can_read_finance):
         'title': change.title,
         'description': change.description or '',
         'reason': change.reason or '',
-        'category': {'id': category.id, 'name': category.name} if category else None,
+        'category': ref(category),
         'state': change.state,
-        'requester': dump_user_ref(change.requester_id),
+        'requester': ref(change.requester_id),
         'impact_schedule_days': change.impact_schedule_days,
         'impact_cost': change.impact_cost if can_read_finance else None,
         'currency': dump_currency(change.currency_id),
         'impact_scope': change.impact_scope or '',
-        'decided_by': dump_user_ref(change.decided_by_id),
+        'decided_by': ref(change.decided_by_id),
         'decided_at': iso(change.decided_at),
         'decision_note': change.decision_note or '',
         'implemented_at': iso(change.implemented_at),

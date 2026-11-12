@@ -7,6 +7,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_number,
     parse_positive_int,
 )
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 
 LEAVE_STATES = ('confirm', 'validate1', 'validate', 'refuse', 'cancel')
@@ -15,10 +16,6 @@ MAX_ALLOCATION_DAYS = 1000
 ALLOCATION_FIELDS = {'employee_id', 'leave_type_id', 'number_of_days', 'date_from', 'date_to'}
 # The employee and the leave type identify the grant; an edit changes only its days and validity.
 ALLOCATION_PATCH_FIELDS = {'number_of_days', 'date_from', 'date_to'}
-
-
-def _ref(record):
-    return {'id': record.id, 'name': record.name} if record else None
 
 
 def dump_leave_type(leave_type):
@@ -35,9 +32,9 @@ def dump_cancellation(row):
         return None
     return {
         'id': row.id, 'state': row.state, 'revision': row.revision, 'reason': row.reason or '',
-        'requested_at': fields.Datetime.to_string(row.requested_at), 'initiator': _ref(row.initiator_id),
+        'requested_at': fields.Datetime.to_string(row.requested_at), 'initiator': ref(row.initiator_id),
         'reviewed_at': fields.Datetime.to_string(row.reviewed_at) or None,
-        'reviewer': _ref(row.reviewer_id), 'review_reason': row.review_reason or None,
+        'reviewer': ref(row.reviewer_id), 'review_reason': row.review_reason or None,
     }
 
 
@@ -67,8 +64,8 @@ def dump_leave(leave, cancellation=None):
     governed = leave._liwan_approval_governed()
     return {
         'id': leave.id,
-        'employee': _ref(leave.employee_id),
-        'leave_type': _ref(leave.holiday_status_id),
+        'employee': ref(leave.employee_id),
+        'leave_type': ref(leave.holiday_status_id),
         'date_from': fields.Date.to_string(leave.request_date_from),
         'date_to': fields.Date.to_string(leave.request_date_to),
         'number_of_days': leave.number_of_days,
@@ -101,8 +98,8 @@ def dump_balance(leave_type_id, name, data):
 def dump_allocation(allocation):
     return {
         'id': allocation.id,
-        'employee': _ref(allocation.employee_id),
-        'leave_type': _ref(allocation.holiday_status_id),
+        'employee': ref(allocation.employee_id),
+        'leave_type': ref(allocation.holiday_status_id),
         'number_of_days': allocation.number_of_days,
         'date_from': fields.Date.to_string(allocation.date_from),
         'date_to': fields.Date.to_string(allocation.date_to) or None,

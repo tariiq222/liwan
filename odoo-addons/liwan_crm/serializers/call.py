@@ -2,9 +2,9 @@
 import math
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_crm.serializers.lists import parse_price
-from odoo.addons.liwan_crm.serializers.opportunity import parse_id, ref
+from odoo.addons.liwan_crm.serializers.opportunity import parse_id
 
 NOTE_MAX = 2000
 DURATION_MAX_MINUTES = 1440
@@ -15,10 +15,10 @@ SALE_FIELDS = ('package_id', 'final_price', 'discount_percent')
 def dump_call(call):
     return {
         'id': call.id,
-        'outcome': ref(call.liwan_outcome_id),
+        'outcome': ref(call.liwan_outcome_id, label='display_name'),
         'note': call.description or '',
         'duration_minutes': call.duration,
-        'user': ref(call.user_id),
+        'user': ref(call.user_id, label='display_name'),
         'created_at': iso(call.date),
     }
 

@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 from odoo.tools import email_normalize, html2plaintext, plaintext2html
 
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_appointments.models.resource_booking import (
     ATTENDANCE_OUTCOMES,
 )
@@ -80,10 +81,6 @@ def within_deadline(booking, now):
     return now <= booking.start - timedelta(hours=booking.type_id.modifications_deadline)
 
 
-def dump_reason_ref(reason):
-    return {'id': reason.id, 'name': reason.name} if reason else None
-
-
 def dump_booking(booking, *, is_modifiable, sees_contact, national_id_hidden):
     """The detail shape: the row plus the requester, national id, notes, reasons and whether the caller may modify it.
 
@@ -100,8 +97,8 @@ def dump_booking(booking, *, is_modifiable, sees_contact, national_id_hidden):
         },
         'national_id': (booking.liwan_requester_national_id or None) if sees_contact and not national_id_hidden else None,
         'notes': html2plaintext(booking.description).strip() or None if booking.description else None,
-        'visit_reason': dump_reason_ref(booking.liwan_visit_reason_id),
-        'cancel_reason': dump_reason_ref(booking.liwan_cancel_reason_id),
+        'visit_reason': ref(booking.liwan_visit_reason_id),
+        'cancel_reason': ref(booking.liwan_cancel_reason_id),
         'is_modifiable': is_modifiable,
     }
 

@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.liwan_api.controllers.common import parse_positive_int
-from odoo.addons.liwan_hr.serializers.assets.common import ref, reject_unknown
+from odoo.addons.liwan_api.serializers.common import ref
+from odoo.addons.liwan_hr.serializers.assets.common import reject_unknown
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 from odoo.addons.liwan_hr.serializers.insurance.common import (
     ApiError,
