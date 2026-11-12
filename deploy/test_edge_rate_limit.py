@@ -310,21 +310,30 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                 redirect = f'https://{configured}/tiktok/oauth/callback' if configured else ''
                 self.assertEqual(services['odoo']['environment']['LIWAN_TIKTOK_REDIRECT_URI'], redirect)
 
-    def test_shared_overlay_odoo_healthcheck(self) -> None:
-        """Behavioral: shared overlay replaces /web/health with a TCP listener probe; base remains /web/health."""
-        shared = self._render_shared({})
-        shared_hc = shared['services']['odoo'].get('healthcheck', {})
-        shared_test = ' '.join(shared_hc.get('test', []))
-        self.assertNotIn('/web/health', shared_test)
-        self.assertIn('8069', shared_test)
-        self.assertIn('socket', shared_test)
-        self.assertIn('/opt/venv/bin/python', shared_test)
-
-        base = self._render_base({})
-        base_hc = base['services']['odoo'].get('healthcheck', {})
-        base_test = ' '.join(base_hc.get('test', []))
-        self.assertIn('/web/health', base_test)
-        self.assertNotIn('socket', base_test)
+    def test_healthchecks_probe_http_readiness_not_a_tcp_port(self) -> None:
+        """Behavioral (AUDIT-058): every Odoo, web and relay probe makes an HTTP request; Odoo's also checks PostgreSQL."""
+        shared = self._render_shared({}, profiles=('tiktok', 'restore'))['services']
+        base = self._render_base({})['services']
+        probes = {
+            ('shared', 'odoo'): shared['odoo'], ('shared', 'web'): shared['web'],
+            ('shared', 'restore-odoo'): shared['restore-odoo'], ('shared', 'tiktok-relay'): shared['tiktok-relay'],
+            ('base', 'odoo'): base['odoo'], ('base', 'web'): base['web'],
+        }
+        for (overlay, name), service in probes.items():
+            with self.subTest(overlay=overlay, service=name):
+                hc = service['healthcheck']
+                test = ' '.join(hc['test'])
+                self.assertNotIn('socket', test)
+                self.assertNotIn('net\').connect', test)
+                self.assertTrue('urlopen(' in test or 'fetch(' in test, test)
+                if name.endswith('odoo'):
+                    self.assertIn('/web/health?db_server_status=1', test)
+                # Rendered timings: unhealthy after about 30s of failures once started, never 20 retries.
+                self.assertLessEqual(int(hc['retries']), 3)
+                self.assertTrue(hc.get('start_period'), hc)
+        # The shared web probe reads a public static file: no proxy token, no upstream call.
+        self.assertIn('/favicon.ico', ' '.join(shared['web']['healthcheck']['test']))
+        self.assertIn('/healthz', ' '.join(shared['tiktok-relay']['healthcheck']['test']))
 
     def test_shared_caddyfile_rate_limit_exempts_static_assets(self) -> None:
         """Behavioral: caddy adapt in built image verifies static asset exemptions in liwan_web."""
@@ -430,7 +439,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             'LIWAN_TIKTOK_RELAY_HOST': 'hooks.example.test',
             'LIWAN_TIKTOK_CLIENT_KEY': 'test-only-client-key',
             'LIWAN_TIKTOK_CLIENT_SECRET': 'test-only-client-secret',
-            'LIWAN_SESSION_ACTIVE_KID': 'k1', 'LIWAN_SHARED_PROXY_TOKEN': 'dummy',
+            'LIWAN_SESSION_ACTIVE_KID': 'k1', 'LIWAN_SHARED_PROXY_TOKEN': 'dummy', 'LIWAN_TIKTOK_RELAY_TOKEN': 'test-only-relay-token',
             'LIWAN_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf', 'LIWAN_TENANT_REGISTRY_DIR': '/tmp',
             'POSTGRES_PASSWORD': 'dummy', 'LIWAN_DOMAIN': 'example.test', **extra,
         }
@@ -482,7 +491,20 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         self.assertIn('relay_odoo', rendered['services']['odoo']['networks'])
         self.assertEqual(relay['environment']['LIWAN_TIKTOK_RELAY_PORT'], '8090')
         self.assertEqual(relay['environment']['LIWAN_TIKTOK_BINDINGS_PATH'], '/var/lib/liwan/tiktok-bindings.json')
-        self.assertTrue(relay['environment']['LIWAN_SHARED_PROXY_TOKEN'])
+        self.assertEqual(relay['environment']['LIWAN_TIKTOK_RELAY_TOKEN'], 'test-only-relay-token')
+
+    def test_odoo_and_the_relay_never_hold_the_guard_token(self) -> None:
+        """Behavioral (AUDIT-042): the guard's internal token stays with guard and web; Odoo and the relay share their own."""
+        services = self._render_shared({}, profiles=('tiktok', 'restore'))['services']
+        for name in ('guard', 'web'):
+            self.assertEqual(services[name]['environment']['LIWAN_SHARED_PROXY_TOKEN'], 'dummy', name)
+        for name in ('odoo', 'tiktok-relay', 'restore-odoo'):
+            self.assertNotIn('LIWAN_SHARED_PROXY_TOKEN', services[name]['environment'], name)
+        self.assertEqual(services['odoo']['environment']['LIWAN_TIKTOK_RELAY_TOKEN'], 'test-only-relay-token')
+        self.assertNotIn('LIWAN_TIKTOK_RELAY_TOKEN', services['restore-odoo']['environment'])
+        # A shared stack without the TikTok app still renders without the relay token.
+        bare = self._render_shared({'LIWAN_TIKTOK_RELAY_TOKEN': ''})['services']
+        self.assertEqual(bare['odoo']['environment']['LIWAN_TIKTOK_RELAY_TOKEN'], '')
 
     def test_hooks_host_forwards_only_tiktok_to_the_relay(self) -> None:
         """Behavioral: the hooks site proxies /tiktok/* to the relay with its own bounded budget."""

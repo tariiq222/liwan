@@ -16,7 +16,9 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 		X-Frame-Options DENY
-		Content-Security-Policy "frame-ancestors 'none'"
+		# Pages carry the app's own nonce-based policy (apps/vendor-admin/server/plugins/content-security-policy.ts);
+		# `?` keeps it and gives every other response (API JSON, assets) a policy that loads nothing.
+		?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
 		# Every response of the admin host, assets included, is private: nothing is cached by a browser or a proxy.
 		Cache-Control "no-store"
 		-Server
