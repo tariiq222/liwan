@@ -2,6 +2,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
+  MembershipBranchListSchema,
   MembershipInputSchema,
   MembershipListSchema,
   MembershipRolesInputSchema,
@@ -9,6 +10,7 @@ import {
   type MembershipInput,
   type MembershipRolesInput,
 } from '@liwan/contracts'
+import { fetchAllPages } from '../utils/pagedList'
 import { ACCESS_MUTATION_GC_TIME } from './useAdminUsers'
 
 export const MEMBERSHIP_PAGE_SIZE = 200
@@ -16,11 +18,12 @@ export const MEMBERSHIP_PAGE_SIZE = 200
 /** The key names the signed-in company and the company the list belongs to, which differ when the root company manages a branch. */
 export const membershipKeys = {
   all: ['access', 'memberships'] as const,
+  branches: (workingCompanyId: number | undefined) => ['access', 'memberships', 'branches', workingCompanyId] as const,
   list: (workingCompanyId: number | undefined, companyId: number | undefined) => ['access', 'memberships', workingCompanyId, companyId ?? workingCompanyId] as const,
 }
 
 /**
- * The members of a company whose home is another company. `companyId` names a branch below the working (root) company;
+ * Every member of a company whose home is another company, read page by page. `companyId` names a branch below the working (root) company;
  * without it the list is the working company's.
  */
 export function useMemberships(companyId: MaybeRefOrGetter<number | undefined>, enabled: MaybeRefOrGetter<boolean> = true) {
@@ -29,11 +32,26 @@ export function useMemberships(companyId: MaybeRefOrGetter<number | undefined>, 
   return useQuery({
     queryKey: computed(() => membershipKeys.list(me.value?.company.id, toValue(companyId))),
     enabled: computed(() => !!me.value && toValue(enabled)),
-    queryFn: ({ signal }) => $api('/api/v1/admin/memberships', {
-      query: { company_id: toValue(companyId), limit: MEMBERSHIP_PAGE_SIZE, offset: 0 },
+    queryFn: ({ signal }) => fetchAllPages(offset => $api('/api/v1/admin/memberships', {
+      query: { company_id: toValue(companyId), limit: MEMBERSHIP_PAGE_SIZE, offset },
       schema: MembershipListSchema,
       signal,
-    }),
+    }), signal),
+  })
+}
+
+/**
+ * Every branch below the root company that its administrator may add members to, whether or not they belong to it, so a new
+ * branch is listed before it has a member. Keyed by the working company, and under `membershipKeys.all`, so a switch or a
+ * membership change refetches it.
+ */
+export function useMembershipBranches(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  const { me } = useMe()
+  return useQuery({
+    queryKey: computed(() => membershipKeys.branches(me.value?.company.id)),
+    enabled: computed(() => !!me.value && toValue(enabled)),
+    queryFn: ({ signal }) => fetchAllPages(offset => $api('/api/v1/admin/memberships/branches', { query: { limit: MEMBERSHIP_PAGE_SIZE, offset }, schema: MembershipBranchListSchema, signal }), signal),
   })
 }
 

@@ -14,7 +14,8 @@ import {
   type HrPayrollPaymentCreate,
 } from '@liwan/contracts'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
-import { fetchAllPages, replaceRun } from './useHrPayrollRuns'
+import { fetchAllPages } from '../utils/pagedList'
+import { replaceRun } from './useHrPayrollRuns'
 
 type Api = ReturnType<typeof useApi>['$api']
 

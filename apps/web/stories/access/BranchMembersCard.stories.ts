@@ -16,7 +16,7 @@ const open = async ({ canvasElement }: { canvasElement: HTMLElement }) => {
 }
 const meta = {
   title: 'Access/BranchMembersCard', component: BranchMembersCard,
-  parameters: { layout: 'fullscreen', ...handlers(membershipList), ...storyContext('apps/web/app/pages/settings/team/branches.vue:144') },
+  parameters: { layout: 'fullscreen', ...handlers(membershipList), ...storyContext('apps/web/app/pages/settings/team/branches.vue:156') },
   args: { branch: { id: 2, name: 'فرع الرياض' }, roles: memberRoles },
   render: args => ({ components: { BranchMembersCard, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><ul><BranchMembersCard v-bind="args" /></ul></PageContainer></main>' }),
 } satisfies Meta<typeof BranchMembersCard>

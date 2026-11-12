@@ -5,6 +5,8 @@ import BranchMembersCard from '@/components/access/branches/BranchMembersCard.vu
 import { ApiError } from '@/composables/useApi'
 import { useBranchPolicy, useBranchSeats, useSetBranchSeat } from '@/composables/useBranchAccess'
 import { useCreateBranch } from '@/composables/useCreateBranch'
+import { useAdminRoles } from '@/composables/useAdminRoles'
+import { useMembershipBranches } from '@/composables/useMemberships'
 import { MAX_SEAT_PRIORITY, type BranchSeat } from '@liwan/contracts'
 import { accessErrorMessage } from '@/utils/accessErrors'
 
@@ -74,7 +76,14 @@ async function submitBranch() {
 }
 const forbidden = computed(() => !can('access.users.assign_roles') || !can('access.roles.read'))
 const query = useBranchPolicy(computed(() => !forbidden.value))
-// Only the root company has branches below it; a branch is shown no member block. A branch's roles are its own and the company-wide ones.
+// The members section lists every branch below the root company, not only the ones the policy names, so the first member of a
+// new branch can be added. It stands on its own queries: the policy loading or failing does not hide it. Only the root company
+// has branches below it, so in a branch the list is empty and the section is not drawn. The roles are the ones the users pages
+// offer, and each card applies the one role rule for its branch.
+const canGrant = computed(() => can('access.users.grant'))
+const memberBranches = useMembershipBranches(canGrant)
+const memberRoles = useAdminRoles({}, computed(() => canGrant.value && can('access.roles.read')))
+const showMembers = computed(() => canGrant.value && (!!memberBranches.error.value || !!memberBranches.data.value?.items.length))
 async function reloadPolicy() {
   const result = await query.refetch()
   if (result.isError) throw result.error
@@ -138,12 +147,15 @@ async function reloadPolicy() {
       <div v-if="query.data.value" :key="identity ?? ''" class="grid gap-(--liwan-gap-card)">
         <BranchPresetCard :policy="query.data.value" :reload-policy="reloadPolicy" />
         <BranchPolicyCard :policy="query.data.value" :reload-policy="reloadPolicy" />
-        <SharedRecordSection v-if="can('access.users.grant') && query.data.value.branches.length" id="branch-members" variant="panel" :title="t('access.members.branchTitle')" :description="t('access.members.branchDescription')">
-          <ul class="grid gap-(--liwan-gap-card)">
-            <BranchMembersCard v-for="branch in query.data.value.branches" :key="branch.id" :branch="branch" :roles="query.data.value.roles" />
-          </ul>
-        </SharedRecordSection>
       </div>
     </SharedPageState>
+    <!-- Keyed by the signed-in user and company, so a draft never outlives the identity it was made for. -->
+    <SharedRecordSection v-if="showMembers" id="branch-members" :key="`members-${identity ?? ''}`" variant="panel" :title="t('access.members.branchTitle')" :description="t('access.members.branchDescription')">
+      <SharedPageState :loading="memberBranches.isLoading.value" :error="memberBranches.error.value" @retry="memberBranches.refetch()">
+        <ul class="grid gap-(--liwan-gap-card)">
+          <BranchMembersCard v-for="branch in memberBranches.data.value?.items ?? []" :key="branch.id" :branch="branch" :roles="memberRoles.data.value?.items ?? []" />
+        </ul>
+      </SharedPageState>
+    </SharedRecordSection>
   </SharedSettingsPage>
 </template>
