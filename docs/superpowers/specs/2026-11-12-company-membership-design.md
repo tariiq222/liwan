@@ -1,6 +1,6 @@
 # Company membership design
 
-Status: the owner approved the four decisions in section 2.1 on 2026-11-12. The two points in section 2.2 came out of reading the code and need the owner's confirmation. Nothing is implemented in any branch. The evidence is a read of `main` at `1b71c49cd` and of the local branch `api-working-company-switch`; no test was run for this design.
+Status: the owner approved the decisions in section 2 on 2026-11-12, the last two after they came out of reading the code. Nothing is implemented in any branch. The evidence is a read of `main` at `1b71c49cd` and of the local branch `api-working-company-switch`; no test was run for this design.
 
 [2026-11-12-working-company-switch-design.md](2026-11-12-working-company-switch-design.md) lets a session work in any company the user is a member of. This file adds the missing half: how a user becomes a member of a second company. Without it the switch has nobody to serve. The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch-access-policy-design.md)) keeps deciding what a member may do; this design creates and removes memberships and grants nothing else.
 
@@ -17,14 +17,10 @@ The branch policy already assumes users with several companies, and its tests cr
 
 ## 2. Decisions
 
-### 2.1 Approved by the owner on 2026-11-12
-
 1. The person who may give an account adds the membership. That is the capability `access.users.grant` in the company that receives the member, held by `system_admin` and by any custom role a tenant gives it to. No new capability and no new screen.
 2. One person is one account and one seat, whatever number of companies they belong to. Seats already count active accounts across the tenant (`liwan_platform/models/entitlement_service_seats.py:4`); a branch is paid for by its own fee. Adding a member consumes nothing.
 3. No approval step. The person and the administrators of their home company are told, and the access audit records who added whom.
 4. Whoever holds the same capability in a company removes a member from it. The home company cannot be removed this way; that is disabling the account, which exists.
-
-### 2.2 Proposed, awaiting confirmation
 
 5. An administrator of the root company may add and remove members of any branch below it, in every branch mode. Without this a new branch has no first member and a branch that loses its last administrator cannot be recovered by the tenant.
 6. Before confirming, the person adding a member sees the name and the home company of the account behind the email they typed. They must type the full email; there is no browsing of another company's users.
@@ -63,7 +59,7 @@ Removing deletes the member's assignments in that company and removes the compan
 
 ### 3.4 Root administrators and branches
 
-Under proposal 5, a holder of `access.users.grant` in the root company calls the same routes naming a branch below it (`company_id` in the payload, which the request already accepts for a company in its set). This is how the first member of a new branch is added. In `isolated` mode it is the only thing the root can do inside a branch, and the audit records it.
+Under decision 5, a holder of `access.users.grant` in the root company calls the same routes naming a branch below it (`company_id` in the payload, which the request already accepts for a company in its set). This is how the first member of a new branch is added. In `isolated` mode it is the only thing the root can do inside a branch, and the audit records it.
 
 ### 3.5 Telling people
 
@@ -94,7 +90,7 @@ Under proposal 5, a holder of `access.users.grant` in the root company calls the
 - The same call for an email with no account creates an ordinary invitation, and for an account that is already a member answers `409`.
 - The seat count is the same before and after, and adding succeeds when the tenant is at its user limit.
 - An administrator without `access.users.grant` in B is refused; an administrator of A cannot add anyone to B.
-- Under proposal 5: a root administrator adds the first member to a new branch in each branch mode.
+- A root administrator adds the first member to a new branch in each branch mode.
 - Removing a member deletes their roles there, returns their working session home on the next request, and is refused for the home company and for the last administrator.
 - The person and the home administrators each receive one bell row; the audit has both entries.
 - Giving an account from an employee file to a person who has one links the employee and creates no second account.
@@ -108,8 +104,6 @@ The change is authorization, so it takes the full path: implementer, tester and 
 
 | Point | Proposal | Needs |
 | --- | --- | --- |
-| Root administrators adding to branches (2.2, item 5) | As written | Owner confirmation |
-| What the adding administrator sees before confirming (2.2, item 6) | Name and home company | Owner confirmation |
 | Email to the person when they are added | The bell row only; no email | Owner confirmation if an email is wanted |
 | A limit on how many companies one account may belong to | None | Nothing unless abuse appears |
 
