@@ -417,6 +417,16 @@ class MembershipCase(WorkingCompanyCase):
         self.env.invalidate_all()
         self.env.registry.clear_cache()
 
+    def at_user_limit(self):
+        """Set ``users.limit`` to the seats held now (full seats plus pending invitations): the tenant is exactly full."""
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        held = self.env['liwan.entitlement.service']._liwan_count_held_seats()
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'users.limit': held}})
+        return held
+
+    def full_seats(self):
+        return self.env['liwan.entitlement.service']._liwan_count_users()
+
     def set_mode(self, mode):
         """Fixture-only conversion of the tenant between the two commercial modes."""
         source = {'saas': 'control_plane', 'non_saas': 'local_policy'}[mode]

@@ -548,3 +548,46 @@ class TestMembershipSelfGrant(MembershipCase):
         })
         refusal(self, changed, 422, 'self_access_change')
         self.assertEqual(self.assigned(self.roamer, self.branch_b), self.admin_role)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestMembershipAtTheUserLimit(MembershipCase):
+    """One person is one account and one seat: a membership takes none, so it works with every seat taken."""
+
+    def invite(self, login):
+        return self.api('POST', USERS, {
+            'name': 'Someone', 'login': self.mail(login), 'assignments': self.grants(self.branch_b, self.employee_role),
+        })
+
+    def test_adding_and_removing_a_member_take_no_seat_at_the_limit(self):
+        for mode in ('saas', 'non_saas'):
+            with self.subTest(mode=mode), self.undone():
+                self.set_mode(mode)
+                self.at_user_limit()
+                seats = self.full_seats()
+                self.sign_in('mb_b_admin')
+                added = self.add('mb_member', self.branch_b, self.employee_role)
+                self.assertEqual(added.status_code, 201, added.text)
+                self.assertEqual(self.full_seats(), seats)
+                removed = self.api('DELETE', f'{MEMBERSHIPS}/{self.member.id}')
+                self.assertEqual(removed.status_code, 204, removed.text)
+                self.assertEqual(self.full_seats(), seats)
+
+    def test_an_invitation_names_the_existing_account_and_refuses_only_a_new_one_at_the_limit(self):
+        for mode in ('saas', 'non_saas'):
+            with self.subTest(mode=mode), self.undone():
+                self.set_mode(mode)
+                self.at_user_limit()
+                self.sign_in('mb_b_admin')
+                existing = self.invite('mb_member')
+                refusal(self, existing, 409, 'account_exists')
+                self.assertEqual(existing.json()['details'], {
+                    'existing_account': {'name': self.member.name, 'home_company': {'id': self.branch_a.id, 'name': self.branch_a.name}},
+                })
+                fresh = self.invite('nobody.yet@example.test')
+                refusal(self, fresh, 403, 'feature_not_included')
+                self.assertEqual(
+                    {key: fresh.json()['details'].get(key) for key in ('reason', 'limit_key')},
+                    {'reason': 'limit', 'limit_key': 'users.limit'},
+                )
+                self.assertFalse(self.env['res.users'].with_context(active_test=False).search([('login', '=', 'nobody.yet@example.test')]))

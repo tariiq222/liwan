@@ -125,3 +125,28 @@ class TestMembershipEmployeeLink(MembershipCase):
                 removed = self.api('DELETE', f'{MEMBERSHIPS}/{self.member.id}')
                 self.assertEqual(removed.status_code, 204, removed.text)
                 self.assertFalse(self.linked(self.employee_b))
+
+    def test_at_the_user_limit_the_route_names_the_existing_account_and_refuses_only_a_new_one(self):
+        fresh_file = self.env['hr.employee'].create({
+            'name': 'New person', 'company_id': self.branch_b.id, 'work_email': 'new.person@example.test',
+        })
+        for mode in ('saas', 'non_saas'):
+            with self.subTest(mode=mode), self.undone():
+                self.set_mode(mode)
+                self.at_user_limit()
+                self.sign_in('mb_b_admin')
+                existing = self.api('POST', EMPLOYEE_ACCOUNTS, {
+                    'employee_id': self.employee_b.id, 'login': self.member.login,
+                    'assignments': self.grants(self.branch_b, self.employee_role),
+                })
+                self.assertEqual((existing.status_code, existing.json()['code']), (409, 'account_exists'), existing.text)
+                self.assertIn('existing_account', existing.json()['details'])
+                new = self.api('POST', EMPLOYEE_ACCOUNTS, {
+                    'employee_id': fresh_file.id, 'login': 'new.person@example.test',
+                    'assignments': self.grants(self.branch_b, self.employee_role),
+                })
+                self.assertEqual((new.status_code, new.json()['code']), (403, 'feature_not_included'), new.text)
+                self.assertEqual(
+                    {key: new.json()['details'].get(key) for key in ('reason', 'limit_key')},
+                    {'reason': 'limit', 'limit_key': 'users.limit'},
+                )
