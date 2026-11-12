@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_customers_read" model="liwan.access.permission">
+        <field name="key">customers.read</field><field name="domain">customers</field>
+        <field name="resource">customers</field><field name="action">read</field>
+        <field name="name_ar">عرض العملاء</field><field name="name_en">Read customers</field>
+        <field name="description_ar">عرض دليل العملاء وبيانات التواصل معهم</field><field name="description_en">Read the customer directory and the customers' contact details</field>
+        <field name="group_xmlid">liwan_customers.group_cap_customers_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_customers_manage" model="liwan.access.permission">
+        <field name="key">customers.manage</field><field name="domain">customers</field>
+        <field name="resource">customers</field><field name="action">manage</field>
+        <field name="name_ar">إدارة العملاء</field><field name="name_en">Manage customers</field>
+        <field name="description_ar">إضافة العملاء وتعديل بياناتهم وأرشفتهم واستعادتهم</field><field name="description_en">Add customers, edit their details, archive and restore them</field>
+        <field name="group_xmlid">liwan_customers.group_cap_customers_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_customers_settings_manage" model="liwan.access.permission">
+        <field name="key">customers.settings.manage</field><field name="domain">customers</field>
+        <field name="resource">settings</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعدادات العملاء</field><field name="name_en">Manage customer settings</field>
+        <field name="description_ar">تغيير مشاركة العملاء بين الفروع ودولة أرقام الهاتف</field><field name="description_en">Change how customers are shared between branches and the phone country</field>
+        <field name="group_xmlid">liwan_customers.group_cap_customers_settings_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

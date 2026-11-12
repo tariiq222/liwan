@@ -231,6 +231,14 @@
     "odoo-addons/liwan_notify/models/user_membership_notification.py": {
       "count": 1,
       "reason": "liwan_notify membership notice: `self.env.ref('liwan_core.group_cap_access_users_read').sudo().all_user_ids` in `_liwan_membership_reader_partners` finds the active internal users who hold `access.users.read` in the home company of a person added to or removed from another company, and in the branch a root administrator acts on, to leave each of them one bell row; blocked by the record rule `rule_access_users_company` (odoo-addons/liwan_core/security/liwan_access_rules.xml:14-23), which shows the acting administrator only the users homed in the working company, while these readers are homed in the person's home company or the branch. The acting administrator's `access.users.grant` in the receiving company was checked first by the membership service, only the contacts of the readers leave the function, and the rows are delivered by `liwan.notify.service._liwan_deliver` unelevated."
+    },
+    "odoo-addons/liwan_core/models/res_partner.py": {
+      "count": 1,
+      "reason": "liwan_core partner write guard: `self.env['res.users'].sudo().with_context(active_test=False)` in `res.partner._liwan_has_account`, which answers only whether any of the partners is the partner of a user, active or archived, in any company, before an addon's write marker may cover them; blocked by odoo-addons/liwan_core/security/liwan_access_rules.xml `rule_access_users_company` (`[('company_id', '=', company_id)]` for group_cap_access_users_read), which hides the users homed in other companies from the protected actor, and by `active_test`, which hides archived users; a missed account would let a marker write the email that sign-in codes are mailed to."
+    },
+    "odoo-addons/liwan_customers/models/customers_settings.py": {
+      "count": 1,
+      "reason": "liwan_customers sharing refusal: `self.env['res.partner'].sudo().with_context(active_test=False)` in `liwan.customers.settings._liwan_party_exists`, which answers only whether the tenant holds any party (archived ones and contacts included) before the sharing setting may change; blocked by the company fence of odoo-addons/liwan_core/models/ir_rule.py `_liwan_fresh_company_domain`, which hides the parties owned by branches the root settings manager holds no grant in. The sharing transfer of PR 3 removes the `sharing_transfer_required` refusal and this read."
     }
   }
 }

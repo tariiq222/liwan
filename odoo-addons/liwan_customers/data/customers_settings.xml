@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- The tenant's one customer settings record: shared customers, the root company's phone country. -->
+    <record id="customers_settings" model="liwan.customers.settings"/>
+</odoo>
