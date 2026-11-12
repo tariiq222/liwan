@@ -641,6 +641,11 @@ describe('inbox audit mock: catalog and orders', () => {
     expect(InboxOrderCheckoutResultSchema.parse(call('POST', path, { customer_id: 42 }).body).order.state).toBe('ordered')
   })
 
+  it('accepts any visible customer, not only the matching ones, as the server does', () => {
+    const made = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/3/orders', { lines: [{ catalog_item_id: 1, quantity: 1 }] }).body)
+    expect(InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${made.id}/checkout`, { customer_id: 7 }).body).order.state).toBe('ordered')
+  })
+
   it('lets the agent ask for a new customer, and asks nothing of a contact that is linked afterwards', () => {
     const first = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/3/orders', { lines: [{ catalog_item_id: 1, quantity: 1 }] }).body)
     expect(InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${first.id}/checkout`, { create_new: true }).body).order.state).toBe('ordered')

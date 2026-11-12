@@ -52,6 +52,8 @@ export function seedCatalog() {
     // validate answers 422 `invalid_phone` unless the body names a customer. Both end once the contact is linked.
     candidates: new Map([[3, [{ id: 41, name: 'منى العتيبي', phone_last4: '0003' }, { id: 42, name: 'منى سعد العتيبي', phone_last4: '0003' }]]]),
     invalidPhoneContacts: new Set([4]),
+    // The customers the agent can see: a checkout's `customer_id` may name any of them, as on the server.
+    parties: new Set([7, 41, 42]),
     // Item id -> when it was queued for Meta; the push cron is simulated by settleItems.
     queued: new Map(),
     ids: { catalog: 2, item: 7, order: 1, line: 1, reference: 12, product: 300 },
@@ -390,7 +392,7 @@ function resolveCustomer(state, contactId, body) {
   if (body.customer_id !== undefined && body.create_new !== undefined) return fail(422, 'invalid', 'customer_id and create_new exclude each other', 'create_new')
   const candidates = state.catalog.candidates.get(contactId)
   if (body.customer_id !== undefined) {
-    if (candidates && !candidates.some(candidate => candidate.id === body.customer_id)) return fail(404, 'not_found', 'customer not found', 'customer_id')
+    if (!state.catalog.parties.has(body.customer_id)) return fail(404, 'not_found', 'customer not found', 'customer_id')
     state.catalog.candidates.delete(contactId)
     state.catalog.invalidPhoneContacts.delete(contactId)
     return null

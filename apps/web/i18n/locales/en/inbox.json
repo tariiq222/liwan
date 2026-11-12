@@ -1805,7 +1805,7 @@
         "new": "New customer",
         "newHint": "A new customer is created with these details.",
         "confirm": "Continue",
-        "invalidPhone": "The contact's phone number is not valid. Pick an existing customer or correct the number, then try again.",
+        "invalidPhone": "The contact's phone number is not valid. Correct it in the contact's details, then try again.",
         "notFound": "This customer is no longer available. Send again to see the matching customers."
       },
       "quantityOf": "Quantity of {name}",

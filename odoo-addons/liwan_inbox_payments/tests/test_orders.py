@@ -28,7 +28,8 @@ class OrderCase(LiwanCatalogCase):
         cls.item = cls.synced(cls.make_item(cls.catalog))
         cls.item2 = cls.synced(cls.make_item(cls.catalog, cls.product2))
         cls.conversation = cls.make_conversation()
-        # The customer's accounting partner exists already: it carries the SAR price list the gateway needs.
+        # The customer exists already as a party: it carries the SAR price list the gateway needs.
+        cls.customer.liwan_party = True
         cls.conversation.contact_id.partner_id = cls.customer
         cls.counter_cart = 0
 
@@ -303,7 +304,8 @@ class TestCheckoutCustomer(OrderCase):
         ):
             with self.subTest(payload=payload):
                 self.assertError(self.checkout(order, payload), 422, 'invalid')
-        for customer in (self.customer, hidden, self.agent.partner_id):
+        plain = self.env['res.partner'].create({'name': 'Not a party'})
+        for customer in (plain, hidden, self.agent.partner_id):
             with self.subTest(customer=customer.name):
                 self.assertError(self.checkout(order, {'customer_id': customer.id}), 404, 'not_found')
         self.assertFalse(self.reload(contact).partner_id)
@@ -324,6 +326,38 @@ class TestCheckoutCustomer(OrderCase):
         contact.phone = False
         self.assertEqual(self.checkout(order).status_code, 200)
         self.assertEqual((contact.partner_id.name, contact.partner_id.phone, contact.partner_id.liwan_party), (contact.name, False, True))
+
+    def test_a_contact_linked_to_a_partner_that_is_no_active_party_is_resolved_again(self):
+        archived = self.party('Archived customer', '+966522223333', active=False)
+        for linked in (self.env['res.partner'].create({'name': 'Not a party'}), archived):
+            with self.subTest(linked=linked.name):
+                contact, order = self.unlinked_order()
+                contact.partner_id = linked
+                before = self.parties()
+                response = self.checkout(order)
+                self.assertEqual(response.status_code, 200, response.text)
+                created = self.parties() - before
+                self.assertEqual((len(created), self.reload(contact).partner_id), (1, created))
+                self.assertEqual(self.env['sale.order'].search([('partner_id', '=', linked.id)]).ids, [])
+
+    def test_a_relinked_contact_honours_the_customer_conflict_answer(self):
+        contact, order = self.unlinked_order()
+        contact.partner_id = self.env['res.partner'].create({'name': 'Not a party'})
+        known = self.party('Known again', contact.phone)
+        self.assertError(self.checkout(order), 409, 'conflict')
+        response = self.checkout(order, {'customer_id': known.id})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.reload(contact).partner_id, known)
+
+    def test_a_checkout_for_a_party_with_a_contact_leaves_its_identity_alone(self):
+        contact, order = self.unlinked_order()
+        family = self.party('Family Co', '+966544445555', is_company=True, email='family@example.test')
+        self.party('Family contact', '+966544446666', parent_id=family.id, email='member@example.test')
+        contact.partner_id = family
+        response = self.checkout(order)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.reload(order)._liwan_sale_orders().partner_id, family)
+        self.assertEqual((family.name, family.phone, family.email), ('Family Co', '+966544445555', 'family@example.test'))
 
     def test_an_orders_holder_who_is_not_an_administrator_writes_parties_only(self):
         agent = self.agent

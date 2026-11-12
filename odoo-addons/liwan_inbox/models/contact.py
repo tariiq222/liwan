@@ -27,17 +27,26 @@ class LiwanInboxContact(models.Model):
     def _liwan_customer(self, customer_id=None, create_new=False):
         """The customer of this contact, resolved by liwan.customers.service as the caller and linked on first use.
 
-        A linked contact keeps its customer. Otherwise ``customer_id`` names an existing customer, ``create_new`` asks
-        for a new one, and without either a customer is made from the contact's name and phone unless customers with
-        that phone exist, which answers 409 ``conflict`` with them. A contact with no phone (TikTok) is made from its
-        name alone.
+        A contact linked to an active party the caller sees keeps it. Otherwise (no link, or a link to a partner that
+        is no party, is archived or is hidden) ``customer_id`` names an existing customer, ``create_new`` asks for a
+        new one, and without either a customer is made from the contact's name and phone unless customers with that
+        phone exist, which answers 409 ``conflict`` with them. A contact with no phone (TikTok) is made from its name
+        alone.
         """
         self.ensure_one()
-        if not self.partner_id:
-            service = self.env['liwan.customers.service']
-            values = None if customer_id is not None else self._liwan_customer_values()
-            self.partner_id = service._liwan_resolve(customer_id=customer_id, values=values, create_new=create_new)
+        linked = self._liwan_linked_customer()
+        if linked:
+            return linked
+        service = self.env['liwan.customers.service']
+        values = None if customer_id is not None else self._liwan_customer_values()
+        self.partner_id = service._liwan_resolve(customer_id=customer_id, values=values, create_new=create_new)
         return self.partner_id
+
+    def _liwan_linked_customer(self):
+        """The linked partner when it is an active party the caller sees, else no partner."""
+        if not self.partner_id:
+            return self.partner_id
+        return self.env['res.partner'].search([('id', '=', self.partner_id.id), ('liwan_party', '=', True)], limit=1)
 
     def _liwan_customer_values(self):
         """The identity of a new customer made from this contact; its phone in E.164, read as a channel address."""
