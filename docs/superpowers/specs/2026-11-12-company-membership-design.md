@@ -45,7 +45,9 @@ When the email belongs to an active account of the tenant whose home is another 
 
 All use `type='json2'`, `auth='user'` and `api_handler`, and all require `access.users.grant`; the two that write roles also require `access.users.assign_roles`, as the invitation does today.
 
-Refusals: an account that is already a member (`409 already_member`), a pending invitation that was never accepted (`409 invitation_pending`), a vendor support account (`403 protected_user`), an archived account, and an email with no account in the tenant, which stays an ordinary invitation.
+Refusals: an account that is already a member answers `409 already_member`, and so does a login homed in the working company. Every other account that cannot be added answers `404 not_found`, with the same message as a login that has no account: an archived account, a pending invitation that was never accepted, a vendor support account, a share account, a machine account of an application, and an account not yet managed by roles. Nothing but the name and home company of an addable account can be learned from a typed email, and the two entry points show those details only for an account the add would accept. An email with no account in the tenant stays an ordinary invitation.
+
+An account that is not yet managed by roles keeps its capabilities from its legacy groups in its home company. The first assignment in another company would mark it managed and drop them there, so such an account cannot be added until it has been given roles in its home company.
 
 ### 3.2 What changes on the records
 
@@ -55,7 +57,7 @@ Refusals: an account that is already a member (`409 already_member`), a pending 
 
 ### 3.3 Removing a member
 
-Removing deletes the member's assignments in that company and removes the company from `company_ids`. It is refused for the home company and when the member is the last holder of `access.users.assign_roles` in that company, through the existing last-administrator check (`access_service.py:458`). A session working in that company returns to the home company on its next request, which the switch already does. The employee file of that company keeps its history and loses its link to the account.
+Removing deletes the member's assignments in that company and removes the company from `company_ids`. Removing a member who holds at least one role there also needs `access.users.assign_roles`; a member with no role there is removed with `access.users.grant` alone. It is refused for the home company and when the member is the last holder of `access.users.assign_roles` in that company, through the existing last-administrator check (`_liwan_assert_admin_survives`). A session working in that company returns to the home company on its next request, which the switch already does. The employee file of that company keeps its history and loses its link to the account.
 
 ### 3.4 Root administrators and branches
 
@@ -65,6 +67,7 @@ Under decision 5, a holder of `access.users.grant` in the root company calls the
 
 - The person gets the existing `access_changed` bell row (`liwan_notify/models/user_access_notification.py`), with a text that names the company they were added to or removed from.
 - Holders of `access.users.read` in the person's home company get a bell row of a new platform kind, owned by `liwan_notify` like the storage warning.
+- When a root administrator acts on a branch they may not belong to, the holders of `access.users.read` in that branch get the same row, on add and on remove.
 - The access audit gets one entry in the receiving company and one in the home company, each naming the actor, the person and both companies.
 
 ### 3.6 The HR path
