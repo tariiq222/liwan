@@ -67,6 +67,15 @@ Settled in the first design review:
 18. Tenant-wide settings are changed with a capability held in the root company, so a branch manager cannot change what other branches see.
 19. Sharing a customer shares the party record together with what stock Odoo attaches to it: its child contacts and addresses and its bank accounts. Each stays behind its own capability, the settings screen states it before the tenant chooses, and documents stay per branch.
 
+### 2.3 Changes approved by the owner on 2026-11-12 with the implementation plan
+
+The [implementation plan](../plans/2026-11-12-liwan-customers.md) read the code again and changed four points of this design. Where a later section disagrees, these win.
+
+20. Section 3.8 said the booking capability's right to create a partner is removed. It is replaced by a narrower one: a technical group of the service gives create and write on `res.partner`, and a holder of that group alone writes customers only. Each capability that creates a customer inside an action implies it.
+21. Section 9 said no new `sudo()` case is added. The service has documented cases that answer a boolean only (whether a partner belongs to an account, whether any customer exists before the sharing setting changes), and may need one to write the custom field definition. The inbox contact case and finance's read of every company's partner are removed.
+22. Section 3.6 gains a setting, the default phone country, which defaults to the root company's country. A phone is stored as E.164, and a number that does not validate is refused.
+23. The public form path of decision 16 is built with the first public route that creates a customer; none exists today.
+
 This design implements the 2026-11-06 decision on one customer record.
 
 The target: applications ask two shared services, and each service is the only writer of its table.
