@@ -307,3 +307,31 @@ class TestCrmDistribution(LiwanCrmCase):
         self.assertEqual(leads.user_id, self.agents[2])
         row.invalidate_recordset()
         self.assertEqual(row.last_user_id, self.agents[2])
+
+    def test_the_start_stage_setting_is_a_stage_and_the_effective_read_carries_it(self):
+        contacted = self.env.ref('liwan_crm.stage_contacted')
+        self.assertNotEqual(contacted, self.env.ref('liwan_crm.stage_new'))
+        self._settings(start_stage_id=contacted.id)
+        row = self.env['liwan.crm.settings']._liwan_current()
+        self.assertEqual(row.start_stage_id, contacted, 'the row holds the chosen stage')
+        self.assertEqual(row.start_stage_mode, 'stage', 'the row switched to the chosen mode')
+        effective = self.env['liwan.crm.settings']._liwan_effective()
+        self.assertEqual((effective['start_stage_mode'], effective['start_stage_id']), ('stage', contacted),
+                         'effective values carry the row, not the defaults')
+
+    def test_the_engine_reads_the_effective_start_stage(self):
+        contacted = self.env.ref('liwan_crm.stage_contacted')
+        self._settings(start_stage_id=contacted.id)
+        effective = self.env['liwan.crm.settings']._liwan_effective()
+        self.assertEqual(effective['start_stage_mode'], 'stage', 'effective carries the row mode')
+        self.assertEqual(effective['start_stage_id'], contacted, 'effective carries the row stage')
+        self.assertEqual(self.env['crm.lead']._liwan_first_stage(), contacted,
+                         'the engine reads the chosen stage for creates, imports and restarts alike')
+
+    def test_the_setting_falls_back_to_the_legacy_rule_when_the_stage_disappears(self):
+        contacted = self.env.ref('liwan_crm.stage_contacted')
+        self._settings(start_stage_id=contacted.id)
+        contacted.active = False
+        self.assertEqual(self.env['crm.lead']._liwan_first_stage().id,
+                         self.env.ref('liwan_crm.stage_new').id,
+                         'the auto rule takes over at runtime')

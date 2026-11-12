@@ -33,6 +33,7 @@ export const CrmPresetSchema = z.enum([
 ])
 export const CrmAfterAttemptsSchema = z.enum(['lost', 'manager'])
 export const CrmDistributionModeSchema = z.enum(['round_robin', 'manual', 'on_import'])
+export const CrmStartStageModeSchema = z.enum(['auto', 'stage'])
 export const CrmVisibilitySchema = z.enum(['own', 'all'])
 export const CrmPriceAboveListSchema = z.enum(['forbid', 'managers', 'everyone'])
 
@@ -47,6 +48,9 @@ export const CrmSettingsValuesSchema = z.strictObject({
   recycle_after_days: z.number().int().min(1).max(365),
   recycle_cycles: z.number().int().min(0).max(5),
   distribution_mode: CrmDistributionModeSchema,
+  // `stage` names the explicit stage in `start_stage_id`; `auto` keeps the legacy rule.
+  start_stage_mode: CrmStartStageModeSchema,
+  start_stage_id: z.number().int().positive().nullable(),
   distribution_user_ids: z.array(z.number().int()),
   visibility: CrmVisibilitySchema,
   view_log_enabled: z.boolean(),
@@ -63,6 +67,7 @@ export const CrmSettingsOptionsSchema = z.strictObject({
   preset: z.array(CrmPresetSchema),
   after_attempts: z.array(CrmAfterAttemptsSchema),
   distribution_mode: z.array(CrmDistributionModeSchema),
+  start_stage_mode: z.array(CrmStartStageModeSchema),
   visibility: z.array(CrmVisibilitySchema),
   price_above_list: z.array(CrmPriceAboveListSchema),
   term_gender: z.array(z.enum(['m', 'f'])),

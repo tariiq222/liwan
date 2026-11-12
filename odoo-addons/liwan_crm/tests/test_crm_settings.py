@@ -32,6 +32,8 @@ class TestCrmSettings(LiwanCrmCase):
         self.assertEqual(values['recycle_after_days'], 30)
         self.assertEqual(values['recycle_cycles'], 1)
         self.assertEqual(values['distribution_mode'], 'round_robin')
+        self.assertEqual(values['start_stage_mode'], 'auto')
+        self.assertIsNone(values['start_stage_id'])
         self.assertEqual(values['distribution_user_ids'], [])
         self.assertEqual(body['distribution_users'], [])
         self.assertEqual(values['visibility'], 'own')
@@ -57,6 +59,7 @@ class TestCrmSettings(LiwanCrmCase):
         self.assertEqual(options['preset'], ['general', 'phone_packages', 'professional_services', 'projects_contracts', 'education'])
         self.assertEqual(options['after_attempts'], ['lost', 'manager'])
         self.assertEqual(options['distribution_mode'], ['round_robin', 'manual', 'on_import'])
+        self.assertEqual(options['start_stage_mode'], ['auto', 'stage'])
         self.assertEqual(options['visibility'], ['own', 'all'])
         self.assertEqual(options['term_gender'], ['m', 'f'])
         self.assertEqual(options['followup_attempts'], {'min': 0, 'max': 10})
@@ -338,3 +341,25 @@ class TestCrmSettings(LiwanCrmCase):
         self.env['liwan.crm.settings'].create({'company_id': self.company.id})
         with self.assertRaises(UniqueViolation), mute_logger('odoo.sql_db'), self.cr.savepoint():
             self.env['liwan.crm.settings'].create({'company_id': self.company.id})
+
+    def test_the_start_stage_choice_is_a_stage_or_null_and_keeps_the_mode_in_step(self):
+        contacted = self.env.ref('liwan_crm.stage_contacted')
+        won = self.env.ref('liwan_crm.stage_won')
+        body = self.as_manager().api('GET', URL).json()
+        response = self.as_manager().api('PATCH', URL, json={
+            'revision': body['revision'], 'values': {'start_stage_id': contacted.id},
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['values']['start_stage_id'], contacted.id)
+        self.assertEqual(response.json()['values']['start_stage_mode'], 'stage')
+        # A won stage cannot lead a pipeline.
+        refused = self.as_manager().api('PATCH', URL, json={
+            'revision': response.json()['revision'], 'values': {'start_stage_id': won.id},
+        })
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'start_stage_id'))
+        # Clearing the stage returns the legacy rule.
+        cleared = self.as_manager().api('PATCH', URL, json={
+            'revision': response.json()['revision'], 'values': {'start_stage_id': None},
+        })
+        self.assertEqual(cleared.json()['values']['start_stage_id'], None)
+        self.assertEqual(cleared.json()['values']['start_stage_mode'], 'auto')

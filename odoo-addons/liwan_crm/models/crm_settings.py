@@ -8,6 +8,8 @@ TERM_GENDERS = ('m', 'f')
 PRESET_KEYS = ('general', 'phone_packages', 'professional_services', 'projects_contracts', 'education')
 AFTER_ATTEMPTS = ('lost', 'manager')
 DISTRIBUTION_MODES = ('round_robin', 'manual', 'on_import')
+# A restarted opportunity's stage: automatic (the legacy rule) or an explicit active open stage.
+START_STAGE_MODES = ('auto', 'stage')
 VISIBILITIES = ('own', 'all')
 # Who may sell a package above its list price: nobody, the holders of crm.discount.approve, or every agent.
 PRICE_ABOVE_LIST = ('forbid', 'managers', 'everyone')
@@ -50,6 +52,8 @@ DEFAULTS = {
     'recycle_after_days': 30,
     'recycle_cycles': 1,
     'distribution_mode': 'round_robin',
+    'start_stage_mode': 'auto',
+    'start_stage_id': False,
     'visibility': 'own',
     'view_log_enabled': False,
     # How long an opening of an opportunity stays in the audit trail; the prune cron deletes older rows.
@@ -68,7 +72,7 @@ DEFAULTS = {
 # the tenant-wide lists are never touched by a preset.
 _PRESET_FIELDS = (
     'followup_attempts', 'followup_interval_hours', 'after_attempts', 'recycle_enabled',
-    'recycle_after_days', 'recycle_cycles', 'distribution_mode', 'visibility',
+    'recycle_after_days', 'recycle_cycles', 'distribution_mode', 'start_stage_mode', 'visibility',
     'view_log_enabled', 'view_log_retention_months', 'discount_allowed', 'discount_max_percent', 'price_above_list',
 )
 PRESETS = {
@@ -176,6 +180,14 @@ class LiwanCrmSettings(models.Model):
     # Empty means every eligible agent; the distribution service resolves eligibility.
     distribution_user_ids = fields.Many2many('res.users', 'liwan_crm_settings_user_rel', 'settings_id', 'user_id')
 
+    # `auto` keeps the seeded "new" stage while it is open, else the first open stage by sequence; `stage`
+    # names one active open stage. `start_stage_id` is validated at the settings route, not by a SQL
+    # constraint: "active open stage of this company" is data, not a row invariant.
+    start_stage_mode = fields.Selection(
+        _selection(START_STAGE_MODES), required=True, default=DEFAULTS['start_stage_mode'],
+    )
+    start_stage_id = fields.Many2one('crm.stage', ondelete='set null')
+
     visibility = fields.Selection(_selection(VISIBILITIES), required=True, default=DEFAULTS['visibility'])
     view_log_enabled = fields.Boolean(default=DEFAULTS['view_log_enabled'])
     # The audit trail of opportunity openings holds personal data ("who opened what"), so a company states
@@ -212,11 +224,20 @@ class LiwanCrmSettings(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         self.env.cr.cache.pop(TERM_MEMO, None)
-        return super().create(vals_list)
+        rows = super().create([dict(vals) for vals in vals_list])
+        # One fact in one place: a chosen stage is exactly the `stage` mode, on every write path.
+        for row, vals in zip(rows, [dict(vals) for vals in vals_list]):
+            if 'start_stage_id' in vals and 'start_stage_mode' not in vals:
+                row.start_stage_mode = 'stage' if row.start_stage_id else 'auto'
+        return rows
 
     def write(self, vals):
         self.env.cr.cache.pop(TERM_MEMO, None)
-        return super().write(vals)
+        rows = super().write(vals)
+        if 'start_stage_id' in vals and 'start_stage_mode' not in vals:
+            for row in self:
+                row.start_stage_mode = 'stage' if row.start_stage_id else 'auto'
+        return rows
 
     def unlink(self):
         self.env.cr.cache.pop(TERM_MEMO, None)
@@ -234,5 +255,6 @@ class LiwanCrmSettings(models.Model):
         if not row:
             return {**DEFAULTS, 'distribution_user_ids': []}
         values = {name: row[name] for name in DEFAULTS}
+        values['start_stage_id'] = row.start_stage_id
         values['distribution_user_ids'] = row.distribution_user_ids.ids
         return values
