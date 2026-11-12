@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Live company policy and the sole effective project-tool decision."""
 import re
+from contextlib import contextmanager
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
@@ -71,8 +72,11 @@ class ProjectTools(models.Model):
 
     def _liwan_member_domain(self):
         """Projects the caller works on: manages or sponsors, follows, or holds one of their tasks."""
+        # The sponsor is a governance field: resolved here, outside the tool restriction, it never narrows the caller's query.
+        with self._liwan_tool_restriction_lifted():
+            sponsored = self._search([('liwan_sponsor_id', '=', self.env.uid)])
         member = (Domain('user_id', '=', self.env.uid)
-                  | Domain('liwan_sponsor_id', '=', self.env.uid)
+                  | Domain('id', 'in', sponsored)
                   | Domain('message_follower_ids.partner_id', '=', self.env.user.partner_id.id))
         Task = self.env['project.task'].with_context(active_test=False)
         if Task.has_access('read') and self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'pmo.tasks.read'):
@@ -85,6 +89,11 @@ class ProjectTools(models.Model):
         domain = Domain('company_id', 'in', self.env.companies.ids)
         if not self._liwan_is_manager():
             domain &= Domain('active', '=', True) | (Domain('active', '=', False) & self._liwan_member_domain())
+        with self._liwan_tool_restriction_lifted():
+            return self.with_context(active_test=False)._search(domain)
+
+    @contextmanager
+    def _liwan_tool_restriction_lifted(self):
         marker = self.env.cr.precommit.data
         previous = marker.get(CHILD_PROJECT_QUERY_MARKER)
         # This private, server-owned scope permits sponsor membership to be queried
@@ -92,7 +101,7 @@ class ProjectTools(models.Model):
         # neither an RPC context nor a caller domain can create this marker.
         marker[CHILD_PROJECT_QUERY_MARKER] = self.env.uid
         try:
-            return self.with_context(active_test=False)._search(domain)
+            yield
         finally:
             if previous is None:
                 marker.pop(CHILD_PROJECT_QUERY_MARKER, None)

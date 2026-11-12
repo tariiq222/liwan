@@ -298,6 +298,34 @@ class TestProjectFinanceReaders(LiwanPmoCase):
                     project._liwan_can_read_finance(), (mode, user.login),
                 )
 
+    def test_members_mode_with_governance_off_every_member_still_reads_the_money(self):
+        self._mode('members')
+        settings = self.env['liwan.pmo.settings']
+        settings._params().set_param(settings._company_key('liwan_pmo.governance_tool_policy'), 'optional')
+        self.assertFalse(self.fin.liwan_governance_enabled)
+        Entry = self.env['liwan.project.finance.entry']
+        for user in (self.owner, self.follower, self.assignee, self.sponsor):
+            project = self.fin.with_user(user)
+            self.assertTrue(project._liwan_can_read_finance(), user.login)
+            self.assertEqual(project._liwan_finance_readable(), self.fin, user.login)
+            self.assertEqual(Entry.with_user(user).search([]), self.budget | self.expense, user.login)
+        self.assertFalse(Entry.with_user(self.reader).search([]))
+        for login in ('fin_owner', 'fin_follower', 'fin_assignee', 'fin_sponsor'):
+            rows = {row['project']['id']: row for row in self._get(login, ANALYTICS_URL).json()['projects']}
+            self.assertEqual(rows[self.fin.id]['finance']['planned'], 1000, login)
+            summary = self._get(login, f'/api/v1/projects/{self.fin.id}/finance/summary').json()
+            self.assertEqual((summary['planned'], summary['actual']), (1000, 250), login)
+
+    def test_the_sponsor_rule_still_applies_when_governance_is_on(self):
+        self._mode('members')
+        settings = self.env['liwan.pmo.settings']
+        settings._params().set_param(settings._company_key('liwan_pmo.governance_tool_policy'), 'optional')
+        self.fin.liwan_governance_enabled = True
+        Entry = self.env['liwan.project.finance.entry']
+        self.assertEqual(Entry.with_user(self.sponsor).search([]), self.budget | self.expense)
+        self.assertTrue(self.fin.with_user(self.sponsor)._liwan_can_read_finance())
+        self.assertEqual(Entry.with_user(self.assignee).search([]), self.budget | self.expense)
+
     # --- settings -----------------------------------------------------------------------
     def test_the_setting_is_validated_and_needs_the_settings_capability(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
