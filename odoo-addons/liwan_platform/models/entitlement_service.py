@@ -117,9 +117,12 @@ class LiwanEntitlementService(models.AbstractModel):
 
     @api.model
     def _liwan_api_write_allowed(self, path):
-        # Clearing the notification bell is the recipient's own read state, not a business write.
+        # Clearing the notification bell is the recipient's own read state, not a business write. Choosing the
+        # working company changes only the session: a read-only account or an expired tenant may still read and
+        # export every company's data, so it must be able to move between them.
         return path in {
-            '/api/v1/me/password', '/api/v1/me/mobile', '/api/v1/auth/totp', '/api/v1/notifications/read-all',
+            '/api/v1/me/password', '/api/v1/me/mobile', '/api/v1/me/company', '/api/v1/auth/totp',
+            '/api/v1/notifications/read-all',
         } \
             or bool(NOTIFICATION_READ_PATH.fullmatch(path))
 

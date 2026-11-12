@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CompanyMembers from '@/components/access/users/CompanyMembers.vue'
 import UserTable from '@/components/access/users/UserTable.vue'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { useAdminUsers, type AdminUserListParams } from '@/composables/useAdminUsers'
@@ -126,5 +127,8 @@ function clearSearch() { filters.q = ''; updateFilters() }
         <SharedListFooter :count-label="t('access.footer.results', { shown: items.length, total }, total)" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
       </template>
     </SharedListCard>
+    <SharedRecordSection v-if="!forbidden && can('access.users.grant')" id="members" variant="panel" :title="t('access.members.title')" :description="t('access.members.description')">
+      <CompanyMembers :roles="roles.data.value?.items ?? []" />
+    </SharedRecordSection>
   </SharedListPage>
 </template>

@@ -12,11 +12,11 @@ from .common import (
     SETUP_EXPECTED_USER_HEADER,
     LiwanFinanceCase,
 )
-from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_finance.controllers.finance_setup import (
+from odoo.addons.liwan_api.controllers.common import (
     EXPECTED_ID_PATTERN,
     MAX_EXPECTED_ID,
 )
+from odoo.addons.liwan_api.tests.common import set_probe_feature
 
 SETUP_KEYS = {'chart', 'company', 'fiscal', 'journals', 'taxes', 'zatca', 'ready', 'blockers'}
 COMPANY_KEYS = {

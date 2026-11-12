@@ -11,7 +11,7 @@ const manifest: AppManifest = {
   ],
   landing: [{ path: '/documents', capability: 'documents.items.read' }],
   personal: [{
-    id: 'documents', section: 'documents', labelKey: 'documents.personal.label', descriptionKey: 'documents.personal.description',
+    id: 'documents', section: 'documents', servedFromHomeCompany: true, labelKey: 'documents.personal.label', descriptionKey: 'documents.personal.description',
     icon: 'i-lucide-files', to: '/account/documents', capability: 'documents.items.read', feature: 'hr.enabled', requiredCapabilities: ['hr.employees.read'],
     summary: {
       queryKey: ['documents', 'employee', 'summary'],

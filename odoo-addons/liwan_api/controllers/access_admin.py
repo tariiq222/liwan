@@ -61,8 +61,8 @@ def require_exact(payload, allowed, required=()):
         raise ApiError(422, 'invalid', 'field is required', field=field)
 
 
-def parse_assignments(value):
-    if not isinstance(value, list) or not value:
+def parse_assignments(value, allow_empty=False):
+    if not isinstance(value, list) or (not value and not allow_empty):
         raise ApiError(422, 'invalid', 'assignments must not be empty', field='assignments')
     normalized = []
     seen = set()

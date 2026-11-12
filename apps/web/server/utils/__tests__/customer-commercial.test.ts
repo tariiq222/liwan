@@ -19,7 +19,7 @@ import { boundedTenantBody } from '../tenantTransport'
 const KEY = 'k'.repeat(48)
 const CSRF = 'c'.repeat(40)
 const config = { customerCommercialEnabled: true, customerCommercialControlUrl: 'https://control.example', customerCommercialServiceKey: KEY, customerCommercialIssuer: 'customer-web', customerCommercialPublicOrigin: 'https://acme.example', customerCommercialTenantId: 'tenant-acme', odooUrl: 'https://odoo.example' }
-const me = (capabilities: string[]) => ({ id: 7, name: 'U', login: 'u', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', capabilities, company: { id: 1, name: 'C' } })
+const me = (capabilities: string[]) => ({ id: 7, name: 'U', login: 'u', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', capabilities, home_capabilities: capabilities, company: { id: 1, name: 'C' }, companies: [{ id: 1, name: 'C' }], home_company_id: 1 })
 
 function setup(opts: { method?: string; url?: string; body?: string; headers?: Record<string, string>; cookies?: Record<string, string>; caps?: string[]; cfg?: Record<string, unknown> } = {}) {
   const headers: Record<string, string> = { cookie: 'session_id=s', origin: 'https://acme.example', 'content-type': 'application/json', 'x-liwan-csrf': CSRF, ...opts.headers }

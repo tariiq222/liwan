@@ -2,8 +2,13 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../useApi'
 import { useApi } from '../useApi'
 
+// `me` is not loaded unless a test states it.
+beforeEach(() => vi.stubGlobal('useNuxtData', () => ({ data: { value: null } })))
+
 describe('useApi', () => {
-  beforeEach(() => vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: (key: string) => key.startsWith('errors.api'), locale: { value: 'ar' } })))
+  beforeEach(() => {
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: (key: string) => key.startsWith('errors.api'), locale: { value: 'ar' } }))
+  })
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
@@ -222,5 +227,52 @@ describe('useApi tenant suspension', () => {
     const refusal = await $api('/api/v1/projects').catch(value => value)
     expect(refusal).toMatchObject({ status: 403, code: 'tenant_suspended', message: 'errors.codes.tenant_suspended' })
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useApi expected company header', () => {
+  const nuxtMe = (company: number | null) => vi.stubGlobal('useNuxtData', () => ({ data: { value: company === null ? null : { company: { id: company } } } }))
+  beforeEach(() => {
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: () => false, locale: { value: 'ar' } }))
+    ;(globalThis as any).useRequestHeaders = vi.fn().mockReturnValue({})
+    ;(globalThis as any).$fetch = Object.assign(vi.fn().mockResolvedValue({}), {
+      raw: vi.fn().mockResolvedValue({ _data: new Blob(), headers: new Headers() }),
+    })
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete (globalThis as any).$fetch
+    delete (globalThis as any).useRequestHeaders
+  })
+
+  it('states the loaded company on $api and $download', async () => {
+    nuxtMe(5)
+    const { $api, $download } = useApi()
+    await $api('/api/v1/hr/leave/types')
+    await $download('/api/v1/finance/export')
+    expect((globalThis as any).$fetch.mock.calls[0][1].headers).toMatchObject({ 'X-Liwan-Expected-Company-Id': '5' })
+    expect((globalThis as any).$fetch.raw.mock.calls[0][1].headers).toMatchObject({ 'X-Liwan-Expected-Company-Id': '5' })
+  })
+
+  it('sends nothing before me is known, and nothing to a path that forwards no identity', async () => {
+    nuxtMe(null)
+    const unknown = useApi()
+    await unknown.$api('/api/v1/hr/leave/types')
+    expect((globalThis as any).$fetch.mock.calls[0][1].headers).not.toHaveProperty('X-Liwan-Expected-Company-Id')
+    nuxtMe(5)
+    await useApi().$api('https://elsewhere.example/api/v1/x')
+    expect((globalThis as any).$fetch.mock.calls[1][1].headers).toEqual({})
+  })
+
+  it('lets a screen that states its own company replace it instead of doubling it', async () => {
+    nuxtMe(5)
+    await useApi().$api('/api/v1/finance/setup/fiscal', { method: 'PATCH', headers: { 'X-Liwan-Expected-Company-Id': '2' } })
+    expect((globalThis as any).$fetch.mock.calls[0][1].headers).toEqual({ 'X-Liwan-Expected-Company-Id': '2' })
+  })
+
+  it('states no company on a request that names its target itself', async () => {
+    nuxtMe(5)
+    await useApi().$api('/api/v1/me/company', { method: 'POST', statesCompany: false })
+    expect((globalThis as any).$fetch.mock.calls[0][1].headers).toEqual({})
   })
 })

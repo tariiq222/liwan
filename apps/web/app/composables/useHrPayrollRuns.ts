@@ -14,6 +14,7 @@ import {
   type HrPayslipRow,
   type HrPayslipRowList,
 } from '@liwan/contracts'
+import { fetchAllPages } from '../utils/pagedList'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
 
 type Api = ReturnType<typeof useApi>['$api']
@@ -96,18 +97,6 @@ export async function patchHrPayslipInputs($api: Api, qc: QueryClient, runId: nu
   })
   void qc.invalidateQueries({ queryKey: hrPayrollKeys.run(runId) })
   return row
-}
-
-/** Every row of a list route, read in the server's page size until its `total` is reached; `total` stays the server's, so a short read shows as `items.length < total`. */
-export async function fetchAllPages<T>(
-  fetchPage: (offset: number) => Promise<{ items: T[]; total: number }>,
-): Promise<{ items: T[]; total: number }> {
-  const items: T[] = []
-  for (;;) {
-    const page = await fetchPage(items.length)
-    items.push(...page.items)
-    if (page.items.length === 0 || items.length >= page.total) return { items, total: page.total }
-  }
 }
 
 /** Every payslip row of a run, in the server's page size and ignoring any search: what the printed register lists. */

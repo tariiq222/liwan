@@ -230,6 +230,47 @@ class TestSelfGrantPolicy(TransactionCase):
             from_branch._liwan_set_self_grant_policy(version, 'allowed')
         self.assertEqual(self.company.liwan_self_grant_policy, 'restricted')
 
+    def branch_only_admin(self, login):
+        """A system administrator of a new branch who is not a member of the root company."""
+        branch = self.env['res.company'].create({'name': f'Branch of {login}', 'parent_id': self.company.id})
+        admin = new_test_user(self.env, login=login, groups='base.group_user',
+                              company_id=branch.id, company_ids=[Command.set([branch.id])])
+        self.service._liwan_replace_assignments(admin, [{'role_id': self.system_role.id, 'company_id': branch.id}])
+        return branch, admin
+
+    def test_a_branch_only_member_reads_the_root_policy_and_still_cannot_change_it(self):
+        branch, admin = self.branch_only_admin('self_grant_branch_only')
+        from_branch = self.service.with_user(admin).with_company(branch)
+        self.assertEqual(from_branch._liwan_access_policy(), self.as_a._liwan_access_policy())
+        self.allow_self_grant()
+        root_policy = self.as_a._liwan_access_policy()
+        self.assertEqual(from_branch._liwan_access_policy(), root_policy)
+        self.assertEqual(root_policy['self_grant'], 'allowed')
+        with self.assertRaises(AccessError):
+            from_branch._liwan_set_self_grant_policy(root_policy['version'], 'restricted')
+        with self.assertRaises(AccessError):
+            self.company.with_user(admin).with_company(branch).read(['liwan_self_grant_policy'])
+        self.assertEqual(self.company.liwan_self_grant_policy, 'allowed')
+
+    def test_a_caller_working_in_a_branch_meets_the_root_policy_in_both_settings(self):
+        branch, admin = self.branch_only_admin('self_grant_branch_caller')
+        root_member = new_test_user(self.env, login='self_grant_branch_root_member', groups='base.group_user',
+                                    company_id=branch.id, company_ids=[Command.set([self.company.id, branch.id])])
+        self.service._liwan_replace_assignments(root_member, [{'role_id': self.system_role.id, 'company_id': branch.id}])
+        for user in (admin, root_member):
+            with self.subTest(user=user.login):
+                caller = self.service.with_user(user).with_company(branch)
+                held = caller._liwan_capability_keys(user, company=branch)
+                self.assert_refused(lambda: caller._liwan_assert_self_grant(
+                    user, branch, held, held | {PROBE_KEY}, ['probe'],
+                ))
+        self.allow_self_grant()
+        for user in (admin, root_member):
+            with self.subTest(user=user.login, policy='allowed'):
+                caller = self.service.with_user(user).with_company(branch)
+                held = caller._liwan_capability_keys(user, company=branch)
+                caller._liwan_assert_self_grant(user, branch, held, held | {PROBE_KEY}, ['probe'])
+
     def test_the_policy_field_is_not_writable_outside_the_operation(self):
         with self.assertRaises(AccessError):
             self.company.with_user(self.admin_a).write({'liwan_self_grant_policy': 'allowed'})

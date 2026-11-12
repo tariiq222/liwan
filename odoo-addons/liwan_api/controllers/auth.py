@@ -9,6 +9,7 @@ from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.access_admin import require_exact
 from odoo.addons.liwan_api.controllers.common import (
+    WORKING_COMPANY_KEY,
     ApiError,
     api_handler,
     error_response,
@@ -94,6 +95,8 @@ def _finish(user, device=None):
     "this device is remembered" without ever handing the token to page code.
     """
     request.session.pop(LOGIN_CHALLENGE, None)
+    # A new sign-in starts in the home company, whatever the session it replaces was working in.
+    request.session.pop(WORKING_COMPANY_KEY, None)
     request.session.finalize(request.env)
     request.update_env(user=request.session.uid)
     body = dump_me(request.env.user)

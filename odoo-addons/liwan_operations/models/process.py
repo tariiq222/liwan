@@ -301,5 +301,6 @@ class OperationsTierReview(models.Model):
         if self.definition_id.operations_process_id:
             document = self.env[self.model].browse(self.res_id)
             users = self.env['res.users'].browse(document.stage_snapshot[self.sequence - 1]['reviewer_ids'])
-            return users.filtered(lambda u: u.active and not u.share and document.company_id in u.company_ids and u != document.requester_id)
+            service = self.env['liwan.access.service']
+            return users.filtered(lambda u: u.active and not u.share and document.company_id.id in service._liwan_membership_company_ids(u) and u != document.requester_id)
         return super()._get_reviewers()

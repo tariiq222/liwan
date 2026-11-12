@@ -9,7 +9,7 @@ const BASE_ME = {
   lang: 'ar_001',
   tz: 'Asia/Riyadh',
   role: 'admin' as const,
-  company: { id: 1, name: 'شركة المثال' },
+  company: { id: 1, name: 'شركة المثال' }, companies: [{ id: 1, name: 'شركة المثال' }], home_company_id: 1, home_capabilities: [],
 }
 
 describe('Me access extensions fail closed', () => {

@@ -161,7 +161,7 @@ async function sendSpooled(event: H3Event, session: string): Promise<void> {
   for (let start = 0; start < due.length; start += AI_USAGE_BATCH_MAX) {
     const batch = due.slice(start, start + AI_USAGE_BATCH_MAX)
     try {
-      const receipt = await odooJson(event, 'POST', '/api/v1/ai/usage', { body: { items: batch.map(entry => entry.row) }, signal: null })
+      const receipt = await odooJson(event, 'POST', '/api/v1/ai/usage', { body: { items: batch.map(entry => entry.row) }, signal: null, statesCompany: false })
       if (receipt.status !== 200) throw new UsageRefused(receipt.status)
     } catch (error) {
       logFailure(`usage report of ${batch.length} rows failed`, error)

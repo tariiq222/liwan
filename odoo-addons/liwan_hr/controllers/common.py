@@ -11,12 +11,30 @@ from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_hr.rules import LiwanHrRule
 
 
-def own_public_employee():
-    """Resolve an active own employee without reading private employment fields."""
-    return request.env['hr.employee.public'].search([
-        ('user_id', '=', request.env.uid),
-        ('company_id', '=', request.env.company.id),
-    ], limit=1)
+def own_employee(*, public=False, required=False):
+    """The caller's own employee in the request company, or an empty record.
+
+    A personal route (``serves_own_data``) runs in the home company, where the employment lives; any other
+    route looks in the company the session works in. ``public`` reads the public record, which carries no
+    private employment fields. ``required`` answers 422 instead of an empty record.
+    """
+    if public:
+        employee = request.env['hr.employee.public'].search([
+            ('user_id', '=', request.env.uid),
+            ('company_id', '=', request.env.company.id),
+        ], limit=1)
+    else:
+        employee = request.env.user.employee_ids.filtered(
+            lambda record: record.company_id == request.env.company,
+        )[:1]
+    if required and not employee:
+        raise ApiError(422, 'invalid', 'the current user has no employee record in this company')
+    return employee
+
+
+def asks_for_own_data(arguments):
+    """The ``serves_own_data`` predicate of a route that also serves other people: the client sends ``mine=1`` for the caller's own."""
+    return arguments.get('mine') == '1'
 
 
 def related_record(model, record_id, field):

@@ -2,6 +2,8 @@
 import functools
 import logging
 import math
+import re
+from types import MappingProxyType
 
 from psycopg2 import IntegrityError
 from psycopg2.errors import ReadOnlySqlTransaction
@@ -28,6 +30,18 @@ MOBILE_EXEMPT_PATHS = frozenset({'/api/v1/me', '/api/v1/me/mobile', '/api/v1/me/
 # http layer replays a read-only route that wrote on a read/write cursor. Answering one here would
 # report a conflict that the replay resolves.
 REPLAYED_BY_ODOO = (*PG_CONCURRENCY_EXCEPTIONS_TO_RETRY, ConcurrencyError, ReadOnlySqlTransaction)
+# The company a session works in, stored in the Odoo session by ``POST /api/v1/me/company``.
+WORKING_COMPANY_KEY = 'liwan_working_company_id'
+# Request context flag set for a route that serves the caller's own employment data: it acts in the home company.
+OWN_DATA_CONTEXT = 'liwan_own_data_route'
+# The page states the user and company it was loaded for, so a page that moved to another user or company before it
+# saved is refused. The headers are comparison values only: they never select a company and never grant a capability.
+EXPECTED_USER_HEADER = 'X-Liwan-Expected-User-Id'
+EXPECTED_COMPANY_HEADER = 'X-Liwan-Expected-Company-Id'
+# Positive canonical ASCII decimal, no wider than an exact JavaScript integer (Number.MAX_SAFE_INTEGER).
+EXPECTED_ID_PATTERN = re.compile(r'^[1-9][0-9]*$')
+MAX_EXPECTED_ID_DIGITS = 16
+MAX_EXPECTED_ID = 9007199254740991
 
 
 def _raised_by_liwan(error):
@@ -262,6 +276,65 @@ def require_capabilities(*keys, match='all'):
     raise ApiError(403, 'forbidden', 'capabilities are not granted in the same company')
 
 
+def working_company():
+    """The company the session works in.
+
+    The company stored in the session when it is still an active membership of the user, otherwise the home
+    company (``res.users.company_id``). A removed membership or an archived company therefore sends the person
+    home on the next request. A request with no stored value, such as the bearer route, works in the home company.
+    """
+    env = request.env
+    stored = request.session.get(WORKING_COMPANY_KEY)
+    if stored in env['liwan.access.service']._liwan_membership_company_ids():
+        return env['res.company'].browse(stored)
+    return env.user.company_id
+
+
+def select_working_company(company_id):
+    """Make ``company_id`` the company this session works in, or 404 unless it is an active membership.
+
+    A company outside the memberships, an archived one and an id that does not exist all answer alike.
+    """
+    if company_id not in request.env['liwan.access.service']._liwan_membership_company_ids():
+        raise ApiError(404, 'not_found', 'company does not exist')
+    request.session[WORKING_COMPANY_KEY] = company_id
+    _pin_current_company()
+
+
+def chooses_company(func):
+    """Declare that the route's ``company_id`` payload names the company to work in, which the route checks itself.
+
+    Every other write answers not-found for a payload company outside the request set; for the switch that set is
+    the company being left, so the generic check would refuse the very choice the route exists to make.
+    """
+    func._liwan_chooses_company = True
+    return func
+
+
+def request_arguments(kwargs):
+    """The query arguments and the body keyword arguments of the request as one read-only mapping (the body wins).
+
+    ``api_handler`` hands it to the ``serves_own_data`` predicate; a handler that branches on the same argument
+    reads it from here with the keyword arguments it received, so the predicate and the handler never decide
+    from different inputs.
+    """
+    return MappingProxyType({**request.httprequest.args.to_dict(), **kwargs})
+
+
+def serves_own_data(when=None):
+    """Declare that a route serves the caller's own employment data (their profile, leave, payslips ...).
+
+    ``api_handler`` then pins the request to the home company before any capability is evaluated, whatever company
+    the session works in, because the caller's employment lives there. ``when`` receives one read-only mapping
+    of the request's query arguments and body keyword arguments (the body wins) and limits the declaration to the
+    personal branch of a route that also serves other people; without it the whole route is personal.
+    """
+    def decorator(func):
+        func._liwan_own_data = when or (lambda _kwargs: True)
+        return func
+    return decorator
+
+
 def _pin_current_company(scope=None):
     """Overwrite all client company context with the server session's operation scope.
 
@@ -271,7 +344,7 @@ def _pin_current_company(scope=None):
     """
     env = request.env
     if env.uid and not env.user._is_public():
-        current = env.user.company_id
+        current = env.user.company_id if env.context.get(OWN_DATA_CONTEXT) else working_company()
         request.update_context(allowed_company_ids=[current.id], liwan_capability_scope=None,
                                liwan_pinned_company_ids=[current.id])
         if scope:
@@ -281,6 +354,56 @@ def _pin_current_company(scope=None):
             allowed = [current.id, *[company_id for company_id in pinned if company_id != current.id]]
             request.update_context(allowed_company_ids=allowed, liwan_capability_scope=scope,
                                    liwan_pinned_company_ids=pinned)
+
+
+def _expected_id(header, *, required):
+    """The id a precondition header states, None when an optional header is absent, or a 422 naming the header."""
+    value = request.httprequest.headers.get(header)
+    if value is None and not required:
+        return None
+    invalid = (
+        value is None
+        or len(value) > MAX_EXPECTED_ID_DIGITS
+        or not EXPECTED_ID_PATTERN.match(value)
+        or int(value) > MAX_EXPECTED_ID
+    )
+    if invalid:
+        # The refusal names no identity: neither the authenticated one nor the stated one leaves this layer.
+        raise ApiError(422, 'invalid_request_context', 'the request must state the expected sign-in user and company', field=header)
+    return int(value)
+
+
+def _context_changed():
+    return ApiError(
+        409, 'request_context_changed',
+        'the sign-in user or company changed since this screen was loaded; reload it and try again',
+    )
+
+
+def require_expected_company():
+    """Refuse a request whose page was loaded for another working company than the session's.
+
+    A request without the header is served; a malformed one is a 422 and a different company a 409, both decided
+    before the payload is parsed and before anything is written.
+    """
+    env = request.env
+    if env.uid and not env.user._is_public():
+        expected = _expected_id(EXPECTED_COMPANY_HEADER, required=False)
+        if expected is not None and expected != working_company().id:
+            raise _context_changed()
+
+
+def require_expected_context(user, company):
+    """The strict form for a write that must state its screen: both headers are required.
+
+    ``user`` and ``company`` are the authenticated identity of this request, read once by the caller and
+    kept for the write that follows. A missing or malformed header is a 422; a stated identity that is not
+    the authenticated one is a 409, decided before the payload is parsed and before any write.
+    """
+    expected_user = _expected_id(EXPECTED_USER_HEADER, required=True)
+    expected_company = _expected_id(EXPECTED_COMPANY_HEADER, required=True)
+    if expected_user != user.id or expected_company != company.id:
+        raise _context_changed()
 
 
 def _reject_foreign_company_payload(kwargs):
@@ -348,9 +471,13 @@ def api_handler(func):
             with request.env.cr.savepoint():
                 keys = getattr(func, '_liwan_capability_keys', None)
                 scope = ((keys, getattr(func, '_liwan_capability_match', 'all')),) if keys else None
+                require_expected_company()
+                own_data = getattr(func, '_liwan_own_data', None)
+                request.update_context(**{OWN_DATA_CONTEXT: bool(own_data and own_data(request_arguments(kwargs)))})
                 _pin_current_company(scope)
                 _mirror_sent_texts(kwargs)
-                _reject_foreign_company_payload(kwargs)
+                if not getattr(func, '_liwan_chooses_company', False):
+                    _reject_foreign_company_payload(kwargs)
                 request.env['liwan.entitlement.service']._liwan_guard_api()
                 _require_mobile_number()
                 return func(*args, **kwargs)

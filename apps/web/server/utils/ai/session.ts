@@ -29,6 +29,7 @@ function ownerTenant(event: H3Event, companyId: number): string {
 
 /** The caller as the AI service knows them (the tenant and the user id), and their current company. Any upstream denial is forwarded as is. */
 async function callerFor(event: H3Event): Promise<{ owner: Owner; company: string }> {
+  // Odoo checks the tab's stated company on this call and on every later one of the run (`odooJson`), so a switched session is refused here too.
   const me = await odooJson(event, 'GET', '/api/v1/me')
   if (me.status !== 200) forwardUpstream(me)
   const meBody = me.body as { id: number; company: { id: number } }

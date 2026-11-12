@@ -66,16 +66,22 @@ export function hrLeaveRequestQuery(params: HrLeaveListParams) {
   }
 }
 
+/** The caller's own leave is acted on in the home company: the server reads this marker, never a company id. */
+function mineQuery(mine: boolean) {
+  return mine ? { mine: '1' } : undefined
+}
+
 async function refreshLeave(qc: QueryClient) {
   await qc.invalidateQueries({ queryKey: hrLeaveKeys.all })
 }
 
-export function useHrLeaveTypes(enabled: MaybeRefOrGetter<boolean> = true) {
+/** `mine` lists the types of the caller's own request, which is filed in the home company; without it, those of the working company. */
+export function useHrLeaveTypes(options: { mine?: MaybeRefOrGetter<boolean>; enabled?: MaybeRefOrGetter<boolean> } = {}) {
   const { $api } = useApi()
   return useQuery({
-    queryKey: hrLeaveKeys.types,
-    enabled: computed(() => toValue(enabled)),
-    queryFn: () => $api('/api/v1/hr/leave/types', { schema: HrLeaveTypeListSchema }),
+    queryKey: computed(() => [...hrLeaveKeys.types, toValue(options.mine) ? 'mine' : 'working']),
+    enabled: computed(() => toValue(options.enabled ?? true)),
+    queryFn: () => $api('/api/v1/hr/leave/types', { query: { mine: toValue(options.mine) ? '1' : undefined }, schema: HrLeaveTypeListSchema }),
   })
 }
 
@@ -116,13 +122,13 @@ export function useHrLeaveRequest(id: MaybeRefOrGetter<number | null>) {
 }
 
 /** The approval stages of a leave the operations workflow governs; a 404 means it is not governed, so the page shows nothing. */
-export function useHrLeaveApproval(id: MaybeRefOrGetter<number | null>) {
+export function useHrLeaveApproval(id: MaybeRefOrGetter<number | null>, mine: MaybeRefOrGetter<boolean> = false) {
   const { $api } = useApi()
   return useQuery({
-    queryKey: computed(() => hrLeaveKeys.approval(toValue(id) ?? 0)),
+    queryKey: computed(() => [...hrLeaveKeys.approval(toValue(id) ?? 0), toValue(mine) ? 'mine' : 'working']),
     enabled: computed(() => !!toValue(id)),
     retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2,
-    queryFn: () => $api(`/api/v1/hr/leave/requests/${toValue(id)}/approval`, { schema: HrLeaveApprovalSchema }),
+    queryFn: () => $api(`/api/v1/hr/leave/requests/${toValue(id)}/approval`, { query: mineQuery(toValue(mine)), schema: HrLeaveApprovalSchema }),
   })
 }
 
@@ -171,13 +177,13 @@ export function useCreateLeaveRequest() {
 
 export type HrLeaveDecision = 'approve' | 'refuse' | 'cancel'
 
-/** Withdrawing a pending request deletes it and the server confirms with the id. */
+/** Withdrawing a pending request deletes it and the server confirms with the id. `mine` marks the caller's own leave. */
 export function useWithdrawLeaveRequest() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: (id: number) => $api(`/api/v1/hr/leave/requests/${id}/cancel`, {
-      method: 'POST', body: {}, schema: HrLeaveWithdrawalSchema,
+    mutationFn: ({ id, mine }: { id: number; mine: boolean }) => $api(`/api/v1/hr/leave/requests/${id}/cancel`, {
+      method: 'POST', body: {}, query: mineQuery(mine), schema: HrLeaveWithdrawalSchema,
     }),
     onSuccess: () => refreshLeave(qc),
   })
@@ -188,8 +194,8 @@ export function useLeaveDecision() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: ({ id, decision, reason, revision }: { id: number; decision: HrLeaveDecision; reason?: string; revision?: number }) =>
-      $api(`/api/v1/hr/leave/requests/${id}/${decision}`, { method: 'POST', body: { ...(reason ? { reason } : {}), ...(revision ? { revision } : {}) }, schema: HrLeaveSchema }),
+    mutationFn: ({ id, decision, reason, revision, mine = false }: { id: number; decision: HrLeaveDecision; reason?: string; revision?: number; mine?: boolean }) =>
+      $api(`/api/v1/hr/leave/requests/${id}/${decision}`, { method: 'POST', query: decision === 'cancel' ? mineQuery(mine) : undefined, body: { ...(reason ? { reason } : {}), ...(revision ? { revision } : {}) }, schema: HrLeaveSchema }),
     onSuccess: () => refreshLeave(qc),
   })
 }

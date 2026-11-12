@@ -43,6 +43,7 @@ describe('the shared conversation', () => {
   it('does not restore a previous identity run when its response body finishes after logout', async () => {
     const me = stubState()
     vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
+    vi.stubGlobal('useNuxtData', () => ({ data: { value: null } }))
     let finishBody!: (body: unknown) => void
     let bodyStarted!: () => void
     const bodyReading = new Promise<void>(resolve => { bodyStarted = resolve })

@@ -25,7 +25,7 @@ const { t, n } = useI18n()
 const { period, days } = useHrLeaveFormat()
 const hydrated = useHydrated()
 const { shown: kpisShown } = useKpiVisibility()
-const { can } = useAccess()
+const { can, canPersonal } = useAccess()
 
 const LIMIT = 25
 const isListRoute = computed(() => (route.path.replace(/\/+$/, '') || '/') === (props.personal ? '/account/leave' : '/hr/leave'))
@@ -44,7 +44,7 @@ const scopeSelection = computed(() => cancellationFilter.value ? 'cancellations'
 
 const profile = useMyHrProfile(computed(() => !!props.personal && isListRoute.value))
 const ready = computed(() => !props.personal || !!profile.data.value)
-const canRequest = computed(() => props.personal && ready.value && can('hr.leave.request'))
+const canRequest = computed(() => props.personal && ready.value && canPersonal('hr.leave.request'))
 const requests = useHrLeaveRequests(params, computed(() => isListRoute.value && ready.value))
 const balances = useHrLeaveBalances(null, computed(() => !!props.personal && isListRoute.value && ready.value))
 const decision = useLeaveDecision()
@@ -122,7 +122,7 @@ async function decide(leave: HrLeave, kind: HrLeaveDecision, reason?: string) {
   if (!hydrated.value || writing.value) return
   decisionError.value = ''
   try {
-    await decision.mutateAsync({ id: leave.id, decision: kind, reason })
+    await decision.mutateAsync({ id: leave.id, decision: kind, reason, mine: !!props.personal })
     cancelling.value = null
     refusing.value = null
   } catch (cause) {
@@ -136,7 +136,7 @@ async function withdraw(leave: HrLeave) {
   if (!hydrated.value || writing.value) return
   decisionError.value = ''
   try {
-    await withdrawal.mutateAsync(leave.id)
+    await withdrawal.mutateAsync({ id: leave.id, mine: !!props.personal })
     withdrawing.value = null
   } catch (cause) {
     decisionError.value = cause instanceof ApiError && cause.status === 409 ? t('hr.leave.cancellationConflict') : cause instanceof ApiError ? cause.message : t('errors.generic')

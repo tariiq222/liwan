@@ -77,9 +77,14 @@ class LiwanAccessHrService(models.AbstractModel):
             raise LiwanAccessRule(msg, status=409)
 
     @api.model
-    def _liwan_linked_employees(self, user_ids):
-        """User id -> the HR employee linked to it in the current company (read below the HR ACLs)."""
+    def _liwan_linked_employees(self, user_ids, company=None):
+        """User id -> the HR employee linked to it in COMPANY, the current company by default (read below the HR ACLs)."""
         self._liwan_require_capability('access.users.read')
+        return self._liwan_company_linked_employees(user_ids, company)
+
+    @api.model
+    def _liwan_company_linked_employees(self, user_ids, company=None):
+        """The same map without a capability check: the membership hooks run after the route's own grant check."""
         if not user_ids:
             return {}
         self.env.cr.execute(
@@ -90,7 +95,7 @@ class LiwanAccessHrService(models.AbstractModel):
               LEFT JOIN hr_department d ON d.id = v.department_id
              WHERE e.user_id = ANY(%s) AND e.company_id = %s
             """,
-            [list(user_ids), self.env.company.id],
+            [list(user_ids), (company or self.env.company).id],
         )
         return {
             user_id: {
@@ -108,7 +113,7 @@ class LiwanAccessHrService(models.AbstractModel):
         }
 
     @api.model
-    def _liwan_employee_row(self, employee_id):
+    def _liwan_employee_row(self, employee_id, company=None):
         self.env.cr.execute(
             """
             SELECT e.id, e.name, e.work_email, e.work_contact_id, e.user_id, e.active
@@ -116,7 +121,7 @@ class LiwanAccessHrService(models.AbstractModel):
              WHERE e.id = %s AND e.company_id = %s
              LIMIT 1
             """,
-            [employee_id, self.env.company.id],
+            [employee_id, (company or self.env.company).id],
         )
         return self.env.cr.fetchone()
 
@@ -213,14 +218,16 @@ class LiwanAccessHrService(models.AbstractModel):
         return user
 
     @api.model
-    def _liwan_link_employee(self, employee_id, user_id):
+    def _liwan_link_employee(self, employee_id, user_id, company=None):
+        """Point the employee of COMPANY (the current company by default) at USER_ID, or at nobody when it is falsy."""
         # ``hr.employee.user_id`` is a stored related field whose source is
         # ``resource.resource.user_id``. Update both columns so the private
         # bridge preserves the stock HR relation and its search index.
-        company_id = self.env.company.id
+        company_id = (company or self.env.company).id
         # The SQL below skips the ORM write fence, so a read-only branch or account is refused here.
         # No record is read: the actor may lack employee read access, and the company is the one the SQL is scoped to.
         self.env['hr.employee']._liwan_assert_lifecycle_writable({'company_id': company_id, 'user_id': user_id})
+        user_id = user_id or None
         self.env.cr.execute(
             """
             UPDATE resource_resource
@@ -240,6 +247,45 @@ class LiwanAccessHrService(models.AbstractModel):
         employee = self.env['hr.employee'].browse(employee_id)
         employee.invalidate_recordset(['user_id'])
         employee.modified(['user_id'])
+
+    @api.model
+    def _liwan_membership_link_employee(self, user, company, employee_id):
+        """Link the employee of COMPANY to the existing account USER, in place of a second account."""
+        super()._liwan_membership_link_employee(user, company, None)
+        if employee_id is None:
+            return
+        self.env['liwan.entitlement.service'].require('hr.enabled')
+        row = self._liwan_employee_row(employee_id, company)
+        if not row:
+            msg = 'not_found'
+            raise LiwanAccessRule(msg, 'employee is not available', status=404)
+        _id, _name, _work_email, _partner_id, linked_user_id, active = row
+        if not active:
+            msg = 'employee_archived'
+            raise LiwanAccessRule(msg, field='employee_id')
+        if linked_user_id and linked_user_id != user.id:
+            msg = 'account_exists'
+            raise LiwanAccessRule(msg, field='employee_id', status=409)
+        if linked_user_id:
+            return
+        if self._liwan_company_linked_employees([user.id], company).get(user.id):
+            msg = 'employee_exists'
+            raise LiwanAccessRule(msg, 'the account is linked to another employee of this company', field='employee_id', status=409)
+        self._liwan_link_employee(employee_id, user.id, company)
+        self.env['liwan.access.audit']._liwan_log(
+            'user.employee_linked', user, before=None, after={'employee_id': employee_id}, company=company,
+        )
+
+    @api.model
+    def _liwan_membership_unlink_employee(self, user, company):
+        super()._liwan_membership_unlink_employee(user, company)
+        employee = self._liwan_company_linked_employees([user.id], company).get(user.id)
+        if employee:
+            employee_id = employee['id']
+            self._liwan_link_employee(employee_id, False, company)
+            self.env['liwan.access.audit']._liwan_log(
+                'user.employee_unlinked', user, before={'employee_id': employee_id}, after=None, company=company,
+            )
 
     @api.model
     def _liwan_disable_employee_account(

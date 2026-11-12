@@ -81,8 +81,10 @@ function openStream() {
 }
 
 describe('useAiRun', () => {
+  let companyMe: { company: { id: number } } | null = null
   const fetchMock = vi.fn()
   beforeEach(() => {
+    companyMe = null
     // The shared conversation state Nuxt provides to every surface.
     const states = new Map<string, ReturnType<typeof ref>>()
     vi.stubGlobal('useState', (key: string, init: () => unknown) => {
@@ -90,6 +92,7 @@ describe('useAiRun', () => {
       return states.get(key)
     })
     vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
+    vi.stubGlobal('useNuxtData', () => ({ data: { value: companyMe } }))
     vi.stubGlobal('fetch', fetchMock)
   })
   afterEach(() => {
@@ -108,6 +111,29 @@ describe('useAiRun', () => {
     expect(ai.status.value).toBe('done')
     expect(ai.items.value).toEqual([{ kind: 'user', text: 'هلا' }, { kind: 'assistant', text: 'مرحبا بك', records: [], streaming: false }])
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toMatchObject({ message: 'هلا', context: { page: 'project', id: 12 } })
+  })
+
+  it('states the company the tab was loaded for on a send and on a decision, and none before me is known', async () => {
+    fetchMock.mockImplementation(async () => streamResponse(sse(['run', { run_id: 'r_1' }], ['done', { status: 'waiting_user' }])))
+    await useAiRun().send('هلا')
+    expect(fetchMock.mock.calls[0]![1].headers).not.toHaveProperty('X-Liwan-Expected-Company-Id')
+    companyMe = { company: { id: 4 } }
+    const ai = useAiRun()
+    await ai.send('مرة أخرى')
+    expect(fetchMock.mock.calls[1]![1].headers).toMatchObject({ 'X-Liwan-Expected-Company-Id': '4' })
+    await ai.decide('call_1', 'approved')
+    expect(fetchMock.mock.calls[2]![0]).toContain('/resume')
+    expect(fetchMock.mock.calls[2]![1].headers).toMatchObject({ 'X-Liwan-Expected-Company-Id': '4' })
+  })
+
+  it('reloads the identity and says the company changed when the server refuses a stale tab', async () => {
+    const refresh = vi.fn()
+    vi.stubGlobal('refreshNuxtData', refresh)
+    fetchMock.mockResolvedValue(jsonResponse(409, { data: { code: 'request_context_changed' } }))
+    const ai = useAiRun()
+    await ai.send('هلا')
+    expect(refresh).toHaveBeenCalledWith('me')
+    expect(ai.error.value).toBe('errors.codes.request_context_changed')
   })
 
   it('keeps streaming on waiting_tool and moves to waiting_user on a pending card', async () => {

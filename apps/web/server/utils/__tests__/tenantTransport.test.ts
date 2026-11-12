@@ -65,7 +65,7 @@ it('strict receiving socket sees tenant Host/token/revision for API and all sess
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
 })
 
-// The two expected-context headers are a comparison value for the fiscal writes, never client authority:
+// The two expected-context headers are a comparison value for any API call (the fiscal writes state their own), never client authority:
 // bound transport forwards them and keeps every other client-declared identity header out.
 it('forwards the expected context in bound mode and never invents or accepts authority from it', async () => {
   const token = 'synthetic-wire-token'.repeat(3)
@@ -94,9 +94,19 @@ it('forwards the expected context in bound mode and never invents or accepts aut
     expect(lastHeaders()['x-liwan-expected-company-id']).toBe('3')
     expect(lastHeaders()['x-liwan-release-fence']).toBeUndefined()
     expect(lastHeaders()['x-liwan-proxy-token']).toBe(token)
+    // Every /api/v1 route passes the company the tab states, not only the finance one.
+    seen.length = 0
+    const other = await tenantTransport(requestEvent(stating) as never, base, '/api/v1/hr/leave/types?mine=1')
+    expect(other.status).toBe(200)
+    expect(lastHeaders()['x-liwan-expected-company-id']).toBe('3')
     // A caller that states nothing forwards nothing: the precondition is never filled in for it.
     seen.length = 0
     expect((await write(requestEvent(silent))).status).toBe(200)
+    expect(lastHeaders()['x-liwan-expected-user-id']).toBeUndefined()
+    expect(lastHeaders()['x-liwan-expected-company-id']).toBeUndefined()
+    // A request that records something already done leaves the tab's stated context out, whatever the browser sent.
+    seen.length = 0
+    expect((await tenantTransport(requestEvent(stating), base, '/api/v1/ai/usage', { method: 'POST', body: '{}', expectedContext: false })).status).toBe(200)
     expect(lastHeaders()['x-liwan-expected-user-id']).toBeUndefined()
     expect(lastHeaders()['x-liwan-expected-company-id']).toBeUndefined()
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }

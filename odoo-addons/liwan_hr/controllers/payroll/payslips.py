@@ -9,9 +9,9 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_page,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
-from odoo.addons.liwan_hr.controllers.assets.common import own_employee
-from odoo.addons.liwan_hr.controllers.common import hr_rule_handler
+from odoo.addons.liwan_hr.controllers.common import hr_rule_handler, own_employee
 from odoo.addons.liwan_hr.serializers.payroll.payslip import (
     dump_my_payslip,
     dump_my_payslip_summary,
@@ -45,6 +45,7 @@ class HrPayrollPayslipController(http.Controller):
 
     @http.route('/api/v1/hr/payroll/payslips/mine', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @hr_rule_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='read')
     @requires_capability('hr.employees.read')
@@ -60,6 +61,7 @@ class HrPayrollPayslipController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @serves_own_data()
     @hr_rule_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='read')
     @requires_capability('hr.employees.read')

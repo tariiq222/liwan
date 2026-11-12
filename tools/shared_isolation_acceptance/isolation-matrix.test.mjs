@@ -72,7 +72,7 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
       calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-liwan-proxy-token'] })
       if (req.headers.cookie !== `session_id=${tenant.sid}`) { res.writeHead(403); res.end('{}'); return }
       if (req.url === '/api/v1/me') {
-        res.end(JSON.stringify({ id: tenant.uid, name: tenant.marker, login: tenant.marker, email: `${tenant.tenantId}@example.invalid`, lang: 'en', tz: 'UTC', role: 'employee', capabilities: ['pmo.projects.read'], entitlements: { 'pmo.enabled': true }, company: { id: tenant.uid, name: tenant.marker } }))
+        res.end(JSON.stringify({ id: tenant.uid, name: tenant.marker, login: tenant.marker, email: `${tenant.tenantId}@example.invalid`, lang: 'en', tz: 'UTC', role: 'employee', capabilities: ['pmo.projects.read'], entitlements: { 'pmo.enabled': true }, company: { id: tenant.uid, name: tenant.marker }, companies: [{ id: tenant.uid, name: tenant.marker }], home_company_id: tenant.uid, home_capabilities: ['pmo.projects.read'] }))
         return
       }
       if (req.url.startsWith('/api/v1/notifications')) { res.end(JSON.stringify({ items: [], total: 0 })); return }

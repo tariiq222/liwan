@@ -55,7 +55,7 @@ const capabilities = () => (mode === 'manager'
 function me() {
   return {
     id: 2, name: 'مدير النظام', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
-    role: 'admin', roles: [], capabilities: capabilities(), access_policy_version: 1, company: COMPANY,
+    role: 'admin', roles: [], capabilities: capabilities(), home_capabilities: capabilities(), access_policy_version: 1, company: COMPANY, companies: [COMPANY], home_company_id: COMPANY.id,
     modules: ['liwan_finance'],
     entitlements: { 'finance.enabled': true, 'users.limit': null, 'storage.limit_mb': null },
     platform: {

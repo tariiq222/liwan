@@ -26,6 +26,7 @@ function mountActualPage(fetch: typeof globalThis.fetch) {
   })
   vi.stubGlobal('useMe', () => ({ me }))
   vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
+  vi.stubGlobal('useNuxtData', () => ({ data: { value: null } }))
   vi.stubGlobal('fetch', fetch)
   const route = Vue.reactive({ path: '/ai', query: { run: 'identity-a-run' } as Record<string, string> })
   const router = { replace: vi.fn(async (to: { path: string; query: Record<string, string> }) => { await Vue.nextTick(); route.path = to.path; route.query = to.query }), push: vi.fn() }

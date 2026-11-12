@@ -20,6 +20,17 @@ def role_of(user):
     return 'employee'
 
 
+def dump_switchable_companies(user):
+    """The active companies ``user`` may switch to, the current one included.
+
+    Read with the memberships allowed: the request context is pinned to one company, and a record rule would
+    hide the others.
+    """
+    memberships = user.env['liwan.access.service']._liwan_membership_company_ids(user)
+    companies = user.env['res.company'].with_context(allowed_company_ids=memberships).browse(memberships)
+    return [{'id': company.id, 'name': company.name} for company in companies.sorted(lambda c: (c.name, c.id))]
+
+
 def dump_me(user):
     service = user.env['liwan.access.service']
     identity = service._liwan_identity(user)
@@ -47,6 +58,9 @@ def dump_me(user):
         'capabilities': identity['capabilities'],
         'access_policy_version': identity['version'],
         'company': {'id': user.env.company.id, 'name': user.env.company.name},
+        'companies': dump_switchable_companies(user),
+        'home_company_id': user.company_id.id,
+        'home_capabilities': service._liwan_home_capabilities(user),
         # The account is above the purchased seats: it reads and exports everything but takes no writes.
         'read_only': read_only,
         'appearance': dump_appearance(user),

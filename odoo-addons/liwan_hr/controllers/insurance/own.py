@@ -8,6 +8,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_page,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
 from odoo.addons.liwan_hr.serializers.insurance.enrollment import dump_own_enrollment
 
@@ -18,6 +19,7 @@ class HrInsuranceOwnController(http.Controller):
 
     @http.route('/api/v1/hr/insurance/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.insurance', operation='read')
     @requires_capability('hr.employees.read')
     def list_own_enrollments(self, **_):

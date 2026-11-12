@@ -3,6 +3,7 @@ from odoo.exceptions import MissingError
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_hr.controllers.common import own_employee
 
 
 def current_company():
@@ -64,13 +65,6 @@ def company_employee(employee_id, field='employee_id'):
     if not employee:
         raise ApiError(422, 'invalid', f'{field} does not reference an employee of the current company', field=field)
     return employee
-
-
-def own_employee():
-    """The caller's own employee in the current company, if any."""
-    return request.env.user.employee_ids.filtered(
-        lambda record: record.company_id == current_company(),
-    )[:1]
 
 
 def reject_own_custody(employee):

@@ -75,6 +75,8 @@ ARABIC_MESSAGES = {
     'user_inactive': 'الحساب موقوف.',
     'user_read_only': 'هذا الحساب للقراءة فقط ولا يمكنه التعديل. اطلب من مسؤول الحسابات إعادة مقعده الكامل.',
     'branch_read_only': 'هذا الفرع للقراءة فقط ولا يقبل التعديل حتى يُفعَّل مقعد الفرع.',
+    'already_member': 'هذا الحساب عضو في هذه الشركة مسبقًا.',
+    'home_company': 'هذه هي الشركة الأصلية للحساب، ولا تُزال عضويته فيها.',
     'self_grant_restricted': 'سياسة الشركة تمنعك من منح نفسك صلاحيات تتجاوز مسؤول النظام. اطلب من مسؤول آخر منحك إياها.',
     'storage_excess_blocked': 'هذا الملف يتجاوز سعة التخزين المتاحة. حرّر مساحة أو زد السعة لفتحه.',
 }
@@ -392,6 +394,19 @@ class LiwanAccessService(models.AbstractModel):
         }
 
     @api.model
+    def _liwan_home_capabilities(self, user=None):
+        """The capability keys USER holds in their home company, listed as ``_liwan_identity`` lists them there.
+
+        The request may work in another company; this evaluates in the home company alone, with the same pin a
+        personal route pinned home gets, so the list equals ``capabilities`` while the session works at home.
+        It describes the caller's own account and grants nothing.
+        """
+        user = user or self.env.user
+        home = user.company_id.id
+        at_home = self.with_context(allowed_company_ids=[home], liwan_pinned_company_ids=[home], liwan_capability_scope=None)
+        return at_home._liwan_identity(user.with_env(at_home.env))['capabilities']
+
+    @api.model
     def _liwan_bump_policy(self, companies):
         self._liwan_clear_branch_cache()
         company_ids = list(set(companies.ids))
@@ -412,16 +427,26 @@ class LiwanAccessService(models.AbstractModel):
         return company.browse(int(company.parent_path.split('/')[0]))
 
     @api.model
+    def _liwan_policy_values(self, company=None):
+        """(self-grant policy, policy version) of the root COMPANY follows, readable from any branch of the tenant.
+
+        A caller working in a branch need not belong to the root company, whose record ``res_company_rule_employee``
+        then hides. Only these two settings are read elevated; the record itself stays in the caller's environment.
+        """
+        root = self._liwan_policy_company(company).sudo()
+        return root.liwan_self_grant_policy, f'p{root.id}-v{root.liwan_access_policy_version}'
+
+    @api.model
     def _liwan_access_policy_version(self):
-        company = self._liwan_policy_company()
-        return f'p{company.id}-v{company.liwan_access_policy_version}'
+        return self._liwan_policy_values()[1]
 
     @api.model
     def _liwan_access_policy(self):
         self._liwan_require_capability('access.roles.read')
+        self_grant, version = self._liwan_policy_values()
         return {
-            'self_grant': self._liwan_policy_company().liwan_self_grant_policy,
-            'version': self._liwan_access_policy_version(),
+            'self_grant': self_grant,
+            'version': version,
         }
 
     @api.model
@@ -458,7 +483,7 @@ class LiwanAccessService(models.AbstractModel):
         KEYS_BEFORE / KEYS_AFTER are the permission keys USER holds in COMPANY before and after the change.
         Keys already held, the system administrator grants and the Employee role (self-service) never count.
         """
-        if self.env.is_superuser() or user != self.env.user or self._liwan_policy_company(company).liwan_self_grant_policy == 'allowed':
+        if self.env.is_superuser() or user != self.env.user or self._liwan_policy_values(company)[0] == 'allowed':
             return
         grants = self._liwan_builtin_role_grants()
         elevated = set(keys_after) - set(keys_before) - grants['liwan_core.role_system_admin'] \
@@ -809,6 +834,7 @@ class LiwanAccessService(models.AbstractModel):
         PARTNER_ID reuses an existing contact. A user whose invitation was cancelled is invited again in place.
         """
         self._liwan_require_capability('access.users.grant')
+        self._liwan_assert_login_not_homed_elsewhere(login)
         existing = self.env['res.users'].with_context(active_test=False).search([('login', '=', login)], limit=1)
         if existing:
             user = self._liwan_reinvite(existing, name, partner_id)

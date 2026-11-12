@@ -44,11 +44,34 @@ function allocationForm(update = vi.fn().mockResolvedValue(allocation), create =
   return { ...form, update, create, employees, types }
 }
 
+describe('leave request form', () => {
+  it('clears the chosen type when the request crosses between oneself and another employee, since their type lists differ', async () => {
+    const types = vi.fn((..._args: unknown[]) => query())
+    const { state } = setup('LeaveRequestForm.vue', { backTo: '/account/leave' }, {
+      watch: Vue.watch, refDebounced: (value: unknown) => value, useAccess: () => ({ can: () => true }),
+      useHrLeaveTypes: types, useHrEmployees: () => query(), useCreateLeaveRequest: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
+    })
+    expect(Vue.toValue((types.mock.calls[0]![0] as { mine: unknown }).mine)).toBe(true)
+    state.leaveTypeId.value = 5
+    state.employeeId.value = 9
+    await Vue.nextTick()
+    expect(state.leaveTypeId.value).toBeNull()
+    expect(Vue.toValue((types.mock.calls[0]![0] as { mine: unknown }).mine)).toBe(false)
+    state.leaveTypeId.value = 6
+    state.employeeId.value = 10
+    await Vue.nextTick()
+    expect(state.leaveTypeId.value).toBe(6)
+    state.employeeId.value = null
+    await Vue.nextTick()
+    expect(state.leaveTypeId.value).toBeNull()
+  })
+})
+
 describe('leave allocation edit', () => {
   it('starts from the grant, is clean until a field changes and patches only days and validity', async () => {
     const { state, update, create, emit, employees, types } = allocationForm()
     expect(Vue.toValue(employees.mock.calls[0]![1])).toBe(false)
-    expect(Vue.toValue(types.mock.calls[0]![0])).toBe(false)
+    expect(Vue.toValue((types.mock.calls[0]![0] as { enabled: unknown }).enabled)).toBe(false)
     expect(state.dirty.value).toBe(false)
     state.days.value = 8
     state.dateTo.value = '2027-01-31'

@@ -166,10 +166,10 @@ export function ownHrWarningsView(pages: readonly HrWarningListPage[] | undefine
 export function useMyHrWarnings(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
-  const { can } = useAccess()
+  const { canPersonal } = useAccess()
   return useInfiniteQuery({
     queryKey: computed(() => [...hrWarningKeys.mine, identity.scope.value]),
-    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && canPersonal('hr.employees.read')),
     queryFn: ({ pageParam }) => $api('/api/v1/hr/warnings/me', { query: { limit: HR_WARNINGS_PAGE_SIZE, offset: pageParam }, schema: HrWarningListSchema }),
     initialPageParam: 0,
     getNextPageParam: (_last, pages) => nextOwnHrWarningsOffset(pages),

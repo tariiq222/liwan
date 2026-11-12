@@ -61,17 +61,19 @@ type SettingsQuery = { enabled: unknown, queryKey: unknown, queryFn: () => Promi
 
 describe('shift settings read capability', () => {
   const capabilities = ref<string[]>([])
+  const personalCapabilities = ref<string[]>([])
   const identity = ref<{ id: number, company: { id: number } } | null>(null)
   const api = vi.fn()
   beforeEach(() => {
     client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     capabilities.value = []
+    personalCapabilities.value = []
     identity.value = { id: 7, company: { id: 3 } }
     api.mockReset()
     api.mockResolvedValue({ day_reference: 'company' })
     vi.stubGlobal('useApi', () => ({ $api: api }))
     vi.stubGlobal('useMe', () => ({ me: identity }))
-    vi.stubGlobal('useAccess', () => ({ can: (key: string) => capabilities.value.includes(key) }))
+    vi.stubGlobal('useAccess', () => ({ can: (key: string) => capabilities.value.includes(key), canPersonal: (key: string) => personalCapabilities.value.includes(key) }))
   })
   afterEach(() => vi.unstubAllGlobals())
 
@@ -83,6 +85,23 @@ describe('shift settings read capability', () => {
     expect(api).toHaveBeenCalledWith('/api/v1/hr/shifts/settings', expect.objectContaining({ schema: expect.anything() }))
     capabilities.value = []
     expect(toValue(query.enabled)).toBe(false)
+  })
+
+  it('reads the home company only for the personal schedule, keyed apart and judged by the home capabilities', async () => {
+    capabilities.value = ['hr.employees.read']
+    const working = useHrShiftSettings() as unknown as SettingsQuery
+    await working.queryFn()
+    expect(api).toHaveBeenLastCalledWith('/api/v1/hr/shifts/settings', expect.objectContaining({ query: { mine: undefined } }))
+    const personal = useHrShiftSettings(true, { mine: true }) as unknown as SettingsQuery
+    await personal.queryFn()
+    expect(api).toHaveBeenLastCalledWith('/api/v1/hr/shifts/settings', expect.objectContaining({ query: { mine: '1' } }))
+    expect(toValue(personal.queryKey)).toEqual([...(toValue(working.queryKey) as unknown[]), 'mine'])
+    // Only the working company's capabilities are held here: the personal read waits for the home company's.
+    expect(toValue(personal.enabled)).toBe(false)
+    personalCapabilities.value = ['hr.employees.read']
+    capabilities.value = []
+    expect(toValue(personal.enabled)).toBe(true)
+    expect(toValue(working.enabled)).toBe(false)
   })
 
   it('retains identity and caller-enabled guards and denies unrelated shifts read', () => {

@@ -1,7 +1,8 @@
 import { QueryCache, QueryClient, MutationCache, hydrate, dehydrate } from '@tanstack/vue-query'
 import { createSessionQueryScope, sessionQueryScopeKey, type SessionQueryOwner } from '@/lib/sessionQueryScope'
 import { clearChatDrafts } from '@/utils/chatDrafts'
-import { sessionIdentityKey, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
+import { companySwitching } from '@/utils/companySwitch'
+import { sessionIdentityKey, isPossibleSessionExpiry, isRequestContextChanged } from '@/utils/sessionExpiry'
 import { clearTenantSuspension, dropToastsWhileSuspended, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN } from '@/utils/tenantSuspension'
 import { keepBuiltInsOutOfIdTree } from '@/lib/hydrationIds'
 import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, retryQuery, isTransientQueryError, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
@@ -49,10 +50,24 @@ export default defineNuxtPlugin({
       })).finally(() => { recovering = false })
     }
 
+    // Another tab switched the working company: this one still states the old company, so the server refused
+    // the request unwritten. Reload `me` (its new company disposes this tab's private views). A refused read says
+    // why, once for the burst of requests that fail together; a refused write already shows the mapped message
+    // in its own place. This tab's own switch is quiet: its in-flight requests still state the old company.
+    let reconciling = false
+    function onMaybeStaleCompany(generation: number, error: unknown, saying: boolean) {
+      if (!identity || reconciling || companySwitching.value || queryScope.current.value.generation !== generation || !isRequestContextChanged(error)) return
+      reconciling = true
+      Promise.resolve(nuxt.runWithContext(async () => {
+        await identity.refresh()
+        if (saying) useToast().add({ title: nuxt.$i18n.t('errors.codes.request_context_changed'), color: 'warning' })
+      })).finally(() => { reconciling = false })
+    }
+
     const queryScope = createSessionQueryScope(generation => new QueryClient({
       defaultOptions: { queries: { staleTime: 5_000, retry: retryQuery, refetchOnWindowFocus: true, retryOnMount: import.meta.server || !nuxt.isHydrating } },
-      queryCache: new QueryCache({ onError: error => onMaybeExpiredSession(generation, error) }),
-      mutationCache: new MutationCache({ onError: error => onMaybeExpiredSession(generation, error) }),
+      queryCache: new QueryCache({ onError: error => { onMaybeExpiredSession(generation, error); onMaybeStaleCompany(generation, error, true) } }),
+      mutationCache: new MutationCache({ onError: error => { onMaybeExpiredSession(generation, error); onMaybeStaleCompany(generation, error, false) } }),
     }), sessionIdentityKey(identity?.ownershipIdentity.value), router.currentRoute.value.meta.access === 'public' || router.currentRoute.value.meta.access === 'guest')
     nuxt.vueApp.provide(sessionQueryScopeKey, queryScope)
     const initialClient = queryScope.current.value.client

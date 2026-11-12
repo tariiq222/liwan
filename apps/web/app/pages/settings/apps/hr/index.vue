@@ -90,7 +90,7 @@ const reloadPayrollSettings = () => refetched(settings)
 const reloadRates = async () => (await refetched(rates)).items
 const reloadBankProfiles = async () => (await refetched(bankProfiles)).items
 // The leave pickers need the leave catalog; without leave access they are empty and the rest of the page still works.
-const leaveTypes = useHrLeaveTypes(() => shows('payroll') && can('hr.leave.read'))
+const leaveTypes = useHrLeaveTypes({ enabled: () => shows('payroll') && can('hr.leave.read') })
 const leaveTypeRefs = computed(() => (leaveTypes.data.value?.items ?? []).map(type => ({ id: type.id, name: type.name })))
 const finance = useHrPayrollFinanceSettings()
 const financeSettings = computed(() => finance.data.value)

@@ -10,14 +10,18 @@ from odoo.exceptions import MissingError
 from odoo.fields import Domain
 from odoo.http import request
 
+from .common import asks_for_own_data, own_employee
 from odoo.addons.liwan_api.controllers.common import (
+    OWN_DATA_CONTEXT,
     ApiError,
     api_handler,
     parse_page,
     parse_positive_int,
+    request_arguments,
     require_capabilities,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
 from odoo.addons.liwan_hr.serializers.hr_leave import (
     dump_allocation,
@@ -87,13 +91,13 @@ def _reject_governed(leave):
         raise ApiError(409, 'approval_governed', 'this request is decided by its approval workflow')
 
 
-def _own_employee():
-    employee = request.env.user.employee_ids.filtered(
-        lambda record: record.company_id == request.env.company,
-    )[:1]
-    if not employee:
-        raise ApiError(422, 'invalid', 'the current user has no employee record in this company')
-    return employee
+def _names_no_employee(arguments):
+    return arguments.get('employee_id') in (None, False, '')
+
+
+def _requested_employee_id(arguments):
+    """The employee a request names, or None when it names none: the one reading the predicates also use."""
+    return None if _names_no_employee(arguments) else parse_positive_int(arguments['employee_id'], 'employee_id')
 
 
 def _company_employee(employee_id):
@@ -109,7 +113,7 @@ def _company_employee(employee_id):
 def _target_employee(employee_id):
     """The caller's own employee, or another one when the caller manages leave."""
     if employee_id is None:
-        return _own_employee()
+        return own_employee(required=True)
     employee = _company_employee(employee_id)
     if not _can('hr.leave.manage', employee) and employee.user_id != request.env.user:
         raise ApiError(403, 'forbidden', 'hr.leave.manage capability is required')
@@ -138,9 +142,13 @@ def _current_leave(leave_id):
     """A request of the current company; without approve/manage only the caller's own one.
 
     hr_holidays' record rules already hide other people's requests from an employee; the
-    explicit employee filter keeps that guarantee in LiwanOS instead of in stock data.
+    explicit employee filter keeps that guarantee in LiwanOS instead of in stock data. A personal request
+    (``mine=1``) reaches only the caller's own request, whatever the caller manages.
     """
     domain = Domain('id', '=', int(leave_id)) & _leave_visibility_domain()
+    if request.env.context.get(OWN_DATA_CONTEXT):
+        # A personal request runs in the home company: it may only ever reach the caller's own leave there.
+        domain &= Domain('employee_id.user_id', '=', request.env.uid)
     leave = request.env['hr.leave'].search(domain, limit=1)
     if not leave:
         raise MissingError(request.env._('hr.leave %(id)s does not exist', id=leave_id))
@@ -178,6 +186,7 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/me/<int:leave_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', operation='read')
     def get_own_request(self, leave_id):
         _require('hr.leave.read')
@@ -192,6 +201,7 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/types', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', operation='read')
     def list_leave_types(self, **_):
         _require('hr.leave.read')
@@ -200,12 +210,11 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/balances', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data(_names_no_employee)
     @requires_feature('hr.enabled', operation='read')
-    def list_balances(self, **_):
+    def list_balances(self, **kwargs):
         _require('hr.leave.read')
-        raw = request.httprequest.args.get('employee_id')
-        employee_id = parse_positive_int(raw, 'employee_id') if raw not in (None, '') else None
-        employee = _target_employee(employee_id)
+        employee = _target_employee(_requested_employee_id(request_arguments(kwargs)))
         types = request.env['hr.leave.type'].search(
             [*_leave_types_domain(employee.company_id), ('requires_allocation', '=', True)], order='sequence, id',
         )
@@ -219,9 +228,11 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/requests', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', operation='read')
-    def list_requests(self, **_):
+    def list_requests(self, **kwargs):
         _require('hr.leave.read')
+        arguments = request_arguments(kwargs)
         args = request.httprequest.args
         limit, offset = parse_page(args)
         domain = list(_leave_visibility_domain())
@@ -234,10 +245,10 @@ class HrLeaveController(http.Controller):
         if cancellation_state == 'pending':
             pending = request.env['liwan.hr.leave.cancellation'].search([('state', '=', 'pending')])
             domain.append(('id', 'in', pending.mapped('leave_id').ids))
-        raw_employee = args.get('employee_id')
-        if raw_employee not in (None, ''):
-            domain.append(('employee_id', '=', parse_positive_int(raw_employee, 'employee_id')))
-        if args.get('mine') == '1':
+        employee_id = _requested_employee_id(arguments)
+        if employee_id is not None:
+            domain.append(('employee_id', '=', employee_id))
+        if asks_for_own_data(arguments):
             domain.append(('employee_id.user_id', '=', request.env.uid))
         Leave = request.env['hr.leave']
         leaves = Leave.search(domain, order='request_date_from desc, id desc', limit=limit, offset=offset)
@@ -247,6 +258,7 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', operation='read')
     def get_request(self, leave_id):
         _require('hr.leave.read')
@@ -254,11 +266,12 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/requests', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @serves_own_data(_names_no_employee)
     @requires_feature('hr.enabled', operation='write')
     def create_request(self, **payload):
         _require('hr.leave.request')
         vals = parse_leave_request(payload)
-        employee = _target_employee(vals['employee_id'])
+        employee = _target_employee(_requested_employee_id(request_arguments(payload)))
         leave_type = _leave_type(vals['leave_type_id'], employee.company_id)
         # Stock refuses an overlap with an English sentence in a US date format: name it by code so the page can say it.
         if request.env['hr.leave'].search_count([
@@ -313,6 +326,7 @@ class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @serves_own_data(asks_for_own_data)
     @requires_feature('hr.enabled', operation='write')
     @requires_capability('hr.leave.request', 'hr.leave.approve', match='any')
     def cancel_request(self, leave_id, **payload):

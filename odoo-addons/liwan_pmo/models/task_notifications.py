@@ -58,7 +58,7 @@ class ProjectTaskNotifications(models.Model):
         return users.filtered(
             lambda user: (
                 user.active and not user.share and user.partner_id
-                and user.company_id == self.env.company
+                and self.env.company in user.company_ids
             ),
         )
 

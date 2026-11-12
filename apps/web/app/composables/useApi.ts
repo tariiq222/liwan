@@ -1,9 +1,12 @@
 import { captureSessionQueryOwner } from '../lib/sessionQueryScope'
 import type { ZodType } from 'zod'
 import { saveErrorMessage } from '../utils/formFeedback'
-import { ApiErrorSchema } from '@liwan/contracts'
+import { ApiErrorSchema, type Me } from '@liwan/contracts'
 import { contentDispositionFilename } from '../utils/contentDisposition'
 import { isTenantSuspended, reportTenantSuspension, TENANT_SUSPENDED } from '../utils/tenantSuspension'
+
+/** The fiscal setup sends its own value under this same key, so it replaces the one here instead of doubling it. */
+export const EXPECTED_COMPANY_HEADER = 'X-Liwan-Expected-Company-Id'
 
 export class ApiError extends Error {
   constructor(
@@ -86,9 +89,17 @@ export function useApi() {
       'x-liwan-client-ip', 'x-liwan-client-host', 'x-liwan-client-proto'])
     : {}
 
+  // The company this tab was loaded for. `me` itself is fetched without it, so a stale tab can still refresh its identity.
+  const loadedMe = useNuxtData<Me | null>('me').data
+  /** The precondition every call states (except a request that names its target company itself): the server refuses (409) when the session works in another company, and never reads it as a selector. */
+  const expectedCompany = (path: string): Record<string, string> => {
+    const company = loadedMe.value?.company.id
+    return forwardsIdentity(path) && company !== undefined ? { [EXPECTED_COMPANY_HEADER]: String(company) } : {}
+  }
+
   async function $api<T>(
     path: string,
-    opts: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T>; signal?: AbortSignal; headers?: Record<string, string> } = {},
+    opts: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T>; signal?: AbortSignal; headers?: Record<string, string>; statesCompany?: false } = {},
   ): Promise<T> {
     const requestOwnerIsCurrent = captureOwnerFor(path)
     const writing = !['GET', 'HEAD', 'OPTIONS'].includes((opts.method ?? 'GET').toUpperCase())
@@ -100,7 +111,7 @@ export function useApi() {
         retry: 0,
         query: opts.query,
         signal: opts.signal,
-        headers: forwardsIdentity(path) ? { ...headers, ...trustedHeaders, ...opts.headers } : {},
+        headers: forwardsIdentity(path) ? { ...headers, ...trustedHeaders, ...(opts.statesCompany === false ? {} : expectedCompany(path)), ...opts.headers } : {},
       })
       assertCurrentOwner(requestOwnerIsCurrent)
       return opts.schema ? opts.schema.parse(data) : (data as T)
@@ -174,7 +185,7 @@ export function useApi() {
         body: opts.body as any,
         retry: 0,
         query: opts.query,
-        headers: forwardsIdentity(path) ? { ...headers, ...trustedHeaders } : {},
+        headers: forwardsIdentity(path) ? { ...headers, ...trustedHeaders, ...expectedCompany(path) } : {},
       })
       assertCurrentOwner(requestOwnerIsCurrent)
       return { blob: response._data as Blob, filename: contentDispositionFilename(response.headers.get('content-disposition')) }

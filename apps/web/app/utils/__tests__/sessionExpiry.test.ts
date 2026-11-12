@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../composables/useApi'
-import { sessionIdentityKey, sessionViewKey, isPossibleSessionExpiry } from '../sessionExpiry'
+import { sessionIdentityKey, sessionViewKey, isPossibleSessionExpiry, isRequestContextChanged } from '../sessionExpiry'
 
 describe('isPossibleSessionExpiry', () => {
   it.each(['forbidden', 'tenant_read_only', 'feature_not_included', 'transition_forbidden', 'status_forbidden', 'tenant_suspended'])(
@@ -15,6 +15,17 @@ describe('isPossibleSessionExpiry', () => {
   it('ignores other statuses and errors that are not API errors', () => {
     expect(isPossibleSessionExpiry(new ApiError(404, 'not_found', 'x'))).toBe(false)
     expect(isPossibleSessionExpiry(new Error('x'))).toBe(false)
+  })
+})
+
+describe('isRequestContextChanged', () => {
+  it('is the 409 refusal that names a changed working company', () => {
+    expect(isRequestContextChanged(new ApiError(409, 'request_context_changed', 'x'))).toBe(true)
+  })
+  it('is not any other refusal, nor a thing that is not an API error', () => {
+    expect(isRequestContextChanged(new ApiError(409, 'conflict', 'x'))).toBe(false)
+    expect(isRequestContextChanged(new ApiError(403, 'request_context_changed', 'x'))).toBe(false)
+    expect(isRequestContextChanged(new Error('x'))).toBe(false)
   })
 })
 

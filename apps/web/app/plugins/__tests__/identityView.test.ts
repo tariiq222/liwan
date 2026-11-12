@@ -11,6 +11,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { loadShared, DEFAULT_STUBS } from '@liwan/ui/test/helpers/renderShared'
 import { createHostNode, hostRenderer, type HostNode } from '@liwan/ui/test/helpers/hostRenderer'
 import * as sessionExpiry from '../../utils/sessionExpiry'
+import { companySwitching } from '../../utils/companySwitch'
 import * as hydrationIds from '../../lib/hydrationIds'
 import * as ssr from '../../lib/vueQuerySsr'
 import * as sessionQueries from '../../lib/sessionQueryScope'
@@ -18,7 +19,7 @@ import SessionQueryProvider from '../../components/shell/SessionQueryProvider'
 import { beginAccessRefreshInFlight, drainAccessRefreshInFlight } from '../../composables/useAdminUsers'
 
 const active: Array<() => void> = []
-afterEach(() => { active.splice(0).forEach(stop => stop()); vi.restoreAllMocks(); vi.unstubAllGlobals(); tenantSuspension.clearTenantSuspension(); tenantSuspension.onTenantSuspension(() => {}) })
+afterEach(() => { companySwitching.value = false; active.splice(0).forEach(stop => stop()); vi.restoreAllMocks(); vi.unstubAllGlobals(); tenantSuspension.clearTenantSuspension(); tenantSuspension.onTenantSuspension(() => {}) })
 const text = (node: HostNode): string => (node.type === 'comment' ? '' : node.text ?? '') + node.children.map(text).join('')
 const settle = async () => { for (let index = 0; index < 4; index++) { await Promise.resolve(); await Vue.nextTick() } }
 type Identity = { id: number; company: { id: number }; capabilities: string[]; access_policy_version: number; name: string }
@@ -112,8 +113,8 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   })
   const app: Vue.App<HostNode | Element> = options.server ? Vue.createSSRApp(Root) : hostRenderer.createApp(Root)
   for (const [name, component] of Object.entries({ ...DEFAULT_STUBS, UApp: Pass, NuxtLayout: Layout, NuxtPage: Page })) app.component(name, component)
-  const nuxt = { isHydrating: !!options.hydrating, vueApp: app, runWithContext: (fn: () => unknown) => app.runWithContext(fn), hook: (name: string, fn: () => unknown) => hooks.set(name, fn), hooks: { hook: (name: string, fn: () => unknown) => hooks.set(name, fn) } }
-  const bindings = { ...Vue, ...Query, ...hydrationIds, ...ssr, ...sessionExpiry, ...sessionQueries, defineNuxtPlugin: (value: unknown) => value, useState: () => state, useRouter: () => ({ currentRoute: Vue.ref(route) }), useMe, onTenantSuspension: tenantSuspension.onTenantSuspension, dropToastsWhileSuspended: tenantSuspension.dropToastsWhileSuspended, useToast: () => ({ toasts, clear: () => { toasts.value = [] } }), clearTenantSuspension: () => { suspensionClears++; tenantSuspension.clearTenantSuspension() }, beginAccessRefreshInFlight, drainAccessRefreshInFlight, useEventListener: (_target: unknown, event: string, listener: () => void) => { if (event === 'focus') focusListeners.push(listener) }, window: {}, navigateTo, clearChatDrafts: () => {}, isTenantSuspended: tenantSuspension.isTenantSuspended, useBus: () => ({ connect: () => {}, disconnect: () => {} }), setBusQueryClient: (client: Query.QueryClient) => { busClients.push(client) } }
+  const nuxt = { $i18n: { t: (key: string) => key }, isHydrating: !!options.hydrating, vueApp: app, runWithContext: (fn: () => unknown) => app.runWithContext(fn), hook: (name: string, fn: () => unknown) => hooks.set(name, fn), hooks: { hook: (name: string, fn: () => unknown) => hooks.set(name, fn) } }
+  const bindings = { ...Vue, ...Query, ...hydrationIds, ...ssr, ...sessionExpiry, ...sessionQueries, companySwitching, defineNuxtPlugin: (value: unknown) => value, useState: () => state, useRouter: () => ({ currentRoute: Vue.ref(route) }), useMe, onTenantSuspension: tenantSuspension.onTenantSuspension, dropToastsWhileSuspended: tenantSuspension.dropToastsWhileSuspended, useToast: () => ({ toasts, add: (toast: unknown) => { toasts.value.push(toast) }, clear: () => { toasts.value = [] } }), clearTenantSuspension: () => { suspensionClears++; tenantSuspension.clearTenantSuspension() }, beginAccessRefreshInFlight, drainAccessRefreshInFlight, useEventListener: (_target: unknown, event: string, listener: () => void) => { if (event === 'focus') focusListeners.push(listener) }, window: {}, navigateTo, clearChatDrafts: () => {}, isTenantSuspended: tenantSuspension.isTenantSuspended, useBus: () => ({ connect: () => {}, disconnect: () => {} }), setBusQueryClient: (client: Query.QueryClient) => { busClients.push(client) } }
   const scope = Vue.effectScope()
   let access: { provide: { waitForAccessRefresh: () => Promise<void> } } | undefined
   scope.run(() => {
@@ -446,6 +447,7 @@ it.each(['success', 'idle'] as const)('clears a latched suspension once after an
   await settle()
   expect(view.toasts.value).toEqual(['new notification'])
   vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: () => false, locale: { value: 'en' } }))
+  vi.stubGlobal('useNuxtData', () => ({ data: { value: null } }))
   vi.stubGlobal('$fetch', async () => { throw { statusCode: 403, data: { code: 'forbidden', message: 'Permission denied' } } })
   await expect(view.app.runWithContext(useApi).$api('/api/v1/projects')).rejects.toMatchObject({ status: 403, code: 'forbidden' })
   // A later unverified failure and same-actor recovery must not clear a real latch.
@@ -508,4 +510,54 @@ it.each(['initial-anonymous', 'guest', 'signed-in-guest', 'logout'])('does not b
   view.focus()
   await settle()
   expect(view.recoveryRefreshes()).toBe(0)
+})
+
+const staleCompany = () => new ApiError(409, 'request_context_changed', 'x')
+const failing = (view: ReturnType<typeof fixture>, key: string) => view.client.fetchQuery({ queryKey: [key], queryFn: () => Promise.reject(staleCompany()), retry: false }).catch(() => {})
+
+it('reloads me and says once that the working company changed when requests fail together with request_context_changed', async () => {
+  const view = fixture()
+  await settle()
+  await Promise.all([failing(view, 'a'), failing(view, 'b')])
+  await settle()
+  expect(view.recoveryRefreshes()).toBe(1)
+  expect(view.toasts.value).toEqual([{ title: 'errors.codes.request_context_changed', color: 'warning' }])
+  await failing(view, 'c')
+  await settle()
+  expect(view.recoveryRefreshes()).toBe(2)
+  expect(view.toasts.value).toHaveLength(2)
+})
+
+it('reloads me but shows no global message for a refused write: its own error surface says it', async () => {
+  const view = fixture()
+  await settle()
+  await new Query.MutationObserver(view.client, { mutationFn: () => Promise.reject(staleCompany()) }).mutate().catch(() => {})
+  await settle()
+  expect(view.recoveryRefreshes()).toBe(1)
+  expect(view.toasts.value).toEqual([])
+})
+
+it('stays silent for requests that fail while this tab switches company, and reports one that fails after it', async () => {
+  const view = fixture()
+  await settle()
+  companySwitching.value = true
+  await failing(view, 'during')
+  await new Query.MutationObserver(view.client, { mutationFn: () => Promise.reject(staleCompany()) }).mutate().catch(() => {})
+  await settle()
+  expect(view.recoveryRefreshes()).toBe(0)
+  expect(view.toasts.value).toEqual([])
+  companySwitching.value = false
+  await failing(view, 'after')
+  await settle()
+  expect(view.recoveryRefreshes()).toBe(1)
+  expect(view.toasts.value).toHaveLength(1)
+})
+
+it('ignores other refusals and other 409 codes', async () => {
+  const view = fixture()
+  await settle()
+  await view.client.fetchQuery({ queryKey: ['x'], queryFn: () => Promise.reject(new ApiError(409, 'conflict', 'x')), retry: false }).catch(() => {})
+  await settle()
+  expect(view.recoveryRefreshes()).toBe(0)
+  expect(view.toasts.value).toEqual([])
 })

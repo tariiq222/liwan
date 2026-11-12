@@ -3,13 +3,14 @@ from odoo import http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from .common import hr_rule_handler, own_public_employee, related_record
+from .common import hr_rule_handler, own_employee, related_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     parse_page,
     require_capabilities,
     requires_feature,
+    serves_own_data,
 )
 from odoo.addons.liwan_api.controllers.lookups import (
     list_countries as lookup_countries,
@@ -95,10 +96,11 @@ def _validate_contract_vals(vals, employee):
 class HrEmployeeController(http.Controller):
     @http.route('/api/v1/hr/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', operation='read')
     def own_profile(self, **_):
         _require('hr.employees.read')
-        employee = own_public_employee()
+        employee = own_employee(public=True)
         return dump_employee(employee, include_access=False, include_contract=False) if employee else None
 
     @http.route('/api/v1/hr/countries', type='json2', auth='user', methods=['GET'], readonly=True)

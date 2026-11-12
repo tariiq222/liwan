@@ -168,10 +168,10 @@ export function useHrEquipment(id: MaybeRefOrGetter<number | null>) {
 export function useMyHrAssets(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
-  const { can } = useAccess()
+  const { canPersonal } = useAccess()
   return useQuery({
     queryKey: computed(() => [...hrAssetKeys.mine, identity.scope.value]),
-    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && canPersonal('hr.employees.read')),
     queryFn: () => $api('/api/v1/hr/assets/me', { schema: HrEquipmentListSchema }),
   })
 }

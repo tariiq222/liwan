@@ -237,3 +237,51 @@ describe('why a closed page is closed', () => {
     expect(planDenialCode(on, '/hr/leave')).toBeNull()
   })
 })
+
+describe('personal pages follow the home company', () => {
+  const HR = ['hr.employees.read', 'hr.leave.read', 'hr.leave.request']
+  const platform = { readable_features: ['hr.enabled', 'hr.payroll'], writable_features: ['hr.enabled', 'hr.payroll'] }
+  const switched = { capabilities: ['liwan.reader'], home_capabilities: HR, platform }
+  it('opens the personal routes on the home capabilities, by direct link and refresh alike', () => {
+    expect(canReachPath(switched, '/account/leave')).toBe(true)
+    expect(canReachPath(switched, '/account/leave/new')).toBe(true)
+    expect(canReachPath(switched, '/account/profile')).toBe(true)
+    expect(canReachPath(switched, '/account/pay')).toBe(true)
+    expect(planDenialCode(switched, '/account/leave')).toBeNull()
+  })
+  it('never lets the home capabilities open an ordinary page', () => {
+    expect(canReachPath(switched, '/hr')).toBe(false)
+    expect(canReachPath(switched, '/hr/leave')).toBe(false)
+    expect(canReachPath(switched, '/projects')).toBe(false)
+    expect(canReach(switched, 'hr.employees.read')).toBe(false)
+    expect(hasCapability(switched, 'hr.employees.read')).toBe(false)
+  })
+  it('closes the personal routes when the home company grants nothing, whatever the working company holds', () => {
+    const employeeHere = { capabilities: HR, home_capabilities: ['liwan.reader'], platform }
+    expect(canReachPath(employeeHere, '/account/leave')).toBe(false)
+    // Ordinary pages keep following the working company.
+    expect(canReachPath(employeeHere, '/hr')).toBe(true)
+  })
+  it('changes nothing when the working company is the home company', () => {
+    const home = { capabilities: HR, home_capabilities: HR, platform }
+    expect(canReachPath(home, '/account/leave')).toBe(true)
+    expect(canReachPath(home, '/account/leave')).toBe(canReachPath({ capabilities: HR, platform }, '/account/leave'))
+  })
+  it('leaves the pages the server serves from the working company on its capabilities', () => {
+    const operations = { capabilities: ['operations.requests.read', 'operations.requests.create'], home_capabilities: [], platform: { readable_features: ['operations.enabled'], writable_features: ['operations.enabled'] } }
+    const homeOnly = { capabilities: [], home_capabilities: operations.capabilities, platform: operations.platform }
+    for (const path of ['/account/requests', '/account/requests/new', '/account/requests/7']) {
+      expect(canReachPath(operations, path)).toBe(true)
+      expect(canReachPath(homeOnly, path)).toBe(false)
+    }
+    expect(canReachPath({ ...homeOnly, capabilities: ['liwan.reader'] }, '/account')).toBe(true)
+    expect(canReachPath({ ...homeOnly, capabilities: ['liwan.reader'] }, '/account/settings')).toBe(true)
+  })
+  it('follows the home company for every HR personal route and the personal documents', () => {
+    const features = ['hr.enabled', 'hr.payroll', 'hr.assets', 'hr.shifts', 'hr.warnings', 'hr.insurance', 'hr.onboarding', 'documents.enabled']
+    const home = { capabilities: [], home_capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request', 'documents.items.read'], platform: { readable_features: features, writable_features: features } }
+    for (const path of ['/account/profile', '/account/leave', '/account/leave/new', '/account/leave/7', '/account/pay', '/account/pay/7', '/account/assets', '/account/schedule', '/account/warnings', '/account/insurance', '/account/onboarding', '/account/documents', '/account/documents/7']) {
+      expect(canReachPath(home, path), path).toBe(true)
+    }
+  })
+})

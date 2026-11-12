@@ -3,6 +3,7 @@ from . import (
     access_assignment,
     access_audit,
     access_branch,
+    access_membership,
     access_permission,
     access_role,
     access_service,

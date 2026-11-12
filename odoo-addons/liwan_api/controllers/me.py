@@ -9,7 +9,10 @@ from odoo.addons.liwan_api.controllers.auth import DEVICE_COOKIE
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    chooses_company,
     clear_security_caches_after_commit,
+    parse_positive_int,
+    select_working_company,
 )
 from odoo.addons.liwan_api.models.res_users import (
     APPEARANCE_MODES,
@@ -47,6 +50,22 @@ class MeController(http.Controller):
     @http.route('/api/v1/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def me(self):
+        return dump_me(request.env.user)
+
+    @http.route('/api/v1/me/company', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @chooses_company
+    def switch_company(self, company_id=None, **extra):
+        """Set the company this session works in and answer the new ``me``.
+
+        Only an active membership qualifies. Any other company answers 404 exactly as a company that does not
+        exist, so the answer says nothing about companies the caller is not part of. Nothing is written on the
+        user: the home company, the seat and the employee link stay where they are.
+        """
+        if extra:
+            field = next(iter(extra))
+            raise ApiError(422, 'invalid', f"field {field!r} is not accepted", field=field)
+        select_working_company(parse_positive_int(company_id, 'company_id'))
         return dump_me(request.env.user)
 
     @http.route('/api/v1/me/profile', type='json2', auth='user', methods=['PATCH'], readonly=False)

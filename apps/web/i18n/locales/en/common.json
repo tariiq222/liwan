@@ -191,6 +191,7 @@
     "more": "More",
     "userMenu": {
       "label": "User menu",
+      "company": "Company",
       "services": "My services",
       "more": "More",
       "accountPassword": "My account and password",
@@ -281,6 +282,7 @@
       "unavailable": "The service is not available right now. Try again shortly."
     },
     "codes": {
+      "request_context_changed": "The company you work in was changed in another tab, so this page was refreshed to match.",
       "stale_write": "The data changed since you opened it. Refresh the page and try again.",
       "wrong_password": "The password is incorrect.",
       "weak_password": "The password is too weak. Choose a stronger one.",

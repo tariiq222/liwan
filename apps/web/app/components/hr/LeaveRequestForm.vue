@@ -10,7 +10,6 @@ const emit = defineEmits<{ saved: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
-const types = useHrLeaveTypes()
 const { mutateAsync: create, isPending } = useCreateLeaveRequest()
 
 // Leave managers may file a request for another employee; everyone else files their own.
@@ -24,7 +23,11 @@ const employeeOptions = computed(() => [
   { value: OWN, label: t('hr.leave.form.onBehalfSelf') },
   ...(employees.data.value?.items ?? []).map(employee => ({ value: String(employee.id), label: employee.name })),
 ])
+// Filing for oneself happens in the home company, so only then are the home company's types listed.
+const types = useHrLeaveTypes({ mine: computed(() => employeeId.value === null) })
 const leaveTypeId = ref<number | null>(null)
+// Own and another employee's types are different lists: a type chosen on one side is not offered on the other.
+watch(() => employeeId.value === null, () => { leaveTypeId.value = null })
 const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)
 const notes = ref('')

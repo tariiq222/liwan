@@ -15,8 +15,8 @@ const desk: AppManifest = {
     { pattern: /^\/account\/pay/, capability: 'desk.employee.read', feature: 'desk.pay' },
   ],
   personal: [
-    { id: 'desk-pay', section: 'pay', labelKey: 'desk.pay', descriptionKey: 'desk.payDesc', icon: 'i-lucide-receipt', to: '/account/pay', capability: 'desk.employee.read', feature: 'desk.pay' },
-    { id: 'desk-leave', section: 'leave', labelKey: 'desk.leave', descriptionKey: 'desk.leaveDesc', icon: 'i-lucide-calendar', to: '/account/leave', capability: 'desk.leave.read' },
+    { id: 'desk-pay', section: 'pay', servedFromHomeCompany: true, labelKey: 'desk.pay', descriptionKey: 'desk.payDesc', icon: 'i-lucide-receipt', to: '/account/pay', capability: 'desk.employee.read', feature: 'desk.pay' },
+    { id: 'desk-leave', section: 'leave', servedFromHomeCompany: true, labelKey: 'desk.leave', descriptionKey: 'desk.leaveDesc', icon: 'i-lucide-calendar', to: '/account/leave', capability: 'desk.leave.read' },
   ],
 }
 
@@ -60,6 +60,33 @@ describe('personal employee destinations', () => {
   it('checks the target route in addition to a contribution capability', () => {
     withManifests([{ ...desk, personal: [{ ...desk.personal![1]!, capability: 'desk.employee.read' }] }], () => {
       expect(model.personalEntries(identity(['desk.employee.read']))).toEqual([])
+    })
+  })
+})
+
+describe('personal entries after a switch to another company', () => {
+  it('follow the capabilities of the home company, not those of the working company', () => {
+    withManifests([desk], () => {
+      const switched = { ...identity(['liwan.reader']), home_capabilities: ['desk.leave.read', 'desk.employee.read'] }
+      expect(model.personalEntries(switched).map(entry => entry.section)).toEqual(['leave', 'pay'])
+      expect(model.personalContextLinks(switched).map(link => link.id)).toEqual(['personal-overview', 'personal-leave', 'personal-pay', 'personal-settings'])
+      const homeEmpty = { ...identity(['desk.leave.read', 'desk.employee.read']), home_capabilities: ['liwan.reader'] }
+      expect(model.personalEntries(homeEmpty)).toEqual([])
+    })
+  })
+})
+
+describe('a personal entry that is not served from the home company', () => {
+  const requests: AppManifest = {
+    id: 'desk', feature: 'desk.enabled', routePrefixes: ['/desk', '/account/requests'],
+    rail: [{ id: 'desk', labelKey: 'desk.title', icon: 'i-lucide-inbox', to: '/desk', order: 10 }], nav: [],
+    routeCapabilities: [{ pattern: /^\/account\/requests/, capability: 'desk.requests.read' }],
+    personal: [{ id: 'desk-requests', section: 'requests', labelKey: 'desk.requests', descriptionKey: 'desk.requestsDesc', icon: 'i-lucide-files', to: '/account/requests', capability: 'desk.requests.read' }],
+  }
+  it('follows the working company, whatever the home company holds', () => {
+    withManifests([requests], () => {
+      expect(model.personalEntries({ ...identity(['desk.requests.read']), home_capabilities: [] }).map(entry => entry.section)).toEqual(['requests'])
+      expect(model.personalEntries({ ...identity([]), home_capabilities: ['desk.requests.read'] })).toEqual([])
     })
   })
 })

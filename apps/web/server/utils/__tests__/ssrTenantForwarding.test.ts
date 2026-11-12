@@ -35,7 +35,7 @@ it('source SSR replay: cookie-only local dispatch fails; validated event identit
     if (_url.startsWith('/api/v1/')) tenantRequest(event(options.headers))
     return { ok: true }
   })
-  new Function('exports', 'require', 'useRequestHeaders', 'useRequestEvent', '$fetch', 'useI18n', js)(exports, () => ({ ApiErrorSchema }), (names: string[]) => Object.fromEntries(names.map(n => [n, headers[n]])), () => ({ context: { tenant } }), fetch, () => ({ t: (key: string) => key }))
+  new Function('exports', 'require', 'useRequestHeaders', 'useRequestEvent', '$fetch', 'useI18n', 'useNuxtData', js)(exports, () => ({ ApiErrorSchema }), (names: string[]) => Object.fromEntries(names.map(n => [n, headers[n]])), () => ({ context: { tenant } }), fetch, () => ({ t: (key: string) => key }), () => ({ data: { value: null } }))
   const { $api } = exports.useApi()
   await expect($api('/api/v1/me')).resolves.toEqual({ ok: true })
   expect(fetch.mock.calls[0]![1].headers).toEqual(headers)
@@ -87,7 +87,7 @@ function sourceApi(headers: Record<string, string>, context: H3Event['context'],
     if (url === '/api/v1/me') dispatch(options.headers)
     return { ok: true }
   })
-  new Function('exports', 'require', 'useRequestHeaders', 'useRequestEvent', '$fetch', 'useI18n', js)(exports, () => ({ ApiErrorSchema }), (names: string[]) => Object.fromEntries(names.filter(name => name in headers).map(name => [name, headers[name]])), () => ({ context }), fetch, () => ({ t: (key: string) => key }))
+  new Function('exports', 'require', 'useRequestHeaders', 'useRequestEvent', '$fetch', 'useI18n', 'useNuxtData', js)(exports, () => ({ ApiErrorSchema }), (names: string[]) => Object.fromEntries(names.filter(name => name in headers).map(name => [name, headers[name]])), () => ({ context }), fetch, () => ({ t: (key: string) => key }), () => ({ data: { value: null } }))
   return { ...exports.useApi!(), fetch }
 }
 

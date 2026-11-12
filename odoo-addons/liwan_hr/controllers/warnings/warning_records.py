@@ -18,6 +18,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_positive_int,
     requires_capability,
     requires_feature,
+    serves_own_data,
 )
 from odoo.addons.liwan_hr.serializers.assets.common import ref
 from odoo.addons.liwan_hr.serializers.warnings.warning import (
@@ -123,6 +124,7 @@ class HrWarningController(http.Controller):
 
     @http.route('/api/v1/hr/warnings/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.warnings', operation='read')
     @requires_capability('hr.employees.read')
     def list_own_warnings(self, **_):
@@ -134,6 +136,7 @@ class HrWarningController(http.Controller):
 
     @http.route('/api/v1/hr/warnings/me/<int:warning_id>/acknowledge', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.warnings', operation='write')
     @requires_capability('hr.employees.read')
     def acknowledge_warning(self, warning_id, **payload):
@@ -142,6 +145,7 @@ class HrWarningController(http.Controller):
 
     @http.route('/api/v1/hr/warnings/me/<int:warning_id>/contest', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @serves_own_data()
     @requires_feature('hr.enabled', 'hr.warnings', operation='write')
     @requires_capability('hr.employees.read')
     def contest_warning(self, warning_id, **payload):

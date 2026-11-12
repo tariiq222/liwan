@@ -8,6 +8,8 @@ vi.mock('../upstream', () => ({ odooJson, forwardUpstream: (u: any) => { throw O
 const TOOLS = { items: [], total: 0, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: null, blocked: null, blocked_resets_at: null, spend_ceiling: null, spend_this_month: null, output_tokens_per_run: 8000, input_tokens_per_run: 100000 } }, blocked_fields: [] }
 let config: Record<string, unknown>
 
+const bareEvent = { node: { req: { headers: {} } }, headers: new Headers() }
+
 beforeEach(() => {
   tenantRequest.mockReset(); odooJson.mockReset()
   config = { odooDb: '' }
@@ -19,7 +21,7 @@ beforeEach(() => {
 
 async function owner() {
   const { runSession } = await import('../session')
-  return (await runSession({} as any)).owner
+  return (await runSession(bareEvent as any)).owner
 }
 
 describe('runSession tenant identity', () => {

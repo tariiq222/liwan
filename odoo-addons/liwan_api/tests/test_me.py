@@ -37,9 +37,11 @@ class TestMeEndpoint(HttpCase):
         self.assertEqual(body['company']['id'], self.env.ref('base.main_company').id)
         self.assertEqual(set(body), {
             'id', 'name', 'login', 'email', 'mobile', 'mobile_required', 'lang', 'tz', 'role', 'company',
+            'companies', 'home_company_id', 'home_capabilities',
             'roles', 'capabilities', 'access_policy_version', 'read_only', 'appearance',
             'modules', 'entitlements', 'platform', 'terminology', 'commercial',
         })
+        self.assertEqual(body['home_capabilities'], body['capabilities'])
         self.assertIs(body['read_only'], False)
         self.assertEqual(body['platform']['schema_version'], 1)
         self.assertIn(body['platform']['state'], ('active', 'expired', 'suspended'))

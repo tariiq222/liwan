@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 
 const me = MeSchema.parse({
   id: 7, name: 'سارة القحطاني', login: 'sara', email: 'sara@example.com', lang: 'ar_001', tz: 'Asia/Riyadh', role: 'admin', roles: [],
-  access_policy_version: 1, company: { id: 1, name: 'شركة المثال' }, capabilities: ['finance.audit.read'], modules: ['liwan_finance'],
+  access_policy_version: 1, company: { id: 1, name: 'شركة المثال' }, companies: [{ id: 1, name: 'شركة المثال' }], home_company_id: 1, capabilities: ['finance.audit.read'], home_capabilities: ['finance.audit.read'], modules: ['liwan_finance'],
   platform: { schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false, readable_features: ['finance.enabled'], writable_features: ['finance.enabled'] },
 })
 const events = FinanceAuditEventListSchema.parse({

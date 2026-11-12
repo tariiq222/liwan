@@ -5,7 +5,7 @@ import LeaveRequestForm from '@/components/hr/LeaveRequestForm.vue'
 
 const route = useRoute()
 const { t } = useI18n()
-const { can } = useAccess()
+const { canPersonal } = useAccess()
 const profile = useMyHrProfile()
 const sourcePaths = computed(() => ['/account/leave', '/account'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
@@ -15,7 +15,7 @@ function saved() { void navigateTo(backTo.value, { replace: true }) }
 
 <template>
   <SharedCreatePanel :title="t('hr.leave.new')" :back-to="backTo">
-    <SharedForbiddenState v-if="!can('hr.leave.request')" />
+    <SharedForbiddenState v-if="!canPersonal('hr.leave.request')" />
     <SharedPageState v-else :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
       <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
       <LeaveRequestForm v-else-if="profile.data.value" :back-to="backTo" @saved="saved" />

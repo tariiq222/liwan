@@ -17,7 +17,7 @@ const editing = computed(() => !!props.allocation)
 const editHint = computed(() => props.allocation
   ? t('hr.leave.allocation.editHint', { employee: props.allocation.employee.name, type: props.allocation.leave_type.name })
   : undefined)
-const types = useHrLeaveTypes(computed(() => !editing.value))
+const types = useHrLeaveTypes({ enabled: computed(() => !editing.value) })
 const employeeSearch = ref('')
 const debouncedSearch = refDebounced(employeeSearch, 250)
 const employees = useHrEmployees(computed(() => ({ q: debouncedSearch.value.trim() || undefined, limit: 50 })), computed(() => !editing.value))

@@ -76,7 +76,7 @@ export const projectRefs = ProjectRefSchema.array().parse([
 
 export const me = MeSchema.parse({
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
-  role: 'admin', roles: [], capabilities: ['pmo.projects.read'], access_policy_version: 1, company: { id: 1, name: 'ليوان' },
+  role: 'admin', roles: [], capabilities: ['pmo.projects.read'], home_capabilities: ['pmo.projects.read'], access_policy_version: 1, company: { id: 1, name: 'ليوان' }, companies: [{ id: 1, name: 'ليوان' }], home_company_id: 1,
 })
 
 // Charter wizard: the classification catalog decides which steps a charter walks.

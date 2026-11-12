@@ -6,10 +6,10 @@ import { employeeDocumentBack } from '@/lib/documentNavigation'
 import DocumentReader from '@/components/documents/DocumentReader.vue'
 import DocumentFiles from '@/components/documents/DocumentFiles.vue'
 definePageMeta({ path: '/account/documents/:documentId' })
-const route = useRoute(); const { t } = useI18n(); const { can } = useAccess()
+const route = useRoute(); const { t } = useI18n(); const { canPersonal } = useAccess()
 const documentId = computed(() => Number(route.params.documentId))
 const validId = computed(() => /^[1-9]\d*$/.test(String(route.params.documentId)) && Number.isSafeInteger(documentId.value))
-const allowed = computed(() => can('documents.items.read') && can('hr.employees.read'))
+const allowed = computed(() => canPersonal('documents.items.read') && canPersonal('hr.employees.read'))
 const employee = useEmployeeDocumentLink(allowed)
 const hasEmployee = computed(() => !!employee.data.value && !employee.error.value)
 const noEmployee = computed(() => allowed.value && validId.value && employee.data.value === null && !employee.error.value)

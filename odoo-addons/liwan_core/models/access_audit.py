@@ -80,11 +80,11 @@ class LiwanAccessAudit(models.Model):
         raise AccessError(msg)
 
     @api.model
-    def _liwan_log(self, action, target, before=None, after=None, reason=None, actor=None):
+    def _liwan_log(self, action, target, before=None, after=None, reason=None, actor=None, company=None):
         _assert_safe(before)
         _assert_safe(after)
         target_type = {'liwan.access.role': 'role', 'res.company': 'company'}.get(target._name, 'user')
-        company = (target.company_id if 'company_id' in target._fields else False) or self.env.company
+        company = company or (target.company_id if 'company_id' in target._fields else False) or self.env.company
         actor = actor if actor is not None else self.env.user
         # A role has no display name: its names are name_ar / name_en.
         target_name = (target.name_ar or target.name_en) if target_type == 'role' else target.display_name

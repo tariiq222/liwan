@@ -6,7 +6,7 @@ import { weekStartOf } from '@/components/hr/shifts/shiftWeek'
 const { t } = useI18n()
 const profile = useMyHrProfile()
 const assignments = useMyHrShiftAssignments(computed(() => !!profile.data.value))
-const settings = useHrShiftSettings(computed(() => !!profile.data.value))
+const settings = useHrShiftSettings(computed(() => !!profile.data.value), { mine: true })
 const week = useMyHrShiftWeek(
   computed(() => (settings.data.value ? weekStartOf(settings.data.value.today) : '')),
   computed(() => !!profile.data.value),
