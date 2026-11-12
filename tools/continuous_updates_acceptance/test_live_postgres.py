@@ -1,17 +1,14 @@
-"""Explicit opt-in local scratch PostgreSQL proof; preserves all resources."""
+"""Explicit opt-in local scratch PostgreSQL proof; preserves all resources.
+
+Operator proof only, registered in tools/ci_not_run.json and run by no CI stage: it connects as the
+trust-auth role ``tariq`` on 127.0.0.1:5432, uses password-less runtime roles and never drops its
+fixed-name databases and roles.
+"""
 import os
 from pathlib import Path
 import unittest
 
-from .postgres_scratch import run_scratch, scratch_names
-
-
-class ScratchNamingTests(unittest.TestCase):
-    def test_default_scope_is_the_exact_authorized_resource_set(self):
-        self.assertEqual(scratch_names(), ('liwan_scratch_updates_roles_1016',
-            'liwan_scratch_updates_restore_roles_1016', 'liwan_updates_owner_1016',
-            'liwan_updates_blue_1016', 'liwan_updates_green_1016'))
-        with self.assertRaises(ValueError): scratch_names('../unsafe')
+from .postgres_scratch import run_scratch
 
 
 @unittest.skipUnless(os.environ.get('LIWAN_RUN_PG_SCRATCH') == '1', 'explicit scratch opt-in required')

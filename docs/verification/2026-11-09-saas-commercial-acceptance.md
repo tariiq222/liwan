@@ -31,7 +31,7 @@
 يشغّل [دليل القبول](../../tools/foundation_acceptance/README.md#commercial-acceptance)
 سيناريو الدفع والتجهيز والاستعادة ويكتب نتيجة خاصة تحوي التزام المصدر ومعرّفات
 الصور والاختبارات. يُعاد اختبار E09 عبر
-`npm -w apps/control-plane test -- src/__tests__/packages-acceptance.live.test.ts --bail=1`
+`npm -w apps/control-plane run test:packages-acceptance -- --bail=1`
 بعد إعداد قاعدة التحكم وقاعدة Odoo المعزولتين ومتغيرات الاختبار المبيّنة في الملف.
 
 التسجيل الذاتي العام والتحقق بجوال العميل في عقد الاستضافة مسار مختلف عن إنشاء

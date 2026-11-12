@@ -10,6 +10,7 @@
     "migrate": "tsx src/migrate.ts",
     "build": "tsc --noEmit",
     "test": "vitest run --no-file-parallelism --hookTimeout=60000",
+    "test:packages-acceptance": "vitest run --config vitest.packages-acceptance.config.ts --hookTimeout=60000",
     "worker:shared": "tsx src/shared-worker-main.ts"
   },
   "dependencies": {

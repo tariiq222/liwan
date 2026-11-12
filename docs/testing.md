@@ -338,7 +338,13 @@ refuse with 403 `feature_not_included`, and a module asked to answer needs at le
 with a 5xx. It checks the route surface, not bridge-specific fields inside a side's responses: those stay with
 the bridge's own tests. Run one locally with the environment of `deploy/ci/odoo.sh` plus `ISOLATION_PORT`, for example
 `deploy/ci/odoo-app-standalone.sh liwan_hr` or `deploy/ci/odoo-bridge.sh liwan_tasks_pmo`. The
-control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
+control-plane PostgreSQL suites run serially because they share their isolated scratch databases. The stage also runs
+a Mailpit service (`LIWAN_MAILPIT_SMTP_PORT`, `LIWAN_MAILPIT_API_PORT`; locally
+`docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit:v1.27.10`) and fails when it is missing. Each vitest group writes a
+JSON report and `deploy/control-plane/vitest_skip_gate.py` fails the stage on any skipped, pending or todo test. The
+`deploy/releases/test_backup_live.py` live test runs here on `liwan_scratch_backup_ci` through
+`deploy/control-plane/unittest_no_skip.py` (superuser `PGUSER`, psycopg2). The packages acceptance suite needs a scratch Odoo tenant
+and is out of the default run (`tools/ci_not_run.json`): `npm -w apps/control-plane run test:packages-acceptance`.
 `vendor-admin` has its own prepare, types, tests and build checks, then runs its Playwright specs against that build and
 the mock control service. The `image` stage builds every production image
 (Odoo, web, vendor-admin, ai-service, proxy and guard) under owned `liwan-<name>:ci-<run id>` tags. It

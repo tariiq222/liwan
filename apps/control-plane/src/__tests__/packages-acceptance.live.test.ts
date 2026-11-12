@@ -17,7 +17,9 @@ import { client, money, monthly, url } from './commercial-helpers.js'
 const DB = process.env.LIWAN_PACKAGES_ACCEPTANCE_DB
 const ODOO = process.env.LIWAN_PACKAGES_ACCEPTANCE_URL
 const ready = Boolean(url && DB && ODOO && process.env.LIWAN_SCRATCH_ODOO_SHELL && /^liwan_scratch_[a-f0-9]{32}$/.test(DB ?? ''))
-const suite = ready ? describe : describe.skip
+if (!ready) {
+  throw new Error('packages acceptance needs CONTROL_TEST_DATABASE_URL, LIWAN_PACKAGES_ACCEPTANCE_DB (liwan_scratch_<32 hex>), LIWAN_PACKAGES_ACCEPTANCE_URL and LIWAN_SCRATCH_ODOO_SHELL')
+}
 const repo = fileURLToPath(new URL('../../../..', import.meta.url))
 const POLICY = '6f1c3d8e-0000-4000-8000-000000000001'
 const HOST = 'accept.packages.test'
@@ -60,7 +62,7 @@ async function odooApi(cookie: string, method: string, path: string, body?: unkn
   return { status: r.status, body: await r.json().catch(() => null) as any }
 }
 
-suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every app installed', { timeout: 600_000 }, () => {
+describe('spec 3.6 acceptance: plans flip keys and limits on a tenant with every app installed', { timeout: 600_000 }, () => {
   const pool = new Pool({ connectionString: url, max: 5 })
   const api = client(pool, ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage'] as any)
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.pricing.manage'] }

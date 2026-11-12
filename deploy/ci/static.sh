@@ -65,7 +65,8 @@ policies() {
   PYTHONPATH=deploy/shared python3 -B -m unittest deploy/shared/test_odoo_config.py
   # The control-plane runtime tests drive the local-runtime scripts with fake docker/lsof/npm/curl and the Node on PATH (no Docker, database or fixed port).
   python3 -B -m unittest deploy/control-plane/test_*.py
-  python3 -B -m unittest tools/continuous_updates_acceptance/test_*.py
+  # test_live_postgres.py is local operator proof (fixed trust-auth role, never dropped): registered in tools/ci_not_run.json.
+  python3 -B -m unittest tools/continuous_updates_acceptance/test_postgres_scratch.py tools/continuous_updates_acceptance/test_source_process.py
   PYTHONPATH=tools/documents_acceptance python3 -B -m unittest tools/documents_acceptance/test_acceptance.py
 }
 
