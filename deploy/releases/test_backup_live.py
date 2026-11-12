@@ -162,6 +162,7 @@ class BackupLiveTests(unittest.TestCase):
         pg = Path(shutil.which('pg_dump') or '').parent
         config = {'mode': 'local', 'outputDir': str(Path(self.temp.name).resolve() / 'backup'), 'filestorePath': str(store),
                   'pgDump': str(pg / 'pg_dump'), 'psql': str(pg / 'psql'), 'pgRestore': str(pg / 'pg_restore'),
+                  'pgEnv': {'PGHOST': urlsplit(dsn).hostname, 'PGPORT': str(urlsplit(dsn).port or 5432), 'PGUSER': admin_user},
                   'image': 'liwan/odoo@sha256:' + 'a' * 64, 'recheck': self.runtime._recheck_window, 'timeoutSeconds': 60}
         proof = {**self.binding, 'fence': 1, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0,
                  'oldConnections': 0, 'writerConnections': 0, 'deniedWriters': list(self.roles)}
