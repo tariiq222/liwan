@@ -1,0 +1,1 @@
+# Empty stand-in. The control API only checks that the shared stack's compose file and env file exist (loadSharedRuntimeConfig); it never reads them, and the real env file holds the shared stack's secrets, so it is not mounted.
