@@ -77,7 +77,7 @@
       "excess": "Above these limits",
       "excessUsers": "Users with read-only access",
       "excessBranches": "Branches with read-only access",
-      "excessStorage": "Attachment storage that may be blocked",
+      "excessStorage": "Attachment storage above the limit",
       "usageUnavailable": "Current user and storage measurements are unavailable.",
       "sampledAt": "Usage measured on {date} in Riyadh time.",
       "itemDetailsUnavailable": "This view shows totals. The affected users and files are unavailable here.",

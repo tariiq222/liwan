@@ -1011,7 +1011,7 @@ class TrialEndEffectTests(Base):
         self.assertTrue(se.verify(request, seen))
 
     def test_storage_bytes_are_exact_and_safely_typed(self):
-        for field in ('storage_bytes', 'blocked_storage_bytes'):
+        for field in ('storage_bytes', 'over_limit_storage_bytes'):
             seen = observation(**{field: 1048577})
             self.assertEqual(se.validate_observation(seen)[field], 1048577)
             for invalid in (True, -1, 1.5, 9007199254740992):

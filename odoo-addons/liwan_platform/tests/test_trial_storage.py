@@ -41,10 +41,10 @@ class TestTrialStorage(ExcessCase):
         self.assertEqual(len(newest.raw), FILE_BYTES)
         self.assertTrue(newest.datas)
         self._set_limit('storage.limit_mb', limit)
-        self.assertEqual((oldest.liwan_storage_blocked, middle.liwan_storage_blocked, newest.liwan_storage_blocked),
+        self.assertEqual((oldest.liwan_over_storage_limit, middle.liwan_over_storage_limit, newest.liwan_over_storage_limit),
                          (False, True, True))
         self.assertGreater(self.service._liwan_count_usage('storage.limit_mb'), limit)
-        self.assertEqual(self.service._liwan_blocked_storage_bytes(), 2 * FILE_BYTES)
+        self.assertEqual(self.service._liwan_over_limit_storage_bytes(), 2 * FILE_BYTES)
         self.assertEqual(self.service._liwan_excess_counts()['storage.limit_mb'], 4)
         self.assertEqual(newest.read(['name', 'file_size'])[0]['file_size'], FILE_BYTES)
         self.assertTrue(newest.with_context(bin_size=True).datas)
@@ -55,8 +55,8 @@ class TestTrialStorage(ExcessCase):
         self.assertEqual(refused.exception.code, 'feature_not_included')
         self.assertTrue(self.service._liwan_excess_is_settled())
         oldest.unlink()
-        self.assertFalse(middle.liwan_storage_blocked)
-        self.assertTrue(newest.liwan_storage_blocked)
+        self.assertFalse(middle.liwan_over_storage_limit)
+        self.assertTrue(newest.liwan_over_storage_limit)
         self._set_limit('storage.limit_mb', limit + 2)
         self.assertEqual(len(newest.raw), FILE_BYTES)
         self.assertTrue(self.service._liwan_excess_is_settled())
@@ -80,8 +80,8 @@ class TestTrialStorage(ExcessCase):
         self.assertGreater(backing.file_size, 0)
         self.assertGreater(personal.file_size, 0)
         self._set_limit('storage.limit_mb', 0)
-        self.assertFalse(backing.liwan_storage_blocked)
-        self.assertTrue(personal.liwan_storage_blocked)
+        self.assertFalse(backing.liwan_over_storage_limit)
+        self.assertTrue(personal.liwan_over_storage_limit)
         company.invalidate_recordset(['logo'])
         company.partner_id.invalidate_recordset(['image_1920'])
         self.assertTrue(company.logo)
@@ -93,7 +93,7 @@ class TestTrialStorage(ExcessCase):
         ])
         self.assertTrue(flags)
         self._set_limit('storage.limit_mb', 0)
-        self.assertFalse(any(flags.mapped('liwan_storage_blocked')))
+        self.assertFalse(any(flags.mapped('liwan_over_storage_limit')))
         languages = self.env['res.lang'].browse(flags.mapped('res_id'))
         languages.invalidate_recordset(['flag_image', 'flag_image_url'])
         self.assertTrue(any(languages.mapped('flag_image_url')))
@@ -103,7 +103,7 @@ class TestTrialStorage(ExcessCase):
         gross = self.service._liwan_count_storage_bytes()
         asset = AssetsBundle('liwan.storage.fixture', [], env=self.env).save_attachment('css', 'body { color: red; }')
         self.assertEqual(asset.raw, b'body { color: red; }')
-        self.assertFalse(asset.liwan_storage_blocked)
+        self.assertFalse(asset.liwan_over_storage_limit)
         self.assertGreater(self.service._liwan_count_storage_bytes(), gross)
         with self.assertRaises(LiwanAccessRule):
             self.env['ir.attachment'].create({'name': 'root private file', 'raw': b'data'})
@@ -131,10 +131,10 @@ class TestTrialStorage(ExcessCase):
             for index in range(260)
         ])
         self._set_limit('storage.limit_mb', 0)
-        blocked, _close, _reopen, total = self.service._liwan_storage_plan()
-        self.assertTrue(set(files.ids) <= blocked)
+        over_limit, _mark, _clear, total = self.service._liwan_storage_plan()
+        self.assertTrue(set(files.ids) <= over_limit)
         self.assertGreaterEqual(total, 520)
-        self.assertTrue(all(files.mapped('liwan_storage_blocked')))
+        self.assertTrue(all(files.mapped('liwan_over_storage_limit')))
         self.assertTrue(self.service._liwan_excess_is_settled())
 
     def test_storage_blocks_a_file_whose_creator_was_deleted(self):
@@ -146,7 +146,7 @@ class TestTrialStorage(ExcessCase):
         self.assertFalse(attachment.create_uid)
 
         self._set_limit('storage.limit_mb', 0)
-        self.assertTrue(attachment.liwan_storage_blocked)
+        self.assertTrue(attachment.liwan_over_storage_limit)
         self.assertEqual(attachment.read(['file_size'])[0]['file_size'], 10)
         self.assertEqual(attachment.raw, b'x' * 10)
         self.assertTrue(self.service._liwan_excess_is_settled())
@@ -155,7 +155,7 @@ class TestTrialStorage(ExcessCase):
         limit, files = self._files()
         self._set_limit('storage.limit_mb', limit)
         self.assertEqual(self.service._liwan_excess_capabilities(), {'users.limit', 'branches.extra_limit', 'storage.limit_mb'})
-        self.service._liwan_apply_flags(files[-1], {'liwan_storage_blocked': False})
+        self.service._liwan_apply_flags(files[-1], {'liwan_over_storage_limit': False})
         self.assertFalse(self.service._liwan_excess_is_settled())
         self.assertTrue(self.service._liwan_settle_excess())
         self.assertTrue(self.service._liwan_excess_is_settled())
@@ -226,7 +226,7 @@ class TestAutonomousTrialExpiry(ExcessCase):
         original = type(Attachment).search_fetch
 
         def track(attachments, domain, field_names, *args, **kwargs):
-            if 'liwan_storage_blocked' in field_names and 'file_size' in field_names:
+            if 'liwan_over_storage_limit' in field_names and 'file_size' in field_names:
                 scans.append(1)
             return original(attachments, domain, field_names, *args, **kwargs)
 
@@ -241,11 +241,11 @@ class TestAutonomousTrialExpiry(ExcessCase):
             for field in ('raw', 'datas'):
                 self.assertTrue(row[field])
         self.service._liwan_storage_plan()
-        before = self.service._liwan_blocked_storage_bytes()
+        before = self.service._liwan_over_limit_storage_bytes()
         self.service._liwan_excess_counts()
         self.assertEqual(len(scans), batches)
         first.unlink()
-        self.assertEqual(self.service._liwan_blocked_storage_bytes(), before - len(b'first'))
+        self.assertEqual(self.service._liwan_over_limit_storage_bytes(), before - len(b'first'))
         self.operator.write({'post_trial_features': {**fallback, 'storage.limit_mb': None}})
         self.assertEqual(second.raw, b'second')
         second.write({'raw': b'new content'})

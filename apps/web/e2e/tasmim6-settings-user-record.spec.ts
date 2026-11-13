@@ -70,10 +70,10 @@ test.describe('Plan 6d: the user record', () => {
       expect(saves).toBe(1)
     })
 
-    test('storage metadata filters by blocked state and links only to registered owners', async ({ page }) => {
+    test('storage metadata filters by over-limit state and links only to registered owners', async ({ page }) => {
       const items = [
-        { id: 1, name: 'ملف المشروع.pdf', size_bytes: 1048576, created_at: '2026-11-10T14:00:00Z', blocked: true, record: { kind: 'document', id: 91 } },
-        { id: 2, name: 'مرفق متاح.pdf', size_bytes: 2048, created_at: null, blocked: false, record: { kind: 'unregistered-owner', id: 92 } },
+        { id: 1, name: 'ملف المشروع.pdf', size_bytes: 1048576, created_at: '2026-11-10T14:00:00Z', over_limit: true, record: { kind: 'document', id: 91 } },
+        { id: 2, name: 'مرفق متاح.pdf', size_bytes: 2048, created_at: null, over_limit: false, record: { kind: 'unregistered-owner', id: 92 } },
       ]
       const received: Array<string | null> = []
       await page.route('**/api/v1/me', async route => {
@@ -88,10 +88,10 @@ test.describe('Plan 6d: the user record', () => {
         expect(route.request().method()).toBe('GET')
         const query = new URL(route.request().url()).searchParams
         expect(query.get('limit')).toBe('25')
-        const blocked = query.get('blocked')
-        received.push(blocked)
-        const list = blocked === 'true' ? items.filter(item => item.blocked) : items
-        return route.fulfill({ json: { items: list, total: list.length, summary: { limit_mb: 4, used_bytes: 5242880, blocked_bytes: 1048576 } } })
+        const overLimit = query.get('over_limit')
+        received.push(overLimit)
+        const list = overLimit === 'true' ? items.filter(item => item.over_limit) : items
+        return route.fulfill({ json: { items: list, total: list.length, summary: { limit_mb: 4, used_bytes: 5242880, over_limit_bytes: 1048576 } } })
       })
       await openClientSide(page, '/settings/system/storage')
       const inventory = page.getByTestId('storage-inventory')
@@ -99,8 +99,8 @@ test.describe('Plan 6d: the user record', () => {
       await expect(inventory.getByRole('link', { name: 'افتح السجل المرتبط' })).toHaveAttribute('href', '/documents/91')
       await expect(inventory).toContainText('رابط السجل غير متاح')
       await expect(page.getByRole('link', { name: 'اشترِ مساحة تخزين' })).toHaveAttribute('href', '/subscription/change')
-      await inventory.getByRole('button', { name: 'المحجوبة', exact: true }).click()
-      await expect(page).toHaveURL(/blocked=true/)
+      await inventory.getByRole('button', { name: 'فوق الحد', exact: true }).click()
+      await expect(page).toHaveURL(/over_limit=true/)
       await expect(inventory).toContainText('ملف المشروع.pdf')
       await expect(inventory).not.toContainText('مرفق متاح.pdf')
       expect(received).toContain('true')

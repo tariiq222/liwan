@@ -33,7 +33,7 @@ SETTLE_MARKER = 'liwan_platform.settle_excess'
 SETTLE_FIELDS = {
     'res.users': frozenset({'liwan_read_only', 'liwan_seat_choice'}),
     'liwan.tenant.branch': frozenset({'read_only', 'seat_choice'}),
-    'ir.attachment': frozenset({'liwan_storage_blocked'}),
+    'ir.attachment': frozenset({'liwan_over_storage_limit'}),
 }
 
 # Rows the system writes about the session itself or about a sign-in: a plain read triggers them, and the

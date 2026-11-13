@@ -21,10 +21,10 @@ class LiwanPlatformIrAttachment(models.Model):
 
     db_datas = fields.Binary(copy=False)
     # Settlement marker: this file is counted above the storage limit. It does not restrict reading or downloading.
-    liwan_storage_blocked = fields.Boolean(default=False, readonly=True, copy=False)
-    # The predicate is written as the ORM renders `liwan_storage_blocked = True`, or PostgreSQL would not use the index.
-    # Lets the settlement ask "is anything blocked?" without reading attachments.
-    _liwan_storage_blocked_idx = models.Index('(id) WHERE liwan_storage_blocked IS TRUE')
+    liwan_over_storage_limit = fields.Boolean(default=False, readonly=True, copy=False)
+    # The predicate is written as the ORM renders `liwan_over_storage_limit = True`, or PostgreSQL would not use the index.
+    # Lets the settlement ask "is anything over the limit?" without reading attachments.
+    _liwan_over_storage_limit_idx = models.Index('(id) WHERE liwan_over_storage_limit IS TRUE')
 
     def _liwan_binary_bytes(self):
         return sum(row.file_size for row in self if row.type == 'binary')

@@ -507,11 +507,11 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     await pool.query('UPDATE tenants SET post_trial_supported=NULL,excess_supported=NULL WHERE id=$1', [f.tenant])
     const binding = (await pool.query('SELECT database_name FROM shared_registry_bindings WHERE control_tenant_id=$1', [f.tenant])).rows[0]
     const usage = { 'users.limit': 3, 'storage.limit_mb': 0, 'branches.extra_limit': 0 }
-    const observe = async (blockedStorageBytes?: number) => collectUsage(pool, { limit: 100, runner: async input => input.tenant_id === f.tenant ? {
+    const observe = async (overLimitStorageBytes?: number) => collectUsage(pool, { limit: 100, runner: async input => input.tenant_id === f.tenant ? {
       database: binding.database_name, observed_at: new Date().toISOString(), usage,
       limit_gates: Object.fromEntries(Object.keys(usage).map(key => [key, []])),
       post_trial_supported: true, excess_supported: true, storage_bytes: 20480 * 1024 * 1024 + 17,
-      ...(blockedStorageBytes === undefined ? {} : { blocked_storage_bytes: blockedStorageBytes }),
+      ...(overLimitStorageBytes === undefined ? {} : { over_limit_storage_bytes: overLimitStorageBytes }),
     } : null })
     const previous = await row(f.subscription)
     await observe()
