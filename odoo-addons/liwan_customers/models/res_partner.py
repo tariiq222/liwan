@@ -7,8 +7,10 @@ from odoo.addons.liwan_core.models.res_partner import PARTNER_CREATE_MARKER
 
 # liwan.customers.service marks the parties it writes; the fields it may write through the marker.
 PARTY_MARKER = 'liwan_customers.party_partner_ids'
-PARTY_WRITE_FIELDS = frozenset({'name', 'phone', 'email', 'is_company', 'parent_id', 'active', 'liwan_party'})
-# A party's identity: only the service writes it. company_id decides who shares the party, and phone_sanitized is what
+PARTY_WRITE_FIELDS = frozenset({
+    'name', 'phone', 'email', 'is_company', 'parent_id', 'active', 'liwan_party', 'properties',
+})
+# A party's identity and the values of the tenant's customer fields: only the service writes them. company_id decides who shares the party, and phone_sanitized is what
 # the candidate search matches, so neither is written around the service either.
 PARTY_IDENTITY_FIELDS = PARTY_WRITE_FIELDS | {'company_id', 'phone_sanitized'}
 # liwan.customers.service marks the caller's uid while it creates a party: nobody else creates one.
@@ -60,6 +62,24 @@ class ResPartner(models.Model):
             if not all(self.mapped('liwan_party')) and self._liwan_party_writer_only('write'):
                 _refuse('write', vals)
         return super().write(vals)
+
+    @api.model
+    def _liwan_party_properties_definition(self):
+        """The tenant's customer fields: the one definition of ``res.partner.properties``, as stock keeps it (a list of
+        engine items, ``[]`` when none). Every internal user reads it; the rule of this addon limits that to this row."""
+        return self.env['properties.base.definition']._get_definition_for_property_field(
+            self._name, 'properties',
+        ).properties_definition or []
+
+    @api.model
+    def _liwan_set_party_properties_definition(self, definition):
+        """Replace the customer fields; the caller validated ``definition`` and checked ``customers.settings.manage``.
+
+        Written as the caller: the ACL row and the rule of this addon open that one row to a settings manager.
+        """
+        self.env['properties.base.definition']._get_definition_for_property_field(
+            self._name, 'properties',
+        ).write({'properties_definition': definition})
 
     @api.model
     def _liwan_party_writer_only(self, operation):

@@ -4,10 +4,14 @@ from odoo import api, fields, models
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 SHARING_MODES = ('establishment', 'branch')
+PARTY_KINDS = ('individuals', 'companies', 'both')
+# The ``properties`` field of ``res.partner``: the tenant's customer fields live in its one definition.
+PROPERTIES_FIELD = 'properties'
 
 
 class LiwanCustomersSettings(models.Model):
-    """The tenant's customer policy: whether a customer is shared by every branch, and how a phone is read.
+    """The tenant's customer policy: whether a customer is shared by every branch, how a phone is read, which kinds of
+    customer new records may be, and the customer fields (the definition kept by stock, written through here).
 
     One record per tenant database, changed only by a holder of ``customers.settings.manage`` in the root company.
     ``revision`` refuses a write based on a stale read.
@@ -22,6 +26,8 @@ class LiwanCustomersSettings(models.Model):
     sharing = fields.Selection([(mode, mode) for mode in SHARING_MODES], required=True, default='establishment')
     # The country a number without a prefix is read in; unset means the root company's country.
     phone_country_id = fields.Many2one('res.country', ondelete='restrict')
+    # The kinds of top-level customer the directory creates: it decides the forms of new customers, never an existing one.
+    party_kinds = fields.Selection([(kind, kind) for kind in PARTY_KINDS], required=True, default='both')
     revision = fields.Integer(required=True, default=1)
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'the revision is a positive number')
@@ -31,9 +37,13 @@ class LiwanCustomersSettings(models.Model):
         """The tenant's settings record, installed with the defaults by ``data/customers_settings.xml``."""
         return self.env.ref('liwan_customers.customers_settings')
 
-    def _liwan_apply(self, values, revision):
-        """Write ``values`` read at ``revision``: 409 ``conflict`` on a stale read, 409 ``sharing_transfer_required``
-        when the sharing changes while any customer exists (archived ones and contacts counted)."""
+    def _liwan_apply(self, values, revision, definition=None, confirm_removal=False):
+        """Write ``values`` read at ``revision``, and the customer fields ``definition`` when given.
+
+        409 ``conflict`` on a stale read; 409 ``sharing_transfer_required`` when the sharing changes while any customer
+        exists (archived ones and contacts counted); 409 ``custom_field_values_exist`` when ``definition`` drops fields
+        that still have values, unless ``confirm_removal`` (then the values go with the field). A refusal changes nothing.
+        """
         self.ensure_one()
         if self.revision != revision:
             code = 'conflict'
@@ -44,14 +54,82 @@ class LiwanCustomersSettings(models.Model):
                 code, 'customers exist: changing the sharing needs a transfer',
                 field='sharing', status=409,
             )
+        holders = {}
+        if definition is not None:
+            holders = self._liwan_value_holders(self._liwan_removed_fields(definition))
+            if holders and not confirm_removal:
+                self._liwan_refuse_removal(holders)
+            self.env['res.partner']._liwan_set_party_properties_definition(definition)
+            self._liwan_clear_values(holders)
         self.write({**values, 'revision': revision + 1})
 
     @api.model
-    def _liwan_party_exists(self):
-        """Whether the tenant holds any party, archived ones and contacts included (a boolean only).
+    def _liwan_removed_fields(self, definition):
+        """The fields of the current customer definition that ``definition`` leaves out, as ``{key: label}``."""
+        kept = {item['name'] for item in definition}
+        return {
+            item['name']: item['string']
+            for item in self.env['res.partner']._liwan_party_properties_definition() if item['name'] not in kept
+        }
 
-        Elevated: the company fence hides the parties of branches the root settings manager cannot read. The sharing
-        transfer replaces this refusal and this read.
+    @api.model
+    def _liwan_refuse_removal(self, holders):
+        """409 ``custom_field_values_exist``: each removed field with the number of parties that still hold a value."""
+        code = 'custom_field_values_exist'
+        raise LiwanAccessRule(
+            code, 'customers hold values of the fields to remove', status=409,
+            details={'fields': [
+                {'key': key, 'label': label, 'count': len(parties)} for key, (label, parties) in holders.items()
+            ]},
+        )
+
+    @api.model
+    def _liwan_value_holders(self, removed):
+        """``{key: (label, parties)}`` of the removed fields ``{key: label}`` that some party still holds a value of.
+
+        Archived parties and every company's count, so the confirmation shows what the removal destroys.
         """
-        partners = self.env['res.partner'].sudo().with_context(active_test=False)
-        return bool(partners.search_count([('liwan_party', '=', True)], limit=1))
+        if not removed:
+            return {}
+        # The engine's comparison with false also drops a stored 0 and the whole-field comparison is not searchable,
+        # so every party is read and the loop below decides from the values.
+        parties = self._liwan_every_party().search([('liwan_party', '=', True)])
+        holders = {key: parties.browse() for key in removed}
+        for row in parties.read([PROPERTIES_FIELD]):
+            for item in row[PROPERTIES_FIELD]:
+                if item['name'] in removed and not _is_empty(item.get('value')):
+                    holders[item['name']] |= parties.browse(row['id'])
+        return {key: (removed[key], found) for key, found in holders.items() if found}
+
+    @api.model
+    def _liwan_clear_values(self, holders):
+        """Drop the removed fields' values from the parties that hold them: stock leaves the stored values of a removed
+        definition item in place, and they would outlive the field. Runs after the new definition is installed, so
+        the engine's read format carries only the fields that stay."""
+        found = [parties for _label, parties in holders.values()]
+        if not found:
+            return
+        parties = found[0].union(*found[1:])
+        parties.invalidate_recordset([PROPERTIES_FIELD])
+        for party, row in zip(parties, parties.read([PROPERTIES_FIELD]), strict=True):
+            party.write({PROPERTIES_FIELD: {item['name']: item.get('value') for item in row[PROPERTIES_FIELD]}})
+
+    @api.model
+    def _liwan_party_exists(self):
+        """Whether the tenant holds any party, archived ones and contacts included (a boolean only). The sharing
+        transfer replaces this refusal."""
+        return bool(self._liwan_every_party().search_count([('liwan_party', '=', True)], limit=1))
+
+    @api.model
+    def _liwan_every_party(self):
+        """``res.partner`` over every company, archived records included, for the two reads that must not depend on
+        what the caller sees: whether any party exists, and which parties hold a value of a field being removed.
+
+        Elevated: the company fence hides the parties of branches the root settings manager holds no grant in.
+        """
+        return self.env['res.partner'].sudo().with_context(active_test=False)
+
+
+def _is_empty(value):
+    """Whether an engine value of the read format is unset: nothing, false, an empty text or an empty list."""
+    return value is None or value is False or value in ('', [])

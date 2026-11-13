@@ -6,7 +6,9 @@ from odoo.exceptions import AccessError, UserError
 from odoo.tools import email_normalize
 
 from .access_service import CUSTOMERS_READ
+from .customers_settings import PROPERTIES_FIELD
 from .res_partner import PARTY_CREATE_MARKER, PARTY_MARKER
+from odoo.addons.liwan_api.serializers.properties import parse_values, read_items
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_core.models.protected_write import marked
 from odoo.addons.phone_validation.tools.phone_validation import phone_format
@@ -18,6 +20,9 @@ NAME_MAX = 200
 EMAIL_MAX = 254
 # The identity values a caller gives for a new or an edited customer.
 IDENTITY_KEYS = frozenset({'name', 'phone', 'email', 'is_company', 'parent_id'})
+# What a caller may give a customer: the identity and the values of the tenant's customer fields, as ``{key: value}``.
+CUSTOMER_KEYS = IDENTITY_KEYS | {'properties'}
+ORDER = 'name, id'
 # Adoption moves a legacy phone that does not validate into the partner's internal note, where staff still read it.
 LEGACY_PHONE_NOTE = Markup('<p>Legacy phone, not a valid number: %s</p>')
 
@@ -124,17 +129,30 @@ class LiwanCustomersService(models.AbstractModel):
         return customer.with_context(active_test=True)
 
     @api.model
-    def _liwan_search(self, query=None, archived=False, limit=50, offset=0):
-        """``(parties, total)`` the caller can see, matching ``query`` on name, phone or email."""
-        domain = [('liwan_party', '=', True), ('active', '=', not archived)]
+    def _liwan_directory_domain(self, query=None, archived=False, filters=()):
+        """The domain of the directory list: the parties of one state matching ``query`` on name, phone or email, and
+        the ``filters`` (domain leaves, such as the custom field filters)."""
+        domain = [('liwan_party', '=', True), ('active', '=', not archived), *filters]
         if query:
             matches = [('name', 'ilike', query), ('phone', 'ilike', query), ('email', 'ilike', query)]
             number = self._liwan_phone_or_none(query)
             if number:
                 matches.append(('phone_sanitized', '=', number))
             domain += ['|'] * (len(matches) - 1) + matches
+        return domain
+
+    @api.model
+    def _liwan_search(self, query=None, archived=False, limit=50, offset=0, filters=()):
+        """``(parties, total)`` the caller can see, for ``_liwan_directory_domain``."""
+        domain = self._liwan_directory_domain(query, archived, filters)
         partners = self.env['res.partner'].with_context(active_test=False)
-        return partners.search(domain, order='name, id', limit=limit, offset=offset), partners.search_count(domain)
+        return partners.search(domain, order=ORDER, limit=limit, offset=offset), partners.search_count(domain)
+
+    @api.model
+    def _liwan_export_parties(self, query=None, archived=False, filters=()):
+        """Every party the caller can see for ``_liwan_directory_domain``, in the order of the list."""
+        domain = self._liwan_directory_domain(query, archived, filters)
+        return self.env['res.partner'].with_context(active_test=False).search(domain, order=ORDER)
 
     @api.model
     def _liwan_phone_or_none(self, raw, country=None):
@@ -176,12 +194,29 @@ class LiwanCustomersService(models.AbstractModel):
 
     @api.model
     def _liwan_create(self, values):
-        """A new party from ``values`` (``name`` required; ``phone``, ``email``, ``is_company``, ``parent_id``)."""
+        """A new party from ``values`` (``name`` required; ``phone``, ``email``, ``is_company``, ``parent_id``,
+        ``properties``)."""
         company = self._liwan_new_company()
         vals = self._liwan_identity_values(values, required=True, company=company)
         vals.update(liwan_party=True, company_id=company.id)
         with marked(self.env, {PARTY_CREATE_MARKER: [self.env.uid]}):
             return self.env['res.partner'].create(vals)
+
+    @api.model
+    def _liwan_check_party_kind(self, values):
+        """422 ``invalid`` (``details.reason`` ``party_kind_not_allowed``) on ``is_company`` when a new top-level
+        customer is not one of the kinds the tenant serves (``party_kinds``). A contact under a company is always
+        accepted. For the directory's create route: customers an application creates inside its own action and every
+        edit are not checked, because the setting decides the forms of new customers and never changes existing data."""
+        kinds = self.env['liwan.customers.settings']._liwan_current().party_kinds
+        if kinds == 'both' or values.get('parent_id') is not None:
+            return
+        if bool(values.get('is_company')) != (kinds == 'companies'):
+            code = 'invalid'
+            raise LiwanAccessRule(
+                code, f'this tenant serves {kinds} only', field='is_company', status=422,
+                details={'reason': 'party_kind_not_allowed'},
+            )
 
     @api.model
     def _liwan_new_company(self):
@@ -191,7 +226,8 @@ class LiwanCustomersService(models.AbstractModel):
 
     @api.model
     def _liwan_update(self, customer, values):
-        """Write the identity ``values`` given on ``customer`` (a party from ``_liwan_customer``)."""
+        """Write the ``values`` given on ``customer`` (a party from ``_liwan_customer``); ``properties`` changes only
+        the custom fields it names."""
         vals = self._liwan_identity_values(values, required=False, customer=customer, company=customer.company_id)
         if vals:
             self._liwan_write(customer, vals)
@@ -216,7 +252,7 @@ class LiwanCustomersService(models.AbstractModel):
     def _liwan_identity_values(self, values, required, company, customer=None):
         """The ``res.partner`` values of the identity ``values`` of a party owned by ``company`` (empty when shared):
         checked, the phone normalised."""
-        unknown = sorted(set(values) - IDENTITY_KEYS)
+        unknown = sorted(set(values) - CUSTOMER_KEYS)
         if unknown:
             _refuse_invalid(unknown[0], f'{unknown[0]} is not a customer field')
         vals = {}
@@ -241,7 +277,20 @@ class LiwanCustomersService(models.AbstractModel):
         if 'parent_id' in values:
             parent_id = values['parent_id']
             vals['parent_id'] = False if parent_id is None else self._liwan_parent(parent_id, company, customer).id
+        if 'properties' in values:
+            vals[PROPERTIES_FIELD] = self._liwan_property_values(values['properties'], customer)
         return vals
+
+    @api.model
+    def _liwan_property_values(self, given, customer=None):
+        """The value object to store: ``given`` (``{key: value}``, null clears a field) checked against the tenant's
+        customer fields. The engine stores one object for the whole field, so an edit carries over the customer's other
+        values."""
+        parsed = parse_values(given, self.env['res.partner']._liwan_party_properties_definition())
+        if not customer:
+            return parsed
+        values = {item['name']: item.get('value') for item in read_items(customer, PROPERTIES_FIELD)}
+        return {**values, **parsed}
 
     @api.model
     def _liwan_parent(self, parent_id, company, customer=None):
