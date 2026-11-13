@@ -108,11 +108,11 @@ suite('live PostgreSQL owner alerts', () => {
     const t = await unpaid()
     const name = `<b>Evil</b> [x](http://evil.test) *y*\r\nBcc: spy@example.test\n${'z'.repeat(500)}`
     await pool.query('UPDATE customers SET name=$2 WHERE id=$1', [t.customer, name.replace(/[\r\n]/g, ' ')])
-    await pool.query('INSERT INTO bank_transfer_claims(invoice_id,value_date,sender_reference) VALUES($1,$2,$3)', [t.invoice.id, '2026-11-12', `A‮B\u0007\nSecond line ${'q'.repeat(150)}`])
+    await pool.query('INSERT INTO bank_transfer_claims(invoice_id,value_date,sender_reference) VALUES($1,$2,$3)', [t.invoice.id, '2026-11-12', `A\u202eB\u0007\nSecond line ${'q'.repeat(150)}`])
     const ch = channels(); await run(ch)
     const mail = ch.mails.find(m => m.subject.includes('تحويل بنكي'))!
     expect(mail.text.length).toBeLessThanOrEqual(1200)
-    expect(mail.text).not.toMatch(/[‮\u0007]/)
+    expect(mail.text).not.toMatch(/[\u202e\u0007]/)
     expect(mail.text).toContain('A B')
     expect(mail.text).not.toContain('\nSecond line'); expect(mail.subject).not.toMatch(/[\r\n]/)
     expect(mail.text.split('\n').every((l: string) => l.length <= 260)).toBe(true)
