@@ -390,7 +390,9 @@ export type SystemRefund = { status: 'pending' | 'done' | 'failed'; error: strin
  * order id as `aggregate_id`): the fulfilment-failure note, the payment-after-cancellation note and the customer's whole-invoice
  * vendor note, the three the worker closes. A duplicate-payment note is another attempt's money, which that worker never
  * refunds (its row is `duplicate`, not automatic), so it stays with the operator. A row that is not automatic is meant for the
- * operator and owns nothing. A pending row is preferred, then the newest.
+ * operator and owns nothing. Neither does a row whose paying attempt the provider cannot refund (a bank transfer, or no
+ * provider reference): the worker rejects it before any provider call and only hands it over, so the operator returns that
+ * money; a row with `provider_refund` set always owns its note. A pending row is preferred, then the newest.
  */
 export async function systemRefunds(client: Pick<Pool, 'query'>, noteIds: string[]): Promise<Map<string, SystemRefund>> {
   if (!noteIds.length) return new Map()
@@ -399,7 +401,8 @@ export async function systemRefunds(client: Pick<Pool, 'query'>, noteIds: string
     JOIN commercial_outbox o ON o.kind='reconcile.refund' AND (o.payload->>'adjustment_id'=n.id::text
       OR (o.payload->>'adjustment_id' IS NULL AND o.payload->>'automatic'='true' AND o.payload->>'duplicate' IS NULL AND o.aggregate_id=i.order_id::text
         AND n.cause IN ('fulfillment_failure','payment_after_cancellation','vendor_refund')))
-    WHERE n.id=ANY($1::uuid[]) ORDER BY n.id,(o.status='pending') DESC,o.created_at DESC,o.id`, [noteIds])).rows
+    LEFT JOIN payment_attempts a ON a.id::text=o.payload->>'attempt_id'
+    WHERE (o.payload->>'provider_refund' IS NOT NULL OR (a.provider<>$2 AND a.provider_ref IS NOT NULL)) AND n.id=ANY($1::uuid[]) ORDER BY n.id,(o.status='pending') DESC,o.created_at DESC,o.id`, [noteIds, BANK_TRANSFER_PROVIDER])).rows
   return new Map(rows.map(row => [row.note_id as string, { status: row.status, error: row.error, provider_refund: row.provider_refund }]))
 }
 

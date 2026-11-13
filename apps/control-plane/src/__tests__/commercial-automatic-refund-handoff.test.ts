@@ -181,4 +181,17 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     expect(await viewOf(f.invoice, f.note)).toMatchObject({ automatic_refund: { state: 'in_progress' }, manual_record_allowed: false })
     await expect(operatorRefund(duplicate)).resolves.toMatchObject({ status: 'refunded' })
   })
+  it('F6 a bank-transfer payment is never the system\'s to refund: its note stays recordable, and the worker cannot pay it out a second time', async () => {
+    const f = await lateOrder({ undelivered: true, provider: 'bank_transfer' })
+    expect(await viewOf(f.invoice, f.note)).toMatchObject({ automatic_refund: null, manual_record_allowed: true })
+    // The operator records first; the worker then picks the still-pending automatic row up and asks the provider for nothing.
+    await expect(operatorRefund(f.note)).resolves.toMatchObject({ status: 'refunded' })
+    const adapter = new SimulatorAdapter()
+    const refund = vi.spyOn(adapter, 'refund')
+    await pool.query('UPDATE commercial_outbox SET status=\'pending\',next_attempt_at=now() WHERE aggregate_id=$1', [f.order])
+    await processRefundOutbox(pool, adapter)
+    expect(refund).not.toHaveBeenCalled()
+    expect((await outbox(f.order)).payload.provider_refund).toBeUndefined()
+    expect(await orderState(f.order)).toBe('refunded')
+  })
 })
