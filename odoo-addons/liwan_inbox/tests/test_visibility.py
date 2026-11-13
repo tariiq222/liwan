@@ -5,6 +5,7 @@ from unittest.mock import patch
 from odoo.tests import tagged
 
 from .common import LiwanInboxCase
+from odoo.addons.liwan_api.serializers import csv_export
 from odoo.addons.liwan_inbox.models.access_service import READ
 
 
@@ -162,6 +163,19 @@ class TestVisibilityPolicy(LiwanInboxCase):
         filtered = self.get(f'/api/v1/inbox/conversations/export.csv?assignee={self.agent.id}')
         self.assertIn(self.mine.contact_id.name, filtered.text)
         self.assertNotIn(self.others.contact_id.name, filtered.text)
+
+    def test_export_refuses_more_rows_than_the_limit_and_never_cuts_the_file(self):
+        self.login(self.supervisor)
+        url = '/api/v1/inbox/conversations/export.csv'
+        with patch.object(csv_export, 'EXPORT_MAX_ROWS', 1):
+            refused = self.get(url)
+            self.assertError(refused, 422, 'export_too_large')
+            details = refused.json()['details']
+            self.assertEqual(details['max_rows'], 1)
+            self.assertGreaterEqual(details['rows'], len(self.everything))
+            exactly_at_the_limit = self.get(f'{url}?assignee={self.agent.id}')
+            self.assertEqual(exactly_at_the_limit.status_code, 200)
+            self.assertIn(self.mine.contact_id.name, exactly_at_the_limit.text)
 
     def test_export_neutralises_spreadsheet_formulas(self):
         self.mine.contact_id.name = '=HYPERLINK("http://x")'

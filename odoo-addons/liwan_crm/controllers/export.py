@@ -7,6 +7,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_api.serializers.csv_export import refuse_oversized_export
 from odoo.addons.liwan_crm.controllers.opportunities import (
     ORDER,
     filter_domain,
@@ -31,7 +32,9 @@ class CrmExportController(http.Controller):
             *visible_domain(),
             *filter_domain(parse_list_filters(request.httprequest.args, definition), default_status='all'),
         ]
-        leads = request.env['crm.lead'].with_context(active_test=False).search(domain, order=ORDER)
+        lead_model = request.env['crm.lead'].with_context(active_test=False)
+        refuse_oversized_export(lead_model.search_count(domain))
+        leads = lead_model.search(domain, order=ORDER)
         filename = f'crm-opportunities-{fields.Date.context_today(leads)}.csv'
         return request.make_response(export_csv(leads, definition), headers=[
             ('Content-Type', 'text/csv; charset=utf-8'),

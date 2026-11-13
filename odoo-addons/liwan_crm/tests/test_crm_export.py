@@ -2,11 +2,13 @@
 import csv
 import io
 import re
+from unittest.mock import patch
 
 from odoo import Command
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanCrmCase
+from odoo.addons.liwan_api.serializers import csv_export
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 
 URL = '/api/v1/crm/export'
@@ -87,6 +89,16 @@ class TestCrmExport(LiwanCrmCase):
         self.assertEqual(self.names(self.manager, '?unassigned=true'), {'Pool customer'})
         self.assertEqual(self.names(self.manager, '?q=outside'), {'Outside customer'})
         self.assertEqual(self.as_manager().api('GET', f'{URL}?due=maybe').status_code, 422)
+
+    def test_more_rows_than_the_limit_are_refused_and_a_filter_under_it_exports(self):
+        total = len(self.names(self.manager))
+        with patch.object(csv_export, 'EXPORT_MAX_ROWS', total - 1):
+            response = self.as_manager().api('GET', URL)
+            self.assertEqual((response.status_code, response.json()['code']), (422, 'export_too_large'))
+            self.assertEqual(response.json()['details'], {'rows': total, 'max_rows': total - 1})
+            self.assertEqual(self.names(self.manager, '?q=outside'), {'Outside customer'})
+        with patch.object(csv_export, 'EXPORT_MAX_ROWS', total):
+            self.assertEqual(len(self.names(self.manager)), total)
 
     def test_own_mode_exports_only_own(self):
         self.set_visibility('own')

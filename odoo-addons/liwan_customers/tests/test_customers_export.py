@@ -2,9 +2,11 @@
 """GET /api/v1/customers/export: its own capability, the list filters and the custom field columns."""
 import csv
 import io
+from unittest.mock import patch
 
 from odoo.tests import tagged
 
+from odoo.addons.liwan_api.serializers import csv_export
 from odoo.addons.liwan_customers.tests.common import (
     EXPORT,
     PHONE_E164,
@@ -114,3 +116,15 @@ class TestCustomersExport(CustomersCase):
                 self.assertEqual([row[0] for row in self.rows()[1:]], [f'Mode {mode}'])
                 self.sign_in('cu_a_staff')
                 self.assertEqual(self.api('GET', EXPORT).status_code, 403)
+
+    def test_more_rows_than_the_limit_are_refused_and_a_filter_under_it_exports(self):
+        for name in ('Limit one', 'Limit two', 'Limit three'):
+            self.created_by('cu_a_staff', {'name': name})
+        self.sign_in('cu_exporter')
+        with patch.object(csv_export, 'EXPORT_MAX_ROWS', 2):
+            response = self.api('GET', EXPORT)
+            self.assertEqual((response.status_code, response.json()['code']), (422, 'export_too_large'))
+            self.assertEqual(response.json()['details'], {'rows': 3, 'max_rows': 2})
+            self.assertEqual([row[0] for row in self.rows('q=two')[1:]], ['Limit two'])
+        with patch.object(csv_export, 'EXPORT_MAX_ROWS', 3):
+            self.assertEqual(len(self.rows()) - 1, 3)
