@@ -273,3 +273,11 @@ test('recording a call without an outcome shows the required message instead of 
   const callsAfter = await page.request.get('/api/v1/crm/opportunities/1/calls').then(r => r.json())
   expect(callsAfter.total).toBe(callsBefore.total)
 })
+
+test('an export the server refuses as too large shows the narrow-the-filters message', async ({ page, baseURL }) => {
+  await page.context().addCookies([{ name: 'mock_export', value: 'too_large', url: baseURL! }])
+  await page.goto('/crm/opportunities')
+  await page.getByTestId('crm-export-csv').click()
+  await expect(page.locator('[data-slot="title"]').filter({ hasText: /النتائج أكثر من .* صف\. ضيّق التصفية ثم صدّر من جديد\./ })).toBeVisible()
+  await expect(page.getByText('تعذّر تصدير الفرص')).toHaveCount(0)
+})

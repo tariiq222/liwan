@@ -129,3 +129,12 @@ test.describe('internal chat shares the frame', () => {
     await expectNoSidewaysScroll(page)
   })
 })
+
+test('a conversations export the server refuses as too large shows the narrow-the-filters message', async ({ page, baseURL }) => {
+  await signIn(page)
+  await page.context().addCookies([{ name: 'mock_export', value: 'too_large', url: baseURL! }])
+  await open(page, '/inbox')
+  await page.getByTestId('inbox-export').click()
+  await expect(page.locator('[data-slot="title"]').filter({ hasText: /النتائج أكثر من .* صف\. ضيّق التصفية ثم صدّر من جديد\./ })).toBeVisible()
+  await expect(page.getByText('تعذّر تصدير المحادثات')).toHaveCount(0)
+})

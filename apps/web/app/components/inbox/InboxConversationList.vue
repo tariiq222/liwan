@@ -6,13 +6,15 @@ import { useInboxConversations } from '@/composables/inbox/useInbox'
 import { CHANNEL_KIND_ICON, channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, PRIORITIES, INBOX_PRIORITY_TONE, inboxFileKindKey, inboxListTime } from '@/composables/inbox/inboxPresentation'
-import { INBOX_PAGE_SIZE, inboxListQuery, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
+import { useInboxConversationsExport } from '@/composables/inbox/useInboxConversationsExport'
+import { exportTooLargeMessage } from '@/utils/exportErrors'
+import { INBOX_PAGE_SIZE, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 
 // The conversation list pane of the inbox page (its left column): filters (assignee, state, department, search) are the URL query, owned by the page that hosts
 // this list. The component only reads them and emits the next filter state.
 const props = defineProps<{ routeState: InboxListRoute; selectedId?: number }>()
 const emit = defineEmits<{ 'update:routeState': [InboxListRoute, options?: { replace: boolean }] }>()
-const { t, locale } = useI18n()
+const { t, n, locale } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const { data, isLoading, isError, isPlaceholderData, error, refetch } = useInboxConversations(() => props.routeState)
@@ -71,12 +73,11 @@ watch(() => [data.value?.total, props.routeState.offset, isPlaceholderData.value
 })
 const listQuery = computed(() => serializeInboxListRoute(props.routeState))
 const conversationTo = (id: number) => ({ path: `/inbox/${id}`, query: listQuery.value })
-// The export takes the same filters as the list, without the page window.
-const exportHref = computed(() => {
-  const { limit: _limit, offset: _offset, ...filters } = inboxListQuery(props.routeState)
-  const search = new URLSearchParams(Object.entries(filters).map(([key, value]) => [key, String(value)])).toString()
-  return `/api/v1/inbox/conversations/export.csv${search ? `?${search}` : ''}`
-})
+const exportCsv = useInboxConversationsExport()
+const toast = useToast()
+function downloadCsv() {
+  exportCsv.mutate(props.routeState, { onError: error => toast.add({ title: exportTooLargeMessage(error, t, n) ?? t('inbox.list.exportFailed'), color: 'error' }) })
+}
 // A file sent without a caption has no text; the row names the file kind instead.
 const fileLabel = (kind: InboxMessageKind | null) => {
   const key = inboxFileKindKey(kind)
@@ -101,7 +102,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
           />
         </form>
         <UTooltip v-if="can('inbox.conversations.export')" :text="t('inbox.list.export')">
-          <UButton :href="exportHref" external download color="neutral" variant="soft" square icon="i-lucide-download" :aria-label="t('inbox.list.export')" data-testid="inbox-export" />
+          <UButton color="neutral" variant="soft" square icon="i-lucide-download" :loading="exportCsv.isPending.value" :disabled="!hydrated || exportCsv.isPending.value" :aria-label="t('inbox.list.export')" data-testid="inbox-export" @click="downloadCsv" />
         </UTooltip>
       </div>
       <SharedSegmentedControl

@@ -252,6 +252,7 @@
     "deviceInvalid": "This device is no longer remembered. Enter a new code."
   },
   "errors": {
+    "exportTooLarge": "There are more than {max} rows. Narrow the filters, then export again.",
     "saveUncertain": "We could not confirm whether the save completed. Check the record before trying again.",
     "pageNotFoundTitle": "Page not found",
     "pageNotFound": "The link may be wrong, or the page has moved.",

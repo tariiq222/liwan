@@ -20,6 +20,11 @@ import { handleSsrFixtures, hasFixtureSession } from './ssr-fixture-sessions.mjs
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
+// The three row exports (CRM, customers, conversations) refuse like the server when the filters keep more rows than one file
+// carries. The cookie `mock_export=too_large` switches that on for a spec.
+const EXPORT_PATHS = new Set(['/api/v1/crm/export', '/api/v1/customers/export', '/api/v1/inbox/conversations/export.csv'])
+const EXPORT_TOO_LARGE = { code: 'export_too_large', message: 'the filters keep more rows than one file carries', details: { rows: 61000, max_rows: 50000 } }
+
 const PORT = Number(process.env.MOCK_PORT || 4388)
 const SESSION = 'liwan-ui-mock'
 const WS_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
@@ -470,6 +475,7 @@ async function handle(req, res) {
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
   if (await handleSsrFixtures(req, res, path, url, { json, readBody, session: SESSION })) return
+  if (method === 'GET' && EXPORT_PATHS.has(path) && /(?:^|;\s*)mock_export=too_large(?:;|$)/.test(req.headers.cookie ?? '')) return json(res, 422, EXPORT_TOO_LARGE)
   if (await handlePayments(req, res, path, { json, readBody })) return
   if (await handleCustomers(req, res, path, url, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleChanges(req, res, path, url, { json, readBody })) return

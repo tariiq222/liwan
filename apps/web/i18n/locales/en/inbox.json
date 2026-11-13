@@ -234,6 +234,7 @@
       "noMessages": "No messages",
       "unread": "Unread",
       "export": "Export conversations (CSV)",
+      "exportFailed": "Could not export the conversations. Try again.",
       "csat": "Customer satisfaction",
       "anyCsat": "Any rating"
     },
