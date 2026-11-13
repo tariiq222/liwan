@@ -12,6 +12,12 @@ else describe('admin schema', () => {
     const rows = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'vendor_%' ORDER BY 1")
     expect(rows.rows.map((r) => r.table_name)).toEqual(['vendor_account_roles','vendor_accounts','vendor_auth_attempts','vendor_auth_challenges','vendor_invitations','vendor_passkeys','vendor_recovery_codes','vendor_sessions','vendor_totp'])
   })
+  it('keeps no remnant of the legacy commercial migration', async () => {
+    const tables = await pool.query("SELECT to_regclass('legacy_mappings') AS a, to_regclass('migration_runs') AS b")
+    expect(tables.rows[0]).toEqual({ a: null, b: null })
+    const column = await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name='subscriptions' AND column_name='legacy_source'")
+    expect(column.rowCount).toBe(0)
+  })
   it('stores emails case-insensitively unique', async () => {
     await pool.query("TRUNCATE vendor_accounts CASCADE")
     await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('a@liwanos.com','A')")

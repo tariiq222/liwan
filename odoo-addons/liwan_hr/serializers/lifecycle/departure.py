@@ -4,9 +4,10 @@
 The departure lives on the stock ``hr.version`` fields of the employee; the clearance is
 the latest offboarding plan run of that employee.
 """
-from .fields import date_str, plain_text, ref
+from .fields import date_str, plain_text
 from .run import run_activities
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 
 DEPARTURE_CREATE_FIELDS = {

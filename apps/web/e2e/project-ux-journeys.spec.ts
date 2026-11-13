@@ -10,15 +10,15 @@ for (const locale of ['ar', 'en']) for (const mode of ['light', 'dark']) {
     await context.addCookies([{ name: 'liwan-locale', value: locale, url: new URL('/', test.info().project.use.baseURL as string).href }])
     for (const width of [390, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 })
-      for (const path of ['/projects/2', '/projects/2/milestones/12', '/projects/2/schedule?scale=month']) {
+      for (const path of ['/projects/2', '/projects/2/milestones/12', '/projects/2/tasks?view=timeline&scale=month']) {
         await open(page, path)
         await expect(page.locator('html')).toHaveAttribute('dir', locale === 'ar' ? 'rtl' : 'ltr')
         await expect(page.locator('html')).toHaveClass(mode === 'dark' ? /dark/ : /^(?!.*dark)/)
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
         expect(await fitsWidth(page), `${locale} ${mode} ${width} ${path}`).toBe(true)
         if (path.includes('/milestones/')) await expect(page.getByTestId('milestone-detail-menu')).toBeVisible()
-        if (path.includes('/schedule')) {
-          // The schedule is the timeline view of the tasks: the old URL redirects there and the tasks tab is current.
+        if (path.includes('view=timeline')) {
+          // The schedule is the timeline view of the tasks and the tasks tab is current.
           await expect(page).toHaveURL(/\/projects\/2\/tasks\?(?:.*&)?view=timeline/)
           await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
           if (process.env.E2E_PROJECTS_SCREENSHOTS) {

@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields
 
+from odoo.addons.liwan_api.serializers.common import ref
+
 # The finance record kind (a record link of the web finance application) of each journal entry type.
 RECORD_KINDS = {
     'out_invoice': 'finance-invoice',
@@ -19,7 +21,7 @@ def dump_actual_line(line):
         'date': fields.Date.to_string(line.date),
         'label': line.name or '',
         'reference': line.ref or None,
-        'partner': {'id': line.partner_id.id, 'name': line.partner_id.name} if line.partner_id else None,
+        'partner': ref(line.partner_id),
         'amount': -line.amount,
         'record': {'kind': RECORD_KINDS[move.move_type], 'id': move.id} if move.move_type in RECORD_KINDS else None,
     }

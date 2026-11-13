@@ -9,11 +9,7 @@ from datetime import date, datetime
 
 from odoo import fields
 
-from odoo.addons.liwan_api.serializers.common import iso
-
-
-def dump_person(user):
-    return {'id': user.id, 'name': user.name} if user else None
+from odoo.addons.liwan_api.serializers.common import iso, ref
 
 
 def _links(record):
@@ -117,7 +113,7 @@ def dump_event(event, meeting=None):
         'meeting_id': meeting.id,
         'meeting_name': meeting.name,
         'occurred_at': iso(event.occurred_at),
-        'actor': dump_person(event.actor_id),
+        'actor': ref(event.actor_id),
         'kind': event.kind,
         'summary': event.summary,
     }
@@ -131,7 +127,7 @@ def dump_version(version):
         'id': version.id,
         'number': version.number,
         'captured_at': iso(version.captured_at),
-        'actor': dump_person(version.actor_id),
+        'actor': ref(version.actor_id),
         'snapshot': dump_snapshot_payload(meeting, snapshot),
     }
 
@@ -173,7 +169,7 @@ def dump_resolution(resolution, link=None, *, linked_ids=None, manager=None):
         'deadline': str(resolution.deadline) if resolution.deadline else None,
         'priority': resolution.priority,
         'state': resolution.state,
-        'responsible': dump_person(resolution.responsible_id),
+        'responsible': ref(resolution.responsible_id),
         'task_id': link['task_id'] if link else None,
         'result': resolution.result or '',
         'can_update_execution': bool(set(allowed_actions) & {'start', 'complete', 'cancel'}),
@@ -223,7 +219,7 @@ def dump_meeting(meeting, *, detail=False, counts=None):
         'start_datetime': iso(meeting.start_datetime),
         'end_datetime': iso(meeting.end_datetime),
         'state': meeting.state,
-        'organizer': dump_person(meeting.organizer_id),
+        'organizer': ref(meeting.organizer_id),
         'open_resolution_count': counts[meeting.id][0],
         'series_id': meeting.series_id.id or None,
         'project_id': links._liwan_project_id(meeting),
@@ -238,13 +234,13 @@ def dump_meeting(meeting, *, detail=False, counts=None):
             'meeting_url': meeting.meeting_url or '',
             'can_edit': bool(meeting.can_edit),
             'can_manage': bool(meeting.can_manage),
-            'secretary': dump_person(meeting.secretary_id),
-            'attendees': [dump_person(user) for user in meeting.attendee_ids],
+            'secretary': ref(meeting.secretary_id),
+            'attendees': [ref(user) for user in meeting.attendee_ids],
             'resolutions': [
                 dump_resolution(item, readable.get(item.id))
                 for item in meeting.resolution_ids
             ],
-            'series': dump_person(meeting.series_id) if meeting.series_id else None,
+            'series': ref(meeting.series_id) if meeting.series_id else None,
             'project': links._liwan_project_ref(meeting),
             'previous_resolutions': dump_previous_resolutions(meeting),
             'minutes_snapshot': dump_minutes_snapshot(meeting),
@@ -293,7 +289,7 @@ def dump_series(series, *, detail=False, counts=None):
         'active': series.active,
         'until_date': str(series.until_date) if series.until_date else None,
         'until_count': series.until_count or None,
-        'organizer': dump_person(series.organizer_id),
+        'organizer': ref(series.organizer_id),
         'project': _links(series)._liwan_project_ref(series),
         'open_resolution_count': sum(counts[meeting.id][0] for meeting in meetings),
         'overdue_resolution_count': sum(counts[meeting.id][1] for meeting in meetings),
@@ -302,8 +298,8 @@ def dump_series(series, *, detail=False, counts=None):
         payload.update({
             'location': series.location or '',
             'meeting_url': series.meeting_url or '',
-            'secretary': dump_person(series.secretary_id),
-            'attendees': [dump_person(user) for user in series.attendee_ids],
+            'secretary': ref(series.secretary_id),
+            'attendees': [ref(user) for user in series.attendee_ids],
             'meetings': [dump_meeting(meeting, counts=counts) for meeting in meetings.sorted(key=_meeting_order_key)],
             'can_edit': bool(series._liwan_is_editor()),
             'can_end': series._liwan_can_end(),

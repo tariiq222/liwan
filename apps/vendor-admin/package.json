@@ -22,6 +22,7 @@
     "@tailwindcss/vite": "^4.3.4",
     "@vueuse/core": "^14.4.0",
     "@vueuse/nuxt": "^14.4.0",
+    "h3": "^1.15.11",
     "nuxt": "^4.6.4",
     "qrcode-generator": "2.0.4",
     "tailwindcss": "^4.3.4",
@@ -32,9 +33,13 @@
   "devDependencies": {
     "@playwright/test": "^1.65.0",
     "@types/node": "^22.20.1",
+    "@vue/compiler-sfc": "^3.5.45",
+    "@vue/server-renderer": "^3.5.45",
     "jiti": "2.7.0",
+    "pg": "^8.23.1",
     "typescript": "^5.9.3",
     "vitest": "4.1.12",
+    "vue-i18n": "^11.4.16",
     "vue-tsc": "^3.3.11"
   }
 }

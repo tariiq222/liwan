@@ -44,6 +44,6 @@ test('a reader sees the baselines but cannot take one', async ({ page }) => {
 })
 
 test('the schedule marks each task with its baseline dates', async ({ page }) => {
-  await open(page, '/projects/2/schedule')
+  await open(page, '/projects/2/tasks?view=timeline')
   await expect(page.getByTestId('schedule-gantt-baseline-legend')).toBeVisible()
 })

@@ -24,11 +24,6 @@ test.describe('Plan 6a: updates in the summary and meetings', () => {
       await page.keyboard.press('Escape')
       await expect(page).toHaveURL(url => url.pathname === '/projects/2')
     })
-    test('the old updates address opens the summary', async ({ page }) => {
-      await open(page, '/projects/2/updates?returnTo=%2Fprojects')
-      await expect(page).toHaveURL(url => url.pathname === '/projects/2' && url.searchParams.get('returnTo') === '/projects')
-      await expect(page.getByTestId('project-overview-latest-update')).toBeVisible()
-    })
     test('a viewer who cannot manage sees the updates and no post action', async ({ page }) => {
       await open(page, '/projects/3')
       await expect(page.getByTestId('project-overview-latest-update')).toBeVisible()

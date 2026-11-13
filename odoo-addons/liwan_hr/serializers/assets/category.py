@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_hr.serializers.assets.common import ref, reject_unknown
+from odoo.addons.liwan_api.serializers.common import ref
+from odoo.addons.liwan_hr.serializers.assets.common import reject_unknown
 
 
 def dump_categories(categories):

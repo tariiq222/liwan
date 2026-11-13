@@ -265,8 +265,7 @@ test('budget pages create, refresh, edit and return to the filtered ledger', asy
   expect(returned.get('q')).toBe('UI-budget')
   await expect(page.getByTestId('finance-entry-row')).toHaveCount(1)
   await expect(page.getByTestId('project-finance-summary')).toContainText('1200.00')
-  // `/reports` is retired (nuxt.config.ts 301s it to /projects/dashboard) and `reports-row` / `reports-totals` no
-  // longer exist, so the former report half of this journey is dropped: the ledger's totals are pinned by the
+  // `reports-row` / `reports-totals` no longer exist, so the former report half of this journey is dropped: the ledger's totals are pinned by the
   // analytics contract in the first test, and the dashboard by the phone journey below.
 })
 
@@ -390,7 +389,7 @@ test('the ledger and the project dashboard stay usable at a phone viewport', asy
   const project = await projectWithFinance(page, 'responsive')
   const path = financePath(project)
   expect((await page.request.post(path, { data: { kind: 'budget', title: 'الميزانية التشغيلية', amount: 10000 } })).status()).toBe(201)
-  // `/reports` is retired and 301s here; the dashboard is the surface that replaced it.
+  // The project dashboard is the reporting surface.
   await page.goto(`/projects/dashboard?q=${encodeURIComponent(project.name)}`)
   await expect(page.getByTestId('project-dashboard-page')).toBeVisible()
   await expect(page.getByTestId('recent-project-row')).toHaveCount(1)

@@ -4,7 +4,7 @@ import math
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_pmo.models.project_project import (
     BUDGET_STATES,
     DELIVERABLE_KEYS,
@@ -42,20 +42,12 @@ def dump_currency(currency):
     }
 
 
-def dump_catalog_ref(record):
-    return {'id': record.id, 'name': record.name} if record else None
-
-
 def dump_type_ref(record):
     # The charter wizard derives its steps from the project type, so the type
     # reference carries them alongside the plain catalog identity.
     if not record:
         return None
     return {'id': record.id, 'name': record.name, 'charter_steps': record._liwan_charter_steps()}
-
-
-def dump_user_ref(user):
-    return {'id': user.id, 'name': user.name} if user else None
 
 
 def dump_charter(project):
@@ -65,8 +57,8 @@ def dump_charter(project):
     return {
         'code': project.liwan_code or None,
         'type': dump_type_ref(project.liwan_type_id),
-        'owning_unit': dump_catalog_ref(project.liwan_owning_unit_id),
-        'sponsor': dump_user_ref(project.liwan_sponsor_id),
+        'owning_unit': ref(project.liwan_owning_unit_id),
+        'sponsor': ref(project.liwan_sponsor_id),
         'authority': project.liwan_authority or '',
         'rationale': project.liwan_rationale or '',
         'benefits': project.liwan_benefits or '',
@@ -84,9 +76,9 @@ def dump_charter(project):
         'state': project.liwan_charter_state or 'draft',
         'approval_required': project._liwan_charter_approval_required(),
         'can_review': project._liwan_can_review_charter(),
-        'submitted_by': dump_user_ref(project.liwan_charter_submitted_by_id),
+        'submitted_by': ref(project.liwan_charter_submitted_by_id),
         'submitted_at': iso(project.liwan_charter_submitted_at) if project.liwan_charter_submitted_at else None,
-        'approved_by': dump_user_ref(project.liwan_charter_approved_by_id),
+        'approved_by': ref(project.liwan_charter_approved_by_id),
         'approved_at': iso(project.liwan_charter_approved_at) if project.liwan_charter_approved_at else None,
         'return_note': project.liwan_charter_return_note or '',
     }

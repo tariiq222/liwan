@@ -31,7 +31,7 @@ const { data: projectData, error, refetch } = useProject(projectId)
 // Same SSR contract as the frame: reveal the cached project only once hydrated.
 const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
-const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports']))
+const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications']))
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isListRoute = computed(() => {
   const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/tasks/, '')

@@ -2,7 +2,7 @@
 from odoo.tools import email_normalize, html2plaintext
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_api.serializers.properties import (
     dump_record_properties,
 )
@@ -29,10 +29,6 @@ STATUS_FILTERS = ('open', 'won', 'lost', 'all')
 PROPERTY_PREFIX = 'property.'
 
 
-def ref(record):
-    return {'id': record.id, 'name': record.display_name} if record else None
-
-
 def dump_opportunity(lead):
     return {
         'id': lead.id,
@@ -40,11 +36,11 @@ def dump_opportunity(lead):
         'phone': lead.phone or '',
         'email': lead.email_from or '',
         'notes': html2plaintext(lead.description or '').strip(),
-        'stage': ref(lead.stage_id),
-        'user': ref(lead.user_id),
-        'source': ref(lead.source_id),
-        'package': ref(lead.liwan_package_id),
-        'lost_reason': ref(lead.lost_reason_id),
+        'stage': ref(lead.stage_id, label='display_name'),
+        'user': ref(lead.user_id, label='display_name'),
+        'source': ref(lead.source_id, label='display_name'),
+        'package': ref(lead.liwan_package_id, label='display_name'),
+        'lost_reason': ref(lead.lost_reason_id, label='display_name'),
         'status': lead.won_status,
         'list_price': lead.liwan_list_price,
         'discount_percent': lead.liwan_discount_percent,
@@ -65,7 +61,7 @@ def dump_opportunity(lead):
 def dump_view(row):
     return {
         'id': row.id,
-        'user': ref(row.user_id),
+        'user': ref(row.user_id, label='display_name'),
         'opportunity_id': row.lead_id.id,
         'viewed_at': iso(row.viewed_at),
     }

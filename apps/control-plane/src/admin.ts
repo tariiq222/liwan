@@ -4,9 +4,7 @@ import { join } from 'node:path'
 import { Pool } from 'pg'
 import { getConfig } from './config.js'
 import { migrate, transaction } from './db.js'
-import { writeFile } from 'node:fs/promises'
 import { readKnownSource } from './shared/catalog-source.js'
-import { migrateLegacyToSaas } from './commercial/legacy-mapping.js'
 import { lockOwners, normalizeEmail } from './admin-auth/accounts.js'
 import { assertLoopbackDatabase, ensureDevOwner } from './admin-auth/dev-owner.js'
 import { inviteAccount, issueReset } from './admin-auth/enrollment.js'
@@ -83,16 +81,7 @@ try {
       await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),'operator','restore.approved',tenantId,reason(why)])
     })
     process.stdout.write(`${id}\n`)
-  } else if (command === 'migrate-saas-commercial') {
-    const mode = args.includes('--run') ? 'run' : args.includes('--dry-run') ? 'dry_run' : undefined
-    if (!mode || (args.includes('--run') && args.includes('--dry-run'))) throw new Error('exactly one of --dry-run or --run required')
-    const at = args.indexOf('--report')
-    const report = await migrateLegacyToSaas(pool, { mode })
-    const text = JSON.stringify(report, null, 2)
-    if (at >= 0) { if (!args[at + 1]) throw new Error('--report path required'); await writeFile(args[at + 1]!, `${text}\n`) }
-    process.stdout.write(`${text}\n`)
-    if (report.counts.errors) process.exitCode = 2
-  } else throw new Error('commands: bootstrap-owner, dev-owner (local development only), reset-account (the recovery path for a lost or last owner), catalog-import, approve-restore, migrate-saas-commercial')
+  } else throw new Error('commands: bootstrap-owner, dev-owner (local development only), reset-account (the recovery path for a lost or last owner), catalog-import, approve-restore')
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : 'admin command failed'}\n`)
   process.exitCode = 1

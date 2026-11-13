@@ -188,7 +188,7 @@ for (const path of [
 for (const path of [
   '/projects/1/tasks/101', '/projects/1/milestones/1/edit', '/projects/1/stakeholders/1', '/projects/1/stakeholders/1/edit',
   '/projects/1/register/1', '/projects/1/register/1/edit', '/projects/1/finance/2', '/projects/1/finance/2/edit',
-  '/projects/1/schedule/tasks/101', '/projects/1/charter?edit=1',
+  '/projects/1/charter?edit=1',
 ]) {
   test(`direct record or edit route is a page with no dialog: ${path}`, async ({ page }) => {
     const taskRecord = path.endsWith('/tasks/101')

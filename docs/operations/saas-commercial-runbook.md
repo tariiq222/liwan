@@ -27,7 +27,7 @@
 | محاكي الدفع | `commercial/payment-simulator.ts` | **للاختبار فقط**؛ يرفض الإنتاج و`MOYASAR_MODE=live`. ليس دليل دفع حقيقي |
 | مساحات Odoo | قاعدة وfilestore لكل عميل خلف Odoo مشترك | العزل database-per-tenant |
 
-جداول الحالة الأساسية: `orders` (`payment_state`: not_required/awaiting_payment/paid/failed/refund_pending/refunded؛ `fulfillment_state`: not_started/queued/applying/applied/failed/needs_intervention)، `invoices` (draft/issued/paid/void/credit_pending)، `payment_attempts` (created/redirected/pending/succeeded/failed/canceled/unknown)، `payment_events`، `subscriptions` (pending/trialing/active/past_due/suspended/cancelled)، `renewals` (invoiced/charging/paid/past_due/suspended/failed)، `commercial_branches`، `usage_snapshots` (fresh/stale/unavailable)، `legacy_mappings`، `migration_runs`.
+جداول الحالة الأساسية: `orders` (`payment_state`: not_required/awaiting_payment/paid/failed/refund_pending/refunded؛ `fulfillment_state`: not_started/queued/applying/applied/failed/needs_intervention)، `invoices` (draft/issued/paid/void/credit_pending)، `payment_attempts` (created/redirected/pending/succeeded/failed/canceled/unknown)، `payment_events`، `subscriptions` (pending/trialing/active/past_due/suspended/cancelled)، `renewals` (invoiced/charging/paid/past_due/suspended/failed)، `commercial_branches`، `usage_snapshots` (fresh/stale/unavailable).
 
 ## 2. الإعداد (أسماء المتغيرات فقط — لا قيم في هذا الملف)
 
@@ -140,7 +140,7 @@ npm -w apps/vendor-admin run dev -- --port 3100
 
 شرح المتغيرات وحدود التطبيق في `apps/vendor-admin/README.md`.
 
-أوامر admin أخرى: `catalog-import <version> <reason>`، `approve-restore <tenant_uuid> <op_backup_id> <reason>` (موافقة ساعة واحدة)، `migrate-saas-commercial --dry-run|--run [--report path]`.
+أوامر admin أخرى: `catalog-import <version> <reason>`، `approve-restore <tenant_uuid> <op_backup_id> <reason>` (موافقة ساعة واحدة).
 
 ## 4. إجراءات التشغيل
 
@@ -239,19 +239,6 @@ npm -w apps/vendor-admin run dev -- --port 3100
 - في Compose أحادي المجموعة، يقرأ العامل الاشتراك من هدف الاستعادة المعزول ويطبّق عليه المراجعة التجارية الحالية إذا لزم. اختلاف حالة الاشتراك أو تاريخ صلاحيته، أو تعذر رصد الهدف، يبقي المسار خلف `commercial_reconciliation_pending`. إذا استمر اختلاف القراءة بعد إصلاح متحقق ينتقل العمل للتدخل اليدوي. عند تشغيل توجيه الإصدارات تبقى المصالحة محجوبة حتى يدعم فاحص المجموعة هدف الاستعادة. راجع [دليل إصدارات النشر](../../deploy/releases/README.md) و[سجل القبول](../verification/2026-11-09-saas-commercial-acceptance.md).
 - لا تُفتح المساحة المستعادة للعميل قبل نجاح المصالحة وتسجيل نتيجتها؛ لا تُعدّل الاستحقاقات أو الفروع يدويًا لتجاوز الحاجز.
 - أثر النسخ على بقية العملاء: النسخ المحلي قد يوقف Odoo المشترك لفترة قصيرة؛ غير مقاس على staging **[محجوب]**.
-
-### 4.7 ترحيل العملاء القدامى (dry-run ثم run) [قبول تشغيلي غير متحقق] [محلي جزئيًا]
-
-```sh
-npm -w apps/control-plane run admin -- migrate-saas-commercial --dry-run --report /abs/path/dry.json
-npm -w apps/control-plane run admin -- migrate-saas-commercial --run --report /abs/path/run.json
-```
-
-- dry-run لا يعدّل بيانات؛ يصنّف (saas_package / saas_catalog_only / saas_commercial / non_saas) ويعدّ الأخطاء لكل صف ويخرج `source_digest`. الخروج 2 إذا وُجدت أخطاء صفوف.
-- `saas_commercial`: مستأجر يملكه المسار التجاري (عميل غير قديم سجّله أو له اشتراك عليه). يُتخطّى ولا يُكتب له شيء، وتظهر معرفاته في `skipped_commercial`. عميل مربوط بلا اشتراك ولا تسجيل يبقى `customer_conflict`، ووجود العميل القديم مع عميل تجاري معًا `ownership_conflict`.
-- شرط: نسخة احتياطية/قاعدة scratch أولًا؛ راجع `errors` وعدّاد كل فئة قبل `--run`.
-- القاعدة: عميل بلا سعر مسجل يبقى على سياسته الحالية ويوسم «يحتاج إعداد اتفاق تجاري»؛ لا فاتورة صفرية ولا دين ولا سعر مخترع. إعادة التشغيل تعطي نفس النتيجة (idempotent بمعرف uuidv5 ثابت).
-- **[غير مختبر]** إثبات الاستئناف بعد انقطاع وتطابق counts/hashes على نسخة scratch لم يُعد قبوله في هذا الدليل. الأعمدة القديمة لا تُسقط في التسليم الأول.
 
 ## 5. التنبيهات والإجراء لكل منها
 

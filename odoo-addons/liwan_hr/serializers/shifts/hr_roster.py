@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from odoo import fields
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_hr.serializers.shifts.hr_shift import ref
+from odoo.addons.liwan_api.serializers.common import ref
 
 WEEK_DAYS = 7
 WEEK_PATCH_FIELDS = {'employee_id', 'schedule_id', 'week_start'}

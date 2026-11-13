@@ -20,7 +20,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
     serves_own_data,
 )
-from odoo.addons.liwan_hr.serializers.assets.common import ref
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.serializers.warnings.warning import (
     dump_standing,
     dump_warning,

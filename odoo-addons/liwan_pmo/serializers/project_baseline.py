@@ -2,12 +2,9 @@
 from odoo import fields
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_pmo.models.project_constants import TASK_CANCELED_STATE
-from odoo.addons.liwan_pmo.serializers.project_charter import (
-    dump_currency,
-    dump_user_ref,
-)
+from odoo.addons.liwan_pmo.serializers.project_charter import dump_currency
 from odoo.addons.liwan_pmo.serializers.project_finance import build_finance_summary
 
 BASELINE_WRITE_FIELDS = {'note', 'change_id'}
@@ -35,7 +32,7 @@ def dump_baseline(baseline):
         'id': baseline.id,
         'project_id': baseline.project_id.id,
         'number': baseline.number,
-        'taken_by': dump_user_ref(baseline.taken_by_id),
+        'taken_by': ref(baseline.taken_by_id),
         'taken_at': iso(baseline.taken_at),
         'note': baseline.note or '',
         'change': {'id': change.id, 'number': change.number, 'title': change.title} if change and baseline.project_id._liwan_tool_enabled('governance') else None,
