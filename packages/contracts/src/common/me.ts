@@ -74,6 +74,8 @@ export const MeSchema = z.object({
   access_policy_version: z.number().int().nonnegative().optional().default(0),
   /** The company this session works in. */
   company: MeCompanySchema,
+  /** True when `company` is the tenant's root company; false in a branch, where owner-level actions (setup wizard, workspace deletion) are refused. */
+  is_root_company: z.boolean().optional().default(true),
   /** The active companies the user may switch to, the working one included. */
   companies: z.array(MeCompanySchema),
   /** The company the user is employed in: seats and the employee record stay there whatever `company` is. */

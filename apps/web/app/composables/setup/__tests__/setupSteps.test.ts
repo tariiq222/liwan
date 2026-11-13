@@ -16,6 +16,11 @@ describe('who may use the setup page', () => {
     expect(canUseSetup({ capabilities: ['settings.company.read', 'access.users.read'] })).toBe(false)
     expect(canUseSetup({ capabilities: [] })).toBe(false)
   })
+
+  it('refuses a branch session even with the capability', () => {
+    expect(canUseSetup({ ...admin, is_root_company: false })).toBe(false)
+    expect(canUseSetup({ ...admin, is_root_company: true })).toBe(true)
+  })
 })
 
 describe('setupTargetAccess', () => {

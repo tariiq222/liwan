@@ -60,7 +60,7 @@ export function useSubscriptionApi() {
     /** Stops the renewal; the paid period stays and the subscription drops to the free base on its renewal date. */
     cancelSubscription: (reason?: string) => request<SubscriptionView>('subscription/cancel', { method: 'POST', body: reason ? { reason } : {} }),
     resumeSubscription: () => request<SubscriptionView>('subscription/resume', { method: 'POST', body: {} }),
-    /** Workspace deletion: ask for the emailed code, confirm with it and the company name, withdraw. Only the system administrator (`tenant.delete`) may. */
+    /** Workspace deletion: ask for the emailed code, confirm with it and the company name, withdraw. Only the system administrator (`tenant.delete`) may, and only from the root company (a branch session loses the capability here). */
     requestDeletion: () => request<{ deletion: TenantDeletion | null }>('deletion/request', { method: 'POST', body: {} }),
     confirmDeletion: (input: { code: string; companyName: string }) => request<{ deletion: TenantDeletion | null }>('deletion/confirm', { method: 'POST', body: { code: input.code, company_name: input.companyName } }),
     withdrawDeletion: () => request<{ deletion: TenantDeletion | null }>('deletion/withdraw', { method: 'POST', body: {} }),
@@ -74,7 +74,10 @@ export function useCustomerCapabilities() {
   const readOnly = computed(() => me.value?.read_only === true)
   const caps = computed(() => {
     const derived = deriveCustomerCapabilities(me.value?.capabilities)
-    return readOnly.value ? derived.filter(capability => capability !== 'subscription.manage' && capability !== 'branches.manage' && capability !== 'tenant.delete') : derived
+    const dropped = new Set<string>()
+    if (readOnly.value) ['subscription.manage', 'branches.manage', 'tenant.delete'].forEach(capability => dropped.add(capability))
+    if (me.value?.is_root_company === false) dropped.add('tenant.delete')
+    return derived.filter(capability => !dropped.has(capability))
   })
   return { caps, readOnly, can: (c: string) => (caps.value as string[]).includes(c) }
 }

@@ -37,12 +37,13 @@ class TestMeEndpoint(HttpCase):
         self.assertEqual(body['company']['id'], self.env.ref('base.main_company').id)
         self.assertEqual(set(body), {
             'id', 'name', 'login', 'email', 'mobile', 'mobile_required', 'lang', 'tz', 'role', 'company',
-            'companies', 'home_company_id', 'home_capabilities',
+            'companies', 'is_root_company', 'home_company_id', 'home_capabilities',
             'roles', 'capabilities', 'access_policy_version', 'read_only', 'appearance',
             'modules', 'entitlements', 'platform', 'terminology', 'commercial',
         })
         self.assertEqual(body['home_capabilities'], body['capabilities'])
         self.assertIs(body['read_only'], False)
+        self.assertIs(body['is_root_company'], True)
         self.assertEqual(body['platform']['schema_version'], 1)
         self.assertIn(body['platform']['state'], ('active', 'expired', 'suspended', 'payment_suspended'))
         self.assertEqual(body['appearance'], {'mode': 'light', 'font_size': 'small'})
@@ -191,6 +192,17 @@ class TestMeEndpoint(HttpCase):
 
         self.assertEqual(body['company']['id'], company_b.id)
         self.assertNotIn('access.users.assign_roles', body['capabilities'])
+
+    def test_is_root_company_is_false_in_a_branch(self):
+        root = self.env.company
+        branch = self.env['res.company'].create({'name': 'Me branch', 'parent_id': root.id})
+        user = new_test_user(self.env, login='me_branch_root', groups='base.group_user', company_id=root.id)
+        user.write({'company_ids': [(6, 0, [root.id, branch.id])]})
+        in_root = self.env(user=user, context={'allowed_company_ids': [root.id, branch.id]})
+        in_branch = self.env(user=user, context={'allowed_company_ids': [branch.id, root.id]})
+
+        self.assertIs(dump_me(user.with_env(in_root))['is_root_company'], True)
+        self.assertIs(dump_me(user.with_env(in_branch))['is_root_company'], False)
 
 
 @tagged('post_install', '-at_install', 'liwan')

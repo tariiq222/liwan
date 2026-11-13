@@ -33,6 +33,9 @@ export function setupTargetAccess(identity: AccessIdentity, key: SetupStepKey): 
 export const handledSteps = (progress: SetupProgress): number => progress.steps.filter(step => step.outcome !== null).length
 export const SETUP_STEP_COUNT = SETUP_STEP_KEYS.length
 
-/** The home card shows while the wizard is open and the user may use its route. */
-export const canUseSetup = (identity: AccessIdentity): boolean => canReachPath(identity, SETUP_PATH)
+/** The wizard belongs to the root company: a branch session never uses it, whatever it holds. */
+export const isBranchSession = (identity: AccessIdentity): boolean => identity?.is_root_company === false
+
+/** The home card shows while the wizard is open, the session is in the root company and the user may use its route. */
+export const canUseSetup = (identity: AccessIdentity): boolean => !isBranchSession(identity) && canReachPath(identity, SETUP_PATH)
 export const setupIsOpen = (progress: SetupProgress | undefined): progress is SetupProgress => progress !== undefined && progress.closed_at === null

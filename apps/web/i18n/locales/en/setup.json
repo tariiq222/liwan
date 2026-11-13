@@ -51,6 +51,10 @@
       "title": "Setup is finished",
       "description": "The setup card no longer shows on the home page. You can reopen it any time."
     },
+    "branch": {
+      "title": "Setup is not available in a branch",
+      "description": "The setup checklist belongs to the main company. Switch to the main company to continue it."
+    },
     "failed": "The change could not be saved. Try again.",
     "home": {
       "title": "Finish setting up your company",

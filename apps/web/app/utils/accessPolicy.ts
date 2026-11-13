@@ -11,6 +11,8 @@ export type AccessIdentity = {
   /** What the account holds in its home company, where the personal pages are served from. */
   home_capabilities?: readonly string[]
   modules?: readonly string[]
+  /** False in a branch company; owner-level pages and actions are refused there. Absent means the root. */
+  is_root_company?: boolean
   entitlements?: Record<string, boolean | number | null>
   platform?: {
     readable_features: readonly string[]
