@@ -1,6 +1,6 @@
 # `liwan_customers` implementation plan
 
-> Step 1 of [the customers and catalog foundation design](../specs/2026-11-11-customers-and-catalog-foundation-design.md), which the owner approved on 2026-11-11 and 2026-11-12. PR 1 is merged (tariiq222/liwan#697, `74a8ed6b5` on `main`, 2026-11-13) and its `ci` run on that commit passed. PR 2 is merged (tariiq222/liwan#698, `969c3e66c` on `main`, 2026-11-13); PRs 3 to 5 are not built. The facts in section 3 were read on `main` at `29a21d21a` by three read-only passes, and an independent reviewer then read the plan against the code; no test was run. Section 4 lists design points the spec left open, with a proposal for each. Four of them change something the spec says; the owner approved those four on 2026-11-12, and the spec gets the matching edits in PR 1. The work changes schema and authorization across layers, so every pull request takes the full path: an implementer per layer, a tester, and a reviewer separate from both.
+> Step 1 of [the customers and products foundation design](../specs/2026-11-11-customers-and-products-foundation-design.md), which the owner approved on 2026-11-11 and 2026-11-12. PR 1 is merged (tariiq222/liwan#697, `74a8ed6b5` on `main`, 2026-11-13) and its `ci` run on that commit passed. PR 2 is merged (tariiq222/liwan#698, `969c3e66c` on `main`, 2026-11-13); PRs 3 to 5 are not built. The facts in section 3 were read on `main` at `29a21d21a` by three read-only passes, and an independent reviewer then read the plan against the code; no test was run. Section 4 lists design points the spec left open, with a proposal for each. Four of them change something the spec says; the owner approved those four on 2026-11-12, and the spec gets the matching edits in PR 1. The work changes schema and authorization across layers, so every pull request takes the full path: an implementer per layer, a tester, and a reviewer separate from both.
 
 ## 1. Goal
 
@@ -10,7 +10,7 @@ One addon, `liwan_customers`, is the only writer of a commercial party's identit
 
 In: the service and its settings, the three creators moved onto it, the customer directory, custom fields, the transfer between the two sharing modes, merge, erasure, and the links from an inbox contact and a CRM lead to a customer.
 
-Out, by the spec: the catalog (`liwan_catalog`, step 2), orders, sector presets, pricelists, a group of legal companies in one tenant, and the CRM setting for a second request from the same phone.
+Out, by the spec: the product service (`liwan_products`, step 2), orders, sector presets, pricelists, a group of legal companies in one tenant, and the CRM setting for a second request from the same phone.
 
 The working company switch that the spec asked for before this step is on `main` since `29a21d21a`, so "the branch that created it" is the company the session works in.
 
@@ -186,7 +186,7 @@ Proves: automatic linking off and on for an inbound message with one match; a ph
 | Spec section 9, customers | Pull request |
 | --- | --- |
 | Found across branches under `establishment`, hidden under `branch` | 1 |
-| Shared catalog with separate customers in one tenant | Step 2: it needs the catalog's own setting |
+| Shared products with separate customers in one tenant | Step 2: it needs the product service's own setting |
 | A phone shared by two customers: both offered, a third can be created | 1 |
 | The same phone: an inbound message links to neither | 5 |
 | Automatic linking off and on | 5 |
