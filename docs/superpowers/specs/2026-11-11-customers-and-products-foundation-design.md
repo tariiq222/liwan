@@ -94,12 +94,14 @@ Where a later section disagrees, these win. They follow from the approved decisi
 
 Where a later section disagrees, these win.
 
-30. One tax mode serves every application and lives in the company settings, next to VAT registration. `liwan_payments` and the Meta catalog lose their own settings for it. This closes the open point of section 10.
+30. One tax mode serves every application and is chosen in the company settings: no tax, price includes tax, or tax added to the price. The first is the company's VAT registration; the other two are stock Odoo's own company setting, which every order and invoice line follows without LiwanOS tax code, and which stock locks after the company's first invoice. `liwan_payments` and the Meta catalog lose their own settings, and the order service loses its tax copies. This closes the open point of section 10 and replaces "computed as today" in decision 7 and the last sentence of section 4.6.
 31. The Meta catalog moves into `liwan_inbox` itself, which then depends on `liwan_products`. Section 4.7 said a bridge; the carts in `liwan_inbox_payments` read the catalog models, and a bridge cannot depend on a bridge.
 32. The tax bridge `liwan_products_account` stays as section 4.6 describes, and the bridge tooling learns that a bridge may link one LiwanOS module to one stock module.
 33. An application picks an existing product. Creating or pricing one needs `products.manage` or `products.prices.manage`, which each application grants to its own built-in manager role.
 34. A finance invoice line may name a product. `liwan_finance` becomes a consumer of the service.
 35. Renaming a booking type no longer renames its product.
+36. A product of a registered company takes the company's default sale tax and can be given another. "No tax" on such a product is stored as a zero-rated or exempt tax, which a ZATCA line requires. A product may carry more than one tax; excise is built when a tenant needs it.
+37. The price function returns the amount before tax, the tax and the total, and a surface a customer sees shows the total. The Meta catalog reads it and computes no price of its own.
 
 This design implements the 2026-11-06 decision on one customer record.
 
@@ -415,7 +417,7 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 | --- | --- | --- |
 | Capacity | Not measured. The pass mark is in the [hosting contract](liwan-shared-saas-and-sovereign-deployment.md) | The load test planned there |
 | Currency and pricelists in the order service | Not reviewed | A read before pricelists or `liwan_orders` are designed |
-| Where the tax mode lives for a tenant with finance and no online payments | Decided on 2026-11-13: the company settings (decision 30) | Built in PR 1 of the products plan |
+| Where the tax mode lives for a tenant with finance and no online payments | Decided on 2026-11-13: the company settings, on stock's own field (decision 30) | Built in PR 1 of the products plan |
 | What stock Odoo does with product field values when the category changes | Not reviewed | The products plan |
 | How far the OCA booking link can carry several offers per service | Not reviewed | The appointments plan |
 | A group of separate legal companies in one tenant | Outside this design (section 7) | An owner decision if a customer needs it |
