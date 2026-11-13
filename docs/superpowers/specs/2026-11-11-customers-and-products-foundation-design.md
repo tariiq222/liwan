@@ -1,6 +1,6 @@
 # Customers and products foundation design
 
-Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2, and the owner approved them on 2026-11-12. Of this design, PR 1 of the [customers plan](../plans/2026-11-12-liwan-customers.md) is on `main` since `74a8ed6b5` (2026-11-13): `liwan_customers` with its three creators. PR 2 (the directory, the settings page and customer fields) is on `main` since `969c3e66c` (2026-11-13). PRs 3 to 5 of that plan and all of `liwan_products` are not built. On 2026-11-13 the owner named the product service `liwan_products` (section 2.5). The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
+Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2, and the owner approved them on 2026-11-12. Of this design, PR 1 of the [customers plan](../plans/2026-11-12-liwan-customers.md) is on `main` since `74a8ed6b5` (2026-11-13): `liwan_customers` with its three creators. PR 2 (the directory, the settings page and customer fields) is on `main` since `969c3e66c` (2026-11-13). PRs 3 to 5 of that plan and all of `liwan_products` are not built. On 2026-11-13 the owner named the product service `liwan_products` (section 2.5); the owner decided the open points of its [implementation plan](../plans/2026-11-13-liwan-products.md) the same day (section 2.6). The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
 
 This file records the design. It does not change the rules in [AGENTS.md](../../../AGENTS.md). [repository-layout.md](../../agents/repository-layout.md) and `tools/arch_layers.json` change in the pull requests that build it.
 
@@ -89,6 +89,17 @@ Where a later section disagrees, these win. They follow from the approved decisi
 
 28. The product service is `liwan_products`, shown as "Products and services" (Arabic: «المنتجات والخدمات»). It was `liwan_catalog` in earlier versions of this file. Its routes are under `/api/v1/products`, its capabilities are `products.read`, `products.manage`, `products.prices.manage` and `products.settings.manage`, its tax bridge is `liwan_products_account` and its sharing setting is "Product sharing". A product has a type (goods, service or combo); a service is a product of the service type.
 29. "Catalog" means one thing: what a channel publishes from those products, with its publication state, such as the Meta catalog of customer messages (`liwan.inbox.catalog`, `liwan.inbox.catalog.item`, `inbox.catalog`). Those names stay.
+
+### 2.6 Changes approved by the owner on 2026-11-13 with the products plan
+
+Where a later section disagrees, these win.
+
+30. One tax mode serves every application and lives in the company settings, next to VAT registration. `liwan_payments` and the Meta catalog lose their own settings for it. This closes the open point of section 10.
+31. The Meta catalog moves into `liwan_inbox` itself, which then depends on `liwan_products`. Section 4.7 said a bridge; the carts in `liwan_inbox_payments` read the catalog models, and a bridge cannot depend on a bridge.
+32. The tax bridge `liwan_products_account` stays as section 4.6 describes, and the bridge tooling learns that a bridge may link one LiwanOS module to one stock module.
+33. An application picks an existing product. Creating or pricing one needs `products.manage` or `products.prices.manage`, which each application grants to its own built-in manager role.
+34. A finance invoice line may name a product. `liwan_finance` becomes a consumer of the service.
+35. Renaming a booking type no longer renames its product.
 
 This design implements the 2026-11-06 decision on one customer record.
 
@@ -307,7 +318,7 @@ Pricing is a single base price in this phase. Pricelists by branch, customer, ch
 
 ### 4.7 Meta catalog
 
-Publishing a catalog to Meta should not depend on online payments being enabled. The target is a bridge between `liwan_inbox` and `liwan_products` that owns the Meta catalog models, their sync and the public image route, while `liwan_inbox_payments` keeps the carts that become paid orders. This move waits until the product service contract in 4.2 is built, and it must preserve the existing product links and `retailer_id` values that Meta already holds.
+Publishing a catalog to Meta should not depend on online payments being enabled. The target is `liwan_inbox` itself, depending on `liwan_products`: it owns the Meta catalog models, their sync and the public image route behind the `inbox.catalog` sub-feature (decision 31), while `liwan_inbox_payments` keeps the carts that become paid orders. This move waits until the product service contract in 4.2 is built, and it must preserve the existing product links and `retailer_id` values that Meta already holds.
 
 ## 5. Orders
 
@@ -360,7 +371,7 @@ Nothing in the two services assumes a single company beyond one meaning: a recor
 | --- | --- | --- |
 | 1 | `liwan_customers`, with the changes of 3.8 | First, because a customer on the wrong company is wrong data, and the fix removes a `sudo()` case and three creators |
 | 2 | `liwan_products`, with the changes of 4.3 and the tax bridge of 4.6 | Can be built in parallel with step 1. Booking offers are a part of this step that needs its own plan |
-| 3 | Move the Meta catalog to an inbox and products bridge | After step 2 |
+| 3 | Move the Meta catalog into `liwan_inbox` | After step 2 |
 | 4 | `liwan_orders` | With the store |
 
 Steps 1 and 2 share `tools/arch_layers.json`, `tools/arch_documented_sudo.json`, `tools/arch_baseline.json`, `liwan_inbox_payments/__manifest__.py` and `docs/agents/repository-layout.md`; the orchestrator owns those, merges one pull request and rebases the other.
@@ -404,7 +415,7 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 | --- | --- | --- |
 | Capacity | Not measured. The pass mark is in the [hosting contract](liwan-shared-saas-and-sovereign-deployment.md) | The load test planned there |
 | Currency and pricelists in the order service | Not reviewed | A read before pricelists or `liwan_orders` are designed |
-| Where the tax mode lives for a tenant with finance and no online payments | Not decided. It is a `liwan_payments` setting today | The products plan |
+| Where the tax mode lives for a tenant with finance and no online payments | Decided on 2026-11-13: the company settings (decision 30) | Built in PR 1 of the products plan |
 | What stock Odoo does with product field values when the category changes | Not reviewed | The products plan |
 | How far the OCA booking link can carry several offers per service | Not reviewed | The appointments plan |
 | A group of separate legal companies in one tenant | Outside this design (section 7) | An owner decision if a customer needs it |
