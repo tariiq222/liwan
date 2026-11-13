@@ -12,7 +12,11 @@ import { getVendorInvoice } from '../commercial/invoices.js'
 import { confirmBankTransfer, bankTransferInstructions } from '../commercial/bank-transfer.js'
 import { billingSettings, setBillingSettings } from '../commercial/billing-settings.js'
 import { refundEligibility } from '../commercial/settlements.js'
-import { processRefundOutbox, refundCreditNote } from '../commercial/settlements.js'
+import { processRefundOutbox, refundCreditNote, requestInvoiceRefund } from '../commercial/settlements.js'
+import { processFreeBaseLocks } from '../commercial/free-base-lock.js'
+import { generateRenewals } from '../commercial/renewals.js'
+import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import { routesB } from '../commercial/routes-b.js'
 
 const suite = url ? describe : describe.skip
@@ -425,6 +429,41 @@ suite('bank transfer (W5)', () => {
     const { invoice } = await unpaidOrder()
     await expect(bankTransferInstructions(pool, { invoice_id: invoice.id })).rejects.toMatchObject({ status: 409, code: 'bank_account_unavailable' })
   })
+
+  it('drops a vendor-paid customer to the free base when the refund of its transfer is recorded, and bills a priced base at once', async () => {
+    const { customer_id, order, invoice } = await unpaidOrder()
+    await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice) } as never)
+    // Delivered, as the shared worker would leave it.
+    await pool.query(`UPDATE subscriptions s SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',
+      renewal_at=(r.snapshot->>'period_end')::date,revision=s.revision+1 FROM subscription_revisions r WHERE r.id=s.target_revision_id AND s.customer_id=$1`, [customer_id])
+    await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1", [order.id])
+    await pool.query('UPDATE tenants SET post_trial_supported=true,excess_supported=true WHERE id=(SELECT tenant_id FROM customers WHERE id=$1)', [customer_id])
+    const sub = (await pool.query('SELECT s.*,r.snapshot FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.customer_id=$1', [customer_id])).rows[0]
+    const actor = { issuer: 'refund-test', actorUid: 7 }
+    const note = await requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Customer asked within 14 days' })
+    expect((await getVendorInvoice(pool, invoice.id))!.refund.locks_subscription).toBe(true)
+    await refundCreditNote(pool, { adjustment_id: note.id, actor, request: { external_reference: 'TRF-BACK-1', reason: 'Returned by bank transfer' } })
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='subscription.refund_lock_armed' AND subject=$1", [sub.id])).rowCount).toBe(1)
+    const at = new Date(Date.now() + 60_000)
+    await processFreeBaseLocks(pool, { now: at, subscription_id: sub.id })
+    const lock = (await pool.query('SELECT *,period_start::text AS start FROM free_base_locks WHERE subscription_id=$1', [sub.id])).rows[0]
+    expect(lock).toMatchObject({ cause: 'refund', state: 'ordered', start: sub.snapshot.period_start })
+    const lockOrder = (await pool.query('SELECT * FROM orders WHERE id=$1', [lock.order_id])).rows[0]
+    expect(lockOrder).toMatchObject({ kind: 'change', due_now_minor: '0', payment_state: 'not_required' })
+    expect(lockOrder.idempotency_key).toBe(`free-base-lock:${sub.id}:1`)
+    // The lock delivery lands, as the shared worker would apply it.
+    await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE id=$1', [sub.id])
+    await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1", [lockOrder.id])
+    await processFreeBaseLocks(pool, { now: at, subscription_id: sub.id })
+    expect((await pool.query('SELECT state FROM free_base_locks WHERE subscription_id=$1', [sub.id])).rows[0].state).toBe('done')
+    const after = (await pool.query('SELECT state,trial_outcome,renewal_at::text FROM subscriptions WHERE id=$1', [sub.id])).rows[0]
+    // This fixture's plan prices its base, so the locked configuration owes and is billed from the current period, as a trial end is.
+    expect(after).toEqual({ state: 'active', trial_outcome: null, renewal_at: sub.snapshot.period_start })
+    expect((await pool.query("SELECT payload FROM commercial_outbox WHERE kind='free_base.locked' AND aggregate_id=$1", [sub.id])).rows[0].payload)
+      .toMatchObject({ cause: 'refund', outcome: 'free_base' })
+    const [renewal] = await generateRenewals(pool, { now: at, subscription_id: sub.id, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://liwan.test') })
+    expect(renewal).toMatchObject({ kind: 'renewal', due_now: { minor: 9900 } })
+  })
 })
 
 suite('the 14-day refund window (W7)', () => {
@@ -465,7 +504,8 @@ suite('the 14-day refund window (W7)', () => {
     const attemptId = randomUUID()
     await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,updated_at,succeeded_at)
       VALUES($1,$2,$3,'moyasar','live',$4,$5,$6,$7,'succeeded',$8,$8)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt])
-    await pool.query("UPDATE orders SET payment_state='paid',paid_attempt_id=$2 WHERE id=$1", [order.id, attemptId])
+    // Delivered: a paid order still being delivered cannot be refunded yet (`fulfillment_pending`).
+    await pool.query("UPDATE orders SET payment_state='paid',paid_attempt_id=$2,fulfillment_state='applied' WHERE id=$1", [order.id, attemptId])
     await pool.query("UPDATE invoices SET status='paid',paid_at=$2 WHERE id=$1", [invoice.id, paidAt])
     if (!withNote) return { customer_id: id, order, invoice, noteId: null as string | null }
     const noteId = randomUUID()

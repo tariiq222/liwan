@@ -5,6 +5,8 @@ import { transaction } from '../db.js'
 import { routesB } from '../commercial/routes-b.js'
 import { processRefundOutbox, recordFulfillmentFailure, refundCreditNote, requestInvoiceRefund } from '../commercial/settlements.js'
 import { enqueueOutbox } from '../commercial/outbox.js'
+import { getVendorInvoice } from '../commercial/invoices.js'
+import { applyConfirmedEvent } from '../commercial/payments.js'
 import { setup, url } from './commercial-helpers.js'
 
 const suite = url ? describe : describe.skip
@@ -237,5 +239,146 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     await enqueueRefund(f, refundedPayload(f, 11500))
     await processRefundOutbox(pool)
     expect(await totalCredited(f.invoice)).toBe(11500)
+  })
+
+  /**
+   * A delivered first payment of a subscription past its trial: the refund the vendor records drops it to the free base.
+   * `lines` are the invoice's (kind, amount) lines; `state` is the subscription state.
+   */
+  async function deliveredFirstPayment(options: { lines?: [string, number][]; state?: string } = {}) {
+    const lines = options.lines ?? [['bundle', 10000], ['tax', 1500]]
+    const total = lines.reduce((sum, [, amount]) => sum + amount, 0)
+    const customer = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID(), attempt = randomUUID()
+    await transaction(pool, async c => {
+      await c.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, 'Refund lock test'])
+      await c.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [sub, customer])
+      await c.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)',
+        [revision, sub, JSON.stringify({ period_start: '2026-01-01', period_end: '2026-02-01' }), randomUUID()])
+      await c.query('UPDATE subscriptions SET applied_revision_id=$2,state=$3,renewal_at=$4,revision=revision+1 WHERE id=$1', [sub, revision, options.state ?? 'active', '2026-02-01'])
+      await c.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
+        VALUES($1,$2,$3,'new',$4,$5,'paid','applied',$6,'fixture',$7,'SAR',2)`, [order, customer, sub, randomUUID(), revision, randomUUID(), total])
+      await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at,paid_at)
+        VALUES($1,$2,$3,$4,'initial','paid','SAR',2,$5,$6,$7,'2026-01-01','2026-02-01',now(),now())`,
+      [invoice, customer, sub, order, total - (lines.find(([kind]) => kind === 'tax')?.[1] ?? 0), lines.find(([kind]) => kind === 'tax')?.[1] ?? 0, total])
+      for (const [position, [kind, amount]] of lines.entries())
+        await c.query(`INSERT INTO invoice_lines(id,invoice_id,position,key,kind,timing,description,quantity,unit_minor,amount_minor,currency,exponent,period_start,period_end,source_revision_id)
+          VALUES($1,$2,$3,$4,$5,'now','Fixture line',1,$6,$6,'SAR',2,'2026-01-01','2026-02-01',$7)`, [randomUUID(), invoice, position, `${kind}:${position}`, kind, amount, revision])
+      await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
+        VALUES($1,$2,$3,'moyasar','live',$4,$5,'SAR',2,'succeeded',now())`, [attempt, order, invoice, `moy-${attempt}`, total])
+      await c.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [order, attempt])
+    })
+    return { customer, sub, revision, order, invoice, attempt, total }
+  }
+  const lockOf = async (sub: string) => (await pool.query('SELECT *,period_start::text AS start FROM free_base_locks WHERE subscription_id=$1', [sub])).rows[0]
+  const lockAudits = async (sub: string) => (await pool.query("SELECT * FROM audit_events WHERE subject=$1 AND action='subscription.refund_lock_armed'", [sub])).rows
+  const pendingNote = async (invoice: string, cause = 'vendor_refund', minor?: number) => {
+    const id = randomUUID()
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+      SELECT $1,id,customer_id,'credit_note','Fixture note',COALESCE($3,total_minor),currency,exponent,'pending','vendor-test',$4,$2 FROM invoices WHERE id=$5`,
+    [id, cause, minor ?? null, cause === 'vendor_refund' ? 'vendor' : 'system', invoice])
+    return id
+  }
+
+  it('drops the subscription to the free base when the vendor records the refund of the first payment, once per reference', async () => {
+    const f = await deliveredFirstPayment()
+    const note = await askRefund(f.invoice)
+    expect((await getVendorInvoice(pool, f.invoice))!.refund.locks_subscription).toBe(true)
+    await recordRef(note.id, 'MOY-LOCK-1')
+    expect(await lockOf(f.sub)).toMatchObject({ cause: 'refund', state: 'pending', pre_lock_revision_id: f.revision, start: '2026-01-01', trial_ended_at: null })
+    const [armed] = await lockAudits(f.sub)
+    expect(armed.metadata).toEqual({ invoice_id: f.invoice, adjustment_id: note.id })
+    // A retry after a lost response returns the recorded note and arms nothing more.
+    await recordRef(note.id, 'MOY-LOCK-1')
+    expect(await lockAudits(f.sub)).toHaveLength(1)
+  })
+  it('drops on a provider refund only once the provider notes cover the whole invoice', async () => {
+    const f = await deliveredFirstPayment()
+    await enqueueRefund(f, refundedPayload(f, 4000))
+    await processRefundOutbox(pool)
+    const [part] = await notesOf(f.invoice)
+    await recordRef(part.id, 'MOY-PART-1')
+    expect(await lockOf(f.sub)).toBeUndefined()
+    await enqueueRefund(f, refundedPayload(f, f.total))
+    await processRefundOutbox(pool)
+    const rest = (await notesOf(f.invoice)).find(n => n.status === 'pending')
+    expect((await getVendorInvoice(pool, f.invoice))!.refund.locks_subscription).toBe(true)
+    await recordRef(rest.id, 'MOY-REST-1')
+    expect(await lockOf(f.sub)).toMatchObject({ cause: 'refund', state: 'pending' })
+  })
+  it('never drops for a top-up-only invoice, a system note, a trialing subscription or a later payment', async () => {
+    const topup = await deliveredFirstPayment({ lines: [['ai_topup', 5000]] })
+    await recordRef(await pendingNote(topup.invoice), 'MOY-TOPUP-1')
+    expect(await lockOf(topup.sub)).toBeUndefined()
+    for (const cause of ['fulfillment_failure', 'payment_after_cancellation', 'duplicate_payment', 'automatic_refund']) {
+      const f = await deliveredFirstPayment()
+      expect((await getVendorInvoice(pool, f.invoice))!.refund.locks_subscription).toBe(false)
+      await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+        SELECT $1,id,customer_id,'credit_note','System note',total_minor,currency,exponent,'pending','system','system',$2 FROM invoices WHERE id=$3`, [randomUUID(), cause, f.invoice])
+      const [note] = await notesOf(f.invoice)
+      await recordRef(note.id, `MOY-${cause}`)
+      expect(await lockOf(f.sub), cause).toBeUndefined()
+    }
+    const trialing = await deliveredFirstPayment({ state: 'trialing' })
+    await recordRef(await pendingNote(trialing.invoice), 'MOY-TRIAL-1')
+    expect(await lockOf(trialing.sub)).toBeUndefined()
+    // A second payment on the same subscription is not the first: its refund stays with manual review.
+    const f = await deliveredFirstPayment()
+    const second = randomUUID(), secondOrder = randomUUID(), secondAttempt = randomUUID()
+    await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
+      VALUES($1,$2,$3,'change',$4,$5,'paid','applied',$6,'fixture',5000,'SAR',2)`, [secondOrder, f.customer, f.sub, randomUUID(), f.revision, randomUUID()])
+    await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at,paid_at)
+      VALUES($1,$2,$3,$4,'change','paid','SAR',2,5000,0,5000,'2026-01-10','2026-02-01',now(),now())`, [second, f.customer, f.sub, secondOrder])
+    await pool.query(`INSERT INTO invoice_lines(id,invoice_id,position,key,kind,timing,description,quantity,unit_minor,amount_minor,currency,exponent,period_start,period_end,source_revision_id)
+      VALUES($1,$2,0,'users:delta','users','now','Users',1,5000,5000,'SAR',2,'2026-01-10','2026-02-01',$3)`, [randomUUID(), second, f.revision])
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
+      VALUES($1,$2,$3,'moyasar','live',$4,5000,'SAR',2,'succeeded',now() + interval '1 day')`, [secondAttempt, secondOrder, second, `moy-${secondAttempt}`])
+    await pool.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [secondOrder, secondAttempt])
+    await recordRef(await pendingNote(second), 'MOY-SECOND-1')
+    expect(await lockOf(f.sub)).toBeUndefined()
+  })
+  it('refuses to record while an earlier lock order is still being delivered, and records nothing', async () => {
+    const f = await deliveredFirstPayment()
+    await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,trial_ended_at,cause,state,order_id)
+      VALUES($1,$2,'2026-01-01',now(),'trial_end','ordered',$3)`, [f.sub, f.revision, f.order])
+    const note = await askRefund(f.invoice)
+    await expect(recordRef(note.id, 'MOY-ORDERED-1')).rejects.toMatchObject({ status: 409, code: 'lock_pending' })
+    expect((await row(note.id)).status).toBe('pending')
+    expect(await lockOf(f.sub)).toMatchObject({ cause: 'trial_end', state: 'ordered' })
+    expect(await lockAudits(f.sub)).toHaveLength(0)
+  })
+  it('voids the unpaid renewal of the paid configuration when the refund is recorded', async () => {
+    const f = await deliveredFirstPayment({ state: 'past_due' })
+    const renewalOrder = randomUUID(), renewalInvoice = randomUUID()
+    await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
+      VALUES($1,$2,$3,'renewal',$4,$5,'awaiting_payment','not_started',$6,'fixture',11500,'SAR',2)`, [renewalOrder, f.customer, f.sub, randomUUID(), f.revision, randomUUID()])
+    await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
+      VALUES($1,$2,$3,$4,'renewal','issued','SAR',2,10000,1500,11500,'2026-02-01','2026-03-01',now())`, [renewalInvoice, f.customer, f.sub, renewalOrder])
+    await pool.query("INSERT INTO renewals(id,subscription_id,period_start,period_end,invoice_id,order_id) VALUES($1,$2,'2026-02-01','2026-03-01',$3,$4)", [randomUUID(), f.sub, renewalInvoice, renewalOrder])
+    await recordRef((await askRefund(f.invoice)).id, 'MOY-RENEWAL-1')
+    expect((await pool.query('SELECT status FROM invoices WHERE id=$1', [renewalInvoice])).rows[0].status).toBe('void')
+    expect((await pool.query('SELECT cancelled,automatic_refund FROM orders WHERE id=$1', [renewalOrder])).rows[0]).toEqual({ cancelled: true, automatic_refund: true })
+    expect((await pool.query('SELECT status FROM renewals WHERE order_id=$1', [renewalOrder])).rows[0].status).toBe('superseded')
+    expect(await lockOf(f.sub)).toMatchObject({ cause: 'refund', state: 'pending' })
+  })
+  it('turns no provider refund of an order still being delivered into a credit note', async () => {
+    // A provider refund becomes a note only after delivery (`flagRefundAfterFulfillment` returns for any other state);
+    // the vendor's own request waits for delivery too (the next test), so no refund note is recorded while the order is in flight.
+    const f = await deliveredFirstPayment()
+    await pool.query("UPDATE orders SET fulfillment_state='queued' WHERE id=$1", [f.order])
+    const amount = { currency: 'SAR', exponent: 2, minor: f.total }
+    await applyConfirmedEvent(pool, { provider: 'moyasar', event_id: randomUUID(), provider_ref: `moy-${f.attempt}`, payment_id: 'pay-in-flight', attempt_id: f.attempt,
+      merchant_account: 'fixture', live: true, status: 'refunded', amount, refunded: amount, occurred_at: new Date().toISOString() } as never)
+    expect((await pool.query("SELECT 1 FROM commercial_outbox WHERE kind='payment.intervention' AND aggregate_id=$1", [f.order])).rowCount).toBe(0)
+    await processRefundOutbox(pool)
+    expect(await notesOf(f.invoice)).toHaveLength(0)
+    // The provider's money is already back and the order no longer counts as paid, so it is never delivered: nothing paid stays.
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [f.order])).rows[0].payment_state).not.toBe('paid')
+    expect(await lockOf(f.sub)).toBeUndefined()
+  })
+  it('refuses to open the refund of a paid order that is still being delivered', async () => {
+    const f = await deliveredFirstPayment()
+    await pool.query("UPDATE orders SET fulfillment_state='queued' WHERE id=$1", [f.order])
+    await expect(askRefund(f.invoice)).rejects.toMatchObject({ status: 409, code: 'fulfillment_pending' })
+    expect(await notesOf(f.invoice)).toHaveLength(0)
   })
 })

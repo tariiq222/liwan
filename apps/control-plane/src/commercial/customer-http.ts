@@ -19,7 +19,7 @@ import { getRelease } from './catalog-releases.js'
 import { bankTransferInstructions } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { trialEndPreview } from './trial-preview.js'
-import { retryTrialLapse } from './trial-lapse.js'
+import { retryFreeBaseLock } from './free-base-lock.js'
 import { getUsage } from './usage.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import { aiTopupCatalog } from './ai-billing-settings.js'
@@ -120,7 +120,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if (m==='POST' && path==='/trial/retry') {
     requireCapability(principal,'subscription.manage')
     parseBody(input.raw,z.strictObject({}))
-    await retryTrialLapse(pool,{customer_id:customerId,now:new Date(),adapter:runtime?.adapter ?? undefined})
+    await retryFreeBaseLock(pool,{customer_id:customerId,now:new Date(),adapter:runtime?.adapter ?? undefined})
     return {status:200,data:await trialEndPreview(pool, customerId)}
   }
   if (m==='POST' && path==='/trial/convert') {requireCapability(principal,'subscription.manage');const payment=needPayment(runtime);return {status:201,data:await convertTrial(pool,{customer_id:customerId,now:new Date(),adapter:payment.adapter,returnOrigin:payment.returnOrigin})}}

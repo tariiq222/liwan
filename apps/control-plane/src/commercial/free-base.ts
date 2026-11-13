@@ -25,14 +25,14 @@ export function owesAtRenewal(pricing: Pricing | undefined | null): boolean {
     + pricing.paid_users * pricing.user_unit_minor + pricing.paid_storage_gb * pricing.storage_unit_minor > 0
 }
 
-/** A recorded lapse blocks pricing and renewals until the lock receipt settles it. */
-export const holdsTrialAfterLapseSql = (subscription: string) => `EXISTS (SELECT 1 FROM trial_lapses tl WHERE tl.subscription_id=${subscription}.id
-  AND tl.state IN ('pending','ordered'))`
+/** An armed free-base lock blocks pricing and renewals until the lock receipt settles it. */
+export const holdsFreeBaseLockSql = (subscription: string) => `EXISTS (SELECT 1 FROM free_base_locks fbl WHERE fbl.subscription_id=${subscription}.id
+  AND fbl.state IN ('pending','ordered'))`
 
-export async function unresolvedLapse(client: Pick<PoolClient, 'query'>, subscription: { id: string }): Promise<{ period_start: string } | null> {
-  const lapse = (await client.query("SELECT period_start::text AS period_start FROM trial_lapses WHERE subscription_id=$1 AND state IN ('pending','ordered')",
+export async function unresolvedFreeBaseLock(client: Pick<PoolClient, 'query'>, subscription: { id: string }): Promise<{ period_start: string } | null> {
+  const lock = (await client.query("SELECT period_start::text AS period_start FROM free_base_locks WHERE subscription_id=$1 AND state IN ('pending','ordered')",
     [subscription.id])).rows[0]
-  return lapse ?? null
+  return lock ?? null
 }
 
 /** `owesAtRenewal` as SQL over a pricing jsonb expression, for lists that cannot call the function. */
@@ -91,12 +91,12 @@ export function compilePurchasedEntitlement(input: Parameters<typeof compileEnti
 }
 
 /** Queue one zero-due lock; the separately generated renewal is the only payable order. */
-export async function orderTrialLock(client: PoolClient, input: {
+export async function orderFreeBaseLock(client: PoolClient, input: {
   subscription: Record<string, any>; snapshot: Record<string, any>; lock: TrialEnd; attempt: number
 }) {
   const { subscription, snapshot, lock } = input
   const { quote, entitlement } = lock
-  const key = `trial-lapse:${subscription.id}:${input.attempt}`
+  const key = `free-base-lock:${subscription.id}:${input.attempt}`
   const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...previous } = snapshot
   const next = { ...previous, bundle_revision_ids: quote.bundle_revision_ids, terms_revision_id: quote.terms_revision_id,
     period_start: lock.start, period_end: lock.end, included_extra_branches: lock.included,

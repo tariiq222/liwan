@@ -50,11 +50,11 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
       options.paid ? 100 : 0, beforeCutoff, options.journal === 'prewrite' ? 'tenant_binding_mismatch' : 'observed_mismatch'])
     const job: SharedReconfigureJob = {
       schemaVersion: 1, operation: 'reconfigure', requestId: operation, controlTenantId: f.tenant, host: f.host, binding: f.binding,
-      ...(options.prefix === 'trial-lapse' ? { origin: 'trial-end' as const } : {}),
+      ...(options.prefix === 'free-base-lock' ? { origin: 'trial-end' as const } : {}),
       authority: {
         order_id: orderId, operation_id: operation, previous_revision_id: f.applied, target_revision_id: target, entitlement,
         branches: { apply: [], archive: options.branch ? [randomUUID()] : [] },
-        ...(options.plain ? {} : options.prefix === 'trial-lapse' ? { trial_ends_at: null, excess_settle: true as const } : {
+        ...(options.plain ? {} : options.prefix === 'free-base-lock' ? { trial_ends_at: null, excess_settle: true as const } : {
           trial_ends_at: cutoff, post_trial_features: entitlement.features, post_trial_modules: entitlement.modules, post_trial_digest: 'e'.repeat(64),
         }),
       },
@@ -80,12 +80,12 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
     const f = await fixture()
     const b = await order(f, { prefix: 'paid-trial-change', revision: 2, digit: 'b', paid: true, journal: 'possible' })
     await target(f, b.target)
-    await pool.query("INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,ended_at,state) VALUES($1,$2,'2026-11-19',$3,'pending')", [f.subscription, f.applied, cutoff])
+    await pool.query("INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,trial_ended_at,cause,state) VALUES($1,$2,'2026-11-19',$3,'trial_end','pending')", [f.subscription, f.applied, cutoff])
     await recoverPaidFulfillment(pool, recoveryTime)
     expect(await state(b.orderId)).toMatchObject({ payment_state: 'refund_pending', cancelled: true })
-    const c = await order(f, { prefix: 'trial-lapse', revision: 3, digit: 'c' })
+    const c = await order(f, { prefix: 'free-base-lock', revision: 3, digit: 'c' })
     await target(f, c.target)
-    await pool.query("UPDATE trial_lapses SET state='ordered',order_id=$2 WHERE subscription_id=$1", [f.subscription, c.orderId])
+    await pool.query("UPDATE free_base_locks SET state='ordered',order_id=$2 WHERE subscription_id=$1", [f.subscription, c.orderId])
 
     const predecessors = await recoverableTrialPredecessors(pool, c.orderId)
     expect(predecessors).toEqual([{ revision_id: b.target, digest: 'b'.repeat(64) }, { revision_id: b.target, digest: 'e'.repeat(64) }])
@@ -101,7 +101,7 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
     await pool.query('UPDATE fulfillment_effects SET job_id=$2 WHERE order_id=$1', [c.orderId, recorded.id])
     await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1", [c.orderId])
     await pool.query('UPDATE subscriptions SET applied_revision_id=$2,target_revision_id=NULL,revision=revision+1 WHERE id=$1', [f.subscription, c.target])
-    await pool.query("UPDATE trial_lapses SET state='done' WHERE subscription_id=$1", [f.subscription])
+    await pool.query("UPDATE free_base_locks SET state='done' WHERE subscription_id=$1", [f.subscription])
     await expect(transaction(pool, tx => assertReconfigureAuthority(tx, exact))).rejects.toThrow('recovery_predecessor_invalid')
     await pool.query('UPDATE fulfillment_effects SET receipt=$2,observed_digest=$3,applied_at=now() WHERE order_id=$1',
       [c.orderId, { order_id: c.orderId, database: f.binding.database, target_revision_id: c.target,
@@ -159,7 +159,7 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
     const f = await fixture()
     const b = await order(f, { prefix: 'paid-trial-change', revision: 2, digit: 'b', paid: true, journal: 'possible', provider: 'bank_transfer' })
     await target(f, b.target)
-    await pool.query("INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,ended_at,state) VALUES($1,$2,'2026-11-19',$3,'pending')", [f.subscription, f.applied, cutoff])
+    await pool.query("INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,trial_ended_at,cause,state) VALUES($1,$2,'2026-11-19',$3,'trial_end','pending')", [f.subscription, f.applied, cutoff])
     await recoverPaidFulfillment(pool, recoveryTime)
     expect(await state(b.orderId)).toMatchObject({ payment_state: 'refund_pending', cancelled: true })
     const note = (await pool.query("SELECT ia.id FROM invoice_adjustments ia JOIN invoices i ON i.id=ia.invoice_id WHERE i.order_id=$1 AND ia.status='pending'", [b.orderId])).rows[0]
@@ -192,7 +192,7 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
     const f = await fixture()
     const b = await order(f, { prefix: 'paid-trial-change', revision: 2, digit: 'b', paid: true, journal: 'possible', provider: 'bank_transfer' })
     await target(f, b.target)
-    await pool.query("INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,ended_at,state) VALUES($1,$2,'2026-11-19',$3,'pending')", [f.subscription, f.applied, cutoff])
+    await pool.query("INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,trial_ended_at,cause,state) VALUES($1,$2,'2026-11-19',$3,'trial_end','pending')", [f.subscription, f.applied, cutoff])
     await pool.query("INSERT INTO renewals(id,subscription_id,period_start,period_end,order_id,status) VALUES($1,$2,'2026-11-19','2026-12-19',$3,'paid')", [randomUUID(), f.subscription, b.orderId])
     await recoverPaidFulfillment(pool, recoveryTime)
     expect(await state(b.orderId)).toMatchObject({ payment_state: 'refund_pending', cancelled: true })

@@ -127,7 +127,7 @@ describe('customer glance helpers', () => {
 })
 
 describe('refund request', () => {
-  const refund = (o: Partial<VendorInvoice['refund']> = {}) => ({ refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, ...o })
+  const refund = (o: Partial<VendorInvoice['refund']> = {}) => ({ refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false, ...o })
   const note = (o: Partial<Adjustment> = {}) => ({ id: 'n', kind: 'credit_note', origin: 'vendor', status: 'pending', ...o }) as Adjustment
   it('is open only for a refundable payment with no vendor note yet', () => {
     expect(refundRequestBlock({ refund: refund(), adjustments: [] })).toBeNull()

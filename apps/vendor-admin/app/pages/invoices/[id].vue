@@ -88,6 +88,9 @@ const refundReason = ref('')
 const refundBusy = ref(false)
 const refundFailure = ref<string | undefined>()
 const refundValid = computed(() => validRefundDraft({ reference: refundReference.value, reason: refundReason.value }))
+// The server says whether recording this refund drops the subscription to the free base (the customer's first payment).
+const recordRefundDescription = computed(() => data.value?.refund.locks_subscription
+  ? `${t('vendor.invoices.refund.description')} ${t('vendor.invoices.refund.dropsToFreeBase')}` : t('vendor.invoices.refund.description'))
 // A bank transfer the vendor saw arrive: reference, the exact amount and the day the money reached the account.
 const transferOpen = ref(false)
 const transferReference = ref('')
@@ -225,7 +228,7 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
             <div><dt class="text-muted">{{ t('vendor.invoices.refund.by') }}</dt><dd><bdi dir="ltr">{{ note.refunded_by }}</bdi></dd></div>
           </dl>
           <template v-if="canBilling && note.kind === 'credit_note' && note.status === 'pending'">
-            <SharedInlineConfirm v-if="refundNoteId === note.id && canRecordRefund" :title="t('vendor.invoices.refund.title')" :description="t('vendor.invoices.refund.description')" :confirm-label="t('vendor.invoices.refund.confirm')" :pending="refundBusy" :disabled="!hydrated || refundBusy || !refundValid" @confirm="recordRefund" @cancel="closeRefund">
+            <SharedInlineConfirm v-if="refundNoteId === note.id && canRecordRefund" :title="t('vendor.invoices.refund.title')" :description="recordRefundDescription" :confirm-label="t('vendor.invoices.refund.confirm')" :pending="refundBusy" :disabled="!hydrated || refundBusy || !refundValid" @confirm="recordRefund" @cancel="closeRefund">
               <div class="mt-3 space-y-4">
                 <UFormField :label="t('vendor.invoices.refund.reference')" :help="t('vendor.invoices.refund.referenceHint')" required><UInput v-model="refundReference" :maxlength="200" dir="ltr" :disabled="!hydrated || refundBusy" class="w-full" /></UFormField>
                 <UFormField :label="t('vendor.invoices.refund.reason')" required><UTextarea v-model="refundReason" :maxlength="1000" :disabled="!hydrated || refundBusy" class="w-full" /></UFormField>

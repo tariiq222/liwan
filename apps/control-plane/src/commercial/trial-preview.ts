@@ -8,19 +8,21 @@ import { CommercialHttpError } from './lifecycle.js'
 const MB = 1024 * 1024
 
 export async function trialEndPreview(pool: Pool, customerId: string, now = new Date()): Promise<TrialEndPreview> {
-  const row = (await pool.query(`SELECT s.*,l.state AS lapse_state,l.ended_at,l.period_start::text AS lapse_start,
-      l.next_attempt_at,l.force_empty,l.kept,l.order_id,
-      r.snapshot,old.snapshot AS before_lapse
+  const row = (await pool.query(`SELECT s.*,l.state AS lock_state,l.trial_ended_at AS lock_trial_ended_at,l.period_start::text AS lock_start,
+      l.next_attempt_at,l.cause AS lock_cause,l.kept,l.order_id,
+      r.snapshot,old.snapshot AS before_lock
     FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
-    LEFT JOIN trial_lapses l ON l.subscription_id=s.id AND l.state<>'superseded'
-    LEFT JOIN subscription_revisions old ON old.id=l.trial_revision_id WHERE s.customer_id=$1`, [customerId])).rows[0]
-  const cutoff = row?.ended_at ?? row?.trial_ended_at ?? row?.trial_ends_at
+    LEFT JOIN free_base_locks l ON l.subscription_id=s.id AND l.state<>'superseded'
+    LEFT JOIN subscription_revisions old ON old.id=l.pre_lock_revision_id WHERE s.customer_id=$1`, [customerId])).rows[0]
+  const cutoff = row?.lock_trial_ended_at ?? row?.trial_ended_at ?? row?.trial_ends_at
   if (!cutoff) throw new CommercialHttpError('trial_not_active', 404)
-  const settled = row.lapse_state === 'done' || row.trial_outcome === 'converted'
-  const status = settled ? 'settled' : row.lapse_state ? 'lock_pending' : new Date(cutoff) <= now ? 'trial_ending' : 'trialing'
-  const start = row.lapse_start ?? riyadhDate(cutoff)
-  const snapshot = row.before_lapse ?? row.snapshot
-  const lock = await keptAtTrialEnd(pool, { subscription: row, snapshot, cutoff, start, forceEmpty: row.force_empty })
+  const settled = row.lock_state === 'done' || row.trial_outcome === 'converted'
+  const status = settled ? 'settled' : row.lock_state ? 'lock_pending' : new Date(cutoff) <= now ? 'trial_ending' : 'trialing'
+  const start = row.lock_start ?? riyadhDate(cutoff)
+  // A refund lock replaces the configuration applied when the refund was recorded, and keeps what is still paid now.
+  const refund = row.lock_cause === 'refund'
+  const snapshot = refund ? row.snapshot : row.before_lock ?? row.snapshot
+  const lock = await keptAtTrialEnd(pool, { subscription: row, snapshot, cutoff: refund ? now : cutoff, start, forceEmpty: row.lock_cause === 'first_invoice_unpaid' })
   const convertedApplied = row.trial_outcome === 'converted' && row.trial_ends_at === null
   let kept = row.kept?.kept ?? lock.ledger.kept
   let limits = { users: lock.quote.requested_users, storage_mb: lock.quote.requested_storage_mb, extra_branches: lock.quote.requested_extra_branches }
@@ -56,7 +58,7 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
     limits,
     excess: {
       users: available && totalUsers != null ? Math.max(0, totalUsers - limits.users) : null,
-      storage_bytes: row.lapse_state === 'done' || convertedApplied ? blocked
+      storage_bytes: row.lock_state === 'done' || convertedApplied ? blocked
         : storageBytes == null ? null : Math.max(0, storageBytes - limits.storage_mb * MB),
       extra_branches: Math.max(0, lock.liveBranches - limits.extra_branches),
       sampled_at: usage.observed_at, source: available ? 'usage_snapshot' : 'unavailable', item_details: 'unavailable',

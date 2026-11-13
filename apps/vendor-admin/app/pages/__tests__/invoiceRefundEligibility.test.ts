@@ -27,13 +27,13 @@ const makeInvoice = (tax_label: string | null = null) => ({ id: 'invoice1', orde
   tax_label, period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [] })
 const invoice = makeInvoice()
 const { tax_label: _taxLabel, ...withoutTaxLabel } = invoice
-const refundable = { refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14 }
+const refundable = { refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false }
 /** A refund the vendor requested because the customer asked inside the window. */
 const creditNote = { id: 'note1', invoice_id: invoice.id, customer_id: 'customer1', kind: 'credit_note', origin: 'vendor', reason: 'Customer asked for the refund on day 3', amount: money, status: 'pending', created_at: '2026-10-04T12:34:00Z', created_by: 'account:7', refund_reference: null, refunded_at: null, refunded_by: null }
 /** A duplicate payment the system found: it has no window, so it must be recordable at any date. */
 const systemNote = { ...creditNote, id: 'note2', origin: 'system', reason: 'Duplicate charge for the same invoice', created_by: 'system' }
 
-type Refundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number }
+type Refundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number; locks_subscription: boolean }
 
 type Options = {
   overrides?: Partial<typeof invoice>
@@ -106,6 +106,16 @@ describe('invoice refund eligibility', () => {
     expect(captured.some(c => c.props['data-testid'] === 'refund-ineligible')).toBe(false)
   })
 
+  it('warns in the record confirmation that the refund drops the subscription to the free base, only when the server says so', async () => {
+    const confirmation = async (refund: Refundability) => {
+      const p = await page({ adjustments: [creditNote], refund })
+      p.state.openRefund(creditNote.id)
+      return (await p.rendered()).captured.find(c => c.name === 'SharedInlineConfirm')?.props.description
+    }
+    expect(await confirmation({ ...refundable, locks_subscription: true })).toBe('vendor.invoices.refund.description vendor.invoices.refund.dropsToFreeBase')
+    expect(await confirmation(refundable)).toBe('vendor.invoices.refund.description')
+  })
+
   it('states the refund eligibility even when the invoice has no adjustments', async () => {
     const { captured } = await (await page({ refund: refundable })).rendered()
     expect(captured.some(c => c.props['data-testid'] === 'refund-window')).toBe(true)
@@ -141,8 +151,8 @@ describe('invoice refund eligibility', () => {
 
 type Captured = { name: string; props: Record<string, unknown> }[]
 const byTestId = (captured: Captured, id: string) => captured.find(c => c.props['data-testid'] === id)
-const closed: Refundability = { refundable: false, first_payment: true, until: '2026-01-02T23:59:59+03:00', window_days: 14 }
-const later: Refundability = { refundable: false, first_payment: false, until: null, window_days: 14 }
+const closed: Refundability = { refundable: false, first_payment: true, until: '2026-01-02T23:59:59+03:00', window_days: 14, locks_subscription: false }
+const later: Refundability = { refundable: false, first_payment: false, until: null, window_days: 14, locks_subscription: false }
 const refundedVendorNote = { ...creditNote, status: 'refunded', refund_reference: 'MOY-REFUND-77', refunded_at: '2026-10-05T08:00:00Z', refunded_by: 'account:7' }
 
 describe('requesting the refund of a paid invoice', () => {

@@ -37,7 +37,7 @@ function vendorInvoice(invoice) {
   if (!invoice) return invoice
   const paid = invoice.status === 'paid' && invoice.paid_at
   const until = paid ? `${new Date(Date.parse(invoice.paid_at) + REFUND_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)}T23:59:59+03:00` : null
-  return { ...invoice, adjustments: [], refund: { refundable: Boolean(paid), first_payment: Boolean(paid), until, window_days: REFUND_WINDOW_DAYS } }
+  return { ...invoice, adjustments: [], refund: { refundable: Boolean(paid), first_payment: Boolean(paid), until, window_days: REFUND_WINDOW_DAYS, locks_subscription: false } }
 }
 
 /** Workspace name and owning customer, resolved for display the way the control plane does. */

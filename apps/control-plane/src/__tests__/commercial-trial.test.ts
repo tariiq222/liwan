@@ -9,7 +9,7 @@ import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { expireTrials } from '../commercial/trial-expiry.js'
 import { generateRenewals } from '../commercial/renewals.js'
-import { processTrialLapses } from '../commercial/trial-lapse.js'
+import { processFreeBaseLocks } from '../commercial/free-base-lock.js'
 import { applyReceipt, commercialValidUntil } from '../commercial/fulfillment.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { sendTrialNotices } from '../commercial/trial-notices.js'
@@ -96,14 +96,14 @@ suite('commercial trial', () => {
     return c
   }
   async function finishLapse(subscriptionId: string) {
-    await processTrialLapses(pool, { now, subscription_id: subscriptionId })
-    const order = (await pool.query(`SELECT o.*,r.snapshot FROM trial_lapses l JOIN orders o ON o.id=l.order_id
+    await processFreeBaseLocks(pool, { now, subscription_id: subscriptionId })
+    const order = (await pool.query(`SELECT o.*,r.snapshot FROM free_base_locks l JOIN orders o ON o.id=l.order_id
       JOIN subscription_revisions r ON r.id=o.target_revision_id WHERE l.subscription_id=$1`, [subscriptionId])).rows[0]
     await pool.query('INSERT INTO fulfillment_effects(id,order_id,operation_id) VALUES($1,$2,$3)', [randomUUID(), order.id, randomUUID()])
     await applyReceipt(pool, { order_id: order.id, receipt: { order_id: order.id, tenant_id: order.snapshot.tenant_id,
       target_revision_id: order.target_revision_id, observed_entitlement_digest: order.snapshot.entitlement.digest,
       observed_at: now.toISOString(), branch_bindings: [] } })
-    await processTrialLapses(pool, { now, subscription_id: subscriptionId })
+    await processFreeBaseLocks(pool, { now, subscription_id: subscriptionId })
   }
 
   it('issues the paid base first renewal only after the lapse lock applies', async () => {
@@ -219,7 +219,7 @@ suite('commercial trial', () => {
     const args = { now, subscription_id: sub.id }
     await expireTrials(pool, args)
     await expireTrials(pool, args)
-    expect((await pool.query('SELECT 1 FROM trial_lapses WHERE subscription_id=$1', [sub.id])).rowCount).toBe(1)
+    expect((await pool.query('SELECT 1 FROM free_base_locks WHERE subscription_id=$1', [sub.id])).rowCount).toBe(1)
     expect((await pool.query('SELECT 1 FROM invoices WHERE customer_id=$1', [c.id])).rowCount).toBe(0)
   })
   it('does not end a trial before its end date', async () => {
@@ -270,7 +270,7 @@ suite('commercial trial', () => {
     expect((await getSubscription(pool, c.id)).state).toBe('active')
     expect((await pool.query('SELECT 1 FROM invoices WHERE customer_id=$1', [c.id])).rowCount).toBe(0)
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.ended' AND subject=$1", [sub.id])).rowCount).toBe(1)
-    expect((await pool.query('SELECT state FROM trial_lapses WHERE subscription_id=$1', [sub.id])).rows[0].state).toBe('pending')
+    expect((await pool.query('SELECT state FROM free_base_locks WHERE subscription_id=$1', [sub.id])).rows[0].state).toBe('pending')
   })
   it('converts a trial on demand and issues the first invoice with a hosted attempt', async () => {
     // A different, lexicographically lower subscription is due in the same renewal pass. Its order

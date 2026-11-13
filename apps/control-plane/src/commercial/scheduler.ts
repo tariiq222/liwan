@@ -7,7 +7,7 @@ import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
-import { processTrialLapses } from './trial-lapse.js'
+import { processFreeBaseLocks } from './free-base-lock.js'
 import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
@@ -145,7 +145,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         lastBilling = now
         await job('trial-expiry', () => expireTrials(pool, { now: new Date(now) }))
         const adapter = o.paymentAdapter
-        await job('trial-lapse', () => processTrialLapses(pool, { now: new Date(now), adapter }))
+        await job('free-base-lock', () => processFreeBaseLocks(pool, { now: new Date(now), adapter }))
         if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))

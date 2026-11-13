@@ -17,6 +17,8 @@ export const subscriptionRevisionSchema = z.strictObject({
   entitlement: entitlementSnapshotSchema, quote_id: z.string().min(1), created_at: z.string(),
 })
 export const trialOutcomeSchema = z.enum(['converted', 'kept_subset', 'free_base'])
+/** Why a subscription is being dropped to the free base: its trial ended, its first post-trial invoice went unpaid, or its first payment was refunded. */
+export const freeBaseLockCauseSchema = z.enum(['trial_end', 'first_invoice_unpaid', 'refund'])
 export const subscriptionViewSchema = z.strictObject({
   id: z.string().min(1), customer_id: z.string().min(1), tenant_id: z.string().nullable(),
   state: subscriptionStateSchema,
@@ -30,8 +32,9 @@ export const subscriptionViewSchema = z.strictObject({
   trial_ends_at: z.string().nullable(), grace_ends_at: z.string().nullable(),
   trial_outcome: trialOutcomeSchema.nullable().optional(),
   trial_reopenable: z.boolean().optional(),
-  // The trial ended but its lock settlement (pending/ordered lapse) has not finished; trial_ends_at is already cleared.
-  trial_lapse_pending: z.boolean().optional(),
+  // The cause of a free-base lock whose settlement (pending or ordered) has not finished; null when none is armed. After a
+  // trial end, trial_ends_at is already cleared while it runs.
+  pending_free_base_lock: freeBaseLockCauseSchema.nullable().optional(),
 })
 
 const quantity = z.number().int().nonnegative()
@@ -55,6 +58,7 @@ export type TrialEndPreview = z.infer<typeof trialEndPreviewSchema>
 export type SubscriptionState = z.infer<typeof subscriptionStateSchema>
 export type SubscriptionRevision = z.infer<typeof subscriptionRevisionSchema>
 export type SubscriptionView = z.infer<typeof subscriptionViewSchema>
+export type FreeBaseLockCause = z.infer<typeof freeBaseLockCauseSchema>
 
 /** UI label keys → بانتظار الدفع / جارٍ التفعيل / مفعّل / تعذر التنفيذ. `inactive` = suspended/cancelled. */
 export type SubscriptionDisplayState = 'awaiting_payment' | 'activating' | 'active' | 'failed' | 'inactive'

@@ -7,6 +7,7 @@ import {
   type AppliedOrder, type BookAt, type Period, type PricingBaseline, type Timelines,
 } from './analytics-model.js'
 import { CommercialHttpError } from './lifecycle.js'
+import { creditedMinorSql } from './refund-credit.js'
 import { usageOf, type SnapshotRow } from './usage.js'
 
 const FALLBACK_CURRENCY = { currency: 'SAR', exponent: 2 }
@@ -40,18 +41,19 @@ async function liveSubscriptions(db: Ask): Promise<Live[]> {
 /** Every applied order of every subscription, whatever its state today, priced from its revision. Orders in other currencies than the book's are dropped and counted. */
 async function loadBook(db: Ask): Promise<Book> {
   const rows = (await db.query(
-    `SELECT o.subscription_id, s.state, COALESCE(s.trial_ends_at, lapse.ended_at) AS trial_ends_at, o.currency, o.exponent, COALESCE(fe.applied_at, o.effective_at, o.created_at) AS applied_at,
+    `SELECT o.subscription_id, s.state, COALESCE(s.trial_ends_at, fbl.trial_ended_at) AS trial_ends_at, o.currency, o.exponent, COALESCE(fe.applied_at, o.effective_at, o.created_at) AS applied_at,
             r.snapshot->'pricing' AS pricing, r.snapshot->'cadence' AS cadence, p.plan_id, p.name AS plan_name
        FROM orders o
        JOIN subscriptions s ON s.id = o.subscription_id
        JOIN subscription_revisions r ON r.id = o.target_revision_id
        JOIN plan_revisions p ON p.id = (r.snapshot->>'plan_revision_id')::uuid
        LEFT JOIN fulfillment_effects fe ON fe.order_id = o.id
-       LEFT JOIN trial_lapses lapse ON lapse.subscription_id = o.subscription_id AND lapse.state <> 'superseded'
+       LEFT JOIN free_base_locks fbl ON fbl.subscription_id = o.subscription_id AND fbl.state <> 'superseded'
       WHERE o.fulfillment_state = 'applied' AND NOT o.cancelled AND r.snapshot->'pricing' IS NOT NULL
-        -- A trial that lapsed never billed what it was configured with, paid upgrades included (their snapshot still holds the unpaid
-        -- trial apps): what was applied up to the lapse is not revenue. The lock order carries the kept items and is booked from the trial boundary.
-        AND NOT EXISTS (SELECT 1 FROM trial_lapses l WHERE l.subscription_id = o.subscription_id AND COALESCE(fe.applied_at, o.effective_at, o.created_at) <= l.lapsed_at)
+        -- A subscription dropped to the free base never billed what it was configured with, paid upgrades included (their snapshot still
+        -- holds the unpaid or refunded apps): what was applied up to the lock is not revenue. The lock order carries the kept items and is
+        -- booked from the moment the lock was armed.
+        AND NOT EXISTS (SELECT 1 FROM free_base_locks l WHERE l.subscription_id = o.subscription_id AND COALESCE(fe.applied_at, o.effective_at, o.created_at) <= l.armed_at)
       ORDER BY o.subscription_id, r.revision`)).rows
   const tally = new Map<string, { n: number, exponent: number }>()
   for (const row of rows) tally.set(row.currency, { n: (tally.get(row.currency)?.n ?? 0) + 1, exponent: row.exponent })
@@ -76,7 +78,8 @@ async function collection(db: Ask, unit: Money, period: Period) {
   const { start, end } = periodBounds(period)
   const from = new Date(start), to = new Date(end)
   const flow = (await db.query(
-    `SELECT COALESCE(SUM(subtotal_minor) FILTER (WHERE status = 'paid' AND paid_at >= $1 AND paid_at < $2), 0) AS collected,
+    // An invoice credited in full was given back: it collected nothing.
+    `SELECT COALESCE(SUM(subtotal_minor) FILTER (WHERE status = 'paid' AND paid_at >= $1 AND paid_at < $2 AND total_minor > ${creditedMinorSql('invoices.id')}), 0) AS collected,
             AVG(EXTRACT(EPOCH FROM paid_at - issued_at)) FILTER (WHERE status = 'paid' AND paid_at >= $1 AND paid_at < $2 AND issued_at IS NOT NULL AND paid_at >= issued_at) AS pay_seconds
        FROM invoices WHERE currency = $3`, [from, to, unit.currency])).rows[0]
   const open = (await db.query(
@@ -104,12 +107,12 @@ async function trialConversion(db: Ask, period: Period, now: Date) {
   const { start, end } = periodBounds(period)
   const row = (await db.query(
     `WITH ended AS (
-       SELECT s.id,COALESCE(l.ended_at,s.trial_ended_at,s.trial_ends_at) AS ended_at,s.trial_outcome
-       FROM subscriptions s LEFT JOIN trial_lapses l ON l.subscription_id=s.id AND l.state<>'superseded'
+       SELECT s.id,COALESCE(l.trial_ended_at,s.trial_ended_at,s.trial_ends_at) AS ended_at,s.trial_outcome
+       FROM subscriptions s LEFT JOIN free_base_locks l ON l.subscription_id=s.id AND l.state<>'superseded'
      )
      SELECT count(*) AS ended,
        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=t.id AND i.status='paid'
-         AND i.subtotal_minor>0 AND i.paid_at>=t.ended_at)) AS paid,
+         AND i.subtotal_minor>0 AND i.paid_at>=t.ended_at AND i.total_minor>${creditedMinorSql('i.id')})) AS paid,
        count(*) FILTER (WHERE t.trial_outcome='converted') AS converted,
        count(*) FILTER (WHERE t.trial_outcome='kept_subset') AS kept_subset,
        count(*) FILTER (WHERE t.trial_outcome='free_base') AS free_base

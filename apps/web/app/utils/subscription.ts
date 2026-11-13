@@ -49,9 +49,13 @@ export function refusalKey(code: unknown): string | null {
     : null
 }
 
-/** The trial-end preview exists while a trial runs, after it settles, and during an unresolved lapse (trial_ends_at is already cleared then). */
+/**
+ * The trial-end preview exists while a trial runs, after it settles, and during an unresolved trial lock (trial_ends_at is
+ * already cleared then). A refund lock on a subscription that never had a trial has no trial to preview.
+ */
 export function hasTrialPreview(sub: SubscriptionView | null) {
-  return Boolean(sub?.applied && (sub.trial_ends_at || sub.trial_outcome || sub.trial_lapse_pending))
+  const trialLock = sub?.pending_free_base_lock === 'trial_end' || sub?.pending_free_base_lock === 'first_invoice_unpaid'
+  return Boolean(sub?.applied && (sub.trial_ends_at || sub.trial_outcome || trialLock))
 }
 
 export function trialEndActions(status: TrialEndPreview['status'] | null, state: SubscriptionState | null, canManage: boolean) {

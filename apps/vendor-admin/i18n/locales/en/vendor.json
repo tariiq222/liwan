@@ -67,7 +67,7 @@
         "past_due": "Overdue for {duration}",
         "refund_rejected": "A provider refund could not be recorded ({operation}): the money left and there is no credit note",
         "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
-        "free_base_blocked": "The trial ended {duration} ago but locking onto the free base is blocked ({operation}); the company is not locked",
+        "free_base_blocked": "Dropping the subscription to the free base has been blocked for {duration} ({operation}); the company is not locked",
         "trial_end_overdue": "The trial ended {duration} ago but its end has not run: the paid applications are still open and new orders are refused until it does",
         "renewal_failed": "The renewal could not be generated ({operation}); other renewals are not affected",
         "suspension_undelivered": "The suspension has not reached the workspace. Delivery retries continue.",
@@ -1262,6 +1262,7 @@
         "action": "Record refund",
         "title": "Record that this credit note was refunded",
         "description": "This does not refund anything. Refund the customer in the payment provider's dashboard first, then record the provider's reference here.",
+        "dropsToFreeBase": "This is the customer's first payment: recording the refund drops the subscription to the free base at once. Items bought with a later payment stay.",
         "reference": "Provider refund reference",
         "referenceHint": "The refund or payment id shown in the provider's dashboard.",
         "reason": "Reason",
@@ -1291,7 +1292,9 @@
           "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
           "refund_reference_in_use": "This refund reference is already recorded on another credit note.",
           "refund_window_closed": "The refund window has closed, so this payment cannot be refunded.",
-          "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot."
+          "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot.",
+          "lock_pending": "The subscription is still being moved to the free base. Record the refund again once that finishes.",
+          "fulfillment_pending": "This order is still being delivered. Request the refund once the delivery ends."
         }
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",

@@ -3,7 +3,8 @@
 Status: **operator-approved refunds for launch**. Owner decision 9 in section 2 of
 [the self-service pricing and trial design](../superpowers/specs/2026-10-24-self-service-pricing-and-trial-design.md)
 (2026-10-24): the refund policy is written text plus a documented manual procedure, with no field and no
-automatic refund path in this phase.
+automatic refund path in this phase. Money only moves when the operator refunds it; recording the refund of a
+first payment does change the subscription (see "Refund of the first payment").
 
 ## What triggers a refund
 
@@ -20,6 +21,31 @@ automatic refund path in this phase.
   become a note (a missing attempt, a refund above the payment, another currency) is closed as `failed` with its
   reason and a `payment.refund_rejected` audit event, and it shows in the vendor "today" list as `refund_rejected` (billing access) until the invoice's credit covers it, by the same definition the worker uses (any non-void credit note, any origin, duplicate-charge notes excluded): a vendor-recorded refund clears it, voiding that note shows it again, and a later processed refund event for the attempt clears it too. A row with no attempt has no invoice to be covered on and stays; there is no operator action that dismisses it. It never blocks the other rows.
 - `needs_intervention` orders get no credit note automatically; the operator decides after reading Odoo back.
+
+## Refund of the first payment (14-day guarantee)
+
+Owner decisions 2026-11-06 (the window) and 2026-11-13 (the drop to the free base). The tenant has no refund button:
+the customer asks by message, and the vendor acts in the vendor console.
+
+- Only the customer's first payment is refundable, and only through the end of the Riyadh day that is
+  `refund_window_days` (default 14) after the day it was paid. A renewal or any later payment is not refundable.
+- The vendor opens the paid invoice and chooses "Request refund". This creates one pending `vendor_refund` credit
+  note for the whole invoice. The window and the first-payment rule are judged here, once. A paid order whose delivery
+  has not ended is refused with `fulfillment_pending` (409) until it ends.
+- The vendor refunds the money at the payment provider (or by bank transfer) and records the reference on the note
+  (step 4 of the procedure below). Nothing moves money automatically.
+- Recording the refund drops the subscription to the free base in the same transaction, because the owner gives no
+  paid value without payment. This happens when the refunded `vendor_refund` and `provider_refund` notes cover the
+  whole invoice, the invoice bought something other than an AI top-up or tax, its order was delivered, it is the
+  customer's first payment and the subscription is past its trial (`active`, `past_due` or `suspended`). Unpaid
+  renewal invoices of the paid configuration are voided, the lock order is queued, and a
+  `subscription.refund_lock_armed` audit event is written. Items bought by a second, unrefunded payment are kept.
+  The tenant gets an email once the lock applies. The confirmation in the console says the subscription will drop.
+- While an earlier lock order is still being delivered, recording is refused with `lock_pending` (409); record it again
+  once the delivery settles.
+- A partial provider refund, a provider refund of a later payment, and the system notes (`fulfillment_failure`,
+  `payment_after_cancellation`, `duplicate_payment`, `automatic_refund`) never drop the subscription. They stay with the
+  manual review above.
 
 ## Procedure
 

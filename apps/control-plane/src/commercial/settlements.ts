@@ -11,6 +11,7 @@ import { billingSettings } from './billing-settings.js'
 import { claimOutbox, completeOutbox, deferOutbox } from './outbox.js'
 import { creditedMinorSql, type CreditNoteCause } from './refund-credit.js'
 import { assertTopupUnused, markTopupRefunded } from './ai-ledger.js'
+import { armRefundLock } from './free-base-lock.js'
 
 /** Refunds the provider cannot do for this payment: retrying changes nothing, so the row goes to the operator at once. */
 const NON_RETRYABLE_REFUND = ['provider_refund_unavailable', 'provider_refund_payment_mismatch']
@@ -258,8 +259,12 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
     if (!note) throw new CommercialHttpError('not_found', 404)
     if (note.kind === 'credit_note' && note.status === 'refunded' && note.refund_reference === request.external_reference) return adjustmentView(note)
     if (note.kind !== 'credit_note' || note.status !== 'pending') throw new CommercialHttpError('credit_note_not_pending', 409)
+    // A note that may drop the subscription to the free base takes the subscription lock before the invoice, the order the
+    // renewal, fulfilment and lock writers use (subscription, then its orders and invoices), so the two cannot deadlock.
+    if (REFUND_LOCK_CAUSES.includes(note.cause)) await client.query(`SELECT 1 FROM subscriptions WHERE id=(SELECT subscription_id FROM invoices WHERE id=$1)
+      FOR UPDATE`, [note.invoice_id])
     // A refund must return the whole invoice, and an invoice is refunded at most once. Checked before any write.
-    const invoice = (await client.query('SELECT total_minor,currency,exponent FROM invoices WHERE id=$1 FOR SHARE', [note.invoice_id])).rows[0]
+    const invoice = (await client.query('SELECT subscription_id,total_minor,currency,exponent FROM invoices WHERE id=$1 FOR SHARE', [note.invoice_id])).rows[0]
     if (!invoice) throw new CommercialHttpError('not_found', 404)
     // A customer-requested refund returns the whole invoice; a system note carries what the provider refunded or charged twice, which may be a part.
     const wrongAmount = note.origin === 'vendor' ? Number(note.amount_minor) !== Number(invoice.total_minor) : Number(note.amount_minor) > Number(invoice.total_minor)
@@ -280,8 +285,40 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
     if (updated.cause === 'fulfillment_failure' || updated.cause === 'payment_after_cancellation') await settleUndeliveredOrder(client, note.invoice_id)
     await audit(client, actor, 'invoice.credit_refunded', note.id, request.reason,
       { invoice_id: note.invoice_id, external_reference: request.external_reference, amount_minor: Number(note.amount_minor), currency: note.currency })
+    // Owner decision 2026-11-13: the refunded first payment bought nothing, so the subscription drops to the free base now.
+    if (REFUND_LOCK_CAUSES.includes(updated.cause) && (await refundLockedInvoices(client, [note.invoice_id], ['refunded'])).has(note.invoice_id)) {
+      await armRefundLock(client, { subscription_id: invoice.subscription_id, now: new Date() })
+      await audit(client, actor, 'subscription.refund_lock_armed', invoice.subscription_id, request.reason,
+        { invoice_id: note.invoice_id, adjustment_id: note.id })
+    }
     return adjustmentView(updated)
   })
+}
+
+/** The credit notes that return the customer's own payment: the vendor's 14-day refund and the provider's refund of it. */
+const REFUND_LOCK_CAUSES: string[] = ['vendor_refund', 'provider_refund'] satisfies CreditNoteCause[]
+
+/**
+ * The invoices whose refund drops their subscription to the free base, in one definition for the trigger in
+ * `recordRefund` (counting only refunded notes) and the vendor console's warning before recording one (counting the
+ * pending notes as recorded). All must hold: the customer-refund notes cover the whole invoice; it bought something other
+ * than an AI top-up or tax; its order was delivered and not cancelled; it is the customer's first payment (the window
+ * is never judged again here); the subscription is past its trial (`active`, `past_due` or `suspended`); and no other
+ * initial or renewal invoice of the subscription is paid and unrefunded, since that payment bought the configuration for
+ * its period. A partial provider refund, or the refund of a later payment, stays with the vendor's manual review.
+ */
+export async function refundLockedInvoices(client: Pick<Pool, 'query'>, invoiceIds: string[], counted: ('refunded' | 'pending')[]): Promise<Set<string>> {
+  if (!invoiceIds.length) return new Set()
+  const rows = (await client.query(`SELECT i.id FROM invoices i JOIN orders o ON o.id=i.order_id JOIN subscriptions s ON s.id=i.subscription_id
+    WHERE i.id=ANY($1::uuid[]) AND o.fulfillment_state='applied' AND NOT o.cancelled AND s.state IN ('active','past_due','suspended')
+      AND EXISTS (SELECT 1 FROM invoice_lines l WHERE l.invoice_id=i.id AND l.kind NOT IN ('ai_topup','tax') AND l.amount_minor>0)
+      AND NOT EXISTS (SELECT 1 FROM invoices paid WHERE paid.subscription_id=i.subscription_id AND paid.id<>i.id
+        AND paid.kind IN ('initial','renewal') AND paid.status IN ('paid','credit_pending') AND paid.total_minor>${creditedMinorSql('paid.id')})
+      AND (SELECT COALESCE(sum(ia.amount_minor),0) FROM invoice_adjustments ia WHERE ia.invoice_id=i.id AND ia.kind='credit_note'
+        AND ia.cause=ANY($2::text[]) AND ia.status=ANY($3::text[])) >= i.total_minor`, [invoiceIds, REFUND_LOCK_CAUSES, counted])).rows
+  if (!rows.length) return new Set()
+  const eligibility = await refundEligibilityForInvoices(client, rows.map(row => row.id as string))
+  return new Set(rows.map(row => row.id as string).filter(id => eligibility.get(id)?.first_payment))
 }
 
 /**
@@ -337,6 +374,13 @@ export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reas
     const already = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND origin='vendor' AND kind='credit_note' AND status<>'void'", [invoice_id])
     if (already.rowCount) throw new CommercialHttpError('refund_already_requested', 409)
     await assertRefundable(client, invoice.customer_id, invoice.id)
+    // A paid order still being delivered cannot be refunded yet: recording the refund drops the subscription to the free
+    // base, which needs the delivery to have ended first. A failed delivery has its own credit note.
+    if (invoice.order_id) {
+      const delivering = await client.query(`SELECT 1 FROM orders WHERE id=$1 AND payment_state='paid' AND NOT cancelled
+        AND fulfillment_state IN ('not_started','queued','applying','needs_intervention')`, [invoice.order_id])
+      if (delivering.rowCount) throw new CommercialHttpError('fulfillment_pending', 409)
+    }
     // An AI top-up on this invoice must be unspent: the same rule the top-up refund route applies.
     if (invoice.order_id) await assertTopupUnused(client, invoice.order_id, units_used)
     // The note's `created_at` is the request time the window was judged at; recording the refund later never re-judges it.

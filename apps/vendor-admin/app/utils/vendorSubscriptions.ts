@@ -9,8 +9,9 @@ export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
-/** Whether the owner may still refund this invoice's payment: only the customer's first payment, inside the window. */
-export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number }
+/** Whether the owner may still refund this invoice's payment (only the customer's first payment, inside the window), and
+ * whether recording its pending refund drops the subscription to the free base. */
+export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number; locks_subscription: boolean }
 export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[]; refund: VendorRefundability }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
@@ -149,7 +150,7 @@ export function parseUnitsUsed(text: string): number | null {
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
-  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used'].includes(code)
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending'].includes(code)
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 

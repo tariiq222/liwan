@@ -1,7 +1,7 @@
 import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
-import { holdsTrialAfterLapseSql, owesAtRenewalSql } from './free-base.js'
+import { holdsFreeBaseLockSql, owesAtRenewalSql } from './free-base.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
@@ -14,7 +14,7 @@ const businessToday = `(now() AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date`
 const renewalInstant = `(renewal_at::timestamp AT TIME ZONE '${BUSINESS_TIME_ZONE}')`
 // Due soon or already missed: a renewal date that passed without renewing stays here until it is dealt with.
 // A renewal that is deliberately skipped (an unresolved lapse) or owes nothing (the free base) is never due.
-const renewalSkipped = `(${holdsTrialAfterLapseSql('s')} OR NOT ${owesAtRenewalSql(`(SELECT r.snapshot->'pricing' FROM subscription_revisions r WHERE r.id=s.applied_revision_id)`)})`
+const renewalSkipped = `(${holdsFreeBaseLockSql('s')} OR NOT ${owesAtRenewalSql(`(SELECT r.snapshot->'pricing' FROM subscription_revisions r WHERE r.id=s.applied_revision_id)`)})`
 const renewalDue = `state IN ('active','trialing') AND renewal_at <= ${businessToday} + $2::int AND NOT renewal_skipped`
 
 const iso = (column: string) => `to_char(${column} AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"')`
@@ -62,7 +62,7 @@ const subjectsSql = `WITH latest AS (
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), lock_blocked AS (
-  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.reason FROM trial_lapses l
+  SELECT c.id AS customer_id, c.name, c.tenant_id, l.armed_at, l.reason FROM free_base_locks l
   JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
   WHERE l.state IN ('pending','ordered') AND l.reason IS NOT NULL
 ), renewal_failures AS (
@@ -119,7 +119,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
-  UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lock_blocked
+  UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('armed_at')}, reason, armed_at FROM lock_blocked
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled

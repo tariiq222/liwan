@@ -106,6 +106,17 @@ it('registers version forty-nine once and drops the legacy migration remnants', 
   await migrate(g.pool)
   expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(49)')
 })
+it('registers version fifty once and renames the trial lock to the free-base lock with its cause', async () => {
+  const applied = Array.from({ length: 49 }, (_, i) => i + 1)
+  const f = fixture(applied)
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(50)')
+  expect(sql.some((s) => s.includes('ALTER TABLE trial_lapses RENAME TO free_base_locks') && s.includes("CHECK (cause IN ('trial_end','first_invoice_unpaid','refund'))") && s.includes('DROP COLUMN force_empty'))).toBe(true)
+  const g = fixture([...applied, 50])
+  await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(50)')
+})
 it('registers immutable branch quotes and revision guard in versions fifteen and sixteen once', async () => {
   const applied = Array.from({length:14}, (_, i) => i+1)
   const f=fixture(applied)

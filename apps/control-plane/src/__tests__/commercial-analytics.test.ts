@@ -152,8 +152,8 @@ suite('live PostgreSQL vendor analytics', () => {
         { at: '2026-09-25T09:00:00Z', plan_revision_id: p1, base_minor: 2900, bundle_minor: { trialed: 19900 } },
         { at: '2026-10-09T09:00:00Z', plan_revision_id: p1, base_minor: 2900 }] })
       const trialRevision = (await solo.query('SELECT target_revision_id FROM orders WHERE id=$1', [lapsed.orders[0]!.id])).rows[0].target_revision_id
-      await solo.query(`INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,lapsed_at,ended_at,state)
-        VALUES($1,$2,'2026-10-05','2026-10-05T00:05:00Z','2026-10-05T00:00:00Z','done')`, [lapsed.subscription_id, trialRevision])
+      await solo.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,trial_ended_at,cause,state)
+        VALUES($1,$2,'2026-10-05','2026-10-05T00:05:00Z','2026-10-05T00:00:00Z','trial_end','done')`, [lapsed.subscription_id, trialRevision])
       const after = await getAnalytics(solo, period, now)
       // Only the lock's 2,900 is recurring, and it is booked at the trial boundary (October 5), inside the period, as new revenue.
       expect(minor(after.current.revenue.mrr) - minor(before.current.revenue.mrr)).toBe(2900)
@@ -163,6 +163,44 @@ suite('live PostgreSQL vendor analytics', () => {
       // Nothing was booked on the upgrade date (September 25) from the unpaid bundle.
       expect(minor(after.previous.revenue.new_mrr)).toBe(minor(before.previous.revenue.new_mrr))
       expect(minor(after.trend[11]!.mrr) - minor(before.trend[11]!.mrr)).toBe(2900)
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('takes a refunded order out of MRR from the moment its free-base lock was armed', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const before = await getAnalytics(solo, period, now)
+      const paid = await seedCustomer(solo, { name: 'M refunded', state: 'active', steps: [{ at: '2026-10-02T09:00:00Z', plan_revision_id: p1, base_minor: 5000 }] })
+      const booked = await getAnalytics(solo, period, now)
+      expect(minor(booked.current.revenue.mrr) - minor(before.current.revenue.mrr)).toBe(5000)
+      const revision = (await solo.query('SELECT target_revision_id FROM orders WHERE id=$1', [paid.orders[0]!.id])).rows[0].target_revision_id
+      await solo.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,state)
+        VALUES($1,$2,'2026-10-02','2026-10-08T09:00:00Z','refund','pending')`, [paid.subscription_id, revision])
+      const after = await getAnalytics(solo, period, now)
+      expect(minor(after.current.revenue.mrr)).toBe(minor(before.current.revenue.mrr))
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('counts neither the conversion nor the money of a converted trial whose payment was refunded in full', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const before = await getAnalytics(solo, period, now)
+      const refunded = await seedCustomer(solo, { name: 'L refunded', state: 'active', trial_ends_at: '2026-10-06T00:00:00Z' })
+      const invoice = await seedInvoice(solo, { customer_id: refunded.customer_id, subscription_id: refunded.subscription_id, status: 'paid', total_minor: 8000,
+        issued_at: '2026-10-06T00:00:00Z', due_at: '2026-10-13T00:00:00Z', paid_at: '2026-10-07T00:00:00Z' })
+      const counted = await getAnalytics(solo, period, now)
+      expect(minor(counted.current.collection.collected) - minor(before.current.collection.collected)).toBe(8000)
+      await solo.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause,refund_reference,refunded_at,refunded_by)
+        VALUES($1,$2,$3,'credit_note','Customer asked within 14 days',8000,'SAR',2,'refunded','vendor-test','vendor','vendor_refund','MOY-L-1',now(),'vendor-test')`,
+      [randomUUID(), invoice, refunded.customer_id])
+      const after = await getAnalytics(solo, period, now)
+      expect(minor(after.current.collection.collected)).toBe(minor(before.current.collection.collected))
+      // One more ended trial and no more paid ones: the refunded conversion lowers the rate instead of raising it.
+      expect(after.current.customers.trial_conversion_rate).toEqual({ available: true, value: 1 / 3 })
       await solo.query('ROLLBACK')
     } finally { await solo.end() }
   })
