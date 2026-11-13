@@ -2,8 +2,9 @@
 import CustomerDirectory from '@/components/customers/CustomerDirectory.vue'
 import { customerListLocation, parseCustomerListQuery } from '@/composables/customers/customerListParams'
 import { useCustomersExport } from '@/composables/customers/useCustomersExport'
+import { exportTooLargeMessage } from '@/utils/exportErrors'
 
-const { t } = useI18n()
+const { t, n } = useI18n()
 const route = useRoute()
 const { can } = useAccess()
 const toast = useToast()
@@ -16,7 +17,7 @@ const createTo = computed(() => can('customers.manage')
   : undefined)
 function downloadCsv() {
   // The snapshot of the address is what the list shows now; the download reads nothing else.
-  exportCsv.mutate(parseCustomerListQuery(route.query), { onError: () => toast.add({ title: t('customers.exportFailed'), color: 'error' }) })
+  exportCsv.mutate(parseCustomerListQuery(route.query), { onError: error => toast.add({ title: exportTooLargeMessage(error, t, n) ?? t('customers.exportFailed'), color: 'error' }) })
 }
 </script>
 

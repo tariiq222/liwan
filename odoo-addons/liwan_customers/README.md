@@ -43,12 +43,13 @@ no application.
   out is removed) and parsed by `liwan_api/serializers/properties.py`. Values are `properties` on the customer wire
   shape, accepted on create and edit (null clears one), written by the service under its marker like the identity,
   and filtered on the list and the export with `property.<key>=<value>`. Only parties carry values through the routes.
-  Removing a field that still has a value on any party (archived ones and every company counted) answers
-  `409 custom_field_values_exist` with the count per field and changes nothing, until the same write carries
-  `confirm_field_removal: true`; the values are then cleared through the ORM, because stock leaves the stored values of a
-  removed definition item in place. `confirm_field_removal` without `fields` is a 422. An option removed from a
-  selection or tags field that stays asks no confirmation: its key is cleared from the customers that hold it in the
-  same write, since the API can no longer read it.
+  Removing a field that still has a value on any party, or an option of a selection or tags field that stays and that
+  any party holds (archived ones and every company counted), answers `409 custom_field_values_exist` and changes
+  nothing. Its `details` are `{fields: [{key, label, count}], options: [{field_key, field_label, key, label, count}]}`
+  (`count` is the number of parties, each counted once per field or option); the same write with
+  `confirm_field_removal: true` then goes through and clears the values and the option keys through the ORM, because
+  stock leaves them in the stored column. An option nobody holds is removed without a question.
+  `confirm_field_removal` without `fields` is a 422.
 - D5, the definition without `sudo()`: stock writes the definition for `base.group_system` only. This addon adds an ACL
   row (read for internal users, read and write for `group_cap_customers_settings_manage`, no create or unlink) and one
   record rule on `base.group_user` limited to the `res.partner.properties` row, so the settings manager writes the
@@ -66,7 +67,9 @@ no application.
   asserts the exact contents of those lists sees it whenever `liwan_customers` is installed.
 - `customers.export` (sensitive, depends on `customers.read`) opens `GET /api/v1/customers/export`: a CSV of the
   parties the caller can see with the list filters (`q`, `archived`, `property.<key>`), the identity columns and one
-  column per custom field, with the formula-safe cells of `liwan_api/serializers/csv_export.py`.
+  column per custom field, with the formula-safe cells of `liwan_api/serializers/csv_export.py`. A result of more than
+  `EXPORT_MAX_ROWS` (50 000, the one limit of every row export) is refused with `422 export_too_large` and
+  `details: {rows, max_rows}`; it is counted before any row is loaded, and narrowing the filters brings it under.
 - Routes under `/api/v1/customers` are opened by the feature keys that applications register in
   `_liwan_customers_feature_keys`. An application registers the capabilities that may pick a customer in
   `_liwan_customers_pick_capabilities`.

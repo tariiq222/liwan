@@ -264,7 +264,7 @@ class TestCustomersFields(CustomersCase):
         self.sign_in('cu_root_settings')
         refused = self.api('PATCH', SETTINGS, {'fields': keep, 'revision': revision})
         self.assertEqual((refused.status_code, refused.json()['code']), (409, 'custom_field_values_exist'), refused.text)
-        self.assertEqual(refused.json()['details'], {'fields': [{'key': note, 'label': 'Note', 'count': 2}]})
+        self.assertEqual(refused.json()['details'], {'fields': [{'key': note, 'label': 'Note', 'count': 2}], 'options': []})
         self.assertEqual(self.settings.revision, revision)
         self.assertEqual(
             [item['name'] for item in self.env['res.partner']._liwan_party_properties_definition()],
@@ -425,12 +425,18 @@ class TestCustomersFieldValues(CustomersCase):
         self.sign_in('cu_root_settings')
         refused = self.api('PATCH', SETTINGS, {'fields': [fields[1]], 'revision': self.settings.revision})
         self.assertEqual((refused.status_code, refused.json()['code']), (409, 'custom_field_values_exist'))
-        self.assertEqual(refused.json()['details'], {'fields': [{'key': count, 'label': 'Count', 'count': 1}]})
+        self.assertEqual(refused.json()['details'], {'fields': [{'key': count, 'label': 'Count', 'count': 1}], 'options': []})
         confirmed = self.api('PATCH', SETTINGS, {
             'fields': [fields[1]], 'confirm_field_removal': True, 'revision': self.settings.revision,
         })
         self.assertEqual(confirmed.status_code, 200, confirmed.text)
         self.assertNotIn(count, self.stored_properties(customer['id']))
+
+    def remove_options(self, field, *removed, confirm=False):
+        """PATCH the settings with ``field`` minus the options ``removed``; the response."""
+        kept = [option for option in field['options'] if option['key'] not in {r['key'] for r in removed}]
+        payload = {'fields': [{**field, 'options': kept}], 'revision': self.settings.revision}
+        return self.api('PATCH', SETTINGS, {**payload, 'confirm_field_removal': True} if confirm else payload)
 
     def test_removing_an_option_clears_it_from_the_parties_that_hold_it(self):
         fields = self.define_fields(SEGMENT)
@@ -439,17 +445,26 @@ class TestCustomersFieldValues(CustomersCase):
         self.sign_in('cu_a_staff')
         golden = self.created({'name': 'Gold one', 'properties': {segment: gold['key']}})
         silvery = self.created({'name': 'Silver one', 'properties': {segment: silver['key']}})
+        archived = self.created({'name': 'Gold archived', 'properties': {segment: gold['key']}})
+        self.api('POST', f'{CUSTOMERS}/{archived["id"]}/archive')
+        revision = self.settings.revision
         self.sign_in('cu_root_settings')
-        changed = self.api('PATCH', SETTINGS, {
-            'fields': [{**fields[0], 'options': [silver]}], 'revision': self.settings.revision,
-        })
-        # An option is not a field: no confirmation is asked, and what the API can no longer read is not kept.
+        refused = self.remove_options(fields[0], gold)
+        self.assertEqual((refused.status_code, refused.json()['code']), (409, 'custom_field_values_exist'), refused.text)
+        self.assertEqual(refused.json()['details'], {'fields': [], 'options': [{
+            'field_key': segment, 'field_label': 'Segment', 'key': gold['key'], 'label': 'Gold', 'count': 2,
+        }]})
+        self.assertEqual(self.settings.revision, revision)
+        self.assertEqual(len(self.env['res.partner']._liwan_party_properties_definition()[0]['selection']), 2)
+        self.assertEqual(self.stored_properties(golden['id']).get(segment), gold['key'])
+        changed = self.remove_options(fields[0], gold, confirm=True)
         self.assertEqual(changed.status_code, 200, changed.text)
         self.sign_in('cu_a_staff')
         detail = self.api('GET', f'{CUSTOMERS}/{golden["id"]}').json()
         self.assertEqual([option['key'] for option in detail['properties'][0]['options']], [silver['key']])
         self.assertIsNone(detail['properties'][0]['value'])
         self.assertFalse(self.stored_properties(golden['id']).get(segment))
+        self.assertFalse(self.stored_properties(archived['id']).get(segment))
         self.assertEqual(self.stored_properties(silvery['id']).get(segment), silver['key'])
 
     def test_removing_a_tag_option_keeps_the_other_tags_of_a_party(self):
@@ -459,15 +474,47 @@ class TestCustomersFieldValues(CustomersCase):
         self.sign_in('cu_a_staff')
         customer = self.created({'name': 'Tagged', 'properties': {topics: [first['key'], second['key']]}})
         self.sign_in('cu_root_settings')
-        kept = [option for option in fields[0]['options'] if option['key'] != first['key']]
-        changed = self.api('PATCH', SETTINGS, {
-            'fields': [{**fields[0], 'options': kept}], 'revision': self.settings.revision,
-        })
+        refused = self.remove_options(fields[0], first)
+        self.assertEqual((refused.status_code, refused.json()['code']), (409, 'custom_field_values_exist'), refused.text)
+        self.assertEqual(self.stored_properties(customer['id']).get(topics), [first['key'], second['key']])
+        changed = self.remove_options(fields[0], first, confirm=True)
         self.assertEqual(changed.status_code, 200, changed.text)
         self.sign_in('cu_a_staff')
         detail = self.api('GET', f'{CUSTOMERS}/{customer["id"]}').json()
         self.assertEqual(detail['properties'][0]['value'], [second['key']])
         self.assertEqual(self.stored_properties(customer['id']).get(topics), [second['key']])
+
+    def test_an_option_nobody_holds_is_removed_without_a_confirmation(self):
+        fields = self.define_fields(SEGMENT)
+        segment = fields[0]['key']
+        gold, silver = fields[0]['options']
+        self.sign_in('cu_a_staff')
+        self.created({'name': 'Silver one', 'properties': {segment: silver['key']}})
+        self.sign_in('cu_root_settings')
+        changed = self.remove_options(fields[0], gold)
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual([option['key'] for option in changed.json()['fields'][0]['options']], [silver['key']])
+
+    def test_one_write_lists_the_removed_field_and_options_and_counts_a_party_once_per_option(self):
+        labels = {'label': 'Labels', 'type': 'tags', 'options': [{'label': 'Alpha'}, {'label': 'Beta'}, {'label': 'Gamma'}]}
+        fields = self.define_fields(labels, NOTE)
+        tags, note = (item['key'] for item in fields)
+        alpha, beta, gamma = fields[0]['options']
+        self.sign_in('cu_a_staff')
+        self.created({'name': 'Both tags', 'properties': {tags: [alpha['key'], beta['key']], note: 'Text'}})
+        self.created({'name': 'One tag', 'properties': {tags: [alpha['key']]}})
+        self.sign_in('cu_root_settings')
+        refused = self.api('PATCH', SETTINGS, {
+            'fields': [{**fields[0], 'options': [gamma]}], 'revision': self.settings.revision,
+        })
+        self.assertEqual((refused.status_code, refused.json()['code']), (409, 'custom_field_values_exist'), refused.text)
+        self.assertEqual(refused.json()['details'], {
+            'fields': [{'key': note, 'label': 'Note', 'count': 1}],
+            'options': [
+                {'field_key': tags, 'field_label': 'Labels', 'key': alpha['key'], 'label': 'Alpha', 'count': 2},
+                {'field_key': tags, 'field_label': 'Labels', 'key': beta['key'], 'label': 'Beta', 'count': 1},
+            ],
+        })
 
     def stored_properties(self, partner_id):
         self.env.flush_all()

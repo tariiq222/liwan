@@ -19,6 +19,7 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_api.serializers.attachment import MAX_ENCODED_CHARS
 from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.csv_export import refuse_oversized_export
 from odoo.addons.liwan_inbox.adapters import media_rules
 from odoo.addons.liwan_inbox.controllers.conversations import conversation_domain
 from odoo.addons.liwan_inbox.controllers.helpers import (
@@ -30,7 +31,6 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
 from odoo.addons.liwan_inbox.models.access_service import EXPORT, READ, REPLY
 from odoo.addons.liwan_inbox.serializers.conversation import dump_attachment
 
-EXPORT_LIMIT = 10000
 EXPORT_HEADER = (
     'id', 'contact', 'phone', 'channel', 'department', 'assignee', 'state', 'priority', 'tags', 'last_message_at',
 )
@@ -114,7 +114,9 @@ class ConversationFilesController(http.Controller):
     @requires_capability(EXPORT)
     def export_conversations(self, **_):
         domain = conversation_domain(request.httprequest.args)
-        conversations = request.env['liwan.inbox.conversation']._liwan_search_visible(domain, limit=EXPORT_LIMIT)
+        Conversation = request.env['liwan.inbox.conversation']
+        refuse_oversized_export(Conversation._liwan_count_visible(domain))
+        conversations = Conversation._liwan_search_visible(domain)
         out = io.StringIO()
         writer = csv.writer(out)
         writer.writerow(EXPORT_HEADER)

@@ -4,9 +4,10 @@ import { CRM_AUDIT_PATH, useCrmAuditAccess } from '@/composables/crm/useCrmAudit
 import { useCrmExport } from '@/composables/crm/useCrmExport'
 import { useOpportunityListPage } from '@/composables/crm/useOpportunityListPage'
 import { hasFeature } from '@/modules/registry'
+import { exportTooLargeMessage } from '@/utils/exportErrors'
 
 const page = useOpportunityListPage()
-const { t } = useI18n()
+const { t, n } = useI18n()
 const route = useRoute()
 const { can } = useAccess()
 const { me } = useMe()
@@ -17,7 +18,7 @@ const canViewAudit = useCrmAuditAccess()
 const exportCsv = useCrmExport()
 function downloadCsv() {
   // The snapshot of the address is what the list shows now; the download reads nothing else.
-  exportCsv.mutate({ ...route.query }, { onError: () => toast.add({ title: t('crm.opportunities.list.exportFailed'), color: 'error' }) })
+  exportCsv.mutate({ ...route.query }, { onError: error => toast.add({ title: exportTooLargeMessage(error, t, n) ?? t('crm.opportunities.list.exportFailed'), color: 'error' }) })
 }
 </script>
 

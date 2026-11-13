@@ -149,6 +149,12 @@ class LiwanCustomersService(models.AbstractModel):
         return partners.search(domain, order=ORDER, limit=limit, offset=offset), partners.search_count(domain)
 
     @api.model
+    def _liwan_export_count(self, query=None, archived=False, filters=()):
+        """How many parties ``_liwan_export_parties`` returns, counted without loading them."""
+        domain = self._liwan_directory_domain(query, archived, filters)
+        return self.env['res.partner'].with_context(active_test=False).search_count(domain)
+
+    @api.model
     def _liwan_export_parties(self, query=None, archived=False, filters=()):
         """Every party the caller can see for ``_liwan_directory_domain``, in the order of the list."""
         domain = self._liwan_directory_domain(query, archived, filters)

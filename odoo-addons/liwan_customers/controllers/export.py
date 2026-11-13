@@ -8,6 +8,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_registered_feature,
 )
+from odoo.addons.liwan_api.serializers.csv_export import refuse_oversized_export
 from odoo.addons.liwan_customers.models.access_service import CUSTOMERS_EXPORT
 from odoo.addons.liwan_customers.serializers.customer import parse_list_filters
 from odoo.addons.liwan_customers.serializers.export import export_csv
@@ -23,7 +24,9 @@ class CustomersExportController(http.Controller):
         """The parties the caller can see that the list filters (``q``, ``archived``, ``property.<key>``) keep."""
         definition = request.env['res.partner']._liwan_party_properties_definition()
         query, archived, filters = parse_list_filters(request.httprequest.args, definition)
-        parties = request.env['liwan.customers.service']._liwan_export_parties(query, archived, filters)
+        service = request.env['liwan.customers.service']
+        refuse_oversized_export(service._liwan_export_count(query, archived, filters))
+        parties = service._liwan_export_parties(query, archived, filters)
         filename = f'customers-{fields.Date.context_today(parties)}.csv'
         return request.make_response(export_csv(parties, definition), headers=[
             ('Content-Type', 'text/csv; charset=utf-8'),

@@ -112,10 +112,14 @@ describe('CustomerSettingsSchema', () => {
     expect(() => CustomerCountryListSchema.parse({ items: [{ id: 2, code: 'ARE', name: 'United Arab Emirates' }], total: 1 })).toThrow()
   })
 
-  it('names each removed field that still has values, with their count', () => {
-    const details = { fields: [{ key: 'tier', label: 'Tier', count: 3 }] }
-    expect(CustomerFieldRemovalDetailsSchema.parse(details)).toEqual(details)
-    expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [] })).toThrow()
-    expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [{ key: 'tier', label: 'Tier', count: 0 }] })).toThrow()
+  it('names each removed field and each removed option that customers still hold, with their count', () => {
+    const field = { key: 'tier', label: 'Tier', count: 3 }
+    const option = { field_key: 'segment', field_label: 'Segment', key: 'gold', label: 'Gold', count: 2 }
+    expect(CustomerFieldRemovalDetailsSchema.parse({ fields: [field], options: [] })).toEqual({ fields: [field], options: [] })
+    expect(CustomerFieldRemovalDetailsSchema.parse({ fields: [], options: [option] }).options[0]?.count).toBe(2)
+    expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [], options: [] })).toThrow()
+    expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [field] })).toThrow()
+    expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [{ ...field, count: 0 }], options: [] })).toThrow()
+    expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [], options: [{ ...option, field_label: '' }] })).toThrow()
   })
 })

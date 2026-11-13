@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 // Runs against the isolated synthetic stack (MODULE_UI_PREVIEW=1): customers-mock-routes.mjs keeps state, reset before
-// each test. Seed: Mona (+966500000001, city Riyadh, VIP), a shared company, Khaled with Mona's phone, Sara archived.
+// each test. Seed: Mona (+966500000001, city Riyadh, VIP, tier gold), a shared company, Khaled with Mona's phone, Sara archived.
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'the customers checks run on the isolated mock stack (npm run e2e:mock)')
 
 async function login(page: Page) {
@@ -113,7 +113,24 @@ test('removing a field that customers hold values for shows the count and succee
   await removal.getByRole('button', { name: 'احذف الحقول وقيمها' }).click()
   await expect(removal).toHaveCount(0)
   const saved = await (await page.request.get('/api/v1/customers/settings')).json()
-  expect(saved.fields.map((field: { key: string }) => field.key)).toEqual(['city'])
+  expect(saved.fields.map((field: { key: string }) => field.key)).toEqual(['city', 'tier'])
+})
+
+test('removing an option that customers hold shows the option with its count and succeeds after confirming', async ({ page }) => {
+  await page.goto('/settings/apps/customers')
+  await page.getByRole('button', { name: 'حذف الخيار ذهبية' }).click()
+  await page.getByTestId('settings-save-bar-save').click()
+  const removal = page.getByTestId('customers-field-removal')
+  await expect(removal).toBeVisible()
+  await expect(removal).toContainText('حذف خيارات يستخدمها عملاء')
+  await expect(removal).toContainText('الخيار ذهبية من الحقل الفئة: عميل واحد')
+  await expect(removal).not.toContainText('حقول')
+  await removal.getByRole('button', { name: 'احذف الخيارات' }).click()
+  await expect(removal).toHaveCount(0)
+  const saved = await (await page.request.get('/api/v1/customers/settings')).json()
+  expect(saved.fields.find((field: { key: string }) => field.key === 'tier').options.map((option: { key: string }) => option.key)).toEqual(['silver'])
+  const mona = await (await page.request.get('/api/v1/customers/1')).json()
+  expect(mona.properties.find((property: { key: string }) => property.key === 'tier').value).toBeNull()
 })
 
 test('a branch session sees the settings read-only with the reason', async ({ page, baseURL }) => {
@@ -174,4 +191,12 @@ test('archive then restore from the record', async ({ page }) => {
   await page.getByTestId('inline-confirm-action').click()
   await expect(page.getByText('نشط').first()).toBeVisible()
   expect((await (await page.request.get('/api/v1/customers/1')).json()).active).toBe(true)
+})
+
+test('an export the server refuses as too large shows the narrow-the-filters message', async ({ page, baseURL }) => {
+  await page.context().addCookies([{ name: 'mock_export', value: 'too_large', url: baseURL! }])
+  await page.goto('/customers')
+  await page.getByTestId('customers-export').click()
+  await expect(page.locator('[data-slot="title"]').filter({ hasText: /النتائج أكثر من .* صف\. ضيّق التصفية ثم صدّر من جديد\./ })).toBeVisible()
+  await expect(page.getByText('تعذّر تصدير العملاء')).toHaveCount(0)
 })

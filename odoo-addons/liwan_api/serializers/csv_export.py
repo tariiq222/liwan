@@ -5,14 +5,27 @@ import csv
 import io
 import re
 
+from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.properties import dump_values
 
 FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
 E164 = re.compile(r'\+[0-9]{6,15}')
 # What separates the option keys of a multi-valued property in one cell.
 OPTION_SEPARATOR = ', '
+# The most rows one export file holds; a larger result is refused, never cut.
+EXPORT_MAX_ROWS = 50_000
 # Property types written as plain numbers.
 NUMBER_TYPES = ('integer', 'float')
+
+
+def refuse_oversized_export(row_count):
+    """422 ``export_too_large`` when the filters keep more than ``EXPORT_MAX_ROWS`` rows. Called with the count, before
+    any record is loaded."""
+    if row_count > EXPORT_MAX_ROWS:
+        raise ApiError(
+            422, 'export_too_large', 'too many rows to export: narrow the filters',
+            details={'rows': row_count, 'max_rows': EXPORT_MAX_ROWS},
+        )
 
 
 def safe_cell(value):
