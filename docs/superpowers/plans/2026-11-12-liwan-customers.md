@@ -1,6 +1,6 @@
 # `liwan_customers` implementation plan
 
-> Step 1 of [the customers and catalog foundation design](../specs/2026-11-11-customers-and-catalog-foundation-design.md), which the owner approved on 2026-11-11 and 2026-11-12. PR 1 is merged (tariiq222/liwan#697, `74a8ed6b5` on `main`, 2026-11-13) and its `ci` run on that commit passed. PR 2 is built on the branch that carries this edit; PRs 3 to 5 are not built. The facts in section 3 were read on `main` at `29a21d21a` by three read-only passes, and an independent reviewer then read the plan against the code; no test was run. Section 4 lists design points the spec left open, with a proposal for each. Four of them change something the spec says; the owner approved those four on 2026-11-12, and the spec gets the matching edits in PR 1. The work changes schema and authorization across layers, so every pull request takes the full path: an implementer per layer, a tester, and a reviewer separate from both.
+> Step 1 of [the customers and catalog foundation design](../specs/2026-11-11-customers-and-catalog-foundation-design.md), which the owner approved on 2026-11-11 and 2026-11-12. PR 1 is merged (tariiq222/liwan#697, `74a8ed6b5` on `main`, 2026-11-13) and its `ci` run on that commit passed. PR 2 is merged (tariiq222/liwan#698, `969c3e66c` on `main`, 2026-11-13); PRs 3 to 5 are not built. The facts in section 3 were read on `main` at `29a21d21a` by three read-only passes, and an independent reviewer then read the plan against the code; no test was run. Section 4 lists design points the spec left open, with a proposal for each. Four of them change something the spec says; the owner approved those four on 2026-11-12, and the spec gets the matching edits in PR 1. The work changes schema and authorization across layers, so every pull request takes the full path: an implementer per layer, a tester, and a reviewer separate from both.
 
 ## 1. Goal
 
@@ -141,9 +141,12 @@ Decided while building it (the spec's section 2.4 records them):
 - Removing a field that customers hold values for answers `409 custom_field_values_exist` with the count per field, and repeats with `confirm_field_removal`. The stored values are cleared then, because stock leaves them in place. The count and the clearing use the one elevated read the settings already had, since the company fence hides branch customers from the root manager.
 - Two additions the pages needed: `GET /api/v1/customers/settings/countries` for the phone country, and the list filter `is_company` for the parent company picker of a contact.
 
-An option removed from a selection or tags field that stays is cleared from the customers that hold it, without a confirmation: the API can no longer read it, so nothing visible is lost beyond what removing the option already does.
+Decided by the owner on 2026-11-13, after PR 2 merged:
 
-Left as it is: the export has no row cap, as the CRM export has none.
+- An option removed from a selection or tags field that stays asks for the same confirmation as a removed field: the 409 lists each option with the number of customers that hold it, and the confirmed write clears it from them.
+- Every row export (CRM, customer messages, customers) refuses a result above one limit, 50,000 rows, with `422 export_too_large`; the silent cut of the conversations export at 10,000 rows is gone.
+- An export counts as a read in the web gate, so a read-only tenant keeps downloading its own data (merged with PR 2).
+- The directory is «دليل العملاء» in Arabic and its capabilities are named after it, because the CRM application is «إدارة العملاء».
 
 Proves: export is refused without `customers.export`; party kinds decide which forms and values a new customer gets; a tenant-defined field is saved, returned by the API and filtered on; removing a field asks with the count of values it removes; the route probe's parameterless `GET /api/v1/customers` answers.
 
@@ -227,5 +230,5 @@ The local suites missed several CI stages on the pull request before this one, s
 | An ACL row and a rule can open the properties definition to the settings capability | Not checked; PR 2 checks it before choosing the `sudo()` |
 | The `ir_model_data` rename keeps the column when a field moves between addons | Inferred from `ir_model.py`; the migration test of PR 1 |
 | PR 1 of section 5 | Merged as tariiq222/liwan#697; the `ci` run on `74a8ed6b5` passed |
-| PR 2 of section 5 | Built; checked locally by the addon's Odoo tests, the web unit tests and type check, and the mocked browser spec `apps/web/e2e/customers.spec.ts` |
+| PR 2 of section 5 | Merged as tariiq222/liwan#698; its `ci-result` passed on `4ddcdfa3f` |
 | PRs 3 to 5 of section 5 | Plan, not built |

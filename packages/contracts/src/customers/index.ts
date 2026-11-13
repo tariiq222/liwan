@@ -103,7 +103,7 @@ export const CustomerSettingsPatchSchema = z.object({
   phone_country_id: z.number().int().positive().nullable().optional(),
   // The whole definition in display order; a field left out is removed.
   fields: z.array(CustomFieldDefinitionPatchItemSchema).optional(),
-  // Repeats a write that answered 409 `custom_field_values_exist`, after the user saw the counts.
+  // Repeats a write that answered 409 `custom_field_values_exist` (removed fields or options), after the user saw the counts.
   confirm_field_removal: z.literal(true).optional(),
   revision: z.number().int().positive(),
 }).strict().refine(
@@ -111,14 +111,25 @@ export const CustomerSettingsPatchSchema = z.object({
   { message: 'nothing to change' },
 )
 
-/** `details` of the 409 `custom_field_values_exist`: each removed field that still has values, with their count. */
+/**
+ * `details` of the 409 `custom_field_values_exist`: what a settings write would take from customers. `fields` are the
+ * removed fields that still have values; `options` are the options removed from a field that stays and that customers
+ * still hold. Each carries the number of customers that lose a value, and at least one of the two lists has an entry.
+ */
 export const CustomerFieldRemovalDetailsSchema = z.object({
   fields: z.array(z.object({
     key: z.string().min(1),
     label: z.string().min(1),
     count: z.number().int().positive(),
-  }).strict()).min(1),
-}).strict()
+  }).strict()),
+  options: z.array(z.object({
+    field_key: z.string().min(1),
+    field_label: z.string().min(1),
+    key: z.string().min(1),
+    label: z.string().min(1),
+    count: z.number().int().positive(),
+  }).strict()),
+}).strict().refine((details) => details.fields.length + details.options.length > 0, { message: 'nothing is removed' })
 
 export type CustomerSharing = z.infer<typeof CustomerSharingSchema>
 export type CustomerPartyKinds = z.infer<typeof CustomerPartyKindsSchema>
