@@ -153,7 +153,7 @@ trap 'rm -f "$tmp"' EXIT INT TERM
       esac
       index=$((index + 1))
       printf '\n# %s:%s\n' "$host" "$port"
-      printf 'acl egress_host_%s dstdomain %s\n' "$index" "$host"
+      printf 'acl egress_host_%s dstdomain -n %s\n' "$index" "$host"
       printf 'acl egress_port_%s port %s\n' "$index" "$port"
       if [ "$connect_only" = yes ]; then
         printf 'http_access allow egress_host_%s egress_port_%s egress_connect\n' "$index" "$index"
@@ -169,7 +169,7 @@ EOF
     printf '\n# Tenant provider hosts: CONNECT to port 443 only, and never to a private destination.\n'
     # One ACL line per host: lines of the same name are alternatives, and no line grows with the number of tenants.
     for host in $tenant_list; do
-      printf 'acl tenant_host dstdomain %s\n' "$host"
+      printf 'acl tenant_host dstdomain -n %s\n' "$host"
     done
     printf 'acl tenant_port port 443\n'
     printf 'acl tenant_private dst %s\n' "$private_ranges"

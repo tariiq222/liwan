@@ -47,11 +47,11 @@ class RenderCase(unittest.TestCase):
 
     def test_render_allows_only_listed_hosts(self):
         _, text = self.render('openrouter.ai')
-        self.assertEqual(self.lines(text, 'acl egress_host_'), ['acl egress_host_1 dstdomain openrouter.ai'])
+        self.assertEqual(self.lines(text, 'acl egress_host_'), ['acl egress_host_1 dstdomain -n openrouter.ai'])
         # An exact name, never a leading-dot/`*.` wildcard that would also admit a subdomain.
         for acl_line in self.lines(text, 'acl egress_host_'):
             self.assertNotIn('*.', acl_line)
-            self.assertNotIn('.openrouter.ai', acl_line.replace(' dstdomain openrouter.ai', ''))
+            self.assertNotIn('.openrouter.ai', acl_line.replace(' dstdomain -n openrouter.ai', ''))
         ports = [line.split()[-1] for line in self.lines(text, 'acl egress_port_')]
         self.assertEqual(ports, ['443'])
         self.assertEqual(len(self.lines(text, 'http_access allow')), 1)
@@ -69,7 +69,7 @@ class RenderCase(unittest.TestCase):
 
     def test_render_allows_a_local_model_port(self):
         _, text = self.render('ollama:11434')
-        self.assertEqual(self.lines(text, 'acl egress_host_'), ['acl egress_host_1 dstdomain ollama'])
+        self.assertEqual(self.lines(text, 'acl egress_host_'), ['acl egress_host_1 dstdomain -n ollama'])
         self.assertEqual([line.split()[-1] for line in self.lines(text, 'acl egress_port_')], ['11434'])
         allow = self.lines(text, 'http_access allow')
         self.assertEqual(len(allow), 1)
@@ -80,8 +80,8 @@ class RenderCase(unittest.TestCase):
     def test_render_accepts_several_items_and_keeps_one_allow_per_item(self):
         _, text = self.render('openrouter.ai,ollama:11434')
         self.assertEqual(self.lines(text, 'acl egress_host_'), [
-            'acl egress_host_1 dstdomain openrouter.ai',
-            'acl egress_host_2 dstdomain ollama',
+            'acl egress_host_1 dstdomain -n openrouter.ai',
+            'acl egress_host_2 dstdomain -n ollama',
         ])
         self.assertEqual(len(self.lines(text, 'http_access allow')), 2)
 
@@ -134,8 +134,8 @@ class TenantHostsCase(RenderCase):
         _, text = self.render('openrouter.ai', tenant_dir=directory)
         # One line per host (same-name ACL lines are alternatives), sorted, each host once, exact names.
         self.assertEqual(self.lines(text, 'acl tenant_host'), [
-            'acl tenant_host dstdomain api.together.xyz',
-            'acl tenant_host dstdomain llm.tenant.example',
+            'acl tenant_host dstdomain -n api.together.xyz',
+            'acl tenant_host dstdomain -n llm.tenant.example',
         ])
         self.assertEqual(self.lines(text, 'acl tenant_port'), ['acl tenant_port port 443'])
         private = self.lines(text, 'acl tenant_private dst')[0].split()[3:]
@@ -158,8 +158,8 @@ class TenantHostsCase(RenderCase):
         (directory / 'notes.txt').write_text('not.a.host.file\n', encoding='utf-8')
         completed, text = self.render('', tenant_dir=directory)
         self.assertEqual(self.lines(text, 'acl tenant_host'), [
-            'acl tenant_host dstdomain llm.tenant.example',
-            'acl tenant_host dstdomain spaced.example',
+            'acl tenant_host dstdomain -n llm.tenant.example',
+            'acl tenant_host dstdomain -n spaced.example',
         ])
         self.assertEqual(completed.stderr.count('skipping invalid tenant host'), 3)
         self.assertNotIn('half.written.example', text)
@@ -236,7 +236,7 @@ class EntrypointCase(unittest.TestCase):
         self.assertIn('starting with the static hosts only', completed.stderr)
         text = self.conf.read_text(encoding='utf-8')
         self.assertNotIn('tenant_host', text)
-        self.assertIn('dstdomain openrouter.ai', text)
+        self.assertIn('dstdomain -n openrouter.ai', text)
         self.assertIn('started with 0 tenant lines', completed.stdout)
 
     def test_a_valid_start_keeps_the_tenant_hosts(self):
