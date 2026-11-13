@@ -2,6 +2,7 @@
 import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
+import { normalizedPath } from '@/utils/routePath'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveCustomer, useCustomer, useRestoreCustomer } from '@/composables/customers/useCustomers'
 
@@ -12,7 +13,8 @@ const { can } = useAccess()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
-const isDetail = computed(() => route.path === `/customers/${route.params.id}`)
+// A trailing slash still names the record, not a child page.
+const isDetail = computed(() => normalizedPath(route.path) === `/customers/${route.params.id}`)
 const query = useCustomer(computed(() => isDetail.value && validId.value ? id.value : null))
 const customer = computed(() => query.data.value)
 // Invalid ids have no record to load and use the same not-found state as an unknown positive id.

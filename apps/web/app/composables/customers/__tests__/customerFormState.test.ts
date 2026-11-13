@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { nextTick, ref } from 'vue'
 import type { Customer, CustomFieldWithValue } from '@liwan/contracts'
 import { ApiError } from '../../useApi'
-import { shouldResetCustomerDraft, topAlertVisible, useCustomerFormFields } from '../customerFormState'
+import { shouldResetCustomerDraft, topAlertVisible, useCustomerFormFields, useShownCustomerFields } from '../customerFormState'
 
 const customer: Customer = { id: 4, name: 'منى', phone: null, email: null, is_company: false, parent: null, active: true, company: null, properties: [] }
 
@@ -70,5 +70,42 @@ describe('useCustomerFormFields', () => {
     await nextTick()
     expect(fields.changed.value).toEqual({})
     expect(fields.dirty.value).toBe(false)
+  })
+})
+
+describe('useShownCustomerFields', () => {
+  const city = (value: string | null): CustomFieldWithValue => ({ key: 'city', label: 'المدينة', type: 'char', value })
+  function setup(dirty: boolean) {
+    const source = ref<CustomFieldWithValue[]>([city('الرياض')])
+    const record = ref<number | undefined>(4)
+    const isDirty = ref(dirty)
+    const shown = useShownCustomerFields(() => source.value, () => record.value, () => isDirty.value)
+    return { source, record, isDirty, shown }
+  }
+
+  it('keeps the fields under unsaved input when a refetch only changes a value', async () => {
+    const { source, shown } = setup(true)
+    source.value = [city('جدة')]
+    await nextTick()
+    expect(shown.value[0]?.value).toBe('الرياض')
+  })
+
+  it('follows the server while the form is clean', async () => {
+    const { source, shown } = setup(false)
+    source.value = [city('جدة')]
+    await nextTick()
+    expect(shown.value[0]?.value).toBe('جدة')
+  })
+
+  it('follows another record and a changed definition even over unsaved input', async () => {
+    const other = setup(true)
+    other.record.value = 5
+    other.source.value = [city('جدة')]
+    await nextTick()
+    expect(other.shown.value[0]?.value).toBe('جدة')
+    const redefined = setup(true)
+    redefined.source.value = [{ ...city('الرياض'), label: 'البلدة', type: 'text' }]
+    await nextTick()
+    expect(redefined.shown.value[0]?.type).toBe('text')
   })
 })

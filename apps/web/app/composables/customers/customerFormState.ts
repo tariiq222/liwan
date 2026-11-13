@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 import type { Customer, CustomFieldValues, CustomFieldWithValue } from '@liwan/contracts'
 import { customerFormField } from './customerErrors'
 
@@ -24,10 +24,28 @@ export function topAlertVisible(error: unknown, rendered: { kind: boolean; paren
   return true
 }
 
+const definitionOf = (fields: CustomFieldWithValue[]) => JSON.stringify(fields.map(field => [field.key, field.type, field.options]))
+
+/**
+ * The custom fields the rows show. A refetch that changes only values does not replace them while the form holds
+ * unsaved input, so another session's edit never wipes a draft; another record, a changed definition or a clean form
+ * follows the server.
+ */
+export function useShownCustomerFields(source: () => CustomFieldWithValue[], recordId: () => number | undefined, dirty: () => boolean) {
+  const shown = shallowRef(source())
+  let shownFor = recordId()
+  watch(source, (next) => {
+    if (recordId() === shownFor && dirty() && definitionOf(next) === definitionOf(shown.value)) return
+    shownFor = recordId()
+    shown.value = next
+  })
+  return shown
+}
+
 /**
  * The values the user changed in the custom field rows, and the refusals shown under them. The rows reset their own
- * draft when the definition changes; the values collected here are cleared with it, so the body never sends a value
- * for a field the user no longer sees.
+ * draft when the fields they are given change (`useShownCustomerFields` decides when); the values collected here are
+ * cleared with it, so the body never sends a value for a field the user no longer sees.
  */
 export function useCustomerFormFields(fields: () => CustomFieldWithValue[]) {
   const changed = ref<CustomFieldValues>({})

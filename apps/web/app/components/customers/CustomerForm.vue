@@ -5,7 +5,7 @@ import { ApiError } from '@/composables/useApi'
 import { refDebounced } from '@vueuse/core'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { customerConflictCandidates, customerFormField, customerPropertyError } from '@/composables/customers/customerErrors'
-import { shouldResetCustomerDraft, topAlertVisible, useCustomerFormFields } from '@/composables/customers/customerFormState'
+import { shouldResetCustomerDraft, topAlertVisible, useCustomerFormFields, useShownCustomerFields } from '@/composables/customers/customerFormState'
 import { emptyCustomerFields, parentPickerOffered, partyKindForm } from '@/composables/customers/customerPartyKind'
 import { customerCreateBody, customerPatchBody, type CustomerDraft } from '@/composables/customers/customerPayload'
 import { useCustomerCompanies } from '@/composables/customers/useCustomerCompanies'
@@ -25,7 +25,7 @@ const parentId = ref<number | null>(null)
 const kind = computed(() => partyKindForm(props.settings.party_kinds, parentId.value !== null))
 // What the customer is: the user's choice, else what the party kinds make it, else what an existing customer already is.
 const effectiveIsCompany = computed(() => (kind.value.canChoose ? isCompany.value : props.customer ? props.customer.is_company : kind.value.isCompany))
-const fields = computed(() => props.customer?.properties ?? emptyCustomerFields(props.settings.fields))
+const fields = useShownCustomerFields(() => props.customer?.properties ?? emptyCustomerFields(props.settings.fields), () => props.customer?.id, () => dirty.value)
 
 const name = ref('')
 const phone = ref('')

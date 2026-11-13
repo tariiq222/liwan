@@ -78,6 +78,11 @@ test('the record page shows the custom field values of the customer', async ({ p
   await expect(page.getByText('الرياض').first()).toBeVisible()
 })
 
+test('the record opens from an address that ends with a slash', async ({ page }) => {
+  await page.goto('/customers/1/')
+  await expect(page.locator('main h1')).toHaveText('منى العتيبي')
+})
+
 test('the settings page saves the party kinds', async ({ page }) => {
   await page.goto('/settings/apps/customers')
   await page.getByTestId('customers-party-kinds').getByText('أفراد', { exact: true }).click()
