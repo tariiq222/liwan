@@ -157,8 +157,8 @@ suite('bank transfer (W5)', () => {
     // Simulate the crash A3 names: the attempt row committed as `pending` (reserved) and the settlement never ran, so
     // the order is still awaiting payment. A `succeeded` row here would mean the settlement DID run.
     const attemptId = randomUUID()
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date)
-      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8)`,
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,kind)
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8,'bank_transfer')`,
     [attemptId, order.id, invoice.id, body.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), body.value_date])
     expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.id])).rows[0].payment_state).toBe('awaiting_payment')
     const retry = await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...body } as never)
@@ -305,8 +305,8 @@ suite('bank transfer (W5)', () => {
     // A paid invoice is immutable, so the route cannot record a value date before the invoice was issued; the earlier
     // duplicate is written the way a second money-in with its own earlier success time is stored.
     const duplicateId = randomUUID()
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at)
-      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,($8::timestamp + time '12:00') AT TIME ZONE 'Asia/Riyadh')`,
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at,kind)
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,($8::timestamp + time '12:00') AT TIME ZONE 'Asia/Riyadh','bank_transfer')`,
     [duplicateId, order.id, invoice.id, `TRF-dup-${duplicateId.slice(0, 8)}`, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), day(3)])
     // By time the duplicate really is the earlier success...
     const byTime = (await pool.query("SELECT id FROM payment_attempts WHERE order_id=$1 AND status='succeeded' ORDER BY succeeded_at,id", [order.id])).rows.map(r => r.id)
@@ -502,8 +502,8 @@ suite('the 14-day refund window (W7)', () => {
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)
     const invoice = (await pool.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued'", [order.id])).rows[0]
     const attemptId = randomUUID()
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,updated_at,succeeded_at)
-      VALUES($1,$2,$3,$9,'live',$4,$5,$6,$7,'succeeded',$8,$8)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt, provider])
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,updated_at,succeeded_at,kind)
+      VALUES($1,$2,$3,$9,'live',$4,$5,$6,$7,'succeeded',$8,$8,CASE WHEN $9::text='bank_transfer' THEN 'bank_transfer' ELSE 'hosted_invoice' END)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt, provider])
     // Delivered: a paid order still being delivered cannot be refunded yet (`fulfillment_pending`).
     await pool.query("UPDATE orders SET payment_state='paid',paid_attempt_id=$2,fulfillment_state='applied' WHERE id=$1", [order.id, attemptId])
     await pool.query("UPDATE invoices SET status='paid',paid_at=$2 WHERE id=$1", [invoice.id, paidAt])
@@ -646,8 +646,8 @@ suite('the 14-day refund window (W7)', () => {
     await pool.query(`INSERT INTO invoices(id,number,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,paid_at,issued_at)
       SELECT $1,'INV-R',customer_id,subscription_id,$2,'renewal','paid',currency,exponent,subtotal_minor,0,total_minor,current_date,current_date+30,now(),now() FROM invoices WHERE id=$3`,
       [laterInvoice, laterOrder, paid.invoice.id])
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
-      SELECT $1,$2,$3,'moyasar','live',$4,total_minor,currency,exponent,'succeeded',now()+interval '30 days' FROM invoices WHERE id=$3`,
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at,kind)
+      SELECT $1,$2,$3,'moyasar','live',$4,total_minor,currency,exponent,'succeeded',now()+interval '30 days','hosted_invoice' FROM invoices WHERE id=$3`,
       [randomUUID(), laterOrder, laterInvoice, `moy-${laterOrder.slice(0, 8)}`])
     await expect(requestRefund(laterInvoice)).rejects.toMatchObject({ status: 409, code: 'refund_not_first_payment' })
     // The first invoice is still refundable, so the refusal is about which payment, not about the customer.

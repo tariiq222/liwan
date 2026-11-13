@@ -5,6 +5,7 @@ import { allAttentionItems } from './attention.js'
 import { refusalWords, renewalMayStillBill } from './tenant-deletion-notices.js'
 import type { MailAdapter } from './mail-adapter.js'
 import type { TelegramSender } from './telegram-adapter.js'
+import { WEBHOOK_VERIFICATION_ACTION } from './payment-webhook-verification.js'
 import { completeOutbox, deferOutbox, failOutbox, leaseOutboxRow, releaseOutbox } from './outbox.js'
 
 export const VENDOR_ALERT_KIND = 'vendor.alert'
@@ -46,6 +47,7 @@ const EVENTS = {
   deletion_confirmed: { title: 'عميل أكّد حذف مساحته', plural: 'تأكيدات حذف مساحة', need: 'maybe', collapsible: false, todo: `بدأت مهلة ${TENANT_DELETION_WINDOW_DAYS} يومًا ولم يُحذف شيء. إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل.` },
   deletion_withdrawn: { title: 'سُحب طلب حذف مساحة عميل', plural: 'طلبات حذف مسحوبة', need: 'none', collapsible: false, todo: 'لا إجراء مطلوب.' },
   deletion_due: { title: 'انتهت مهلة حذف مساحة عميل', plural: 'حذف مساحات مستحق', need: 'yes', collapsible: false, todo: 'لا شيء ينفّذ الحذف تلقائيًا بعد. افتح صفحة العميل وتحقق من الطلب قبل تنفيذه.' },
+  webhook_verification: { title: 'مزود الدفع أرسل رمز تسجيل الـwebhook', plural: 'رموز تسجيل webhook', need: 'yes', collapsible: false, todo: 'أدخل الرمز في لوحة مزود الدفع خلال 30 دقيقة. بعد خمس محاولات خاطئة يُقفل التسجيل.' },
   attention: { title: 'يحتاج انتباهك', plural: 'بنود تحتاج انتباهك', need: 'yes', collapsible: true, todo: 'افتح قائمة الانتباه في لوحة التحكم.' },
 } as const satisfies Record<string, { title: string; plural: string; need: Need; collapsible: boolean; todo: string }>
 export type AlertEvent = keyof typeof EVENTS
@@ -77,7 +79,7 @@ export function cleanAlertText(value: unknown, max: number): string {
 
 const formatMoney = (m: Money) => `${(m.minor / 10 ** m.exponent).toFixed(m.exponent)} ${cleanAlertText(m.currency, 3)}`
 
-type Candidate = { key: string; event: AlertEvent; customerId: string | null; name: string; lines: string[]; title?: string; amount?: Money }
+type Candidate = { key: string; event: AlertEvent; customerId: string | null; name: string; lines: string[]; title?: string; amount?: Money; /** An alert about no customer (the payment provider): the message does not name one. */ noCustomer?: true }
 
 const NEED_TAG: Record<Need, string> = { none: '[للعلم]', maybe: '[قد يتطلب إجراء]', yes: '[يتطلب إجراء]' }
 
@@ -90,7 +92,7 @@ function render(event: AlertEvent, title: string, lines: string[], todo: string,
 
 function messageOf(c: Candidate, origin: string | undefined) {
   const spec = EVENTS[c.event]
-  const lines = [`العميل: ${cleanAlertText(c.name, NAME_MAX) || 'غير مسمّى'}`, ...(c.amount ? [`المبلغ: ${formatMoney(c.amount)}`] : []), ...c.lines]
+  const lines = [...(c.noCustomer ? [] : [`العميل: ${cleanAlertText(c.name, NAME_MAX) || 'غير مسمّى'}`]), ...(c.amount ? [`المبلغ: ${formatMoney(c.amount)}`] : []), ...c.lines]
   return render(c.event, c.title ?? spec.title, lines, spec.todo, consoleLink(origin, c.customerId))
 }
 
@@ -170,6 +172,12 @@ async function factCandidates(pool: Pool, since: Date, now: Date): Promise<Candi
     else if (row.action === 'tenant_deletion.requested') lines.push('أُرسل رمز التأكيد إلى بريد المدير المسجل.')
     add(`audit:${row.id}`, deletionEvent[row.action as keyof typeof deletionEvent], row, { lines })
   }
+
+  // The provider's webhook registration code: an audit event written when the event arrives, so a worker that was down still announces it.
+  for (const row of (await pool.query(`SELECT a.id,a.subject,a.metadata->>'code' AS code,a.metadata->>'authenticated' AS authenticated FROM audit_events a
+    WHERE a.action=$1 AND a.created_at >= $2`, [WEBHOOK_VERIFICATION_ACTION, since])).rows)
+    out.push({ key: `audit:${row.id}`, event: 'webhook_verification', customerId: null, name: 'payment provider', noCustomer: true,
+      lines: [`الرمز: ${cleanAlertText(row.code, 6)}`, ...(row.authenticated === 'true' ? [] : ['تنبيه: الحدث لم يحمل الرمز السري المشترك فلم يُتحقق من مصدره. تأكد أنك سجّلت الـwebhook بنفسك قبل إدخال الرمز.'])] })
 
   const notes = `SELECT n.id,n.amount_minor AS total_minor,n.currency,n.exponent,c.id AS customer_id,c.name FROM invoice_adjustments n JOIN customers c ON c.id=n.customer_id
     WHERE n.origin='vendor' AND n.cause='vendor_refund'`

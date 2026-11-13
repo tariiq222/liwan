@@ -5,7 +5,7 @@ import { transaction } from '../db.js'
 import { daysBetween, riyadhDate, type RefundCreditNoteRequest } from '@liwan/commercial-contracts'
 import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
 import { adjustmentView } from './invoices.js'
-import { isDirectPayment, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
+import { isDirectPayment, PaymentError, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { billingSettings } from './billing-settings.js'
 import { claimOutbox, completeOutbox, deferOutbox, enqueueOutbox } from './outbox.js'
@@ -208,8 +208,13 @@ async function returnPaymentAtProvider(pool: Pool, adapter: PaymentAdapter, outb
     && event.refunded.currency === attempt.currency && event.refunded.exponent === attempt.exponent
   if (returned < total) {
     await noteProviderRefund(pool, outboxId, { provider_refund: 'attempted' })
-    let result: Awaited<ReturnType<PaymentAdapter['refund']>> | undefined
-    try { result = await adapter.refund(payment.payment_id, { minor: total - returned, currency: attempt.currency, exponent: attempt.exponent }) }
+    let result: Extract<Awaited<ReturnType<PaymentAdapter['refund']>>, { outcome: 'refunded' }> | undefined
+    try {
+      const refunded = await adapter.refund(payment.payment_id, { minor: total - returned, currency: attempt.currency, exponent: attempt.exponent })
+      // A refusal is read like a failed call: a fresh read decides whether the money is back anyway.
+      if (refunded.outcome === 'refunded') result = refunded
+      else throw new PaymentError(refunded.outcome === 'below_minimum' ? 'invalid_amount' : 'provider_error', refunded.outcome)
+    }
     catch (error) {
       let after: ProviderEvent | undefined
       try { after = await read() } catch { /* unverifiable: the mark stays */ }

@@ -124,8 +124,8 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
     // The attempt is reserved NOT settled: apply (below) is what flips it to succeeded and pays the order.
     // succeeded_at is the value date: the day the money reached the account, not the day it was recorded. apply()
     // keeps the first value it finds, so this survives the settlement that follows.
-    const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at)
-      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8::date,${RIYADH_SUCCEEDED_AT('$8')}) RETURNING *`,
+    const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at,kind)
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8::date,${RIYADH_SUCCEEDED_AT('$8')},'bank_transfer') RETURNING *`,
     [randomUUID(), order.id, invoice.id, parsed.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), parsed.value_date])).rows[0]
     const outcome = await settleAttemptIn(client, transferEvent(row, order))
     if (outcome !== 'accepted') throw new CommercialHttpError('order_not_payable', 409)
@@ -155,8 +155,8 @@ const isPaid = (order: Record<string, any>) => ['paid', 'refund_pending', 'refun
  */
 async function recordDuplicateTransfer(client: PoolClient, input: { invoice: Record<string, any>; order: Record<string, any>; parsed: BankTransferInput; operator: string }) {
   const { invoice, order, parsed, operator } = input
-  const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at)
-    VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,${RIYADH_SUCCEEDED_AT('$8')}) RETURNING *`,
+  const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at,kind)
+    VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,${RIYADH_SUCCEEDED_AT('$8')},'bank_transfer') RETURNING *`,
   [randomUUID(), order.id, invoice.id, parsed.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), parsed.value_date])).rows[0]
   const reason = `duplicate bank transfer — manual review (attempt ${row.id})`
   const eventId = `bank-transfer-duplicate:${row.id}`

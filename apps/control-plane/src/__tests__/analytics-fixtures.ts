@@ -88,6 +88,6 @@ export async function seedInvoice(pool: Pool, input: InvoiceInput): Promise<stri
 
 export async function seedAttempt(pool: Pool, input: { order_id: string, invoice_id: string, status: 'succeeded' | 'failed', at: string }): Promise<void> {
   await pool.query(
-    `INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status,created_at,updated_at) VALUES($1,$2,$3,'simulator','simulator',100,'SAR',2,$4,$5,$5)`,
+    `INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status,created_at,updated_at,kind) VALUES($1,$2,$3,'simulator','simulator',100,'SAR',2,$4,$5,$5,'hosted_invoice')`,
     [randomUUID(), input.order_id, input.invoice_id, input.status, input.at])
 }

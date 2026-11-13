@@ -67,7 +67,7 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
     if (options.paid) {
       const invoice = randomUUID(), attempt = randomUUID()
       await pool.query("INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end) VALUES($1,$2,$3,$4,'change','paid','SAR',2,100,0,100,'2026-11-01','2026-12-01')", [invoice, f.customer, f.subscription, orderId])
-      await pool.query("INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status) VALUES($1,$2,$3,$4,$5,100,'SAR',2,'succeeded')", [attempt, orderId, invoice, options.provider ?? 'simulator', options.provider ? 'live' : 'simulator'])
+      await pool.query("INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status,kind) VALUES($1,$2,$3,$4,$5,100,'SAR',2,'succeeded',CASE WHEN $4::text='bank_transfer' THEN 'bank_transfer' ELSE 'hosted_invoice' END)", [attempt, orderId, invoice, options.provider ?? 'simulator', options.provider ? 'live' : 'simulator'])
       await pool.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [orderId, attempt])
     }
     return { orderId, target, job, jobId: queued.id }

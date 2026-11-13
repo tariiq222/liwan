@@ -172,6 +172,17 @@ it('registers version fifty-eight once and reshapes payment attempts and saved c
   await migrate(g.pool)
   expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(58)')
 })
+it('registers version fifty-nine once and gives a bank transfer its own attempt kind', async () => {
+  const applied = Array.from({ length: 58 }, (_, i) => i + 1)
+  const f = fixture(applied)
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(59)')
+  expect(sql.some((s) => s.includes("'bank_transfer'") && s.includes('payment_attempts_kind_check') && s.includes('ALTER COLUMN kind DROP DEFAULT'))).toBe(true)
+  const g = fixture([...applied, 59])
+  await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(59)')
+})
 it('registers immutable branch quotes and revision guard in versions fifteen and sixteen once', async () => {
   const applied = Array.from({length:14}, (_, i) => i+1)
   const f=fixture(applied)

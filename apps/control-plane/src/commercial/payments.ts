@@ -4,8 +4,9 @@ import { z } from 'zod'
 import { nextOrderState, type OrderStateInput } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError, iso } from './lifecycle.js'
-import { assertReturnUrl, isDirectPayment, refundedAmount, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
+import { PaymentError, assertReturnUrl, isDirectPayment, refundedAmount, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { confirmEvent } from './moyasar-adapter.js'
+import { recordWebhookVerification } from './payment-webhook-verification.js'
 import { enqueueOutbox } from './outbox.js'
 import { enqueueBillingNotice } from './billing-notices.js'
 import { markTopupRefunded, recordPaidTopup } from './ai-ledger.js'
@@ -162,6 +163,11 @@ export async function closeOtherAttempts(pool: Pool, adapter: PaymentAdapter, pa
 }
 
 export async function handleProviderEvent(pool: Pool, input: { provider: string; rawBody: Uint8Array | string; headers: AdapterHeaders; adapter: PaymentAdapter }) {
+  // The provider's registration code is not a payment event: it is answered with success and goes to the operator, and nothing else changes.
+  try {
+    const verification = input.provider === input.adapter.provider ? input.adapter.webhookVerification(toBytes(input.rawBody), input.headers) : null
+    if (verification) { await recordWebhookVerification(pool, verification); return { status: 200, outcome: 'verification' as const } }
+  } catch (error) { if (error instanceof PaymentError) return { status: 401, outcome: 'rejected' as const }; throw error }
   let event: ProviderEvent
   try {
     event = input.adapter.verifyEvent(toBytes(input.rawBody), input.headers)

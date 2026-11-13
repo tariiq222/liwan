@@ -171,15 +171,17 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
         VALUES($1,$2,$3,$4,$5,$2::uuid::text,$2::uuid::text,$6,$7,$8,'saved_card')`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
       await client.query("UPDATE renewals SET status='charging' WHERE order_id=$1", [order.id])
     })
+    let chargedPaymentId: string | null = null
     try {
-      const event = await adapter.chargeToken({given_id:order.id,token:method.provider_token,amount:invoice.total,
+      const charged = await adapter.chargeToken({given_id:order.id,token:method.provider_token,amount:invoice.total,
         description:`LiwanOS renewal ${order.id}`,callback_url:paymentReturnUrls(origin,attemptId)})
-      // A charge response only identifies the attempt; settlement requires provider lookup.
-      await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,event.provider_ref])
-    } catch {
-      await pool.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1 AND status='created'", [attemptId])
-      // The committed invoice/order survive; uncertain charges must be reconciled, never blindly retried.
-    }
+      // A charge response only identifies the attempt; settlement requires provider lookup. Without a payment (the token was refused, or the
+      // answer never came) nothing is known: the attempt is parked as unknown.
+      if ('payment' in charged) chargedPaymentId = charged.payment.payment_id
+    } catch { /* uncertain: parked as unknown below */ }
+    if (chargedPaymentId) await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,chargedPaymentId])
+    // The committed invoice/order survive; uncertain charges must be reconciled, never blindly retried.
+    else await pool.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1 AND status='created'", [attemptId])
     } catch (error) {
       await recordRenewalFailure(pool, candidate.id, error)
       failures.push(error)

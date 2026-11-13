@@ -100,8 +100,8 @@ export const bankTransferClaimRequestSchema = z.strictObject({
 export const paymentProviderSchema = z.enum(['moyasar', 'simulator'])
 export const paymentModeSchema = z.enum(['test', 'live', 'simulator'])
 export const paymentAttemptStatusSchema = z.enum(['created', 'redirected', 'pending', 'succeeded', 'failed', 'canceled', 'unknown'])
-/** What the provider reference identifies: a hosted invoice, a payment made through the embedded card form, or a charge of a saved card. */
-export const paymentAttemptKindSchema = z.enum(['hosted_invoice', 'form', 'saved_card'])
+/** What the provider reference identifies: a hosted invoice, a payment made through the embedded card form, a charge of a saved card, or the reference of a bank transfer the vendor recorded. */
+export const paymentAttemptKindSchema = z.enum(['hosted_invoice', 'form', 'saved_card', 'bank_transfer'])
 export const paymentAttemptSchema = z.strictObject({
   id: z.string().min(1), order_id: z.string().min(1), invoice_id: z.string().min(1),
   provider: paymentProviderSchema, mode: paymentModeSchema, kind: paymentAttemptKindSchema, provider_ref: z.string().nullable(),

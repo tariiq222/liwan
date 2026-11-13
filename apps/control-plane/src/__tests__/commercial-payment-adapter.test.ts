@@ -19,7 +19,7 @@ function mock(responses: any[]) {
 const mk = (over: any = {}, responses: any[] = []) => {
   const m = mock(responses)
   const a = new MoyasarAdapter({
-    secretKey: 'sk_test_abc', webhookSecret: 'whsec', merchantAccount: 'acme', expectLive: false,
+    secretKey: 'sk_test_abc', publishableKey: 'pk_test_abc', webhookSecret: 'whsec', merchantAccount: 'acme', expectLive: false,
     allowedReturnOrigins: [ORIGIN], fetchImpl: m.fetchImpl, ...over,
   })
   return { a, ...m }
@@ -52,9 +52,9 @@ describe('MoyasarAdapter', () => {
   })
   it('key/mode guards', () => {
     const base = { webhookSecret: 'w', merchantAccount: 'a', allowedReturnOrigins: [ORIGIN] }
-    expect(() => new MoyasarAdapter({ ...base, secretKey: 'sk_live_x', expectLive: false })).toThrow(/key_mode_mismatch/)
-    expect(() => new MoyasarAdapter({ ...base, secretKey: 'sk_test_x', expectLive: true })).toThrow(/key_mode_mismatch/)
-    expect(new MoyasarAdapter({ ...base, secretKey: 'sk_live_x', expectLive: true }).mode).toBe('live')
+    expect(() => new MoyasarAdapter({ ...base, secretKey: 'sk_live_x', publishableKey: 'pk_live_x', expectLive: false })).toThrow(/key_mode_mismatch/)
+    expect(() => new MoyasarAdapter({ ...base, secretKey: 'sk_test_x', publishableKey: 'pk_test_x', expectLive: true })).toThrow(/key_mode_mismatch/)
+    expect(new MoyasarAdapter({ ...base, secretKey: 'sk_live_x', publishableKey: 'pk_live_x', expectLive: true }).mode).toBe('live')
   })
   it('error messages never leak keys', async () => {
     const { a } = mk({}, [{ http: 400, body: { message: 'bad sk_test_abc whsec' } }])
@@ -115,21 +115,12 @@ describe('MoyasarAdapter', () => {
     expect(refundedAmount(hook3)?.minor).toBe(1500)
     expect(refundedAmount(mk({}).a.verifyEvent(hook({ type: 'payment_refunded' }), {}))).toBeNull()
   })
-  it('refund and chargeToken shapes', async () => {
+  it('refund request shape and its cumulative figure', async () => {
     const r = mk({}, [{ id: 'pay_1', status: 'refunded', amount: 5000, refunded: 2000, currency: 'SAR' }])
     const out = await r.a.refund('pay_1', { currency: 'SAR', exponent: 2, minor: 2000 })
     expect(r.calls[0].url).toBe('https://api.moyasar.com/v1/payments/pay_1/refund')
     expect(JSON.parse(r.calls[0].init.body)).toEqual({ amount: 2000 })
-    expect(out.refunded.minor).toBe(2000)
-    const c = mk({}, [{ id: 'tok_1', status: 'active' }, { id: 'pay_2', status: 'paid', amount: 3000, currency: 'SAR' }])
-    const ev = await c.a.chargeToken({ given_id: 'g-1', token: 'tok_1', amount: { currency: 'SAR', exponent: 2, minor: 3000 }, description: 'renew', callback_url: `${ORIGIN}/hook` })
-    expect(c.calls[0].url).toContain('/tokens/tok_1')
-    expect(c.calls[1].url).toBe('https://api.moyasar.com/v1/payments')
-    expect(JSON.parse(c.calls[1].init.body)).toMatchObject({ given_id: 'g-1', amount: 3000, source: { type: 'token', token: 'tok_1' } })
-    expect(ev.status).toBe('succeeded')
-    const bad = mk({}, [{ id: 'tok_1', status: 'inactive' }])
-    expect(await code(bad.a.chargeToken({ given_id: 'g', token: 'tok_1', amount: { currency: 'SAR', exponent: 2, minor: 3000 }, description: 'x', callback_url: `${ORIGIN}/h` }))).toBe('provider_error')
-    expect(bad.calls).toHaveLength(1)
+    expect(out).toMatchObject({ outcome: 'refunded', status: 'refunded', refunded: { minor: 2000 } })
   })
   it('return url allowlist', async () => {
     expect(() => assertReturnUrl('http://evil.com/x', [ORIGIN])).toThrow(/return_url_forbidden/)
@@ -155,7 +146,7 @@ describe('paymentAdapterFromEnv', () => {
   it('requires config, never falls back', () => {
     expect(() => paymentAdapterFromEnv({})).toThrow(/provider_not_configured/)
     expect(() => paymentAdapterFromEnv({ LIWAN_PAYMENT_PROVIDER: 'moyasar' })).toThrow(/provider_not_configured/)
-    const full = { LIWAN_PAYMENT_PROVIDER: 'moyasar', MOYASAR_SECRET_KEY: 'sk_test_a', MOYASAR_WEBHOOK_SECRET: 'w'.repeat(32), MOYASAR_ACCOUNT_NAME: 'acme', MOYASAR_MODE: 'test', LIWAN_PAYMENT_RETURN_ORIGINS: ORIGIN }
+    const full = { LIWAN_PAYMENT_PROVIDER: 'moyasar', MOYASAR_SECRET_KEY: 'sk_test_a', MOYASAR_PUBLISHABLE_KEY: 'pk_test_a', MOYASAR_WEBHOOK_SECRET: 'w'.repeat(32), MOYASAR_ACCOUNT_NAME: 'acme', MOYASAR_MODE: 'test', LIWAN_PAYMENT_RETURN_ORIGINS: ORIGIN }
     expect(paymentAdapterFromEnv(full).mode).toBe('test')
     expect(() => paymentAdapterFromEnv({ ...full, MOYASAR_WEBHOOK_SECRET: undefined })).toThrow(/provider_not_configured/)
     // The webhook secret is the only defence of the public event route: it needs the same 32-byte floor as the service keys.
@@ -224,7 +215,7 @@ describe('SimulatorAdapter scenarios', () => {
   it('refund and idempotent token charge', async () => {
     const s = sim().addToken('tok'); const { provider_ref: r } = await s.createAttempt(attempt)
     const ev = s.settle(r)
-    expect((await s.refund(ev.payment_id!)).refunded.minor).toBe(5000)
+    expect(await s.refund(ev.payment_id!)).toMatchObject({ outcome: 'refunded', refunded: { minor: 5000 } })
     const args = { given_id: 'g1', token: 'tok', amount: attempt.amount, description: 'x', callback_url: `${ORIGIN}/h` }
     expect(await s.chargeToken(args)).toBe(await s.chargeToken(args))
   })

@@ -29,8 +29,8 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
       [order, customer, sub, randomUUID(), revision, randomUUID()])
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'change',$5,'SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [invoice, customer, sub, order, options.undelivered || options.vendorNote ? 'paid' : 'void'])
-      await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
-        VALUES($1,$2,$3,$4,$5,$6,11500,'SAR',2,'succeeded',now())`, [attempt, order, invoice, options.provider ?? 'moyasar', options.provider === 'simulator' ? 'simulator' : 'live', `ref-${attempt}`])
+      await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at,kind)
+        VALUES($1,$2,$3,$4,$5,$6,11500,'SAR',2,'succeeded',now(),CASE WHEN $4::text='bank_transfer' THEN 'bank_transfer' ELSE 'hosted_invoice' END)`, [attempt, order, invoice, options.provider ?? 'moyasar', options.provider === 'simulator' ? 'simulator' : 'live', `ref-${attempt}`])
       await c.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [order, attempt])
       let note = ''
       if (options.undelivered) note = (await recordFulfillmentFailure(c, { order_id: order, reason: 'Fulfillment failed permanently', actor: 'commercial-fulfillment' }))[0]!

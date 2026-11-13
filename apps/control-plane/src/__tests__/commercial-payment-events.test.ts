@@ -220,8 +220,8 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
     f.adapter.settle(a.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
     const bid=randomUUID(),created=await f.adapter.createAttempt({attempt_id:bid,order_id:f.order_id,amount:{minor:11500,currency:'SAR',exponent:2},description:'x',success_url:'https://liwan.test/a',back_url:'https://liwan.test/a',callback_url:'https://liwan.test/a'})
-    const b=(await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status)
-      SELECT $1,order_id,invoice_id,provider,mode,merchant_ref,$2,amount_minor,currency,exponent,'redirected' FROM payment_attempts WHERE id=$3 RETURNING id`,[bid,created.provider_ref,a.id])).rows[0]
+    const b=(await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,kind)
+      SELECT $1,order_id,invoice_id,provider,mode,merchant_ref,$2,amount_minor,currency,exponent,'redirected',kind FROM payment_attempts WHERE id=$3 RETURNING id`,[bid,created.provider_ref,a.id])).rows[0]
     await reconcileUnknownAttempts(pool,f.adapter)
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('canceled')
     expect((await f.adapter.lookupAttempt(created.provider_ref)).status).toBe('canceled')
