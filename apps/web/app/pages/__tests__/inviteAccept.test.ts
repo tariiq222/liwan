@@ -13,7 +13,7 @@ describe('invite accept page', () => {
     expect(page).not.toContain('<main')
     expect(page).toContain('route.query.token')
     expect(page).toContain('MIN_LENGTH = 12')
-    expect(page.match(/<UFormField/g)?.length).toBe(2)
+    expect(page.match(/<UFormField/g)?.length).toBe(3)
     expect(page).toContain('useHydrated')
     expect(page).toContain("access: 'public'")
   })
@@ -40,6 +40,23 @@ describe('invite accept page', () => {
     expect(page).toMatch(/catch \{\s*state\.value = 'form'/)
     expect(page).toContain("v-if=\"state === 'checking'\"")
     expect(page).toMatch(/<form v-else-if="state === 'form'"/)
+  })
+  it('offers a new invitation, sign-in and forgot-password when the link cannot be used or is missing', () => {
+    expect(page).toContain("ref<'checking' | 'form' | 'invalid' | 'resend' | 'accountUnavailable' | 'success'>(token.value ? 'checking' : 'resend')")
+    expect(page).toContain("state === 'invalid' || state === 'resend'")
+    expect(page).toContain("'/api/invitations/reissue'")
+    expect(page).toContain('body: { email: email.value.trim() }')
+    expect(page).toContain('to="/login"')
+    expect(page).toContain('to="/forgot-password"')
+    // One answer whatever the address, so the page never says whether it matched.
+    expect(page).toContain("t('invite.resendSentBody')")
+    expect(page).toContain("status === 429 ? 'rateLimited' : 'unavailable'")
+    expect(page).not.toMatch(/console\./)
+  })
+  it('links the sign-in page to the new-invitation request only where the commercial pages exist', () => {
+    const login = read('app/pages/login.vue')
+    expect(login).toContain("String(useRuntimeConfig().public.customerCommercialEnabled) === 'true'")
+    expect(login).toMatch(/v-if="inviteRequestable" to="\/invite\/accept"/)
   })
   it('prefills the login page username from ?login, sanitized', () => {
     const login = read('app/pages/login.vue')

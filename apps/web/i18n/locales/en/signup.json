@@ -45,7 +45,10 @@
       "rateLimited": "Too many attempts. Wait a moment before trying again.",
       "unavailable": "Registration is temporarily unavailable. Try again shortly.",
       "trialAlreadyUsed": "Your company has already used its free trial. Sign in to your existing workspace, or ask your company's account administrator to invite you. If a different company shares this email domain, contact the LiwanOS team.",
-      "expired": "Your registration session has expired. Start again below."
-    }
+      "expired": "Your registration session has expired. Start again below.",
+      "humanCheckFailed": "The security check did not pass. Complete it again, then try once more.",
+      "humanCheckUnavailable": "We could not reach the security check, so we cannot send an SMS right now. Try again in a few minutes."
+    },
+    "humanCheck": "Security check"
   }
 }

@@ -319,7 +319,7 @@ export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken
     let releaseBody = () => {}
     // H3/radix accepts one trailing slash on these BFF routes. Bound the same aliases.
     const publicPath = p.path.split('?')[0].replace(/\/$/, '')
-    const publicBodyLimit = p.prospect && signupApi.test(publicPath) ? 2048 : !p.internal ? publicAuthBodyLimits[publicPath] : undefined
+    const publicBodyLimit = p.prospect && signupApi.test(publicPath) ? 4096 : !p.internal ? publicAuthBodyLimits[publicPath] : undefined
     if ((p.odoo || publicBodyLimit !== undefined || p.path.startsWith('/api/auth/')) && !['GET', 'HEAD'].includes(req.method)) {
       try {
         releaseBody = await (p.internal ? acquireInternalBody : acquireExternalBody)(req, res)
@@ -353,7 +353,7 @@ export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken
       const headers = { ...reply.headers }
       // A browser document from Nuxt gets the shared edge's security headers; Odoo's JSON,
       // reports and downloads do not, exactly as on the dedicated edge (issue #480).
-      if (!p.odoo) applyDocumentHeaders(headers)
+      if (!p.odoo) applyDocumentHeaders(headers, p.path)
       if (headers['set-cookie']) {
         headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant, p)
       }

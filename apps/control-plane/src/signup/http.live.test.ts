@@ -8,7 +8,7 @@ import type { SignupService } from './service.js'
 
 describe.skipIf(!url)('signed public signup ingress', () => {
   const pool = new Pool({ connectionString: url })
-  const service = { start: async () => ({ signup_id: 'synthetic-id' }), terms: () => ({ legal_base_url: 'https://liwanos.com', terms_version: '2026-11-01' }) } as unknown as SignupService
+  const service = { start: async () => ({ signup_id: 'synthetic-id' }), terms: () => ({ legal_base_url: 'https://liwanos.com', terms_version: '2026-11-01', human_check: { site_key: 'site-key-fixture', script_url: 'https://widget.example.test/api.js' } }) } as unknown as SignupService
   const config = { issuer: 'signup-test', key: 'scratch-key'.repeat(5) }
   const path = '/v1/customer/signup/start'
   const raw = '{"company_name":"Test","admin_name":"Admin","email":"admin@example.test","mobile":"0555555555"}'
@@ -41,7 +41,7 @@ describe.skipIf(!url)('signed public signup ingress', () => {
       ...signServiceRequest({ method: 'POST', path: termsPath, body: `liwan-signup:${ip}\n${body}`, actor: 'anonymous', anonymous: true, ...config }),
       'x-liwan-signup-client': ip,
     } })
-    await expect(signupHttp(pool, config, signedTerms('{}'), service)).resolves.toEqual({ status: 200, data: { legal_base_url: 'https://liwanos.com', terms_version: '2026-11-01' } })
+    await expect(signupHttp(pool, config, signedTerms('{}'), service)).resolves.toEqual({ status: 200, data: { legal_base_url: 'https://liwanos.com', terms_version: '2026-11-01', human_check: { site_key: 'site-key-fixture', script_url: 'https://widget.example.test/api.js' } } })
     await expect(signupHttp(pool, config, signedTerms('{"x":1}'), service)).rejects.toMatchObject({ status: 422 })
   })
 })

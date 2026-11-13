@@ -7,7 +7,8 @@ import { customerView } from '../commercial/customers.js'
 
 const TERMS = '2026-11-01'
 const legal = { baseUrl: 'https://liwanos.com', termsVersion: TERMS }
-const accepted = { accept_terms: true, terms_version: TERMS }
+const accepted = { accept_terms: true, terms_version: TERMS, human_token: 'good-token' }
+const humanCheck = { siteKey: 'site-key-fixture', scriptUrl: 'https://widget.example.test/api.js', verify: async (token: string) => token === 'good-token' }
 
 describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
   const pool = new Pool({ connectionString: url })
@@ -46,7 +47,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     let now = new Date()
     let sms = '', email = ''
     const service = new SignupService(pool, {
-      planId, legal, secret: 'a'.repeat(32), dailyLimit: 100, now: () => now,
+      planId, legal, humanCheck, secret: 'a'.repeat(32), dailyLimit: 100, now: () => now,
       sms: async (_mobile, code) => { sms = code },
       email: async (_address, code) => { email = code },
     })
@@ -121,10 +122,69 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     await expect(f.service.start(f.input, '2001:db8:1:3::1')).resolves.toHaveProperty('signup_id')
   })
 
+  describe('bot check on start', () => {
+    const counts = async (f: ReturnType<typeof fixture>) => ({
+      deliveries: (await pool.query('SELECT count(*)::int AS n FROM public_signup_deliveries')).rows[0].n,
+      signups: (await pool.query('SELECT count(*)::int AS n FROM public_signups WHERE email=$1', [f.input.email])).rows[0].n,
+    })
+
+    it('refuses a missing or rejected token before anything is reserved or sent', async () => {
+      const f = fixture()
+      const { human_token: _token, ...without } = f.input
+      await expect(f.service.start(without, f.ip)).rejects.toMatchObject({ code: 'human_check_failed', status: 422 })
+      await expect(f.service.start({ ...f.input, human_token: '' }, f.ip)).rejects.toMatchObject({ code: 'human_check_failed', status: 422 })
+      await expect(f.service.start({ ...f.input, human_token: 'bad-token' }, f.ip)).rejects.toMatchObject({ code: 'human_check_failed', status: 422 })
+      expect(f.sms()).toBe('')
+      expect(await counts(f)).toEqual({ deliveries: 0, signups: 0 })
+    })
+
+    it('fails closed when the verifier cannot answer: nothing sent, no delivery reserved, retry works later', async () => {
+      const f = fixture()
+      let up = false
+      const sent: string[] = []
+      const service = new SignupService(pool, {
+        planId, legal, secret: 'a'.repeat(32), dailyLimit: 100,
+        humanCheck: { ...humanCheck, verify: async () => { if (!up) throw new Error('human_check_unavailable'); return true } },
+        sms: async (_mobile, code) => { sent.push(code) }, email: async () => {},
+      })
+      await expect(service.start(f.input, f.ip)).rejects.toMatchObject({ code: 'human_check_unavailable', status: 503 })
+      expect(sent).toEqual([])
+      expect(await counts(f)).toEqual({ deliveries: 0, signups: 0 })
+      up = true
+      await expect(service.start(f.input, f.ip)).resolves.toHaveProperty('signup_id')
+      expect(sent).toHaveLength(1)
+    })
+
+    it('hands the client address to the verifier and accepts a good token', async () => {
+      const f = fixture()
+      const seen: Array<[string, string]> = []
+      const service = new SignupService(pool, {
+        planId, legal, secret: 'a'.repeat(32), dailyLimit: 100,
+        humanCheck: { ...humanCheck, verify: async (token, ip) => { seen.push([token, ip]); return true } },
+        sms: async () => {}, email: async () => {},
+      })
+      await expect(service.start(f.input, f.ip)).resolves.toHaveProperty('signup_id')
+      expect(seen).toEqual([['good-token', f.ip]])
+    })
+
+    it('does not ask for a token again on send-email, which only follows a verified mobile', async () => {
+      const f = fixture()
+      const { signup_id } = await f.start()
+      await expect(f.service.sendEmail(signup_id, f.ip)).rejects.toMatchObject({ code: 'invalid_code' })
+      await f.service.verifySms(signup_id, f.sms())
+      await expect(f.service.sendEmail(signup_id, f.ip)).resolves.toEqual({ ok: true })
+    })
+
+    it('publishes the widget settings with the terms', () => {
+      expect(fixture().service.terms()).toEqual({ legal_base_url: legal.baseUrl, terms_version: TERMS,
+        human_check: { site_key: 'site-key-fixture', script_url: 'https://widget.example.test/api.js' } })
+    })
+  })
+
   it('reserves delivery budget even when the SMS sender is unavailable', async () => {
     const f = fixture()
     const service = new SignupService(pool, {
-      planId, legal, secret: 'a'.repeat(32), dailyLimit: 100,
+      planId, legal, humanCheck, secret: 'a'.repeat(32), dailyLimit: 100,
       sms: async () => { throw new Error('synthetic transport failure') },
       email: async () => {},
     })
@@ -174,10 +234,6 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
       await expect(f.service.start(unversioned, f.ip)).rejects.toMatchObject({ code: 'terms_changed', status: 409 })
       expect(f.sms()).toBe('')
       expect((await pool.query('SELECT 1 FROM public_signups WHERE email=$1', [f.input.email])).rowCount).toBe(0)
-    })
-
-    it('tells the page the current legal pages and version', () => {
-      expect(fixture().service.terms()).toEqual({ legal_base_url: 'https://liwanos.com', terms_version: TERMS })
     })
 
     it('stores the version, time and client address on the created customer and shows version and time to the vendor', async () => {
@@ -255,6 +311,26 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
       await expect(attempt()).rejects.toMatchObject({ code: 'trial_already_used' })
     })
 
+    it('does not let one sign-up squat a country suffix that is not in any list', async () => {
+      const a = fixture(), b = fixture()
+      const suffix = randomUUID().slice(0, 8)
+      a.input.email = `a@firm${suffix}.com.ng`
+      b.input.email = `b@other${suffix}.com.ng`
+      await a.service.verifyEmail(await a.reachEmail(), a.email())
+      await b.service.verifyEmail(await b.reachEmail(), b.email())
+      expect(await customersFor(a.input.email)).toBe(1)
+      expect(await customersFor(b.input.email)).toBe(1)
+    })
+
+    it('refuses at start an address on a public suffix, a hosting suffix or a free-mail subdomain, sending nothing', async () => {
+      const f = fixture()
+      for (const email of ['a@com.sa', 'a@co.uk', 'a@acme.github.io', 'a@x.vercel.app', 'a@mail.gmail.com']) {
+        await expect(f.service.start({ ...f.input, email }, f.ip)).rejects.toMatchObject({ code: 'business_email_required', status: 422 })
+      }
+      expect(f.sms()).toBe('')
+      expect((await pool.query('SELECT 1 FROM public_signup_deliveries')).rowCount).toBe(0)
+    })
+
     it('leaves a customer the vendor created on the same domain unaffected and the vendor path open', async () => {
       const domain = `${randomUUID()}.sa`
       await pool.query("INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,'Vendor made','Admin',$2)", [randomUUID(), `boss@${domain}`])
@@ -281,7 +357,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
   describe('limits keyed on the requester', () => {
     const person = (n: number) => ({ company_name: 'Signup company', admin_name: 'Administrator',
       email: `owner@d${n}.example.test`, mobile: `+9665660${String(n).padStart(5, '0')}`, ...accepted })
-    const cheapService = (now: () => Date) => new SignupService(pool, { planId, legal, secret: 'a'.repeat(32), dailyLimit: 100, now, sms: async () => {}, email: async () => {} })
+    const cheapService = (now: () => Date) => new SignupService(pool, { planId, legal, humanCheck, secret: 'a'.repeat(32), dailyLimit: 100, now, sms: async () => {}, email: async () => {} })
 
     it('one client address cannot send more than its daily share, and another address is unaffected', async () => {
       let now = new Date()

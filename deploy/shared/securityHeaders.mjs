@@ -22,6 +22,16 @@ export const DOCUMENT_SECURITY_HEADERS = Object.freeze({
   'permissions-policy': 'camera=(), microphone=(), display-capture=(), geolocation=(self), fullscreen=(self)',
 })
 
+/** Cloudflare Turnstile on the public sign-up page (`/register`, the only page that shows the widget). The script, the
+ * challenge iframe and its calls all come from one origin; every other document keeps `frame-src 'none'` and no
+ * third-party script or connect origin. Customer-hosted (non-SaaS) edges do not use this file and never load it. */
+const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
+const REGISTER_PATH = /^\/register\/?$/
+const registerPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
+  .replace("script-src 'self'", `script-src 'self' ${TURNSTILE_ORIGIN}`)
+  .replace("connect-src 'self'", `connect-src 'self' ${TURNSTILE_ORIGIN}`)
+  .replace("frame-src 'none'", `frame-src ${TURNSTILE_ORIGIN}`)
+
 /** The referrer policy is a default: an upstream value that is already set survives. */
 export const DEFAULT_ONLY_HEADERS = Object.freeze(new Set(['referrer-policy']))
 
@@ -29,10 +39,10 @@ export const DEFAULT_ONLY_HEADERS = Object.freeze(new Set(['referrer-policy']))
  * A fixed header always wins over an upstream value (`defer` on the dedicated edge);
  * a default-only header never overwrites one the app already sent.
  */
-export function applyDocumentHeaders(headers) {
+export function applyDocumentHeaders(headers, path = '') {
   for (const [name, value] of Object.entries(DOCUMENT_SECURITY_HEADERS)) {
     if (DEFAULT_ONLY_HEADERS.has(name) && headers[name] !== undefined) continue
-    headers[name] = value
+    headers[name] = name === 'content-security-policy' && REGISTER_PATH.test(path.split('?')[0]) ? registerPolicy : value
   }
   return headers
 }

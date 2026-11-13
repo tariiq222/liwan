@@ -28,6 +28,7 @@ function mount(failure: unknown) {
   }
   const state = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings)).setup({}, { expose: () => {} })
   state.legal.value = { legal_base_url: 'https://legal.example.test', terms_version: '2026-11-01' }
+  state.humanToken.value = 'tok'
   state.details.accept_terms = true
   return state
 }

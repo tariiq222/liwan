@@ -12,7 +12,7 @@ import en from '../../../i18n/locales/en/signup.json'
 // The page's script is compiled in place with its Nuxt bindings injected, as the other page suites do.
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
-const current = { legal_base_url: 'https://legal.example.test', terms_version: '2026-11-01' }
+const current = { legal_base_url: 'https://legal.example.test', terms_version: '2026-11-01', human_check: { site_key: 'site-key-fixture', script_url: 'https://widget.example.test/api.js' } }
 const person = { company_name: 'شركة', admin_name: 'مدير', email: 'owner@company.sa', mobile: '0555555555' }
 
 function mount(fetch: ReturnType<typeof vi.fn>, language = 'ar') {
@@ -58,6 +58,7 @@ describe('register page, terms acceptance', () => {
     const fetch = vi.fn().mockResolvedValue({ signup_id: 'id' })
     const { state } = mount(fetch)
     state.legal.value = current
+    state.humanToken.value = 'tok'
     await state.startSignup()
     expect(fetch).not.toHaveBeenCalled()
     state.details.accept_terms = true
@@ -70,6 +71,7 @@ describe('register page, terms acceptance', () => {
     const fetch = vi.fn().mockRejectedValueOnce({ data: { code: 'terms_changed' } }).mockResolvedValue(changed)
     const { state } = mount(fetch)
     state.legal.value = current
+    state.humanToken.value = 'tok'
     state.details.accept_terms = true
     await state.startSignup()
     expect(state.legal.value).toEqual(changed)

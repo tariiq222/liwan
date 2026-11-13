@@ -6,6 +6,7 @@ import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { startTrialOn } from '../commercial/trial.js'
 import { companyDomain } from './company-domain.js'
 import { isFreeMailAddress } from './free-mail.js'
+import type { HumanCheckSettings } from './human-check.js'
 
 const minutes = (count: number) => count * 60_000
 const maxAttempts = 5
@@ -22,7 +23,7 @@ type Channel = 'sms' | 'email'
 type SendCode = (destination: string, code: string) => Promise<void>
 // The vendor-set legal pages: the terms version a visitor must accept and the site base URL that hosts the texts.
 export type LegalSettings = { baseUrl: string; termsVersion: string }
-type Settings = { secret: string; planId: string; dailyLimit: number; legal: LegalSettings; sms: SendCode; email: SendCode; now?: () => Date }
+type Settings = { secret: string; planId: string; dailyLimit: number; legal: LegalSettings; humanCheck: HumanCheckSettings; sms: SendCode; email: SendCode; now?: () => Date }
 type Challenge = {
   id: string; company_name: string; admin_name: string; email: string; mobile: string;
   expires_at: Date; mobile_verified: boolean; completed: boolean;
@@ -46,6 +47,8 @@ export const signupInput = z.strictObject({
   // Both are checked by the service so a missing or stale acceptance gets its own code, not a generic invalid.
   accept_terms: z.boolean().optional(),
   terms_version: z.string().trim().max(40).optional(),
+  // The single-use Turnstile token (at most 2048 characters). A missing one gets its own code, not a generic invalid.
+  human_token: z.string().max(2048).optional(),
 })
 
 function refuse(code: string, status: number): never { throw new CommercialHttpError(code, status) }
@@ -99,15 +102,29 @@ export class SignupService {
     try { await this.settings[channel](destination, code) } catch { refuse('unavailable', 503) }
   }
 
-  /** What the sign-up page shows before the visitor accepts: the legal pages' base URL and the current terms version. */
-  terms() { return { legal_base_url: this.settings.legal.baseUrl, terms_version: this.settings.legal.termsVersion } }
+  /** What the sign-up page shows before the visitor accepts: the legal pages' base URL, the current terms version and the bot-check widget. */
+  terms() {
+    const { legal, humanCheck } = this.settings
+    return { legal_base_url: legal.baseUrl, terms_version: legal.termsVersion,
+      human_check: { site_key: humanCheck.siteKey, script_url: humanCheck.scriptUrl } }
+  }
+
+  // Runs before any delivery reservation or SMS: a refusal or an outage must cost nothing. An outage fails closed.
+  private async requireHuman(token: string | undefined, ip: string) {
+    if (!token) refuse('human_check_failed', 422)
+    let passed: boolean
+    try { passed = await this.settings.humanCheck.verify(token, ip) } catch { refuse('human_check_unavailable', 503) }
+    if (!passed) refuse('human_check_failed', 422)
+  }
 
   async start(input: z.input<typeof signupInput>, ip: string) {
-    const { company_name, admin_name, email, mobile, accept_terms, terms_version } = signupInput.parse(input)
+    const { company_name, admin_name, email, mobile, accept_terms, terms_version, human_token } = signupInput.parse(input)
     if (accept_terms !== true) refuse('terms_not_accepted', 422)
     // The vendor changed the terms while the form was open: the visitor has not seen the current text.
     if (terms_version !== this.settings.legal.termsVersion) refuse('terms_changed', 409)
-    if (isFreeMailAddress(email)) refuse('business_email_required', 422)
+    // A free-mail host, an address directly on a public suffix or on a shared-hosting suffix names no company.
+    if (isFreeMailAddress(email) || companyDomain(email) === null) refuse('business_email_required', 422)
+    await this.requireHuman(human_token, ip)
     const id = randomUUID()
     const code = codeValue()
     const now = this.now()

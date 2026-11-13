@@ -55,3 +55,12 @@ export function pickCheckBody(body: unknown): { token: string } | null {
   if (typeof token !== 'string' || !token || token.length > MAX_TOKEN_LENGTH) return null
   return { token }
 }
+
+/** Strips every field except email; returns null unless it is a trimmed string of plausible address length. */
+export function pickReissueBody(body: unknown): { email: string } | null {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null
+  const { email } = body as Record<string, unknown>
+  if (typeof email !== 'string') return null
+  const trimmed = email.trim()
+  return trimmed.length >= 3 && trimmed.length <= 254 && trimmed.includes('@') ? { email: trimmed } : null
+}

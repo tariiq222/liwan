@@ -1,4 +1,4 @@
-import { isSignupEndpoint, signupFromEnv, signupHttp } from './signup/http.js'
+import { isSignupEndpoint, SIGNUP_BODY_LIMIT, signupFromEnv, signupHttp } from './signup/http.js'
 import {requestRestorePublication,restorePublication} from './shared/restore-publication.js'
 import { accountCapabilities, vendorActorIssuer } from './admin-auth/grants.js'
 import { packageHttp } from './package-http.js'
@@ -9,7 +9,7 @@ import { returnOriginFromEnv } from './commercial/return-origin.js'
 import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
 import { CommercialHttpError } from './commercial/lifecycle.js'
-import { invitationPublicHttp, invitationVendorHttp } from './commercial/invitation-http.js'
+import { invitationPublicHttp, invitationVendorHttp, REISSUE_PATH, verifiedReissueContext } from './commercial/invitation-http.js'
 import { odooSetPassword } from './commercial/invitation-odoo.js'
 import type { SetPassword } from './commercial/invitations.js'
 import { internalEffectPasswordAdapter } from './commercial/invitation-effect-client.js'
@@ -69,6 +69,13 @@ function operationSource(url: URL, allowed: string[]): string {
   const values = url.searchParams.getAll('source')
   if (values.length > 1 || (values.length === 1 && !allowed.includes(values[0]))) throw new ApiError(422, 'invalid', 'Invalid operation source', 'source')
   return values[0] ?? 'legacy'
+}
+
+/** Per client address: accept and check 10 a minute each; a new-invitation request 5 every ten minutes. */
+const INVITATION_LIMITS: Record<string, { max: number; windowMs: number }> = {
+  '/v1/invitations/accept': { max: 10, windowMs: 60000 },
+  '/v1/invitations/check': { max: 10, windowMs: 60000 },
+  [REISSUE_PATH]: { max: 5, windowMs: 600000 },
 }
 
 const INVITATION_MESSAGES = {
@@ -352,8 +359,11 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (!path.startsWith('/v1/')) throw new ApiError(404, 'not_found', 'Endpoint not found')
       const url = new URL(path, 'http://localhost')
       const pathname = url.pathname
-      if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check') {
+      if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check' || pathname === REISSUE_PATH) {
         if (method !== 'POST') return respond(res, 404, { code: 'not_found', message: 'Endpoint not found' })
+        // The tenant and visitor address of a reissue are trusted only as signed by the Nuxt server; the tenant is never read from the body.
+        const reissue = pathname === REISSUE_PATH ? verifiedReissueContext(req.headers, bffService) ?? undefined : undefined
+        if (pathname === REISSUE_PATH && !reissue) return respond(res, 403, { code: 'forbidden', message: 'Request not accepted' })
         const now = Date.now()
         if (now >= invitationCleanupAt) {
           for (const [ip, attempt] of invitationAttempts) if (attempt.expiresAt <= now) invitationAttempts.delete(ip)
@@ -361,17 +371,19 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         }
         // Unsigned forwarding headers are never trusted for this public limit.
         // accept and check count separately so a page-load check never uses up the accept budget.
-        const ip = `${pathname}|${clientAddressBucket(invitationClientAddress(req, pathname, bffService))}`
+        const limit = INVITATION_LIMITS[pathname]!
+        const visitor = reissue ? reissue.client_address ?? req.socket.remoteAddress ?? 'unknown' : invitationClientAddress(req, pathname, bffService)
+        const ip = `${pathname}|${clientAddressBucket(visitor)}`
         let attempt = invitationAttempts.get(ip)
         if (!attempt || attempt.expiresAt <= now) {
-          attempt = { count: 0, expiresAt: now + 60000 }
+          attempt = { count: 0, expiresAt: now + limit.windowMs }
           invitationAttempts.set(ip, attempt)
         }
-        if (++attempt.count > 10) return respond(res, 429, { code: 'rate_limited', message: 'Too many requests' })
+        if (++attempt.count > limit.max) return respond(res, 429, { code: 'rate_limited', message: 'Too many requests' })
         if (invitationsInFlight >= 4) return respond(res, 503, { code: 'unavailable', message: INVITATION_MESSAGES.unavailable })
         invitationsInFlight++
         try {
-          const response = await invitationPublicHttp(pool, { method, pathname, raw: await bodyBytes(req), setPassword })
+          const response = await invitationPublicHttp(pool, { method, pathname, raw: await bodyBytes(req, pathname === REISSUE_PATH ? 1024 : undefined), setPassword, reissue })
           return respond(res, response!.status, response!.data)
         } catch (error) {
           // Fixed table only: never error text, which could carry request material.
@@ -383,7 +395,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       if (isSignupEndpoint(pathname)) {
         const result = await signupHttp(pool, { issuer: signupIssuer, key: signupKey }, {
-          method, path, raw: signup ? await bodyBytes(req, 2048) : '', headers: req.headers,
+          method, path, raw: signup ? await bodyBytes(req, SIGNUP_BODY_LIMIT) : '', headers: req.headers,
         }, signup)
         return respond(res, result.status, result.data)
       }

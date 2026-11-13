@@ -1,6 +1,8 @@
+import { companyDomain } from './company-domain.js'
+
 /**
  * Self-signup needs a business email (owner decision), so addresses at free consumer mail providers are refused.
- * Matching is on the exact domain, case-insensitively; a company subdomain or a look-alike is not a match.
+ * Matching is on the registrable domain (company-domain.ts), case-insensitively; a look-alike is not a match.
  * This is the single list: add a provider here and nowhere else.
  */
 export const FREE_MAIL_DOMAINS: ReadonlySet<string> = new Set([
@@ -23,6 +25,8 @@ export const FREE_MAIL_DOMAINS: ReadonlySet<string> = new Set([
   'maktoob.com',
 ])
 
-const emailDomain = (email: string): string => email.slice(email.lastIndexOf('@') + 1).toLowerCase()
-
-export const isFreeMailAddress = (email: string): boolean => FREE_MAIL_DOMAINS.has(emailDomain(email))
+/** Matches the registrable domain, so a subdomain of a listed provider (`mail.gmail.com`) is refused too. */
+export const isFreeMailAddress = (email: string): boolean => {
+  const domain = companyDomain(email)
+  return domain !== null && FREE_MAIL_DOMAINS.has(domain)
+}

@@ -9,10 +9,13 @@ import { parseBody } from '../commercial/http.js'
 import { mailAdapterFromEnv } from '../commercial/mail-adapter.js'
 import { transaction } from '../db.js'
 import { AuthenticaSmsAdapter } from './authentica.js'
+import { humanCheckFromEnv } from './human-check.js'
 import { SignupService, signupInput, type LegalSettings } from './service.js'
 
 export const isSignupEndpoint = (pathname: string) => pathname.startsWith('/v1/customer/signup/')
 const requestPath = /^\/v1\/customer\/signup\/(terms|start|verify-sms|send-email|verify-email)$/
+// The start body carries a Turnstile token of up to 2048 characters beside the form fields.
+export const SIGNUP_BODY_LIMIT = 4096
 const challenge = z.strictObject({ signup_id: z.uuid() })
 const noBody = z.strictObject({})
 const verification = challenge.extend({ code: z.string().regex(/^[0-9]{6}$/) })
@@ -38,10 +41,11 @@ export function signupFromEnv(pool: Pool, secret: string | undefined, env: NodeJ
   if (!secret || secret.length < 32 || !plan.success || !key?.trim() || !Number.isSafeInteger(template) || template < 1 ||
       !Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 10_000) throw new Error('signup_configuration_invalid')
   const legal = legalFromEnv(env)
+  const humanCheck = humanCheckFromEnv(env)
   const sms = new AuthenticaSmsAdapter(key, template)
   if (env.LIWAN_MAIL_MODE === 'disabled') throw new Error('signup_email_unavailable')
   const mail = mailAdapterFromEnv(env, 8_000)
-  return new SignupService(pool, { secret, planId: plan.data, dailyLimit, legal,
+  return new SignupService(pool, { secret, planId: plan.data, dailyLimit, legal, humanCheck,
     sms: (mobile, code) => sms.send(mobile, code),
     email: async (email, code) => {
       const result = await mail.send({
@@ -58,7 +62,7 @@ export async function signupHttp(pool: Pool, config: { issuer?: string; key?: st
   if (!match || input.method !== 'POST' || !service || !config.issuer || !config.key) throw new CommercialHttpError('not_found', 404)
   const ip = input.headers['x-liwan-signup-client']
   if (typeof ip !== 'string' || !isIP(ip)) throw new CommercialHttpError('unauthorized', 401)
-  if (Buffer.byteLength(input.raw) > 2048) throw new CommercialHttpError('invalid', 413)
+  if (Buffer.byteLength(input.raw) > SIGNUP_BODY_LIMIT) throw new CommercialHttpError('invalid', 413)
   const signed = verifyServiceRequest({
     method: input.method, path: input.path, body: `liwan-signup:${ip}\n${input.raw}`, headers: input.headers, key: config.key, anonymous: true,
   })

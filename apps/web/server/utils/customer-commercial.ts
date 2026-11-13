@@ -288,7 +288,7 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   const issuer = config.customerCommercialIssuer
   if (!ip || !isIP(ip) || !key || key.length < 32 || !issuer) fail(503, 'unavailable', 'Signup is unavailable')
 
-  const raw = await withTenantBody(event, 'public', () => boundedTenantBody(event, 2048))
+  const raw = await withTenantBody(event, 'public', () => boundedTenantBody(event, 4096))
   const body = raw?.toString('utf8')
   if (!body) fail(422, 'invalid', 'JSON is required')
   const target = new URL(`/v1/customer/signup/${action}`, customerControlBase(config))
@@ -305,7 +305,7 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   } catch { fail(503, 'unavailable', 'Signup is unavailable') }
   if (!response.ok) {
     const code = response._data?.code
-    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required', 'terms_not_accepted', 'terms_changed'].includes(code)) {
+    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required', 'terms_not_accepted', 'terms_changed', 'human_check_failed', 'human_check_unavailable'].includes(code)) {
       fail(response.status, code, 'Signup request rejected')
     }
     fail(503, 'unavailable', 'Signup is unavailable')
@@ -327,6 +327,18 @@ export function invitationClientHeaders(event: H3Event, config: Pick<CustomerCon
   if (!ip || !isIP(ip) || !issuer || !key || Buffer.byteLength(key) < MIN_SERVICE_KEY_LENGTH) return {}
   const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: `liwan-invitation-client:${ip}\n`, actor: 'anonymous', anonymous: true, issuer, key })
   return { ...signed, [INVITATION_CLIENT_HEADER]: ip }
+}
+
+/** Signed headers for the public "send me a new invitation" call: the tenant this host is bound to and the visitor's address under one
+ * signature (domain-separated from the client-address one). The tenant comes from the host binding, never from the browser. */
+export function invitationReissueHeaders(event: H3Event, config: CustomerConfig, target: URL): Record<string, string> {
+  const tenantId = boundTenantId(tenantRequest(event), config)
+  const { customerCommercialIssuer: issuer, customerCommercialServiceKey: key } = config
+  if (!tenantId || !issuer || !key || Buffer.byteLength(key) < MIN_SERVICE_KEY_LENGTH) fail(503, 'unavailable', 'Service unavailable')
+  const claimed = getHeader(event, INVITATION_CLIENT_HEADER)
+  const ip = claimed && isIP(claimed) ? claimed : ''
+  const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: `liwan-invitation-reissue:${tenantId}\n${ip}\n`, actor: 'anonymous', anonymous: true, issuer, key })
+  return { ...signed, 'x-liwan-tenant': tenantId, ...(ip ? { [INVITATION_CLIENT_HEADER]: ip } : {}) }
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

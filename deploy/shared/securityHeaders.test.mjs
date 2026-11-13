@@ -93,3 +93,20 @@ test('the guard image carries every module guard.mjs imports', () => {
     assert.ok(dockerfile.includes(`deploy/shared/${name}`), `Dockerfile does not copy deploy/shared/${name}`)
   }
 })
+
+test('only the sign-up page may load Cloudflare Turnstile, and only from its own origin', () => {
+  const origin = 'https://challenges.cloudflare.com'
+  const other = applyDocumentHeaders({}, '/projects')['content-security-policy']
+  assert.equal(other, DOCUMENT_SECURITY_HEADERS['content-security-policy'])
+  assert.ok(!other.includes('cloudflare'))
+  for (const path of ['/register', '/register/', '/register?next=1']) {
+    const policy = applyDocumentHeaders({}, path)['content-security-policy']
+    const directives = Object.fromEntries(policy.split('; ').map(d => [d.split(' ')[0], d.split(' ').slice(1)]))
+    assert.deepEqual(directives['script-src'], ["'self'", origin, "'unsafe-inline'"])
+    assert.deepEqual(directives['frame-src'], [origin])
+    assert.deepEqual(directives['connect-src'], ["'self'", origin, 'wss:'])
+    // Nothing else changed: the register policy is the default one with those three directives swapped.
+    assert.equal(policy.replaceAll(` ${origin}`, '').replace('frame-src;', "frame-src 'none';"), DOCUMENT_SECURITY_HEADERS['content-security-policy'])
+  }
+  assert.equal(applyDocumentHeaders({}, '/register-other')['content-security-policy'], DOCUMENT_SECURITY_HEADERS['content-security-policy'])
+})

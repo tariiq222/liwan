@@ -458,6 +458,13 @@ the visitor to accept both pages, and the control API stores the accepted versio
 address on the new customer. Change the version whenever the texts change: a form opened before the change
 asks the visitor to review and accept again.
 
+Create a Cloudflare Turnstile widget (managed mode, hostname of the app domain) and set
+`LIWAN_SIGNUP_TURNSTILE_SITE_KEY` and `LIWAN_SIGNUP_TURNSTILE_SECRET_KEY` on the control API; sign-up stays off
+without both. The form must pass the check before the SMS code is sent, and the control API verifies the token
+against Cloudflare with the secret and the visitor's address; if Cloudflare cannot be reached it refuses the
+request (no SMS). The guard's CSP for `/register` alone allows `https://challenges.cloudflare.com` for scripts,
+frames and connections (`deploy/shared/securityHeaders.mjs`).
+
 The workspace follows normal commercial worker fulfillment and invitation
 delivery. Verify SMS arrival and email delivery with test recipients on an
 authorized acceptance deployment before opening signup.

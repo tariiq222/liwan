@@ -17,7 +17,14 @@ const step = ref<Step>('details')
 const heading = ref<HTMLHeadingElement>()
 const details = reactive({ company_name: '', admin_name: '', email: '', mobile: '', accept_terms: false })
 // The legal pages and terms version the vendor currently sets; the server refuses a start that does not echo this version.
-const legal = ref<{ legal_base_url: string; terms_version: string }>()
+type SignupConfig = { legal_base_url: string; terms_version: string; human_check?: { site_key: string; script_url: string } }
+const legal = ref<SignupConfig>()
+// The Turnstile token of the last completed check. It is single-use: every start request spends it, success or not.
+const humanToken = ref<string>()
+const widget = ref<{ reset: () => void }>()
+const humanCheck = computed(() => legal.value?.human_check)
+const checkReady = computed(() => !!legal.value && !!humanCheck.value && !!humanToken.value)
+const widgetLanguage = computed(() => locale.value === 'en' ? 'en' : 'ar')
 const legalPrefix = computed(() => locale.value === 'en' ? '/en' : '')
 const termsUrl = computed(() => legal.value ? `${legal.value.legal_base_url}${legalPrefix.value}/terms` : undefined)
 const privacyUrl = computed(() => legal.value ? `${legal.value.legal_base_url}${legalPrefix.value}/privacy` : undefined)
@@ -41,9 +48,11 @@ const errors: Record<string, string> = {
   signup_expired: 'signup.errors.expired',
   terms_not_accepted: 'signup.errors.termsRequired',
   terms_changed: 'signup.errors.termsChanged',
+  human_check_failed: 'signup.errors.humanCheckFailed',
+  human_check_unavailable: 'signup.errors.humanCheckUnavailable',
 }
 
-watch(step, () => heading.value?.focus(), { flush: 'post' })
+watch(step, () => { humanToken.value = undefined; heading.value?.focus() }, { flush: 'post' })
 watch(() => details.email, () => { emailErrorKey.value = undefined })
 
 function validateDetails(value: Partial<typeof details>): FormError[] {
@@ -79,7 +88,12 @@ function request<T>(action: Action, body: Record<string, string | boolean>) {
 }
 
 async function loadTerms() {
-  try { legal.value = await request<{ legal_base_url: string; terms_version: string }>('terms', {}) } catch { errorKey.value = errors.unavailable }
+  try { legal.value = await request<SignupConfig>('terms', {}) } catch { errorKey.value = errors.unavailable }
+}
+
+function spendHumanToken() {
+  humanToken.value = undefined
+  widget.value?.reset()
 }
 onMounted(loadTerms)
 
@@ -116,22 +130,28 @@ async function run(action: Action, execute: () => Promise<void>) {
 
 async function startSignup() {
   const version = legal.value?.terms_version
-  if (waitingToResend.value || !version || !details.accept_terms) return
-  await run('start', async () => {
-    const answer = await request<{ signup_id: string }>('start', {
-      company_name: details.company_name.trim(),
-      admin_name: details.admin_name.trim(),
-      email: details.email.trim(),
-      mobile: normalizeMobileInput(details.mobile),
-      accept_terms: true,
-      terms_version: version,
+  const token = humanToken.value
+  if (waitingToResend.value || !version || !details.accept_terms || !token) return
+  try {
+    await run('start', async () => {
+      const answer = await request<{ signup_id: string }>('start', {
+        company_name: details.company_name.trim(),
+        admin_name: details.admin_name.trim(),
+        email: details.email.trim(),
+        mobile: normalizeMobileInput(details.mobile),
+        accept_terms: true,
+        terms_version: version,
+        human_token: token,
+      })
+      if (!answer.signup_id) throw new Error('Missing signup ID')
+      signupId.value = answer.signup_id
+      verification.code = ''
+      resend.start(resendCooldownSeconds)
+      step.value = 'sms'
     })
-    if (!answer.signup_id) throw new Error('Missing signup ID')
-    signupId.value = answer.signup_id
-    verification.code = ''
-    resend.start(resendCooldownSeconds)
-    step.value = 'sms'
-  })
+  } finally {
+    spendHumanToken()
+  }
 }
 
 async function sendEmail() {
@@ -214,7 +234,11 @@ async function verifyCode() {
             </template>
           </UCheckbox>
         </UFormField>
-        <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated || !!pending || !legal" :loading="pending === 'start'" :label="t('signup.sendSms')" />
+        <AuthTurnstileWidget
+          v-if="humanCheck" ref="widget" :site-key="humanCheck.site_key" :script-url="humanCheck.script_url" :language="widgetLanguage"
+          :label="t('signup.humanCheck')" @verified="humanToken = $event" @cleared="humanToken = undefined" @failed="errorKey = errors.human_check_unavailable"
+        />
+        <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated || !!pending || !checkReady" :loading="pending === 'start'" :label="t('signup.sendSms')" />
       </UForm>
 
       <template v-else-if="step === 'sms' || step === 'email'">
@@ -239,9 +263,13 @@ async function verifyCode() {
             :label="t('signup.verify')"
           />
         </UForm>
+        <AuthTurnstileWidget
+          v-if="step === 'sms' && humanCheck" ref="widget" :site-key="humanCheck.site_key" :script-url="humanCheck.script_url" :language="widgetLanguage"
+          :label="t('signup.humanCheck')" @verified="humanToken = $event" @cleared="humanToken = undefined" @failed="errorKey = errors.human_check_unavailable"
+        />
         <UButton
           type="button" color="neutral" variant="outline" size="lg" class="w-full justify-center"
-          :disabled="!hydrated || !!pending || waitingToResend" :loading="pending === 'start' || pending === 'send-email'"
+          :disabled="!hydrated || !!pending || waitingToResend || (step === 'sms' && !checkReady)" :loading="pending === 'start' || pending === 'send-email'"
           :label="waitingToResend ? t('signup.resendIn', { seconds: resendSeconds }) : t(step === 'email' && !emailSent ? 'signup.sendEmail' : 'signup.resend')"
           @click="step === 'sms' ? startSignup() : sendEmail()"
         />

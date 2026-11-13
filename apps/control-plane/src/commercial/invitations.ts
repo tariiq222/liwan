@@ -6,6 +6,8 @@ import { buildInvitationUrl, createInvitationToken, hashToken, invitationExpiry,
 import { isLocalCapture, type MailAdapter } from './mail-adapter.js'
 
 export const INVITATION_KIND = 'invitation.send'
+/** How long a new invitation link works, for the first issue, the vendor's resend and the manager's own request. */
+export const DEFAULT_INVITATION_TTL_SECONDS = 72 * 3600
 export const MIN_PASSWORD_LENGTH = 12
 /** Same maxima as the internal effect protocol, enforced before the token is consumed. */
 export const MAX_PASSWORD_LENGTH = 256
@@ -49,8 +51,12 @@ export const unimplementedSetPassword: SetPassword = async () => { throw new Inv
 
 export class InvitationError extends Error { constructor(public code: string) { super(code) } }
 
-/** Rows are never returned with token material; the raw token only leaves via the outbox payload→email. */
-export async function issueInvitation(pool: Pool, i: { customer_id: string; tenant_id: string; admin_login: string; ttl_seconds: number }) {
+/** Who asked for an invitation and why; recorded in the audit log in the same transaction as the invitation. */
+export type InvitationAudit = { actor: string; reason: string; metadata: Record<string, unknown> }
+
+/** The one place a new invitation is issued: the vendor's resend and the manager's own request both end here.
+ *  Rows are never returned with token material; the raw token only leaves via the outbox payload→email. */
+export async function issueInvitation(pool: Pool, i: { customer_id: string; tenant_id: string; admin_login: string; ttl_seconds: number; audit?: InvitationAudit }) {
   const { token, token_hash } = createInvitationToken()
   const expires = invitationExpiry(i.ttl_seconds)
   const c = await pool.connect()
@@ -62,9 +68,42 @@ export async function issueInvitation(pool: Pool, i: { customer_id: string; tena
       [id, i.customer_id, i.tenant_id, i.admin_login, token_hash, expires])
     // The token must travel to the mailer; it is kept in the outbox payload only until sent, then scrubbed.
     await enqueueOutbox(c, { kind: INVITATION_KIND, aggregate_id: id, dedupe_key: id, payload: { invitation_id: id, token } })
+    if (i.audit) {
+      await c.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+        [randomUUID(), i.audit.actor, 'invitation.reissued', id, i.audit.reason,
+          JSON.stringify({ ...i.audit.metadata, tenant_id: i.tenant_id, customer_id: i.customer_id, expires_at: expires.toISOString() })])
+    }
     await c.query('COMMIT')
     return { id, expires_at: expires }
   } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e } finally { c.release() }
+}
+
+/** The manager's own request for a fresh invitation. At most one mail per cooldown and `SELF_REISSUE_HOURLY_LIMIT` per hour per tenant,
+ *  counted over every invitation issued for the manager (the vendor's included), so the route cannot mail-bomb the address on record. */
+export const SELF_REISSUE_COOLDOWN_SECONDS = 60
+export const SELF_REISSUE_HOURLY_LIMIT = 5
+export const SELF_REISSUE_ACTOR = 'customer:self_request'
+
+/** Issues a new invitation to the first manager of `tenant_id` only when `email` is the address on record and that manager
+ *  has not accepted yet. The mail always goes to `customers.admin_login`, never to `email`. Returns whether one was issued;
+ *  callers must answer the same either way. An accepted invitation never issues another: that case is "forgot password". */
+export async function reissuePendingInvitation(pool: Pool, i: { tenant_id: string; email: string; client_address?: string }): Promise<boolean> {
+  const email = i.email.trim().toLowerCase()
+  const c = await pool.query(`SELECT id, admin_login FROM customers WHERE tenant_id=$1 AND admin_login IS NOT NULL AND lower(admin_login)=$2 LIMIT 1`, [i.tenant_id, email])
+  const customer = c.rows[0]
+  if (!customer) return false
+  const state = await pool.query(
+    `SELECT count(*)::int AS total, count(consumed_at)::int AS consumed,
+            count(*) FILTER (WHERE created_at > now() - interval '1 hour')::int AS recent,
+            count(*) FILTER (WHERE created_at > now() - make_interval(secs => $3))::int AS cooling
+     FROM admin_invitations WHERE tenant_id=$1 AND admin_login=$2`, [i.tenant_id, customer.admin_login, SELF_REISSUE_COOLDOWN_SECONDS])
+  const s = state.rows[0]
+  if (s.total === 0 || s.consumed > 0 || s.recent >= SELF_REISSUE_HOURLY_LIMIT || s.cooling > 0) return false
+  await issueInvitation(pool, {
+    customer_id: customer.id, tenant_id: i.tenant_id, admin_login: customer.admin_login, ttl_seconds: DEFAULT_INVITATION_TTL_SECONDS,
+    audit: { actor: SELF_REISSUE_ACTOR, reason: 'Manager requested a new invitation', metadata: { source: 'customer_request', client_address: i.client_address ?? null } },
+  })
+  return true
 }
 
 /** Readiness rule: call only once the subscription's first fulfillment is applied. */
@@ -75,7 +114,7 @@ export async function onSubscriptionActivated(pool: Pool, subscription_id: strin
   if (!s || !s.tenant_id || !s.applied_revision_id || !s.admin_login) return null
   const existing = await pool.query(`SELECT 1 FROM admin_invitations WHERE tenant_id=$1 AND admin_login=$2`, [s.tenant_id, s.admin_login])
   if (existing.rowCount) return null // already invited; resend is an explicit vendor action
-  return issueInvitation(pool, { customer_id: s.customer_id, tenant_id: s.tenant_id, admin_login: s.admin_login, ttl_seconds: opts.ttl_seconds ?? 72 * 3600 })
+  return issueInvitation(pool, { customer_id: s.customer_id, tenant_id: s.tenant_id, admin_login: s.admin_login, ttl_seconds: opts.ttl_seconds ?? DEFAULT_INVITATION_TTL_SECONDS })
 }
 
 /** `signal` is the worker shutdown: the message in flight finishes, every other claimed row gives its lease back untouched.
