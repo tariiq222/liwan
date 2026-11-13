@@ -1,0 +1,1 @@
+`liwan.setup.step` is a new table and `res.company.liwan_setup_closed_at` a new nullable column: no existing row changes, so there is no data change and no migration script. Every existing company starts with the wizard open and no step recorded.

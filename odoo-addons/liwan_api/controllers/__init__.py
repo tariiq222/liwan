@@ -11,5 +11,6 @@ from . import (
     company,
     maintenance,
     me,
+    setup,
     storage,
 )

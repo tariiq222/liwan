@@ -17,8 +17,10 @@ from . import (
     login_device,
     outbound_mail,
     res_company,
+    res_company_setup,
     res_groups,
     res_partner,
     res_users,
+    setup_step,
     sms_gateway,
 )
