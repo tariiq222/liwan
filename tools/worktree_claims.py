@@ -13,7 +13,7 @@ the claim owner, its ``base`` is the lane's branch). A session claim expires ``C
 last refresh. Sessions claim and release at the same time, so ``tools/wt.py`` does both under ``claims_lock``
 and ``write_lane`` replaces the record in one step, which keeps a reader from seeing half a file.
 ``commit_refusal`` is the rule behind the pre-commit lane guard of ``tools/hooks.py``: a commit
-in a lane must be made on the started branch by a session whose claim covers every staged path.
+in a lane must be made on the started branch by a session whose claim is not expired and covers every staged path.
 """
 from __future__ import annotations
 
@@ -202,7 +202,7 @@ def scope_refusal(lane_name, lane, claim, outside):
     return template % (claim.owner, lane_name, ', '.join(claim.scopes), '\n'.join(lines), claim.owner)
 
 
-def commit_refusal(lane_name, lane, branch, session, staged, merging):
+def commit_refusal(lane_name, lane, branch, session, staged, merging, now=None):
     """Why a commit in the fixed lane ``lane_name`` is refused, or ``None`` when the session may commit.
 
     ``branch`` is the checked-out branch (empty when detached), ``session`` the id from ``SESSION_ENV`` and
@@ -223,6 +223,9 @@ def commit_refusal(lane_name, lane, branch, session, staged, merging):
     if claim is None:
         template = 'session %s has no claim in lane %s; record one with: %s claim --owner %s --task <what> --scope <path>'
         return template % (session, lane_name, wt, session)
+    if is_expired(claim.refreshed_at, now):
+        template = 'the claim of session %s in lane %s expired (no refresh for %dh) and no longer holds its paths; renew it with: %s claim --owner %s'
+        return template % (session, lane_name, CLAIM_TTL_HOURS, wt, session)
     outside = [path for path in staged if not any(covers(scope, path) for scope in claim.scopes)]
     if outside and not merging:
         return scope_refusal(lane_name, lane, claim, outside)

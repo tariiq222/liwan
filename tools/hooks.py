@@ -16,7 +16,7 @@ bypasses them; the binding gates are ``npm test`` and the merge policies.
 
 ``pre-commit`` first runs the lane guard, only in a fixed lane (``.worktrees/<lane>`` of ``tools/worktree_claims.py``;
 any other checkout is not guarded). The guard refuses a commit when the lane has no record, is resting, is on a
-branch other than the one it started, or when the committing session (``LIWAN_SESSION``) has no claim in the lane
+branch other than the one it started, or when the committing session (``LIWAN_SESSION``) has no claim in the lane, an expired one,
 or stages a path outside its claim (deletions and both sides of a rename included; a merge in progress is exempt
 from the path rule). It fails fast, before the checks below; the rule itself is ``commit_refusal``.
 """

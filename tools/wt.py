@@ -16,7 +16,8 @@ The four fixed lanes (``claude-1``, ``claude-2``, ``codex-1``, ``codex-2``) are 
 ``.worktrees/<lane>`` and are never removed. Between tasks a lane rests on a detached ``origin/main``.
 ``lane setup`` creates (or adopts) the lane worktree, its ``.env.worktree`` with free ports, its lane record
 (``liwan-lane.json``, see ``tools/worktree_claims.py``) and its dependencies. ``lane start`` begins the
-task branch from ``origin/main`` in a clean, resting lane; ``lane finish`` returns the lane to a detached
+task branch from ``origin/main`` in a clean lane that rests or holds a merged branch, and refuses a lane that left
+its recorded branch; ``lane finish`` returns the lane to a detached
 ``origin/main`` once its branch is merged and deletes the branch. Several agent sessions then work on that one
 branch: ``claim``, run inside a lane, records or refreshes the claim of the session named by ``--owner``
 (a first claim needs ``--task`` and ``--scope``), refuses scopes that overlap an active claim of another
@@ -822,6 +823,19 @@ def merged_into_base(path):
     return run(['git', 'merge-base', '--is-ancestor', 'HEAD', LANE_BASE], path)[0] == 0
 
 
+def require_recorded_branch(name, lane, held):
+    """Refuse a lane whose checked-out branch ``held`` is not the one its record names; a resting lane is detached.
+
+    A lane that left its branch still has that branch's work and session claims, so neither ``lane start`` nor
+    ``lane finish`` may replace its record.
+    """
+    if held == (lane.branch or ''):
+        return
+    template = 'lane %s is on %s but its recorded branch is %s; return with: git switch %s'
+    message = template % (name, held or 'a detached HEAD', lane.branch or 'none (resting)', lane.branch or '--detach ' + LANE_BASE)
+    raise WorktreeError(message)
+
+
 def require_clean(path):
     if changed_paths(path):
         message = 'lane %s has uncommitted changes; commit or discard them first' % path.name
@@ -854,21 +868,21 @@ def lane_setup(root, name, install):
 
 
 def lane_start(root, name, branch):
-    """Start ``branch`` from origin/main in a clean lane; a merged branch it still holds is finished first."""
+    """Start ``branch`` from origin/main in a clean lane on its recorded branch; a merged branch it holds is finished first."""
     problem = check_branch(branch)
     if problem or branch in (MAIN, 'HEAD'):
         message = problem or "'%s' cannot be a lane branch" % branch
         raise WorktreeError(message)
     path = lane_worktree(root, name)
-    require_record(name, load_lane(path))
+    lane = require_record(name, load_lane(path))
+    require_recorded_branch(name, lane, current_branch(path))
     require_clean(path)
     sh(['git', 'fetch', 'origin', MAIN], root)
-    held = current_branch(path)
-    if held and not merged_into_base(path):
-        message = 'lane %s still holds %s, which is not merged into %s; finish or merge it first' % (name, held, LANE_BASE)
+    if lane.branch and not merged_into_base(path):
+        message = 'lane %s still holds %s, which is not merged into %s; finish or merge it first' % (name, lane.branch, LANE_BASE)
         raise WorktreeError(message)
-    if held:
-        rest_lane(path, held)
+    if lane.branch:
+        rest_lane(path, lane.branch)
     sh(['git', 'switch', '-c', branch, '--no-track', LANE_BASE], path)
     write_lane(git_dir(path), Lane(branch, ()))
     return 'lane %s started %s from %s' % (name, branch, LANE_BASE)
@@ -881,11 +895,7 @@ def lane_finish(root, name):
     if lane.branch is None:
         message = 'lane %s is already resting; there is nothing to finish' % name
         raise WorktreeError(message)
-    held = current_branch(path)
-    if held != lane.branch:
-        message = 'lane %s is on %s but its recorded branch is %s; return with: git switch %s' % (
-            name, held or 'a detached HEAD', lane.branch, lane.branch)
-        raise WorktreeError(message)
+    require_recorded_branch(name, lane, current_branch(path))
     require_clean(path)
     sh(['git', 'fetch', 'origin', MAIN], root)
     if not merged_into_base(path):

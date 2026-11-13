@@ -107,7 +107,7 @@ class TestCommitRefusal(unittest.TestCase):
     LANE = Lane('tools-x', (session('a', 'tools/wt.py', 'docs'), session('b', 'apps/web')))
 
     def refusal(self, **overrides):
-        values = dict(lane_name='claude-1', lane=self.LANE, branch='tools-x', session='a', staged=['tools/wt.py'], merging=False)
+        values = dict(lane_name='claude-1', lane=self.LANE, branch='tools-x', session='a', staged=['tools/wt.py'], merging=False, now=10)
         values.update(overrides)
         return commit_refusal(**values)
 
@@ -131,6 +131,14 @@ class TestCommitRefusal(unittest.TestCase):
         message = self.refusal(session='c')
         self.assertIn('session c has no claim in lane claude-1', message)
         self.assertIn('claim --owner c', message)
+
+    def test_an_expired_claim_is_refused_until_the_session_renews_it(self):
+        limit = 10 + CLAIM_TTL_HOURS * 3600
+        self.assertIsNone(self.refusal(now=limit))
+        for merging in (False, True):
+            message = self.refusal(now=limit + 1, merging=merging)
+            self.assertIn('the claim of session a in lane claude-1 expired', message)
+            self.assertIn('claim --owner a', message)
 
     def test_paths_outside_the_claim_are_listed_with_the_session_that_covers_them(self):
         message = self.refusal(staged=['tools/wt.py', 'apps/web/app/a.vue', 'README.md', 'tools/wt.pyc', 'docs'])

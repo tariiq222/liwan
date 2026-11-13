@@ -832,6 +832,25 @@ class TestLaneCommands(unittest.TestCase):
         with self.assertRaisesRegex(WorktreeError, 'still holds tools-x, which is not merged into origin/main'):
             wt.lane_start(self.root, 'claude-1', 'tools-y')
 
+    def test_start_refuses_a_lane_that_left_its_recorded_branch_and_keeps_the_record(self):
+        self.setup_lane()
+        wt.lane_start(self.root, 'claude-1', 'tools-x')
+        (self.path / 'b.txt').write_text('b', encoding='utf-8')
+        self.git('add', 'b.txt', cwd=self.path)
+        self.git('commit', '-q', '-m', 'work', cwd=self.path)
+        self.git('switch', '-q', '--detach', 'origin/main', cwd=self.path)
+        with self.assertRaisesRegex(WorktreeError, 'on a detached HEAD but its recorded branch is tools-x; return with: git switch tools-x'):
+            wt.lane_start(self.root, 'claude-1', 'tools-y')
+        self.assertEqual(self.record().branch, 'tools-x')
+        self.assertIn('tools-x', self.git('branch', '--list', 'tools-x', cwd=self.root))
+
+    def test_start_refuses_a_resting_lane_that_was_put_on_a_branch(self):
+        self.setup_lane()
+        self.git('switch', '-q', '-c', 'stray', cwd=self.path)
+        with self.assertRaisesRegex(WorktreeError, r'on stray but its recorded branch is none \(resting\); return with: git switch --detach origin/main'):
+            wt.lane_start(self.root, 'claude-1', 'tools-y')
+        self.assertIsNone(self.record().branch)
+
     def test_start_accepts_a_lane_whose_branch_is_already_merged(self):
         self.setup_lane()
         wt.lane_start(self.root, 'claude-1', 'tools-x')

@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import io
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -10,7 +11,7 @@ from worktree_claims import ClaimError, Lane, make_claim
 
 OUTSIDE = Path('/r/checkout')  # not a fixed lane, so the lane guard does nothing
 LANE_REPO = Path('/r/.worktrees/claude-1')
-STARTED = Lane('tools-x', (make_claim('a', 'task', 'tools-x', ['tools'], 10),))
+STARTED = Lane('tools-x', (make_claim('a', 'task', 'tools-x', ['tools'], time.time()),))  # a fresh claim: the guard reads the clock
 
 
 def names(staged):

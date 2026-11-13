@@ -111,12 +111,13 @@ are written to `.env.worktree`); the lane keeps them for every later task (`tool
 4. **One claim per session.** Before editing, a session records its paths inside the lane with
    `npm run wt -- claim --owner <session> --task <what> --scope <path>`. The claim is refused when another
    active claim holds an overlapping path, in the same lane or in any other worktree; that session waits or
-   takes another task. Its subagents work under the same claim. `npm run wt -- release --owner <session>`
+   takes another task. Its subagents work under the same claim. A claim expires 24 hours after its last
+   refresh and then no longer holds its paths; the session renews it with the same `claim` command. `npm run wt -- release --owner <session>`
    drops the claim once the session's work is committed. A schema change of one addon (its version bump and
    migration) stays with one session.
 5. **Commit by path, under the session's name.** `LIWAN_SESSION=<session> git commit -m "<subject>" -- <paths>`;
    never `git add -A` or `git commit -a`. The pre-commit lane guard (`tools/hooks.py`) refuses a commit in a
-   lane that is not on the branch it started, a commit whose `LIWAN_SESSION` names no claim there, and a
+   lane that is not on the branch it started, a commit whose `LIWAN_SESSION` names no claim there or an expired one, and a
    commit with a staged path outside that session's claim.
 6. **Checks.** Each session runs the focused checks of its own paths. Another session's unfinished edit can
    fail a whole-tree check (the `apps/web` type check reads every file), so sessions commit small and often.
