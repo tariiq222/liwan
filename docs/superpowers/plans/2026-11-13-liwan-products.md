@@ -1,6 +1,6 @@
 # `liwan_products` implementation plan
 
-> Step 2 of [the customers and products foundation design](../specs/2026-11-11-customers-and-products-foundation-design.md), which the owner approved on 2026-11-11 and 2026-11-12 and named on 2026-11-13. Status: proposed. Nothing in it is built, and section 4 holds design points the owner has not decided yet; six of them wait for the owner's word. The facts in section 3 were read on `main` at `5f91e53f9` and in the Odoo 19 and OCA sources by one read-only pass of one session. No independent reviewer has read the plan against the code and no test was run. The work changes schema and authorization across layers, so every pull request takes the full path: an implementer per layer, a tester, and a reviewer separate from both.
+> Step 2 of [the customers and products foundation design](../specs/2026-11-11-customers-and-products-foundation-design.md), which the owner approved on 2026-11-11 and 2026-11-12 and named on 2026-11-13. Status: the owner decided the six owner points of section 4 on 2026-11-13 and added two decisions: one tax mode for every application, in the company settings, and finance invoice lines that carry a product. Nothing in it is built. The facts in section 3 were read on `main` at `5f91e53f9` and in the Odoo 19 and OCA sources by one read-only pass of one session. No independent reviewer has read the plan against the code and no test was run. The work changes schema and authorization across layers, so every pull request takes the full path: an implementer per layer, a tester, and a reviewer separate from both.
 
 ## 1. Goal
 
@@ -8,9 +8,9 @@ One addon, `liwan_products`, is the only writer of a product's definition on `pr
 
 ## 2. Scope
 
-In: the service with its settings and price function, the tax bridge `liwan_products_account`, the three writers moved onto it, the "Products and services" screen with categories, tenant-defined fields and variants, the transfer between the two sharing modes, and the move of the Meta catalog out of the payments bridge.
+In: one tax mode on the company for every application, the service with its settings and price function, the tax bridge `liwan_products_account`, the three writers moved onto it, the "Products and services" screen with categories, tenant-defined fields and variants, the transfer between the two sharing modes, the move of the Meta catalog out of the payments bridge, and a product on finance invoice lines.
 
-Out, by the spec: orders (`liwan_orders`, with the store), pricelists, combo components, inventory and availability from stock, sector presets, and a group of legal companies in one tenant. Booking offers (one service offered several times, decision 15 of the spec) need their own appointments plan; this plan only moves the existing one-type-one-product link onto the service.
+Out, by the spec: orders (`liwan_orders`, with the store), pricelists, combo components, inventory and availability from stock, sector presets, and a group of legal companies in one tenant. Booking offers (one service offered several times, decision 15 of the spec) need their own appointments plan; this plan only moves the existing one-type-one-product link onto the service. The appointments screens that set a type's price are built later, with that plan.
 
 `liwan_customers` is on `main` and is the template for the addon's shape: capabilities, groups, tenant settings, feature gate and tests.
 
@@ -30,7 +30,8 @@ Tax today (read):
 
 - An online order line takes the product's taxes and then replaces them: none for a company that is not registered for VAT, otherwise the same taxes with the price included or added, by the company's tax mode (`liwan_payments/models/order_service.py:67-84`).
 - The tax mode is a per-company row of `liwan.payments.settings` (`liwan_payments/models/payments_settings.py:51,74-77`), edited from the payments settings card (`apps/web/app/components/payments/OrderSettingsCard.vue`). VAT registration is on the company in `liwan_core` (`_liwan_vat_registered`).
-- The Meta catalog computes its own price with its own option, `prices_include_tax` per catalog, from the product's taxes (`liwan_inbox_payments/models/catalog.py:35`, `models/catalog_item.py:181-200`). It does not read the tax mode. So one company has two answers to "does this price include tax".
+- The Meta catalog computes its own price with its own option, `prices_include_tax` per catalog, from the product's taxes (`liwan_inbox_payments/models/catalog.py:35`, `models/catalog_item.py:181-200`). It does not read the tax mode. So one company has two answers to "does this price include tax". Both default to included (`payments_settings.py:20-21`).
+- A finance invoice line has a label, a quantity, a unit price, a discount and the taxes the accountant picks; it names no product (`liwan_finance/serializers/invoice.py:18,51-66,101-121`). Each tax says for itself whether its price includes it (`serializers/tax.py:34`).
 
 Stock product model (read in Odoo 19):
 
@@ -50,45 +51,47 @@ LiwanOS rules (read):
 
 ## 4. Design points the spec left open
 
-"Owner" in the last column marks a point that changes what a user sees or departs from the spec's wording. It has more than one valid outcome, so it waits for the owner's word.
+The owner took the recommended option of every point that changes what a user sees or departs from the spec's wording (D4, D5, D9, D14, D18, D19), widened D5 and added D20, all on 2026-11-13. The other points are proposals the pull requests may still refine.
 
 | # | Point | Proposal | Status |
 | --- | --- | --- | --- |
 | D1 | Which rows are the service's products | A stored, indexed boolean `liwan_product` on `product.template`, owned by the service, `copy=False`: true for a product created or adopted through it. Every list, pick and write of the service filters on it. It is the counterpart of `liwan_party`, and it is not a marker per consumer. Inferred: stock modules create products of their own (a down payment line), which must not appear in the tenant's list | Proposed |
 | D2 | Feature gate | As `liwan_customers`: the routes use `requires_registered_feature`, each consuming application registers its key, and the web client reads a derived key `products.enabled` that is never sold | Proposed |
 | D3 | One writer without `sudo()` | A technical group of the service with read, write and create on `product.template`, `product.product` and the attribute line models, no unlink, and a group rule that limits write and create to `liwan_product` rows. `products.manage` implies it. A write to a definition field of a service product outside the service is refused for everyone but the superuser, the same single-writer rule customers have. The four ACL rows of section 3 and the appointments `sudo()` writes are deleted | Proposed |
-| D4 | Who may create a product from inside an application | Today a CRM settings manager, a catalog manager and an appointments manager each create products with their own capability. Option A: applications only pick an existing product, and creating or pricing one needs `products.manage` or `products.prices.manage`; each application grants those two to its own built-in manager role, so default roles lose nothing, and a custom role must be given them. Option B: each application's capability keeps an inline create through the service, as customers allow for a booking. Recommended: A. A product, unlike a customer, is not created in the middle of serving someone, and B keeps three ways to make a product | Owner |
-| D5 | Where the tax mode lives | The spec left this to this plan. Option A: a company field in `liwan_core` next to VAT registration, edited in the company profile; `liwan_payments` reads it from the company and its own setting is removed, with a migration that carries the value. Option B: it stays in payments, and the products API cannot say whether a price includes tax for a tenant without online payments. Option C: wait for `liwan_orders`. Recommended: A. Whether prices include VAT is a fact about the company, both rank-3 services can read `liwan_core`, and the price function needs it | Owner |
+| D4 | Who may create a product from inside an application | Today a CRM settings manager, a catalog manager and an appointments manager each create products with their own capability. Option A: applications only pick an existing product, and creating or pricing one needs `products.manage` or `products.prices.manage`; each application grants those two to its own built-in manager role, so default roles lose nothing, and a custom role must be given them. Option B: each application's capability keeps an inline create through the service, as customers allow for a booking. Recommended: A. A product, unlike a customer, is not created in the middle of serving someone, and B keeps three ways to make a product | Approved by the owner on 2026-11-13: option A |
+| D5 | Where the tax mode lives | The spec left this to this plan. Option A: a company field in `liwan_core` next to VAT registration, edited in the company profile; `liwan_payments` reads it from the company and its own setting is removed, with a migration that carries the value. Option B: it stays in payments, and the products API cannot say whether a price includes tax for a tenant without online payments. Option C: wait for `liwan_orders`. Recommended: A. Whether prices include VAT is a fact about the company, both rank-3 services can read `liwan_core`, and the price function needs it | Approved by the owner on 2026-11-13: option A, widened. One tax mode in the company settings serves every application: the Meta catalog's own `prices_include_tax` is removed too, and no application keeps a setting of its own for it |
 | D6 | The price function | `liwan.products.service._liwan_price(product, quantity, uom, company, customer, date)` returns the unit price in the company's currency and whether it includes tax. It calls `product.pricelist._get_product_price` on an empty pricelist, so pricelists later change the result without touching a caller. `customer` is accepted and unused until pricelists exist, because the spec fixes the signature now | Proposed |
-| D7 | Company of a new product | From the product sharing setting: unset under `establishment`, the working company under `branch`. Changing the setting answers `409 sharing_transfer_required` while any service product exists, until PR 3 replaces the refusal with the transfer | Proposed |
+| D7 | Company of a new product | From the product sharing setting: unset under `establishment`, the working company under `branch`. Changing the setting answers `409 sharing_transfer_required` while any service product exists, until PR 4 replaces the refusal with the transfer | Proposed |
 | D8 | Categories | Stock `product.category`, tenant-wide. `products.settings.manage`, checked in the root company, creates, renames, moves and removes them. Removing a category moves its products and its child categories to the parent first, because stock would delete the children; the one general category cannot be removed | Proposed |
-| D9 | Tenant fields and a category change | Fields are defined per category and apply to that category only, which is stock behaviour; the settings screen says so. Moving a product to a category that lacks a field it holds a value for answers `409 product_field_values_lost` with the fields and counts, and the confirmed write clears those values, so nothing stays stored and hidden. Removing a field or an option asks the same way as customers do | Owner, for the wording and the confirmation |
+| D9 | Tenant fields and a category change | Fields are defined per category and apply to that category only, which is stock behaviour; the settings screen says so. Moving a product to a category that lacks a field it holds a value for answers `409 product_field_values_lost` with the fields and counts, and the confirmed write clears those values, so nothing stays stored and hidden. Removing a field or an option asks the same way as customers do | Approved by the owner on 2026-11-13 |
 | D10 | Types in the first phase | Goods and service. `combo` is offered when its components are built (section 6 of the spec), so no type ships without its editor | Proposed |
 | D11 | Variants | Stock attributes and values, tenant-wide. A holder of `products.manage` adds an attribute and its values from the product form; no separate attribute screen in this phase. Each variant can carry a price extra, a code and a barcode | Proposed |
 | D12 | The extension hook | `_liwan_product_extension_specs()` on `product.template`, the shape the company profile has: each contributing addon returns its fields with a parser and a serializer. `liwan_products_account` contributes the default sale tax; it is `auto_install` on `liwan_products` and `account` | Proposed |
 | D13 | How CRM records its packages | A many-to-many on `liwan.crm.settings` from a company to the products it offers as packages. `liwan_crm_package`, its three readers, the create route's tax clearing and the ACL rows go. `/api/v1/crm/packages` lists the company's packages and adds or removes a product from them; creating one follows D4 | Proposed |
-| D14 | Appointments | The bridge keeps the OCA link and its one-type-one-product constraint. Setting a type's price picks or prices a product through the service under D4, and the name sync stops: the product's name is edited in the products screen. Booking offers are the appointments plan | Owner, for the name sync |
+| D14 | Appointments | The bridge keeps the OCA link and its one-type-one-product constraint. Setting a type's price picks or prices a product through the service under D4, and the name sync stops: the product's name is edited in the products screen. Booking offers are the appointments plan. The owner noted that the appointments screens for this are built later; this plan adds none | Approved by the owner on 2026-11-13 |
 | D15 | Payments' refund rules | They stay on `product.template` as payments' own fields and keep their documented elevated write. They are not a definition field, and `liwan_payments` cannot depend on the service | Proposed |
 | D16 | Web placement | `apps/web/app/modules/products/manifest.ts` with a rail entry, the list under `/products`, the settings under `/settings/apps/products`. The folder is not registered in `web_apps`, as with customers, so every application may use the product picker | Proposed |
 | D17 | Existing development data | Each consumer's migration adopts the products it made: marks them, and clears their company, which is the sharing default. CRM's migration fills the new relation from the marker before the column is dropped. There are no live tenants | Proposed |
-| D18 | Where the Meta catalog moves | The spec says a bridge between `liwan_inbox` and `liwan_products`. The carts stay in `liwan_inbox_payments` and read the catalog models, and a bridge cannot depend on a bridge. Option A: the catalog models move into `liwan_inbox` itself, which then depends on `liwan_products`, behind the existing `inbox.catalog` sub-feature. Option B: a bridge, with the carts moved into it too. Recommended: A. An application may depend on a shared service, so no bridge is needed | Owner, since it differs from the spec's wording |
-| D19 | The shape of the tax bridge | The spec names a rank-5 `liwan_products_account` on `liwan_products` and stock `account`, and the bridge tooling refuses a bridge with one LiwanOS side. Option A: keep the bridge and teach `tools/app_isolation.py` that a bridge may link one LiwanOS module to one stock module named in its `auto_install`. Option B: no bridge; the service contributes the tax field itself when the field exists, as CRM tests `taxes_id` today. Recommended: A. B puts a condition on installed modules inside the service, and the same case returns for inventory fields | Owner, since A changes a tooling rule and B differs from the spec |
+| D18 | Where the Meta catalog moves | The spec says a bridge between `liwan_inbox` and `liwan_products`. The carts stay in `liwan_inbox_payments` and read the catalog models, and a bridge cannot depend on a bridge. Option A: the catalog models move into `liwan_inbox` itself, which then depends on `liwan_products`, behind the existing `inbox.catalog` sub-feature. Option B: a bridge, with the carts moved into it too. Recommended: A. An application may depend on a shared service, so no bridge is needed | Approved by the owner on 2026-11-13: option A. The spec's section 4.7 is edited to match |
+| D19 | The shape of the tax bridge | The spec names a rank-5 `liwan_products_account` on `liwan_products` and stock `account`, and the bridge tooling refuses a bridge with one LiwanOS side. Option A: keep the bridge and teach `tools/app_isolation.py` that a bridge may link one LiwanOS module to one stock module named in its `auto_install`. Option B: no bridge; the service contributes the tax field itself when the field exists, as CRM tests `taxes_id` today. Recommended: A. B puts a condition on installed modules inside the service, and the same case returns for inventory fields | Approved by the owner on 2026-11-13: option A |
+| D20 | Finance invoice lines and products | The owner decided that finance links to products. A line of a customer invoice or credit note may name a service product; picking one fills the label, the price from the price function and the taxes under the company's tax mode, and the accountant can still change them. A line without a product stays valid. Vendor bills wait for purchasing, because a service product is a thing the company sells. `liwan_finance` depends on `liwan_products` directly, an application on a shared service | The link: Approved by the owner on 2026-11-13. Its scope as written here: proposed |
 
 ## 5. Pull requests
 
-Five pull requests, in this order. Each is complete on its own: it removes what it replaces, ships nothing that has no reader yet, and leaves no second path.
+Six pull requests, in this order. Each is complete on its own: it removes what it replaces, ships nothing that has no reader yet, and leaves no second path.
 
-### PR 1: the tax mode on the company
+### PR 1: one tax mode, on the company
 
-Only if D5 is decided as option A. Goal: one answer to "do this company's prices include tax", readable by every layer.
+Goal: one answer to "do this company's prices include tax", set in the company settings and read by every application.
 
 - [ ] `liwan_core`: the tax mode field on `res.company` next to VAT registration, with its values and default taken from `liwan_payments` unchanged; the company profile serializer, parser and contract.
 - [ ] `liwan_payments`: `_liwan_add_line` reads the company; `tax_mode` leaves `liwan.payments.settings`, its serializer, contract and route; version bump and a migration that copies each company's value before the column is dropped.
-- [ ] Web: the control moves from the payments settings card to the company profile, with its locale keys in both languages.
+- [ ] Customer messages (`liwan_inbox_payments`): `prices_include_tax` leaves `liwan.inbox.catalog`, its parser, serializer and contract; an item's price reads the company's tax mode; a change of the tax mode queues the company's synced items for resync, as a change of VAT registration does today; version bump and a migration that drops the column.
+- [ ] Web: the control moves from the payments settings card to the company profile, and the catalog connect and settings forms lose theirs, with the locale keys in both languages.
 
-Proves: an order line of a VAT-registered company is taxed exactly as before under each mode, and of an unregistered one carries no tax; a company with no payments settings row keeps the default; a change is refused without `settings.company.manage`.
+Proves: an order line of a VAT-registered company is taxed exactly as before under each mode, and of an unregistered one carries no tax; a company with no payments settings row keeps the default; a change is refused without `settings.company.manage`; a Meta item's price follows the company's tax mode, and changing the mode resends the item; no model, route or screen outside the company settings holds a tax mode.
 
-Reported, not changed here: the Meta catalog's own `prices_include_tax`. PR 5 decides whether it becomes the company's tax mode.
+Where a company's catalog said "added" and its payments setting said "included", or the reverse, the payments value wins and the catalog's prices change at the next sync. There are no live tenants; the migration note states it.
 
 ### PR 2: the service and its three writers
 
@@ -156,9 +159,21 @@ Goal: a tenant publishes its catalog to Meta without online payments. Shape unde
 
 - [ ] The catalog models, their sync and the public image route move; the carts stay in `liwan_inbox_payments`.
 - [ ] A migration that keeps every product link and every `retailer_id` Meta already holds.
-- [ ] The catalog's `prices_include_tax` against the company's tax mode: one of them goes, or the screen states why a channel may differ.
 
 Proves: a tenant with customer messages and no payments connects a catalog and syncs an item; an upgraded scratch database keeps its items, their `retailer_id` and their sync state; a cart still becomes a paid order.
+
+### PR 6: a product on finance invoice lines
+
+Goal: an invoice line can name what was sold, so sales reports and the later sales application read one record. Scope under D20.
+
+- [ ] `liwan_finance` depends on `liwan_products` and registers its feature key and pick capability with the service.
+- [ ] A customer invoice or credit note line accepts an optional `product_id`: a service product the caller can pick. The label, unit price and taxes default from the product and stay editable. The line serializer returns the product.
+- [ ] Web: a product picker on the invoice and credit note line editors, from the shared picker.
+- [ ] Version bump. No migration: existing lines keep no product.
+
+Proves: a line with a product is priced and taxed as an online order line for the same product and company; a line without a product still saves; a product the caller cannot read is refused; archiving a product leaves a posted invoice unchanged; a vendor bill line refuses a product.
+
+Open before it starts: where the tax pricing lives. The function that turns a product's taxes into included or added ones is in `liwan_payments` today (`order_service.py`, `_liwan_priced_taxes`), and finance must not depend on `sale` to reuse it. It needs one owner that both can reach before this pull request copies anything.
 
 ## 6. Where each proof line of the spec lands
 
@@ -190,7 +205,8 @@ The list of the customers plan, section 7, with these changes:
 - D4 option A removes an inline create that three screens have today. A tenant's custom role that manages CRM packages needs `products.manage` after the change.
 - The OCA booking link is on the product. If appointments later needs several offers per service, that plan may have to replace the link, and PR 2 must not deepen the dependency on it.
 - The price function must equal the sale line's price. It is proved for the cases this phase has; pricelists reopen the proof.
-- PR 1 moves a setting between two screens and two addons in one step.
+- PR 1 moves a setting between screens and across three addons in one step, and removes a per-catalog choice a tenant has today.
+- PR 6 needs the tax pricing to have one owner that finance can reach. If that cannot be settled without `liwan_orders`, PR 6 waits for it.
 - This plan was read against the code by one session. An independent read before PR 2 starts is part of the path, as it was for customers.
 
 ## 9. Evidence status
