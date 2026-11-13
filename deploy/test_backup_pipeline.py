@@ -102,6 +102,18 @@ def fake_backup(writes: bool = True):
     return handler
 
 
+def fake_pg_dump(writes: bool = True):
+    """A stand-in for ``pg_dump``: it writes the file named by ``-f``, like the real one."""
+
+    def handler(argv, **_kwargs) -> Completed:
+        if not writes:
+            return Completed(returncode=1)
+        Path(argv[argv.index('-f') + 1]).write_bytes(DUMP_BYTES)
+        return Completed()
+
+    return handler
+
+
 class PipelineCase(unittest.TestCase):
     """A temporary tree with a passphrase file, a store and a work root."""
 
@@ -130,6 +142,24 @@ class PipelineCase(unittest.TestCase):
         pg_dump = self.root / 'pg_dump'
         pg_dump.write_text('', encoding='utf-8')
         return bp.CaptureSource(db_name='liwan_scratch', filestore=filestore, pg_dump=pg_dump)
+
+    def control_plane_source(self, db_name: str = 'liwan_control') -> bp.CaptureSource:
+        pg_dump = self.root / 'pg_dump'
+        pg_dump.write_text('', encoding='utf-8')
+        return bp.CaptureSource(db_name=db_name, filestore=None, pg_dump=pg_dump)
+
+    def capture_control_plane(self, *, kind: str = 'hourly', captured_at: str = STAMP,
+                              runner=None, source: bp.CaptureSource | None = None) -> bp.BackupManifest:
+        return bp.capture(
+            store=self.store,
+            tenant=bp.CONTROL_PLANE_SOURCE,
+            source=source or self.control_plane_source(),
+            kind=kind,
+            work_root=self.work_root,
+            passphrase_file=self.passphrase_file,
+            now=datetime.fromisoformat(captured_at),
+            runner=runner or Runner(fake_pg_dump()),
+        )
 
     def capture(self, *, kind: str = 'hourly', captured_at: str = STAMP,
                 runner=None) -> bp.BackupManifest:
@@ -567,6 +597,112 @@ class TestCapture(PipelineCase):
                          'CANDIDATE_BACKUP_UNVERIFIED')
 
 
+class TestControlPlaneCapture(PipelineCase):
+    """The control plane database is one more source of the same pipeline."""
+
+    PREFIX = f'{bp.CONTROL_PLANE_SOURCE}/hourly/2026-11-08T000000Z/'
+
+    def test_it_uploads_the_same_three_objects_under_the_control_plane_prefix(self):
+        manifest = self.capture_control_plane()
+        self.assertEqual(self.store.list(self.PREFIX), [
+            self.PREFIX + bp.ARTIFACT_CIPHERTEXT_NAME,
+            self.PREFIX + bp.CHECKSUMS_NAME,
+            self.PREFIX + bp.MANIFEST_NAME,
+        ])
+        uploaded = bp.BackupManifest.from_json(self.store.get(self.PREFIX + bp.MANIFEST_NAME), self.passphrase_file)
+        self.assertEqual((uploaded, uploaded.tenant, uploaded.consistency),
+                         (manifest, bp.CONTROL_PLANE_SOURCE, 'UNVERIFIED'))
+
+    def test_the_artifact_decrypts_to_the_dump_and_nothing_else(self):
+        self.capture_control_plane()
+        ciphertext = self.root / 'artifact.enc'
+        ciphertext.write_bytes(self.store.get(self.PREFIX + bp.ARTIFACT_CIPHERTEXT_NAME))
+        plain = self.root / 'artifact.tar'
+        bp.decrypt_file(ciphertext, plain, passphrase_file=self.passphrase_file)
+        with tarfile.open(plain) as archive:
+            self.assertEqual(archive.getnames(), [bp.DUMP_NAME])
+            self.assertEqual(archive.extractfile(bp.DUMP_NAME).read(), DUMP_BYTES)
+
+    def test_it_runs_pg_dump_directly_and_never_backup_py_or_a_password_flag(self):
+        runner = Runner(fake_pg_dump())
+        self.capture_control_plane(runner=runner)
+        dumps = runner.calls_to('pg_dump')
+        self.assertEqual(len(dumps), 1)
+        argv = dumps[0]
+        self.assertIn('-Fc', argv)
+        self.assertEqual(argv[argv.index('-d') + 1], 'liwan_control')
+        self.assertFalse({'--password', '-W'} & set(argv))
+        self.assertEqual(runner.calls_to('backup.py'), [])
+
+    def test_it_never_uploads_plaintext(self):
+        self.capture_control_plane()
+        for key in self.store.list(f'{bp.CONTROL_PLANE_SOURCE}/'):
+            self.assertNotIn(DUMP_BYTES, self.store.get(key))
+
+    def test_a_pg_dump_failure_uploads_nothing_and_leaves_no_staging(self):
+        with self.assertRaises(bp.PipelineError):
+            self.capture_control_plane(runner=Runner(fake_pg_dump(writes=False)))
+        self.assertEqual(self.store.list(f'{bp.CONTROL_PLANE_SOURCE}/'), [])
+        self.assertEqual(list(self.work_root.iterdir()), [])
+
+    def test_a_dump_that_wrote_no_file_is_refused(self):
+        silent = Runner(lambda argv, **_kwargs: Completed())
+        with self.assertRaises(bp.PipelineError):
+            self.capture_control_plane(runner=silent)
+        self.assertEqual(self.store.list(f'{bp.CONTROL_PLANE_SOURCE}/'), [])
+
+    def test_a_forbidden_database_name_is_refused_before_any_process_runs(self):
+        runner = Runner()
+        with self.assertRaises(bp.PipelineError):
+            self.capture_control_plane(runner=runner, source=self.control_plane_source('odoo19'))
+        self.assertEqual(runner.calls, [])
+
+    def test_the_database_only_shape_belongs_to_the_control_plane_alone(self):
+        with self.assertRaises(bp.PipelineError):
+            bp.capture(store=self.store, tenant=TENANT, source=self.control_plane_source(),
+                       kind='hourly', work_root=self.work_root, passphrase_file=self.passphrase_file,
+                       now=datetime.fromisoformat(STAMP), runner=Runner(fake_pg_dump()))
+        with self.assertRaises(bp.PipelineError):
+            bp.capture(store=self.store, tenant=bp.CONTROL_PLANE_SOURCE, source=self.source(),
+                       kind='hourly', work_root=self.work_root, passphrase_file=self.passphrase_file,
+                       now=datetime.fromisoformat(STAMP), runner=self.runner)
+        self.assertEqual(self.store.list(''), [])
+
+    def test_retention_applies_to_it_and_leaves_tenants_alone(self):
+        stamps = {'old': '2026-10-01T000000Z', 'new': '2026-11-08T000000Z'}
+        for stamp in stamps.values():
+            self.capture_control_plane(captured_at=bp.parse_stamp(stamp).isoformat())
+        self.put_artifact('hourly', datetime.fromisoformat(STAMP))
+        report = bp.prune(self.store, bp.CONTROL_PLANE_SOURCE, now=datetime.fromisoformat('2026-11-08T01:00:00+00:00'))
+        self.assertEqual(sorted({action.key.split('/')[2] for action in report.deleted}), [stamps['old']])
+        self.assertEqual(len(self.store.list(f'{TENANT}/')), 3)
+
+    def test_the_newest_complete_backup_is_found_for_the_drill(self):
+        self.capture_control_plane(captured_at='2026-11-08T00:00:00+00:00')
+        self.capture_control_plane(captured_at='2026-11-08T00:30:00+00:00')
+        newest = bp.latest_artifact(self.store, bp.CONTROL_PLANE_SOURCE)
+        self.assertEqual(newest.captured_at, datetime(2026, 11, 8, 0, 30, tzinfo=timezone.utc))
+
+
+class TestNewestAge(PipelineCase):
+    def test_a_source_with_no_artifact_is_stale_with_no_age(self):
+        report = bp.newest_age(self.store, bp.CONTROL_PLANE_SOURCE, datetime.fromisoformat(STAMP))
+        self.assertEqual((report['stale'], report['age_seconds']), (True, None))
+
+    def test_the_age_is_stale_one_second_past_the_rpo_and_not_at_it(self):
+        self.capture_control_plane()
+        base = datetime.fromisoformat(STAMP)
+        at_limit = bp.newest_age(self.store, bp.CONTROL_PLANE_SOURCE, base + timedelta(seconds=bp.RPO_SECONDS))
+        past = bp.newest_age(self.store, bp.CONTROL_PLANE_SOURCE, base + timedelta(seconds=bp.RPO_SECONDS + 1))
+        self.assertEqual((at_limit['stale'], at_limit['age_seconds']), (False, 3600.0))
+        self.assertTrue(past['stale'])
+
+    def test_a_capture_without_its_manifest_does_not_count(self):
+        self.store.put(f'{bp.CONTROL_PLANE_SOURCE}/hourly/2026-11-08T000000Z/{bp.ARTIFACT_CIPHERTEXT_NAME}', b'x')
+        report = bp.newest_age(self.store, bp.CONTROL_PLANE_SOURCE, datetime.fromisoformat(STAMP))
+        self.assertIsNone(report['newest_captured_at'])
+
+
 class TestPrune(PipelineCase):
     def now(self) -> datetime:
         return datetime(2026, 11, 8, tzinfo=timezone.utc)
@@ -878,6 +1014,74 @@ class TestCommandLine(PipelineCase):
         self.assertIn(bp.PASSPHRASE_ENVIRONMENT_VARIABLE, stderr)
         self.assertEqual(FilesystemStore(self.root / 'cli-bucket').list(f'{TENANT}/'), [])
         self.assertFalse(self.work_root.exists())
+
+    def control_plane_argv(self, *extra: str) -> list[str]:
+        return [
+            'capture', '--control-plane', '--kind', 'hourly', '--work-root', str(self.work_root),
+            '--pg-dump', str(self.control_plane_source().pg_dump), '--db-name', 'liwan_control',
+            '--store-root', str(self.root / 'cli-bucket'), '--now', STAMP, *extra,
+        ]
+
+    def test_capture_control_plane_needs_no_registry_and_no_data_dir(self):
+        runner = Runner(fake_pg_dump())
+        self.runner = runner
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}
+        with _environment(environ, clear=(bp.REGISTRY_ENVIRONMENT_VARIABLE,)):
+            code, stdout, stderr = self.run_main(self.control_plane_argv())
+        self.assertEqual((code, stderr), (bp.EXIT_OK, ''))
+        self.assertEqual(json.loads(stdout)['tenant'], bp.CONTROL_PLANE_SOURCE)
+        self.assertEqual(len(FilesystemStore(self.root / 'cli-bucket').list(f'{bp.CONTROL_PLANE_SOURCE}/hourly/')), 3)
+
+    def test_capture_control_plane_refuses_a_data_dir_or_a_missing_db_name(self):
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}
+        with _environment(environ):
+            code, _stdout, stderr = self.run_main(self.control_plane_argv('--data-dir', str(self.root)))
+            self.assertEqual(code, bp.EXIT_REFUSED)
+            self.assertIn('--data-dir', stderr)
+            argv = self.control_plane_argv()
+            del argv[argv.index('--db-name'):argv.index('--db-name') + 2]
+            code, _stdout, stderr = self.run_main(argv)
+            self.assertEqual(code, bp.EXIT_REFUSED)
+            self.assertIn('--db-name', stderr)
+        self.assertEqual(self.runner.calls, [])
+
+    def test_a_tenant_capture_refuses_a_db_name(self):
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
+        with _environment(environ):
+            code, _stdout, stderr = self.run_main([*self.capture_argv(), '--db-name', 'liwan_scratch'])
+        self.assertEqual(code, bp.EXIT_REFUSED)
+        self.assertIn('--db-name', stderr)
+
+    def test_a_tenant_named_like_the_control_plane_cannot_write_its_prefix(self):
+        source = self.source()
+        registry = self.root / 'registry.json'
+        registry.write_text(json.dumps({
+            'schemaVersion': 1, 'snapshotRevision': 1, 'targets': [
+                {'host': 'x.example', 'tenantId': bp.CONTROL_PLANE_SOURCE, 'database': 'liwan_scratch',
+                 'filestore': 'liwan_scratch', 'enabled': True, 'registryRevision': 1}]}), encoding='utf-8')
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file),
+                   bp.REGISTRY_ENVIRONMENT_VARIABLE: str(registry)}
+        with _environment(environ):
+            code, _stdout, stderr = self.run_main(self.capture_argv(tenant=bp.CONTROL_PLANE_SOURCE))
+        self.assertEqual(code, bp.EXIT_REFUSED)
+        self.assertIn('database-only', stderr)
+        self.assertEqual(self.runner.calls, [])
+        self.assertTrue(source.filestore.is_dir())
+
+    def test_a_source_is_required_and_the_two_are_exclusive(self):
+        for argv in (['prune'], ['prune', '--tenant', TENANT, '--control-plane']):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bp.main(argv)
+
+    def test_age_exits_three_when_the_control_plane_backup_is_stale(self):
+        now = datetime.now(timezone.utc)
+        self.capture_control_plane(captured_at=(now - timedelta(minutes=30)).isoformat())
+        store_args = ['--store-root', str(self.root / 'bucket'), '--control-plane']
+        code, stdout, _stderr = self.run_main(['age', *store_args])
+        self.assertEqual((code, json.loads(stdout)['stale']), (bp.EXIT_OK, False))
+        later = (now + timedelta(hours=2)).isoformat()
+        code, stdout, _stderr = self.run_main(['age', *store_args, '--now', later])
+        self.assertEqual((code, json.loads(stdout)['source']), (bp.EXIT_NOT_VERIFIED, bp.CONTROL_PLANE_SOURCE))
 
     def test_prune_prints_its_report_as_json(self):
         self.put_artifact('hourly', datetime.fromisoformat(STAMP))

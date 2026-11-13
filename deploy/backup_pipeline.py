@@ -26,6 +26,12 @@ process runners:
 * ``restore_verified`` requires a fresh successful drill record and proof that
   the backup age at drill start and measured duration met their budgets.
 
+The control plane's own PostgreSQL database is one more source of this pipeline,
+under the reserved source name :data:`CONTROL_PLANE_SOURCE`: a database-only capture
+(``pg_dump -Fc``, no filestore) with the same encryption, key layout, retention,
+manifest and drill-record rules as a tenant. The name is the one alert label that
+tells an operator which database a failure belongs to.
+
 Not proven here: any real bucket (no socket is opened; :mod:`deploy.s3_client` owns
 that boundary), quiescence of the copied database, and recovery beyond a full dump.
 There is no WAL archiving, so the one-hour RPO rests on hourly captures, never on
@@ -84,6 +90,10 @@ RTO_SECONDS = 4 * 3600
 HOURLY_KEEP_DAYS = 7
 DAILY_KEEP_DAYS = 30
 
+# The source name of the control plane's own database. Keys are `<source>/<kind>/...`, so
+# this is also the prefix a tenant can never write: a tenant of this name is refused.
+CONTROL_PLANE_SOURCE = 'control-plane'
+
 KIND_HOURLY = 'hourly'
 KIND_DAILY = 'daily'
 BACKUP_KINDS = (KIND_HOURLY, KIND_DAILY)
@@ -93,6 +103,7 @@ CIPHER = 'aes-256-cbc-pbkdf2'
 CONSISTENCY_UNVERIFIED = 'UNVERIFIED'
 
 STAMP_FORMAT = '%Y-%m-%dT%H%M%SZ'
+DUMP_NAME = backup.DUMP_NAME
 ARTIFACT_NAME = 'artifact.tar'
 ARTIFACT_CIPHERTEXT_NAME = 'artifact.tar.enc'
 MANIFEST_NAME = 'manifest.json'
@@ -258,10 +269,14 @@ def _unique_manifest_object(pairs: list[tuple[str, object]]) -> dict[str, object
 
 @dataclass(frozen=True)
 class CaptureSource:
-    """The database and filestore one capture copies, in backup.py's own terms."""
+    """The database and filestore one capture copies, in backup.py's own terms.
+
+    ``filestore=None`` is the database-only source of the control plane, which has no
+    filestore; it is valid only under :data:`CONTROL_PLANE_SOURCE` and nowhere else.
+    """
 
     db_name: str
-    filestore: Path
+    filestore: Path | None
     pg_dump: Path
     pg_host: str | None = None
     pg_port: str | None = None
@@ -571,6 +586,26 @@ def _capture_argv(capture: Path, source: CaptureSource, backup_script: Path) -> 
     return argv
 
 
+def _dump_database(staging: Path, source: CaptureSource, runner: Callable[..., object]) -> None:
+    """Write ``database.dump`` alone into a new staging directory.
+
+    The database-only twin of ``deploy/backup.py``: the same ``pg_dump`` argv (its own
+    :func:`backup.build_pg_dump_argv`) and the same one-backup-per-database lock, so a
+    second run for the same database is refused instead of racing the first.
+    """
+    staging.mkdir(mode=0o700)
+    try:
+        argv = backup.build_pg_dump_argv(
+            pg_dump=str(source.pg_dump), db_name=source.db_name,
+            output_file=str(staging / DUMP_NAME), pg_host=source.pg_host,
+            pg_port=source.pg_port, pg_user=source.pg_user,
+        )
+        with backup.database_lock(source.db_name, None):
+            _run(runner, argv, 'pg_dump')
+    except backup.BackupError as error:
+        raise PipelineError(str(error)) from error
+
+
 def _checksums(digests: tuple[str, ...], object_names: tuple[str, ...]) -> str:
     """``sha256sum -c`` compatible: two spaces between digest and object name."""
     return ''.join(
@@ -601,6 +636,10 @@ def capture(
     """
     _require_tenant(tenant)
     _require_kind(kind)
+    _require(
+        (source.filestore is None) == (tenant == CONTROL_PLANE_SOURCE),
+        f'{CONTROL_PLANE_SOURCE!r} is the one database-only source, and only it is database-only',
+    )
     captured_at = as_utc(now)
     _require(work_root.is_absolute(), 'the work root must be an absolute path')
     require_passphrase_file(passphrase_file)
@@ -613,8 +652,11 @@ def capture(
         plain_tar = Path(private) / ARTIFACT_NAME
         script = backup_script or Path(__file__).with_name('backup.py')
 
-        _run(runner, _capture_argv(staging, source, script), 'deploy/backup.py')
-        _require((staging / 'database.dump').is_file(), 'deploy/backup.py produced no database.dump')
+        if source.filestore is None:
+            _dump_database(staging, source, runner)
+        else:
+            _run(runner, _capture_argv(staging, source, script), 'deploy/backup.py')
+        _require((staging / DUMP_NAME).is_file(), 'the capture produced no database.dump')
         plaintext_sha256 = archive_filestore(staging, plain_tar)
 
         ciphertext = Path(private) / ARTIFACT_CIPHERTEXT_NAME
@@ -739,6 +781,46 @@ def latest_artifact(store: ObjectStore, tenant: str) -> ArtifactRef | None:
     if not candidates:
         return None
     return max(candidates, key=lambda ref: ref.captured_at)
+
+
+def fetch_verified_dump(
+    store: ObjectStore,
+    source: str,
+    stage: Path,
+    passphrase_file: Path,
+    runner: Callable[..., object] = subprocess.run,
+) -> tuple[ArtifactRef, BackupManifest, Path]:
+    """Fetch the newest artifact of a database-only source and return its ``database.dump``.
+
+    The manifest tag is verified before the ciphertext is fetched, both digests are
+    compared before anything is trusted, and the archive must hold ``database.dump``
+    as its only member. ``stage`` is a new directory this call creates.
+    """
+    ref = latest_artifact(store, source)
+    _require(ref is not None, f'source {source!r} has no complete artifact to restore')
+    manifest = BackupManifest.from_json(store.get(ref.manifest_key), passphrase_file)
+    _require((manifest.tenant, manifest.kind, manifest.captured_at) == (ref.tenant, ref.kind, ref.captured_at),
+             f'manifest identity does not match the artifact key: {ref.artifact_key}')
+    stage.mkdir(mode=0o700)
+    ciphertext = stage / ARTIFACT_CIPHERTEXT_NAME
+    store.get_file(ref.artifact_key, ciphertext, expected_size=manifest.ciphertext_bytes)
+    _require(sha256_file(ciphertext) == manifest.ciphertext_sha256,
+             f'artifact {ref.artifact_key} does not match its manifest: ciphertext digest differs')
+    archive = stage / ARTIFACT_NAME
+    plaintext_sha256 = decrypt_file(ciphertext, archive, passphrase_file=passphrase_file, runner=runner)
+    _require(plaintext_sha256 == manifest.plaintext_sha256 and archive.stat().st_size == manifest.plaintext_bytes,
+             f'artifact {ref.artifact_key} decrypted to bytes its manifest did not pin')
+    dump = stage / DUMP_NAME
+    with tarfile.open(archive, 'r') as bundle:
+        members = bundle.getmembers()
+        _require(len(members) == 1 and members[0].name == DUMP_NAME and members[0].isreg(),
+                 f'a database-only artifact holds {DUMP_NAME} and nothing else')
+        reader = bundle.extractfile(members[0])
+        _require(reader is not None, f'{DUMP_NAME} cannot be read from the artifact')
+        with reader, dump.open('xb') as target:
+            for block in iter(lambda: reader.read(1024 * 1024), b''):
+                target.write(block)
+    return ref, manifest, dump
 
 
 def load_drill_record(record_path: Path) -> dict[str, object] | None:
@@ -866,10 +948,11 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest='command', required=True)
 
     take = commands.add_parser('capture', help='capture, encrypt and upload one artifact')
-    take.add_argument('--tenant', required=True)
+    _add_source_arguments(take)
     take.add_argument('--kind', required=True, choices=BACKUP_KINDS)
     take.add_argument('--work-root', required=True, type=Path)
-    take.add_argument('--data-dir', required=True, type=Path, help='trusted Odoo data directory containing filestore/')
+    take.add_argument('--data-dir', type=Path, help='trusted Odoo data directory containing filestore/ (tenant)')
+    take.add_argument('--db-name', help='the control plane database to dump (--control-plane only)')
     take.add_argument('--pg-dump', required=True, type=Path)
     take.add_argument('--pg-host')
     take.add_argument('--pg-port')
@@ -877,16 +960,32 @@ def build_parser() -> argparse.ArgumentParser:
     take.add_argument('--now', help='override the capture time, ISO 8601 (tests only)')
 
     retention = commands.add_parser('prune', help='delete artifacts beyond the retention windows')
-    retention.add_argument('--tenant', required=True)
+    _add_source_arguments(retention)
     retention.add_argument('--now', help='override the current time, ISO 8601 (tests only)')
+
+    freshness = commands.add_parser('age', help='report the age of the newest artifact against the RPO')
+    _add_source_arguments(freshness)
+    freshness.add_argument('--now', help='override the current time, ISO 8601 (tests only)')
 
     report = commands.add_parser('status', help='report RPO, RTO and the verified restore')
     report.add_argument('--record', required=True, type=Path)
     report.add_argument('--now', help='override the current time, ISO 8601 (tests only)')
 
-    for subparser in (take, retention):
+    for subparser in (take, retention, freshness):
         subparser.add_argument('--store-root', type=Path, help='a filesystem store instead of a bucket')
     return parser
+
+
+def _add_source_arguments(parser: argparse.ArgumentParser) -> None:
+    """Exactly one source: a tenant, or the control plane's own database."""
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--tenant')
+    group.add_argument('--control-plane', action='store_true',
+                       help=f'the control plane database, stored under {CONTROL_PLANE_SOURCE}/')
+
+
+def _source_name(args: argparse.Namespace) -> str:
+    return CONTROL_PLANE_SOURCE if args.control_plane else args.tenant
 
 
 def _parse_now(raw: str | None) -> datetime | None:
@@ -931,12 +1030,27 @@ def _registry_source(args: argparse.Namespace) -> CaptureSource:
     return CaptureSource(database, filestore, args.pg_dump, args.pg_host, args.pg_port, args.pg_user)
 
 
+def _control_plane_source(args: argparse.Namespace) -> CaptureSource:
+    _require(args.data_dir is None, '--data-dir belongs to a tenant capture, not --control-plane')
+    _require(args.db_name is not None, '--control-plane needs --db-name')
+    try:
+        database = backup.validate_db_name(args.db_name)
+    except backup.BackupError as error:
+        raise PipelineError(str(error)) from error
+    return CaptureSource(database, None, args.pg_dump, args.pg_host, args.pg_port, args.pg_user)
+
+
 def _run_capture(args: argparse.Namespace, runner: Callable[..., object]) -> int:
     passphrase_file = passphrase_from_environment(os.environ)
-    source = _registry_source(args)
+    if args.control_plane:
+        source = _control_plane_source(args)
+    else:
+        _require(args.data_dir is not None and args.db_name is None,
+                 'a tenant capture needs --data-dir and takes no --db-name')
+        source = _registry_source(args)
     manifest = capture(
         store=build_store(args.store_root, os.environ),
-        tenant=args.tenant,
+        tenant=_source_name(args),
         source=source,
         kind=args.kind,
         work_root=args.work_root,
@@ -951,11 +1065,42 @@ def _run_capture(args: argparse.Namespace, runner: Callable[..., object]) -> int
 def _run_prune(args: argparse.Namespace, _runner: Callable[..., object]) -> int:
     report = prune(
         build_store(args.store_root, os.environ),
-        args.tenant,
+        _source_name(args),
         now=_parse_now(args.now),
     )
     _write_json(report.as_dict())
     return EXIT_OK
+
+
+def newest_age(
+    store: ObjectStore,
+    source: str,
+    now: datetime | None = None,
+    policy: RetentionPolicy | None = None,
+) -> dict[str, object]:
+    """How old the newest complete artifact of one source is, and whether that is stale.
+
+    A source with no complete artifact is stale with a ``None`` age: nothing was ever
+    proven restorable from it. This is the number the ``backup_stale`` alert needs.
+    """
+    current = as_utc(now)
+    ref = latest_artifact(store, source)
+    age = None if ref is None else (current - ref.captured_at).total_seconds()
+    limit = (policy or RetentionPolicy()).rpo_seconds
+    return {
+        'source': source,
+        'newest_captured_at': None if ref is None else ref.captured_at.isoformat(),
+        'newest_kind': None if ref is None else ref.kind,
+        'age_seconds': age,
+        'rpo_seconds': limit,
+        'stale': age is None or not 0 <= age <= limit,
+    }
+
+
+def _run_age(args: argparse.Namespace, _runner: Callable[..., object]) -> int:
+    report = newest_age(build_store(args.store_root, os.environ), _source_name(args), _parse_now(args.now))
+    _write_json(report)
+    return EXIT_NOT_VERIFIED if report['stale'] else EXIT_OK
 
 
 def _run_status(args: argparse.Namespace, _runner: Callable[..., object]) -> int:
@@ -970,7 +1115,7 @@ def main(
 ) -> int:
     """Run one subcommand; ``runner`` is the process seam the tests replace."""
     args = build_parser().parse_args(list(argv) if argv is not None else None)
-    handlers = {'capture': _run_capture, 'prune': _run_prune, 'status': _run_status}
+    handlers = {'capture': _run_capture, 'prune': _run_prune, 'age': _run_age, 'status': _run_status}
     try:
         return handlers[args.command](args, runner)
     except (PipelineError, s3_client.StorageError) as error:
