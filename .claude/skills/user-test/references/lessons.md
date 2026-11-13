@@ -5,7 +5,7 @@
 - The default e2e agent calls external model services; deterministic exact-step tests need no model.
 - Seven parallel agents exhausted memory: Nuxt dev ran out of heap and the machine swapped.
   Two agents at a time, one browser context each, Nuxt with an 8 GB heap.
-- Agents wrote state files into the worktree root; delete them before committing.
+- Agents wrote state files into the lane root; delete them before committing.
 - A `|` inside a note breaks the table row; `tools/e2e_scenario_status.py` escapes it.
 - Tenant changes are refused without the trusted-operator context; an interrupted exclusive
   agent once left finance switched off. Always verify the baseline yourself afterwards.

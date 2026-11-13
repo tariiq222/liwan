@@ -6,10 +6,10 @@ do NOT fix anything, do not commit, do not push, do not open GitHub issues.
 
 ## Environment (already running, shared — do NOT start, stop or restart it)
 - Web UI http://localhost:43300 (Nuxt dev, Arabic RTL); Odoo 127.0.0.1:43369, scratch DB
-  `liwan_scratch_e2e`. Repository: <WORKTREE> (cd there). Never touch the main checkout files,
-  ports 3000/8069 or the `odoo19` database.
-- Playwright is installed in the worktree. Write scripts in <SCRATCH>/<AREA>/ and load it with
-  `createRequire('<WORKTREE>/package.json')('playwright')`; run them with `node` from the worktree.
+  `liwan_scratch_e2e`. Repository: <LANE> (the fixed lane under `.worktrees/`; cd there). Never touch the main
+  checkout files, ports 3000/8069 or the `odoo19` database.
+- Playwright is installed in the lane. Write scripts in <SCRATCH>/<AREA>/ and load it with
+  `createRequire('<LANE>/package.json')('playwright')`; run them with `node` from the lane.
   One browser context per persona, `locale: 'ar'`. Keep at most <MAX_CONTEXTS> contexts open and
   close them when done. First compile of a page can take 60–90 s; retry 429/503 from the proxy.
 - Sign in at /login: «اسم المستخدم», «كلمة المرور», «دخول»; wait until the URL leaves /login.

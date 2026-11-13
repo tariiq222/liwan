@@ -5,7 +5,7 @@ Build or reuse the database once: `E2E_STACK=odoo npm run e2e:odoo -- e2e/tests/
 smoke test itself may fail without a model, that does not matter). Re-seed after seed changes with
 `E2E_ODOO_SEED=1`.
 
-Then keep one stack up for all agents, from the worktree root:
+Then keep one stack up for all agents, from the lane root:
 
 ```bash
 export LIWAN_COMMERCIAL_CONFIG=.e2e/odoo/classification.json PYTHONDONTWRITEBYTECODE=1
