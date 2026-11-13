@@ -344,8 +344,7 @@ async function recordRefundIn(client: PoolClient, { adjustment_id, actor, refund
   if (!note) throw new CommercialHttpError('not_found', 404)
   if (note.kind === 'credit_note' && note.status === 'refunded' && note.refund_reference === request.external_reference) return adjustmentView(note)
   if (note.kind !== 'credit_note' || note.status !== 'pending') throw new CommercialHttpError('credit_note_not_pending', 409)
-  if (!automatic && (await client.query("SELECT 1 FROM commercial_outbox WHERE kind='reconcile.refund' AND status='pending' AND payload->>'adjustment_id'=$1", [note.id])).rowCount)
-    throw new CommercialHttpError('refund_in_progress', 409)
+  if (!automatic && (await systemRefunds(client, [note.id])).get(note.id)?.status === 'pending') throw new CommercialHttpError('refund_in_progress', 409)
   // A note that may drop the subscription to the free base takes the subscription lock before the invoice, the order the
   // renewal, fulfilment and lock writers use (subscription, then its orders and invoices), so the two cannot deadlock.
   if (REFUND_LOCK_CAUSES.includes(note.cause)) await client.query(`SELECT 1 FROM subscriptions WHERE id=(SELECT subscription_id FROM invoices WHERE id=$1)
@@ -379,6 +378,29 @@ async function recordRefundIn(client: PoolClient, { adjustment_id, actor, refund
       { invoice_id: note.invoice_id, adjustment_id: note.id })
   }
   return adjustmentView(updated)
+}
+
+/** What the system's automatic refund of a credit note stands at, read from its `reconcile.refund` row. */
+export type SystemRefund = { status: 'pending' | 'done' | 'failed'; error: string | null; provider_refund: string | null }
+
+/**
+ * The one definition of "the system owns this note's refund", for the server's refusal of the manual form and for the vendor
+ * view. A note belongs to the automatic `reconcile.refund` row that names it (`adjustment_id`, a vendor-requested refund), or,
+ * for the paying attempt's own money, to the order-level row of an undelivered order (no `adjustment_id`, `automatic`, the
+ * order id as `aggregate_id`): the fulfilment-failure note, the payment-after-cancellation note and the customer's whole-invoice
+ * vendor note, the three the worker closes. A duplicate-payment note is another attempt's money, which that worker never
+ * refunds (its row is `duplicate`, not automatic), so it stays with the operator. A row that is not automatic is meant for the
+ * operator and owns nothing. A pending row is preferred, then the newest.
+ */
+export async function systemRefunds(client: Pick<Pool, 'query'>, noteIds: string[]): Promise<Map<string, SystemRefund>> {
+  if (!noteIds.length) return new Map()
+  const rows = (await client.query(`SELECT DISTINCT ON (n.id) n.id AS note_id,o.status,o.payload->>'error' AS error,o.payload->>'provider_refund' AS provider_refund
+    FROM invoice_adjustments n JOIN invoices i ON i.id=n.invoice_id
+    JOIN commercial_outbox o ON o.kind='reconcile.refund' AND (o.payload->>'adjustment_id'=n.id::text
+      OR (o.payload->>'adjustment_id' IS NULL AND o.payload->>'automatic'='true' AND o.payload->>'duplicate' IS NULL AND o.aggregate_id=i.order_id::text
+        AND n.cause IN ('fulfillment_failure','payment_after_cancellation','vendor_refund')))
+    WHERE n.id=ANY($1::uuid[]) ORDER BY n.id,(o.status='pending') DESC,o.created_at DESC,o.id`, [noteIds])).rows
+  return new Map(rows.map(row => [row.note_id as string, { status: row.status, error: row.error, provider_refund: row.provider_refund }]))
 }
 
 /** The credit notes that return the customer's own payment: the vendor's 14-day refund and the provider's refund of it. */

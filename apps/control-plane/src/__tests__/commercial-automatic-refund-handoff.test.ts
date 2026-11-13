@@ -5,6 +5,8 @@ import { transaction } from '../db.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { enqueueOutbox } from '../commercial/outbox.js'
 import { attention } from '../commercial/attention.js'
+import { getVendorInvoice } from '../commercial/invoices.js'
+import { PaymentError } from '../commercial/payment-adapter.js'
 import { processRefundOutbox, recordFulfillmentFailure, refundCreditNote } from '../commercial/settlements.js'
 import { setup, url } from './commercial-helpers.js'
 
@@ -16,7 +18,7 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
   afterAll(async () => { await pool.end() })
 
   /** An order cancelled by trial expiry whose payment arrived late: refund_pending, an automatic refund row, and the invoice state the case needs. */
-  async function lateOrder(options: { provider?: string; undelivered?: boolean; vendorNote?: boolean } = {}) {
+  async function lateOrder(options: { provider?: string; undelivered?: boolean; vendorNote?: boolean; automatic?: boolean } = {}) {
     const customer = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID(), attempt = randomUUID()
     return transaction(pool, async c => {
       await c.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, 'Handoff test'])
@@ -38,7 +40,7 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
           VALUES($1,$2,$3,'credit_note','Customer asked for the money back',11500,'SAR',2,'pending','vendor:1','vendor','vendor_refund')`, [note, invoice, customer])
       }
       await enqueueOutbox(c, { kind: 'reconcile.refund', aggregate_id: order, dedupe_key: options.undelivered ? 'fulfillment-undelivered' : randomUUID(),
-        payload: { attempt_id: attempt, automatic: true } })
+        payload: { attempt_id: attempt, automatic: options.automatic ?? true } })
       return { customer, order, invoice, attempt, note }
     })
   }
@@ -107,13 +109,20 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     expect(await notes(f.invoice)).toEqual([expect.objectContaining({ id: f.note, status: 'refunded', origin: 'vendor' })])
     expect(await orderState(f.order)).toBe('refunded')
   })
-  it('F5 an undelivered order whose recording keeps failing after the provider refunded is never handed over and records once the fault clears', async () => {
-    const f = await lateOrder({ undelivered: true })
+  const viewOf = async (invoice: string, note: string) => (await getVendorInvoice(pool, invoice))!.adjustments.find(a => a.id === note)!
+  /** An undelivered order whose payment is a real simulator payment, so the worker can look it up and refund it. */
+  async function simulatorLate(options: Parameters<typeof lateOrder>[0] = {}) {
+    const f = await lateOrder({ undelivered: true, ...options })
     const adapter = new SimulatorAdapter()
     const created = await adapter.createAttempt({ attempt_id: f.attempt, order_id: f.order, amount: { minor: 11500, currency: 'SAR', exponent: 2 },
       description: 'x', success_url: '', back_url: '', callback_url: '' })
     adapter.settle(created.provider_ref)
     await pool.query("UPDATE payment_attempts SET provider='simulator',mode='simulator',provider_ref=$2 WHERE id=$1", [f.attempt, created.provider_ref])
+    return { ...f, adapter }
+  }
+
+  it('F5 an undelivered order whose recording keeps failing after the provider refunded is never handed over and records once the fault clears', async () => {
+    const { adapter, ...f } = await simulatorLate()
     const refund = vi.spyOn(adapter, 'refund')
     await pool.query(`CREATE OR REPLACE FUNCTION refund_test_block() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'recording_blocked'; END $$ LANGUAGE plpgsql`)
     await pool.query('CREATE TRIGGER refund_test_block BEFORE UPDATE OF payment_state ON orders FOR EACH ROW WHEN (NEW.payment_state=\'refunded\') EXECUTE FUNCTION refund_test_block()')
@@ -125,6 +134,9 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
       }
       expect(refund).toHaveBeenCalledTimes(1)
       expect(await outbox(f.order)).toMatchObject({ status: 'pending', payload: expect.objectContaining({ provider_refund: 'returned', error: expect.stringContaining('recording_blocked') }) })
+      // The row has no adjustment_id, yet its note is the system's: the form is closed and the view says the money is back.
+      await expect(operatorRefund(f.note)).rejects.toMatchObject({ status: 409, code: 'refund_in_progress' })
+      expect(await viewOf(f.invoice, f.note)).toMatchObject({ status: 'pending', automatic_refund: { state: 'refunded_recording' }, manual_record_allowed: false })
     } finally {
       await pool.query('DROP TRIGGER refund_test_block ON orders')
       await pool.query('DROP FUNCTION refund_test_block()')
@@ -135,5 +147,38 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     expect(await outbox(f.order)).toMatchObject({ status: 'done' })
     expect(await orderState(f.order)).toBe('refunded')
     expect(await notes(f.invoice)).toEqual([expect.objectContaining({ id: f.note, status: 'refunded' })])
+  })
+  it('F6 the manual form is closed while an automatic undelivered refund is still running, and open when the row is the operator\'s', async () => {
+    const running = await lateOrder({ undelivered: true })
+    await expect(operatorRefund(running.note)).rejects.toMatchObject({ status: 409, code: 'refund_in_progress' })
+    expect(await viewOf(running.invoice, running.note)).toMatchObject({ automatic_refund: { state: 'in_progress' }, manual_record_allowed: false })
+    // A row that is not automatic is meant for the operator: the note stays recordable and shows no automatic refund.
+    await pool.query('TRUNCATE customers CASCADE')
+    const manual = await lateOrder({ undelivered: true, automatic: false })
+    expect(await viewOf(manual.invoice, manual.note)).toMatchObject({ automatic_refund: null, manual_record_allowed: true })
+    await expect(operatorRefund(manual.note)).resolves.toMatchObject({ status: 'refunded' })
+  })
+
+  it('F6 an undelivered refund the provider proves it did not make is handed over, and the note is recordable', async () => {
+    const f = await simulatorLate()
+    const refund = vi.spyOn(f.adapter, 'refund').mockRejectedValue(new PaymentError('provider_error', 'http 422'))
+    await pool.query('UPDATE commercial_outbox SET attempts=5 WHERE aggregate_id=$1', [f.order])
+    await processRefundOutbox(pool, f.adapter)
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect(await outbox(f.order)).toMatchObject({ status: 'failed' })
+    expect(await viewOf(f.invoice, f.note)).toMatchObject({ automatic_refund: { state: 'failed' }, manual_record_allowed: true })
+    await expect(operatorRefund(f.note)).resolves.toMatchObject({ status: 'refunded' })
+    expect(await orderState(f.order)).toBe('refunded')
+  })
+
+  it('F6 a duplicate-payment note on the same invoice is other money and stays recordable', async () => {
+    const f = await lateOrder({ undelivered: true })
+    const duplicate = randomUUID()
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+      VALUES($1,$2,$3,'credit_note','duplicate payment — manual review (attempt x)',5000,'SAR',2,'pending','system','system','duplicate_payment')`, [duplicate, f.invoice, f.customer])
+    await enqueueOutbox(pool, { kind: 'reconcile.refund', aggregate_id: f.order, dedupe_key: 'dup-1', payload: { attempt_id: randomUUID(), duplicate: true } })
+    expect(await viewOf(f.invoice, duplicate)).toMatchObject({ automatic_refund: null, manual_record_allowed: true })
+    expect(await viewOf(f.invoice, f.note)).toMatchObject({ automatic_refund: { state: 'in_progress' }, manual_record_allowed: false })
+    await expect(operatorRefund(duplicate)).resolves.toMatchObject({ status: 'refunded' })
   })
 })
