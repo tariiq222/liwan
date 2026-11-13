@@ -19,6 +19,8 @@ import { processRefundOutbox } from './settlements.js'
 import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
+import { telegramSenderFromEnv, type TelegramSender } from './telegram-adapter.js'
+import { sendVendorAlerts } from './vendor-alerts.js'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadSharedRuntimeConfig } from '../shared/runtime-config.js'
@@ -28,6 +30,8 @@ type Env = Record<string, string | undefined>
 export type CommercialSchedulerOptions = {
   pool: Pool; config: Config; env: Env; clock?: () => number
   paymentAdapter?: PaymentAdapter; mailAdapter?: MailAdapter
+  /** Owner alert channel; without it the one named by LIWAN_ALERT_TELEGRAM_* is used, and none when those are unset. */
+  telegramSender?: TelegramSender
   subscriptionRunner?: Parameters<typeof recoverInterrupted>[1] extends infer O ? (O extends { runner?: infer R } ? R : never) : never
   usageRunner?: UsageObserveRunner
   /** Pushes a tenant's suspended or active status to Odoo; without it a suspension changes the control plane only. */
@@ -75,6 +79,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const billingMs = posInt(env.LIWAN_COMMERCIAL_BILLING_INTERVAL_SEC, 300) * 1000
   // Payment returns and invitation links both resolve one origin per customer (the tenant's own host in shared mode).
   const returnOrigin = returnOriginFromEnv(pool, env) ?? unusableReturnOrigin
+  let telegram = o.telegramSender
+  if (!telegram) { try { telegram = telegramSenderFromEnv(env) ?? undefined } catch (e) { try { log('telegram alert channel unavailable', e) } catch { /* never throw */ } } }
   let ticks = 0
   let lastBilling: number | undefined
   let jobCounts: Record<string, { runs: number; failures: number }> = {}
@@ -116,6 +122,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('cancellation-notices', () => sendCancellationNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, signal: o.signal }))
       }
+      await job('vendor-alerts', () => sendVendorAlerts(pool, { now: new Date(clock()), env, mail: o.mailAdapter, telegram, consoleOrigin: config.admin?.origin, signal: o.signal, log }))
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) {
           const adapter = o.paymentAdapter

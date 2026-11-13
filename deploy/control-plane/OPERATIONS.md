@@ -47,3 +47,22 @@ Credential rotation for this local harness is not automated. A synthetic DB pass
 ## Control plane database backup
 
 The control plane database (`liwan_control` in this harness) holds every customer, subscription, order, invoice, payment attempt, credit note, audit event and the outbox. It is backed up by the same encrypted pipeline as the tenants (`deploy/backup_pipeline.py`, source name `control-plane`): `deploy/control-plane/backup-control-plane.sh hourly|daily|check` runs one capture, the retention prune or the freshness check, and raises `backup_failed` / `backup_stale` with the label `control-plane`. `deploy/control-plane/restore_control_plane.py restore` restores the newest backup into a new database and verifies it. Configuration is the `LIWAN_CONTROL_BACKUP_*` block of `env.example`. Nothing here schedules the script: the cron or timer entry, the bucket and the keys are the operator's. The schedule, retention, restore steps and the reconciliation after a restore are in [docs/operations/control-plane-backup-restore.md](../../docs/operations/control-plane-backup-restore.md). A local harness restore is a drill only; it proves the mechanism, not production recovery.
+
+## Owner alerts (email and Telegram)
+
+The shared worker's `vendor-alerts` job tells the owner about commercial events so the vendor console's attention list need not be opened to find out. It reads durable facts (sign-ups, billing notices, audit events, credit notes, trial outcomes, the attention list), queues one `vendor.alert` outbox row per fact and delivers each row to every configured channel. The row's dedupe key names the fact, so a restart or a re-run never repeats an alert.
+
+| Variable | Meaning |
+| --- | --- |
+| `LIWAN_VENDOR_ALERT_EMAIL_TO` | The one owner address. Email also needs the `LIWAN_MAIL_*` adapter. |
+| `LIWAN_ALERT_TELEGRAM_BOT_TOKEN`, `LIWAN_ALERT_TELEGRAM_CHAT_ID` | The same names `deploy/alerts.py` reads: one bot serves infrastructure and commercial alerts. Set both or neither; one alone is logged as an unavailable channel. |
+| `LIWAN_VENDOR_ALERT_EMAIL`, `LIWAN_VENDOR_ALERT_TELEGRAM` | `off`, `0`, `false` or `no` turns that channel off. Unset means on when configured. |
+| `ADMIN_ORIGIN` | Existing; the messages link to `<origin>/customers/<id>` or `<origin>/overview`. Without it there is no link. |
+
+Behavior to know when operating it:
+
+- A channel that fails is retried with the outbox backoff (1, 2, 4 ... 60 minutes) up to 12 attempts and then the row is `failed` with the reason. The other channel is never held back, and a channel that already took a message is not sent it again.
+- With no channel configured, the rows are completed with `skipped: no_channel_configured` and a log line; configuring a channel later does not replay them.
+- A burst collapses: more than 5 alerts of one kind within an hour become one summary line (at most one per kind per hour); the held facts are never announced individually. Kinds that need the owner (a bank transfer to confirm, a failed or stuck refund, a stuck workspace) are never collapsed.
+- Only facts from the last 72 hours are announced, so a fresh install or a long worker outage does not flood the owner.
+- Messages are plain text (no Telegram parse mode, plain email), customer-supplied text has control characters removed and is length-capped, and the bot token is never logged: errors are recorded as short codes such as `telegram_http_401`.

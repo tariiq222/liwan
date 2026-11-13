@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
+import { ATTENTION_LIMIT, attentionItemSchema, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
 import { holdsFreeBaseLockSql, owesAtRenewalSql } from './free-base.js'
 
@@ -181,4 +181,11 @@ export async function attention(pool: Pool, includeBilling: boolean) {
     pool.query(countsSql, params),
   ])
   return attentionSchema.parse({ items: list.rows[0].items, total: list.rows[0].total, counts: counts.rows[0] })
+}
+
+/** Every item `attention` would list without the cap (billing items included), most urgent first: the alert scan must see what the capped list hides. */
+export async function allAttentionItems(pool: Pick<Pool, 'query'>) {
+  const list = await pool.query(`${subjectsSql}
+    SELECT to_jsonb(p)-'rank'-'sort_at' AS item FROM subjects p ORDER BY p.rank,p.sort_at,p.customer_id,p.tenant_id`, [STALLED_HOURS, RENEWAL_WINDOW_DAYS, true])
+  return list.rows.map(row => attentionItemSchema.parse(row.item))
 }
