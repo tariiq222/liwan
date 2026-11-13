@@ -6,9 +6,13 @@ const canManage = computed(() => can('vendor.billing.manage'))
 type Settings = {
   refund_window_days: number; onboarding_fee_minor: number; onboarding_exponent: number; bank_account_name: string; bank_account_number: string
   bank_iban: string; bank_instructions_ar: string; bank_instructions_en: string
-}
+} & Record<SellerField, string>
+/** The seller identity printed on every invoice. There is no tax number: the vendor is not VAT-registered. */
+const SELLER_FIELDS = ['seller_legal_name_ar', 'seller_legal_name_en', 'seller_commercial_registration', 'seller_address', 'seller_city', 'seller_country', 'seller_email', 'seller_phone'] as const
+type SellerField = typeof SELLER_FIELDS[number]
+const emptySeller = () => Object.fromEntries(SELLER_FIELDS.map(field => [field, ''])) as Record<SellerField, string>
 const { data, error, pending, refresh } = await useAsyncData('vendor:billing-settings', () => request<Settings>('commercial/billing-settings'))
-const draft = reactive({ refund_window_days: '', onboarding_fee: '', bank_account_name: '', bank_account_number: '', bank_iban: '', bank_instructions_ar: '', bank_instructions_en: '', reason: '' })
+const draft = reactive({ refund_window_days: '', onboarding_fee: '', bank_account_name: '', bank_account_number: '', bank_iban: '', bank_instructions_ar: '', bank_instructions_en: '', ...emptySeller(), reason: '' })
 const original = ref('')
 const serialized = () => JSON.stringify(draft)
 const dirty = computed(() => original.value !== '' && serialized() !== original.value)
@@ -22,7 +26,8 @@ watch(data, (value) => {
   Object.assign(draft, {
     refund_window_days: String(value.refund_window_days), onboarding_fee: loadedFeeText,
     bank_account_name: value.bank_account_name, bank_account_number: value.bank_account_number,
-    bank_iban: value.bank_iban, bank_instructions_ar: value.bank_instructions_ar, bank_instructions_en: value.bank_instructions_en, reason: '',
+    bank_iban: value.bank_iban, bank_instructions_ar: value.bank_instructions_ar, bank_instructions_en: value.bank_instructions_en,
+    ...Object.fromEntries(SELLER_FIELDS.map(field => [field, value[field]])), reason: '',
   })
   original.value = serialized()
   loadedFee = value.onboarding_exponent === undefined ? null : { minor: value.onboarding_fee_minor, exponent: value.onboarding_exponent }
@@ -57,6 +62,7 @@ const errors = computed(() => {
   if (fee && fee !== loadedFeeText && (isWholeAmount(fee) === false || onboardingFeeMinor() === null)) e.onboardingFee = t('vendor.billingSettings.errors.onboardingFee')
   const iban = draft.bank_iban.trim().toUpperCase()
   if (iban && !/^SA[0-9]{22}$/.test(iban)) e.iban = t('vendor.billingSettings.errors.iban')
+  if (draft.seller_email.trim() && !/^\S+@\S+\.\S+$/.test(draft.seller_email.trim())) e.sellerEmail = t('vendor.billingSettings.errors.sellerEmail')
   if (draft.reason.trim().length < 3) e.reason = t('vendor.pricing.reasonRequired')
   return e
 })
@@ -77,7 +83,8 @@ async function submit() {
     await request('commercial/billing-settings', { method: 'PATCH', body: {
       refund_window_days: parseCount(draft.refund_window_days, 365), ...onboardingFeeChange(), bank_account_name: draft.bank_account_name.trim(),
       bank_account_number: draft.bank_account_number.trim(), bank_iban: draft.bank_iban.trim().toUpperCase(),
-      bank_instructions_ar: draft.bank_instructions_ar.trim(), bank_instructions_en: draft.bank_instructions_en.trim(), reason: draft.reason.trim(),
+      bank_instructions_ar: draft.bank_instructions_ar.trim(), bank_instructions_en: draft.bank_instructions_en.trim(),
+      ...Object.fromEntries(SELLER_FIELDS.map(field => [field, draft[field].trim()])), reason: draft.reason.trim(),
     } })
   } catch (cause) { failure.value = cause; busy.value = false; return }
   saved.value = true
@@ -108,6 +115,18 @@ async function submit() {
             <UFormField :label="t('vendor.billingSettings.fields.instructionsAr')"><UTextarea v-model="draft.bank_instructions_ar" :maxlength="500" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
             <UFormField :label="t('vendor.billingSettings.fields.instructionsEn')"><UTextarea v-model="draft.bank_instructions_en" :maxlength="500" dir="ltr" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
           </div>
+        </SharedFormSection>
+        <SharedFormSection panel :title="t('vendor.billingSettings.sections.seller')" :description="t('vendor.billingSettings.sections.sellerHint')">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField :label="t('vendor.billingSettings.fields.sellerNameAr')"><UInput v-model="draft.seller_legal_name_ar" maxlength="200" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+            <UFormField :label="t('vendor.billingSettings.fields.sellerNameEn')"><UInput v-model="draft.seller_legal_name_en" dir="ltr" maxlength="200" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+            <UFormField :label="t('vendor.billingSettings.fields.sellerRegistration')"><UInput v-model="draft.seller_commercial_registration" dir="ltr" maxlength="64" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+            <UFormField :label="t('vendor.billingSettings.fields.sellerPhone')"><UInput v-model="draft.seller_phone" dir="ltr" maxlength="40" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+            <UFormField :label="t('vendor.billingSettings.fields.sellerEmail')" :error="show('sellerEmail')"><UInput v-model="draft.seller_email" type="email" dir="ltr" maxlength="200" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+            <UFormField :label="t('vendor.billingSettings.fields.sellerCity')"><UInput v-model="draft.seller_city" maxlength="100" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+            <UFormField :label="t('vendor.billingSettings.fields.sellerCountry')"><UInput v-model="draft.seller_country" maxlength="100" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+          </div>
+          <UFormField :label="t('vendor.billingSettings.fields.sellerAddress')" :help="t('vendor.billingSettings.fields.sellerAddressHint')"><UTextarea v-model="draft.seller_address" :maxlength="500" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
         </SharedFormSection>
         <SharedFormSection panel :title="t('vendor.billingSettings.sections.onboarding')">
           <UFormField :label="t('vendor.billingSettings.fields.onboardingFee')" :help="t('vendor.billingSettings.fields.onboardingFeeHint')" :error="show('onboardingFee')">

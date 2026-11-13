@@ -18,6 +18,7 @@ afterEach(() => scopes.splice(0).forEach(s => s.stop()))
 const settings = {
   refund_window_days: 14, onboarding_fee_minor: 49900, onboarding_currency: 'SAR', onboarding_exponent: 2,
   bank_account_name: '', bank_account_number: '', bank_iban: '', bank_instructions_ar: '', bank_instructions_en: '',
+  seller_legal_name_ar: '', seller_legal_name_en: '', seller_commercial_registration: '', seller_address: '', seller_city: '', seller_country: '', seller_email: '', seller_phone: '',
 }
 
 type Options = { settings?: Partial<typeof settings>; hydrated?: boolean; grants?: string[]; reloadFails?: boolean }
@@ -234,5 +235,32 @@ describe('billing settings refund window and reload', () => {
     p.state.draft.bank_account_name = 'Liwan'
     await p.state.submit()
     expect(p.state.failure.value).toBeTruthy(); expect(p.state.saved.value).toBe(false); expect(p.state.busy.value).toBe(false)
+  })
+})
+
+describe('billing settings seller identity', () => {
+  it('loads the stored identity and sends all of it with the reason, with no tax field anywhere', async () => {
+    const p = await page({ settings: { seller_legal_name_en: 'Liwan Co.', seller_city: 'Riyadh' } }); p.ready()
+    expect(p.state.draft.seller_legal_name_en).toBe('Liwan Co.')
+    p.state.draft.seller_legal_name_ar = ' شركة ليوان '
+    p.state.draft.seller_commercial_registration = '1010000000'
+    await p.state.submit()
+    expect(p.sent()).toMatchObject({ seller_legal_name_ar: 'شركة ليوان', seller_legal_name_en: 'Liwan Co.', seller_commercial_registration: '1010000000', seller_city: 'Riyadh', reason: 'quarterly pricing review' })
+    expect(Object.keys(p.sent()).filter(key => /vat|tax/i.test(key))).toEqual([])
+    expect((await p.rendered()).html).not.toMatch(/vat|tax/i)
+  })
+
+  it('refuses a malformed contact email and sends nothing', async () => {
+    const p = await page(); p.ready()
+    p.state.draft.seller_email = 'not-an-email'
+    await p.state.submit()
+    expect(p.state.errors.value.sellerEmail).toBe('vendor.billingSettings.errors.sellerEmail')
+    expect(p.patches()).toEqual([])
+  })
+
+  it('shows the seller section with its fields', async () => {
+    const p = await page()
+    const labels = (await p.rendered()).captured.filter(c => c.name === 'UFormField').map(c => c.props.label)
+    expect(labels).toEqual(expect.arrayContaining(['vendor.billingSettings.fields.sellerNameAr', 'vendor.billingSettings.fields.sellerNameEn', 'vendor.billingSettings.fields.sellerAddress']))
   })
 })

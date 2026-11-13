@@ -1183,12 +1183,23 @@
       "save": "Save settings",
       "saved": "The billing settings were saved.",
       "sections": {
+        "seller": "Seller identity on invoices",
+        "sellerHint": "Printed on every customer invoice, copied onto each invoice when it is issued. A legal name in either language is required before it shows; the rest is optional. There is no tax number field: Liwan is not VAT-registered.",
         "refund": "Refund window",
         "onboarding": "Assisted onboarding",
         "bank": "Bank transfer account",
         "bankHint": "Customers see this account on an unpaid invoice. Leave the IBAN empty to stop offering bank transfer."
       },
       "fields": {
+        "sellerNameAr": "Legal name (Arabic)",
+        "sellerNameEn": "Legal name (English)",
+        "sellerRegistration": "Commercial registration number",
+        "sellerPhone": "Phone",
+        "sellerEmail": "Contact email",
+        "sellerCity": "City",
+        "sellerCountry": "Country",
+        "sellerAddress": "Address",
+        "sellerAddressHint": "One address line per row.",
         "window": "Refund window (days)",
         "windowHint": "A full refund is allowed only for the customer's first payment and only within these days of it.",
         "accountName": "Account name",
@@ -1201,6 +1212,7 @@
         "onboardingFeeHint": "A positive whole amount charged once when a customer starts with assisted onboarding. Enter 0 to stop offering it; leave it empty to keep the current fee."
       },
       "errors": {
+        "sellerEmail": "Enter a valid email address, or leave it empty.",
         "window": "Enter a whole number of days between 0 and 365.",
         "iban": "Enter a Saudi IBAN (SA and 22 digits), or leave it empty.",
         "onboardingFee": "Enter a whole amount in SAR, without fractions, such as 499, or 0 to stop offering onboarding."

@@ -12,7 +12,7 @@ import { getSubscription } from './subscriptions.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { convertTrial, startTrial } from './trial.js'
 import { acceptQuote, cancelOrder, cancelOrderBodySchema, customerOrderStatusView } from './orders.js'
-import { listInvoices, getInvoice } from './invoices.js'
+import { listInvoices, getCustomerInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
@@ -162,7 +162,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   }
   if(m==='GET'&&path==='/invoices'){requireCapability(principal,'billing.read');return {status:200,data:await listInvoices(pool,{customer_id:customerId})}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
-  if(m==='GET'&&invoice){requireCapability(principal,'billing.read');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getInvoice(pool,invoice[1]!,{customer_id:customerId});if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
+  if(m==='GET'&&invoice){requireCapability(principal,'billing.read');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getCustomerInvoice(pool,invoice[1]!,{customer_id:customerId});if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   // A customer's own bank-transfer instructions for one of its invoices; 409 while the vendor has no account set.
   const transferGuide=/^\/invoices\/([^/]+)\/bank-transfer$/.exec(path)
   if(m==='GET'&&transferGuide){

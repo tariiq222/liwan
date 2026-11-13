@@ -46,6 +46,9 @@ definePageMeta({ middleware: 'customer-commercial' })
 
     <SharedForbiddenState v-if="!allowed" />
     <template v-else-if="view">
+      <div class="flex justify-end">
+        <UButton color="neutral" variant="outline" icon="i-lucide-file-down" :to="`/subscription/invoices/print/${encodeURIComponent(id)}`" :label="t('subscription.invoices.print.download')" data-testid="invoice-download" />
+      </div>
       <SharedInvoiceLines layout="list" v-bind="view" />
       <UAlert v-if="transferState === 'failed'" color="error" variant="subtle" :title="t('subscription.bankTransfer.error')" data-testid="bank-transfer-error" />
       <p v-else-if="transferState === 'unavailable'" class="text-sm text-muted" data-testid="bank-transfer-unavailable">{{ t('subscription.bankTransfer.unavailable') }}</p>

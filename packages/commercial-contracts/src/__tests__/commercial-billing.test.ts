@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema } from '../commercial/index.js'
+import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema, customerInvoiceExtrasSchema, sellerIdentitySchema } from '../commercial/index.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -55,5 +55,19 @@ describe('payment records', () => {
     const ev = { id: 'e', provider: 'moyasar', provider_event_id: 'E', attempt_id: 'a', status: 'succeeded', amount: sar(1), verified: true, confirmed: false, outcome: 'rejected', reason: null, received_at: 'x' }
     expect(paymentEventRecordSchema.safeParse(ev).success).toBe(false)
     expect(paymentEventRecordSchema.safeParse({ ...ev, reason: 'amount_mismatch' }).success).toBe(true)
+  })
+})
+
+describe('customer invoice extras', () => {
+  const seller = { legal_name_ar: 'ليوان', legal_name_en: 'Liwan', commercial_registration: '', address: '', city: 'Riyadh', country: 'SA', email: '', phone: '' }
+  const credit = { id: 'a', amount: sar(500), cause: 'vendor_refund', status: 'refunded', created_at: 'x', refunded_at: 'y', refund_reference: 'R-1' }
+  it('carries the seller, the buyer name and the credit notes a customer may see', () => {
+    expect(customerInvoiceExtrasSchema.parse({ customer_name: 'شركة', seller, credit_notes: [credit] }).credit_notes).toHaveLength(1)
+    expect(customerInvoiceExtrasSchema.safeParse({ customer_name: 'شركة', seller: null, credit_notes: [] }).success).toBe(true)
+  })
+  it('never carries operator names, the free-text reason or a tax number', () => {
+    expect(customerInvoiceExtrasSchema.safeParse({ customer_name: 'x', seller: null, credit_notes: [{ ...credit, created_by: 'op' }] }).success).toBe(false)
+    expect(customerInvoiceExtrasSchema.safeParse({ customer_name: 'x', seller: null, credit_notes: [{ ...credit, reason: 'internal' }] }).success).toBe(false)
+    expect(sellerIdentitySchema.safeParse({ ...seller, vat_number: '300' }).success).toBe(false)
   })
 })

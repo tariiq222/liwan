@@ -10,12 +10,15 @@ const items = computed(() => data.value?.items ?? [])
 definePageMeta({ middleware: 'customer-commercial' })
 
 const invoiceTo = (inv: (typeof items.value)[number]) => `/subscription/invoices/${encodeURIComponent(inv.id)}`
+const printTo = (inv: (typeof items.value)[number]) => `/subscription/invoices/print/${encodeURIComponent(inv.id)}`
+const printLabel = (inv: (typeof items.value)[number]) => t('subscription.invoices.print.rowAction', { number: inv.number ?? inv.id })
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   { id: 'number', header: t('subscription.invoices.number') },
   { id: 'period', header: t('subscription.invoices.period') },
   { id: 'status', header: t('subscription.invoices.status') },
   { id: 'total', header: t('subscription.invoices.total') },
+  { id: 'download', header: t('subscription.invoices.print.download') },
 ])
 </script>
 <template>
@@ -28,10 +31,12 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   <template #period-cell="{ row: { original: inv } }"><bdi dir="ltr">{{ inv.period_start }} → {{ inv.period_end }}</bdi></template>
   <template #status-cell="{ row: { original: inv } }"><SharedStatusBadge  :tone="invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').tone" :label="invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').labelKey ? t(invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').labelKey) : inv.status" /></template>
   <template #total-cell="{ row: { original: inv } }"><bdi dir="ltr" class="font-semibold tabular-nums">{{ formatSubscriptionMoney(inv.total,locale) }}</bdi></template>
+  <template #download-cell="{ row: { original: inv } }"><UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-file-down" :to="printTo(inv)" :aria-label="printLabel(inv)" data-testid="invoice-row-download" @click.stop /></template>
   <template #mobile-row="{ row: inv }"><NuxtLink data-testid="invoice-row" :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`" class="font-medium">{{ inv.number ?? inv.id }}</NuxtLink>
           <span class="text-sm text-muted tabular-nums"><bdi dir="ltr">{{ inv.period_start }} → {{ inv.period_end }}</bdi></span>
           <SharedStatusBadge  :tone="invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').tone" :label="invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').labelKey ? t(invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').labelKey) : inv.status" />
-          <span class="font-semibold tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></template>
+          <span class="font-semibold tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span>
+          <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-file-down" :to="printTo(inv)" :aria-label="printLabel(inv)" data-testid="invoice-row-download" @click.stop /></template>
   <template #footer><SharedListFooter :count-label="t('subscription.invoices.count', { count: items.length }, items.length)" :page="1" :pages="1" /></template>
 </SharedDataTable>
 </SharedListCard>

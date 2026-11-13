@@ -55,6 +55,31 @@ export const adjustmentSchema = z.strictObject({
   && (a.status === 'refunded' || (a.refund_reference === null && a.refunded_at === null && a.refunded_by === null)),
 { path: ['status'], message: 'Refund details exactly when refunded' })
 
+/**
+ * Who sells: the vendor's legal identity as the billing settings held it when the invoice was issued. Every field but a
+ * legal name is optional (an empty string is "not set"). There is no tax field: the vendor is not VAT-registered.
+ */
+export const sellerIdentitySchema = z.strictObject({
+  legal_name_ar: z.string(), legal_name_en: z.string(), commercial_registration: z.string(),
+  address: z.string(), city: z.string(), country: z.string(), email: z.string(), phone: z.string(),
+})
+
+/** Why a credit note exists, as a customer may be told: the typed cause, never the operator's free-text reason. */
+export const creditNoteCauseSchema = z.enum(['vendor_refund', 'duplicate_payment', 'provider_refund', 'payment_after_cancellation', 'automatic_refund', 'fulfillment_failure'])
+/** A credit note on a customer's own invoice: no operator names, no free text, only a reference the customer can quote. */
+export const customerCreditNoteSchema = z.strictObject({
+  id: z.string().min(1), amount: moneySchema, cause: creditNoteCauseSchema,
+  status: z.enum(['pending', 'applied', 'refunded']),
+  created_at: z.string(), refunded_at: z.string().nullable(), refund_reference: z.string().nullable(),
+})
+/** What the customer's invoice page and printable document add to the invoice itself. */
+export const customerInvoiceExtrasSchema = z.strictObject({
+  /** The customer's legal name as the control plane holds it. */
+  customer_name: z.string().min(1),
+  seller: sellerIdentitySchema.nullable(),
+  credit_notes: z.array(customerCreditNoteSchema),
+})
+
 /** Vendor-only: record that a pending credit note was refunded outside the system (no automatic refund exists). */
 export const refundCreditNoteRequestSchema = z.strictObject({
   external_reference: z.string().trim().min(3).max(200),
@@ -95,6 +120,11 @@ export type InvoiceLine = z.infer<typeof invoiceLineSchema>
 export type Invoice = z.infer<typeof invoiceSchema>
 export type BankTransferClaim = z.infer<typeof bankTransferClaimSchema>
 export type BankTransferClaimRequest = z.infer<typeof bankTransferClaimRequestSchema>
+export type SellerIdentity = z.infer<typeof sellerIdentitySchema>
+export type CreditNoteCause = z.infer<typeof creditNoteCauseSchema>
+export type CustomerCreditNote = z.infer<typeof customerCreditNoteSchema>
+/** One invoice as its own customer reads it. */
+export type CustomerInvoice = Invoice & z.infer<typeof customerInvoiceExtrasSchema>
 export type Adjustment = z.infer<typeof adjustmentSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>

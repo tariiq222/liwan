@@ -1,4 +1,4 @@
-import { trialEndPreviewSchema, type Branch, type Order, type BankTransferClaim, type BranchSummary, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { trialEndPreviewSchema, type Branch, type Order, type BankTransferClaim, type BranchSummary, type CustomerInvoice, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
 import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
@@ -34,7 +34,7 @@ export function useSubscriptionApi() {
     catalog: () => request<CustomerCatalog>('catalog'),
     usage: () => request<UsageSnapshot>('usage'),
     invoices: () => request<SubscriptionList<Invoice>>('invoices'),
-    invoice: (id: string) => request<Invoice>(`invoices/${encodeURIComponent(id)}`),
+    invoice: (id: string) => request<CustomerInvoice>(`invoices/${encodeURIComponent(id)}`),
     /** Where to transfer while an invoice is unpaid; the control plane answers 409 until the vendor sets the account. */
     bankTransfer: (id: string) => request<BankTransferInstructions>(`invoices/${encodeURIComponent(id)}/bank-transfer`),
     /** "I made the transfer": records the claim for the vendor to confirm; it never pays the invoice. */

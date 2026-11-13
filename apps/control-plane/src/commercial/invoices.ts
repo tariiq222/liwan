@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { adjustmentSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { billingSettings, sellerIdentityOf } from './billing-settings.js'
 import { refundEligibilityForInvoices, refundLockedInvoices, systemRefunds, type Refundability, type SystemRefund } from './settlements.js'
 
 export type InvoiceView = Invoice
@@ -73,11 +74,14 @@ export async function issueInvoiceFromQuote(
   const periodEnd = now[0]?.period_end ?? quote.next_renewal_at
   const id = randomUUID()
   const { currency, exponent } = quote.due_now
+  const seller = sellerIdentityOf(await billingSettings(client))
   const ins = await client.query(
     `INSERT INTO invoices(id, customer_id, subscription_id, order_id, kind, status, currency, exponent,
-       subtotal_minor, tax_minor, total_minor, period_start, period_end, due_at)
-     VALUES($1,$2,$3,$4,$5,'issued',$6,$7,$8,$9,$10,$11,$12, now() + make_interval(days => $13)) RETURNING *`,
-    [id, order.customer_id, order.subscription_id, order.id, kind, currency, exponent, subtotal, tax, total, periodStart, periodEnd, dueDays],
+       subtotal_minor, tax_minor, total_minor, period_start, period_end, due_at, seller)
+     VALUES($1,$2,$3,$4,$5,'issued',$6,$7,$8,$9,$10,$11,$12, now() + make_interval(days => $13), $14) RETURNING *`,
+    // The seller identity is copied onto the invoice now: the settings row only holds the current one, and an issued invoice never changes.
+    [id, order.customer_id, order.subscription_id, order.id, kind, currency, exponent, subtotal, tax, total, periodStart, periodEnd, dueDays,
+      seller ? JSON.stringify(seller) : null],
   )
   const lines: any[] = []
   for (let i = 0; i < now.length; i++) {
@@ -142,6 +146,29 @@ export async function getInvoice(pool: Q, id: string, { customer_id }: { custome
   if (customer_id) { args.push(customer_id); w += ' AND customer_id = $2' }
   const rows = (await pool.query(`SELECT * FROM invoices WHERE ${w}`, args)).rows
   return (await hydrate(pool, rows))[0] ?? null
+}
+
+/** A credit note as its own customer sees it: the typed cause stands in for the operator's free-text reason, and no operator name is carried. */
+export function customerCreditNoteView(row: any): CustomerCreditNote {
+  return customerCreditNoteSchema.parse({
+    id: row.id, amount: { currency: row.currency, exponent: num(row.exponent), minor: num(row.amount_minor) }, cause: row.cause, status: row.status,
+    created_at: ts(row.created_at), refunded_at: ts(row.refunded_at), refund_reference: row.refund_reference ?? null,
+  })
+}
+
+/**
+ * One invoice as its own customer reads and prints it (null for another customer's invoice, like getInvoice): the invoice,
+ * the customer's legal name, the seller identity and the non-void credit notes. The seller is the copy taken when the
+ * invoice was issued (`invoices.seller`); an invoice issued before that column existed, or while no legal name was set,
+ * has none and shows the current identity.
+ */
+export async function getCustomerInvoice(pool: Q, id: string, { customer_id }: { customer_id: string }): Promise<CustomerInvoice | null> {
+  const invoice = await getInvoice(pool, id, { customer_id })
+  if (!invoice) return null
+  const row = (await pool.query('SELECT i.seller, c.name AS customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id WHERE i.id = $1', [id])).rows[0]
+  const seller: SellerIdentity | null = row.seller ?? sellerIdentityOf(await billingSettings(pool))
+  const notes = (await pool.query("SELECT * FROM invoice_adjustments WHERE invoice_id = $1 AND kind = 'credit_note' AND status <> 'void' ORDER BY created_at, id", [id])).rows
+  return { ...invoice, customer_name: row.customer_name as string, seller, credit_notes: notes.map(customerCreditNoteView) }
 }
 
 function automaticRefundState({ status, provider_refund }: SystemRefund): AutomaticRefund['state'] {

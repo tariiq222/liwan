@@ -1,4 +1,4 @@
-import { daysBetween, MAX_USERS, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type SubscriptionState, type SubscriptionView, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { daysBetween, MAX_USERS, riyadhDate, type CustomerInvoice, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type SubscriptionState, type SubscriptionView, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
 
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
@@ -278,6 +278,31 @@ export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => st
       { label: t('subscription.invoices.total'), value: money(invoice.total) },
     ],
   }
+}
+
+export type InvoicePrintState = 'draft' | 'issued' | 'paid' | 'void' | 'credit_pending' | 'refunded'
+
+/**
+ * What the credit notes do to an invoice: what they credit, what is left, and the state line to print. Every non-void
+ * credit note counts (the server sends no void ones). The invoice reads "refunded" only once the credit covers the whole
+ * total and every note has been refunded; covered but not yet refunded stays "credit note pending".
+ */
+export function invoiceCreditSummary(invoice: Pick<CustomerInvoice, 'status' | 'total' | 'credit_notes'>): { credited: Money; net: Money; state: InvoicePrintState } {
+  const creditedMinor = invoice.credit_notes.reduce((sum, note) => sum + note.amount.minor, 0)
+  const covered = invoice.total.minor > 0 && creditedMinor >= invoice.total.minor
+  const state: InvoicePrintState = covered
+    ? (invoice.credit_notes.every(note => note.status === 'refunded') ? 'refunded' : 'credit_pending')
+    : invoice.status
+  return {
+    credited: { ...invoice.total, minor: creditedMinor },
+    net: { ...invoice.total, minor: Math.max(0, invoice.total.minor - creditedMinor) },
+    state,
+  }
+}
+
+/** The seller's legal name in the reader's language, falling back to the other one. */
+export function sellerLegalName(seller: NonNullable<CustomerInvoice['seller']>, locale: string): string {
+  return (locale.startsWith('ar') ? seller.legal_name_ar || seller.legal_name_en : seller.legal_name_en || seller.legal_name_ar)
 }
 
 export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payment_failed' | 'processing' | 'recovering' | 'activation_failed' | 'refund'
