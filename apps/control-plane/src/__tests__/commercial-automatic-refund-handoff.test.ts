@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { transaction } from '../db.js'
@@ -106,5 +106,34 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     expect(await outbox(f.order)).toMatchObject({ status: 'done' })
     expect(await notes(f.invoice)).toEqual([expect.objectContaining({ id: f.note, status: 'refunded', origin: 'vendor' })])
     expect(await orderState(f.order)).toBe('refunded')
+  })
+  it('F5 an undelivered order whose recording keeps failing after the provider refunded is never handed over and records once the fault clears', async () => {
+    const f = await lateOrder({ undelivered: true })
+    const adapter = new SimulatorAdapter()
+    const created = await adapter.createAttempt({ attempt_id: f.attempt, order_id: f.order, amount: { minor: 11500, currency: 'SAR', exponent: 2 },
+      description: 'x', success_url: '', back_url: '', callback_url: '' })
+    adapter.settle(created.provider_ref)
+    await pool.query("UPDATE payment_attempts SET provider='simulator',mode='simulator',provider_ref=$2 WHERE id=$1", [f.attempt, created.provider_ref])
+    const refund = vi.spyOn(adapter, 'refund')
+    await pool.query(`CREATE OR REPLACE FUNCTION refund_test_block() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'recording_blocked'; END $$ LANGUAGE plpgsql`)
+    await pool.query('CREATE TRIGGER refund_test_block BEFORE UPDATE OF payment_state ON orders FOR EACH ROW WHEN (NEW.payment_state=\'refunded\') EXECUTE FUNCTION refund_test_block()')
+    try {
+      await pool.query('UPDATE commercial_outbox SET attempts=5 WHERE aggregate_id=$1', [f.order])
+      for (let i = 0; i < 3; i++) {
+        await pool.query('UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1', [f.order])
+        await processRefundOutbox(pool, adapter)
+      }
+      expect(refund).toHaveBeenCalledTimes(1)
+      expect(await outbox(f.order)).toMatchObject({ status: 'pending', payload: expect.objectContaining({ provider_refund: 'returned', error: expect.stringContaining('recording_blocked') }) })
+    } finally {
+      await pool.query('DROP TRIGGER refund_test_block ON orders')
+      await pool.query('DROP FUNCTION refund_test_block()')
+    }
+    await pool.query('UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1', [f.order])
+    await processRefundOutbox(pool, adapter)
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect(await outbox(f.order)).toMatchObject({ status: 'done' })
+    expect(await orderState(f.order)).toBe('refunded')
+    expect(await notes(f.invoice)).toEqual([expect.objectContaining({ id: f.note, status: 'refunded' })])
   })
 })

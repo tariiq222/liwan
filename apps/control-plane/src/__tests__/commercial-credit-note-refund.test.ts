@@ -8,6 +8,7 @@ import { enqueueOutbox } from '../commercial/outbox.js'
 import { getVendorInvoice } from '../commercial/invoices.js'
 import { applyConfirmedEvent } from '../commercial/payments.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { PaymentError } from '../commercial/payment-adapter.js'
 import { attention } from '../commercial/attention.js'
 import { setup, url } from './commercial-helpers.js'
 
@@ -545,9 +546,9 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     await processRefundOutbox(pool, f.adapter)
     // The provider returned the money; recording was refused and rolled back, so the row waits for a retry.
     expect(refund).toHaveBeenCalledTimes(1)
-    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'pending', attempts: 1, payload: expect.objectContaining({ error: 'lock_pending' }) })])
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'pending', attempts: 1, payload: expect.objectContaining({ error: 'lock_pending', provider_refund: 'returned', provider_payment_id: expect.stringMatching(/^sim_pay_/) }) })])
     expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ id: note.id, status: 'pending' })
-    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ automatic_refund: { state: 'in_progress', reason: 'lock_pending' }, manual_record_allowed: false })
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ automatic_refund: { state: 'refunded_recording', reason: 'lock_pending' }, manual_record_allowed: false })
     await pool.query('DELETE FROM free_base_locks WHERE subscription_id=$1', [f.sub])
     await pool.query("UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1", [f.order])
     await processRefundOutbox(pool, f.adapter)
@@ -555,5 +556,104 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ status: 'refunded', refunded_by: 'system' })
     expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'done' })])
     expect(await lockAudits(f.sub)).toHaveLength(1)
+  })
+  /** Orders a free-base lock on the subscription so recording the refund is refused with `lock_pending`, and runs the worker `runs` more times past the hand-off limit. */
+  const blockRecording = (f: { sub: string; revision: string; order: string }) => pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,trial_ended_at,cause,state,order_id)
+    VALUES($1,$2,'2026-01-01',now(),'trial_end','ordered',$3)`, [f.sub, f.revision, f.order])
+  const runAgain = async (f: { adapter: SimulatorAdapter; order: string }, times: number) => {
+    for (let i = 0; i < times; i++) {
+      await pool.query('UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1', [f.order])
+      await processRefundOutbox(pool, f.adapter)
+    }
+  }
+  const noMoreOperatorRecord = async (f: { invoice: string }, note: string) => {
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]!.manual_record_allowed).toBe(false)
+    await expect(recordRef(note, 'BY-HAND-2')).rejects.toMatchObject({ status: 409, code: 'refund_in_progress' })
+  }
+
+  it('never hands the row to the operator while the provider has returned the money, however long recording stays blocked', async () => {
+    const f = await simulatorPaid()
+    const refund = vi.spyOn(f.adapter, 'refund')
+    const note = await askRefund(f.invoice)
+    await blockRecording(f)
+    await runAgain(f, 9) // more than the six tries before the hand-off
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'pending', payload: expect.objectContaining({ provider_refund: 'returned', error: 'lock_pending' }) })])
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ status: 'pending', automatic_refund: { state: 'refunded_recording', reason: 'lock_pending' }, manual_record_allowed: false })
+    await noMoreOperatorRecord(f, note.id)
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(0)
+    await pool.query('DELETE FROM free_base_locks WHERE subscription_id=$1', [f.sub])
+    await runAgain(f, 1)
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ status: 'refunded', refunded_by: 'system' })
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'done' })])
+    expect(await lockAudits(f.sub)).toHaveLength(1)
+  })
+
+  it('keeps the same protection when the worker died after the provider refunded and recording then keeps failing', async () => {
+    const f = await simulatorPaid()
+    const refund = vi.spyOn(f.adapter, 'refund')
+    const note = await askRefund(f.invoice)
+    // The earlier run died right after the provider call: the provider shows the whole payment returned, the row carries nothing.
+    await f.adapter.refund((await providerPayment(f)).payment_id!, { minor: f.total, currency: 'SAR', exponent: 2 })
+    refund.mockClear()
+    await blockRecording(f)
+    await pool.query('UPDATE commercial_outbox SET attempts=5 WHERE aggregate_id=$1', [f.order])
+    await runAgain(f, 3)
+    expect(refund).not.toHaveBeenCalled()
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'pending', payload: expect.objectContaining({ provider_refund: 'returned' }) })])
+    await noMoreOperatorRecord(f, note.id)
+    await pool.query('DELETE FROM free_base_locks WHERE subscription_id=$1', [f.sub])
+    await runAgain(f, 1)
+    expect(await vendorNoteOf(f.invoice)).toEqual([expect.objectContaining({ status: 'refunded' })])
+    expect(refund).not.toHaveBeenCalled()
+  })
+
+  it('records from the persisted fact without the provider, even with no payment adapter configured', async () => {
+    const f = await simulatorPaid()
+    await askRefund(f.invoice)
+    await blockRecording(f)
+    await processRefundOutbox(pool, f.adapter)
+    await pool.query('DELETE FROM free_base_locks WHERE subscription_id=$1', [f.sub])
+    await pool.query('UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1', [f.order])
+    await processRefundOutbox(pool)
+    expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ status: 'refunded', refunded_by: 'system' })
+  })
+
+  it('lets the operator take over when the provider call failed and the provider proves nothing was returned', async () => {
+    const f = await simulatorPaid()
+    const refund = vi.spyOn(f.adapter, 'refund').mockRejectedValue(new PaymentError('provider_error', 'http 422'))
+    const note = await askRefund(f.invoice)
+    await pool.query('UPDATE commercial_outbox SET attempts=5 WHERE aggregate_id=$1', [f.order])
+    await processRefundOutbox(pool, f.adapter)
+    expect(refund).toHaveBeenCalledTimes(1)
+    const [row] = await refundRows(f.order)
+    expect(row).toMatchObject({ status: 'failed' })
+    expect(row.payload.provider_refund).toBeUndefined()
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ status: 'pending', automatic_refund: { state: 'failed' }, manual_record_allowed: true })
+    await expect(recordRef(note.id, 'MANUAL-2')).resolves.toMatchObject({ status: 'refunded', refund_reference: 'MANUAL-2' })
+    expect(await lockOf(f.sub)).toMatchObject({ cause: 'refund' })
+  })
+
+  it('cannot lead to a second payment when the refund call has an unknown outcome: the row waits, the form is closed, the provider settles it', async () => {
+    const f = await simulatorPaid()
+    const note = await askRefund(f.invoice)
+    const refund = vi.spyOn(f.adapter, 'refund').mockImplementation(async () => {
+      vi.spyOn(f.adapter, 'lookupAttempt').mockRejectedValue(new PaymentError('timeout', 'lookup'))
+      throw new PaymentError('timeout', 'refund')
+    })
+    await pool.query('UPDATE commercial_outbox SET attempts=5 WHERE aggregate_id=$1', [f.order])
+    await runAgain(f, 3) // the hand-off limit is passed while the provider stays unreadable
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'pending', payload: expect.objectContaining({ provider_refund: 'attempted' }) })])
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ status: 'pending', automatic_refund: { state: 'provider_unverified' }, manual_record_allowed: false })
+    await noMoreOperatorRecord(f, note.id)
+    // The provider did return the money (the operator sees it in the dashboard): the worker's next read finds it and records it, with no second call.
+    vi.restoreAllMocks()
+    await f.adapter.refund((await providerPayment(f)).payment_id!, { minor: f.total, currency: 'SAR', exponent: 2 })
+    const again = vi.spyOn(f.adapter, 'refund')
+    await runAgain(f, 1)
+    expect(again).not.toHaveBeenCalled()
+    expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ status: 'refunded', refunded_by: 'system' })
   })
 })

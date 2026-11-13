@@ -109,6 +109,8 @@ describe('invoice refund eligibility', () => {
   it('shows the refund the system makes through the provider, and offers the manual form only when the server allows it', async () => {
     const states = [
       [{ state: 'in_progress', reason: null }, false, 'automatic-refund-in-progress'],
+      [{ state: 'refunded_recording', reason: 'lock_pending' }, false, 'automatic-refund-recording'],
+      [{ state: 'provider_unverified', reason: 'timeout: refund' }, false, 'automatic-refund-unverified'],
       [{ state: 'failed', reason: 'provider_refund_unavailable' }, true, 'automatic-refund-failed'],
     ] as const
     for (const [automatic_refund, manual_record_allowed, testid] of states) {

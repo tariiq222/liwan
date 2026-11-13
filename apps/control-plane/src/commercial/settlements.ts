@@ -5,7 +5,7 @@ import { transaction } from '../db.js'
 import { daysBetween, riyadhDate, type RefundCreditNoteRequest } from '@liwan/commercial-contracts'
 import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
 import { adjustmentView } from './invoices.js'
-import type { PaymentAdapter } from './payment-adapter.js'
+import type { PaymentAdapter, ProviderEvent } from './payment-adapter.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { billingSettings } from './billing-settings.js'
 import { claimOutbox, completeOutbox, deferOutbox, enqueueOutbox } from './outbox.js'
@@ -27,16 +27,14 @@ export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter):
   let automatic = 0
   for (const row of await claimOutbox(pool, ['reconcile.refund'], 20, { automatic: true })) {
     try {
-      if (!adapter) await handOffAutomaticRefund(pool, row, 'provider_refund_unavailable')
-      else await refundThroughProvider(pool, adapter, row)
+      await refundThroughProvider(pool, adapter, row)
       automatic++
     } catch (error) {
       const code = error instanceof Error ? error.message : 'provider_refund_failed'
       try {
-        if (NON_RETRYABLE_REFUND.includes(code) || row.attempts + 1 >= AUTOMATIC_REFUND_ATTEMPTS) {
-          await handOffAutomaticRefund(pool, row, code)
-          automatic++
-        } else await deferOutbox(pool, row.id, code)
+        // A row that may hold returned money is never handed over (see handOffAutomaticRefund): it keeps retrying with backoff.
+        if ((NON_RETRYABLE_REFUND.includes(code) || row.attempts + 1 >= AUTOMATIC_REFUND_ATTEMPTS) && await handOffAutomaticRefund(pool, row, code)) automatic++
+        else await deferOutbox(pool, row.id, code)
       } catch (handOffError) {
         console.error(JSON.stringify({ event: 'commercial_refund_handoff_failed', outbox_id: row.id, error: String(handOffError instanceof Error ? handOffError.message : handOffError).slice(0, 200) }))
         await deferOutbox(pool, row.id, code)
@@ -68,22 +66,30 @@ export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter):
 const AUTOMATIC_CREDIT = 'Payment returned after an undelivered trial order'
 /** The `refunded_by` of a refund the system made through the provider. */
 const SYSTEM_REFUNDER = 'system'
-/** The payload of a `reconcile.refund` row the worker refunds through the provider. `adjustment_id` and `requested_by` mark a vendor-requested refund. */
-type RefundOutboxPayload = { attempt_id?: string; payment_id?: string; automatic?: boolean; adjustment_id?: string; requested_by?: CommercialActor }
+/**
+ * The payload of a `reconcile.refund` row the worker refunds through the provider. `adjustment_id` and `requested_by` mark a
+ * vendor-requested refund. `provider_refund` is what the worker knows of the provider's side, written in its own committed
+ * write so a rolled-back recording cannot forget it: `attempted` (a refund call was made and its outcome is not verified: money
+ * may have left) or `returned` (the provider returned the whole payment, `provider_payment_id`). Absent means nothing was asked.
+ */
+type RefundOutboxPayload = { attempt_id?: string; payment_id?: string; automatic?: boolean; adjustment_id?: string; requested_by?: CommercialActor
+  provider_refund?: 'attempted' | 'returned'; provider_payment_id?: string }
 
 /**
  * An automatic refund that cannot finish is closed as failed with its reason; the row keeps its payload, which trial
  * recovery reads as proof. When the failure is proven to come before any refund (no adapter, or a code in
  * NON_RETRYABLE_REFUND) it also becomes the manual review the operator already works: one pending credit note for what
  * the attempt paid and is not yet credited (an undelivered order already has its fulfilment note, so it gets none more).
- * Recording the refund on the note settles the order. Any other code (retries used up on a timeout or a provider error)
- * may have followed a refund the provider did make, so no note is written: the failed row shows in the attention list as
- * refund_rejected and the operator checks the provider before refunding, to avoid paying the customer twice.
+ * Recording the refund on the note settles the order. Any other code (retries used up on a timeout or a provider error) with
+ * no refund ever asked of the provider writes no note: the failed row shows in the attention list as refund_rejected and the
+ * operator may refund by hand. A row with `provider_refund` set (money returned, or a refund call whose outcome is unverified)
+ * is never handed over, whatever the code: the customer could be paid twice. It returns false and stays pending.
  */
-async function handOffAutomaticRefund(pool: Pool, row: { id: string; kind: string; aggregate_id: string; payload: unknown }, reason: string) {
-  await transaction(pool, async client => {
-    const pending = (await client.query("SELECT 1 FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE", [row.id])).rowCount
-    if (!pending) return
+async function handOffAutomaticRefund(pool: Pool, row: { id: string; kind: string; aggregate_id: string; payload: unknown }, reason: string): Promise<boolean> {
+  return transaction(pool, async client => {
+    const current = (await client.query("SELECT payload->>'provider_refund' AS provider_refund FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE", [row.id])).rows[0]
+    if (!current) return true
+    if (current.provider_refund) return false
     const attemptId = (row.payload as { attempt_id?: string }).attempt_id
     const attempt = typeof attemptId === 'string' && z.uuid().safeParse(attemptId).success ? (await client.query(`SELECT a.* FROM payment_attempts a
       JOIN orders o ON o.id=a.order_id WHERE a.id=$1 AND o.id::text=$2 AND o.payment_state='refund_pending' AND o.paid_attempt_id=a.id`, [attemptId, row.aggregate_id])).rows[0] : undefined
@@ -94,6 +100,7 @@ async function handOffAutomaticRefund(pool: Pool, row: { id: string; kind: strin
         await insertSystemCreditNote(client, invoice, 'payment_after_cancellation', MANUAL_REVIEW_REASON, { minor: Number(attempt.amount_minor) - credited, currency: attempt.currency, exponent: attempt.exponent })
     }
     await rejectOutboxRow(client, { id: row.id, kind: row.kind, aggregate_id: row.aggregate_id }, reason)
+    return true
   })
 }
 
@@ -102,11 +109,15 @@ async function handOffAutomaticRefund(pool: Pool, row: { id: string; kind: strin
  * order (no `adjustment_id`, the order waits in `refund_pending`) and a vendor-requested refund of a delivered first payment
  * (`adjustment_id` names the pending vendor note, the order stays as it is and the provider's own refund event settles it).
  * Confirm the original payment first. An interrupted refund is reconciled by cumulative provider amount, so a retry, a second
- * worker or a restart asks the provider for nothing it already returned; the advisory lock keeps two workers apart.
+ * worker or a restart asks the provider for nothing it already returned; the advisory lock keeps two workers apart. Once the
+ * provider has returned the money that fact is on the row (`provider_refund: 'returned'`) before recording is tried, so a
+ * recording that keeps failing is retried without the provider and never counts toward the operator hand-off.
  */
-async function refundThroughProvider(pool: Pool, adapter: PaymentAdapter, row: { id: string; aggregate_id: string; payload: unknown }) {
+async function refundThroughProvider(pool: Pool, adapter: PaymentAdapter | undefined, row: { id: string; aggregate_id: string; payload: unknown }) {
   const payload = row.payload as RefundOutboxPayload
   const requested = typeof payload.adjustment_id === 'string'
+  const knownPaymentId = payload.provider_refund === 'returned' ? payload.provider_payment_id : undefined
+  if (!adapter && !knownPaymentId) throw Error('provider_refund_unavailable')
   const lock = await pool.connect()
   let owned = false
   try {
@@ -127,23 +138,8 @@ async function refundThroughProvider(pool: Pool, adapter: PaymentAdapter, row: {
       if (note?.status !== 'pending' || note.kind !== 'credit_note' || note.origin !== 'vendor' || note.invoice_id !== attempt.invoice_id
         || Number(note.amount_minor) !== Number(attempt.total_minor) || note.currency !== attempt.currency) throw Error('refund_note_unavailable')
     }
-    if (attempt.provider !== adapter.provider || attempt.mode !== adapter.mode || !attempt.provider_ref) throw Error('provider_refund_unavailable')
-    const read = () => attempt.token_charge ? adapter.lookupPayment?.(attempt.provider_ref) : adapter.lookupAttempt(attempt.provider_ref)
-    const payment = await read()
+    const paymentId = knownPaymentId ?? await returnPaymentAtProvider(pool, adapter!, row.id, attempt, payload)
     const total = Number(attempt.amount_minor)
-    if (!payment?.payment_id || !['succeeded','refunded'].includes(payment.status)
-      || payment.amount.minor !== total || payment.amount.currency !== attempt.currency || payment.amount.exponent !== attempt.exponent
-      || payment.merchant_account !== adapter.merchantAccount || payment.live !== (adapter.mode === 'live')
-      || (payload.payment_id && payload.payment_id !== payment.payment_id)) throw Error('provider_refund_payment_mismatch')
-    const returned = payment.refunded?.minor ?? (payment.status === 'refunded' ? null : 0)
-    if (returned === null || returned < 0 || returned > total) throw Error('provider_refund_amount_unverified')
-    if (returned < total) {
-      const result = await adapter.refund(payment.payment_id, { minor: total - returned, currency: attempt.currency, exponent: attempt.exponent })
-      const confirmed = await read()
-      if (result.payment_id !== payment.payment_id || confirmed?.payment_id !== payment.payment_id || confirmed.refunded?.minor !== total
-        || confirmed.refunded.currency !== attempt.currency || confirmed.refunded.exponent !== attempt.exponent)
-        throw Error('provider_refund_unverified')
-    }
     await transaction(pool, async client => {
       if (requested) {
         // The same recording the operator's form runs (free-base lock and audit included), made by the system for the operator who asked.
@@ -153,7 +149,7 @@ async function refundThroughProvider(pool: Pool, adapter: PaymentAdapter, row: {
         const current = (await client.query('SELECT status FROM invoice_adjustments WHERE id=$1 FOR UPDATE', [payload.adjustment_id])).rows[0]
         if (current?.status !== 'pending') { await completeOutbox(client, row.id); return }
         await recordRefundIn(client, { adjustment_id: payload.adjustment_id!, actor, refundedBy: SYSTEM_REFUNDER,
-          request: { external_reference: payment.payment_id!, reason: 'Refunded through the payment provider' }, automatic: true })
+          request: { external_reference: paymentId, reason: 'Refunded through the payment provider' }, automatic: true })
         await completeOutbox(client, row.id)
         return
       }
@@ -165,13 +161,13 @@ async function refundThroughProvider(pool: Pool, adapter: PaymentAdapter, row: {
         AND status='pending' AND origin='vendor' AND amount_minor=$2 ORDER BY created_at,id LIMIT 1 FOR UPDATE`, [invoice.id, invoice.total_minor])).rows[0]
       if (note || vendorNote) {
         await client.query(`UPDATE invoice_adjustments SET status='refunded',refund_reference=$2,refunded_by='system',refunded_at=now()
-          WHERE id=$1`, [(note ?? vendorNote).id, payment.payment_id])
+          WHERE id=$1`, [(note ?? vendorNote).id, paymentId])
       } else {
         const credited = Number((await client.query(`SELECT ${creditedMinorSql('$1')} AS amount`, [invoice.id])).rows[0].amount)
         if (credited < total) await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,
           status,created_by,origin,cause,refund_reference,refunded_at,refunded_by)
           VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'refunded','system','system','automatic_refund',$8,now(),'system')`,
-        [randomUUID(), invoice.id, invoice.customer_id, AUTOMATIC_CREDIT, total - credited, attempt.currency, attempt.exponent, payment.payment_id])
+        [randomUUID(), invoice.id, invoice.customer_id, AUTOMATIC_CREDIT, total - credited, attempt.currency, attempt.exponent, paymentId])
       }
       await client.query("UPDATE orders SET payment_state='refunded' WHERE id::text=$1 AND payment_state='refund_pending'", [row.aggregate_id])
       await completeOutbox(client, row.id)
@@ -182,6 +178,50 @@ async function refundThroughProvider(pool: Pool, adapter: PaymentAdapter, row: {
     catch { broken = true }
     lock.release(broken || undefined)
   }
+}
+
+/** Writes what the worker knows of the provider's side onto the row, in its own committed write (never inside the recording transaction). */
+async function noteProviderRefund(pool: Pool, outboxId: string, patch: Pick<RefundOutboxPayload, 'provider_refund' | 'provider_payment_id'> | null) {
+  await pool.query("UPDATE commercial_outbox SET payload = CASE WHEN $2::jsonb IS NULL THEN payload - 'provider_refund' ELSE payload || $2::jsonb END WHERE id=$1 AND status='pending'",
+    [outboxId, patch ? JSON.stringify(patch) : null])
+}
+
+/**
+ * Makes the provider return the whole payment, asking for only what it has not returned yet, and persists the fact before
+ * returning the provider's payment id. The row is marked `attempted` before the refund call. If the call fails and a fresh read
+ * proves the provider's refunded figure unchanged, the mark is removed (nothing left, the operator may take over after the
+ * retries); any other failure leaves it, because the money may have left.
+ */
+async function returnPaymentAtProvider(pool: Pool, adapter: PaymentAdapter, outboxId: string, attempt: Record<string, any>, payload: RefundOutboxPayload): Promise<string> {
+  if (attempt.provider !== adapter.provider || attempt.mode !== adapter.mode || !attempt.provider_ref) throw Error('provider_refund_unavailable')
+  const read = () => attempt.token_charge ? adapter.lookupPayment?.(attempt.provider_ref) : adapter.lookupAttempt(attempt.provider_ref)
+  const payment = await read()
+  const total = Number(attempt.amount_minor)
+  if (!payment?.payment_id || !['succeeded','refunded'].includes(payment.status)
+    || payment.amount.minor !== total || payment.amount.currency !== attempt.currency || payment.amount.exponent !== attempt.exponent
+    || payment.merchant_account !== adapter.merchantAccount || payment.live !== (adapter.mode === 'live')
+    || (payload.payment_id && payload.payment_id !== payment.payment_id)) throw Error('provider_refund_payment_mismatch')
+  const refundedOf = (event: ProviderEvent | undefined) => event?.refunded?.minor ?? (event?.status === 'refunded' ? null : 0)
+  const returned = refundedOf(payment)
+  if (returned === null || returned < 0 || returned > total) throw Error('provider_refund_amount_unverified')
+  const fullyReturned = (event: ProviderEvent | undefined) => event?.payment_id === payment.payment_id && event.refunded?.minor === total
+    && event.refunded.currency === attempt.currency && event.refunded.exponent === attempt.exponent
+  if (returned < total) {
+    await noteProviderRefund(pool, outboxId, { provider_refund: 'attempted' })
+    let result: Awaited<ReturnType<PaymentAdapter['refund']>> | undefined
+    try { result = await adapter.refund(payment.payment_id, { minor: total - returned, currency: attempt.currency, exponent: attempt.exponent }) }
+    catch (error) {
+      let after: ProviderEvent | undefined
+      try { after = await read() } catch { /* unverifiable: the mark stays */ }
+      if (!fullyReturned(after)) {
+        if (after?.payment_id === payment.payment_id && refundedOf(after) === returned) await noteProviderRefund(pool, outboxId, null)
+        throw error
+      }
+    }
+    if (result && (result.payment_id !== payment.payment_id || !fullyReturned(await read()))) throw Error('provider_refund_unverified')
+  }
+  await noteProviderRefund(pool, outboxId, { provider_refund: 'returned', provider_payment_id: payment.payment_id })
+  return payment.payment_id
 }
 
 /**

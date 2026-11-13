@@ -13,8 +13,8 @@ export type VendorCustomerList = { items: VendorCustomer[]; total: number }
  * whether recording its pending refund drops the subscription to the free base. */
 export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number; locks_subscription: boolean }
 /** The refund the system makes through the payment provider for a note the vendor requested; the server sets it only for a card payment. */
-export type VendorAutomaticRefund = { state: 'in_progress' | 'done' | 'failed'; reason: string | null }
-/** A credit note with what the server allows: `manual_record_allowed` is false while the system is still refunding it. */
+export type VendorAutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null }
+/** A credit note with what the server allows: `manual_record_allowed` is true only with no automatic refund, or one that failed with no money returned. */
 export type VendorAdjustment = Adjustment & { automatic_refund: VendorAutomaticRefund | null; manual_record_allowed: boolean }
 export type VendorInvoice = Invoice & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }

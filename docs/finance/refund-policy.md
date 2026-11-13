@@ -64,9 +64,13 @@ the customer asks by message, and the vendor acts in the vendor console.
 
 1. Find the invoice in the vendor-admin invoice page: a pending credit note is shown on it.
 2. Confirm the cause (runbook section 4.1) and that the customer was not provisioned.
-3. Only for a bank transfer, or after the automatic provider refund failed: return the amount (a bank transfer; for a
-   failed automatic refund, first check the provider's dashboard that it was not already returned). A card refund the
-   console requested needs no step 3 or 4.
+3. Only for a bank transfer, or after the automatic provider refund failed with no money returned: return the amount (a
+   bank transfer; for a failed automatic refund, first check the provider's dashboard that it was not already returned).
+   A card refund the console requested needs no step 3 or 4. Two states of an automatic refund close the form on
+   purpose, because the customer's money may already be back: "refunded, recording" (the provider returned the money;
+   only the record is retried until it succeeds) and "provider has not confirmed" (a refund call was made and its
+   outcome is not verified; the worker keeps reading the provider and records it when the money shows as returned).
+   The worker never hands such a row to the operator and never calls the provider a second time for the same money.
 4. On the same invoice page choose "Record refund" on the pending credit note and enter the refund reference and a
    reason. The console offers this only when the server allows it (`manual_record_allowed`). This needs `vendor.billing.manage` (roles `owner` and `finance`) and a fresh step-up.
    The note becomes `refunded` with the reference, the recording account and the time, and an

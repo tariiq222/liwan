@@ -232,6 +232,10 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
           </dl>
           <UAlert v-if="note.automatic_refund?.state === 'in_progress'" color="info" variant="subtle" icon="i-lucide-loader" data-testid="automatic-refund-in-progress"
             :title="t('vendor.invoices.refund.automatic.inProgress')" :description="note.automatic_refund.reason ? t('vendor.invoices.refund.automatic.retrying', { reason: note.automatic_refund.reason }) : undefined" />
+          <UAlert v-else-if="note.automatic_refund?.state === 'refunded_recording'" color="success" variant="subtle" icon="i-lucide-circle-check" data-testid="automatic-refund-recording"
+            :title="t('vendor.invoices.refund.automatic.recording')" :description="note.automatic_refund.reason ? t('vendor.invoices.refund.automatic.recordingBlocked', { reason: note.automatic_refund.reason }) : undefined" />
+          <UAlert v-else-if="note.automatic_refund?.state === 'provider_unverified'" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="automatic-refund-unverified"
+            :title="t('vendor.invoices.refund.automatic.unverified')" :description="t('vendor.invoices.refund.automatic.unverifiedHint')" />
           <UAlert v-else-if="note.automatic_refund?.state === 'failed'" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="automatic-refund-failed"
             :title="t('vendor.invoices.refund.automatic.failed', { reason: note.automatic_refund.reason ?? '' })" :description="t('vendor.invoices.refund.automatic.failedHint')" />
           <p v-else-if="note.automatic_refund?.state === 'done'" class="text-sm text-muted" data-testid="automatic-refund-done">{{ t('vendor.invoices.refund.automatic.done') }}</p>
