@@ -16,6 +16,7 @@ from . import (
     mail_message,
     notification_types,
     phonecall,
+    privacy_hooks,
     product_template,
     res_company,
     res_users,

@@ -21,6 +21,21 @@ class ResPartnerBank(models.Model):
             raise AccessError(msg)
         return super().write(vals)
 
+    def _mail_track(self, tracked_fields, initial_values):
+        """Honour ``tracking_disable`` on the bank account log of the stock ``account`` module.
+
+        That module calls this method from its own ``write`` and posts the result to the partner's chatter whatever the
+        context, so the erase of a customer would otherwise write fresh copies of the old account number and holder.
+        The mail convention is that ``tracking_disable`` performs no tracking; this makes the one path that ignored it
+        follow it. Nothing changes for a caller that does not set the key.
+
+        R9 reason: stock ignores the flag on that path. Covered by test_customers_privacy.py
+        ``test_the_erase_writes_no_new_copy_of_the_data_it_erases_into_any_chatter_even_with_account_installed``.
+        """
+        if self.env.context.get('tracking_disable'):
+            return set(), []
+        return super()._mail_track(tracked_fields, initial_values)
+
     def _liwan_rename_right_only(self):
         """Whether the caller may write bank accounts only through the customers manage capability.
 
