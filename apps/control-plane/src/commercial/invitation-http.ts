@@ -5,7 +5,7 @@ import { parseBody, need, type CommercialInput } from './http.js'
 import { isIP } from 'node:net'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import { actorLabel } from '../admin-auth/grants.js'
-import { acceptInvitation, isInvitationUsable, issueInvitation, reissuePendingInvitation, DEFAULT_INVITATION_TTL_SECONDS, InvitationError, MIN_PASSWORD_LENGTH, MAX_TOKEN_LENGTH, type SetPassword } from './invitations.js'
+import { acceptInvitation, isInvitationUsable, issueInvitation, queueReissueRequest, DEFAULT_INVITATION_TTL_SECONDS, InvitationError, MIN_PASSWORD_LENGTH, MAX_TOKEN_LENGTH, type SetPassword } from './invitations.js'
 
 /** Setter/acceptance failure -> [public code, HTTP status]. Anything not listed is a generic 503. */
 const INVITATION_ERRORS: Record<string, [string, number]> = {
@@ -25,27 +25,30 @@ async function invitationCheck(pool: Pool, raw: string) {
 }
 
 /** What the Nuxt server vouches for on the reissue route: the tenant its host is bound to and the visitor's address, both under one signature. */
-export type ReissueContext = { tenant_id: string; client_address?: string }
+export type ReissueContext = { tenant_id: string; client_address: string }
 export const REISSUE_PATH = '/v1/invitations/reissue'
 
-/** The tenant and visitor address of a reissue request, or null unless the Nuxt server signed them with the customer service key.
+/** The tenant and visitor address of a reissue request, or null unless the Nuxt server signed both with the customer service key.
  *  The tenant is never taken from the body, so a visitor cannot aim the route at another workspace. */
 export function verifiedReissueContext(headers: Record<string, string | string[] | undefined>, service: { issuer?: string; key?: string }): ReissueContext | null {
   const tenant = headers['x-liwan-tenant']
   const ip = headers['x-liwan-client-ip']
   if (typeof tenant !== 'string' || !z.uuid().safeParse(tenant).success || !service.issuer || !service.key) return null
-  const claimed = typeof ip === 'string' && isIP(ip) ? ip : ''
+  // No signed visitor address, no request: falling back to the socket would put every visitor in the Nuxt server's own bucket.
+  if (typeof ip !== 'string' || !isIP(ip)) return null
+  const claimed = ip
   const signed = verifyServiceRequest({ method: 'POST', path: REISSUE_PATH, body: `liwan-invitation-reissue:${tenant}\n${claimed}\n`, headers, key: service.key, anonymous: true })
-  return signed?.issuer === service.issuer ? { tenant_id: tenant.toLowerCase(), client_address: claimed || undefined } : null
+  return signed?.issuer === service.issuer ? { tenant_id: tenant.toLowerCase(), client_address: claimed } : null
 }
 
-/** Public: POST /v1/invitations/reissue {email}, 202 {ok:true} whether or not the address is waiting for an invitation. */
+/** Public: POST /v1/invitations/reissue {email}, 202 {ok:true} whether or not the address is waiting for an invitation.
+ *  It only queues the request; the worker does the lookup, so the answer and its timing never depend on the address. */
 async function invitationReissue(pool: Pool, raw: string, context: ReissueContext | undefined) {
   if (!context) throw new CommercialHttpError('unavailable', 503)
   let body: { email: string }
   try { body = parseBody(raw, z.strictObject({ email: z.string().trim().min(3).max(254) })) }
   catch { throw new CommercialHttpError('invalid_invitation', 400) }
-  await reissuePendingInvitation(pool, { tenant_id: context.tenant_id, email: body.email, client_address: context.client_address })
+  await queueReissueRequest(pool, { tenant_id: context.tenant_id, email: body.email, client_address: context.client_address })
   return { status: 202, data: { ok: true } }
 }
 

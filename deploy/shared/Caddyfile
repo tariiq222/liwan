@@ -6,6 +6,7 @@
 	@privateToken header X-Liwan-Proxy-Token *
 	@privateRevision header X-Liwan-Tenant-Revision *
 	@signup path /api/commercial/signup/*
+	@invitationReissue path /api/invitations/reissue
 	route {
 		respond @privateToken 403
 		respond @privateRevision 403
@@ -100,6 +101,8 @@
 			}
 		}
 		request_header -X-Liwan-Signup-Client
+		request_header -X-Liwan-Client-Ip
+		request_header @invitationReissue X-Liwan-Client-Ip {client_ip}
 		request_header @signup X-Liwan-Signup-Client {client_ip}
 		reverse_proxy guard:8080 {
 			header_up -X-Forwarded-For

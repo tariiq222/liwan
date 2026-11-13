@@ -330,15 +330,17 @@ export function invitationClientHeaders(event: H3Event, config: Pick<CustomerCon
 }
 
 /** Signed headers for the public "send me a new invitation" call: the tenant this host is bound to and the visitor's address under one
- * signature (domain-separated from the client-address one). The tenant comes from the host binding, never from the browser. */
+ * signature (domain-separated from the client-address one). The tenant comes from the host binding, never from the browser;
+ * the address comes from the edge (deploy/shared/Caddyfile, the dedicated edge). */
 export function invitationReissueHeaders(event: H3Event, config: CustomerConfig, target: URL): Record<string, string> {
   const tenantId = boundTenantId(tenantRequest(event), config)
   const { customerCommercialIssuer: issuer, customerCommercialServiceKey: key } = config
   if (!tenantId || !issuer || !key || Buffer.byteLength(key) < MIN_SERVICE_KEY_LENGTH) fail(503, 'unavailable', 'Service unavailable')
-  const claimed = getHeader(event, INVITATION_CLIENT_HEADER)
-  const ip = claimed && isIP(claimed) ? claimed : ''
+  // The control plane budgets this route per visitor and refuses it without a signed address, so a missing one stops here too.
+  const ip = getHeader(event, INVITATION_CLIENT_HEADER)
+  if (!ip || !isIP(ip)) fail(503, 'unavailable', 'Service unavailable')
   const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: `liwan-invitation-reissue:${tenantId}\n${ip}\n`, actor: 'anonymous', anonymous: true, issuer, key })
-  return { ...signed, 'x-liwan-tenant': tenantId, ...(ip ? { [INVITATION_CLIENT_HEADER]: ip } : {}) }
+  return { ...signed, 'x-liwan-tenant': tenantId, [INVITATION_CLIENT_HEADER]: ip }
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

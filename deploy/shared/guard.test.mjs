@@ -243,6 +243,16 @@ test('the UI language header passes only on the trusted hop with ar or en and re
   for (const value of ['fr', 'ar_001', '', 'AR']) assert.throws(() => requestPlan(req(0, { ...trusted, 'x-liwan-ui-locale': value }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
   assert.throws(() => requestPlan(req(0, { 'x-liwan-ui-locale': 'ar' }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
 })
+test('the visitor address header passes only on the new-invitation route and only as an IP address', () => {
+  const path = '/api/invitations/reissue'
+  const plan = requestPlan(req(0, { 'x-liwan-client-ip': '203.0.113.7' }, path), registry, token, codec)
+  assert.equal(plan.odoo, false)
+  assert.equal(plan.headers['x-liwan-client-ip'], '203.0.113.7')
+  assert.equal(requestPlan(req(0, {}, path), registry, token, codec).headers['x-liwan-client-ip'], undefined)
+  assert.throws(() => requestPlan(req(0, { 'x-liwan-client-ip': 'not-an-ip' }, path), registry, token, codec), /forbidden_header/)
+  assert.throws(() => requestPlan(req(0, { 'x-liwan-client-ip': '203.0.113.7' }, '/api/invitations/check'), registry, token, codec), /forbidden_header/)
+  assert.throws(() => requestPlan(req(0, { 'x-liwan-client-ip': '203.0.113.7' }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
+})
 test('the expected user and company headers pass as plain bounded ids and reach Odoo only on /api/v1/', () => {
   const expected = { 'x-liwan-expected-user-id': '7', 'x-liwan-expected-company-id': '9007199254740991' }
   const trusted = { 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }

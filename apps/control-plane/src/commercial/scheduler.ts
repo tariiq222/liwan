@@ -2,7 +2,7 @@ import type { Pool } from 'pg'
 import type { Config } from '../config.js'
 import { processFulfillmentOutbox } from './fulfillment.js'
 import { claimOutbox, completeOutbox, releaseOutbox } from './outbox.js'
-import { onSubscriptionActivated, sendInvitationOutbox, settleFailedInvitationOutbox } from './invitations.js'
+import { onSubscriptionActivated, processReissueRequests, sendInvitationOutbox, settleFailedInvitationOutbox } from './invitations.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
@@ -14,6 +14,7 @@ import { sendTrialNotices } from './trial-notices.js'
 import { sendWorkspaceDelayNotices } from './workspace-delay-notice.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
 import { sendBillingNotices } from './billing-notices.js'
+import { sendCancellationNotices } from './cancellation-notices.js'
 import { processRefundOutbox } from './settlements.js'
 import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -105,12 +106,14 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
           }
         }
       })
+      await job('invitation.reissue', () => processReissueRequests(pool, { signal: o.signal, log }))
       if (o.mailAdapter) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
         await job('workspace-delay-notices', () => sendWorkspaceDelayNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
+        await job('cancellation-notices', () => sendCancellationNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, signal: o.signal }))
       }
       if (ticks % reconcileEvery === 0) {

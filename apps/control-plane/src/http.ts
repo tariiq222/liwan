@@ -372,8 +372,9 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         // Unsigned forwarding headers are never trusted for this public limit.
         // accept and check count separately so a page-load check never uses up the accept budget.
         const limit = INVITATION_LIMITS[pathname]!
-        const visitor = reissue ? reissue.client_address ?? req.socket.remoteAddress ?? 'unknown' : invitationClientAddress(req, pathname, bffService)
-        const ip = `${pathname}|${clientAddressBucket(visitor)}`
+        // A reissue is budgeted per workspace and per signed visitor address, so one visitor cannot spend another's.
+        const visitor = reissue ? `${reissue.tenant_id}|${clientAddressBucket(reissue.client_address)}` : clientAddressBucket(invitationClientAddress(req, pathname, bffService))
+        const ip = `${pathname}|${visitor}`
         let attempt = invitationAttempts.get(ip)
         if (!attempt || attempt.expiresAt <= now) {
           attempt = { count: 0, expiresAt: now + limit.windowMs }

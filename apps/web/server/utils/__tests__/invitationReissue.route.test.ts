@@ -53,7 +53,7 @@ const post = (body: unknown, headers: Record<string, string> = {}) => fetch(`${b
 describe('POST /api/invitations/reissue', () => {
   it('answers {ok:true} and nothing from the control plane, forwarding only the trimmed email', async () => {
     calls = []; answer = 202
-    const res = await post({ email: '  admin@x.test ', tenant_id: 'other', extra: 1 })
+    const res = await post({ email: '  admin@x.test ', tenant_id: 'other', extra: 1 }, { 'x-liwan-client-ip': '203.0.113.7' })
     expect(res.status).toBe(202)
     expect(res.headers.get('cache-control')).toBe('no-store')
     expect(await res.json()).toEqual({ ok: true })
@@ -69,13 +69,11 @@ describe('POST /api/invitations/reissue', () => {
     expect(headers.cookie).toBeUndefined()
     expect(verifyServiceRequest({ method: 'POST', path: '/v1/invitations/reissue', body: `liwan-invitation-reissue:${TENANT}\n203.0.113.7\n`, headers, key: KEY, anonymous: true })).toMatchObject({ issuer: 'liwan-web' })
   })
-  it('signs an empty address when the edge supplied none or a malformed one', async () => {
+  it('refuses, without contacting the control plane, when the edge supplied no address or a malformed one', async () => {
     for (const extra of [{}, { 'x-liwan-client-ip': 'not-an-ip' }] as Record<string, string>[]) {
       calls = []
-      await post({ email: 'admin@x.test' }, extra)
-      const headers = calls[0]!.headers
-      expect(headers['x-liwan-client-ip']).toBeUndefined()
-      expect(verifyServiceRequest({ method: 'POST', path: '/v1/invitations/reissue', body: `liwan-invitation-reissue:${TENANT}\n\n`, headers, key: KEY, anonymous: true })).not.toBeNull()
+      expect((await post({ email: 'admin@x.test' }, extra)).status).toBe(503)
+      expect(calls).toEqual([])
     }
   })
   it('rejects cross-origin, non-JSON, malformed and oversize bodies before contacting the control plane', async () => {
@@ -88,9 +86,10 @@ describe('POST /api/invitations/reissue', () => {
     expect(calls).toEqual([])
   })
   it('passes a rate limit through as 429 and any other failure as 503', async () => {
+    const edge = { 'x-liwan-client-ip': '203.0.113.7' }
     answer = 429
-    expect((await post({ email: 'a@x.test' })).status).toBe(429)
-    for (const status of [403, 500]) { answer = status; expect((await post({ email: 'a@x.test' })).status).toBe(503) }
+    expect((await post({ email: 'a@x.test' }, edge)).status).toBe(429)
+    for (const status of [403, 500]) { answer = status; expect((await post({ email: 'a@x.test' }, edge)).status).toBe(503) }
     answer = 202
   })
 })
