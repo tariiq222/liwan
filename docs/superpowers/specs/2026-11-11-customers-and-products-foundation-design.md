@@ -94,14 +94,18 @@ Where a later section disagrees, these win. They follow from the approved decisi
 
 Where a later section disagrees, these win.
 
-30. One tax mode serves every application and is chosen in the company settings: no tax, price includes tax, or tax added to the price. The first is the company's VAT registration; the other two are stock Odoo's own company setting, which every order and invoice line follows without LiwanOS tax code, and which stock locks after the company's first invoice. `liwan_payments` and the Meta catalog lose their own settings, and the order service loses its tax copies. This closes the open point of section 10 and replaces "computed as today" in decision 7 and the last sentence of section 4.6.
+30. One tax mode serves every application and is chosen in the company settings: no tax, price includes tax, or tax added to the price. The first is the company's VAT registration; the other two are stock Odoo's own company setting, which every order and invoice line follows without LiwanOS tax code, and which stock locks once the establishment has a journal item. `liwan_payments` and the Meta catalog lose their own settings, and the order service loses its tax copies. This closes the open point of section 10 and replaces "computed as today" in decision 7 and the last sentence of section 4.6.
 31. The Meta catalog moves into `liwan_inbox` itself, which then depends on `liwan_products`. Section 4.7 said a bridge; the carts in `liwan_inbox_payments` read the catalog models, and a bridge cannot depend on a bridge.
 32. The tax bridge `liwan_products_account` stays as section 4.6 describes, and the bridge tooling learns that a bridge may link one LiwanOS module to one stock module.
 33. An application picks an existing product. Creating or pricing one needs `products.manage` or `products.prices.manage`, which each application grants to its own built-in manager role.
 34. A finance invoice line may name a product. `liwan_finance` becomes a consumer of the service.
 35. Renaming a booking type no longer renames its product.
 36. A product of a registered company takes the company's default sale tax and can be given another. "No tax" on such a product is stored as a zero-rated or exempt tax, which a ZATCA line requires. A product may carry more than one tax; excise is built when a tenant needs it.
-37. The price function returns the amount before tax, the tax and the total, and a surface a customer sees shows the total. The Meta catalog reads it and computes no price of its own.
+37. The price function returns the unit price as typed, the amount before tax, the tax and the total, and a surface a customer sees shows the total. The Meta catalog reads it and computes no price of its own.
+38. The tax choice is one decision for the whole establishment: it is changed in the root company only and holds for every branch, VAT registration included. Its default is "price includes tax".
+39. Vendor bills are outside the choice: a purchase tax stays "tax added" unless the accountant sets it otherwise.
+40. A product shared between branches is managed in the root company only; a branch manages its own products.
+41. The payments bridges reach `liwan_products` through their application side, so `liwan_inbox` and `liwan_appointments` depend on it from step 2.
 
 This design implements the 2026-11-06 decision on one customer record.
 
