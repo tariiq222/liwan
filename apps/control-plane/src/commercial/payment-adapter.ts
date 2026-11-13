@@ -2,6 +2,7 @@
 // events are never trusted on their own: callers must confirm them with an
 // authoritative provider fetch (see confirmEvent in moyasar-adapter.ts).
 // Types are local; the coordinator aligns them with shared contracts later.
+import type { PaymentAttemptKind } from '@liwan/commercial-contracts'
 import { MoyasarAdapter } from './moyasar-adapter.js'
 import { SimulatorAdapter } from './payment-simulator.js'
 
@@ -54,6 +55,11 @@ export type CreateAttemptInput = {
 }
 export type CreateAttemptResult = { provider_ref: string; redirect_url: string; status: ProviderEventStatus }
 export type RefundResult = { payment_id: string; status: ProviderEventStatus; refunded: Money }
+/**
+ * A form payment and a saved-card charge are direct payments: the provider reference is a payment id, read with `lookupPayment`.
+ * Only a hosted invoice has an invoice id that `lookupAttempt` reads.
+ */
+export const isDirectPayment = (kind: PaymentAttemptKind): boolean => kind === 'form' || kind === 'saved_card'
 export type ChargeTokenInput = { given_id: string; token: string; amount: Money; description: string; callback_url: string }
 export type TokenInfo = { id: string; status: string; active: boolean }
 export type AdapterHeaders = Record<string, string | string[] | undefined>

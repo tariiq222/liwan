@@ -89,7 +89,7 @@
     "auto_renew": {
       "enabled": false,
       "consent_at": null,
-      "token_ref_present": false
+      "payment_method": null
     },
     "trial_ends_at": null,
     "grace_ends_at": null

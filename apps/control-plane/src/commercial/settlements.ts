@@ -5,7 +5,7 @@ import { transaction } from '../db.js'
 import { daysBetween, riyadhDate, type RefundCreditNoteRequest } from '@liwan/commercial-contracts'
 import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
 import { adjustmentView } from './invoices.js'
-import type { PaymentAdapter, ProviderEvent } from './payment-adapter.js'
+import { isDirectPayment, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { billingSettings } from './billing-settings.js'
 import { claimOutbox, completeOutbox, deferOutbox, enqueueOutbox } from './outbox.js'
@@ -194,7 +194,7 @@ async function noteProviderRefund(pool: Pool, outboxId: string, patch: Pick<Refu
  */
 async function returnPaymentAtProvider(pool: Pool, adapter: PaymentAdapter, outboxId: string, attempt: Record<string, any>, payload: RefundOutboxPayload): Promise<string> {
   if (attempt.provider !== adapter.provider || attempt.mode !== adapter.mode || !attempt.provider_ref) throw Error('provider_refund_unavailable')
-  const read = () => attempt.token_charge ? adapter.lookupPayment?.(attempt.provider_ref) : adapter.lookupAttempt(attempt.provider_ref)
+  const read = () => isDirectPayment(attempt.kind) ? adapter.lookupPayment?.(attempt.provider_ref) : adapter.lookupAttempt(attempt.provider_ref)
   const payment = await read()
   const total = Number(attempt.amount_minor)
   if (!payment?.payment_id || !['succeeded','refunded'].includes(payment.status)

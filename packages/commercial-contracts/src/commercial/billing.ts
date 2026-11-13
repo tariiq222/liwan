@@ -100,9 +100,11 @@ export const bankTransferClaimRequestSchema = z.strictObject({
 export const paymentProviderSchema = z.enum(['moyasar', 'simulator'])
 export const paymentModeSchema = z.enum(['test', 'live', 'simulator'])
 export const paymentAttemptStatusSchema = z.enum(['created', 'redirected', 'pending', 'succeeded', 'failed', 'canceled', 'unknown'])
+/** What the provider reference identifies: a hosted invoice, a payment made through the embedded card form, or a charge of a saved card. */
+export const paymentAttemptKindSchema = z.enum(['hosted_invoice', 'form', 'saved_card'])
 export const paymentAttemptSchema = z.strictObject({
   id: z.string().min(1), order_id: z.string().min(1), invoice_id: z.string().min(1),
-  provider: paymentProviderSchema, mode: paymentModeSchema, provider_ref: z.string().nullable(),
+  provider: paymentProviderSchema, mode: paymentModeSchema, kind: paymentAttemptKindSchema, provider_ref: z.string().nullable(),
   amount: moneySchema, status: paymentAttemptStatusSchema, redirect_url: z.string().nullable(),
   created_at: z.string(), updated_at: z.string(),
 })
@@ -128,5 +130,6 @@ export type CustomerInvoice = Invoice & z.infer<typeof customerInvoiceExtrasSche
 export type Adjustment = z.infer<typeof adjustmentSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>
+export type PaymentAttemptKind = z.infer<typeof paymentAttemptKindSchema>
 export type PaymentAttemptStatus = z.infer<typeof paymentAttemptStatusSchema>
 export type PaymentEventRecord = z.infer<typeof paymentEventRecordSchema>

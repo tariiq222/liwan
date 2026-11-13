@@ -45,11 +45,14 @@ describe('invoice', () => {
   })
 })
 describe('payment records', () => {
-  const att = { id: 'a', order_id: 'o', invoice_id: 'i', provider: 'moyasar', mode: 'test', provider_ref: null, amount: sar(11500), status: 'created', redirect_url: null, created_at: 'x', updated_at: 'x' }
+  const att = { id: 'a', order_id: 'o', invoice_id: 'i', provider: 'moyasar', mode: 'test', kind: 'hosted_invoice', provider_ref: null, amount: sar(11500), status: 'created', redirect_url: null, created_at: 'x', updated_at: 'x' }
   it('attempt parses; unknown provider rejected', () => {
     expect(paymentAttemptSchema.parse(att).status).toBe('created')
     expect(paymentAttemptSchema.safeParse({ ...att, provider: 'stripe' }).success).toBe(false)
     expect(paymentAttemptSchema.safeParse({ ...att, status: 'paid' }).success).toBe(false)
+    expect(paymentAttemptSchema.safeParse({ ...att, kind: 'form' }).success).toBe(true)
+    expect(paymentAttemptSchema.safeParse({ ...att, kind: 'token' }).success).toBe(false)
+    expect(paymentAttemptSchema.safeParse({ ...att, kind: undefined }).success).toBe(false)
   })
   it('rejected events need a reason', () => {
     const ev = { id: 'e', provider: 'moyasar', provider_event_id: 'E', attempt_id: 'a', status: 'succeeded', amount: sar(1), verified: true, confirmed: false, outcome: 'rejected', reason: null, received_at: 'x' }

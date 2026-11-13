@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { setup, client, money, monthly, url } from './commercial-helpers.js'
+import { setup, client, money, monthly, seedPaymentMethod, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
@@ -75,8 +75,9 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   })
   it('no consent never charges; charge response waits for lookup and paid renewal waits for receipt',async()=>{
     const no=await subscription(),yes=await subscription()
-    await pool.query('UPDATE subscriptions SET provider_token_ref=$2,revision=revision+1 WHERE id=$1',[no.id,'token'])
-    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,provider_token_ref=$3,revision=revision+1 WHERE id=$1',[yes.id,now,'token'])
+    await seedPaymentMethod(pool,no.customer,'token_without_consent')
+    await seedPaymentMethod(pool,yes.customer,'token')
+    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1 WHERE id=$1',[yes.id,now])
     const adapter=new SimulatorAdapter().addToken('token'),charge=vi.spyOn(adapter,'chargeToken')
     await generateRenewals(pool,args(adapter))
     expect(charge).toHaveBeenCalledTimes(1)
@@ -87,7 +88,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const attempt=(await pool.query('SELECT id FROM payment_attempts WHERE order_id=$1',[renewal.id])).rows[0]
     await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[attempt.id])
     expect(charge.mock.calls[0]![0].callback_url).toBe(`https://liwan.test/api/commercial/payment-callback?attempt=${attempt.id}`)
-    expect((await pool.query('SELECT token_charge FROM payment_attempts WHERE id=$1',[attempt.id])).rows[0].token_charge).toBe(true)
+    expect((await pool.query('SELECT kind FROM payment_attempts WHERE id=$1',[attempt.id])).rows[0].kind).toBe('saved_card')
     const byInvoice=vi.spyOn(adapter,'lookupAttempt'),byPayment=vi.spyOn(adapter,'lookupPayment')
     await verifyReturnedAttempt(pool,{attempt_id:attempt.id,customer_id:yes.customer,adapter})
     expect(byPayment).toHaveBeenCalledTimes(1);expect(byInvoice).not.toHaveBeenCalled() // a payment id is not an invoice id

@@ -1,6 +1,6 @@
 // Unit test (no DB, no network): payment adapter contracts with injected fetch.
 import { describe, expect, it } from 'vitest'
-import { PaymentError, paymentAdapterFromEnv, assertReturnUrl, refundedAmount } from '../commercial/payment-adapter.js'
+import { PaymentError, paymentAdapterFromEnv, assertReturnUrl, refundedAmount, isDirectPayment } from '../commercial/payment-adapter.js'
 import { MoyasarAdapter, confirmEvent } from '../commercial/moyasar-adapter.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 
@@ -94,9 +94,9 @@ describe('MoyasarAdapter', () => {
     const r = mk({}, [pay])
     const ev = r.a.verifyEvent(hook({ data: { id: 'pay_9', status: 'paid', amount: 5000, currency: 'SAR' } }), {})
     expect(ev.provider_ref).toBe('pay_9')
-    expect((await confirmEvent(r.a, ev, { tokenCharge: true })).status).toBe('succeeded')
+    expect((await confirmEvent(r.a, ev, { direct: true })).status).toBe('succeeded')
     expect(r.calls.map(c => c.url)).toEqual(['https://api.moyasar.com/v1/payments/pay_9'])
-    expect(await code(confirmEvent(mk({}, [{ ...pay, amount: 1 }]).a, ev, { tokenCharge: true }))).toBe('event_mismatch')
+    expect(await code(confirmEvent(mk({}, [{ ...pay, amount: 1 }]).a, ev, { direct: true }))).toBe('event_mismatch')
     // Without the marker the same event is looked up as an invoice, which does not exist for a payment id.
     expect(await code(confirmEvent(mk({}, [{ http: 404 }]).a, ev))).toBe('not_found')
   })
@@ -140,6 +140,14 @@ describe('MoyasarAdapter', () => {
     const { a, calls } = mk()
     expect(await code(a.createAttempt({ ...attempt, success_url: 'https://evil.com/ok' }))).toBe('return_url_forbidden')
     expect(calls).toHaveLength(0)
+  })
+})
+
+describe('isDirectPayment', () => {
+  it('is true for a form payment and a saved-card charge, false for a hosted invoice', () => {
+    expect(isDirectPayment('form')).toBe(true)
+    expect(isDirectPayment('saved_card')).toBe(true)
+    expect(isDirectPayment('hosted_invoice')).toBe(false)
   })
 })
 

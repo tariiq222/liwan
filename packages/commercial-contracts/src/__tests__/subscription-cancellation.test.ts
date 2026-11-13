@@ -3,7 +3,7 @@ import { freeBaseLockCauseSchema, subscriptionCancellationSchema, subscriptionVi
 
 const base = {
   id: 's1', customer_id: 'c1', tenant_id: null, state: 'active', applied: null, target: null, pending_order: null, order_cancelled: false, revision: 3,
-  renewal_at: '2026-12-12', auto_renew: { enabled: false, consent_at: null, token_ref_present: false }, trial_ends_at: null, grace_ends_at: null,
+  renewal_at: '2026-12-12', auto_renew: { enabled: false, consent_at: null, payment_method: null }, trial_ends_at: null, grace_ends_at: null,
 }
 
 describe('the cancellation fact on a subscription view', () => {

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { setup, client, money, monthly, url } from './commercial-helpers.js'
+import { setup, client, money, monthly, seedPaymentMethod, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
@@ -155,7 +155,8 @@ suite('live PostgreSQL billing notices', () => {
   })
   it('acknowledges a paid subscription invoice once', async () => {
     const s = await subscription('2026-10-01')
-    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,provider_token_ref=$3,revision=revision+1 WHERE id=$1', [s.id, now, 'token'])
+    await seedPaymentMethod(pool, s.customer, 'token')
+    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1 WHERE id=$1', [s.id, now])
     const adapter = new SimulatorAdapter().addToken('token')
     await generateRenewals(pool, { now, adapter, returnOrigin })
     const attempt = (await pool.query('SELECT a.id FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.subscription_id=$1', [s.id])).rows[0]

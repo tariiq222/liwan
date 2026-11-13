@@ -24,6 +24,13 @@ export const freeBaseLockCauseSchema = z.enum(['trial_end', 'first_invoice_unpai
 export const subscriptionCancellationSchema = z.strictObject({
   requested_at: z.string(), requested_by: z.enum(['customer', 'vendor']), effective_on: isoDate,
 })
+export const paymentMethodStatusSchema = z.enum(['active', 'inactive', 'removed'])
+/** A saved card as the customer sees it: display facts only. The provider's token never leaves the control plane. */
+export const paymentMethodViewSchema = z.strictObject({
+  id: z.string().min(1), brand: z.string().min(1), last_four: z.string().regex(/^\d{4}$/),
+  exp_month: z.number().int().min(1).max(12), exp_year: z.number().int(),
+  status: paymentMethodStatusSchema, is_default: z.boolean(),
+})
 export const subscriptionViewSchema = z.strictObject({
   id: z.string().min(1), customer_id: z.string().min(1), tenant_id: z.string().nullable(),
   state: subscriptionStateSchema,
@@ -33,7 +40,7 @@ export const subscriptionViewSchema = z.strictObject({
   order_cancelled: z.boolean(),
   revision: z.number().int().min(0), // aggregate version used for optimistic locking
   renewal_at: isoDate.nullable(),
-  auto_renew: z.strictObject({ enabled: z.boolean(), consent_at: z.string().nullable(), token_ref_present: z.boolean() }),
+  auto_renew: z.strictObject({ enabled: z.boolean(), consent_at: z.string().nullable(), payment_method: paymentMethodViewSchema.nullable() }),
   trial_ends_at: z.string().nullable(), grace_ends_at: z.string().nullable(),
   trial_outcome: trialOutcomeSchema.nullable().optional(),
   trial_reopenable: z.boolean().optional(),
@@ -68,6 +75,7 @@ export type TrialEndPreview = z.infer<typeof trialEndPreviewSchema>
 
 export type SubscriptionState = z.infer<typeof subscriptionStateSchema>
 export type SubscriptionRevision = z.infer<typeof subscriptionRevisionSchema>
+export type PaymentMethodView = z.infer<typeof paymentMethodViewSchema>
 export type SubscriptionView = z.infer<typeof subscriptionViewSchema>
 export type SubscriptionCancellation = z.infer<typeof subscriptionCancellationSchema>
 export type FreeBaseLockCause = z.infer<typeof freeBaseLockCauseSchema>

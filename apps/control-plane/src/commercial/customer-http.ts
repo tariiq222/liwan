@@ -25,6 +25,7 @@ import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
 import { confirmDeletion, requestDeletion, withdrawDeletion } from './tenant-deletion.js'
 import { tenantDeletionOf } from './tenant-deletion-read.js'
 import { getUsage } from './usage.js'
+import { defaultPaymentMethod } from './payment-methods.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import { aiTopupCatalog } from './ai-billing-settings.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -216,7 +217,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     const body=parseBody(input.raw,z.strictObject({enabled:z.boolean(),consent:z.boolean().optional()}))
     await transaction(pool,async client=>{
       const r=await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE',[customerId]);if(!r.rowCount)throw new CommercialHttpError('not_found',404)
-      const s=r.rows[0];if(body.enabled&&(!body.consent||!s.provider_token_ref))throw new CommercialHttpError('token_required',409)
+      const s=r.rows[0];if(body.enabled&&(!body.consent||!await defaultPaymentMethod(client,customerId)))throw new CommercialHttpError('token_required',409)
       if(s.auto_renew_enabled===body.enabled)return
       await client.query('UPDATE subscriptions SET auto_renew_enabled=$1,auto_renew_consent_at=CASE WHEN $1 THEN now() ELSE auto_renew_consent_at END,revision=revision+1 WHERE id=$2',[body.enabled,s.id])
     })

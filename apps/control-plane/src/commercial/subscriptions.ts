@@ -5,6 +5,7 @@ import { settledTrialReopenSource } from './trial-reopen.js'
 import { dateOnly } from './date-only.js'
 import { orderView } from './orders.js'
 import { cancelRefusal } from './cancellation-rules.js'
+import { defaultPaymentMethod, paymentMethodView } from './payment-methods.js'
 import { tenantDeletionOf } from './tenant-deletion-read.js'
 
 const iso = (value: Date | string | null): string | null => value === null ? null : value instanceof Date ? value.toISOString() : value
@@ -29,7 +30,7 @@ export async function getSubscription(pool: Pool, customerId: string) {
     id: row.id, customer_id: row.customer_id, tenant_id: row.tenant_id, state: row.state,
     applied: revision(row.applied_revision_id), target: revision(row.target_revision_id), pending_order: pending.rows[0] ? orderView(pending.rows[0]) : null, order_cancelled: cancelled,
     revision: row.revision, renewal_at: date(row.renewal_at),
-    auto_renew: { enabled: row.auto_renew_enabled, consent_at: iso(row.auto_renew_consent_at), token_ref_present: Boolean(row.provider_token_ref) },
+    auto_renew: { enabled: row.auto_renew_enabled, consent_at: iso(row.auto_renew_consent_at), payment_method: paymentMethodView(await defaultPaymentMethod(pool, row.customer_id)) },
     trial_reopenable: Boolean(await settledTrialReopenSource(pool, row)), pending_free_base_lock: pendingLock?.cause ?? null,
     deletion: await tenantDeletionOf(pool, row.customer_id),
     cancellable: !row.cancel_requested_at && await cancelRefusal(pool, row) === null,

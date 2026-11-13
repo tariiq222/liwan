@@ -13,6 +13,7 @@ import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
+import { defaultPaymentMethod } from './payment-methods.js'
 import { enqueueBillingNotice } from './billing-notices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { rearmUnpaidTrialLock } from './free-base-lock.js'
@@ -156,21 +157,22 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       }
     }
     let activeToken = false
-    if (sub.auto_renew_enabled && sub.auto_renew_consent_at && sub.provider_token_ref) {
-      try { activeToken = (await adapter.getToken(sub.provider_token_ref)).active } catch { /* use hosted payment instead */ }
+    const method = sub.auto_renew_enabled && sub.auto_renew_consent_at ? await defaultPaymentMethod(pool, sub.customer_id) : null
+    if (method) {
+      try { activeToken = (await adapter.getToken(method.provider_token)).active } catch { /* use hosted payment instead */ }
     }
-    if (!activeToken) {
+    if (!activeToken || !method) {
       await createPaymentAttempt(pool,{order_id:order.id,customer_id:sub.customer_id,adapter,returnOrigin:async()=>origin})
       continue
     }
     const attemptId = randomUUID()
     await transaction(pool, async client => {
-      await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,token_charge)
-        VALUES($1,$2,$3,$4,$5,$2::uuid::text,$2::uuid::text,$6,$7,$8,true)`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
+      await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,kind)
+        VALUES($1,$2,$3,$4,$5,$2::uuid::text,$2::uuid::text,$6,$7,$8,'saved_card')`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
       await client.query("UPDATE renewals SET status='charging' WHERE order_id=$1", [order.id])
     })
     try {
-      const event = await adapter.chargeToken({given_id:order.id,token:sub.provider_token_ref,amount:invoice.total,
+      const event = await adapter.chargeToken({given_id:order.id,token:method.provider_token,amount:invoice.total,
         description:`LiwanOS renewal ${order.id}`,callback_url:paymentReturnUrls(origin,attemptId)})
       // A charge response only identifies the attempt; settlement requires provider lookup.
       await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,event.provider_ref])
