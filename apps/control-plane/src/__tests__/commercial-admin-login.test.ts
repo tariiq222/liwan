@@ -126,10 +126,12 @@ suite('the vendor changes the address on record of a workspace', () => {
   it('previews, without writing, how many other customers already hold the address', async () => {
     const f = await workspace()
     const other = await workspace()
-    expect(await call(f.customer, { admin_login: 'free@example.test', dry_run: true })).toMatchObject({ status: 200, body: { preview: { other_customers_with_address: 0 } } })
+    // No other suite uses this address: the count must not depend on the rows earlier suites left.
+    const free = `free.${f.customer}@example.test`
+    expect(await call(f.customer, { admin_login: free, dry_run: true })).toMatchObject({ status: 200, body: { preview: { other_customers_with_address: 0 } } })
     expect(await call(f.customer, { admin_login: other.old.toUpperCase(), dry_run: true })).toMatchObject({ status: 200, body: { preview: { other_customers_with_address: 1 } } })
-    expect(await call(f.customer, { admin_login: 'free@example.test', dry_run: true }, { stepUpFresh: false })).toMatchObject({ status: 403 })
-    expect(await call(f.customer, { admin_login: 'free@example.test', dry_run: true }, { capabilities: ['vendor.read'] })).toMatchObject({ status: 403 })
+    expect(await call(f.customer, { admin_login: free, dry_run: true }, { stepUpFresh: false })).toMatchObject({ status: 403 })
+    expect(await call(f.customer, { admin_login: free, dry_run: true }, { capabilities: ['vendor.read'] })).toMatchObject({ status: 403 })
     expect(await addressOf(f.customer)).toBe(f.old)
     expect(await audits(f.customer)).toHaveLength(0)
     // The same address on another customer does not stop a real change.
