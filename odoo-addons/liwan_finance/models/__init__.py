@@ -14,6 +14,7 @@ from . import (
     feature_registry,
     idempotency,
     mis_report,
+    privacy_hooks,
     res_company,
     res_partner,
     setup_service,

@@ -72,7 +72,7 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
           the count with elevated rights equals the count the caller sees (a missing ACL, a record rule, the company
           fence and a visibility policy all show up as a difference).
         * An application model that links to a partner and no item covers is ``unhandled`` when it holds any record that
-          references the party, whoever can see it, and ``empty`` (listed by model) when it holds none.
+          references the party, whoever can see it (its ``count`` is what the caller sees), and ``empty`` (listed by model) when it holds none.
         * A party shared across the tenant (no company) can be referenced from any company, so the caller's session must
           cover the root and every branch of the tenant; a party of one company needs that company. Otherwise every item
           of an application is incomplete (``session_does_not_cover_every_company``).
@@ -130,8 +130,9 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
 
     @api.model
     def _liwan_elevated_count(self, model_name, domain):
-        """How many records of ``model_name`` the domain finds whatever the caller may see: only this number is read
-        with elevated rights, never a field value, so a record the caller cannot reach is counted and not disclosed."""
+        """How many records of ``model_name`` the domain finds whatever the caller may see. It only ever decides a
+        boolean (``complete`` and whether an uncovered model holds a record): the number itself never reaches the
+        preview, the export or the log, so a record the caller cannot reach is neither counted nor disclosed to them."""
         return self.env[model_name].sudo().with_context(active_test=False).search_count(domain)
 
     @api.model
@@ -152,11 +153,10 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
             if not links:
                 continue
             domain = ['|'] * (len(links) - 1) + [(link, 'in', partners.ids) for link in links]
-            count = self._liwan_elevated_count(name, domain)
-            if count:
+            if self._liwan_elevated_count(name, domain):
                 items.append({
                     'key': name, 'owner': getattr(type(model), '_original_module', None) or '', 'action': ACTION_UNHANDLED,
-                    'count': count, 'complete': False,
+                    'count': self._liwan_visible_count(name, domain), 'complete': False,
                 })
             else:
                 empty.append(name)

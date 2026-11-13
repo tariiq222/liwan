@@ -7,6 +7,7 @@ from odoo.addons.liwan_api.serializers.csv_export import (
     property_cells,
     property_headers,
 )
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_core.models.protected_write import marked
 
 # The identity values of a party are written through the service under its marker, the personal fields of
@@ -23,11 +24,36 @@ CORE_OWNER = 'liwan_customers'
 # and the mail models (messages, followers, notifications, activities, tracking) are the chatter history that
 # NOT_COVERED names. The privacy log and token rows hold ids, counts and the reason only, and the log is kept by law.
 # An application model is on neither list unless its hook declares it.
+# Every other entry holds a partner link and no data about the party, and none can name a party in LiwanOS:
+# * discuss.channel.member, discuss.channel.rtc.session, res.users.settings.volumes: a chat membership, call session
+#   or voice volume of a user, tied to that user's own partner; a party has no user and never joins a channel.
+# * calendar.filters: one user's calendar view preference (a partner link and two flags), no content.
+# * ir.actions.server: configuration written by an operator (a fixed recipient list); no LiwanOS surface creates one.
+# Everything else that links to a partner and no hook covers stays OFF this list on purpose, so an erase of a customer
+# who has such a record is refused (409 ``erase_incomplete``) until its owner writes a hook: hr.employee, hr.job,
+# hr.version, hr.work.location, hr.contribution.register (HR data), calendar.event and calendar.attendee (meeting
+# attendees), rating.rating (feedback text), product.supplierinfo (vendor price lists), sms.sms and snailmail.letter
+# (a queued number or postal address), maintenance.equipment, project.project, project.task, project.collaborator and
+# resource.booking (a customer's work and appointments), hr.applicant (a candidate).
 NO_CUSTOMER_DATA = (
     'res.users', 'res.company', 'liwan.customers.privacy.request', 'liwan.customers.privacy.token',
+    'discuss.channel.member', 'discuss.channel.rtc.session', 'res.users.settings.volumes', 'calendar.filters',
+    'ir.actions.server',
 )
 NO_CUSTOMER_DATA_PREFIXES = ('mail.', 'bus.')
 NOT_COVERED = ('chatter_history', 'free_text_notes', 'stored_documents', 'backups')
+
+
+def refuse_incomplete(incomplete):
+    """409 ``erase_incomplete``: the erase of a hook it cannot finish as the caller, before anything is written.
+
+    ``incomplete`` is ``[{key, owner, reason}]``, the shape of the preview. A hook calls it before it calls ``super()``,
+    so no other hook has written yet and the request leaves nothing changed.
+    """
+    code = 'erase_incomplete'
+    raise LiwanAccessRule(
+        code, 'the caller cannot reach every record to erase', status=409, details={'incomplete': incomplete},
+    )
 
 
 class LiwanCustomersPrivacyHooks(models.AbstractModel):
@@ -67,7 +93,17 @@ class LiwanCustomersPrivacyHooks(models.AbstractModel):
             'customer': ('res.partner', lambda partners: [('id', 'in', partners.ids)]),
             'bank_accounts': ('res.partner.bank', lambda partners: [('partner_id', 'in', partners.ids)]),
             'attachments': ('ir.attachment', self._liwan_attachment_domain),
+            'tags': ('res.partner.category', self._liwan_tag_domain),
         }
+
+    @api.model
+    def _liwan_tag_domain(self, partners):
+        return [('partner_ids', 'in', partners.ids)]
+
+    @api.model
+    def _liwan_subject_tags(self, partners):
+        """The tags (archived included) set on the parties, as the caller sees them."""
+        return self.env['res.partner.category'].with_context(active_test=False).search(self._liwan_tag_domain(partners))
 
     @api.model
     def _liwan_attachment_domain(self, partners):
@@ -117,6 +153,8 @@ class LiwanCustomersPrivacyHooks(models.AbstractModel):
             },
             {'key': 'bank_accounts', 'title': 'Bank accounts',
              'header': ['partner_id', 'bank', 'account', 'holder', 'active'], 'rows': banks},
+            {'key': 'tags', 'title': 'Tags', 'header': ['partner_id', 'tag'],
+             'rows': [[party.id, tag.name] for party in partners for tag in party.with_context(active_test=False).category_id]},
         ]
 
     @api.model
@@ -131,6 +169,7 @@ class LiwanCustomersPrivacyHooks(models.AbstractModel):
                 'key': 'attachments', 'owner': 'liwan_customers', 'action': ACTION_ERASE,
                 'count': len(self._liwan_subject_attachments(partners)),
             },
+            {'key': 'tags', 'owner': 'liwan_customers', 'action': ACTION_ERASE, 'count': len(self._liwan_subject_tags(partners))},
         ]
 
     @api.model
@@ -138,6 +177,7 @@ class LiwanCustomersPrivacyHooks(models.AbstractModel):
         """Anonymise the parties and archive and clear their bank accounts; the parties keep ``liwan_party``."""
         service = self.env['liwan.customers.service']
         # The files of the customer record go through the ORM, so the storage accounting follows.
+        tag_count = len(self._liwan_subject_tags(partners))
         attachments = self._liwan_subject_attachments(partners)
         attachment_count = len(attachments)
         attachments.unlink()
@@ -151,4 +191,4 @@ class LiwanCustomersPrivacyHooks(models.AbstractModel):
             })
             with marked(self.env, {PRIVACY_MARKER: party.ids}):
                 party.with_context(tracking_disable=True).write({name: False for name in sorted(PRIVACY_WRITE_FIELDS) if name in party._fields})
-        return {'customer': len(partners), 'bank_accounts': len(banks), 'attachments': attachment_count}
+        return {'customer': len(partners), 'bank_accounts': len(banks), 'attachments': attachment_count, 'tags': tag_count}

@@ -2,7 +2,7 @@
 {
     'name': 'liwan Customer Messages',
     'summary': 'liwan platform: the Customer Messages application — WhatsApp conversations, /api/v1/inbox',
-    'version': '19.0.1.20.0',
+    'version': '19.0.1.21.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

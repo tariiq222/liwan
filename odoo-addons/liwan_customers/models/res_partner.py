@@ -11,12 +11,13 @@ PARTY_WRITE_FIELDS = frozenset({
     'name', 'phone', 'email', 'is_company', 'parent_id', 'active', 'liwan_party', 'properties',
 })
 # liwan.customers.privacy.hooks marks the parties it anonymises: the identity fields go through the service marker above, and
-# these personal fields (address, tax and registry numbers, notes, image) through this one, which the guard of liwan_core
+# these personal fields (address, tax and registry numbers, notes, image, tags) through this one, which the guard of liwan_core
 # lets a protected actor write. Only the erase writes them under it.
 PRIVACY_MARKER = 'liwan_customers.privacy_partner_ids'
 PRIVACY_WRITE_FIELDS = frozenset({
     'street', 'street2', 'city', 'zip', 'state_id', 'country_id', 'vat', 'company_registry', 'website', 'function',
     'title', 'comment', 'company_name', 'ref', 'barcode', 'partner_latitude', 'partner_longitude', 'image_1920',
+    'category_id',
 })
 # A party's identity and the values of the tenant's customer fields: only the service writes them. company_id decides who shares the party, and phone_sanitized is what
 # the candidate search matches, so neither is written around the service either.

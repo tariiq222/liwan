@@ -29,7 +29,7 @@ BRANCH_ADMIN = 'mb_a_admin'
 IBAN = 'SA0380000000608010167519'
 # A 1x1 PNG.
 PNG = b'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='
-CORE_KEYS = {'customer', 'bank_accounts', 'attachments'}
+CORE_KEYS = {'customer', 'bank_accounts', 'attachments', 'tags'}
 
 
 def url(customer_id, tail):
@@ -437,7 +437,7 @@ class TestCustomersPrivacy(CustomersCase):
         self.hide_records('res.partner.bank')
         body = self.preview(customer_id).json()
         self.assertEqual(body['incomplete'], self.BANK_HIDDEN)
-        self.assertEqual(body['not_covered'], ['chatter_history', 'free_text_notes', 'stored_documents', 'backups'])
+        self.assertEqual(body['not_covered'][:4], ['chatter_history', 'free_text_notes', 'stored_documents', 'backups'])
 
     def assert_refused_and_untouched(self, customer_id, incomplete):
         token = self.preview(customer_id).json()['token']
@@ -460,6 +460,14 @@ class TestCustomersPrivacy(CustomersCase):
         self.hide_records('res.partner.bank')
         self.assert_refused_and_untouched(customer_id, self.BANK_UNHANDLED)
 
+    def test_a_hidden_uncovered_record_is_reported_as_count_zero_and_incomplete_and_refuses_the_erase(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        self.leave_uncovered('bank_accounts')
+        self.hide_records('res.partner.bank')
+        item = next(item for item in self.preview(customer_id).json()['items'] if item['key'] == 'res.partner.bank')
+        self.assertEqual((item['action'], item['count'], item['complete']), ('unhandled', 0, False))
+        self.assert_refused_and_untouched(customer_id, self.BANK_UNHANDLED)
+
     def test_an_erase_is_refused_while_the_caller_has_no_acl_on_a_model_that_holds_a_record(self):
         customer_id, _child, bank, _key = self.make_customer()
         self.cover_only_the_customer()
@@ -474,7 +482,7 @@ class TestCustomersPrivacy(CustomersCase):
         response = self.preview(customer_id)
         self.assertNotIn(IBAN, response.text)
         item = next(item for item in response.json()['items'] if item['key'] == 'res.partner.bank')
-        self.assertEqual(item, {'key': 'res.partner.bank', 'owner': 'base', 'action': 'unhandled', 'count': 1, 'complete': False})
+        self.assertEqual(item, {'key': 'res.partner.bank', 'owner': 'base', 'action': 'unhandled', 'count': 0, 'complete': False})
         self.assertNotIn('res.partner.bank', response.json()['empty_models'])
 
     def test_an_export_lists_a_hidden_uncovered_model_and_never_includes_its_records(self):
@@ -628,3 +636,33 @@ class TestCustomersPrivacy(CustomersCase):
         dump = json.dumps([list(sheet.values) for sheet in workbook.worksheets], default=str)
         for personal in ('Acme', 'Layla', 'acme@example.test', IBAN):
             self.assertNotIn(personal, dump)
+
+    # ---- tags and the structural models ----
+
+    def test_the_customers_tags_are_covered_exported_and_cleared_by_the_erase(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        partner = self.env['res.partner'].browse(customer_id)
+        partner.write({'category_id': [(0, 0, {'name': 'VIP'}), (0, 0, {'name': 'Riyadh'})]})
+        tags = partner.category_id
+        item = next(item for item in self.preview(customer_id).json()['items'] if item['key'] == 'tags')
+        self.assertEqual((item['action'], item['count'], item['complete'], item['owner']), ('erase', 2, True, 'liwan_customers'))
+        workbook = openpyxl.load_workbook(io.BytesIO(self.export(customer_id).content))
+        self.assertEqual({row[1] for row in list(workbook['Tags'].values)[1:]}, {'VIP', 'Riyadh'})
+        response = self.erased(customer_id)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.log(customer_id).filtered(lambda row: row.kind == 'erase').counts['tags'], 2)
+        self.env.invalidate_all()
+        self.assertFalse(partner.with_context(active_test=False).category_id)
+        self.assertTrue(tags.exists())
+
+    def test_no_model_that_can_hold_a_customers_data_is_on_the_no_data_list(self):
+        left_uncovered = {
+            'hr.employee', 'hr.job', 'hr.version', 'hr.work.location', 'hr.contribution.register', 'calendar.event',
+            'calendar.attendee', 'rating.rating', 'product.supplierinfo', 'sms.sms', 'snailmail.letter',
+            'maintenance.equipment', 'project.project', 'project.task', 'project.collaborator', 'resource.booking',
+            'hr.applicant',
+        }
+        self.assertFalse(left_uncovered & set(privacy_hooks.NO_CUSTOMER_DATA))
+        self.assertEqual(
+            {name for name in left_uncovered if name.startswith(privacy_hooks.NO_CUSTOMER_DATA_PREFIXES)}, set(),
+        )
