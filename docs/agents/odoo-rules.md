@@ -183,7 +183,10 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   clones a cached template database that has every release module installed, runs `-u` of the
   changed addons and their dependents, takes a free HTTP port from 8170-8199 and a unique
   `liwan_scratch_*` database per run, drops it afterwards, and queues through `tools/test_slot.py`.
-  Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. Its `-u` run sees a partial
+  Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`, `--shards N`.
+  `--shards N` (up to 4, default 1) splits the tests of the selected addons over N clones that run at
+  the same time, each updating the full set and running only its own addons' tests; the run still
+  holds one test slot. The runner's `-u` run sees a partial
   registry for low-rank `at_install` tests, so tests touching later modules are tagged
   `post_install` (see `docs/testing.md` section 1). The full fresh `-i` block under **Check commands**
   below is the release/CI-equivalent check; use it with `deploy/ci/odoo.sh` (the **odoo** stage, including its classification fixture; the

@@ -8,9 +8,12 @@ from unittest import mock
 import oca_addons
 import odoo_test
 from odoo_test import (
+    MAX_SHARDS,
     OdooTestError,
+    Shard,
     acquire_port,
     changed_addons,
+    check_shard_count,
     copy_filestore,
     filestore_dest,
     filestore_src,
@@ -18,8 +21,13 @@ from odoo_test import (
     local_addons,
     local_depends,
     parse_result,
+    report_shards,
     require_scratch,
+    shard_outcome,
+    split_shards,
     template_name,
+    test_weight,
+    total_verdict,
     unmanifested_dirs,
     verdict,
     with_dependencies,
@@ -193,6 +201,90 @@ class TestGc(unittest.TestCase):
             gc_selection(names, 'liwan_scratch_tpl_cur', active),
             ['liwan_scratch_run_1', 'liwan_scratch_tpl_old', 'liwan_scratch_tplb_1'],
         )
+
+
+class TestShardSplit(TempDirCase):
+    def test_groups_are_balanced_deterministic_and_cover_every_addon_once(self):
+        weights = {'a': 100, 'b': 90, 'c': 50, 'd': 40, 'e': 10, 'f': 0}
+        groups = split_shards(weights, 2)
+        self.assertEqual(groups, split_shards(dict(reversed(list(weights.items()))), 2))
+        self.assertEqual(sorted(name for group in groups for name in group), sorted(weights))
+        loads = sorted(sum(weights[n] for n in group) for group in groups)
+        self.assertEqual(loads, [140, 150])
+
+    def test_never_more_groups_than_addons_with_tests(self):
+        self.assertEqual(split_shards({'a': 5, 'b': 0, 'c': 0}, 4), [['a', 'b', 'c']])
+        self.assertEqual(split_shards({'a': 5, 'b': 3}, 4), [['a'], ['b']])
+        self.assertEqual(split_shards({'a': 0}, 3), [['a']])
+        self.assertEqual(split_shards({'a': 5, 'b': 3}, 1), [['a', 'b']])
+
+    def test_shard_count_is_capped(self):
+        self.assertEqual(check_shard_count(MAX_SHARDS), MAX_SHARDS)
+        for bad in (0, -1, MAX_SHARDS + 1):
+            with self.assertRaisesRegex(OdooTestError, '--shards'):
+                check_shard_count(bad)
+
+    def test_weight_counts_test_lines_and_is_zero_without_tests(self):
+        tests = self.root / 'liwan_a' / 'tests'
+        (tests / 'sub').mkdir(parents=True)
+        (tests / 'test_x.py').write_text('a\nb\n', encoding='utf-8')
+        (tests / 'sub' / 'test_y.py').write_text('c\n', encoding='utf-8')
+        (self.root / 'liwan_b').mkdir()
+        self.assertEqual(test_weight(self.root, 'liwan_a'), 3)
+        self.assertEqual(test_weight(self.root, 'liwan_b'), 0)
+
+
+class TestShardResults(TempDirCase):
+    def shards(self, count):
+        return [Shard(i, count, ['liwan_a%d' % i], self.root) for i in range(1, count + 1)]
+
+    def test_shard_databases_are_scratch_names_gc_can_collect(self):
+        shards = self.shards(3)
+        for shard in shards:
+            self.assertTrue(odoo_test.SCRATCH_DB.fullmatch(shard.database))
+            self.assertTrue(odoo_test.GC_DB.fullmatch(shard.database))
+            self.assertTrue((shard.workdir / 'data').is_dir())
+        self.assertEqual(len({s.database for s in shards}), 3)
+
+    def test_a_shard_with_zero_tests_passes_but_a_run_with_zero_tests_does_not(self):
+        self.assertEqual(shard_outcome(0, (0, 0, 0)), (True, ''))
+        self.assertEqual(total_verdict([(0, 0, 0), (0, 0, 0)])[0], False)
+        self.assertEqual(total_verdict([(0, 0, 0), (0, 0, 7)]), (True, ''))
+        self.assertFalse(shard_outcome(0, (1, 0, 4))[0])
+        self.assertFalse(shard_outcome(0, (0, 2, 4))[0])
+        self.assertFalse(shard_outcome(1, (0, 0, 4))[0])
+        self.assertFalse(shard_outcome(0, None)[0])
+
+    def report(self, outcomes):
+        shards = self.shards(len(outcomes))
+        with mock.patch.object(odoo_test.sys, 'stdout') as out:
+            ok = report_shards(shards, outcomes, self.root)
+        return ok, ''.join(call.args[0] for call in out.write.call_args_list)
+
+    def test_report_totals_every_shard_and_passes_when_all_pass(self):
+        ok, text = self.report([(0, '', '', (0, 0, 3)), (0, '', '', (0, 0, 4))])
+        self.assertTrue(ok)
+        self.assertIn('shard 1/2: 3 tests', text)
+        self.assertIn('total: 7 tests, 0 failed, 0 errors in 2 shard(s)', text)
+
+    def test_report_fails_when_any_shard_fails_and_names_its_log(self):
+        ok, text = self.report([(0, '', '', (0, 0, 3)), (1, 'x ERROR boom\n', '', (1, 0, 4))])
+        self.assertFalse(ok)
+        self.assertIn('FAILED shard 2/2: 1 failed, 0 errors', text)
+        self.assertIn(str(self.root / 'last-failure-shard-2.log'), text)
+        self.assertEqual((self.root / 'last-failure-shard-2.log').read_text(encoding='utf-8'), 'x ERROR boom\n')
+        self.assertFalse((self.root / 'last-failure-shard-1.log').exists())
+
+    def test_report_fails_a_shard_without_a_result_line(self):
+        ok, text = self.report([(0, '', '', (0, 0, 3)), (2, 'tail line\n', '', None)])
+        self.assertFalse(ok)
+        self.assertIn('no test result line', text)
+        self.assertNotIn('total:', text)
+
+    def test_report_fails_when_no_test_ran_at_all(self):
+        ok, text = self.report([(0, '', '', (0, 0, 0))])
+        self.assertFalse(ok)
+        self.assertIn('zero tests ran', text)
 
 
 if __name__ == '__main__':
