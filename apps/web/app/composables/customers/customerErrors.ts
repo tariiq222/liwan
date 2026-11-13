@@ -10,12 +10,20 @@ export function customerConflictCandidates(error: unknown): CustomerCandidate[] 
   return parsed.success ? parsed.data.candidates : null
 }
 
-/** The fields (with their value counts) a settings write would remove while customers still hold values, or null for any other error. */
-export function customerFieldRemoval(error: unknown): CustomerFieldRemovalDetails['fields'] | null {
+/** What a settings write would take from customers who still hold values (removed fields, removed options), or null for any other error. */
+export function customerFieldRemoval(error: unknown): CustomerFieldRemovalDetails | null {
   const failure = error as Refusal | null
   if (failure?.status !== 409 || failure.code !== 'custom_field_values_exist') return null
   const parsed = CustomerFieldRemovalDetailsSchema.safeParse(failure.details)
-  return parsed.success ? parsed.data.fields : null
+  return parsed.success ? parsed.data : null
+}
+
+export type CustomerRemovalKind = 'fields' | 'options' | 'both'
+
+/** Whether a refused write removes only fields, only options of fields that stay, or both: the confirmation words itself by it. */
+export function customerRemovalKind(removal: CustomerFieldRemovalDetails): CustomerRemovalKind {
+  if (!removal.options.length) return 'fields'
+  return removal.fields.length ? 'both' : 'options'
 }
 
 /** The form field a create or edit refusal belongs to: the phone, the party kind (`is_company`) or the parent company; null for any other refusal. */

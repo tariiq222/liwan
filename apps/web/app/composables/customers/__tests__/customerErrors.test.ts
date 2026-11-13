@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../useApi'
-import { customerConflictCandidates, customerFieldRemoval, customerFormField, customerPropertyError, isSharingTransferRequired } from '../customerErrors'
+import { customerConflictCandidates, customerFieldRemoval, customerFormField, customerRemovalKind, customerPropertyError, isSharingTransferRequired } from '../customerErrors'
 
 const candidates = [{ id: 7, name: 'منى العتيبي', phone_last4: '4567' }, { id: 9, name: 'مؤسسة العتيبي', phone_last4: null }]
 
@@ -42,14 +42,29 @@ describe('customerPropertyError', () => {
 })
 
 describe('customerFieldRemoval', () => {
-  it('returns each field with the number of values the removal would delete', () => {
-    const fields = [{ key: 'city', label: 'المدينة', count: 12 }]
-    expect(customerFieldRemoval(new ApiError(409, 'custom_field_values_exist', 'x', undefined, { fields }))).toEqual(fields)
+  const fields = [{ key: 'city', label: 'المدينة', count: 12 }]
+  const options = [{ field_key: 'tier', field_label: 'الفئة', key: 'gold', label: 'ذهبي', count: 3 }]
+
+  it('returns the removed fields and the removed options with the number of customers that lose a value', () => {
+    expect(customerFieldRemoval(new ApiError(409, 'custom_field_values_exist', 'x', undefined, { fields, options: [] }))).toEqual({ fields, options: [] })
+    expect(customerFieldRemoval(new ApiError(409, 'custom_field_values_exist', 'x', undefined, { fields: [], options }))).toEqual({ fields: [], options })
+    expect(customerFieldRemoval(new ApiError(409, 'custom_field_values_exist', 'x', undefined, { fields, options }))).toEqual({ fields, options })
   })
 
   it('ignores other 409s and details of another shape', () => {
-    expect(customerFieldRemoval(new ApiError(409, 'conflict', 'x', undefined, { fields: [{ key: 'a', label: 'a', count: 1 }] }))).toBeNull()
-    expect(customerFieldRemoval(new ApiError(409, 'custom_field_values_exist', 'x', undefined, { fields: [] }))).toBeNull()
+    expect(customerFieldRemoval(new ApiError(409, 'conflict', 'x', undefined, { fields, options: [] }))).toBeNull()
+    expect(customerFieldRemoval(new ApiError(409, 'custom_field_values_exist', 'x', undefined, { fields: [], options: [] }))).toBeNull()
+    expect(customerFieldRemoval(new ApiError(409, 'custom_field_values_exist', 'x', undefined, { fields }))).toBeNull()
+  })
+})
+
+describe('customerRemovalKind', () => {
+  it('names what the write removes: only fields, only options or both', () => {
+    const fields = [{ key: 'city', label: 'المدينة', count: 12 }]
+    const options = [{ field_key: 'tier', field_label: 'الفئة', key: 'gold', label: 'ذهبي', count: 3 }]
+    expect(customerRemovalKind({ fields, options: [] })).toBe('fields')
+    expect(customerRemovalKind({ fields: [], options })).toBe('options')
+    expect(customerRemovalKind({ fields, options })).toBe('both')
   })
 })
 

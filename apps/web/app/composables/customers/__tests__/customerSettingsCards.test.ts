@@ -22,7 +22,7 @@ const seed = (): CustomerSettings => ({
   revision: 3,
 })
 const sharing = () => useCustomerSharingCard({ settings: () => settings.value, reload: async () => settings.value })
-const fields = () => useCustomerFieldsCard({ settings: () => settings.value, reload: async () => settings.value, removalMessage: 'confirm below' })
+const fields = () => useCustomerFieldsCard({ settings: () => settings.value, reload: async () => settings.value, removalMessage: kind => `confirm ${kind}` })
 
 beforeEach(() => {
   vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
@@ -71,7 +71,7 @@ describe('useCustomerSharingCard', () => {
   })
 })
 
-const removalDetails = { fields: [{ key: 'vip', label: 'مميز', count: 12 }] }
+const removalDetails = { fields: [{ key: 'vip', label: 'مميز', count: 12 }], options: [] }
 const withoutVip = (card: ReturnType<typeof fields>) => { card.draft.value.fields = card.draft.value.fields.filter(field => field.key !== 'vip') }
 
 describe('useCustomerFieldsCard', () => {
@@ -90,9 +90,19 @@ describe('useCustomerFieldsCard', () => {
     const card = fields()
     withoutVip(card)
     await card.save()
-    expect(card.removal.value).toEqual(removalDetails.fields)
-    expect(card.state.value.message).toBe('confirm below')
+    expect(card.removal.value).toEqual(removalDetails)
+    expect(card.state.value.message).toBe('confirm fields')
     expect(card.draft.value.fields.map(field => field.key)).toEqual(['city'])
+  })
+
+  it('stops the same way for an option customers still hold and says it is an option', async () => {
+    const optionDetails = { fields: [], options: [{ field_key: 'city', field_label: 'المدينة', key: 'riyadh', label: 'الرياض', count: 4 }] }
+    save.mockRejectedValue(new ApiError(409, 'custom_field_values_exist', 'values', undefined, optionDetails))
+    const card = fields()
+    card.draft.value.fields[0]!.label = 'البلدة'
+    await card.save()
+    expect(card.removal.value).toEqual(optionDetails)
+    expect(card.state.value.message).toBe('confirm options')
   })
 
   it('repeats the write with confirm_field_removal only after the user confirms', async () => {

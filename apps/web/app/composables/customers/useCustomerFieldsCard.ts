@@ -2,17 +2,17 @@ import { ref, watch } from 'vue'
 import type { CustomerFieldRemovalDetails, CustomerSettings, CustomFieldDefinitionPatchItem } from '@liwan/contracts'
 import { ApiError } from '../useApi'
 import { useSettingsForm } from '../settings/useSettingsForm'
-import { customerFieldRemoval } from './customerErrors'
+import { customerFieldRemoval, customerRemovalKind, type CustomerRemovalKind } from './customerErrors'
 import { useSaveCustomerSettings } from './useCustomerSettings'
 
 /**
- * The fields card's draft. A write that removes fields customers still hold values for is refused (409
- * `custom_field_values_exist`) with the count per field: the card keeps its draft, raises `removal` for the user to
+ * The fields card's draft. A write that removes fields, or options of a field, that customers still hold values for is
+ * refused (409 `custom_field_values_exist`) with the count per field and per option: the card keeps its draft, raises `removal` for the user to
  * read, and `confirmRemoval()` repeats the write with `confirm_field_removal`.
  */
-export function useCustomerFieldsCard(options: { settings: () => CustomerSettings; reload: () => Promise<CustomerSettings>; removalMessage: string }) {
+export function useCustomerFieldsCard(options: { settings: () => CustomerSettings; reload: () => Promise<CustomerSettings>; removalMessage: (kind: CustomerRemovalKind) => string }) {
   const { mutateAsync: saveSettings } = useSaveCustomerSettings()
-  const removal = ref<CustomerFieldRemovalDetails['fields'] | null>(null)
+  const removal = ref<CustomerFieldRemovalDetails | null>(null)
   let confirmed = false
   const form = useSettingsForm({
     source: options.settings,
@@ -27,7 +27,7 @@ export function useCustomerFieldsCard(options: { settings: () => CustomerSetting
         const withValues = customerFieldRemoval(error)
         if (!withValues) throw error
         removal.value = withValues
-        throw new ApiError(409, 'custom_field_values_exist', options.removalMessage)
+        throw new ApiError(409, 'custom_field_values_exist', options.removalMessage(customerRemovalKind(withValues)))
       }
     },
     reload: options.reload,

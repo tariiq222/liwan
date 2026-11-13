@@ -6,8 +6,9 @@
 //    until it is repeated with `create_new`;
 //  - the party kinds setting decides which `is_company` a create may carry (422 `invalid` with `party_kind_not_allowed`);
 //  - the settings carry a revision: a stale one answers 409 `conflict`; changing the sharing mode while customers exist
-//    answers 409 `sharing_transfer_required`; removing a field customers hold values for answers 409
-//    `custom_field_values_exist` with the counts until the write carries `confirm_field_removal`;
+//    answers 409 `sharing_transfer_required`; removing a field, or an option of a selection or tags field, that
+//    customers hold answers 409 `custom_field_values_exist` with the counts (`fields` and `options`) until the write
+//    carries `confirm_field_removal`, which then clears the values;
 //  - `is_company=true|false` on the list is a strict filter; `parent_id` must name a company customer (422 on `parent_id`);
 //  - the settings countries (`/api/v1/customers/settings/countries`, `customers.settings.manage`) are a fixed list, and
 //    `phone_country_id: null` means the main company's country (Saudi Arabia here);
@@ -38,12 +39,13 @@ const freshSettings = () => ({
   fields: [
     { key: 'city', label: 'المدينة', type: 'char' },
     { key: 'vip', label: 'عميل مميز', type: 'boolean' },
+    { key: 'tier', label: 'الفئة', type: 'selection', options: [{ key: 'gold', label: 'ذهبية' }, { key: 'silver', label: 'فضية' }] },
   ],
   field_limits: LIMITS,
   revision: 1,
 })
 const freshCustomers = () => [
-  { id: 1, name: 'منى العتيبي', phone: '+966500000001', email: 'mona@example.com', is_company: false, parent: null, active: true, company: COMPANY, values: { city: 'الرياض', vip: true } },
+  { id: 1, name: 'منى العتيبي', phone: '+966500000001', email: 'mona@example.com', is_company: false, parent: null, active: true, company: COMPANY, values: { city: 'الرياض', vip: true, tier: 'gold' } },
   { id: 2, name: 'مؤسسة النخيل', phone: '+966500000002', email: null, is_company: true, parent: null, active: true, company: null, values: { city: 'جدة' } },
   { id: 3, name: 'خالد الشهري', phone: '+966500000001', email: null, is_company: false, parent: null, active: true, company: COMPANY, values: {} },
   { id: 4, name: 'سارة الحربي', phone: null, email: 'sara@example.com', is_company: false, parent: { id: 2, name: 'مؤسسة النخيل' }, active: false, company: COMPANY, values: {} },
@@ -136,6 +138,26 @@ function valuesHeld(key) {
   return customers.filter(customer => customer.values[key] !== undefined && customer.values[key] !== null && customer.values[key] !== false).length
 }
 
+const holdsOption = (value, key) => Array.isArray(value) ? value.includes(key) : value === key
+
+/** The options a new definition drops from a field that stays, with the customers that still hold each one. */
+function removedOptionsHeld(definition) {
+  return definition.flatMap((field) => {
+    const before = settings.fields.find(candidate => candidate.key === field.key)
+    const kept = new Set((field.options ?? []).map(option => option.key).filter(Boolean))
+    return (before?.options ?? [])
+      .filter(option => !kept.has(option.key))
+      .map(option => ({ field_key: before.key, field_label: before.label, key: option.key, label: option.label, count: customers.filter(customer => holdsOption(customer.values[before.key], option.key)).length }))
+      .filter(entry => entry.count > 0)
+  })
+}
+
+function clearOption(customer, entry) {
+  const value = customer.values[entry.field_key]
+  if (Array.isArray(value)) customer.values[entry.field_key] = value.filter(key => key !== entry.key)
+  else if (value === entry.key) delete customer.values[entry.field_key]
+}
+
 function updateSettings(body, manage) {
   if (!manage) return refusal(403, 'forbidden', 'only the main company manages these settings')
   if (body.revision !== settings.revision) return refusal(409, 'conflict', 'Customer settings changed; reload before saving')
@@ -150,9 +172,11 @@ function updateSettings(body, manage) {
     const keptKeys = new Set(body.fields.map(field => field.key).filter(Boolean))
     const removed = settings.fields.filter(field => !keptKeys.has(field.key))
     const held = removed.map(field => ({ key: field.key, label: field.label, count: valuesHeld(field.key) })).filter(entry => entry.count > 0)
-    if (held.length && body.confirm_field_removal !== true) {
-      return refusal(409, 'custom_field_values_exist', 'customers hold values for the removed fields', { details: { fields: held } })
+    const heldOptions = removedOptionsHeld(body.fields)
+    if ((held.length || heldOptions.length) && body.confirm_field_removal !== true) {
+      return refusal(409, 'custom_field_values_exist', 'customers hold values for the removed fields or options', { details: { fields: held, options: heldOptions } })
     }
+    for (const entry of heldOptions) for (const customer of customers) clearOption(customer, entry)
     next.fields = body.fields.map((field, index) => ({
       ...field,
       key: field.key ?? `field_${settings.revision}_${index}`,

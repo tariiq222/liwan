@@ -110,11 +110,28 @@
       "fields": {
         "title": "Customer fields",
         "hint": "Fields your company adds to every customer. A new field appears empty on all customers.",
-        "removalNeeded": "Some removed fields hold values. Confirm the removal below.",
-        "removeTitle": "Remove fields that hold values",
-        "removeHint": "Removing a field deletes its values from customers and cannot be undone.",
-        "removeRow": "{label}: 1 value | {label}: {count} values",
-        "removeConfirm": "Remove the fields and their values"
+        "removal": {
+          "fields": {
+            "needed": "Some removed fields hold values. Confirm the removal below.",
+            "title": "Remove fields that hold values",
+            "hint": "Removing a field deletes its values from customers and cannot be undone.",
+            "confirm": "Remove the fields and their values"
+          },
+          "options": {
+            "needed": "Some removed options are in use by customers. Confirm the removal below.",
+            "title": "Remove options that customers use",
+            "hint": "Removing an option clears it from the customers who hold it and cannot be undone.",
+            "confirm": "Remove the options"
+          },
+          "both": {
+            "needed": "Some removed fields hold values and some removed options are in use. Confirm the removal below.",
+            "title": "Remove fields and options in use",
+            "hint": "Removing a field deletes its values, and removing an option clears it from the customers who hold it. This cannot be undone.",
+            "confirm": "Remove the fields and options"
+          },
+          "fieldRow": "{label}: 1 value | {label}: {count} values",
+          "optionRow": "Option {option} of field {field}: 1 customer | Option {option} of field {field}: {count} customers"
+        }
       }
     }
   }
