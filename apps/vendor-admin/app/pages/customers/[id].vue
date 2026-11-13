@@ -3,7 +3,7 @@ import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
-import { cancellationErrorKey, renewalErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
+import { cancellationErrorKey, deletionErrorKey, renewalErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
@@ -152,6 +152,33 @@ async function changeRenewal() {
     await refreshCancellationState()
   } catch (cause) { renewalFailure.value = t(renewalErrorKey(cause)) } finally { renewalBusy.value = false }
 }
+// The customer's own workspace-deletion request: the console shows its dates and what happened to the renewal, and withdraws it on the customer's behalf with a reason and a fresh passkey confirmation. It cannot ask for or confirm one.
+const { data: deletionData, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletion(id.value))).value?.deletion ?? null)
+const deletion = computed(() => (deletionData.value && ['requested', 'confirmed', 'due'].includes(deletionData.value.state) ? deletionData.value : null))
+const deletionWithdrawOpen = ref(false)
+const deletionReason = ref('')
+const deletionBusy = ref(false)
+const deletionFailure = ref<string | undefined>()
+const canWithdrawDeletion = computed(() => can('vendor.subscriptions.manage') && !error.value && deletion.value !== null && deletion.value.state !== 'due')
+const validDeletionReason = computed(() => deletionReason.value.trim().length >= 3 && deletionReason.value.trim().length <= 1000)
+function closeDeletion() { deletionWithdrawOpen.value = false; deletionReason.value = ''; deletionFailure.value = undefined }
+async function withdrawDeletion() {
+  if (!hydrated.value || deletionBusy.value || !canWithdrawDeletion.value || !validDeletionReason.value) return
+  deletionBusy.value = true; deletionFailure.value = undefined
+  try {
+    await api.withdrawTenantDeletion(id.value, deletionReason.value)
+    closeDeletion()
+    await refreshDeletion()
+  } catch (cause) { deletionFailure.value = t(deletionErrorKey(cause)) } finally { deletionBusy.value = false }
+}
+const deletionMessage = computed(() => deletion.value && t(`vendor.customers.deletion.${deletion.value.state}`, {
+  requested: formatLiwanDate(deletion.value.requested_at), confirmed: formatLiwanDate(deletion.value.confirmed_at ?? ''), due: formatLiwanDate(deletion.value.due_at ?? ''),
+}))
+const deletionRenewal = computed(() => {
+  const request = deletion.value
+  if (!request?.renewal_outcome) return null
+  return t(`vendor.customers.deletion.renewal.${request.renewal_outcome}`, { reason: request.renewal_refusal ? t(`vendor.customers.deletion.refusals.${request.renewal_refusal}`) : '' })
+})
 async function refreshCancellationState() {
   await refresh()
   await refreshExtra()
@@ -250,6 +277,16 @@ async function cancelPendingOrder() {
                 <UButton v-else color="error" variant="outline" size="sm" icon="i-lucide-calendar-x" :disabled="!hydrated" data-testid="cancel-renewal" @click="renewalAction = 'cancel'">{{ t('vendor.customers.renewalCancel.cancel') }}</UButton>
               </template>
             </div>
+            <div v-if="deletion" class="mt-4 space-y-3" data-testid="deletion-request">
+              <UAlert :color="deletion.state === 'due' ? 'error' : 'warning'" variant="subtle" icon="i-lucide-trash-2" :title="deletionMessage ?? undefined" :description="deletionRenewal ?? undefined" />
+              <UAlert v-if="deletionFailure" color="error" variant="subtle" role="alert" :title="deletionFailure" />
+              <template v-if="canWithdrawDeletion">
+                <SharedInlineConfirm v-if="deletionWithdrawOpen" :title="t('vendor.customers.deletion.withdrawTitle')" :description="t('vendor.customers.deletion.withdrawHint')" :confirm-label="t('vendor.customers.deletion.withdraw')" color="primary" :pending="deletionBusy" :disabled="!hydrated || deletionBusy || !validDeletionReason" @confirm="withdrawDeletion" @cancel="closeDeletion">
+                  <UFormField :label="t('vendor.customers.deletion.reason')" required class="mt-3"><UTextarea v-model="deletionReason" :maxlength="1000" :disabled="!hydrated || deletionBusy" class="w-full" /></UFormField>
+                </SharedInlineConfirm>
+                <UButton v-else color="neutral" variant="outline" size="sm" icon="i-lucide-rotate-ccw" :disabled="!hydrated" data-testid="withdraw-deletion" @click="deletionWithdrawOpen = true">{{ t('vendor.customers.deletion.withdraw') }}</UButton>
+              </template>
+            </div>
             <VendorTrialPanel v-if="view && (view.state === 'trialing' || view.trial_reopenable)" :subscription="view" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
             <p v-if="view?.pending_order && can('vendor.subscriptions.manage')" class="mt-3 text-sm text-muted">{{ t('vendor.customers.changeBlocked') }}</p>
             <UAlert v-if="cancelFailure" class="mt-3" color="error" variant="subtle" :title="cancelFailure" />
@@ -330,5 +367,5 @@ async function cancelPendingOrder() {
         </template>
       </div>
 </SharedRecordPage>
-  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || operationsDirty" guard-route-updates />
+  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || Boolean(deletionReason.trim()) || operationsDirty" guard-route-updates />
 </template>

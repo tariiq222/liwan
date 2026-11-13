@@ -80,7 +80,8 @@
         "operation_failed": "Operation failed: {operation}",
         "setup_required": "Needs commercial setup",
         "renewal_missed": "Renewal date passed {duration} ago and not renewed",
-        "renewal_soon": "Renews within {duration}"
+        "renewal_soon": "Renews within {duration}",
+        "tenant_deletion_due": "The customer's deletion request is due. Nothing carries it out yet: check the request before it is handled"
       },
       "refundReasons": {
         "refund_exceeds_payment": "refunded more than was paid",
@@ -105,7 +106,8 @@
         "operation_failed": "Open the operation",
         "setup_required": "Open the subscription",
         "renewal_missed": "Open the subscription",
-        "renewal_soon": "Open the subscription"
+        "renewal_soon": "Open the subscription",
+        "tenant_deletion_due": "Open the request"
       },
       "statusTitle": "Overall status",
       "statusLabel": "Overall status counts",
@@ -1108,6 +1110,32 @@
           "cancel_trial_unsupported": "A trial ends by itself.",
           "cancel_already_effective": "The period has ended; the cancellation can no longer be withdrawn."
         }
+      },
+      "deletion": {
+        "requested": "Deletion requested on {requested}. Waiting for the customer to confirm with the emailed code.",
+        "confirmed": "Deletion confirmed on {confirmed}. The workspace, its files and its backups are due to be deleted on {due}.",
+        "due": "The 30-day window ended on {due}. The deletion is due and nothing has carried it out yet.",
+        "renewal": {
+          "cancelled": "The paid renewal was cancelled at the period end. No refund is made.",
+          "already_cancelled": "The paid renewal was already cancelled.",
+          "not_cancellable": "The paid renewal could not be cancelled automatically ({reason}). Stop it by hand if the customer pays."
+        },
+        "refusals": {
+          "nothing_to_cancel": "the workspace is on the free base",
+          "no_subscription": "there is no subscription",
+          "cancel_trial_unsupported": "it is a trial",
+          "subscription_past_due": "an invoice is overdue",
+          "lock_pending": "a change to the free base is being applied",
+          "subscription_suspended": "the subscription is suspended",
+          "subscription_change_pending": "a change is still being processed",
+          "renewal_in_progress": "a renewal is being applied",
+          "subscription_required": "the subscription has no applied plan"
+        },
+        "withdraw": "Withdraw deletion request",
+        "withdrawTitle": "Withdraw the deletion request on the customer's behalf?",
+        "withdrawHint": "The workspace is not deleted. A cancelled renewal is not resumed: the customer resumes it from the subscription page. The customer receives an email and so do you.",
+        "reason": "Reason (3-1000 characters)",
+        "errors": { "deletion_due": "The window has ended: the request can no longer be withdrawn." }
       },
       "cancelOrder": {
         "action": "Cancel pending order",

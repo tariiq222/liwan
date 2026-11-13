@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, type Principal } from '@liwan/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { createCustomerTerms } from './customer-terms.js'
@@ -21,6 +21,8 @@ import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-
 import { endTrial, extendTrial, startTrial } from './trial.js'
 import { resumeSubscription, suspendSubscription } from './suspension.js'
 import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
+import { latestTenantDeletionRequest, listTenantDeletionRequests } from './tenant-deletion-read.js'
+import { withdrawDeletion } from './tenant-deletion.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
@@ -65,6 +67,24 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   }
   if(path==='/attention'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await attention(pool,input.capabilities.includes('vendor.billing.manage'))}}
   if(path==='/clients'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await listClients(pool,url)}}
+  // Workspace deletions are asked and confirmed only by the customer; the vendor sees every request and can withdraw one on the customer's behalf.
+  if(path==='/deletion-requests'&&m==='GET'){
+    need(input,'vendor.read')
+    const state=url.searchParams.get('state')
+    if(state!==null&&!tenantDeletionStateSchema.safeParse(state).success)throw new CommercialHttpError('invalid',422,'state')
+    return {status:200,data:await listTenantDeletionRequests(pool,state)}
+  }
+  const deletion=/^\/customers\/([^/]+)\/deletion(\/withdraw)?$/.exec(path)
+  if(deletion&&((!deletion[2]&&m==='GET')||(deletion[2]&&m==='POST'))){
+    // The capability is checked before the customer is looked up, so a role without it learns nothing about any id.
+    if(deletion[2]){need(input,'vendor.subscriptions.manage');if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)}
+    else need(input,'vendor.read')
+    if(!z.uuid().safeParse(deletion[1]).success||!(await pool.query('SELECT 1 FROM customers WHERE id=$1',[deletion[1]])).rowCount)throw new CommercialHttpError('not_found',404)
+    if(!deletion[2])return {status:200,data:{deletion:await latestTenantDeletionRequest(pool,deletion[1]!)}}
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    await withdrawDeletion(pool,{customer_id:deletion[1]!,by:'vendor',actor:principal.actor_id,client_address:input.clientAddress??null,reason:body.reason})
+    return {status:200,data:{deletion:await latestTenantDeletionRequest(pool,deletion[1]!)}}
+  }
   const customerDetail=/^\/customers\/([^/]+)$/.exec(path)
   if(m==='GET'&&customerDetail){need(input,'vendor.read');if(!z.uuid().safeParse(customerDetail[1]).success)throw new CommercialHttpError('not_found',404);const customer=(await pool.query('SELECT * FROM customers WHERE id=$1',[customerDetail[1]])).rows[0];if(!customer)throw new CommercialHttpError('not_found',404);return {status:200,data:await customerView(pool,customer)}}
   const subscription=/^\/subscriptions\/([^/]+)(?:\/(branches|usage))?$/.exec(path)

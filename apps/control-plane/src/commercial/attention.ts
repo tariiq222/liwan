@@ -138,6 +138,9 @@ const subjectsSql = `WITH latest AS (
     AND NOT EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind=ob.kind AND later.aggregate_id=ob.aggregate_id
       AND later.status='done' AND later.created_at>ob.created_at)
   ORDER BY c.id, ob.processed_at DESC
+), deletion_due AS (
+  -- A customer's own deletion request whose 30-day window has ended. Nothing carries it out yet, so it waits here for the vendor until the drop stage handles it.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, r.due_at FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE r.state='due'
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
@@ -145,6 +148,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'bank_transfer_claimed', customer_id, tenant_id, NULL, invoice_id, name, ${iso('claimed_at')}, value_date, claimed_at FROM claimed_transfers WHERE $3::boolean
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
+  UNION ALL SELECT 2,'tenant_deletion_due', customer_id, tenant_id, NULL, NULL, name, ${iso('due_at')}, NULL, due_at FROM deletion_due
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('armed_at')}, reason, armed_at FROM lock_blocked
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue

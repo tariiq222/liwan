@@ -15,6 +15,8 @@ import { sendWorkspaceDelayNotices } from './workspace-delay-notice.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
 import { sendBillingNotices } from './billing-notices.js'
 import { sendCancellationNotices } from './cancellation-notices.js'
+import { expireDeletionCodes, markDueDeletions } from './tenant-deletion.js'
+import { sendTenantDeletionNotices } from './tenant-deletion-notices.js'
 import { processRefundOutbox } from './settlements.js'
 import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -113,6 +115,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         }
       })
       await job('invitation.reissue', () => processReissueRequests(pool, { signal: o.signal, log }))
+      await job('tenant-deletion-due', async () => { await expireDeletionCodes(pool); await markDueDeletions(pool) })
       if (o.mailAdapter) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
@@ -120,6 +123,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
         await job('cancellation-notices', () => sendCancellationNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
+        await job('tenant-deletion-notices', () => sendTenantDeletionNotices(pool, { mail, signal: o.signal }))
         await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, signal: o.signal }))
       }
       await job('vendor-alerts', () => sendVendorAlerts(pool, { now: new Date(clock()), env, mail: o.mailAdapter, telegram, consoleOrigin: config.admin?.origin, signal: o.signal, log }))

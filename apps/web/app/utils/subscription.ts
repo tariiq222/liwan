@@ -387,3 +387,9 @@ export function latestOnly() {
   let latest = 0
   return { next: () => ++latest, isCurrent: (ticket: number) => ticket === latest, cancel: () => { latest++ } }
 }
+
+/** The sentence for a workspace-deletion refusal the control plane answers; an unknown code gets the generic one. */
+export function deletionErrorKey(code: unknown): string {
+  return ['invalid_code', 'company_name_mismatch', 'rate_limited', 'deletion_pending', 'deletion_due', 'no_workspace', 'no_manager_address'].includes(String(code))
+    ? `subscription.deletion.errors.${code}` : 'subscription.deletion.failed'
+}

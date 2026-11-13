@@ -80,7 +80,8 @@
         "operation_failed": "فشلت عملية: {operation}",
         "setup_required": "يحتاج إعدادًا تجاريًا",
         "renewal_missed": "تاريخ التجديد مضى منذ {duration} ولم يتجدد",
-        "renewal_soon": "يتجدد خلال {duration}"
+        "renewal_soon": "يتجدد خلال {duration}",
+        "tenant_deletion_due": "طلب حذف مساحة العميل استحق. لا شيء ينفّذه بعد، فتحقق من الطلب قبل معالجته"
       },
       "refundReasons": {
         "refund_exceeds_payment": "المبلغ المسترد أكبر من المدفوع",
@@ -105,7 +106,8 @@
         "operation_failed": "افتح العملية",
         "setup_required": "افتح الاشتراك",
         "renewal_missed": "افتح الاشتراك",
-        "renewal_soon": "افتح الاشتراك"
+        "renewal_soon": "افتح الاشتراك",
+        "tenant_deletion_due": "افتح الطلب"
       },
       "statusTitle": "الحالة العامة",
       "statusLabel": "أعداد الحالة العامة",
@@ -1108,6 +1110,32 @@
           "cancel_trial_unsupported": "التجربة تنتهي وحدها.",
           "cancel_already_effective": "انتهت الفترة، ولم يعد سحب الإلغاء ممكنًا."
         }
+      },
+      "deletion": {
+        "requested": "طُلب الحذف في {requested}. ينتظر تأكيد العميل بالرمز المرسل إلى بريده.",
+        "confirmed": "أكّد العميل الحذف في {confirmed}. تُحذف مساحة العمل وملفاتها ونسخها الاحتياطية في {due}.",
+        "due": "انتهت مهلة الـ30 يومًا في {due}. الحذف مستحق ولم ينفّذه شيء بعد.",
+        "renewal": {
+          "cancelled": "أُلغي تجديد الاشتراك المدفوع عند نهاية الفترة، ولا يُسترد مبلغ.",
+          "already_cancelled": "تجديد الاشتراك المدفوع كان ملغى أصلًا.",
+          "not_cancellable": "تعذّر إلغاء التجديد المدفوع تلقائيًا ({reason}). أوقفه يدويًا إن كان العميل يدفع."
+        },
+        "refusals": {
+          "nothing_to_cancel": "مساحة العمل على القاعدة المجانية",
+          "no_subscription": "لا يوجد اشتراك",
+          "cancel_trial_unsupported": "الاشتراك تجربة",
+          "subscription_past_due": "هناك فاتورة متأخرة",
+          "lock_pending": "يجري تطبيق الانتقال إلى القاعدة المجانية",
+          "subscription_suspended": "الاشتراك موقوف",
+          "subscription_change_pending": "ما زال تغيير قيد المعالجة",
+          "renewal_in_progress": "يجري تطبيق تجديد",
+          "subscription_required": "الاشتراك بلا باقة مطبّقة"
+        },
+        "withdraw": "سحب طلب الحذف",
+        "withdrawTitle": "هل تريد سحب طلب الحذف نيابةً عن العميل؟",
+        "withdrawHint": "لا تُحذف مساحة العمل. ولا يُستأنف تجديد أُلغي: يستأنفه العميل من صفحة الاشتراك. تصل العميل رسالة بريد وتصلك أنت أيضًا.",
+        "reason": "السبب (من 3 إلى 1000 حرف)",
+        "errors": { "deletion_due": "انتهت المهلة ولم يعد سحب الطلب ممكنًا." }
       },
       "cancelOrder": {
         "action": "إلغاء الطلب المعلّق",

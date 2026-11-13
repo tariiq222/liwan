@@ -5,6 +5,7 @@ import { settledTrialReopenSource } from './trial-reopen.js'
 import { dateOnly } from './date-only.js'
 import { orderView } from './orders.js'
 import { cancelRefusal } from './cancellation-rules.js'
+import { tenantDeletionOf } from './tenant-deletion-read.js'
 
 const iso = (value: Date | string | null): string | null => value === null ? null : value instanceof Date ? value.toISOString() : value
 const date = (value: Date | string | null): string | null => value === null ? null : dateOnly(value)
@@ -30,6 +31,7 @@ export async function getSubscription(pool: Pool, customerId: string) {
     revision: row.revision, renewal_at: date(row.renewal_at),
     auto_renew: { enabled: row.auto_renew_enabled, consent_at: iso(row.auto_renew_consent_at), token_ref_present: Boolean(row.provider_token_ref) },
     trial_reopenable: Boolean(await settledTrialReopenSource(pool, row)), pending_free_base_lock: pendingLock?.cause ?? null,
+    deletion: await tenantDeletionOf(pool, row.customer_id),
     cancellable: !row.cancel_requested_at && await cancelRefusal(pool, row) === null,
     cancellation: row.cancel_requested_at ? { requested_at: iso(row.cancel_requested_at), requested_by: row.cancel_requested_by, effective_on: row.renewal_on } : null,
     trial_outcome: row.trial_outcome, trial_ends_at: iso(row.trial_ends_at), grace_ends_at: iso(row.grace_ends_at),

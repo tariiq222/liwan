@@ -29,6 +29,9 @@ const ALLOWED = [
   // through the existing invoice-adjustments refund route above.
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
+  // Workspace deletions are the customer's own: the console reads every request and withdraws one on the customer's behalf. It cannot ask for or confirm one.
+  /^\/v1\/commercial\/deletion-requests$/,
+  new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion(/withdraw)?$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
   // suspend and resume are separate actions the customer page offers; without them the console answered its own 404.
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage|suspend|resume|cancel-renewal|resume-renewal))?$`),
@@ -58,6 +61,9 @@ const METHOD_BOUND = [
   { pattern: /^\/v1\/commercial\/billing-settings$/, methods: ['GET', 'PATCH', 'POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
+  { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
+  { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },
+  { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion/withdraw$`), methods: ['POST'] },
 ] as const
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */

@@ -20,8 +20,13 @@ describe('attentionPresentation', () => {
     expect(attentionPresentation(item({ kind: 'notice_failed' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'setup_required' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'renewal_soon' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
+    expect(attentionPresentation(item({ kind: 'tenant_deletion_due' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'renewal_missed' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'operation_failed', customer_id: null, operation_id: 'o1' })).to).toEqual({ path: '/operations/o1', query: { source: 'legacy', returnTo: '/overview' } })
+  })
+  it('words a due deletion request as its own kind and needs the owner (destructive tone)', () => {
+    expect(attentionPresentation(item({ kind: 'tenant_deletion_due' }))).toMatchObject({ tone: 'destructive', actionKey: 'vendor.today.actions.tenant_deletion_due' })
+    expect(attentionMessage(item({ kind: 'tenant_deletion_due' }), now)).toEqual({ key: 'tenant_deletion_due', days: null, operation: null })
   })
   it('links nowhere rather than to a guessed page when the record is missing', () => {
     expect(attentionPresentation(item({ kind: 'setup_required', customer_id: null })).to).toBeNull()

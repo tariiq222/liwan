@@ -2,7 +2,7 @@
 import { dayBefore, subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, safePaymentRedirect, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
+import { deletionErrorKey, formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, safePaymentRedirect, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@liwan/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
@@ -75,6 +75,17 @@ async function changeCancellation(action: 'cancel' | 'resume', reason?: string) 
   cancelBusy.value = true; cancelError.value = undefined
   try { await (action === 'cancel' ? api.cancelSubscription(reason) : api.resumeSubscription()); await refresh() }
   catch (cause) { cancelError.value = t(refusalKey(refusalCode(cause)) ?? 'subscription.cancel.failed') } finally { cancelBusy.value = false }
+}
+const deletionBusy = ref(false); const deletionError = ref<string | undefined>()
+async function changeDeletion(action: 'request' | 'confirm' | 'withdraw', input?: { code: string; companyName: string }) {
+  if (!hydrated.value || deletionBusy.value || !can('tenant.delete')) return
+  deletionBusy.value = true; deletionError.value = undefined
+  try {
+    if (action === 'request') await api.requestDeletion()
+    else if (action === 'confirm' && input) await api.confirmDeletion(input)
+    else await api.withdrawDeletion()
+    await refresh()
+  } catch (cause) { deletionError.value = t(deletionErrorKey(refusalCode(cause))) } finally { deletionBusy.value = false }
 }
 const arBusy = ref(false); const arError = ref<unknown>(null)
 async function setAutoRenew(enabled: boolean) {
@@ -163,6 +174,9 @@ definePageMeta({ middleware: 'customer-commercial' })
         <SharedRecordSection variant="panel" :title="t('subscription.autoRenew.title')">
           <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
           <UAlert v-if="arError" class="mt-3" color="error" variant="subtle" :title="t('errors.generic')" />
+        </SharedRecordSection>
+        <SharedRecordSection v-if="can('tenant.delete')" id="delete-workspace" variant="panel" :title="t('subscription.deletion.title')" class="border-error/40" data-testid="delete-workspace">
+          <SubscriptionDeleteWorkspacePanel :deletion="data.sub.deletion ?? null" :pending="deletionBusy" :hydrated="hydrated" :error="deletionError" @request="changeDeletion('request')" @confirm="changeDeletion('confirm', $event)" @withdraw="changeDeletion('withdraw')" />
         </SharedRecordSection>
       </div>
     </SharedPageState>

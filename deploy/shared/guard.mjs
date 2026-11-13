@@ -14,7 +14,9 @@ import { applyDocumentHeaders } from './securityHeaders.mjs'
 // The one tenant-host route that carries the visitor's address: the edge sets it from the socket peer (deploy/shared/Caddyfile)
 // and it is trusted only there, so the control plane can rate-limit "send me a new invitation" per real visitor.
 const CLIENT_ADDRESS_HEADER = 'x-liwan-client-ip'
-const clientAddressPath = '/api/invitations/reissue'
+// The routes whose visitor address the edge sets and the guard passes to Nuxt: the new-invitation request and the workspace-deletion steps (the web server signs the address with the request).
+const clientAddressPaths = new Set(['/api/invitations/reissue', '/api/commercial/v1/deletion/request', '/api/commercial/v1/deletion/confirm', '/api/commercial/v1/deletion/withdraw'])
+const clientAddressRoute = url => clientAddressPaths.has(url?.split('?')[0])
 const forbidden = /^(x-odoo-|x-openerp-|x-liwan-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
 const browserHeaders = new Set(['x-liwan-csrf'])
@@ -126,7 +128,7 @@ export function requestPlan(req, registry, token, codec) {
   const internal = equal(req.headers['x-liwan-proxy-token'], token)
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
   for (const name of Object.keys(req.headers)) {
-    if (forbidden.test(name) && !browserHeaders.has(name) && !(name === CLIENT_ADDRESS_HEADER && req.url?.split('?')[0] === clientAddressPath && isIP(req.headers[name])) && !(internal && name === UI_LOCALE_HEADER && uiLocale(req.headers[name])) && !(EXPECTED_ID_HEADERS.has(name) && expectedId(req.headers[name])) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
+    if (forbidden.test(name) && !browserHeaders.has(name) && !(name === CLIENT_ADDRESS_HEADER && clientAddressRoute(req.url) && isIP(req.headers[name])) && !(internal && name === UI_LOCALE_HEADER && uiLocale(req.headers[name])) && !(EXPECTED_ID_HEADERS.has(name) && expectedId(req.headers[name])) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
   }
   if (internal && req.headers['x-liwan-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
   if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url)) throw Error('invalid_path')
@@ -205,7 +207,7 @@ export function requestPlan(req, registry, token, codec) {
       !(clearSession && value.startsWith('session_id=')) && (device || !value.startsWith(deviceCookieName))).join('; ')
   }
   headers.host = odoo ? tenant.database : host
-  if (!odoo && req.url.split('?')[0] === clientAddressPath && isIP(req.headers[CLIENT_ADDRESS_HEADER])) headers[CLIENT_ADDRESS_HEADER] = req.headers[CLIENT_ADDRESS_HEADER]
+  if (!odoo && clientAddressRoute(req.url) && isIP(req.headers[CLIENT_ADDRESS_HEADER])) headers[CLIENT_ADDRESS_HEADER] = req.headers[CLIENT_ADDRESS_HEADER]
   if (!odoo) {
     headers['x-liwan-proxy-token'] = token
     headers['x-liwan-tenant-revision'] = String(tenant.registryRevision)

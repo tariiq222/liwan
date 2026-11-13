@@ -150,6 +150,17 @@ it('registers version fifty-five once and adds the seller identity to billing se
   await migrate(g.pool)
   expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(55)')
 })
+it('registers version fifty-seven once and adds the tenant deletion requests with one open request per customer', async () => {
+  const applied = Array.from({ length: 56 }, (_, i) => i + 1)
+  const f = fixture(applied)
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(57)')
+  expect(sql.some((s) => s.includes('CREATE TABLE tenant_deletion_requests') && s.includes('tenant_deletion_requests_state_check') && s.includes('CREATE UNIQUE INDEX tenant_deletion_requests_open'))).toBe(true)
+  const g = fixture([...applied, 57])
+  await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(57)')
+})
 it('registers immutable branch quotes and revision guard in versions fifteen and sixteen once', async () => {
   const applied = Array.from({length:14}, (_, i) => i+1)
   const f=fixture(applied)

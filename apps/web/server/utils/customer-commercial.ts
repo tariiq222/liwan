@@ -80,9 +80,13 @@ const ROUTES: Route[] = [
   { method: 'GET', pattern: /^usage$/ },
   { method: 'POST', pattern: /^auto-renew$/ },
   { method: 'POST', pattern: /^subscription\/(cancel|resume)$/ },
+  // Deleting the workspace: read the request, ask for the emailed code, confirm with it, or withdraw. The vendor never asks or confirms.
+  { method: 'GET', pattern: /^deletion$/ },
+  { method: 'POST', pattern: /^deletion\/(request|confirm|withdraw)$/ },
 ]
 /** Capability each route needs (authoritative check also repeats in the control plane). */
 const NEEDS: Array<[RegExp, string, CustomerCommercialCapability]> = [
+  [/^deletion\/(request|confirm|withdraw)$/, 'POST', 'tenant.delete'],
   [/^quotes$|^orders|^auto-renew$|^subscription\/(cancel|resume)$|^trial(\/(convert|retry))?$/, 'POST', 'subscription.manage'],
   [/^invoices\/[^/]+\/bank-transfer-claim$/, 'POST', 'subscription.manage'],
   [/^preview$/, 'POST', 'subscription.read'],
@@ -185,13 +189,13 @@ export const encodePrincipal = (p: CustomerPrincipal) => Buffer.from(JSON.string
  *                        body: `liwan-principal:${x-liwan-principal}\n${rawBody ?? ''}` })
  * i.e. the principal header value is covered by the body hash. Verifier recomputes that exact body string.
  */
-export function signedBodyFor(principalHeader: string, rawBody: string | undefined): string {
-  return `liwan-principal:${principalHeader}\n${rawBody ?? ''}`
+export function signedBodyFor(principalHeader: string, rawBody: string | undefined, clientAddress?: string): string {
+  return `liwan-principal:${principalHeader}\n${clientAddress ? `liwan-client:${clientAddress}\n` : ''}${rawBody ?? ''}`
 }
 
-export function signCustomerForward(input: { method: string; path: string; rawBody?: string; principal: CustomerPrincipal; issuer: string; key: string; timestamp?: number; nonce?: string }) {
+export function signCustomerForward(input: { method: string; path: string; rawBody?: string; clientAddress?: string; principal: CustomerPrincipal; issuer: string; key: string; timestamp?: number; nonce?: string }) {
   const principalHeader = encodePrincipal(input.principal)
-  const signed = signServiceRequest({ method: input.method, path: input.path, body: signedBodyFor(principalHeader, input.rawBody), actor: input.principal.actor_id, issuer: input.issuer, key: input.key, timestamp: input.timestamp, nonce: input.nonce })
+  const signed = signServiceRequest({ method: input.method, path: input.path, body: signedBodyFor(principalHeader, input.rawBody, input.clientAddress), actor: input.principal.actor_id, issuer: input.issuer, key: input.key, timestamp: input.timestamp, nonce: input.nonce })
   return { ...signed, 'x-liwan-principal': principalHeader }
 }
 
@@ -254,7 +258,10 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
     if (!rateLimitMutation(`${principal.tenant_id}:${principal.actor_id}:${getCookie(event, 'session_id') ?? getCookie(event, CSRF_COOKIE) ?? ''}`)) fail(429, 'rate_limited', 'Too many requests, try again shortly')
   }
   const target = new URL(route.upstream + incoming.search, customerControlBase(config))
-  const headers = { ...signCustomerForward({ method, path: `${target.pathname}${target.search}`, rawBody, principal, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey }), 'content-type': 'application/json', accept: 'application/json' }
+  // The deletion routes record the edge-observed client address as a fact, so it is signed with the request; no other route forwards it.
+  const edgeAddress = getHeader(event, 'x-liwan-client-ip')
+  const clientAddress = route.upstream.startsWith('/v1/customer/deletion/') && edgeAddress && isIP(edgeAddress) ? edgeAddress : undefined
+  const headers = { ...(clientAddress ? { 'x-liwan-client-ip': clientAddress } : {}), ...signCustomerForward({ method, path: `${target.pathname}${target.search}`, rawBody, clientAddress, principal, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey }), 'content-type': 'application/json', accept: 'application/json' }
   try {
     const response = await $fetch.raw(target.toString(), { method: method as any, body: rawBody, headers, redirect: 'error', signal: AbortSignal.timeout(10000) })
     setResponseStatus(event, response.status)

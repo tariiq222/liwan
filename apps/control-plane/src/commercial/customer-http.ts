@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
+import { isIP } from 'node:net'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema } from '@liwan/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, tenantDeletionCodeSchema } from '@liwan/commercial-contracts'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
@@ -21,6 +22,8 @@ import { listBranches, requestedExtraBranches } from './branches.js'
 import { trialEndPreview } from './trial-preview.js'
 import { retryFreeBaseLock } from './free-base-lock.js'
 import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
+import { confirmDeletion, requestDeletion, withdrawDeletion } from './tenant-deletion.js'
+import { tenantDeletionOf } from './tenant-deletion-read.js'
 import { getUsage } from './usage.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import { aiTopupCatalog } from './ai-billing-settings.js'
@@ -100,7 +103,10 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   }
   const header=input.headers['x-liwan-principal']
   if (typeof header !== 'string') throw new CommercialHttpError('unauthorized',401)
-  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-principal:${header}\n${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
+  // The edge-observed client address (only the deletion routes carry one) is part of what the web server signs, so a header added in transit breaks the signature.
+  const claimedAddress=input.headers['x-liwan-client-ip']
+  if (claimedAddress!==undefined && (typeof claimedAddress!=='string' || !isIP(claimedAddress))) throw new CommercialHttpError('unauthorized',401)
+  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-principal:${header}\n${claimedAddress?`liwan-client:${claimedAddress}\n`:''}${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
   if (!signed || signed.issuer !== config.customerCommercialIssuer) throw new CommercialHttpError('unauthorized',401)
   const unbound=parseCustomerPrincipal(header,'unbound')
   if (unbound.actor_id !== String(signed.actor)) throw new CommercialHttpError('unauthorized',401)
@@ -119,6 +125,23 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().max(1000).optional()}))
     const act=cancelling[1]==='cancel'?cancelAtPeriodEnd:resumeCancelled
     return {status:200,data:await act(pool,{customer_id:customerId,by:'customer',actor:principal.actor_id,reason:body.reason||null,now:new Date()})}
+  }
+  // Deleting the workspace: the sole holder of `tenant.delete` (the system administrator) asks, confirms with the emailed code and the company name, or withdraws.
+  const deletion=/^\/deletion(?:\/(request|confirm|withdraw))?$/.exec(path)
+  if (deletion) {
+    const step=deletion[1]
+    if (m==='GET' && !step) {requireCapability(principal,'subscription.read');return {status:200,data:{deletion:await tenantDeletionOf(pool,customerId)}}}
+    if (m!=='POST' || !step) throw new CommercialHttpError('not_found',404)
+    requireCapability(principal,'tenant.delete')
+    const who={actor:principal.actor_id,client_address:claimedAddress ?? null}
+    if (step==='request') {parseBody(input.raw,z.strictObject({}));return {status:200,data:{deletion:await requestDeletion(pool,{...who,customer_id:customerId,secret:config.key})}}}
+    if (step==='confirm') {
+      const body=parseBody(input.raw,z.strictObject({code:tenantDeletionCodeSchema,company_name:z.string().min(1).max(200)}))
+      return {status:200,data:{deletion:await confirmDeletion(pool,{...who,customer_id:customerId,code:body.code,company_name:body.company_name,secret:config.key})}}
+    }
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().max(1000).optional()}))
+    await withdrawDeletion(pool,{...who,customer_id:customerId,by:'customer',reason:body.reason||null})
+    return {status:200,data:{deletion:await tenantDeletionOf(pool,customerId)}}
   }
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
   if (m==='GET' && path==='/trial/end-preview') {

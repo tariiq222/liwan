@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { cadenceSchema, entitlementSnapshotSchema, quoteSchema, revisionIdSchema } from './schemas.js'
 import { orderSchema, type Order } from './orders.js'
+import { tenantDeletionSchema } from './tenant-deletion.js'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
@@ -43,6 +44,8 @@ export const subscriptionViewSchema = z.strictObject({
   cancellation: subscriptionCancellationSchema.nullable().optional(),
   // Whether the subscription can be cancelled at the period end now (active, paid, nothing in flight); false once it is cancelled.
   cancellable: z.boolean().optional(),
+  // The tenant's own open deletion request (asked, confirmed or due), for the countdown; null when none.
+  deletion: tenantDeletionSchema.nullable().optional(),
 })
 
 const quantity = z.number().int().nonnegative()

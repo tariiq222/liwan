@@ -1,4 +1,4 @@
-import { trialEndPreviewSchema, type Branch, type Order, type BankTransferClaim, type BranchSummary, type CustomerInvoice, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { trialEndPreviewSchema, type TenantDeletion, type Branch, type Order, type BankTransferClaim, type BranchSummary, type CustomerInvoice, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
 import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
@@ -60,6 +60,10 @@ export function useSubscriptionApi() {
     /** Stops the renewal; the paid period stays and the subscription drops to the free base on its renewal date. */
     cancelSubscription: (reason?: string) => request<SubscriptionView>('subscription/cancel', { method: 'POST', body: reason ? { reason } : {} }),
     resumeSubscription: () => request<SubscriptionView>('subscription/resume', { method: 'POST', body: {} }),
+    /** Workspace deletion: ask for the emailed code, confirm with it and the company name, withdraw. Only the system administrator (`tenant.delete`) may. */
+    requestDeletion: () => request<{ deletion: TenantDeletion | null }>('deletion/request', { method: 'POST', body: {} }),
+    confirmDeletion: (input: { code: string; companyName: string }) => request<{ deletion: TenantDeletion | null }>('deletion/confirm', { method: 'POST', body: { code: input.code, company_name: input.companyName } }),
+    withdrawDeletion: () => request<{ deletion: TenantDeletion | null }>('deletion/withdraw', { method: 'POST', body: {} }),
     setAutoRenew: (enabled: boolean) => request<SubscriptionView>('auto-renew', { method: 'POST', body: { enabled, consent: true } }),
   }
 }
@@ -70,7 +74,7 @@ export function useCustomerCapabilities() {
   const readOnly = computed(() => me.value?.read_only === true)
   const caps = computed(() => {
     const derived = deriveCustomerCapabilities(me.value?.capabilities)
-    return readOnly.value ? derived.filter(capability => capability !== 'subscription.manage' && capability !== 'branches.manage') : derived
+    return readOnly.value ? derived.filter(capability => capability !== 'subscription.manage' && capability !== 'branches.manage' && capability !== 'tenant.delete') : derived
   })
   return { caps, readOnly, can: (c: string) => (caps.value as string[]).includes(c) }
 }

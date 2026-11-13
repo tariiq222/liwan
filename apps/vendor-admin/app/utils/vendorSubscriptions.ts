@@ -270,3 +270,8 @@ export function renewalErrorKey(cause: unknown): string {
   return ['nothing_to_cancel', 'subscription_past_due', 'lock_pending', 'subscription_suspended', 'subscription_change_pending', 'cancel_trial_unsupported', 'cancel_already_effective'].includes(code)
     ? `vendor.customers.renewalCancel.errors.${code}` : commercialErrorKey(cause)
 }
+
+/** Withdrawing a deletion request is refused once its window has ended; anything else falls back to the shared message. */
+export function deletionErrorKey(cause: unknown): string {
+  return commercialFailure(cause).code === 'deletion_due' ? 'vendor.customers.deletion.errors.deletion_due' : commercialErrorKey(cause)
+}

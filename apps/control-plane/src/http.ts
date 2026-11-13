@@ -34,7 +34,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { requirePublishableSource } from './shared/catalog-source.js'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
 import { isIP } from 'node:net'
@@ -329,6 +329,12 @@ function invitationClientAddress(req: IncomingMessage, pathname: string, service
   return req.socket.remoteAddress ?? 'unknown'
 }
 
+/** The address the vendor BFF observed for the signed-in vendor (it always sets the header, apps/vendor-admin/server/utils/control.ts); not an address when malformed. */
+function vendorClientAddress(headers: IncomingHttpHeaders): string | undefined {
+  const claimed = headers['x-liwan-client-ip']
+  return typeof claimed === 'string' && isIP(claimed) ? claimed : undefined
+}
+
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
   // Dedicated: the first LIWAN_PAYMENT_RETURN_ORIGINS entry. Shared: each customer's own tenant host, checked against that allowlist.
   const paymentRuntime: PaymentRuntime = {adapter:null,returnOrigin:returnOriginFromEnv(pool,process.env)}
@@ -422,7 +428,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (aiProviderResponse) return respond(res, aiProviderResponse.status, aiProviderResponse.data)
       const packageResponse = await packageHttp(pool,{method,pathname,raw,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,repositoryRoot:config.repositoryRoot})
       if(packageResponse)return respond(res,packageResponse.status,packageResponse.data)
-      const commercialInput={method,pathname,search:url.search,raw,issuer:vendorActorIssuer(config.installationId),actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh}
+      const commercialInput={method,pathname,search:url.search,raw,issuer:vendorActorIssuer(config.installationId),actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,clientAddress:vendorClientAddress(req.headers)}
       const invitationResponse = await invitationVendorHttp(pool, commercialInput)
       if (invitationResponse) return respond(res, invitationResponse.status, invitationResponse.data)
       let commercialResponse

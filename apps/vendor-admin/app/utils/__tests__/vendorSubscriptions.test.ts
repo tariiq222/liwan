@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
   customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason,
-  type VendorCustomer, type VendorInvoice,
+  type VendorCustomer, type VendorInvoice, deletionErrorKey,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { sar } from '../vendorCommercial'
@@ -165,5 +165,12 @@ describe('bank transfer form values', () => {
     expect(parseTransferAmount('123.456', 2)).toEqual({ issue: 'decimals' })
     expect(parseTransferAmount('١٢٣٫٤٥٦', 2)).toEqual({ issue: 'decimals' })
     for (const text of ['', 'abc', '-5', '1e3', '12.3.4']) expect(parseTransferAmount(text, 2), text).toEqual({ issue: 'invalid' })
+  })
+})
+
+describe('deletionErrorKey', () => {
+  it('names the closed window and leaves every other failure to the shared message', () => {
+    expect(deletionErrorKey({ status: 409, data: { code: 'deletion_due' } })).toBe('vendor.customers.deletion.errors.deletion_due')
+    expect(deletionErrorKey({ status: 404, data: { code: 'not_found' } })).toBe('vendor.pricing.errors.not_found')
   })
 })

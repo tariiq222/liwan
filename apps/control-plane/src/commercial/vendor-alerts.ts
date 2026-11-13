@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import type { AttentionItem, AttentionKind } from '@liwan/commercial-contracts'
 import { allAttentionItems } from './attention.js'
+import { refusalWords, renewalMayStillBill } from './tenant-deletion-notices.js'
 import type { MailAdapter } from './mail-adapter.js'
 import type { TelegramSender } from './telegram-adapter.js'
 import { completeOutbox, deferOutbox, failOutbox, leaseOutboxRow, releaseOutbox } from './outbox.js'
@@ -41,14 +42,18 @@ const EVENTS = {
   refund_unrecorded: { title: 'استرداد عالق دون تسجيل', plural: 'استردادات عالقة', need: 'yes', collapsible: false, todo: 'قد يكون المبلغ ردّ للعميل فلا تُعد الاسترداد. راجع سبب تعذّر التسجيل.' },
   trial_converted: { title: 'انتهت تجربة وتحوّلت إلى اشتراك مدفوع', plural: 'تجارب تحوّلت إلى مدفوعة', need: 'none', collapsible: true, todo: 'لا إجراء مطلوب.' },
   trial_free_base: { title: 'انتهت تجربة ورجع العميل إلى الباقة المجانية', plural: 'تجارب رجعت إلى الباقة المجانية', need: 'none', collapsible: true, todo: 'لا إجراء مطلوب.' },
+  deletion_requested: { title: 'عميل طلب حذف مساحته وينتظر رمز التأكيد', plural: 'طلبات حذف مساحة', need: 'maybe', collapsible: false, todo: 'إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل.' },
+  deletion_confirmed: { title: 'عميل أكّد حذف مساحته', plural: 'تأكيدات حذف مساحة', need: 'maybe', collapsible: false, todo: 'بدأت مهلة 30 يومًا ولم يُحذف شيء. إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل.' },
+  deletion_withdrawn: { title: 'سُحب طلب حذف مساحة عميل', plural: 'طلبات حذف مسحوبة', need: 'none', collapsible: false, todo: 'لا إجراء مطلوب.' },
+  deletion_due: { title: 'انتهت مهلة حذف مساحة عميل', plural: 'حذف مساحات مستحق', need: 'yes', collapsible: false, todo: 'لا شيء ينفّذ الحذف تلقائيًا بعد. افتح صفحة العميل وتحقق من الطلب قبل تنفيذه.' },
   attention: { title: 'يحتاج انتباهك', plural: 'بنود تحتاج انتباهك', need: 'yes', collapsible: true, todo: 'افتح قائمة الانتباه في لوحة التحكم.' },
 } as const satisfies Record<string, { title: string; plural: string; need: Need; collapsible: boolean; todo: string }>
 export type AlertEvent = keyof typeof EVENTS
 
 /** Attention kinds with no alert of their own here: `past_due` is the overdue-invoice alert, `renewal_soon` needs nothing from the owner. */
-const ATTENTION_ALERT_EVENT: Partial<Record<AttentionKind, AlertEvent>> = { bank_transfer_claimed: 'bank_transfer_claimed', refund_rejected: 'refund_rejected', refund_unrecorded: 'refund_unrecorded' }
+const ATTENTION_ALERT_EVENT: Partial<Record<AttentionKind, AlertEvent>> = { bank_transfer_claimed: 'bank_transfer_claimed', refund_rejected: 'refund_rejected', refund_unrecorded: 'refund_unrecorded', tenant_deletion_due: 'deletion_due' }
 const ATTENTION_SKIPPED: readonly AttentionKind[] = ['past_due', 'renewal_soon']
-const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 'refund_rejected' | 'refund_unrecorded' | 'past_due' | 'renewal_soon'>, string> = {
+const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 'refund_rejected' | 'refund_unrecorded' | 'tenant_deletion_due' | 'past_due' | 'renewal_soon'>, string> = {
   billing_blocked: 'الفوترة موقوفة لهذا العميل',
   free_base_blocked: 'تعذّر رجوع العميل إلى الباقة المجانية',
   renewal_failed: 'فشل تجديد الاشتراك',
@@ -150,6 +155,20 @@ async function factCandidates(pool: Pool, since: Date, now: Date): Promise<Candi
     const cancelled = row.action === 'subscription.cancel_requested'
     add(`audit:${row.id}`, cancelled ? 'cancel_requested' : 'cancel_withdrawn', row,
       { lines: cancelled && row.effective_on ? [`ينتهي الاشتراك في ${cleanAlertText(row.effective_on, 10)} ويرجع إلى الباقة المجانية.`] : [] })
+  }
+
+  // A deletion request's three customer steps are audit events written in the transaction that changes the state; the due step is the attention item.
+  const deletionEvent = { 'tenant_deletion.requested': 'deletion_requested', 'tenant_deletion.confirmed': 'deletion_confirmed', 'tenant_deletion.withdrawn': 'deletion_withdrawn' } as const
+  for (const row of (await pool.query(`SELECT a.id,a.action,a.metadata->>'due_at' AS due_at,a.metadata->>'by' AS by,a.metadata->>'renewal_outcome' AS renewal_outcome,a.metadata->>'renewal_refusal' AS renewal_refusal,
+      c.id AS customer_id,c.name FROM audit_events a JOIN customers c ON c.id::text=a.subject
+    WHERE a.action IN ('tenant_deletion.requested','tenant_deletion.confirmed','tenant_deletion.withdrawn') AND a.created_at >= $1`, [since])).rows) {
+    const lines: string[] = []
+    if (row.action === 'tenant_deletion.confirmed') {
+      if (row.due_at) lines.push(`الحذف مجدول في ${cleanAlertText(row.due_at, 10)} ما لم يُسحب الطلب، ولم يُحذف شيء بعد.`)
+      if (renewalMayStillBill(row.renewal_outcome, row.renewal_refusal)) lines.push(`لم يُوقف تجديد الاشتراك لأن ${refusalWords(row.renewal_refusal, 'ar')}. لن تُفتح فترة مدفوعة جديدة لكن ما أُصدر من فواتير يبقى مستحقًا.`)
+    } else if (row.action === 'tenant_deletion.withdrawn' && row.by) lines.push(`سحبه: ${row.by === 'vendor' ? 'فريقنا نيابة عن العميل' : 'العميل'}.`)
+    else if (row.action === 'tenant_deletion.requested') lines.push('أُرسل رمز التأكيد إلى بريد المدير المسجل.')
+    add(`audit:${row.id}`, deletionEvent[row.action as keyof typeof deletionEvent], row, { lines })
   }
 
   const notes = `SELECT n.id,n.amount_minor AS total_minor,n.currency,n.exponent,c.id AS customer_id,c.name FROM invoice_adjustments n JOIN customers c ON c.id=n.customer_id
