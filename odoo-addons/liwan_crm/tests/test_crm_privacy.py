@@ -8,6 +8,7 @@ from odoo import Command
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_crm.models.privacy_hooks import CALL_KEY, LEAD_KEY
 from odoo.addons.liwan_crm.tests.common import LiwanCrmCase
 from odoo.addons.liwan_customers.models import privacy_hooks
 
@@ -56,7 +57,7 @@ class TestCrmPrivacy(LiwanCrmCase):
         self.assertEqual((items['crm_leads']['owner'], items['crm_leads']['action']), ('liwan_crm', 'erase'))
         self.assertTrue(items['crm_leads']['complete'])
 
-    def test_a_caller_without_crm_assign_is_told_the_count_may_be_incomplete(self):
+    def test_a_caller_without_crm_reach_is_told_the_count_is_incomplete(self):
         plain = new_test_user(self.env, login='crm_privacy_plain', password='crm_privacy_plain_pass_123',
                               name='No CRM', groups='liwan_core.group_employee')
         self.env['liwan.access.service']._liwan_replace_assignments(plain, [
@@ -168,10 +169,19 @@ class TestCrmPrivacy(LiwanCrmCase):
         logged, counts = service._liwan_erase(self.customer.id, preview['token'], 'Ahmed Alharbi', 'Request')
         self.assertEqual((logged.kind, counts['crm_leads']), ('erase', 1))
 
-    def test_a_model_no_hook_declares_is_unhandled_when_it_shows_a_record_and_refuses_the_erase(self):
+    def leave_uncovered(self, key):
+        """Drop one CRM item from the hook: its model is then covered by no hook."""
         hooks = type(self.env['liwan.customers.privacy.hooks'])
-        original = hooks._liwan_subject_models
-        self.patch(hooks, '_liwan_subject_models', lambda model: [name for name in original(model) if name != 'crm.lead'])
+        preview, coverage = hooks._liwan_subject_erase_preview, hooks._liwan_subject_coverage
+        self.patch(hooks, '_liwan_subject_erase_preview', lambda model, partners: [
+            item for item in preview(model, partners) if item['key'] != key
+        ])
+        self.patch(hooks, '_liwan_subject_coverage', lambda model: {
+            name: entry for name, entry in coverage(model).items() if name != key
+        })
+
+    def test_a_model_no_hook_declares_is_unhandled_when_it_holds_a_record_and_refuses_the_erase(self):
+        self.leave_uncovered(LEAD_KEY)
         preview = self.service._liwan_erase_preview(self.customer.id)
         item = next(item for item in preview['items'] if item['key'] == 'crm.lead')
         self.assertEqual((item['action'], item['count'], item['complete'], item['owner']), ('unhandled', 1, False, 'crm'))
@@ -181,14 +191,58 @@ class TestCrmPrivacy(LiwanCrmCase):
         self.assertEqual((caught.exception.status, caught.exception.code), (409, 'erase_incomplete'))
         self.assertEqual(self.lead.contact_name, 'Ahmed Alharbi')
 
-    def test_an_uncovered_model_with_no_visible_record_is_listed_as_not_checked(self):
-        hooks = type(self.env['liwan.customers.privacy.hooks'])
-        original = hooks._liwan_subject_models
-        self.patch(hooks, '_liwan_subject_models', lambda model: [name for name in original(model) if name != 'crm.phonecall'])
+    def test_an_uncovered_model_with_no_record_about_the_customer_is_listed_as_empty(self):
+        self.leave_uncovered(CALL_KEY)
         stranger = self.env['liwan.customers.service']._liwan_create({'name': 'No Records', 'phone': '+966503333333'})
         preview = self.service._liwan_erase_preview(stranger.id)
-        self.assertIn('crm.phonecall', preview['unchecked_models'])
+        self.assertIn('crm.phonecall', preview['empty_models'])
         self.assertEqual(preview['incomplete'], [])
+
+    def reader_service(self, login):
+        """The privacy service as a system administrator who holds the CRM agent role only: no assign right."""
+        reader = self.plain_admin(login)
+        self.env['liwan.access.service']._liwan_replace_assignments(reader, [
+            {'role_id': self.env.ref('liwan_core.role_system_admin').id, 'company_id': self.company.id},
+            {'role_id': self.env.ref('liwan_crm.role_crm_agent').id, 'company_id': self.company.id},
+        ])
+        return self.env['liwan.customers.privacy.service'].with_user(reader)
+
+    def assert_lead_refused(self, service):
+        """``service`` cannot see every lead of the customer: the lead item is incomplete, the erase refuses and
+        nothing is written or logged."""
+        preview = service._liwan_erase_preview(self.customer.id)
+        by_key = {item['key']: item for item in preview['items']}
+        self.assertFalse(by_key[LEAD_KEY]['complete'])
+        self.assertIn(
+            {'key': LEAD_KEY, 'owner': 'liwan_crm', 'reason': 'caller_cannot_reach_all_records'}, preview['incomplete'],
+        )
+        with self.assertRaises(LiwanAccessRule) as caught:
+            service._liwan_erase(self.customer.id, preview['token'], 'Ahmed Alharbi', 'Request')
+        self.assertEqual((caught.exception.status, caught.exception.code), (409, 'erase_incomplete'))
+        self.env.invalidate_all()
+        self.assertEqual((self.customer.name, self.lead.contact_name), ('Ahmed Alharbi', 'Ahmed Alharbi'))
+        self.assertFalse(self.env['liwan.customers.privacy.request'].search([('partner_id', '=', self.customer.id)]))
+
+    def test_a_lead_hidden_by_the_visibility_policy_makes_the_item_incomplete_and_a_full_reach_administrator_erases(self):
+        # The customer's lead belongs to another agent: an administrator who only holds the agent role cannot see it.
+        self.set_visibility('own')
+        self.assert_lead_refused(self.reader_service('crm_privacy_reader'))
+        preview = self.service._liwan_erase_preview(self.customer.id)
+        self.assertEqual(preview['incomplete'], [])
+        self.service._liwan_erase(self.customer.id, preview['token'], 'Ahmed Alharbi', 'Request')
+        self.assertFalse(self.lead.with_context(active_test=False).contact_name)
+
+    def test_a_lead_of_another_company_makes_the_item_incomplete(self):
+        # One phone per company: the same customer may have a lead in each company; this session holds only one.
+        self.make_lead(None, company=self.other_company, partner_id=self.customer.id, contact_name='Hidden lead')
+        self.assert_lead_refused(self.service)
+
+    def test_a_call_linked_only_through_a_hidden_opportunity_makes_the_call_item_incomplete(self):
+        self.set_visibility('own')
+        # The call has no customer of its own and hangs on the lead of the customer that the reader cannot see.
+        self.env['crm.phonecall'].create({'name': 'Via lead', 'company_id': self.company.id, 'opportunity_id': self.lead.id})
+        preview = self.reader_service('crm_privacy_reader2')._liwan_erase_preview(self.customer.id)
+        self.assertIn({'key': CALL_KEY, 'owner': 'liwan_crm', 'reason': 'caller_cannot_reach_all_records'}, preview['incomplete'])
 
     def test_a_whole_tenant_session_clears_the_leads_of_every_branch_and_a_branch_session_is_refused(self):
         branches = self.env['res.company'].create([

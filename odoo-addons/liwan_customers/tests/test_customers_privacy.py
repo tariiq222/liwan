@@ -39,16 +39,6 @@ def url(customer_id, tail):
 @tagged('post_install', '-at_install', 'liwan')
 class TestCustomersPrivacy(CustomersCase):
 
-    def setUp(self):
-        super().setUp()
-        # Other applications may be installed: the administrator of these fixtures holds none of their roles, so their
-        # items would be incomplete. These tests treat every item as complete; the incomplete cases stub it themselves.
-        hooks = type(self.env['liwan.customers.privacy.hooks'])
-        original = hooks._liwan_subject_erase_preview
-        self.patch(hooks, '_liwan_subject_erase_preview', lambda model, partners: [
-            {**item, 'complete': True} for item in original(model, partners)
-        ])
-
     def make_customer(self, **extra):
         """A company customer with a child contact and a bank account, created through the routes as customers staff."""
         fields = self.define_fields({'label': 'Credit tier', 'type': 'char'})
@@ -127,7 +117,7 @@ class TestCustomersPrivacy(CustomersCase):
         response = self.preview(customer_id)
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
-        self.assertEqual(set(body), {'customer', 'items', 'incomplete', 'unchecked_models', 'not_covered', 'reach', 'token', 'expires_in'})
+        self.assertEqual(set(body), {'customer', 'items', 'incomplete', 'empty_models', 'not_covered', 'reach', 'token', 'expires_in'})
         self.assertEqual(body['customer'], {'id': customer_id, 'erased': False})
         self.assertEqual(body['expires_in'], 600)
         self.assertEqual(body['reach'], {'shared': True, 'covers_all': True})
@@ -142,12 +132,10 @@ class TestCustomersPrivacy(CustomersCase):
 
     def test_retained_documents_are_reported_by_the_hook_and_the_erase_leaves_them(self):
         customer_id, _child, _bank, _key = self.make_customer()
-        hooks = self.env['liwan.customers.privacy.hooks']
-        original = type(hooks)._liwan_subject_erase_preview
-        retained = {'key': 'posted_invoices', 'owner': 'stub', 'action': 'retain', 'count': 3, 'complete': True}
-        self.patch(type(hooks), '_liwan_subject_erase_preview', lambda model, partners: [*original(model, partners), retained])
+        retained = {'key': 'posted_invoices', 'owner': 'stub', 'action': 'retain', 'count': 3}
+        self.stub_item(retained)
         items = {item['key']: item for item in self.preview(customer_id).json()['items']}
-        self.assertEqual(items['posted_invoices'], retained)
+        self.assertEqual(items['posted_invoices'], {**retained, 'complete': True})
         response = self.erased(customer_id)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertNotIn('posted_invoices', {item['key'] for item in response.json()['items']})
@@ -338,14 +326,17 @@ class TestCustomersPrivacy(CustomersCase):
 
     # ---- reach of the session ----
 
-    def stub_application_item(self):
-        """A complete item of an application: only the session's reach can make it incomplete."""
+    def stub_item(self, item):
+        """Add one item to the core hook, covering the customer's own records, so only the reach can change ``complete``."""
         hooks = type(self.env['liwan.customers.privacy.hooks'])
-        original = hooks._liwan_subject_erase_preview
-        self.patch(hooks, '_liwan_subject_erase_preview', lambda model, partners: [
-            *original(model, partners),
-            {'key': 'stub_app', 'owner': 'stub', 'action': 'erase', 'count': 1, 'complete': True},
-        ])
+        preview, coverage = hooks._liwan_subject_erase_preview, hooks._liwan_subject_coverage
+        self.patch(hooks, '_liwan_subject_erase_preview', lambda model, partners: [*preview(model, partners), item])
+        self.patch(hooks, '_liwan_subject_coverage', lambda model: {
+            **coverage(model), item['key']: ('res.partner', lambda partners: [('id', 'in', partners.ids)]),
+        })
+
+    def stub_application_item(self):
+        self.stub_item({'key': 'stub_app', 'owner': 'stub', 'action': 'erase', 'count': 1})
 
     def test_a_branch_administrator_cannot_erase_a_customer_shared_across_the_tenant(self):
         customer_id, _child, _bank, _key = self.make_customer()
@@ -407,42 +398,109 @@ class TestCustomersPrivacy(CustomersCase):
 
     # ---- incomplete reach, not covered, reason ----
 
-    def stub_incomplete(self):
+    def hide_records(self, model_name):
+        """A global record rule that hides every record of the model from everyone but the superuser."""
+        self.env['ir.rule'].create({
+            'name': 'privacy test: hide all', 'model_id': self.env['ir.model']._get_id(model_name),
+            'domain_force': '[(0, "=", 1)]',
+        })
+
+    def remove_access(self, model_name):
+        """No ACL row on the model for anyone, so it raises AccessError for every caller."""
+        self.env['ir.model.access'].search([('model_id.model', '=', model_name)]).unlink()
+
+    def leave_uncovered(self, key):
+        """Drop one item from the core hook: its model is then covered by no hook."""
         hooks = type(self.env['liwan.customers.privacy.hooks'])
-        original = hooks._liwan_subject_erase_preview
+        preview, coverage = hooks._liwan_subject_erase_preview, hooks._liwan_subject_coverage
         self.patch(hooks, '_liwan_subject_erase_preview', lambda model, partners: [
-            *original(model, partners),
-            {'key': 'stub_records', 'owner': 'stub', 'action': 'erase', 'count': 0, 'complete': False},
+            item for item in preview(model, partners) if item['key'] != key
         ])
+        self.patch(hooks, '_liwan_subject_coverage', lambda model: {
+            name: entry for name, entry in coverage(model).items() if name != key
+        })
+
+    def cover_only_the_customer(self):
+        """The core hook reports the customer alone: it cannot count bank accounts for a caller with no ACL on them."""
+        hooks = type(self.env['liwan.customers.privacy.hooks'])
+        coverage = hooks._liwan_subject_coverage
+        self.patch(hooks, '_liwan_subject_erase_preview', lambda model, partners: [
+            {'key': 'customer', 'owner': 'liwan_customers', 'action': 'erase', 'count': len(partners)},
+        ])
+        self.patch(hooks, '_liwan_subject_coverage', lambda model: {'customer': coverage(model)['customer']})
+
+    BANK_HIDDEN = [{'key': 'bank_accounts', 'owner': 'liwan_customers', 'reason': 'caller_cannot_reach_all_records'}]
+    BANK_UNHANDLED = [{'key': 'res.partner.bank', 'owner': 'base', 'reason': 'application_has_no_hook'}]
 
     def test_the_preview_lists_the_incomplete_kinds_and_what_an_erase_cannot_change(self):
-        self.stub_incomplete()
         customer_id, _child, _bank, _key = self.make_customer()
+        self.hide_records('res.partner.bank')
         body = self.preview(customer_id).json()
-        self.assertEqual(body['incomplete'], [{'key': 'stub_records', 'owner': 'stub', 'reason': 'caller_cannot_reach_all_records'}])
+        self.assertEqual(body['incomplete'], self.BANK_HIDDEN)
         self.assertEqual(body['not_covered'], ['chatter_history', 'free_text_notes', 'stored_documents', 'backups'])
 
-    def test_an_erase_is_refused_while_a_kind_cannot_be_reached_and_nothing_is_written(self):
-        customer_id, _child, _bank, _key = self.make_customer()
-        self.stub_incomplete()
+    def assert_refused_and_untouched(self, customer_id, incomplete):
         token = self.preview(customer_id).json()['token']
         response = self.erase(customer_id, token, 'Acme Trading')
         self.assertEqual(self.code(response), (409, 'erase_incomplete'))
-        self.assertEqual(response.json()['details']['incomplete'], [{'key': 'stub_records', 'owner': 'stub', 'reason': 'caller_cannot_reach_all_records'}])
+        self.assertEqual(response.json()['details']['incomplete'], incomplete)
         self.env.invalidate_all()
         partner = self.env['res.partner'].browse(customer_id)
         self.assertEqual((partner.name, partner.active, partner.phone), ('Acme Trading', True, PHONE_E164))
         self.assertFalse(self.log())
 
-    def test_an_export_with_an_incomplete_kind_says_so_in_its_first_sheet_and_in_the_log(self):
+    def test_an_erase_is_refused_while_a_record_rule_hides_records_of_a_covered_kind_and_nothing_is_written(self):
         customer_id, _child, _bank, _key = self.make_customer()
-        self.stub_incomplete()
+        self.hide_records('res.partner.bank')
+        self.assert_refused_and_untouched(customer_id, self.BANK_HIDDEN)
+
+    def test_an_erase_is_refused_while_a_record_rule_hides_records_of_an_uncovered_model(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        self.leave_uncovered('bank_accounts')
+        self.hide_records('res.partner.bank')
+        self.assert_refused_and_untouched(customer_id, self.BANK_UNHANDLED)
+
+    def test_an_erase_is_refused_while_the_caller_has_no_acl_on_a_model_that_holds_a_record(self):
+        customer_id, _child, bank, _key = self.make_customer()
+        self.cover_only_the_customer()
+        self.remove_access('res.partner.bank')
+        self.assert_refused_and_untouched(customer_id, self.BANK_UNHANDLED)
+        self.assertTrue(bank.exists())
+
+    def test_a_hidden_record_is_reported_as_a_count_and_a_key_and_never_disclosed(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        self.cover_only_the_customer()
+        self.remove_access('res.partner.bank')
+        response = self.preview(customer_id)
+        self.assertNotIn(IBAN, response.text)
+        item = next(item for item in response.json()['items'] if item['key'] == 'res.partner.bank')
+        self.assertEqual(item, {'key': 'res.partner.bank', 'owner': 'base', 'action': 'unhandled', 'count': 1, 'complete': False})
+        self.assertNotIn('res.partner.bank', response.json()['empty_models'])
+
+    def test_an_export_lists_a_hidden_uncovered_model_and_never_includes_its_records(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        self.leave_uncovered('bank_accounts')
+        self.hide_records('res.partner.bank')
+        workbook = openpyxl.load_workbook(io.BytesIO(self.export(customer_id).content))
+        self.assertEqual(list(workbook['Not included'].values)[1:], [('res.partner.bank', 'base', 'application_has_no_hook')])
+        self.assertNotIn(IBAN, json.dumps([list(sheet.values) for sheet in workbook.worksheets], default=str))
+
+    def test_an_uncovered_model_with_no_record_about_the_customer_is_listed_as_empty_and_does_not_refuse(self):
+        self.make_customer()
+        self.leave_uncovered('bank_accounts')
+        self.sign_in('cu_a_staff')
+        stranger = self.created({'name': 'No Bank Trading', 'phone': '0509999999'})['id']
+        body = self.preview(stranger).json()
+        self.assertIn('res.partner.bank', body['empty_models'])
+        self.assertEqual(body['incomplete'], [])
+
+    def test_an_export_with_a_hidden_kind_says_so_in_its_first_sheet_and_in_the_log(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        self.hide_records('res.partner.bank')
         workbook = openpyxl.load_workbook(io.BytesIO(self.export(customer_id).content))
         self.assertEqual(workbook.sheetnames[0], 'Not included')
-        rows = list(workbook['Not included'].values)[1:]
-        self.assertEqual(rows[0], ('stub_records', 'stub', 'caller_cannot_reach_all_records'))
-        self.assertTrue(all(row[2] == 'application_not_checked' for row in rows[1:]))
-        self.assertEqual(self.log(customer_id).counts['incomplete'], ['stub_records'])
+        self.assertEqual(list(workbook['Not included'].values)[1:], [('bank_accounts', 'liwan_customers', 'caller_cannot_reach_all_records')])
+        self.assertEqual(self.log(customer_id).counts['incomplete'], ['bank_accounts'])
 
     def test_a_reason_may_have_lines_but_no_control_characters(self):
         customer_id, _child, _bank, _key = self.make_customer()
@@ -538,9 +596,9 @@ class TestCustomersPrivacy(CustomersCase):
         self.assertIn(f'customer-{customer_id}-', response.headers['Content-Disposition'])
         self.assertEqual(response.headers['Cache-Control'], 'private, no-store')
         workbook = openpyxl.load_workbook(io.BytesIO(response.content))
-        # Whatever could not be included comes first; the unchecked application models are always listed there.
-        self.assertEqual(workbook.sheetnames[0], 'Not included')
-        self.assertEqual(workbook.sheetnames[1:3], ['Customer', 'Bank accounts'])
+        # Nothing is hidden from the administrator, so no sheet lists what could not be included.
+        self.assertEqual(workbook.sheetnames[:2], ['Customer', 'Bank accounts'])
+        self.assertNotIn('Not included', workbook.sheetnames)
         rows = list(workbook['Customer'].values)
         header = rows[0]
         by_id = {row[0]: dict(zip(header, row, strict=False)) for row in rows[1:]}

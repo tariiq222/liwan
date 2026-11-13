@@ -47,22 +47,22 @@ def parse_export(payload):
 
 def dump_preview(customer_id, preview):
     """``{customer: {id, erased}, items: [{key, owner, action, count, complete}], incomplete: [{key, owner, reason}],
-    unchecked_models: [model], not_covered: [key], reach: {shared, covers_all}, token, expires_in}``.
+    empty_models: [model], not_covered: [key], reach: {shared, covers_all}, token, expires_in}``.
 
     ``action`` is ``erase`` (cleared), ``retain`` (kept by law) or ``unhandled`` (an application model that links to the
     customer and has no hook: the erase cannot clear it). ``complete`` is false when the caller cannot reach every record
     of that kind. While ``incomplete`` is not empty the erase answers 409 ``erase_incomplete``; each entry's ``reason`` is
     ``application_has_no_hook``, ``session_does_not_cover_every_company`` (a customer shared across the tenant needs a
-    session over the root and every branch) or ``caller_cannot_reach_all_records`` (the caller lacks the application's
-    role). ``unchecked_models`` are application models that link to a customer, have no hook and showed the caller no
-    record: they were not checked. ``not_covered`` lists the keys of what an erase never changes. ``expires_in`` is the
+    session over the root and every branch) or ``caller_cannot_reach_all_records`` (the caller cannot see every record of that kind: a missing right, a record rule, another company or a
+    visibility policy). ``empty_models`` are application models that link to a customer, have no hook and hold no record about it
+    (counted with elevated rights, so the list does not depend on what the caller sees). ``not_covered`` lists the keys of what an erase never changes. ``expires_in`` is the
     token's lifetime in seconds.
     """
     return {
         'customer': {'id': customer_id, 'erased': preview['erased']},
         'items': preview['items'],
         'incomplete': preview['incomplete'],
-        'unchecked_models': preview['unchecked_models'],
+        'empty_models': preview['empty_models'],
         'not_covered': preview['not_covered'],
         'reach': preview['reach'],
         'token': preview['token'],

@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-from .visibility import ASSIGN_CAPABILITY, READ_CAPABILITY
+from .visibility import READ_CAPABILITY
 from odoo.addons.liwan_customers.models.privacy_hooks import ACTION_ERASE
 
 # The copy of the person a lead and a call keep next to the link to the customer.
@@ -11,29 +11,42 @@ LEAD_KEY = 'crm_leads'
 CALL_KEY = 'crm_calls'
 
 
+def lead_domain(partners):
+    """The opportunities linked to the parties."""
+    return [('partner_id', 'in', partners.ids)]
+
+
+def call_domain(partners):
+    """The calls linked to the parties, directly or through an opportunity of theirs."""
+    return ['|', ('partner_id', 'in', partners.ids), ('opportunity_id.partner_id', 'in', partners.ids)]
+
+
 class LiwanCrmPrivacyHooks(models.AbstractModel):
     """What CRM holds about a customer: the opportunities and calls linked to it. Erasing clears the copied name, phone
     and email and keeps the commercial facts (stage, package, prices, outcome) and the link to the customer.
 
-    It runs as the caller, so it reaches the opportunities the visibility policy shows them: a caller who does not hold
-    ``crm.leads.assign`` in the company may not reach every opportunity (and one without ``crm.leads.read`` reaches none), and the preview then says ``complete: false``.
+    It runs as the caller, so it reaches the opportunities the visibility policy and the caller's companies show them
+    (and a caller without ``crm.leads.read`` reaches none). The service compares that with what exists, through the
+    domains declared in ``_liwan_subject_coverage``, and the preview then says ``complete: false``.
     """
     _inherit = 'liwan.customers.privacy.hooks'
 
     @api.model
-    def _liwan_subject_models(self):
-        return [*super()._liwan_subject_models(), 'crm.lead', 'crm.phonecall']
+    def _liwan_subject_coverage(self):
+        return {
+            **super()._liwan_subject_coverage(),
+            LEAD_KEY: ('crm.lead', lead_domain),
+            CALL_KEY: ('crm.phonecall', call_domain),
+        }
 
     @api.model
     def _liwan_crm_subject(self, partners):
         """``(leads, calls)`` linked to the parties, archived ones included; none for a caller without
-        ``crm.leads.read``, who has no ACL on them (the preview then says ``complete: false``)."""
+        ``crm.leads.read``, who has no ACL on them (the service then finds a difference and says ``complete: false``)."""
         if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, READ_CAPABILITY):
             return self.env['crm.lead'], self.env['crm.phonecall']
-        leads = self.env['crm.lead'].with_context(active_test=False).search([('partner_id', 'in', partners.ids)])
-        calls = self.env['crm.phonecall'].with_context(active_test=False).search(
-            ['|', ('partner_id', 'in', partners.ids), ('opportunity_id', 'in', leads.ids)],
-        )
+        leads = self.env['crm.lead'].with_context(active_test=False).search(lead_domain(partners))
+        calls = self.env['crm.phonecall'].with_context(active_test=False).search(call_domain(partners))
         return leads, calls
 
     @api.model
@@ -66,11 +79,10 @@ class LiwanCrmPrivacyHooks(models.AbstractModel):
     @api.model
     def _liwan_subject_erase_preview(self, partners):
         leads, calls = self._liwan_crm_subject(partners)
-        complete = self.env['liwan.access.service']._liwan_has_capability(self.env.user, ASSIGN_CAPABILITY)
         return [
             *super()._liwan_subject_erase_preview(partners),
-            {'key': LEAD_KEY, 'owner': 'liwan_crm', 'action': ACTION_ERASE, 'count': len(leads), 'complete': complete},
-            {'key': CALL_KEY, 'owner': 'liwan_crm', 'action': ACTION_ERASE, 'count': len(calls), 'complete': complete},
+            {'key': LEAD_KEY, 'owner': 'liwan_crm', 'action': ACTION_ERASE, 'count': len(leads)},
+            {'key': CALL_KEY, 'owner': 'liwan_crm', 'action': ACTION_ERASE, 'count': len(calls)},
         ]
 
     @api.model

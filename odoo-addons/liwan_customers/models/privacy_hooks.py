@@ -19,12 +19,13 @@ ACTION_RETAIN = 'retain'
 # records, documents already stored (PDF, e-invoice), and backups until their retention ends.
 ACTION_UNHANDLED = 'unhandled'
 CORE_OWNER = 'liwan_customers'
-# Models the core contribution handles itself: the partners, their bank accounts and their attached files.
-CORE_MODELS = ('res.partner', 'res.partner.bank', 'ir.attachment')
 # Models that link to a partner and hold no customer data of their own: a user or a company contact is never a party,
 # and the mail models (messages, followers, notifications, activities, tracking) are the chatter history that
-# NOT_COVERED names. An application model is on neither list unless its hook declares it.
-NO_CUSTOMER_DATA = ('res.users', 'res.company')
+# NOT_COVERED names. The privacy log and token rows hold ids, counts and the reason only, and the log is kept by law.
+# An application model is on neither list unless its hook declares it.
+NO_CUSTOMER_DATA = (
+    'res.users', 'res.company', 'liwan.customers.privacy.request', 'liwan.customers.privacy.token',
+)
 NO_CUSTOMER_DATA_PREFIXES = ('mail.', 'bus.')
 NOT_COVERED = ('chatter_history', 'free_text_notes', 'stored_documents', 'backups')
 
@@ -36,10 +37,14 @@ class LiwanCustomersPrivacyHooks(models.AbstractModel):
     party and the child contacts under it as one recordset. A contribution never names a sensitive field of another
     application and is read, counted and cleared as the caller: a record the caller cannot reach is not touched.
 
+    * ``_liwan_subject_coverage()``: ``{item key: (model, domain builder)}``. The builder takes the parties and answers
+      the domain of the records of that model the item covers. The service compares, per item, the records that domain
+      finds with elevated rights against those the caller sees, and sets ``complete`` itself: a hook never guesses
+      completeness. A model that links to a partner and no item covers is ``unhandled`` once it holds a record.
     * ``_liwan_subject_export(partners)``: a list of sheets ``{key, title, header, rows}``.
-    * ``_liwan_subject_erase_preview(partners)``: a list of ``{key, owner, action, count, complete}``. ``action`` is
-      ``erase`` (the data is cleared) or ``retain`` (the law keeps it: posted accounting documents keep their partner
-      link, number and amounts). ``complete`` is false when the caller cannot reach every record of the kind.
+    * ``_liwan_subject_erase_preview(partners)``: a list of ``{key, owner, action, count}``, one per covered key.
+      ``action`` is ``erase`` (the data is cleared) or ``retain`` (the law keeps it: posted accounting documents keep
+      their partner link, number and amounts).
     * ``_liwan_subject_erase(partners)``: clear what the preview said and answer ``{key: count}``.
     """
     _name = 'liwan.customers.privacy.hooks'
@@ -55,18 +60,26 @@ class LiwanCustomersPrivacyHooks(models.AbstractModel):
         return family | partner
 
     @api.model
-    def _liwan_subject_models(self):
-        """The model names this hook covers; an application adds its own through ``super()``. A model that links to a
-        partner and is covered by no hook shows up in the preview as ``unhandled``."""
-        return list(CORE_MODELS)
+    def _liwan_subject_coverage(self):
+        """``{item key: (model, domain builder)}`` of what this hook covers; an application adds its own through
+        ``super()``."""
+        return {
+            'customer': ('res.partner', lambda partners: [('id', 'in', partners.ids)]),
+            'bank_accounts': ('res.partner.bank', lambda partners: [('partner_id', 'in', partners.ids)]),
+            'attachments': ('ir.attachment', self._liwan_attachment_domain),
+        }
+
+    @api.model
+    def _liwan_attachment_domain(self, partners):
+        return [
+            ('res_model', '=', 'res.partner'), ('res_id', 'in', partners.ids),
+            '|', ('res_field', '=', False), ('res_field', '!=', False),
+        ]
 
     @api.model
     def _liwan_subject_attachments(self, partners):
         """The files attached to the parties themselves (avatar images included), as the caller sees them."""
-        return self.env['ir.attachment'].with_context(active_test=False).search([
-            ('res_model', '=', 'res.partner'), ('res_id', 'in', partners.ids),
-            '|', ('res_field', '=', False), ('res_field', '!=', False),
-        ])
+        return self.env['ir.attachment'].with_context(active_test=False).search(self._liwan_attachment_domain(partners))
 
     @api.model
     def _liwan_subject_not_covered(self):
@@ -112,11 +125,11 @@ class LiwanCustomersPrivacyHooks(models.AbstractModel):
             [('partner_id', 'in', partners.ids)],
         )
         return [
-            {'key': 'customer', 'owner': 'liwan_customers', 'action': ACTION_ERASE, 'count': len(partners), 'complete': True},
-            {'key': 'bank_accounts', 'owner': 'liwan_customers', 'action': ACTION_ERASE, 'count': banks, 'complete': True},
+            {'key': 'customer', 'owner': 'liwan_customers', 'action': ACTION_ERASE, 'count': len(partners)},
+            {'key': 'bank_accounts', 'owner': 'liwan_customers', 'action': ACTION_ERASE, 'count': banks},
             {
                 'key': 'attachments', 'owner': 'liwan_customers', 'action': ACTION_ERASE,
-                'count': len(self._liwan_subject_attachments(partners)), 'complete': True,
+                'count': len(self._liwan_subject_attachments(partners)),
             },
         ]
 

@@ -20,7 +20,7 @@ HOOKS = 'liwan.customers.privacy.hooks'
 TOKEN_TTL = datetime.timedelta(minutes=10)
 SHEET_KEYS = frozenset({'key', 'title', 'header', 'rows'})
 NOT_INCLUDED_SHEET = 'Not included'
-ITEM_KEYS = frozenset({'key', 'owner', 'action', 'count', 'complete'})
+HOOK_ITEM_KEYS = frozenset({'key', 'owner', 'action', 'count'})
 
 
 def _refuse_token(message):
@@ -54,31 +54,42 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
 
     @api.model
     def _liwan_erase_preview(self, customer_id):
-        """The preview as a dict: ``items``, ``incomplete`` (``[{key, owner, reason}]``), ``unchecked_models``,
+        """The preview as a dict: ``items``, ``incomplete`` (``[{key, owner, reason}]``), ``empty_models``,
         ``not_covered`` (keys), ``erased``, ``reach`` (``{shared, covers_all}``) and the ``token`` the erase needs."""
         customer, partners = self._liwan_subject(customer_id)
         plan = self._liwan_plan(customer, partners)
         return {
-            'items': plan['items'], 'incomplete': plan['incomplete'], 'unchecked_models': plan['unchecked'],
+            'items': plan['items'], 'incomplete': plan['incomplete'], 'empty_models': plan['empty'],
             'not_covered': self.env[HOOKS]._liwan_subject_not_covered(), 'erased': self._liwan_is_erased(customer),
             'reach': plan['reach'], 'token': self._liwan_token(customer),
         }
 
     @api.model
     def _liwan_plan(self, customer, partners):
-        """What the hooks report, plus the records no hook covers, judged once against the real reach of the caller.
+        """What the hooks report, judged once against the real reach of the caller.
 
-        * An application model that links to a partner and no hook declares is ``unhandled`` when the caller sees a
-          record that references the party, and ``unchecked`` (listed by model) when it sees none.
+        * Each hook item is ``complete`` only when the records its declared domain finds are all visible to the caller:
+          the count with elevated rights equals the count the caller sees (a missing ACL, a record rule, the company
+          fence and a visibility policy all show up as a difference).
+        * An application model that links to a partner and no item covers is ``unhandled`` when it holds any record that
+          references the party, whoever can see it, and ``empty`` (listed by model) when it holds none.
         * A party shared across the tenant (no company) can be referenced from any company, so the caller's session must
           cover the root and every branch of the tenant; a party of one company needs that company. Otherwise every item
           of an application is incomplete (``session_does_not_cover_every_company``).
         """
-        items = self._liwan_unique(self.env[HOOKS]._liwan_subject_erase_preview(partners), 'preview item')
-        for item in items:
-            if set(item) != ITEM_KEYS:
-                self._liwan_hook_error(item.get('key'), 'an item has the keys %s' % sorted(ITEM_KEYS))
-        unhandled, unchecked = self._liwan_uncovered(partners)
+        coverage = self.env[HOOKS]._liwan_subject_coverage()
+        hook_items = self._liwan_unique(self.env[HOOKS]._liwan_subject_erase_preview(partners), 'preview item')
+        items = []
+        for item in hook_items:
+            if set(item) != HOOK_ITEM_KEYS:
+                self._liwan_hook_error(item.get('key'), 'an item has the keys %s' % sorted(HOOK_ITEM_KEYS))
+            if item['key'] not in coverage:
+                self._liwan_hook_error(item['key'], 'an item has no declared coverage')
+            model, builder = coverage[item['key']]
+            domain = builder(partners)
+            complete = self._liwan_visible_count(model, domain) == self._liwan_elevated_count(model, domain)
+            items.append({**item, 'complete': complete})
+        unhandled, empty = self._liwan_uncovered(partners, {model for model, _builder in coverage.values()})
         items = self._liwan_unique([*items, *unhandled], 'preview item')
         covers_all = self._liwan_covers_all(customer)
         incomplete = []
@@ -86,7 +97,7 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
             if item['action'] == ACTION_UNHANDLED:
                 reason = 'application_has_no_hook'
             elif not covers_all and item['owner'] != CORE_OWNER:
-                item['complete'] = False
+                item = {**item, 'complete': False}
                 reason = 'session_does_not_cover_every_company'
             elif not item['complete']:
                 reason = 'caller_cannot_reach_all_records'
@@ -94,7 +105,7 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
                 continue
             incomplete.append({'key': item['key'], 'owner': item['owner'], 'reason': reason})
         return {
-            'items': items, 'incomplete': incomplete, 'unchecked': unchecked,
+            'items': items, 'incomplete': incomplete, 'empty': empty,
             'reach': {'shared': not customer.company_id, 'covers_all': covers_all},
         }
 
@@ -110,11 +121,24 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
         return required <= self.env.companies
 
     @api.model
-    def _liwan_uncovered(self, partners):
-        """``(items, unchecked)``: the application models that link to a partner, are covered by no hook and are not on
-        the core list, split by whether the caller sees a record that references the party."""
-        covered = set(self.env[HOOKS]._liwan_subject_models())
-        items, unchecked = [], []
+    def _liwan_visible_count(self, model_name, domain):
+        """How many records of ``model_name`` the domain finds as the caller: a missing ACL means none are visible."""
+        try:
+            return self.env[model_name].with_context(active_test=False).search_count(domain)
+        except AccessError:
+            return 0
+
+    @api.model
+    def _liwan_elevated_count(self, model_name, domain):
+        """How many records of ``model_name`` the domain finds whatever the caller may see: only this number is read
+        with elevated rights, never a field value, so a record the caller cannot reach is counted and not disclosed."""
+        return self.env[model_name].sudo().with_context(active_test=False).search_count(domain)
+
+    @api.model
+    def _liwan_uncovered(self, partners, covered):
+        """``(items, empty)``: the models that link to a partner, are in no hook's coverage and are not on the no-data
+        list, split by whether they hold a record about the party (counted with elevated rights)."""
+        items, empty = [], []
         for name in sorted(self.env.registry):
             model = self.env[name]
             if name in covered or name in NO_CUSTOMER_DATA or name.startswith(NO_CUSTOMER_DATA_PREFIXES):
@@ -128,18 +152,15 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
             if not links:
                 continue
             domain = ['|'] * (len(links) - 1) + [(link, 'in', partners.ids) for link in links]
-            try:
-                count = model.with_context(active_test=False).search_count(domain)
-            except AccessError:
-                count = 0
+            count = self._liwan_elevated_count(name, domain)
             if count:
                 items.append({
                     'key': name, 'owner': getattr(type(model), '_original_module', None) or '', 'action': ACTION_UNHANDLED,
                     'count': count, 'complete': False,
                 })
             else:
-                unchecked.append(name)
-        return items, unchecked
+                empty.append(name)
+        return items, empty
 
     @api.model
     def _liwan_erase(self, customer_id, token, confirmation, reason):
@@ -181,12 +202,10 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
         files = [Sheet(sheet['title'], sheet['header'], sheet['rows']) for sheet in sheets]
         plan = self._liwan_plan(customer, partners)
         not_included = [[item['key'], item['owner'], item['reason']] for item in plan['incomplete']]
-        not_included += [[name, '', 'application_not_checked'] for name in plan['unchecked']]
         if not_included:
             # What could not be included is listed first, so the file never looks complete when it is not.
             files.insert(0, Sheet(NOT_INCLUDED_SHEET, ['key', 'owner', 'reason'], not_included))
             counts['incomplete'] = [item['key'] for item in plan['incomplete']]
-            counts['unchecked_models'] = plan['unchecked']
         content = xlsx_bytes(files, right_to_left=True)
         request = self._liwan_log(customer, KIND_EXPORT, reason, counts)
         return content, f'customer-{customer.id}-{fields.Date.context_today(customer)}.xlsx', request
