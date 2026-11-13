@@ -52,4 +52,13 @@ describe('register page, free-mail refusal', () => {
   it('has the message in both locales, in plain words', () => {
     for (const locale of [ar, en]) expect(locale.signup.errors.businessEmailRequired.length).toBeGreaterThan(20)
   })
+  it('the done step names the address, promises minutes, and says what to do when the invitation is late', () => {
+    for (const locale of [ar, en]) {
+      expect(locale.signup.invitation).toContain('{email}')
+      expect(locale.signup.invitationLate.length).toBeGreaterThan(60)
+    }
+    const page = readFileSync(resolve(import.meta.dirname, '../register.vue'), 'utf8')
+    expect(page).toContain("t('signup.invitation', { email: details.email.trim() })")
+    expect(page).toContain("t('signup.invitationLate')")
+  })
 })

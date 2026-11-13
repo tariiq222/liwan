@@ -225,4 +225,34 @@ suite('vendor attention list on PostgreSQL', () => {
       } finally { client.release() }
     }
   })
+
+  describe('a refund the provider returned but the worker has not recorded', () => {
+    const unrecorded = async (customerId: string) => (await get(BILLING)).items.find(i => i.kind === 'refund_unrecorded' && i.customer_id === customerId)
+    async function pending(providerRefund: string | null, ageHours: number, error = 'record_blocked') {
+      const customer = randomUUID()
+      await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, `${tag} unrecorded-${providerRefund}-${ageHours}`])
+      const s = await subscription(customer, 'active', new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10))
+      const fixture = await refundFixture(customer, s)
+      await pool.query("DELETE FROM commercial_outbox WHERE kind='payment.intervention' AND aggregate_id=$1", [fixture.order])
+      await pool.query(`INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status,created_at) VALUES($1,'reconcile.refund',$2,$3,$4,'pending',now() - make_interval(hours => $5))`,
+        [randomUUID(), fixture.order, randomUUID(), JSON.stringify({ attempt_id: fixture.attempt, error, ...(providerRefund ? { provider_refund: providerRefund } : {}) }), ageHours])
+      return { customer, invoice: fixture.invoice }
+    }
+
+    it('is listed after a day with its invoice and last error, and only for the vendor who may see billing', async () => {
+      const returned = await pending('returned', 30), attempted = await pending('attempted', 25)
+      expect(await unrecorded(returned.customer)).toMatchObject({ invoice_id: returned.invoice, detail: 'record_blocked' })
+      expect(await unrecorded(attempted.customer)).toMatchObject({ invoice_id: attempted.invoice })
+      expect((await get(['vendor.read'])).items.some(i => i.kind === 'refund_unrecorded')).toBe(false)
+    })
+
+    it('is not listed before a day, without a provider mark, or once the row is done', async () => {
+      const young = await pending('returned', 23), unmarked = await pending(null, 48), done = await pending('returned', 48)
+      expect(await unrecorded(young.customer)).toBeUndefined()
+      expect(await unrecorded(unmarked.customer)).toBeUndefined()
+      expect(await unrecorded(done.customer)).toBeDefined()
+      await pool.query("UPDATE commercial_outbox SET status='done',processed_at=now() WHERE kind='reconcile.refund' AND payload->>'attempt_id' IN (SELECT id::text FROM payment_attempts WHERE invoice_id=$1)", [done.invoice])
+      expect(await unrecorded(done.customer)).toBeUndefined()
+    })
+  })
 })

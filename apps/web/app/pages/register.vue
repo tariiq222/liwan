@@ -251,7 +251,10 @@ async function verifyCode() {
         />
       </template>
 
-      <UAlert v-else role="status" color="success" variant="subtle" icon="i-lucide-mail-check" :description="t('signup.invitation')" />
+      <UAlert
+        v-else role="status" color="success" variant="subtle" icon="i-lucide-mail-check"
+        :description="`${t('signup.invitation', { email: details.email.trim() })} ${t('signup.invitationLate')}`"
+      />
     </div>
   </SharedStandalonePage>
 </template>

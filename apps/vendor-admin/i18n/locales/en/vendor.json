@@ -66,6 +66,7 @@
       "kinds": {
         "past_due": "Overdue for {duration}",
         "refund_rejected": "A provider refund could not be recorded ({operation}): the money left and there is no credit note",
+        "refund_unrecorded": "The provider has already returned this money. Do not refund it again. Check why recording the refund is blocked.",
         "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
         "free_base_blocked": "Dropping the subscription to the free base has been blocked for {duration} ({operation}); the company is not locked",
         "trial_end_overdue": "The trial ended {duration} ago but its end has not run: the paid applications are still open and new orders are refused until it does",
@@ -91,6 +92,7 @@
       "actions": {
         "past_due": "Open the invoice",
         "refund_rejected": "Open the invoice",
+        "refund_unrecorded": "Open the invoice",
         "billing_blocked": "Open the subscription",
         "free_base_blocked": "Open the subscription",
         "trial_end_overdue": "Open the subscription",
@@ -1271,6 +1273,10 @@
         "description": "This does not refund anything. Return the money another way first (a bank transfer, or the payment provider's dashboard after checking it was not already refunded there), then record the reference here.",
         "automatic": {
           "inProgress": "The refund is being made through the payment provider. Nothing else is needed; this page shows the result.",
+          "recording": "The payment provider has returned the money. The record will complete by itself; no manual refund is needed or allowed.",
+          "recordingBlocked": "The record is delayed, and it is retried automatically. Last answer: {reason}",
+          "unverified": "The provider has not confirmed this refund yet. Do not refund by hand.",
+          "unverifiedHint": "Check the provider's dashboard. This page keeps checking the provider and records the refund when it shows the money returned. The manual form stays closed so the customer is not paid twice.",
           "retrying": "The provider has not confirmed yet. Last answer: {reason}",
           "failed": "The payment provider could not refund this payment: {reason}",
           "failedHint": "Check the provider's dashboard first so the customer is not paid twice. If the money was not returned, return it another way and record the reference below.",

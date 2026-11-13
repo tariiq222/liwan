@@ -61,6 +61,15 @@ const subjectsSql = `WITH latest AS (
     OR EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind = 'payment.intervention' AND later.status = 'done'
       AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at)) END
   ORDER BY r.aggregate_id, r.processed_at DESC
+), unrecorded_refunds AS (
+  -- The provider already returned (or may have returned) this money but the worker has not recorded it for more than a day.
+  -- Refunding again would pay the customer twice, so the vendor looks at why the record is blocked.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, a.invoice_id, ob.created_at, ob.payload->>'error' AS reason
+  FROM commercial_outbox ob JOIN payment_attempts a ON a.id::text = ob.payload->>'attempt_id'
+  JOIN invoices i ON i.id = a.invoice_id JOIN customers c ON c.id = i.customer_id
+  WHERE ob.kind = 'reconcile.refund' AND ob.status = 'pending' AND ob.payload->>'provider_refund' IN ('attempted','returned')
+    AND ob.created_at < now() - interval '24 hours'
+  ORDER BY c.id, ob.created_at
 ), claimed_transfers AS (
   -- The customer says it transferred; the vendor still has to confirm it. It leaves the list when the invoice is paid, voided or cancelled.
   SELECT c.id AS customer_id, c.name, c.tenant_id, i.id AS invoice_id, k.claimed_at, k.value_date::text AS value_date
@@ -132,6 +141,7 @@ const subjectsSql = `WITH latest AS (
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 2,'refund_unrecorded', customer_id, tenant_id, NULL, invoice_id, name, ${iso('created_at')}, reason, created_at FROM unrecorded_refunds WHERE $3::boolean
   UNION ALL SELECT 2,'bank_transfer_claimed', customer_id, tenant_id, NULL, invoice_id, name, ${iso('claimed_at')}, value_date, claimed_at FROM claimed_transfers WHERE $3::boolean
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered

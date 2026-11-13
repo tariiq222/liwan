@@ -16,6 +16,8 @@ import type { SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { keptAtTrialEnd } from './free-base.js'
 import { hasReachableManager } from './orders.js'
 import { deliveredEntitlement } from './ai-ledger.js'
+import { trialEndsAt } from './renewals.js'
+import { WORKSPACE_DELAY_MS } from './workspace-delay-notice.js'
 
 /** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
 export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: number): string {
@@ -32,6 +34,22 @@ export async function commercialValidUntil(client: Pool | PoolClient, order: Rec
   if (order.kind === 'change' && new Date(order.trial_ends_at).getTime() <= Date.now()) return null
   const plan = await client.query('SELECT grace_days FROM plan_revisions WHERE id=$1', [order.snapshot.plan_revision_id])
   return commercialExpiryDate(order.trial_ends_at, Number(plan.rows[0]?.grace_days ?? 0))
+}
+
+/**
+ * A trial counts from the day the workspace is delivered. A first activation that waited longer than the delay notice
+ * (provisioning was down) restarts the 14 days when its job is built, in the transaction that builds the job, so the
+ * authority sent to Odoo and the subscription agree. An on-time delivery keeps the date set at sign-up.
+ */
+async function startTrialAtDelivery(client: PoolClient, order: Record<string, any>, now: Date): Promise<Date | null> {
+  const current = order.trial_ends_at ? new Date(order.trial_ends_at) : null
+  const firstTrial = order.kind === 'new' && order.payment_state === 'not_required' && !order.applied_revision_id && order.subscription_state === 'trialing'
+  if (!current || !firstTrial || now.getTime() - new Date(order.created_at).getTime() < WORKSPACE_DELAY_MS) return current
+  const days = Number((await client.query('SELECT trial_days FROM plan_revisions WHERE id=$1', [order.snapshot.plan_revision_id])).rows[0]?.trial_days ?? 0)
+  const restarted = new Date(trialEndsAt(days, now))
+  if (restarted <= current) return current
+  await client.query('UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, restarted])
+  return restarted
 }
 
 export type FulfillmentAuthority = SharedReconfigureJob['authority']
@@ -118,7 +136,7 @@ export async function failFulfillmentOn(client: PoolClient, input: { order_id: s
   const type = INTERVENTION_CODES.includes(input.code) ? 'fulfillment_needs_intervention' : 'fulfillment_failed'
   const next = nextOrderState(started, { type })
   await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
-  if (order.payment_state === 'paid' || /^trial-(reopen|bootstrap):/.test(order.idempotency_key))
+  if (order.payment_state === 'paid' || (order.payment_state === 'not_required' && order.kind === 'new') || /^trial-(reopen|bootstrap):/.test(order.idempotency_key))
     await scheduleFulfillmentRecovery(client, order, input.code)
 }
 
@@ -280,6 +298,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const ordered=branches.items.filter(x=>x.order_id===order.id && x.state==='pending')
         const expiryRevision = Number(order.commercial_expiry_revision) + 1
         await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, expiryRevision])
+        order.trial_ends_at=await startTrialAtDelivery(client,order,new Date())
         const lock = String(order.idempotency_key).startsWith('free-base-lock:')
         const trialCutoff = order.kind !== 'renewal' && !lock && (order.subscription_state === 'trialing' || order.suspended_from === 'trialing' || order.trial_lock_cutoff)
           ? new Date(order.trial_lock_cutoff ?? order.trial_ends_at) : null

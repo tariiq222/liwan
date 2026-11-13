@@ -11,6 +11,7 @@ import { processFreeBaseLocks } from './free-base-lock.js'
 import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
+import { sendWorkspaceDelayNotices } from './workspace-delay-notice.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
 import { sendBillingNotices } from './billing-notices.js'
 import { processRefundOutbox } from './settlements.js'
@@ -107,6 +108,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (o.mailAdapter) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
+        await job('workspace-delay-notices', () => sendWorkspaceDelayNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
         await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, signal: o.signal }))

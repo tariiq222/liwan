@@ -29,7 +29,8 @@
     "resend": "Resend code",
     "resendIn": "Resend in {seconds} s",
     "editDetails": "Change registration details",
-    "invitation": "When your workspace is ready, we’ll email you an invitation to set your password.",
+    "invitation": "You’ll get an invitation at {email} within a few minutes, and you set your password from it.",
+    "invitationLate": "If it hasn’t arrived after ten minutes, wait a little and check your spam folder. We keep preparing your workspace even if it runs late, and we’ll send the invitation to the same address. You don’t need to call us.",
     "errors": {
       "companyRequired": "Enter your company name.",
       "adminRequired": "Enter the administrator’s name.",
