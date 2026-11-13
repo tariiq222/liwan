@@ -120,6 +120,16 @@ class TestWholeTree(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_a_tracked_file_deleted_from_the_working_tree_is_skipped(self):
+        with tempfile.TemporaryDirectory() as root:
+            previous = os.getcwd()
+            os.chdir(root)
+            try:
+                with mock.patch.object(secret_guard, 'LITERAL_EXCEPTIONS', {}):
+                    self.assertEqual(scan_tree(['apps/web/server/api/gone.ts']), [])
+            finally:
+                os.chdir(previous)
+
     def test_a_provider_token_in_every_new_root_is_found(self):
         for path in ('odoo-addons/liwan_x/models/m.py', 'apps/web/server/api/t.ts', 'packages/ui/a.vue', 'tools/x.mjs'):
             with self.subTest(path=path):

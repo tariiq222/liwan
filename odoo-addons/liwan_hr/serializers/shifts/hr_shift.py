@@ -13,6 +13,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_number,
     parse_positive_int,
 )
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 
 SCHEDULE_FIELDS = {'name', 'tz', 'two_weeks', 'attendances'}
@@ -24,10 +25,6 @@ DAY_OF_WEEK = ('0', '1', '2', '3', '4', '5', '6')
 DAY_PERIODS = ('morning', 'lunch', 'afternoon', 'full_day')
 WEEK_TYPES = ('0', '1')
 MAX_HOUR = 24
-
-
-def ref(record):
-    return {'id': record.id, 'name': record.name} if record else None
 
 
 def _reject_unknown(payload, allowed):

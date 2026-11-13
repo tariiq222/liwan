@@ -111,7 +111,7 @@ test('filtered empty state and network failure provide recovery', async ({ page 
 
 for (const path of [
   '/projects/dashboard', '/projects/new', '/projects/1/charter', '/projects/1/charter?edit=1',
-  '/projects/1/settings', '/projects/1/schedule', '/projects/1/schedule/tasks/101',
+  '/projects/1/settings', '/projects/1/tasks?view=timeline',
   '/projects/1/tasks/new', '/projects/1/tasks/101', '/projects/1/milestones/new', '/projects/1/milestones/1/edit',
   '/projects/1/stakeholders/new', '/projects/1/stakeholders/1', '/projects/1/stakeholders/1/edit',
   '/projects/1/register/new', '/projects/1/register/1', '/projects/1/register/1/edit',

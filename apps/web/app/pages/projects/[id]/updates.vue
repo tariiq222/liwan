@@ -3,8 +3,8 @@ import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
 
-// Updates have no page of their own: `/projects/:id/updates` redirects to the summary, which lists them. This route stays
-// only as the parent of the create form (`/updates/new`), so its panel opens over the summary like any create panel over its context.
+// Updates have no list page of their own: the summary lists them. This route is the parent of the create form
+// (`/updates/new`), so its panel opens over the summary like any create panel over its context.
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()

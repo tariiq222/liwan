@@ -87,12 +87,24 @@ it('registers commercial billing migration thirteen', async () => {
   await migrate(g.pool)
   expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(13)')
 })
-it('registers legacy migration fourteen after thirteen', async () => {
+it('registers the commercial setup flag migration fourteen after thirteen', async () => {
   const f = fixture([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
   await migrate(f.pool)
   const sql = f.query.mock.calls.map(([s]) => s)
   expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(14)')
-  expect(sql.some((s) => String(s).includes('legacy_mappings'))).toBe(true)
+  expect(sql.some((s) => String(s).includes('ADD COLUMN IF NOT EXISTS commercial_setup_required'))).toBe(true)
+  expect(sql.some((s) => /legacy_mappings|migration_runs|legacy_source/.test(String(s)) && !String(s).includes('DROP'))).toBe(false)
+})
+it('registers version forty-nine once and drops the legacy migration remnants', async () => {
+  const applied = Array.from({ length: 48 }, (_, i) => i + 1)
+  const f = fixture(applied)
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(49)')
+  expect(sql.some((s) => s.includes('DROP TABLE IF EXISTS legacy_mappings') && s.includes('DROP TABLE IF EXISTS migration_runs') && s.includes('DROP COLUMN IF EXISTS legacy_source'))).toBe(true)
+  const g = fixture([...applied, 49])
+  await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(49)')
 })
 it('registers immutable branch quotes and revision guard in versions fifteen and sixteen once', async () => {
   const applied = Array.from({length:14}, (_, i) => i+1)

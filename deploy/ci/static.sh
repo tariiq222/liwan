@@ -37,6 +37,7 @@ policies() {
   python3 -B tools/migration_guard.py --base "$BASE_REF"
   python3 -B tools/git_policy.py --base "$BASE_REF"
   python3 -B tools/arch_policy.py --base "$BASE_REF"
+  python3 -B tools/undeclared_imports.py
   # The generated API files are checked in the nightly run only: task branches may not regenerate them
   # (tools/git_policy.py), so a pull request that adds a route would fail a check it cannot fix.
   if [ "${GITHUB_EVENT_NAME:-}" = schedule ]; then

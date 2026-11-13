@@ -178,6 +178,8 @@ def scan_tree(tracked: list[str]) -> list[str]:
         wide = path.startswith(WIDE_ROOTS) or '/' not in path  # repo-root files (config, scripts) are scanned like a wide root
         if not (strict or wide) or not path.endswith(SCANNED_SUFFIXES + SOURCE_SUFFIXES):
             continue
+        if not Path(path).is_file():  # deleted in the working tree and not staged yet: `git ls-files` still lists it
+            continue
         text = Path(path).read_text(encoding='utf-8', errors='replace')
         problems += [f'provider token or private key: {path}:{n}' for n in find_provider_tokens(text, path)]
         exception = None if strict else literal_exception(path)

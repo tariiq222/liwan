@@ -4,9 +4,8 @@ import re
 from datetime import date
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_hr.models.hr_payslip import INPUT_CODES
-from odoo.addons.liwan_hr.serializers.assets.common import ref
 from odoo.addons.liwan_hr.serializers.payroll.currency import currency_code
 
 MONTH = re.compile(r'(\d{4})-(0[1-9]|1[0-2])')

@@ -7,11 +7,11 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.serializers.assets.category import (
     dump_categories,
     parse_category_vals,
 )
-from odoo.addons.liwan_hr.serializers.assets.common import ref
 
 
 class HrAssetsCategoryController(http.Controller):

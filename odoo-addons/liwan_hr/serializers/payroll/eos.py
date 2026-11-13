@@ -2,8 +2,9 @@
 import math
 
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.models.payroll_math import EOS_CASES
-from odoo.addons.liwan_hr.serializers.assets.common import ref, reject_unknown
+from odoo.addons.liwan_hr.serializers.assets.common import reject_unknown
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 from odoo.addons.liwan_hr.serializers.payroll.currency import currency_code
 from odoo.addons.liwan_hr.serializers.payroll.revision import stored_revision

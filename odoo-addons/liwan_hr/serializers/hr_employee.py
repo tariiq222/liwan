@@ -3,6 +3,7 @@ from odoo import fields
 from odoo.tools import email_normalize
 
 from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 
 EMPLOYEE_FIELDS = {'name', 'work_email', 'work_phone', 'job_title', 'department_id', 'parent_id', 'nationality_id'}
@@ -122,7 +123,7 @@ def dump_contract(employee):
     """Contract data of the employee's current version (an hr.employee record only)."""
     contract_type = employee.contract_type_id
     return {
-        'type': {'id': contract_type.id, 'name': contract_type.name} if contract_type else None,
+        'type': ref(contract_type),
         'start_date': _date(employee.contract_date_start),
         'end_date': _date(employee.contract_date_end),
         'probation_end_date': _date(employee.trial_date_end),
@@ -133,7 +134,7 @@ def dump_contract(employee):
 
 def _nationality(employee):
     country = employee.country_id
-    return {'id': country.id, 'name': country.name} if country else None
+    return ref(country)
 
 
 def dump_employee(employee, *, include_access=True, include_contract=False):

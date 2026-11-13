@@ -5,8 +5,8 @@ A plan is a stock ``mail.activity.plan`` of ``hr.employee`` whose ``hr_purpose``
 area; its steps are the stock templates, always with the todo activity type. Relation ids
 are parsed here and resolved by the controller, like every other HR serializer.
 """
-from .fields import ref
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.liwan_api.serializers.common import ref
 
 PLAN_CREATE_FIELDS = {'name', 'department_id', 'steps'}
 PLAN_PATCH_FIELDS = {'name', 'department_id', 'active', 'steps'}

@@ -11,7 +11,7 @@ from odoo.tools import html2plaintext
 
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_number
 from odoo.addons.liwan_api.serializers.attachment import dump_attachment
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_pmo.models.project_task import _validate_task_deliverables
 
 STATE_TO_API = {
@@ -70,10 +70,6 @@ def _days_remaining(task, today=None):
         return None
     deadline_day = fields.Date.context_today(task, task.date_deadline)
     return (deadline_day - _today(task, today)).days
-
-
-def _ref(record):
-    return {'id': record.id, 'name': record.display_name}
 
 
 def _project_ref(project, *, include_tools=False):
@@ -164,11 +160,11 @@ def dump_task(task, today=None, counts=None):
         'days_remaining': days,
         'is_overdue': bool(days is not None and days < 0 and not task.is_closed),
         'is_closed': task.is_closed,
-        'personal_stage': _ref(stage) if stage else None,
+        'personal_stage': ref(stage, label='display_name') if stage else None,
         # The *project* stage (kanban column on the project screen); personal_stage
         # is the user's private column on مهامي.
-        'stage': _ref(task.stage_id) if task.stage_id else None,
-        'assignees': [_ref(u) for u in task.user_ids],
+        'stage': ref(task.stage_id, label='display_name') if task.stage_id else None,
+        'assignees': [ref(u, label='display_name') for u in task.user_ids],
         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in task.tag_ids],
         'can_write': task._liwan_can_write(),
         'can_approve': task._liwan_can_approve(),
@@ -242,7 +238,7 @@ def dump_task_detail(task, today=None):
         'completion_revision': task.liwan_completion_revision or 0,
         'completion_return_note': task.liwan_completion_return_note or None,
         'completion_policy': task.project_id.liwan_completion_approval if task.project_id else 'none',
-        'completion_approver': _ref(task._liwan_completion_reviewer()) if task._liwan_completion_reviewer() else None,
+        'completion_approver': ref(task._liwan_completion_reviewer(), label='display_name') if task._liwan_completion_reviewer() else None,
         'completion_blocked_reason': task._liwan_completion_blocked_reason(),
         'progress_method': method,
         'percent_complete': task._liwan_percent(method) if evm else None,

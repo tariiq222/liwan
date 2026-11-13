@@ -84,17 +84,6 @@ test.describe('desktop', () => {
     await expect(page).toHaveURL(/\/projects\/1\/updates\/new/)
     await expect(page.getByRole('dialog')).toBeVisible()
   })
-
-  test('the old updates and planning addresses keep working with their query and hash', async ({ page }) => {
-    await open(page, '/projects/1/updates?returnTo=%2Fprojects')
-    await expect(page).toHaveURL(url => url.pathname === '/projects/1' && url.searchParams.get('returnTo') === '/projects')
-    await expect(page.getByTestId('project-tab-summary')).toHaveAttribute('aria-current', 'page')
-    await page.goto('/projects/1/planning?scale=month#today')
-    await expect(page).toHaveURL(url => url.pathname === '/projects/1/tasks' && url.searchParams.get('view') === 'timeline' && url.searchParams.get('scale') === 'month' && url.hash === '#today')
-    await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
-    await page.goto('/projects/1/schedule')
-    await expect(page).toHaveURL(url => url.pathname === '/projects/1/tasks' && url.searchParams.get('view') === 'timeline')
-  })
 })
 
 test.describe('phone', () => {

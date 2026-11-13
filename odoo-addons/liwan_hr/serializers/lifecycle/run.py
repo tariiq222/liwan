@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """/api/v1/hr/<area>/runs: one launch of an employee plan, and its checklist progress."""
-from .fields import date_str, ref
+from .fields import date_str
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 
 RUN_CREATE_FIELDS = {'employee_id', 'plan_id', 'plan_date'}

@@ -2,13 +2,12 @@
 from odoo import fields
 
 from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 from odoo.addons.liwan_hr.serializers.recruitment.common import (
     optional_email,
     optional_id,
     optional_text,
-    ref,
     reject_unknown,
 )
 

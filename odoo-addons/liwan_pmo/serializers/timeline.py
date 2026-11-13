@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 
 
 def _display(tracking, new):
@@ -11,7 +11,7 @@ def dump_message(message):
     author = message.author_id
     base = {
         'id': message.id,
-        'author': {'id': author.id, 'name': author.name} if author else None,
+        'author': ref(author),
         'at': iso(message.date),
     }
     # tracking_value_ids is group_system-only on mail.message; read it sudo'd and then keep

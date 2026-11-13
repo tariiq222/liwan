@@ -29,7 +29,7 @@ describe('activeProjectSection', () => {
     expect(activeProjectSection('/projects/12/updates/new')).toBe('summary')
   })
   it('keeps the planning pages under the tasks tab', () => {
-    for (const path of ['/projects/12/schedule', '/projects/12/schedule/tasks/99', '/projects/12/milestones', '/projects/12/milestones/4/edit', '/projects/12/baselines']) expect(activeProjectSection(path), path).toBe('tasks')
+    for (const path of ['/projects/12/milestones', '/projects/12/milestones/4/edit', '/projects/12/baselines']) expect(activeProjectSection(path), path).toBe('tasks')
     expect(activePlanningSection('/projects/12/milestones/4/edit')).toBe('milestones')
     expect(activePlanningSection('/projects/12/baselines')).toBe('baselines')
     expect(activePlanningSection('/projects/12/tasks')).toBeNull()

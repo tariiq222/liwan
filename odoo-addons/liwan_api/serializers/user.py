@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import fields
 from odoo.exceptions import UserError
+
+from odoo.addons.liwan_api.serializers.common import iso
 
 DEFAULT_LANG = 'ar_001'
 
@@ -133,11 +134,7 @@ def dump_device(device):
     return {
         'id': device.id,
         'label': device.label,
-        'issued_at': _iso(device.issued_at),
-        'expires_at': _iso(device.expires_at),
-        'last_used_at': _iso(device.last_used_at),
+        'issued_at': iso(device.issued_at),
+        'expires_at': iso(device.expires_at),
+        'last_used_at': iso(device.last_used_at),
     }
-
-
-def _iso(value):
-    return fields.Datetime.to_string(value).replace(' ', 'T') + 'Z' if value else None

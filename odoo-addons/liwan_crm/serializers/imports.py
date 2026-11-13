@@ -3,7 +3,7 @@ import base64
 import binascii
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_crm.models.crm_lead import NAME_MAX
 from odoo.addons.liwan_crm.models.intake import (
     FIELDS,
@@ -15,7 +15,6 @@ from odoo.addons.liwan_crm.models.intake import (
 from odoo.addons.liwan_crm.serializers.opportunity import (
     parse_id_or_null,
     parse_text,
-    ref,
 )
 
 FILE_FIELDS = ('file_name', 'content_base64')
@@ -29,8 +28,8 @@ def dump_batch(batch):
     return {
         'id': batch.id,
         'file_name': batch.file_name,
-        'user': ref(batch.user_id),
-        'source': ref(batch.source_id),
+        'user': ref(batch.user_id, label='display_name'),
+        'source': ref(batch.source_id, label='display_name'),
         'created': batch.created_count,
         'duplicate': batch.duplicate_count,
         'invalid': batch.invalid_count,

@@ -11,7 +11,7 @@ from datetime import timedelta
 
 from odoo import fields
 
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, ref
 
 MAX_ITEMS = 20
 # Seconds a manual retry must wait after the previous manual attempt, indexed by the retries already made; the last value is the cap.
@@ -237,7 +237,7 @@ def dump_zatca_waiting_document(document):
     move = document.move_id
     return {
         'invoice': {'id': move.id, 'name': move.name},
-        'partner': {'id': move.partner_id.id, 'name': move.partner_id.name} if move.partner_id else None,
+        'partner': ref(move.partner_id),
         'date': move.invoice_date.isoformat() if move.invoice_date else None,
         'amount_total': move.amount_total,
         'move_type': move.move_type,

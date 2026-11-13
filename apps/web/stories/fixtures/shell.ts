@@ -62,7 +62,6 @@ export const appLinkRows: ShellNavigationLink[] = [
       { id: 'planning-mine', label: 'المسندة إليّ', icon: 'i-lucide-user', to: '/tasks?assignee=me', active: false, count: 3, testId: 'context-link-planning-mine' },
     ],
   },
-  { id: 'reports', label: 'التقارير', icon: 'i-lucide-chart-column', to: '/reports', active: false, testId: 'context-link-reports' },
 ]
 /** The applications of the switcher grid. */
 export const switcherApps = [
