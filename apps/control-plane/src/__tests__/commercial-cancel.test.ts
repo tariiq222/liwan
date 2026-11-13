@@ -434,7 +434,8 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
   })
 
   it('B2: a bank transfer confirmed after the cancel pays the period and the drop waits; after the drop armed it is refused, never paid and dropped', async () => {
-    const today = new Date().toISOString().slice(0, 10)
+    // The value date is a Riyadh calendar day (UTC+3): the UTC date is yesterday there between 00:00 and 03:00.
+    const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10)
     const before = await paidCustomer()
     const when = await due(before)
     await cancelAtPeriodEnd(pool, customerAsks(before, when))
