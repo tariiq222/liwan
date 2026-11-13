@@ -42,7 +42,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const n = ++testNumber
     const ip = `192.0.2.${n}`
     const input = { company_name: 'Signup company', admin_name: 'Administrator',
-      email: `trial-${randomUUID()}@example.test`, mobile: `+966555000${String(n).padStart(3, '0')}`, ...accepted }
+      email: `trial-${randomUUID()}@${randomUUID()}.test`, mobile: `+966555000${String(n).padStart(3, '0')}`, ...accepted }
     let now = new Date()
     let sms = '', email = ''
     const service = new SignupService(pool, {
@@ -95,7 +95,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const first = await f.reachEmail()
     await f.service.verifyEmail(first, f.email())
     f.advance(2)
-    f.input.email = `other-${f.input.email}`
+    f.input.email = `other@${randomUUID()}.test`
     const second = await f.reachEmail()
     await expect(f.service.verifyEmail(second, f.email())).rejects.toMatchObject({ code: 'trial_already_used' })
     expect((await pool.query('SELECT id FROM customers WHERE admin_login=$1', [f.input.email])).rowCount).toBe(0)
@@ -199,6 +199,82 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
       const { rows: [customer] } = await pool.query("INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,'Vendor made','Admin',$2) RETURNING *",
         [randomUUID(), `vendor-${randomUUID()}@example.test`])
       expect((await customerView(pool, customer)).signup_acceptance).toBeNull()
+    })
+  })
+
+  describe('one trial per company domain', () => {
+    // A second person from the same company: another address and another mobile, so only the domain can refuse.
+    async function secondSignup(email: string) {
+      const second = fixture()
+      second.input.email = email
+      const id = await second.reachEmail()
+      return { second, id, attempt: () => second.service.verifyEmail(id, second.email()) }
+    }
+    const customersFor = async (email: string) => (await pool.query('SELECT id FROM customers WHERE admin_login=$1', [email])).rowCount
+    async function claimed() {
+      const first = fixture()
+      const domain = `${randomUUID()}.sa`
+      first.input.email = `a@${domain}`
+      await first.service.verifyEmail(await first.reachEmail(), first.email())
+      return { first, domain }
+    }
+
+    it('refuses another address and mobile at the same domain, plus-address and subdomain, only after both proofs', async () => {
+      const { first, domain } = await claimed()
+      expect((await pool.query('SELECT company_domain FROM public_signup_trials t JOIN customers c ON c.id=t.customer_id WHERE c.admin_login=$1', [first.input.email])).rows)
+        .toEqual([{ company_domain: domain }])
+      for (const email of [`b@${domain}`, `a+1@${domain}`, `D@${domain.toUpperCase()}`, `c@mail.${domain}`]) {
+        const { second, id, attempt } = await secondSignup(email)
+        // Starting, the SMS code and the email code all go out normally: nothing says the company already has a trial.
+        expect(second.email()).not.toBe('')
+        await expect(attempt()).rejects.toMatchObject({ code: 'trial_already_used', status: 409 })
+        expect(await customersFor(email)).toBe(0)
+        expect((await pool.query('SELECT completed FROM public_signups WHERE id=$1', [id])).rows).toEqual([{ completed: false }])
+      }
+    })
+
+    it('does not reveal an existing company at start, SMS or email-send time', async () => {
+      const { domain } = await claimed()
+      const f = fixture()
+      f.input.email = `b@${domain}`
+      const { signup_id } = await f.start()
+      await expect(f.service.verifySms(signup_id, f.sms())).resolves.toEqual({ ok: true })
+      await expect(f.service.sendEmail(signup_id, f.ip)).resolves.toEqual({ ok: true })
+    })
+
+    it('keeps com.sa style suffixes apart: x.com.sa and y.com.sa are different companies', async () => {
+      const x = fixture(), y = fixture()
+      const suffix = randomUUID().slice(0, 8)
+      x.input.email = `a@x${suffix}.com.sa`
+      y.input.email = `a@y${suffix}.com.sa`
+      await x.service.verifyEmail(await x.reachEmail(), x.email())
+      await y.service.verifyEmail(await y.reachEmail(), y.email())
+      expect(await customersFor(x.input.email)).toBe(1)
+      expect(await customersFor(y.input.email)).toBe(1)
+      const { attempt } = await secondSignup(`b@mail.x${suffix}.com.sa`)
+      await expect(attempt()).rejects.toMatchObject({ code: 'trial_already_used' })
+    })
+
+    it('leaves a customer the vendor created on the same domain unaffected and the vendor path open', async () => {
+      const domain = `${randomUUID()}.sa`
+      await pool.query("INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,'Vendor made','Admin',$2)", [randomUUID(), `boss@${domain}`])
+      const f = fixture()
+      f.input.email = `a@${domain}`
+      await expect(f.service.verifyEmail(await f.reachEmail(), f.email())).resolves.toEqual({ ok: true })
+      // The vendor-created customer holds no claim, so it never blocks and a second vendor-created customer is possible.
+      await pool.query("INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,'Vendor made 2','Admin',$2)", [randomUUID(), `other@${domain}`])
+    })
+
+    it('two sign-ups racing for one domain end with one customer', async () => {
+      const domain = `${randomUUID()}.sa`
+      const people = [fixture(), fixture()]
+      people.forEach((p, i) => { p.input.email = `p${i}@${domain}` })
+      const ids = await Promise.all(people.map(p => p.reachEmail()))
+      const results = await Promise.allSettled(people.map((p, i) => p.service.verifyEmail(ids[i]!, p.email())))
+      expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
+      expect(results.filter(r => r.status === 'rejected')).toEqual([{ status: 'rejected', reason: expect.objectContaining({ code: 'trial_already_used' }) }])
+      expect((await pool.query('SELECT count(*)::int AS n FROM public_signup_trials WHERE company_domain=$1', [domain])).rows).toEqual([{ n: 1 }])
+      expect((await pool.query('SELECT count(*)::int AS n FROM customers WHERE admin_login LIKE $1', [`%@${domain}`])).rows).toEqual([{ n: 1 }])
     })
   })
 

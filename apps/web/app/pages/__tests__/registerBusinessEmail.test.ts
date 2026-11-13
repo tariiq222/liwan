@@ -49,6 +49,16 @@ describe('register page, free-mail refusal', () => {
     expect(state.errorKey.value).toBe('signup.errors.rateLimited')
     expect(state.emailErrorKey.value).toBeUndefined()
   })
+  it('says the company already used its trial when the server refuses the claim, in both locales', async () => {
+    const state = mount({ data: { code: 'trial_already_used' } })
+    await state.startSignup()
+    expect(state.errorKey.value).toBe('signup.errors.trialAlreadyUsed')
+    expect(state.emailErrorKey.value).toBeUndefined()
+    for (const locale of [ar, en]) {
+      expect(locale.signup.errors.trialAlreadyUsed.length).toBeGreaterThan(80)
+      expect(locale.signup.errors.trialAlreadyUsed).not.toContain('{')
+    }
+  })
   it('has the message in both locales, in plain words', () => {
     for (const locale of [ar, en]) expect(locale.signup.errors.businessEmailRequired.length).toBeGreaterThan(20)
   })

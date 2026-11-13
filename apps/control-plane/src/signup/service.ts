@@ -4,6 +4,7 @@ import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { startTrialOn } from '../commercial/trial.js'
+import { companyDomain } from './company-domain.js'
 import { isFreeMailAddress } from './free-mail.js'
 
 const minutes = (count: number) => count * 60_000
@@ -177,9 +178,12 @@ export class SignupService {
       if (row.completed) return true
       const plan = await this.plan(client)
       const customerId = randomUUID()
-      const claim = await client.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,terms_version,terms_accepted_at,terms_accepted_ip)
-        VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING customer_id`,
-      [customerId, row.email, row.mobile, row.terms_version, row.terms_accepted_at, row.terms_accepted_ip])
+      // One trial per email, mobile and company (registrable domain). The unique keys decide a race; the refusal comes
+      // only here, after both proofs, so an anonymous visitor cannot probe which companies already have an account.
+      const domain = companyDomain(row.email) ?? refuse('invalid', 422)
+      const claim = await client.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,company_domain,terms_version,terms_accepted_at,terms_accepted_ip)
+        VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING RETURNING customer_id`,
+      [customerId, row.email, row.mobile, domain, row.terms_version, row.terms_accepted_at, row.terms_accepted_ip])
       if (!claim.rowCount) refuse('trial_already_used', 409)
       await client.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)',
         [customerId, row.company_name, row.admin_name, row.email])
