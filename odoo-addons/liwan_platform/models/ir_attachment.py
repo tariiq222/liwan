@@ -4,47 +4,23 @@ import binascii
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
-from odoo.tools import human_size
 
 from .entitlement_service_storage import STORAGE_FLAG
 from .read_only_guard import SETTLE_MARKER
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-from odoo.addons.liwan_core.models.protected_write import marked
 
 ELIGIBILITY_FIELDS = frozenset({'type', 'res_model', 'res_field', 'res_id', 'url', 'public', 'mimetype'})
 CONTENT_FIELDS = frozenset({'raw', 'datas'})
 COMPANY_IMAGES = frozenset({'image_1920', 'image_1024', 'image_512', 'image_256', 'image_128'})
 ASSET_MIMETYPES = frozenset({'text/css', 'text/xml', 'application/javascript', 'application/json'})
 ASSET_SETTLE_PENDING = 'liwan_platform.asset_storage_settle'
-NATIVE_INVERSE = 'liwan_platform.attachment_native_inverse'
-
-
-class StorageProtectedBinary(fields.Binary):
-    """Apply the file policy when native Binary returns a value, even from a warm cache."""
-
-    def __get__(self, record, owner=None):
-        if record is not None and len(record) == 1 and record.id and self._liwan_size_requested(record):
-            return human_size(record.file_size)
-        return super().__get__(record, owner)
-
-    def _liwan_size_requested(self, record):
-        return record.env.context.get('bin_size') or record.env.context.get(f'bin_size_{self.name}')
-
-    def convert_to_record(self, value, record):
-        if (
-            len(record) == 1 and record.id and not self._liwan_size_requested(record)
-            and record.id not in record.env.cr.precommit.data.get(NATIVE_INVERSE, ())
-        ):
-            record._liwan_assert_storage_readable()
-        return super().convert_to_record(value, record)
 
 
 class LiwanPlatformIrAttachment(models.Model):
     _inherit = 'ir.attachment'
 
-    raw = StorageProtectedBinary()
-    datas = StorageProtectedBinary()
-    db_datas = StorageProtectedBinary(copy=False)
+    db_datas = fields.Binary(copy=False)
+    # Settlement marker: this file is counted above the storage limit. It does not restrict reading or downloading.
     liwan_storage_blocked = fields.Boolean(default=False, readonly=True, copy=False)
     # The predicate is written as the ORM renders `liwan_storage_blocked = True`, or PostgreSQL would not use the index.
     # Lets the settlement ask "is anything blocked?" without reading attachments.
@@ -79,21 +55,13 @@ class LiwanPlatformIrAttachment(models.Model):
         asset_fields = ('type', 'res_model', 'res_id', 'res_field', 'public', 'mimetype', 'url')
         return self._liwan_generated_asset({field: self[field] for field in asset_fields}, owner)
 
-    def _liwan_assert_storage_readable(self):
-        # Module loading can read stock attachments before the platform schema and singleton exist.
-        if not self.env.registry.ready:
-            return
-        service = self.env['liwan.entitlement.service']
-        if service._liwan_post_trial_due():
-            refused = bool(service._liwan_storage_plan()[0].intersection(self.ids))
-        else:
-            refused = self.filtered('liwan_storage_blocked')
-        if refused or self.filtered(lambda row: row.type == 'url' and row.file_size):
-            msg = 'storage_excess_blocked'
+    def _liwan_assert_no_url_bytes(self):
+        if self.filtered(lambda row: row.type == 'url' and row.file_size):
+            msg = 'url_attachment_has_content'
             raise LiwanAccessRule(msg, status=403)
 
     def _to_http_stream(self):
-        self._liwan_assert_storage_readable()
+        self._liwan_assert_no_url_bytes()
         return super()._to_http_stream()
 
     @api.model
@@ -118,12 +86,11 @@ class LiwanPlatformIrAttachment(models.Model):
         return 0
 
     def _set_attachment_data(self, asbytes):
-        """Native inverses read their new cached input and set the physical metadata below our write hook."""
+        """Native inverses set the physical metadata below our write hook."""
         service = self.env['liwan.entitlement.service']
         service._liwan_invalidate_storage_plan()
         try:
-            with marked(self.env, {NATIVE_INVERSE: self.ids}):
-                return super()._set_attachment_data(asbytes)
+            return super()._set_attachment_data(asbytes)
         finally:
             service._liwan_invalidate_storage_plan()
 

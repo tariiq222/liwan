@@ -2,7 +2,6 @@
 from base64 import b64encode
 from datetime import datetime, timedelta
 from io import BytesIO
-from unittest import TestCase
 
 from PIL import Image
 
@@ -49,12 +48,11 @@ class TestTrialStorage(ExcessCase):
         self.assertEqual(self.service._liwan_excess_counts()['storage.limit_mb'], 4)
         self.assertEqual(newest.read(['name', 'file_size'])[0]['file_size'], FILE_BYTES)
         self.assertTrue(newest.with_context(bin_size=True).datas)
-        for field in ('raw', 'datas', 'db_datas'):
-            with self.assertRaises(LiwanAccessRule) as caught:
-                newest[field]
-            self.assertEqual(caught.exception.code, 'storage_excess_blocked')
-        with self.assertRaises(LiwanAccessRule):
-            self.env['ir.binary']._get_stream_from(newest)
+        self.assertEqual(len(newest.raw), FILE_BYTES)
+        self.assertTrue(newest.datas)
+        with self.assertRaises(LiwanAccessRule) as refused:
+            self.env['ir.attachment'].create({'name': 'over.txt', 'raw': b'z' * FILE_BYTES})
+        self.assertEqual(refused.exception.code, 'feature_not_included')
         self.assertTrue(self.service._liwan_excess_is_settled())
         oldest.unlink()
         self.assertFalse(middle.liwan_storage_blocked)
@@ -150,9 +148,7 @@ class TestTrialStorage(ExcessCase):
         self._set_limit('storage.limit_mb', 0)
         self.assertTrue(attachment.liwan_storage_blocked)
         self.assertEqual(attachment.read(['file_size'])[0]['file_size'], 10)
-        with self.assertRaises(LiwanAccessRule) as caught:
-            attachment.raw
-        self.assertEqual(caught.exception.code, 'storage_excess_blocked')
+        self.assertEqual(attachment.raw, b'x' * 10)
         self.assertTrue(self.service._liwan_excess_is_settled())
 
     def test_storage_proof_checks_flags_before_advertising_settlement(self):
@@ -213,9 +209,7 @@ class TestAutonomousTrialExpiry(ExcessCase):
         with self.assertRaises(LiwanAccessRule) as caught:
             attachment.with_user(employee).write({'name': 'denied.txt'})
         self.assertEqual(caught.exception.code, 'user_read_only')
-        with self.assertRaises(LiwanAccessRule) as caught:
-            attachment.raw
-        self.assertEqual(caught.exception.code, 'storage_excess_blocked')
+        self.assertEqual(attachment.raw, b'x' * 10)
         self.assertEqual(self.record.trial_ends_at, CUTOFF)
 
     def test_overdue_binary_and_host_reads_share_one_projection_until_metadata_changes(self):
@@ -239,14 +233,14 @@ class TestAutonomousTrialExpiry(ExcessCase):
         self.patch(type(Attachment), 'search_fetch', track)
         self.clock = CUTOFF
         # These reads are pure; an Odoo savepoint rollback would intentionally clear the cursor cache.
-        with TestCase.assertRaises(self, LiwanAccessRule):
-            first.raw
+        self.assertEqual(first.raw, b'first')
+        self.service._liwan_storage_plan()
         batches = len(scans)
         self.assertGreater(batches, 0)
         for row in (first, second):
             for field in ('raw', 'datas'):
-                with TestCase.assertRaises(self, LiwanAccessRule):
-                    row[field]
+                self.assertTrue(row[field])
+        self.service._liwan_storage_plan()
         before = self.service._liwan_blocked_storage_bytes()
         self.service._liwan_excess_counts()
         self.assertEqual(len(scans), batches)

@@ -26,7 +26,7 @@ class LiwanPlatformIrBinary(models.AbstractModel):
             msg = 'tenant_suspended'
             raise AccessError(msg)
         if record._name == 'ir.attachment':
-            record._liwan_assert_storage_readable()
+            record._liwan_assert_no_url_bytes()
         return record
 
     def _liwan_public_branding_record(self, record):

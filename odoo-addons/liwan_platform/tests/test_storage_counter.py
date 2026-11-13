@@ -151,6 +151,21 @@ class TestStorageCounter(TransactionCase):
         self.assertFalse(record.liwan_storage_blocked)
         self.assertEqual(self.service._liwan_blocked_storage_bytes(), 0)
 
+    def test_over_the_limit_files_stay_readable_uploads_stay_refused_and_deleting_reopens_uploads(self):
+        big = self.Attachment.create({'name': 'big.txt', 'raw': b'x' * (2 * MIB), 'mimetype': 'text/plain'})
+        self.profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**self.profile.features, 'storage.limit_mb': 1},
+        })
+        self.assertTrue(big.liwan_storage_blocked)
+        self.assertEqual(len(big.raw), 2 * MIB)
+        with self.assertRaises(LiwanAccessRule) as caught:
+            self.Attachment.create({'name': 'new.txt', 'raw': b'y', 'mimetype': 'text/plain'})
+        self.assertEqual(caught.exception.code, 'feature_not_included')
+        big.write({'raw': b'z' * 10})
+        self._limit_above_usage()
+        big.unlink()
+        self.Attachment.create({'name': 'new.txt', 'raw': b'y', 'mimetype': 'text/plain'})
+
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestStorageCounterConcurrency(TransactionCase):

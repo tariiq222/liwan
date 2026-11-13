@@ -28,7 +28,10 @@ class LiwanEntitlementStorage(models.AbstractModel):
 
     @api.model
     def _liwan_storage_plan(self):
-        """One allocation per transaction snapshot and effective storage limit."""
+        """One allocation per transaction snapshot and effective storage limit.
+
+        Files in the first element are counted above the limit; they stay readable and downloadable.
+        """
         limit = self._liwan_limit_value(STORAGE_LIMIT)
         if limit is not None and (type(limit) is not int or limit < 0):
             msg = 'tenant_configuration_invalid'
