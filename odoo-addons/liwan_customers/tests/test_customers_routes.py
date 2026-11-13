@@ -8,7 +8,9 @@ from odoo.addons.liwan_core.models.protected_write import marked
 from odoo.addons.liwan_customers.models.res_partner import PARTY_MARKER
 from odoo.addons.liwan_customers.tests.common import (
     CANDIDATES,
+    COUNTRIES,
     CUSTOMERS,
+    EXPORT,
     PHONE_E164,
     PHONE_LOCAL,
     SETTINGS,
@@ -94,7 +96,7 @@ class TestCustomersRoutes(CustomersCase):
         self.assertEqual(contact, {
             'id': contact['id'], 'name': 'House contact', 'phone': '+966551234567', 'email': None,
             'is_company': False, 'parent': {'id': company['id'], 'name': 'Trading house'}, 'active': True,
-            'company': None,
+            'company': None, 'properties': [],
         })
         self.assertEqual(self.listed_ids('house@example'), [company['id']])
         self.assertEqual(self.listed_ids('0551234567'), [contact['id']])
@@ -183,7 +185,7 @@ class TestCustomersRoutes(CustomersCase):
             ('GET', CUSTOMERS, None), ('GET', detail, None), ('POST', CUSTOMERS, {'name': 'X'}),
             ('PATCH', detail, {'name': 'X'}), ('POST', f'{detail}/archive', None), ('POST', f'{detail}/restore', None),
             ('GET', SETTINGS, None), ('PATCH', SETTINGS, {'sharing': 'branch', 'revision': 1}),
-            ('GET', f'{CANDIDATES}?phone={PHONE_LOCAL}', None),
+            ('GET', EXPORT, None), ('GET', COUNTRIES, None), ('GET', f'{CANDIDATES}?phone={PHONE_LOCAL}', None),
         )
         self.sign_in('cu_nobody')
         for method, path, payload in calls:
@@ -201,7 +203,7 @@ class TestCustomersRoutes(CustomersCase):
         for method, path in (('GET', CUSTOMERS), ('GET', f'{CUSTOMERS}/1'), ('POST', CUSTOMERS),
                              ('PATCH', f'{CUSTOMERS}/1'), ('POST', f'{CUSTOMERS}/1/archive'),
                              ('POST', f'{CUSTOMERS}/1/restore'), ('GET', SETTINGS), ('PATCH', SETTINGS),
-                             ('GET', f'{CANDIDATES}?phone={PHONE_LOCAL}')):
+                             ('GET', EXPORT), ('GET', COUNTRIES), ('GET', f'{CANDIDATES}?phone={PHONE_LOCAL}')):
             with self.subTest(method=method, path=path):
                 response = self.api(method, path, {} if method != 'GET' else None)
                 self.assertEqual((response.status_code, response.json()['code']), (403, 'feature_not_included'))
@@ -231,11 +233,14 @@ class TestCustomersRoutes(CustomersCase):
 
     def test_settings_belong_to_the_root_company(self):
         self.sign_in('cu_a_settings')
-        self.assertEqual(self.api('GET', SETTINGS).status_code, 403)
         self.assertEqual(self.api('PATCH', SETTINGS, {'sharing': 'branch', 'revision': 1}).status_code, 403)
         self.sign_in('cu_root_settings')
         read = self.api('GET', SETTINGS).json()
-        self.assertEqual(read, {'sharing': 'establishment', 'phone_country': None, 'revision': read['revision']})
+        self.assertEqual(read, {
+            'sharing': 'establishment', 'party_kinds': 'both', 'phone_country': None, 'fields': [],
+            'field_limits': {'max_properties': 50, 'max_options': 100, 'max_label': 64},
+            'can_manage': True, 'revision': read['revision'],
+        })
         uae = self.env.ref('base.ae')
         changed = self.api('PATCH', SETTINGS, {'phone_country_id': uae.id, 'revision': read['revision']})
         self.assertEqual(changed.status_code, 200, changed.text)
@@ -244,9 +249,13 @@ class TestCustomersRoutes(CustomersCase):
         stale = self.api('PATCH', SETTINGS, {'sharing': 'branch', 'revision': read['revision']})
         self.assertEqual((stale.status_code, stale.json()['code']), (409, 'conflict'))
         branch = self.api('PATCH', SETTINGS, {'sharing': 'branch', 'phone_country_id': None, 'revision': read['revision'] + 1})
-        self.assertEqual(branch.json(), {'sharing': 'branch', 'phone_country': None, 'revision': read['revision'] + 2})
+        self.assertEqual(
+            {key: branch.json()[key] for key in ('sharing', 'phone_country', 'revision')},
+            {'sharing': 'branch', 'phone_country': None, 'revision': read['revision'] + 2},
+        )
         for payload in ({'sharing': 'group', 'revision': 3}, {'revision': 3}, {'sharing': 'branch'},
-                        {'sharing': 'branch', 'revision': 3, 'extra': 1}, {'phone_country_id': NOT_FOUND, 'revision': 3}):
+                        {'sharing': 'branch', 'revision': 3, 'extra': 1}, {'phone_country_id': NOT_FOUND, 'revision': 3},
+                        {'party_kinds': 'nobody', 'revision': 3}):
             with self.subTest(payload=payload):
                 self.assertEqual(self.api('PATCH', SETTINGS, payload).status_code, 422)
 
@@ -287,3 +296,5 @@ class TestCustomersRoutes(CustomersCase):
                 self.assertEqual(self.api('POST', f'{CUSTOMERS}/{customer["id"]}/archive').status_code, 200)
                 self.sign_in('cu_root_settings')
                 self.assertEqual(self.api('GET', SETTINGS).status_code, 200)
+                self.sign_in('cu_exporter')
+                self.assertEqual(self.api('GET', EXPORT).status_code, 200)

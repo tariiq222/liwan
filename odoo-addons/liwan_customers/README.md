@@ -28,8 +28,45 @@ no application.
   `employee` flag of `res.partner`), or when the root's parent is no party. A phone is normalised in the partner's
   country, else the tenant's; one that does not validate is cleared and kept at the top of the internal note.
 - A parent party is shared with at least everyone its contact is shared with: its company is unset or the contact's.
-- `liwan.customers.settings` is the tenant's policy: customer sharing (`establishment`, `branch`) and the phone
-  country. Only a holder of `customers.settings.manage` in the root company reads or changes it.
+- `liwan.customers.settings` is the tenant's policy: customer sharing (`establishment`, `branch`), the phone
+  country, the party kinds and the custom fields. `GET /api/v1/customers/settings` is read by a holder of
+  `customers.read` or `customers.settings.manage` in the working company, because the forms need the party kinds
+  and the field definition; `can_manage` says whether a write would pass. A write needs
+  `customers.settings.manage` in the working company and in the root company: a branch manager reads and cannot change.
+- `party_kinds` (`individuals`, `companies`, `both`; default `both`) decides what a new top-level customer may be.
+  `POST /api/v1/customers` refuses a top-level customer whose `is_company` disagrees with `422 invalid` on
+  `is_company` with `details.reason = party_kind_not_allowed`. A contact under a company parent is accepted in every
+  mode. Customers an application creates inside its own action, and every edit, are not checked: the setting decides
+  the forms of new customers and has no effect on existing data.
+- Custom fields are stock `res.partner.properties`: one definition per database in `properties.base.definition`,
+  written through `PATCH /api/v1/customers/settings` (`fields`, the whole definition in display order; a field left
+  out is removed) and parsed by `liwan_api/serializers/properties.py`. Values are `properties` on the customer wire
+  shape, accepted on create and edit (null clears one), written by the service under its marker like the identity,
+  and filtered on the list and the export with `property.<key>=<value>`. Only parties carry values through the routes.
+  Removing a field that still has a value on any party (archived ones and every company counted) answers
+  `409 custom_field_values_exist` with the count per field and changes nothing, until the same write carries
+  `confirm_field_removal: true`; the values are then cleared through the ORM, because stock leaves the stored values of a
+  removed definition item in place. `confirm_field_removal` without `fields` is a 422. An option removed from a
+  selection or tags field that stays asks no confirmation: its key is cleared from the customers that hold it in the
+  same write, since the API can no longer read it.
+- D5, the definition without `sudo()`: stock writes the definition for `base.group_system` only. This addon adds an ACL
+  row (read for internal users, read and write for `group_cap_customers_settings_manage`, no create or unlink) and one
+  record rule on `base.group_user` limited to the `res.partner.properties` row, so the settings manager writes the
+  definition as the caller and no other model's definition is readable or writable through those rows. The route
+  checks the capability in the working and the root company. The one `sudo()` of the addon counts and clears values
+  that the company fence hides from the root manager (`_liwan_every_party`).
+- `GET /api/v1/customers/settings/countries` lists the countries (`{id, code, name}`, by name in the session's
+  language, no paging) the phone country can be set to; it needs `customers.settings.manage` in the working company.
+- The list and the export also filter on `is_company=true|false` (anything else is `422 invalid`), so a form can search
+  company customers to pick a parent.
+- `customers.enabled` is a derived key, not an entitlement: `liwan.entitlement.service` of this addon adds it to
+  `_liwan_readable_features` when one key of `_liwan_customers_feature_keys()` is readable, and to
+  `_liwan_writable_features` when one is writable, so `/me` tells the web client whether the routes are open and
+  whether the tenant is read-only. It is in no registry, plan or catalog; the route gate is unchanged. A test that
+  asserts the exact contents of those lists sees it whenever `liwan_customers` is installed.
+- `customers.export` (sensitive, depends on `customers.read`) opens `GET /api/v1/customers/export`: a CSV of the
+  parties the caller can see with the list filters (`q`, `archived`, `property.<key>`), the identity columns and one
+  column per custom field, with the formula-safe cells of `liwan_api/serializers/csv_export.py`.
 - Routes under `/api/v1/customers` are opened by the feature keys that applications register in
   `_liwan_customers_feature_keys`. An application registers the capabilities that may pick a customer in
   `_liwan_customers_pick_capabilities`.

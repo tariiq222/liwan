@@ -1,0 +1,121 @@
+{
+  "customers": {
+    "title": "Customers",
+    "new": "New customer",
+    "edit": "Edit customer",
+    "recordTitle": "Customer",
+    "search": "Search by name, phone or email",
+    "clear": "Clear search",
+    "empty": "No customers yet.",
+    "emptyArchived": "No archived customers.",
+    "footer": "{shown} of 1 result | {shown} of {total} results",
+    "export": "Export CSV",
+    "exporting": "Exporting",
+    "exportFailed": "Could not export customers",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archiveConfirm": "Archive {name}?",
+    "archiveHint": "The customer leaves the list and can be restored from the archived ones.",
+    "restoreConfirm": "Restore {name}?",
+    "restoreHint": "The customer returns to the list.",
+    "rowActions": "Actions for customer {name}",
+    "sharedByAllBranches": "Shared by every branch",
+    "columns": {
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "scope": "Branch",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "kind": {
+      "person": "Individual",
+      "company": "Company"
+    },
+    "record": {
+      "details": "Customer details",
+      "parent": "Parent company",
+      "scope": "Owning branch"
+    },
+    "form": {
+      "identity": "Identity",
+      "identityHint": "The name and contact details your team relies on.",
+      "name": "Name",
+      "nameRequired": "Enter the customer's name",
+      "phone": "Phone",
+      "phoneHint": "Enter the number with its country code. Without one it is read as a number from {country}.",
+      "invalidPhone": "The phone number is not valid",
+      "email": "Email",
+      "kind": "Customer type",
+      "partyKindNotAllowed": "This type is not enabled in the customer settings",
+      "fields": "Extra fields",
+      "fieldsHint": "The fields your company defined in the customer settings.",
+      "saveError": "Could not save the customer",
+      "parent": "Belongs to company",
+      "parentHint": "Optional. Pick the company this customer belongs to.",
+      "parentCompaniesHint": "Leave empty to create a company, or pick a company to create a contact under it.",
+      "parentSearch": "Search for a company",
+      "noParent": "No company",
+      "parentRefused": "The customer cannot be linked to this company"
+    },
+    "conflict": {
+      "title": "Customers with this number exist",
+      "description": "Open one of them, or create a new customer if this is someone else.",
+      "legend": "Customers with this number",
+      "phoneEnds": "Phone ends in {last4}",
+      "noPhone": "No phone",
+      "new": "Create a new customer",
+      "newHint": "Create the customer even though the number matches.",
+      "confirm": "Continue"
+    },
+    "settings": {
+      "readOnlyTitle": "Settings are view only",
+      "readOnly": "Customer settings belong to the managers of the main company. You can see them but cannot change them from here.",
+      "sharing": {
+        "title": "Customer sharing",
+        "hint": "Does each branch see only its own customers, or does the whole establishment share them?",
+        "branch": "Customers of each branch",
+        "branchHint": "Each customer belongs to the branch that created it and only that branch's staff see it.",
+        "establishment": "Customers of the whole establishment",
+        "establishmentHint": "Every customer is shared between branches, so staff of any branch find them.",
+        "shareTitle": "Before choosing \"Customers of the whole establishment\"",
+        "shareContacts": "A shared customer's contacts and bank accounts are visible to staff of any branch who hold the matching capability.",
+        "shareEdit": "Anyone who holds \"Manage customers\" in any branch can edit a shared customer.",
+        "transferTitle": "The setting did not change",
+        "transferRequired": "Sharing cannot change once customers exist. Moving customers between the two modes comes in a later release, and the current value stays."
+      },
+      "partyKinds": {
+        "title": "Customer types",
+        "hint": "Decides the form a new customer gets. It does not change existing customers.",
+        "individuals": "Individuals",
+        "individualsHint": "Every new customer is an individual and the company option is not offered.",
+        "companies": "Companies",
+        "companiesHint": "Every new customer is a company. A contact under a company stays possible.",
+        "both": "Individuals and companies",
+        "bothHint": "Staff choose the customer type when creating."
+      },
+      "phoneCountry": {
+        "title": "Default phone country",
+        "hint": "The country a number written without a country code is read in.",
+        "current": "Country",
+        "help": "Pick a country, or the main company's country.",
+        "main": "The main company's country",
+        "search": "Search for a country",
+        "loadError": "Could not load the countries",
+        "retry": "Try again"
+      },
+      "fields": {
+        "title": "Customer fields",
+        "hint": "Fields your company adds to every customer. A new field appears empty on all customers.",
+        "removalNeeded": "Some removed fields hold values. Confirm the removal below.",
+        "removeTitle": "Remove fields that hold values",
+        "removeHint": "Removing a field deletes its values from customers and cannot be undone.",
+        "removeRow": "{label}: 1 value | {label}: {count} values",
+        "removeConfirm": "Remove the fields and their values"
+      }
+    }
+  }
+}

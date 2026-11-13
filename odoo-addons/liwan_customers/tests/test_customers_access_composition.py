@@ -33,10 +33,17 @@ class TestCustomersAccessComposition(TransactionCase):
         manage = self.Permission.search([('key', '=', 'customers.manage')])
         self.assertEqual(manage.dependency_ids.mapped('key'), ['customers.read'])
 
+    def test_export_depends_on_read_and_is_sensitive(self):
+        export = self.Permission.search([('key', '=', 'customers.export')])
+        self.assertEqual(export.dependency_ids.mapped('key'), ['customers.read'])
+        self.assertTrue(export.sensitive)
+        self.assertTrue(export.custom_role_allowed)
+        self.assertTrue(export.name_ar and export.name_en)
+
     def test_only_manage_implies_the_party_writer(self):
         writer = self.env.ref('liwan_customers.group_customers_party_writer')
         self.assertIn(writer, self.env.ref('liwan_customers.group_cap_customers_manage').all_implied_ids)
-        for xmlid in ('group_cap_customers_read', 'group_cap_customers_settings_manage'):
+        for xmlid in ('group_cap_customers_read', 'group_cap_customers_export', 'group_cap_customers_settings_manage'):
             self.assertNotIn(writer, self.env.ref(f'liwan_customers.{xmlid}').all_implied_ids)
 
     def test_legacy_access_admin_group_still_grants_capabilities(self):

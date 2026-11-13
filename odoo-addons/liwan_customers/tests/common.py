@@ -9,6 +9,8 @@ from odoo.addons.liwan_api.tests.common import (
 CUSTOMERS = '/api/v1/customers'
 CANDIDATES = f'{CUSTOMERS}/candidates'
 SETTINGS = f'{CUSTOMERS}/settings'
+EXPORT = f'{CUSTOMERS}/export'
+COUNTRIES = f'{SETTINGS}/countries'
 # A core capability that stands for an application's pick capability: it has nothing to do with customers.
 PICK_PROBE = 'access.roles.read'
 PHONE_LOCAL = '0501234567'
@@ -19,7 +21,7 @@ class CustomersCase(MembershipCase):
     """``MembershipCase`` plus the people of the customer service, with a probe feature and pick capability.
 
     ``a_staff`` and ``b_staff`` read and manage customers in their own branch only; ``picker`` holds only the probe
-    pick capability in A; ``nobody`` is an employee of A; ``root_settings`` manages the settings in the root and
+    pick capability in A; ``exporter`` reads and exports in A; ``nobody`` is an employee of A; ``root_settings`` manages the settings in the root and
     ``a_settings`` only in A. ``root_admin`` (system administrator in the root) and ``roamer`` (system administrator
     in A and B) come from the fixture above.
     """
@@ -30,9 +32,11 @@ class CustomersCase(MembershipCase):
         cls.root_company.country_id = cls.env.ref('base.sa')
         staff = cls._role('customers_test_staff', 'customers.read', 'customers.manage')
         settings = cls._role('customers_test_settings', 'customers.settings.manage')
+        exporter = cls._role('customers_test_exporter', 'customers.read', 'customers.export')
         picker = cls._role('customers_test_picker', PICK_PROBE)
         cls.a_staff = cls._member(cls.mail('cu_a_staff'), cls.branch_a, [cls.branch_a], {cls.branch_a: staff})
         cls.b_staff = cls._member(cls.mail('cu_b_staff'), cls.branch_b, [cls.branch_b], {cls.branch_b: staff})
+        cls.exporter = cls._member(cls.mail('cu_exporter'), cls.branch_a, [cls.branch_a], {cls.branch_a: exporter})
         cls.picker = cls._member(cls.mail('cu_picker'), cls.branch_a, [cls.branch_a], {cls.branch_a: picker})
         cls.nobody = cls._member(cls.mail('cu_nobody'), cls.branch_a, [cls.branch_a], {cls.branch_a: cls.employee_role})
         cls.root_settings = cls._member(
@@ -78,3 +82,10 @@ class CustomersCase(MembershipCase):
         response = self.api('GET', f'{CUSTOMERS}?q={query}' if query else CUSTOMERS)
         self.assertEqual(response.status_code, 200, response.text)
         return [item['id'] for item in response.json()['items']]
+
+    def define_fields(self, *fields):
+        """Install the tenant's customer fields as the root settings manager; the definition the API answers."""
+        self.sign_in('cu_root_settings')
+        response = self.api('PATCH', SETTINGS, {'fields': list(fields), 'revision': self.settings.revision})
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()['fields']

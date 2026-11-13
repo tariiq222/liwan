@@ -6,7 +6,7 @@ import io
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanCrmCase
-from odoo.addons.liwan_crm.serializers.export import _safe
+from odoo.addons.liwan_api.serializers.csv_export import safe_cell
 
 SETTINGS_URL = '/api/v1/crm/settings'
 LEADS_URL = '/api/v1/crm/opportunities'
@@ -401,11 +401,11 @@ class TestCrmProperties(LiwanCrmCase):
         self.assertEqual(response.status_code, 200, response.text)
         rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig'))))
         header = rows[0]
-        self.assertEqual(header[9:], [_safe('=Remark'), 'Tier', 'Topics', 'VIP', 'Score'])
+        self.assertEqual(header[9:], [safe_cell('=Remark'), 'Tier', 'Topics', 'VIP', 'Score'])
         self.assertFalse(header[9].startswith('='))
         by_name = {row[0]: row[9:] for row in rows[1:]}
         full_cells = by_name['Exported full']
-        self.assertEqual(full_cells, [_safe('=HYPERLINK("http://x")'), 'Gold', 'Alpha, Beta', 'true', '-5'])
+        self.assertEqual(full_cells, [safe_cell('=HYPERLINK("http://x")'), 'Gold', 'Alpha, Beta', 'true', '-5'])
         self.assertFalse(full_cells[0].startswith('='))
         self.assertEqual(by_name['Exported sparse'], ['', 'Silver', '', 'false', ''])
 
