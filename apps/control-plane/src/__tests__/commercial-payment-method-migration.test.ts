@@ -57,11 +57,22 @@ suite('schema_058 carries a database that ran schema_001..057', () => {
     const attemptColumns = await columns('payment_attempts')
     expect(attemptColumns).not.toContain('token_charge')
     expect(attemptColumns).toContain('kind')
-    // The form's bookkeeping columns arrive with the code that writes them, not before.
-    for (const unused of ['provider_intent_ref', 'save_card', 'consent_at', 'consent_text_version', 'failure_code']) expect(attemptColumns).not.toContain(unused)
+    // The form's bookkeeping columns (schema_061) are the ones the form code writes, and nothing more.
+    for (const used of ['provider_intent_ref', 'save_card', 'consent_at', 'consent_text_version']) expect(attemptColumns).toContain(used)
+    expect(attemptColumns).not.toContain('failure_code')
     await expect(pool.query("UPDATE payment_attempts SET kind='token' WHERE id=$1", [ids.hosted])).rejects.toMatchObject({ constraint: 'payment_attempts_kind_check' })
     await pool.query("UPDATE payment_attempts SET kind='form' WHERE id=$1", [ids.hosted])
     expect((await pool.query('SELECT kind FROM payment_attempts WHERE id=$1', [ids.hosted])).rows[0]).toEqual({ kind: 'form' })
+  })
+
+  it('schema_061 keeps a card from being saved without its consent record and an intent from sitting on a non-form attempt', async () => {
+    await expect(pool.query("UPDATE payment_attempts SET save_card=true WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_save_card_consent_check' })
+    await expect(pool.query("UPDATE payment_attempts SET save_card=true,consent_at=now(),consent_text_version='' WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_save_card_consent_check' })
+    await expect(pool.query("UPDATE payment_attempts SET provider_intent_ref='intent_1' WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_intent_form_check' })
+    expect((await pool.query('SELECT save_card FROM payment_attempts WHERE id=$1', [ids.direct])).rows[0]).toEqual({ save_card: false })
+    await pool.query("UPDATE payment_attempts SET kind='form',provider_intent_ref='intent_1',save_card=true,consent_at=now(),consent_text_version='v1' WHERE id=$1", [ids.direct])
+    await expect(pool.query("UPDATE payment_attempts SET provider_intent_ref='intent_1' WHERE id=$1", [ids.hosted])).rejects.toBeTruthy()
+    await pool.query("UPDATE payment_attempts SET kind='saved_card',provider_intent_ref=NULL,save_card=false,consent_at=NULL,consent_text_version=NULL WHERE id=$1", [ids.direct])
   })
 
   it('drops the subscription token and keeps the auto-renew consent check', async () => {

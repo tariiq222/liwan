@@ -284,6 +284,14 @@ export class SimulatorAdapter implements PaymentAdapter {
       decline_message: card.outcome === 'declined' ? card.message : null }) }
   }
 
+  /**
+   * A payment made straight with the publishable key, outside any intent: the browser chose the amount, the description and the callback
+   * (the provider allows it, see the spike document), so a test can play every forgery a payer can attempt.
+   */
+  directPayment(over: Pick<PaymentRecord, 'status' | 'amount' | 'description' | 'callback_url'> & Partial<PaymentRecord>): PaymentRecord {
+    return { ...this.newPayment({ payment_id: `sim_pay_${this.instance}_${++this.seq}`, ...over }) }
+  }
+
   /** A webhook body for a direct payment, shaped like the provider's: no invoice, the locked description names the attempt. */
   paymentWebhookBody(paymentId: string, o: WebhookOverrides = {}): Uint8Array {
     const payment = this.payments.get(paymentId)

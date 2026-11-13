@@ -74,3 +74,34 @@ describe('customer invoice extras', () => {
     expect(sellerIdentitySchema.safeParse({ ...seller, vat_number: '300' }).success).toBe(false)
   })
 })
+
+import { formPaymentSessionSchema, paymentAttemptRequestSchema } from '../commercial/billing.js'
+
+describe('payment attempt request', () => {
+  it('defaults to the hosted invoice and keeps no card', () => {
+    expect(paymentAttemptRequestSchema.parse({})).toEqual({ method: 'hosted_invoice', save_card: false })
+    expect(paymentAttemptRequestSchema.parse({ method: 'form' })).toEqual({ method: 'form', save_card: false })
+  })
+  it('saving the card needs the form and the consent text version', () => {
+    expect(paymentAttemptRequestSchema.parse({ method: 'form', save_card: true, consent_text_version: 'v1' })).toMatchObject({ save_card: true, consent_text_version: 'v1' })
+    expect(paymentAttemptRequestSchema.safeParse({ method: 'form', save_card: true }).success).toBe(false)
+    expect(paymentAttemptRequestSchema.safeParse({ method: 'form', save_card: true, consent_text_version: '' }).success).toBe(false)
+    expect(paymentAttemptRequestSchema.safeParse({ method: 'hosted_invoice', save_card: true, consent_text_version: 'v1' }).success).toBe(false)
+    expect(paymentAttemptRequestSchema.safeParse({ method: 'form', consent_text_version: 'v1' }).success).toBe(false)
+  })
+  it('refuses a consent time from the caller, an unknown method and a bad idempotency key', () => {
+    expect(paymentAttemptRequestSchema.safeParse({ method: 'form', consent_at: '2026-01-01T00:00:00Z' }).success).toBe(false)
+    expect(paymentAttemptRequestSchema.safeParse({ method: 'saved_card' }).success).toBe(false)
+    expect(paymentAttemptRequestSchema.safeParse({ idempotency_key: 'not-a-uuid' }).success).toBe(false)
+    expect(paymentAttemptRequestSchema.safeParse({ idempotency_key: id(1) }).success).toBe(true)
+  })
+})
+
+describe('form payment session', () => {
+  const session = { attempt_id: id(1), intent: { id: 'intent_1', client_secret: 'secret_1' }, publishable_key: 'pk_test_x', amount: sar(11500), expires_at: '2026-11-13T20:00:00.000Z' }
+  it('carries the intent, the publishable key and the amount, and nothing more', () => {
+    expect(formPaymentSessionSchema.parse(session)).toEqual(session)
+    expect(formPaymentSessionSchema.safeParse({ ...session, secret_key: 'sk_test_x' }).success).toBe(false)
+    expect(formPaymentSessionSchema.safeParse({ ...session, intent: { id: 'i' } }).success).toBe(false)
+  })
+})

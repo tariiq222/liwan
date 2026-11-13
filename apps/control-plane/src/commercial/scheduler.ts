@@ -20,6 +20,7 @@ import { expireDeletionCodes, markDueDeletions } from './tenant-deletion.js'
 import { sendTenantDeletionNotices } from './tenant-deletion-notices.js'
 import { sendAdminLoginNotices } from './admin-login.js'
 import { processRefundOutbox } from './settlements.js'
+import { processTokenDeletions } from './form-payments.js'
 import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
@@ -72,7 +73,7 @@ export function sharedRuntimeBusy(pool: Pool, config: Config, log?: (message: st
 export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const { pool, config, env } = o
   const clock = o.clock ?? Date.now
-  const log = o.log ?? ((m: string, e?: unknown) => console.error(`[commercial-scheduler] ${m}`, e instanceof Error ? e.message : e ?? ''))
+  const log = o.log ?? ((m: string, e?: unknown) => console.error('[commercial-scheduler] %s', m, e instanceof Error ? e.message : e ?? ''))
   const reconcileEvery = posInt(env.LIWAN_COMMERCIAL_RECONCILE_EVERY, 10)
   // Downgrade checks need a sample younger than 15 minutes (usage.ts): the interval defaults to 5 minutes and is capped at USAGE_MAX_INTERVAL_MS.
   const usageMs = Math.min(posInt(env.LIWAN_COMMERCIAL_USAGE_INTERVAL_SEC, 300) * 1000, USAGE_MAX_INTERVAL_MS)
@@ -171,6 +172,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
+        await job('payment-tokens', () => processTokenDeletions(pool, o.paymentAdapter))
       }
       console.debug(JSON.stringify({ event: 'commercial_scheduler_tick', tick: ticks, jobs: jobCounts }))
     },

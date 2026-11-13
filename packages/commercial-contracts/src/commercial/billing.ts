@@ -108,6 +108,34 @@ export const paymentAttemptSchema = z.strictObject({
   amount: moneySchema, status: paymentAttemptStatusSchema, redirect_url: z.string().nullable(),
   created_at: z.string(), updated_at: z.string(),
 })
+/** How a customer pays an order: the provider's hosted invoice page, or the card form inside the product. */
+export const paymentMethodChoiceSchema = z.enum(['hosted_invoice', 'form'])
+const CONSENT_TEXT_VERSION = z.string().min(1).max(64)
+/**
+ * A request to start paying an order. `save_card` asks to keep the card for automatic renewal and needs the form and the version of the
+ * consent text the customer saw; the server records the moment itself and never takes it from the request.
+ */
+export const paymentAttemptRequestSchema = z.strictObject({
+  method: paymentMethodChoiceSchema.default('hosted_invoice'),
+  save_card: z.boolean().default(false),
+  consent_text_version: CONSENT_TEXT_VERSION.optional(),
+  idempotency_key: z.uuid().optional(),
+}).superRefine((request, ctx) => {
+  if (request.save_card && request.method !== 'form') ctx.addIssue({ code: 'custom', path: ['save_card'], message: 'Only a card form payment can save the card' })
+  if (request.save_card && !request.consent_text_version) ctx.addIssue({ code: 'custom', path: ['consent_text_version'], message: 'Saving the card needs the consent text version' })
+  if (!request.save_card && request.consent_text_version) ctx.addIssue({ code: 'custom', path: ['consent_text_version'], message: 'A consent text version without saving the card' })
+})
+/**
+ * What the browser needs to show the card form: the intent it may fulfil with the publishable key (never the secret key), and the
+ * amount it will be charged, which only the server decides. `expires_at` is when this form stops being usable.
+ */
+export const formPaymentSessionSchema = z.strictObject({
+  attempt_id: z.string().min(1),
+  intent: z.strictObject({ id: z.string().min(1), client_secret: z.string().min(1) }),
+  publishable_key: z.string().min(1),
+  amount: moneySchema,
+  expires_at: z.string(),
+})
 /** Provider event ledger: (provider, provider_event_id) is unique; a verified signature alone never confirms payment. */
 export const paymentEventRecordSchema = z.strictObject({
   id: z.string().min(1), provider: paymentProviderSchema, provider_event_id: z.string().min(1),
@@ -130,6 +158,9 @@ export type CustomerInvoice = Invoice & z.infer<typeof customerInvoiceExtrasSche
 export type Adjustment = z.infer<typeof adjustmentSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>
+export type PaymentMethodChoice = z.infer<typeof paymentMethodChoiceSchema>
+export type PaymentAttemptRequest = z.infer<typeof paymentAttemptRequestSchema>
+export type FormPaymentSession = z.infer<typeof formPaymentSessionSchema>
 export type PaymentAttemptKind = z.infer<typeof paymentAttemptKindSchema>
 export type PaymentAttemptStatus = z.infer<typeof paymentAttemptStatusSchema>
 export type PaymentEventRecord = z.infer<typeof paymentEventRecordSchema>
