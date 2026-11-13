@@ -13,14 +13,29 @@ when it is set, because the stubs are then inactive). Each stub runs the
 checkout predates it. The checks read the working tree, not the index, so
 unstaged edits can change what they see. ``git commit --no-verify`` still
 bypasses them; the binding gates are ``npm test`` and the merge policies.
+
+``pre-commit`` first runs the lane guard, only in a fixed lane (``.worktrees/<lane>`` of ``tools/worktree_claims.py``;
+any other checkout is not guarded). The guard refuses a commit when the lane has no record, is resting, is on a
+branch other than the one it started, or when the committing session (``LIWAN_SESSION``) has no claim in the lane
+or stages a path outside its claim (deletions and both sides of a rename included; a merge in progress is exempt
+from the path rule). It fails fast, before the checks below; the rule itself is ``commit_refusal``.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 from git_policy import check_subject
+from worktree_claims import (
+    LANES,
+    SESSION_ENV,
+    WORKTREES_DIR,
+    ClaimError,
+    commit_refusal,
+    read_lane,
+)
 
 # Customer-facing UI sources that ui_policy and no_external_refs scan.
 UI_SOURCE_ROOTS = ('apps/web/', 'apps/vendor-admin/', 'packages/ui/', 'packages/commercial-ui/')
@@ -72,7 +87,34 @@ def staged_paths():
     return out.stdout.splitlines()
 
 
+def git_output(argv):
+    return subprocess.run(['git', *argv], cwd=REPO, capture_output=True, text=True, check=True).stdout
+
+
+def is_lane_checkout():
+    return REPO.name in LANES and REPO.parent.name == WORKTREES_DIR
+
+
+def lane_problem():
+    """Why the commit in progress is refused by the lane guard, or ``None``; other checkouts are not guarded."""
+    if not is_lane_checkout():
+        return None
+    git_dir = Path(git_output(['rev-parse', '--absolute-git-dir']).strip())
+    try:
+        lane = read_lane(git_dir)
+    except ClaimError as error:
+        return str(error)
+    staged = [path for path in git_output(['diff', '--cached', '--name-only', '--no-renames', '-z']).split('\0') if path]
+    return commit_refusal(
+        REPO.name, lane, git_output(['branch', '--show-current']).strip(), os.environ.get(SESSION_ENV, ''), staged,
+        (git_dir / 'MERGE_HEAD').exists())
+
+
 def pre_commit():
+    problem = lane_problem()
+    if problem:
+        sys.stderr.write('pre-commit: lane guard: %s\n' % problem)
+        return 1
     failed = 0
     for name, argv in plan_pre_commit(staged_paths()):
         try:

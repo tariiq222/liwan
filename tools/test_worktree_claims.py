@@ -6,14 +6,19 @@ from pathlib import Path
 from worktree_claims import (
     CLAIM_TTL_HOURS,
     ClaimError,
+    Lane,
     claim_path,
+    commit_refusal,
     is_expired,
+    lane_path,
     make_claim,
     normalize_scope,
     overlapping,
     read_claim,
+    read_lane,
     scopes_overlap,
     write_claim,
+    write_lane,
 )
 
 
@@ -63,6 +68,78 @@ class TestClaim(unittest.TestCase):
         limit = CLAIM_TTL_HOURS * 3600
         self.assertFalse(is_expired(0, now=limit))
         self.assertTrue(is_expired(0, now=limit + 1))
+
+
+def session(owner, *scopes):
+    return make_claim(owner, 'task of ' + owner, 'tools-x', scopes, 10)
+
+
+class TestLaneRecord(unittest.TestCase):
+    def test_write_and_read_round_trip_and_absence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(read_lane(tmp))
+            lane = Lane('tools-x', (session('a', 'tools'), session('b', 'docs')))
+            write_lane(tmp, lane)
+            self.assertEqual(read_lane(tmp), lane)
+            write_lane(tmp, Lane(None, ()))
+            self.assertEqual(read_lane(Path(tmp)), Lane(None, ()))
+
+    def test_an_unreadable_lane_record_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for text in ('not json', '{"branch": "x"}', '{"branch": 3, "sessions": []}', '{"branch": null, "sessions": [{"owner": "a"}]}'):
+                lane_path(tmp).write_text(text, encoding='utf-8')
+                with self.subTest(text=text), self.assertRaises(ClaimError):
+                    read_lane(tmp)
+
+
+class TestCommitRefusal(unittest.TestCase):
+    LANE = Lane('tools-x', (session('a', 'tools/wt.py', 'docs'), session('b', 'apps/web')))
+
+    def refusal(self, **overrides):
+        values = dict(lane_name='claude-1', lane=self.LANE, branch='tools-x', session='a', staged=['tools/wt.py'], merging=False)
+        values.update(overrides)
+        return commit_refusal(**values)
+
+    def test_a_session_committing_inside_its_claim_is_allowed(self):
+        self.assertIsNone(self.refusal())
+        self.assertIsNone(self.refusal(staged=['docs/a.md', 'docs/deep/b.md', 'tools/wt.py']))
+        self.assertIsNone(self.refusal(staged=[]))
+
+    def test_a_lane_without_a_record_or_a_started_branch_is_refused(self):
+        self.assertIn('lane setup claude-1', self.refusal(lane=None))
+        self.assertIn('lane start claude-1 <branch>', self.refusal(lane=Lane(None, ())))
+
+    def test_another_branch_is_refused_and_names_the_way_back(self):
+        message = self.refusal(branch='other')
+        self.assertIn('claude-1 is on other but its started branch is tools-x', message)
+        self.assertIn('git switch tools-x', message)
+        self.assertIn('a detached HEAD', self.refusal(branch=''))
+
+    def test_a_missing_session_or_claim_is_refused(self):
+        self.assertIn('LIWAN_SESSION=<owner>', self.refusal(session=''))
+        message = self.refusal(session='c')
+        self.assertIn('session c has no claim in lane claude-1', message)
+        self.assertIn('claim --owner c', message)
+
+    def test_paths_outside_the_claim_are_listed_with_the_session_that_covers_them(self):
+        message = self.refusal(staged=['tools/wt.py', 'apps/web/app/a.vue', 'README.md', 'tools/wt.pyc', 'docs'])
+        self.assertIn('  apps/web/app/a.vue (claimed by session b)', message)
+        self.assertIn('  README.md\n', message)
+        self.assertIn('  tools/wt.pyc\n', message)  # whole segments: tools/wt.py does not cover tools/wt.pyc
+        self.assertNotIn('  tools/wt.py\n', message)
+        self.assertIn('lane claude-1', message)
+
+    def test_a_deletion_outside_the_claim_is_refused_like_any_other_path(self):
+        self.assertIn('  apps/web/gone.vue (claimed by session b)', self.refusal(staged=['apps/web/gone.vue']))
+
+    def test_a_merge_in_progress_is_exempt_from_the_scope_rule_only(self):
+        self.assertIsNone(self.refusal(staged=['apps/web/app/a.vue'], merging=True))
+        self.assertIn('LIWAN_SESSION', self.refusal(session='', merging=True))
+        self.assertIn('git switch', self.refusal(branch='other', merging=True))
+
+    def test_the_whole_repository_scope_covers_every_path(self):
+        lane = Lane('tools-x', (session('a', '.'),))
+        self.assertIsNone(self.refusal(lane=lane, staged=['anything/at/all.py']))
 
 
 if __name__ == '__main__':

@@ -1,13 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import os
 import re
 import socket
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 import wt
-from worktree_claims import read_claim
+from worktree_claims import Lane, make_claim, read_claim, read_lane, write_lane
 from wt import (
     WorktreeError,
     clean_env,
@@ -591,6 +593,295 @@ class TestClaims(unittest.TestCase):
         output = ' M tools/wt.py\0R  new.py\0old.py\0?? docs/x.md\0'
         with mock.patch.object(wt, 'run', return_value=(0, output)):
             self.assertEqual(wt.changed_paths(Path('/r')), ['tools/wt.py', 'new.py', 'docs/x.md'])
+
+
+LANE_ENV = {
+    'GIT_AUTHOR_NAME': 't', 'GIT_AUTHOR_EMAIL': 't@example.com', 'GIT_COMMITTER_NAME': 't', 'GIT_COMMITTER_EMAIL': 't@example.com',
+}
+
+
+def session_claim(owner, *scopes, refreshed=100):
+    return make_claim(owner, 'task of ' + owner, 'tools-x', scopes, refreshed)
+
+
+def lane_entry(sessions=(), branch='tools-x', expired=(), record=True, **overrides):
+    values = dict(
+        path=Path('/r/.worktrees/claude-1'), branch=branch, is_lane=True, lane=Lane(branch, tuple(sessions)) if record else None,
+        expired_sessions=tuple(expired))
+    values.update(overrides)
+    return worktree(**values)
+
+
+class TestLaneClaims(unittest.TestCase):
+    def _update(self, mine, others=(), request=REQUEST, current='/r/.worktrees/claude-1/apps'):
+        written = []
+        with mock.patch.object(wt, 'inspect_all', return_value=[worktree(is_main=True, path=Path('/r')), mine, *others]), \
+                mock.patch.object(wt, 'git_dir', return_value=Path('/r/.git/worktrees/claude-1')), \
+                mock.patch.object(wt, 'write_lane', side_effect=lambda folder, lane: written.append(lane)):
+            text = wt.update_claim(Path('/r'), Path(current), request, now=500)
+        return text, written
+
+    def test_the_first_claim_of_a_session_is_recorded_on_the_started_branch(self):
+        text, written = self._update(lane_entry())
+        self.assertIn('recorded claim', text)
+        claim = written[0].sessions[0]
+        self.assertEqual((written[0].branch, claim.owner, claim.base, claim.claimed_at, claim.refreshed_at), ('tools-x', 'session-a', 'tools-x', 500, 500))
+
+    def test_the_same_session_refreshes_or_changes_its_claim_and_keeps_the_start_time(self):
+        mine = lane_entry([session_claim('session-a', 'docs'), session_claim('session-b', 'tools')])
+        text, written = self._update(mine, request=wt.ClaimRequest('session-a', '', ()))
+        self.assertIn('refreshed claim', text)
+        self.assertEqual([(c.owner, c.scopes, c.claimed_at, c.refreshed_at) for c in written[0].sessions],
+                         [('session-b', ('tools',), 100, 100), ('session-a', ('docs',), 100, 500)])
+        _, written = self._update(mine, request=wt.ClaimRequest('session-a', 'new task', ('apps/api',)))
+        mine_after = next(c for c in written[0].sessions if c.owner == 'session-a')
+        self.assertEqual((mine_after.task, mine_after.scopes, mine_after.claimed_at), ('new task', ('apps/api',), 100))
+
+    def test_a_claim_needs_a_started_branch_and_a_record(self):
+        for entry, text in ((lane_entry(branch=None), 'no started branch'), (lane_entry(record=False), 'has no record')):
+            with self.subTest(text=text), self.assertRaisesRegex(WorktreeError, text):
+                self._update(entry)
+
+    def test_a_first_claim_needs_task_and_scope(self):
+        for request in (REQUEST._replace(task=''), REQUEST._replace(scopes=())):
+            with self.subTest(request=request), self.assertRaises(WorktreeError):
+                self._update(lane_entry(), request=request)
+
+    def test_overlap_with_another_session_of_the_lane_is_refused_unless_a_reason_is_given(self):
+        mine = lane_entry([session_claim('session-b', 'apps/web')])
+        with self.assertRaises(WorktreeError) as caught:
+            self._update(mine)
+        self.assertIn('owner session-b', str(caught.exception))
+        _, written = self._update(mine, request=REQUEST._replace(overlap_reason='agreed with session-b'))
+        self.assertEqual(written[0].sessions[-1].overlap_reason, 'agreed with session-b')
+
+    def test_overlap_with_another_worktree_is_refused(self):
+        other = worktree(path=Path('/r/.worktrees/hr-b'), branch='codex/hr-b', claim=CLAIM._replace(owner='session-b', scopes=('apps/web',)))
+        with self.assertRaisesRegex(WorktreeError, 'owner session-b'):
+            self._update(lane_entry(), others=[other])
+        self._update(lane_entry(), others=[other._replace(claim_expired=True)])
+
+    def test_an_overlapping_expired_session_claim_is_taken_over_and_other_expired_ones_stay(self):
+        mine = lane_entry(
+            [session_claim('old', 'apps/web'), session_claim('stale', 'docs')], expired=('old', 'stale'))
+        text, written = self._update(mine)
+        self.assertIn('took over the expired claim of old', text)
+        self.assertEqual([c.owner for c in written[0].sessions], ['stale', 'session-a'])
+
+    def test_release_removes_one_session_claim(self):
+        mine = lane_entry([session_claim('session-a', 'docs'), session_claim('session-b', 'tools')])
+        written = []
+        with mock.patch.object(wt, 'inspect_all', return_value=[mine]), \
+                mock.patch.object(wt, 'git_dir', return_value=Path('/r/.git')), \
+                mock.patch.object(wt, 'write_lane', side_effect=lambda folder, lane: written.append(lane)):
+            text = wt.release_claim(Path('/r'), Path('/r/.worktrees/claude-1'), ' session-a ')
+            self.assertIn('released the claim of session session-a in lane claude-1', text)
+            self.assertEqual([c.owner for c in written[0].sessions], ['session-b'])
+            with self.assertRaisesRegex(WorktreeError, 'session nobody has no claim'):
+                wt.release_claim(Path('/r'), Path('/r/.worktrees/claude-1'), 'nobody')
+
+    def test_release_runs_only_inside_a_lane(self):
+        with mock.patch.object(wt, 'inspect_all', return_value=[worktree(is_main=True, path=Path('/r')), worktree()]):
+            for current in ('/r', '/r/.worktrees/pmo-a', '/elsewhere'):
+                with self.subTest(current=current), self.assertRaisesRegex(WorktreeError, 'inside a fixed lane'):
+                    wt.release_claim(Path('/r'), Path(current), 'session-a')
+
+    def test_new_refuses_the_name_of_a_fixed_lane(self):
+        for name in wt.LANES:
+            with self.subTest(name=name), self.assertRaisesRegex(WorktreeError, 'fixed lane; set it up with'):
+                create(name, 'main', False, REQUEST)
+
+
+class TestLaneRules(unittest.TestCase):
+    def problems(self, worktrees):
+        return [problem for _, problem in wt.violations(worktrees)]
+
+    def test_a_started_lane_without_a_task_claim_breaks_no_rule(self):
+        self.assertEqual(self.problems([lane_entry()]), [])
+        self.assertEqual(self.problems([lane_entry(branch=None, claim=None)]), [])  # detached and resting
+
+    def test_a_lane_without_a_record_or_on_another_branch_is_reported(self):
+        self.assertIn('no lane record; set it up with: wt.py lane setup claude-1', self.problems([lane_entry(record=False)])[0])
+        moved = lane_entry(branch='other')._replace(lane=Lane('tools-x', ()))
+        self.assertIn('lane is on other but its recorded branch is tools-x', self.problems([moved])[0])
+        resting_on_branch = lane_entry(branch='other')._replace(lane=Lane(None, ()))
+        self.assertIn('recorded branch is none (resting)', self.problems([resting_on_branch])[0])
+
+    def test_session_claims_of_a_lane_are_checked_against_each_other_and_other_worktrees(self):
+        lane = lane_entry([session_claim('a', 'apps/web'), session_claim('b', 'apps/web/app')])
+        self.assertIn('overlaps apps/web/app of /r/.worktrees/claude-1 session b without a stated reason', self.problems([lane])[0])
+        agreed = lane_entry([session_claim('a', 'apps/web'), session_claim('b', 'apps/web/app')._replace(overlap_reason='agreed')])
+        self.assertEqual(self.problems([agreed]), [])
+        self.assertEqual(self.problems([lane._replace(expired_sessions=('b',))]), [])
+        task = worktree(path=Path('/r/.worktrees/hr-b'), branch='codex/hr-b', claim=CLAIM._replace(scopes=('apps/web',)))
+        self.assertEqual(len(self.problems([lane_entry([session_claim('a', 'apps/web')]), task])), 1)
+
+    def test_status_lists_the_session_owners_of_a_lane(self):
+        root = Path('/r')
+        lane = lane_entry([session_claim('a', 'docs'), session_claim('b', 'tools')], expired=('b',))
+        text = wt.format_status([worktree(is_main=True, path=root), lane, lane_entry(path=Path('/r/.worktrees/claude-2'))], root)
+        lines = text.splitlines()
+        self.assertIn('a, b (expired)', lines[2])
+        self.assertRegex(lines[3], r'claude-2\s+tools-x\s+-\s')
+        self.assertIn('2 claimed, 1 expired', text)
+
+    def test_gc_never_removes_a_lane(self):
+        lane = lane_entry()
+        self.assertIn('fixed lane; return it with: wt.py lane finish claude-1', wt.keep_reason(lane, set(), Path('/elsewhere')))
+        self.assertEqual(wt.removable([lane], set(), Path('/elsewhere')), [])
+
+
+class TestLaneCommands(unittest.TestCase):
+    """Real git repositories: an origin, the main checkout and the lane worktrees."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        patch = mock.patch.dict(os.environ, LANE_ENV)
+        patch.start()
+        self.addCleanup(patch.stop)
+        base = Path(self.tmp.name).resolve()
+        self.root = base / 'root'
+        self.git('init', '-q', '-b', 'main', str(self.root), cwd=base)
+        (self.root / 'a.txt').write_text('a', encoding='utf-8')
+        self.git('add', 'a.txt', cwd=self.root)
+        self.git('commit', '-q', '-m', 'first', cwd=self.root)
+        self.git('init', '-q', '--bare', str(base / 'origin.git'), cwd=base)
+        self.git('remote', 'add', 'origin', str(base / 'origin.git'), cwd=self.root)
+        self.git('push', '-q', 'origin', 'main', cwd=self.root)
+        (self.root / '.git' / 'info' / 'exclude').write_text('.env.worktree\n', encoding='utf-8')  # git-ignored in the real repository
+        self.path = self.root / '.worktrees' / 'claude-1'
+
+    def git(self, *argv, cwd):
+        return subprocess.run(['git', *argv], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+    def setup_lane(self, install=False):
+        with mock.patch.object(wt, 'port_is_free', return_value=True):
+            return wt.lane_setup(self.root, 'claude-1', install)
+
+    def record(self):
+        return read_lane(Path(self.git('rev-parse', '--absolute-git-dir', cwd=self.path)))
+
+    def merge_into_origin(self):
+        (self.path / 'b.txt').write_text('b', encoding='utf-8')
+        self.git('add', 'b.txt', cwd=self.path)
+        self.git('commit', '-q', '-m', 'work', cwd=self.path)
+        self.git('push', '-q', 'origin', 'HEAD:main', cwd=self.path)
+
+    def test_setup_creates_a_detached_lane_with_env_and_a_resting_record(self):
+        text = self.setup_lane()
+        self.assertIn('Nuxt port 3101, Odoo port 8170', text)
+        self.assertEqual(self.git('branch', '--show-current', cwd=self.path), '')
+        self.assertEqual(self.record(), Lane(None, ()))
+        self.assertIn('liwan_scratch_claude_1', (self.path / '.env.worktree').read_text(encoding='utf-8'))
+
+    def test_setup_is_repeatable_and_keeps_the_record_and_ports(self):
+        first = self.setup_lane()
+        write_lane(self.git('rev-parse', '--absolute-git-dir', cwd=self.path), Lane('tools-x', (session_claim('a', 'tools'),)))
+        self.assertEqual(self.setup_lane(), first)
+        self.assertEqual(self.record().branch, 'tools-x')
+
+    def test_setup_adopts_a_registered_worktree_and_records_its_branch(self):
+        self.git('worktree', 'add', '-q', '-b', 'tools-x', str(self.path), 'main', cwd=self.root)
+        self.setup_lane()
+        self.assertEqual(self.record(), Lane('tools-x', ()))
+
+    def test_setup_refuses_a_plain_folder_and_a_name_that_is_not_a_lane(self):
+        self.path.mkdir(parents=True)
+        with self.assertRaisesRegex(WorktreeError, 'not a registered worktree'):
+            self.setup_lane()
+        with self.assertRaisesRegex(WorktreeError, 'not a fixed lane'):
+            wt.lane_setup(self.root, 'pmo-a', False)
+
+    def test_setup_installs_dependencies_unless_told_otherwise(self):
+        with mock.patch.object(wt, 'install_dependencies') as install:
+            self.setup_lane(install=True)
+        install.assert_called_once_with(self.path)
+
+    def test_start_refuses_what_is_not_ready(self):
+        with self.assertRaisesRegex(WorktreeError, 'not set up'):
+            wt.lane_start(self.root, 'claude-1', 'tools-x')
+        self.setup_lane()
+        for branch in ('main', 'HEAD', 'bad..name'):
+            with self.subTest(branch=branch), self.assertRaises(WorktreeError):
+                wt.lane_start(self.root, 'claude-1', branch)
+        (self.path / 'dirty.txt').write_text('x', encoding='utf-8')
+        with self.assertRaisesRegex(WorktreeError, 'uncommitted changes'):
+            wt.lane_start(self.root, 'claude-1', 'tools-x')
+
+    def test_start_refuses_a_lane_without_a_record(self):
+        self.setup_lane()
+        Path(self.git('rev-parse', '--absolute-git-dir', cwd=self.path), 'liwan-lane.json').unlink()
+        with self.assertRaisesRegex(WorktreeError, 'has no record'):
+            wt.lane_start(self.root, 'claude-1', 'tools-x')
+
+    def test_start_begins_the_branch_from_origin_main_without_upstream_and_records_it(self):
+        self.setup_lane()
+        self.assertIn('started tools-x', wt.lane_start(self.root, 'claude-1', 'tools-x'))
+        self.assertEqual(self.git('branch', '--show-current', cwd=self.path), 'tools-x')
+        self.assertEqual(self.git('rev-parse', 'HEAD', cwd=self.path), self.git('rev-parse', 'origin/main', cwd=self.path))
+        self.assertEqual(subprocess.run(['git', 'config', 'branch.tools-x.remote'], cwd=self.path, check=False).returncode, 1)
+        self.assertEqual(self.record(), Lane('tools-x', ()))
+
+    def test_start_refuses_while_the_lane_holds_an_unmerged_branch(self):
+        self.setup_lane()
+        wt.lane_start(self.root, 'claude-1', 'tools-x')
+        (self.path / 'b.txt').write_text('b', encoding='utf-8')
+        self.git('add', 'b.txt', cwd=self.path)
+        self.git('commit', '-q', '-m', 'work', cwd=self.path)
+        with self.assertRaisesRegex(WorktreeError, 'still holds tools-x, which is not merged into origin/main'):
+            wt.lane_start(self.root, 'claude-1', 'tools-y')
+
+    def test_start_accepts_a_lane_whose_branch_is_already_merged(self):
+        self.setup_lane()
+        wt.lane_start(self.root, 'claude-1', 'tools-x')
+        self.merge_into_origin()
+        wt.lane_start(self.root, 'claude-1', 'tools-y')
+        self.assertEqual(self.record().branch, 'tools-y')
+        self.assertNotIn('tools-x', self.git('branch', '--list', 'tools-x', cwd=self.root))
+
+    def test_finish_refuses_a_resting_lane_another_branch_a_dirty_tree_and_an_unmerged_branch(self):
+        self.setup_lane()
+        with self.assertRaisesRegex(WorktreeError, 'already resting'):
+            wt.lane_finish(self.root, 'claude-1')
+        wt.lane_start(self.root, 'claude-1', 'tools-x')
+        self.git('switch', '-q', '-c', 'moved', cwd=self.path)
+        with self.assertRaisesRegex(WorktreeError, 'git switch tools-x'):
+            wt.lane_finish(self.root, 'claude-1')
+        self.git('switch', '-q', 'tools-x', cwd=self.path)
+        (self.path / 'dirty.txt').write_text('x', encoding='utf-8')
+        with self.assertRaisesRegex(WorktreeError, 'uncommitted changes'):
+            wt.lane_finish(self.root, 'claude-1')
+        (self.path / 'dirty.txt').unlink()
+        (self.path / 'b.txt').write_text('b', encoding='utf-8')
+        self.git('add', 'b.txt', cwd=self.path)
+        self.git('commit', '-q', '-m', 'work', cwd=self.path)
+        with self.assertRaisesRegex(WorktreeError, 'not merged into origin/main yet'):
+            wt.lane_finish(self.root, 'claude-1')
+
+    def test_finish_returns_the_lane_to_a_detached_origin_main_and_deletes_the_branch(self):
+        self.setup_lane()
+        wt.lane_start(self.root, 'claude-1', 'tools-x')
+        self.merge_into_origin()
+        write_lane(self.git('rev-parse', '--absolute-git-dir', cwd=self.path), Lane('tools-x', (session_claim('a', 'tools'),)))
+        self.assertIn('finished tools-x', wt.lane_finish(self.root, 'claude-1'))
+        self.assertEqual(self.git('branch', '--show-current', cwd=self.path), '')
+        self.assertEqual(self.git('branch', '--list', 'tools-x', cwd=self.root), '')
+        self.assertEqual(self.git('rev-parse', 'HEAD', cwd=self.path), self.git('rev-parse', 'origin/main', cwd=self.path))
+        self.assertEqual(self.record(), Lane(None, ()))
+
+    def test_main_dispatches_the_lane_subcommands(self):
+        with mock.patch.object(wt, 'repo_root', return_value=Path('/r')), \
+                mock.patch.object(wt, 'lane_setup', return_value='set up') as setup, \
+                mock.patch.object(wt, 'lane_start', return_value='started') as start, \
+                mock.patch.object(wt, 'lane_finish', return_value='finished') as finish, \
+                mock.patch.object(wt.sys, 'stdout'):
+            self.assertEqual(wt.main(['lane', 'setup', 'claude-1', '--no-install']), 0)
+            self.assertEqual(wt.main(['lane', 'start', 'claude-1', 'tools-x']), 0)
+            self.assertEqual(wt.main(['lane', 'finish', 'claude-1']), 0)
+        setup.assert_called_once_with(Path('/r'), 'claude-1', False)
+        start.assert_called_once_with(Path('/r'), 'claude-1', 'tools-x')
+        finish.assert_called_once_with(Path('/r'), 'claude-1')
 
 
 class TestCleanEnv(unittest.TestCase):
