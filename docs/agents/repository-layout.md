@@ -62,8 +62,10 @@ application's AI agent and tools.
   register their feature keys in `liwan.directory`.
 - `odoo-addons/liwan_customers` (shared service, rank 3) is the only writer of a commercial party's identity on
   `res.partner` (`liwan_party`): name, phone stored as E.164, email, kind, parent, archive. It owns the candidate
-  search by phone, the tenant's customer settings (sharing between branches, phone country) and `/api/v1/customers`,
-  opened by the feature keys its consumers register. Appointments, finance, customer messages and CRM call it;
+  search by phone, the tenant's customer settings (sharing between branches, phone country, party kinds, customer
+  fields on stock `properties`), the CSV export and `/api/v1/customers`, opened by the feature keys its consumers
+  register; it tells the web client so with the derived key `customers.enabled`. The directory is `/customers` in
+  `apps/web` (`modules/customers`), its settings `/settings/apps/customers`. Appointments, finance, customer messages and CRM call it;
   `liwan.inbox.contact.partner_id` lives in `liwan_inbox`. Plan: `docs/superpowers/plans/2026-11-12-liwan-customers.md`.
 - `odoo-addons/liwan_integrations_sa` (shared service, rank 3) owns the status of the Saudi live links
   (ZATCA, banks) at `/api/v1/integrations` and the `integrations.enabled` feature. It depends on `liwan_api` only.
