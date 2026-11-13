@@ -379,6 +379,19 @@ class SquidParseCase(unittest.TestCase):
         self.assertNotIn('WARNING', completed.stderr)  # an overlapping range would be reported here
         self.assertNotIn('ERROR', completed.stderr)
 
+    def test_squid_parses_the_odoo_instance_configuration(self):
+        # The Odoo instance: `.domain` items and the private-destination denial, no tenant files (docker-compose.shared.yml).
+        hosts = 'api.authentica.sa,graph.facebook.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,ksa.paymob.com'
+        script = 'sh /usr/local/lib/ai-egress/render.sh /run/squid/squid.conf && squid -k parse -f /run/squid/squid.conf'
+        completed = subprocess.run(
+            ['docker', 'run', '--rm', '--pull', 'never', '--user', 'proxy', '--tmpfs', '/run:uid=13,gid=13,mode=0750', '--entrypoint', 'sh',
+             '-e', f'AI_EGRESS_HOSTS={hosts}', '-e', 'EGRESS_DENY_PRIVATE=yes', '-e', 'AI_TENANT_EGRESS_DIR=', self.image, '-c', script],
+            capture_output=True, text=True, timeout=120, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertNotIn('WARNING', completed.stderr)
+        self.assertNotIn('ERROR', completed.stderr)
+
 
 @unittest.skipUnless(compose_available(), 'docker compose is required to render the compose model')
 class ComposeNetworksCase(unittest.TestCase):
