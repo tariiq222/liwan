@@ -12,6 +12,7 @@ import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
+import { sendBillingNotices } from './billing-notices.js'
 import { processRefundOutbox } from './settlements.js'
 import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -107,6 +108,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
+        await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
         await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, signal: o.signal }))
       }
       if (ticks % reconcileEvery === 0) {

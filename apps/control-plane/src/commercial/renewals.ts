@@ -11,6 +11,7 @@ import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
+import { enqueueBillingNotice } from './billing-notices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { rearmUnpaidTrialLock } from './free-base-lock.js'
 import { loadRelease } from './bundles.js'
@@ -208,14 +209,22 @@ export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Dat
           WHERE s.id=$1 AND s.state IN ('active','past_due') AND NOT s.manual_suspension
           AND NOT ${holdsFreeBaseLockSql('s')} FOR UPDATE OF s SKIP LOCKED`, [id])).rows[0]
         if (!row || !owesAtRenewal(row.snapshot.pricing)) return
-        const due = (await client.query("SELECT min(due_at) AS due_at FROM invoices WHERE subscription_id=$1 AND status='issued' AND due_at<$2", [id, now])).rows[0].due_at
-        if (!due) return
+        const oldest = (await client.query("SELECT id,due_at FROM invoices WHERE subscription_id=$1 AND status='issued' AND due_at<$2 ORDER BY due_at,id LIMIT 1", [id, now])).rows[0]
+        if (!oldest) return
+        const due = oldest.due_at
         const grace = row.grace_ends_at ?? new Date(new Date(due).getTime() + Number(row.grace_days) * 86_400_000)
         const elapsed = new Date(grace).getTime() <= now.getTime()
         if (elapsed && row.snapshot.pricing?.base_minor === 0 && await rearmUnpaidTrialLock(client, id, now)) return row.state as string
         const next = row.auto_suspend && elapsed ? 'suspended' : 'past_due'
         if (row.state !== next || !row.grace_ends_at)
           await client.query('UPDATE subscriptions SET state=$2,grace_ends_at=$3,revision=revision+1 WHERE id=$1', [id, next, grace])
+        // The notice is queued in the transaction that changes the state, so it cannot be missed; it is sent after the commit.
+        if (row.state !== next) {
+          const graceEnds = riyadhDate(new Date(grace))
+          if (next === 'past_due') await enqueueBillingNotice(client, `overdue:${oldest.id}`,
+            { type: 'overdue', subscription_id: id, invoice_id: oldest.id, grace_ends_on: graceEnds })
+          else await enqueueBillingNotice(client, `suspended:${id}:${graceEnds}`, { type: 'suspended', subscription_id: id, invoice_id: oldest.id, grace_ends_on: graceEnds })
+        }
         await client.query("UPDATE renewals SET status=$2 WHERE subscription_id=$1 AND status IN ('invoiced','charging','past_due')", [id, next])
         return next
       })

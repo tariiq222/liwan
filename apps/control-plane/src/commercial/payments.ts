@@ -7,6 +7,7 @@ import { CommercialHttpError, iso } from './lifecycle.js'
 import { assertReturnUrl, refundedAmount, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { confirmEvent } from './moyasar-adapter.js'
 import { enqueueOutbox } from './outbox.js'
+import { enqueueBillingNotice } from './billing-notices.js'
 import { markTopupRefunded, recordPaidTopup } from './ai-ledger.js'
 import { recordFulfillmentFailure } from './settlements.js'
 import type { ReturnOrigin } from './return-origin.js'
@@ -100,7 +101,8 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
         payload: { order_id: order.id, attempt_id: attempt.id, payment_id: event.payment_id, event_id: event.event_id, automatic: order.automatic_refund === true } })
     } else {
       // An AI top-up joins the ledger in the same transaction that settles its payment, before fulfilment is queued.
-      if (await recordPaidTopup(client, order) === 'over_cap') {
+      const topup = await recordPaidTopup(client, order)
+      if (topup === 'over_cap') {
         // The purchase would take the customer past what an entitlement can carry. The webhook is still acknowledged: the
         // paid order is failed like any paid order that cannot be fulfilled, which credits the money back.
         const started = nextOrderState({ ...order, ...next } as OrderStateInput, { type: 'fulfillment_started' })
@@ -110,6 +112,9 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
         await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id,
           payload: { order_id: order.id, subscription_id: order.subscription_id, target_revision_id: order.target_revision_id } })
         if (order.kind === 'renewal') await onRenewalPaid(client, order.id)
+        // A subscription invoice is acknowledged; an AI top-up has its own receipt in the ledger and gets no billing notice.
+        if (topup === 'none') await enqueueBillingNotice(client, `payment_received:${attempt.invoice_id}`, { type: 'payment_received', subscription_id: order.subscription_id,
+          invoice_id: attempt.invoice_id, amount: { minor: Number(attempt.amount_minor), currency: attempt.currency, exponent: attempt.exponent } })
       }
     }
   } else if (event.status === 'refunded') {
