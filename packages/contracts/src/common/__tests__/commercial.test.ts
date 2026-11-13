@@ -28,7 +28,7 @@ const PreviousMeSchema = z.object({
   entitlements: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative().nullable()])).optional().default({}),
   platform: z.object({
     schema_version: z.literal(1), policy_revision: z.number().int().nonnegative(),
-    state: z.enum(['active', 'suspended', 'expired']), valid_until: z.string().nullable(),
+    state: z.enum(['active', 'suspended', 'payment_suspended', 'expired']), valid_until: z.string().nullable(),
     read_only: z.boolean(), readable_features: z.array(z.string()), writable_features: z.array(z.string()),
   }).strict().optional(),
   terminology: z.object({

@@ -3,6 +3,7 @@ import AppDrawer from '@/components/shell/AppDrawer.vue'
 import AppSidebar from '@/components/shell/AppSidebar.vue'
 import AppTabBar from '@/components/shell/AppTabBar.vue'
 import AppTopBar from '@/components/shell/AppTopBar.vue'
+import PaymentSuspendedBanner from '@/components/shell/PaymentSuspendedBanner.vue'
 import SlideOverHost from '@/components/shell/SlideOverHost.vue'
 import { appScopeFor } from '@/utils/appScope'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
@@ -14,6 +15,10 @@ const route = useRoute()
 const { t, te } = useI18n()
 const hydrated = useHydrated()
 const { rail, activeModule } = useShellModel()
+// A tenant suspended for an unpaid invoice stays open read-only; everyone sees why, and the subscription manager can pay.
+const { me } = useMe()
+const { can } = useCustomerCapabilities()
+const paymentSuspended = computed(() => me.value?.platform?.state === 'payment_suspended')
 // The phone drawer opens from the tab bar's last tab and holds the sidebar content.
 const drawerOpen = ref(false)
 const pageTitle = usePageHeaderTitle()
@@ -70,6 +75,7 @@ watch(
     <template #sidebar><AppSidebar /></template>
     <template #topbar><AppTopBar /></template>
     <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="liwan-shell-main focus:outline-none">
+      <PaymentSuspendedBanner v-if="paymentSuspended" :can-pay="can('subscription.manage')" class="mb-(--liwan-gap-card)" />
       <slot />
     </main>
     <template #bottom><AppTabBar v-model:open="drawerOpen" /></template>

@@ -11,11 +11,13 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 TRIAL_POLICY_FIELDS = frozenset({'trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest'})
 POLICY_FIELDS = TRIAL_POLICY_FIELDS | frozenset({
-    'solution', 'tier', 'status', 'valid_until', 'commercial_valid_until', 'commercial_valid_until_revision', 'features',
+    'solution', 'tier', 'status', 'suspension_reason', 'valid_until', 'commercial_valid_until', 'commercial_valid_until_revision', 'features',
     'retained_read_features', 'terminology', 'policy_revision',
     'quota_revision', 'support_access_enabled', 'commercial_mode', 'entitlement_source',
     'commercial_revision_id', 'commercial_digest', 'commercial_applied_at', 'ai_trial_start', 'ai_trial_end',
 })
+# Effective states that sign in and read but never write.
+READ_ONLY_STATES = frozenset({'expired', 'payment_suspended'})
 NOTIFICATION_READ_PATH = re.compile(r'/api/v1/notifications/\d+/read')
 OPERATOR_CONTEXT = 'liwan_platform.operator_policy'
 PROFILE_CACHE_KEY = 'liwan_platform.tenant_profile_id'
@@ -67,7 +69,8 @@ class LiwanEntitlementService(models.AbstractModel):
     def _liwan_effective_state(self, profile=None):
         profile = profile or self._liwan_profile()
         if profile.status == 'suspended':
-            return 'suspended'
+            # Unpaid: sign-in, reads and exports stay open and every write is refused. Anything else is the full lockout.
+            return 'payment_suspended' if profile.suspension_reason == 'non_payment' else 'suspended'
         valid_until = profile.valid_until
         if valid_until and valid_until < self._liwan_utc_today():
             return 'expired'
@@ -75,6 +78,15 @@ class LiwanEntitlementService(models.AbstractModel):
         if not profile.trial_ends_at and commercial_until and commercial_until < self._liwan_utc_today():
             return 'expired'
         return 'active'
+
+    @api.model
+    def _liwan_may_act_outward(self):
+        """False while the tenant is not paid up: nothing may be sent to an end customer, and no job may spend the vendor's money.
+
+        Every cron that sends outward or buys a paid call checks this first and leaves its queue untouched; the work
+        goes out after payment. It is true only for an active tenant, so a vendor suspension and an expired tenant stop too.
+        """
+        return self._liwan_effective_state() == 'active'
 
     @api.model
     def _liwan_is_support_user(self, user=None):
@@ -267,7 +279,7 @@ class LiwanEntitlementService(models.AbstractModel):
                 return state
             code = 'tenant_suspended'
             raise LiwanAccessRule(code, 'this tenant is suspended', status=403)
-        if write and state == 'expired':
+        if write and state in READ_ONLY_STATES:
             code = 'tenant_read_only'
             raise LiwanAccessRule(code, 'this tenant is read-only', status=403)
         return state

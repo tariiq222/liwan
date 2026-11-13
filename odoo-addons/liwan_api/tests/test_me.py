@@ -44,7 +44,7 @@ class TestMeEndpoint(HttpCase):
         self.assertEqual(body['home_capabilities'], body['capabilities'])
         self.assertIs(body['read_only'], False)
         self.assertEqual(body['platform']['schema_version'], 1)
-        self.assertIn(body['platform']['state'], ('active', 'expired', 'suspended'))
+        self.assertIn(body['platform']['state'], ('active', 'expired', 'suspended', 'payment_suspended'))
         self.assertEqual(body['appearance'], {'mode': 'light', 'font_size': 'small'})
 
     def test_profile_timezone_rejects_non_string_values(self):

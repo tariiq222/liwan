@@ -107,6 +107,17 @@ describe('customer commercial BFF', () => {
     const forged = Buffer.from(JSON.stringify({ ...principal, tenant_id: 'tenant-other' })).toString('base64')
     expect(verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(forged, undefined), key: KEY, headers: h })).toBeNull()
   })
+  it.each([
+    ['GET', 'subscription', undefined],
+    ['GET', 'invoices', undefined],
+    ['POST', 'orders/abc/payment-attempts', '{}'],
+    ['POST', 'invoices/inv1/bank-transfer-claim', '{}'],
+  ] as const)('forwards %s %s for the manager of a tenant suspended for an unpaid invoice', async (method, rest, body) => {
+    const raw = setup({ method, url: `https://acme.example/api/commercial/v1/${rest}`, body })
+    vi.mocked($fetch).mockResolvedValueOnce({ ...me(['settings.branding.manage']), platform: { schema_version: 1, policy_revision: 3, state: 'payment_suspended', valid_until: null, read_only: true, readable_features: [], writable_features: [] } })
+    await forwardCustomerRequest({} as never)
+    expect(raw).toHaveBeenCalledOnce()
+  })
   it('does not forward commercial writes by a read-only account', async () => {
     const raw = setup({ method: 'POST', url: 'https://acme.example/api/commercial/v1/orders/abc/payment-attempts', body: '{}' })
     vi.mocked($fetch).mockResolvedValueOnce({ ...me(['settings.branding.manage']), read_only: true })
@@ -404,6 +415,12 @@ describe('signup relay', () => {
     await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 422, data: { code: 'terms_not_accepted' } })
     signup({ status: 409, _data: { code: 'terms_changed' } })
     await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 409, data: { code: 'terms_changed' } })
+  })
+  it('passes the bot-check refusal and outage through with their own codes', async () => {
+    for (const [status, code] of [[422, 'human_check_failed'], [503, 'human_check_unavailable']] as const) {
+      signup({ status, _data: { code } })
+      await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: status, data: { code } })
+    }
   })
   it('still hides a code outside the whitelist behind unavailable', async () => {
     signup({ status: 500, _data: { code: 'database_exploded' } })

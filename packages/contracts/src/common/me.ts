@@ -26,7 +26,7 @@ export const KNOWN_LIWAN_MODULE_IDS = ['liwan_chat', 'liwan_hr', 'liwan_meetings
 export type KnownLiwanModuleId = typeof KNOWN_LIWAN_MODULE_IDS[number]
 export type LiwanModuleId = KnownLiwanModuleId | (string & {})
 export const LiwanModuleIdSchema = z.string().regex(LIWAN_MODULE_ID_PATTERN)
-export const TenantStateSchema = z.enum(['active', 'suspended', 'expired'])
+export const TenantStateSchema = z.enum(['active', 'suspended', 'payment_suspended', 'expired'])
 export const MePlatformSchema = z.object({
   schema_version: z.literal(1),
   policy_revision: z.number().int().nonnegative(),

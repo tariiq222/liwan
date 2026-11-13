@@ -38,6 +38,16 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
         self.assertNotIn('capability', tool)
         self.assertNotIn('owner', tool)
 
+    def test_a_tenant_suspended_for_non_payment_gets_no_assistant_catalog_but_keeps_the_free_agents(self):
+        self.granted = {READ_CAP}
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({'status': 'suspended', 'suspension_reason': 'non_payment'})
+        refused = self.api('GET', '/api/v1/ai/tools')
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'tenant_read_only'))
+        self.assertEqual(self.api('GET', '/api/v1/ai/tools?mode=help').status_code, 200)
+        # The conversation's mode is a read of the caller's own audit row, no model call.
+        self.assertEqual(self.api('GET', '/api/v1/ai/conversations/run-1/mode').status_code, 200)
+
     def test_draft_tool_carries_its_target_and_no_route(self):
         self.granted = {CREATE_CAP}
         body = self.api('GET', '/api/v1/ai/tools').json()

@@ -8,8 +8,17 @@ import { pushCommercialExpiry } from './expiry-push.js'
 export type TenantStatus = 'active' | 'suspended'
 /** The tenant status a subscription asks for: only `suspended` stops the tenant; every other state (cancelled included) lets it in. */
 export const tenantStatusSql = (alias: string) => `CASE WHEN (${alias}.state='suspended' OR ${alias}.manual_suspension) THEN 'suspended' ELSE 'active' END`
-/** Writes the tenant's Odoo profile status (the shared worker's Odoo adapter); resolves once Odoo confirmed it. */
-export type TenantStatusRunner = (input: { tenant_id: string; status: TenantStatus }) => Promise<unknown>
+/**
+ * Why a tenant is suspended: `non_payment` (the dunning grace period ended) keeps sign-in and reads open in Odoo and
+ * refuses every write until the invoice is paid; `vendor` (a manual suspension) is the full lockout.
+ */
+export type SuspensionReason = 'non_payment' | 'vendor'
+/** The reason of a suspended subscription, or NULL while the tenant is active. A manual suspension wins over dunning. */
+export const suspensionReasonSql = (alias: string) => `CASE WHEN ${alias}.manual_suspension THEN 'vendor' WHEN ${alias}.state='suspended' THEN 'non_payment' END`
+/** True while Odoo has not confirmed the wanted status and reason (a reason change alone is a change to push). */
+const tenantStatusUndelivered = (alias: string) => `(${alias}.tenant_status_pushed IS DISTINCT FROM ${tenantStatusSql(alias)} OR ${alias}.tenant_suspension_reason_pushed IS DISTINCT FROM ${suspensionReasonSql(alias)})`
+/** Writes the tenant's Odoo profile status and suspension reason (the shared worker's Odoo adapter); resolves once Odoo confirmed it. */
+export type TenantStatusRunner = (input: { tenant_id: string; status: TenantStatus; suspension_reason: SuspensionReason | null }) => Promise<unknown>
 
 /** States a vendor may suspend: the tenant is in use and not already stopped. */
 const SUSPENDABLE = ['active', 'past_due', 'trialing']
@@ -69,11 +78,11 @@ async function pushUnderLock(pool: Pool, row: { id: string; tenant_id: string },
   try {
     locked = (await client.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS ok', [`tenant-status:${row.tenant_id}`])).rows[0].ok === true
     if (!locked) return null
-    const current = (await client.query(`SELECT ${tenantStatusSql('subscriptions')} AS wanted,tenant_status_pushed AS pushed
-      FROM subscriptions WHERE id=$1 AND tenant_id IS NOT NULL`, [row.id])).rows[0] as { wanted: TenantStatus; pushed: TenantStatus | null } | undefined
-    if (!current || current.pushed === current.wanted) return 'skipped'
-    await runner({ tenant_id: row.tenant_id, status: current.wanted })
-    await client.query('UPDATE subscriptions SET tenant_status_pushed=$2,tenant_status_failures=0,tenant_status_next_at=NULL WHERE id=$1', [row.id, current.wanted])
+    const current = (await client.query(`SELECT ${tenantStatusSql('subscriptions')} AS wanted,${suspensionReasonSql('subscriptions')} AS reason,tenant_status_pushed AS pushed,tenant_suspension_reason_pushed AS pushed_reason
+      FROM subscriptions WHERE id=$1 AND tenant_id IS NOT NULL`, [row.id])).rows[0] as { wanted: TenantStatus; reason: SuspensionReason | null; pushed: TenantStatus | null; pushed_reason: SuspensionReason | null } | undefined
+    if (!current || (current.pushed === current.wanted && current.pushed_reason === current.reason)) return 'skipped'
+    await runner({ tenant_id: row.tenant_id, status: current.wanted, suspension_reason: current.reason })
+    await client.query('UPDATE subscriptions SET tenant_status_pushed=$2,tenant_suspension_reason_pushed=$3,tenant_status_failures=0,tenant_status_next_at=NULL WHERE id=$1', [row.id, current.wanted, current.reason])
     return 'pushed'
   } finally {
     if (locked) {
@@ -88,7 +97,8 @@ async function pushUnderLock(pool: Pool, row: { id: string; tenant_id: string },
 const BACKOFF_SQL = "now() + LEAST(power(2, tenant_status_failures), 60) * interval '1 minute'"
 
 /**
- * Converges every tenant's Odoo status to its subscription: suspended stops its users, anything else lets them in.
+ * Converges every tenant's Odoo status to its subscription: a vendor suspension stops its users, a non-payment suspension
+ * leaves them read-only, anything else lets them in.
  * `tenant_status_pushed` moves only after Odoo confirmed the write, so a failed push is retried (with backoff, so one
  * broken tenant cannot starve the others) and a state that flips while a push is in flight is corrected by the run after
  * it. A tenant with no enabled binding is not selected. Each run is bounded: `limit` rows and `budgetMs` of wall time, and
@@ -98,7 +108,7 @@ export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatus
   const started = Date.now(), budget = input.budgetMs ?? 90_000
   const due = (await pool.query(`SELECT s.id,s.tenant_id,${tenantStatusSql('s')} AS wanted FROM subscriptions s
     JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
-    WHERE s.tenant_status_pushed IS DISTINCT FROM ${tenantStatusSql('s')}
+    WHERE ${tenantStatusUndelivered('s')}
       AND (s.tenant_status_next_at IS NULL OR s.tenant_status_next_at <= now())
     ORDER BY s.tenant_status_next_at NULLS FIRST, s.id LIMIT $1`, [input.limit ?? 5])).rows as { id: string; tenant_id: string; wanted: TenantStatus }[]
   const pushed: string[] = [], failed: string[] = []
@@ -106,7 +116,7 @@ export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatus
     if (Date.now() - started >= budget || await input.busy?.()) break
     const outcome = await pushUnderLock(pool, row, input.runner).catch(async error => {
       await pool.query(`UPDATE subscriptions SET tenant_status_failures=tenant_status_failures+1,tenant_status_next_at=${BACKOFF_SQL} WHERE id=$1
-        AND tenant_status_pushed IS DISTINCT FROM ${tenantStatusSql('subscriptions')}`, [row.id])
+        AND ${tenantStatusUndelivered('subscriptions')}`, [row.id])
       input.log?.(`tenant status ${row.wanted} not pushed for subscription ${row.id}`, error)
       return 'failed' as const
     })

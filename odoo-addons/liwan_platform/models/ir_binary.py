@@ -19,7 +19,7 @@ class LiwanPlatformIrBinary(models.AbstractModel):
             raise AccessError(msg)
         if (
             access_token
-            and service._liwan_effective_state() == 'suspended'
+            and service._liwan_effective_state() in ('suspended', 'payment_suspended')
             and not service._liwan_support_login_allowed(user)
             and not self._liwan_public_branding_record(record)
         ):

@@ -31,7 +31,9 @@ function loadLayout(route: { path: string }) {
     useHydrated: () => Vue.ref(true),
     useShellModel: () => ({ rail: Vue.ref({ all: [] }), activeModule: Vue.ref(null) }),
     // The shell's own components are not under test here.
-    AppDrawer: {}, AppSidebar: {}, AppTabBar: {}, AppTopBar: {}, SlideOverHost: {},
+    AppDrawer: {}, AppSidebar: {}, AppTabBar: {}, AppTopBar: {}, SlideOverHost: {}, PaymentSuspendedBanner: {},
+    useMe: () => ({ me: Vue.ref(null) }),
+    useCustomerCapabilities: () => ({ can: () => false }),
     usePageHeaderTitle: () => Vue.ref(null),
     shellBreadcrumb: () => [],
     providePageTrail: () => undefined,

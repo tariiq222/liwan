@@ -70,6 +70,11 @@ class LiwanTenantProfile(models.Model):
         [('active', 'Active'), ('suspended', 'Suspended')],
         default='active', required=True,
     )
+    # Why a suspended tenant is stopped: `non_payment` keeps sign-in and reads open (read-only until the invoice is
+    # paid), `vendor` (or empty, the safe default) is the full lockout. Empty whenever the status is active.
+    suspension_reason = fields.Selection(
+        [('non_payment', 'Non-payment'), ('vendor', 'Vendor')], copy=False,
+    )
     valid_until = fields.Date()
     # Commercial subscription expiry, written by the control plane; separate from the
     # classification cutoff `valid_until`, which stays the operator/migration record.
@@ -405,6 +410,8 @@ class LiwanTenantProfile(models.Model):
             self._liwan_validate_trial_policy(next_vals, service)
         if 'status' in next_vals and next_vals['status'] not in ('active', 'suspended'):
             raise ValidationError(self.env._('liwan_platform: status must be active or suspended'))
+        if {'status', 'suspension_reason'}.intersection(next_vals):
+            self._liwan_validate_suspension(next_vals)
         if 'features' in next_vals:
             next_vals['features'] = service._liwan_validate_features(next_vals['features'], commercial_mode=self.commercial_mode)
             previous = self.retained_read_features or []
@@ -444,6 +451,18 @@ class LiwanTenantProfile(models.Model):
         if 'features' in next_vals:
             service._liwan_settle_excess()
         return result
+
+    def _liwan_validate_suspension(self, vals):
+        """A reason belongs to a suspended status only; an active status clears it."""
+        self.ensure_one()
+        reason = vals.get('suspension_reason', self.suspension_reason) or False
+        if reason not in (False, 'non_payment', 'vendor'):
+            raise ValidationError(self.env._('liwan_platform: suspension reason must be non_payment or vendor'))
+        if vals.get('status', self.status) == 'active':
+            if reason and 'suspension_reason' in vals:
+                raise ValidationError(self.env._('liwan_platform: an active tenant has no suspension reason'))
+            reason = False
+        vals['suspension_reason'] = reason
 
     def _liwan_validate_trial_policy(self, vals, service):
         self.ensure_one()

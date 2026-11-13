@@ -15,6 +15,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 AI_FEATURE = 'ai.enabled'
 MAX_USAGE_ITEMS = 64
@@ -44,6 +45,10 @@ class AiController(http.Controller):
         mode = request.httprequest.args.get('mode')
         if mode is not None and mode not in MODE_AGENTS:
             raise ApiError(422, 'invalid', f"mode must be one of {', '.join(MODE_AGENTS)} or absent", field='mode')
+        # An assistant run is a paid model call; the tool catalog is its gate. The free help and setup agents stay open.
+        if mode is None and not request.env['liwan.entitlement.service']._liwan_may_act_outward():
+            code = 'tenant_read_only'
+            raise LiwanAccessRule(code, 'this tenant is read-only', status=403)
         registry = request.env['liwan.ai.tool.registry']
         tools = registry._liwan_ai_tools_for_user(mode=mode)
         items = [dump_tool(item) for item in tools]
