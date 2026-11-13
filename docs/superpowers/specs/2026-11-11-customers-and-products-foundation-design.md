@@ -1,6 +1,6 @@
-# Customers and catalog foundation design
+# Customers and products foundation design
 
-Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2, and the owner approved them on 2026-11-12. Of this design, PR 1 of the [customers plan](../plans/2026-11-12-liwan-customers.md) is on `main` since `74a8ed6b5` (2026-11-13): `liwan_customers` with its three creators. PR 2 (the directory, the settings page and customer fields) is on `main` since `969c3e66c` (2026-11-13). PRs 3 to 5 of that plan and all of `liwan_catalog` are not built. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
+Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2, and the owner approved them on 2026-11-12. Of this design, PR 1 of the [customers plan](../plans/2026-11-12-liwan-customers.md) is on `main` since `74a8ed6b5` (2026-11-13): `liwan_customers` with its three creators. PR 2 (the directory, the settings page and customer fields) is on `main` since `969c3e66c` (2026-11-13). PRs 3 to 5 of that plan and all of `liwan_products` are not built. On 2026-11-13 the owner named the product service `liwan_products` (section 2.5). The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
 
 This file records the design. It does not change the rules in [AGENTS.md](../../../AGENTS.md). [repository-layout.md](../../agents/repository-layout.md) and `tools/arch_layers.json` change in the pull requests that build it.
 
@@ -41,27 +41,27 @@ flowchart TD
 
 ### 2.1 Approved by the owner on 2026-11-11
 
-1. Two shared services at rank 3 own the two records: `liwan_customers` and `liwan_catalog`. Applications call them and stop writing the tables directly.
+1. Two shared services at rank 3 own the two records: `liwan_customers` and `liwan_products`. Applications call them and stop writing the tables directly.
 2. Customer sharing is an explicit setting, establishment or branch, with establishment as the default.
-3. The catalog starts with one base price per product.
+3. The product service starts with one base price per product.
 4. Erasing a customer who has posted invoices anonymises the customer. The invoices keep their numbers and amounts.
 
 Settled in the first design review:
 
 5. `res.partner` is the commercial party: who is contacted and who is billed. A phone number suggests a match and is never unique on the partner, because one number can serve several members of a family.
 6. An application that needs a distinct person (a patient, a dependant on a booking) owns its own model with a `Many2one` to the partner. Several persons may share one partner.
-7. The catalog does not own taxes. The effective tax stays on the order line, computed as today.
+7. The product service does not own taxes. The effective tax stays on the order line, computed as today.
 8. The order schema does not change now. A rank-3 `liwan_orders` service is created when the store starts. Until then no store logic is added to `liwan_payments`.
 
 ### 2.2 Changes approved by the owner on 2026-11-12
 
 9. Free settings and no sector presets. Every behaviour that differs between companies is its own typed setting with a stated default, and a tenant shapes the two services by changing settings one at a time. No preset layer is built for these two services now.
-10. Customer sharing, catalog sharing and pricing are three independent settings. A franchise can share product definitions, keep each branch's customers apart and later price per branch. The earlier proposal to derive the catalog scope from the customer scope is withdrawn, and so is the special default for the `group_of_companies` preset: both settings default to establishment for every tenant.
-11. Decision 3 is a limit of the first phase. Every price an application shows or charges comes from one function of the catalog service, which runs the same stock computation as the sale line, so pricelists can be added later without touching the applications.
+10. Customer sharing, product sharing and pricing are three independent settings. A franchise can share product definitions, keep each branch's customers apart and later price per branch. The earlier proposal to derive the product scope from the customer scope is withdrawn, and so is the special default for the `group_of_companies` preset: both settings default to establishment for every tenant.
+11. Decision 3 is a limit of the first phase. Every price an application shows or charges comes from one function of the product service, which runs the same stock computation as the sale line, so pricelists can be added later without touching the applications.
 12. A shared record has no company. "Establishment" means `company_id` is unset. Section 3.3 gives the reason.
 13. Shared services do not depend on each other. Section 3.1 gives the reason and the pattern.
 14. Every change to a customer's identity goes through `liwan_customers`, including edits and archiving, which finance does directly today.
-15. A service in the catalog can be offered for booking more than once, for example in two branches with different staff and durations. The booking and the order line keep the offer that was chosen.
+15. A service product can be offered for booking more than once, for example in two branches with different staff and durations. The booking and the order line keep the offer that was chosen.
 16. Candidate customers are shown to authorised staff only. A public form never links to an existing customer and never returns one's data; it creates a new customer that staff can merge.
 17. Automatic linking is limited to a channel that authenticates the sender's number, such as WhatsApp. A phone number typed into a form proves nothing about who typed it.
 18. Tenant-wide settings are changed with a capability held in the root company, so a branch manager cannot change what other branches see.
@@ -85,6 +85,11 @@ Where a later section disagrees, these win. They follow from the approved decisi
 26. Removing a customer field removes its values after a confirmation that names the count per field, as 3.6 says. The count covers every branch and archived customers, and the stored values are cleared with the field. The owner decided on 2026-11-13 that an option removed from a field that stays is treated the same way: the confirmation names each option with the number of customers that hold it.
 27. The web client is told whether the service is open by a derived feature key, `customers.enabled`, present while a feature of an application that uses customers is. It is not an entitlement and is not sold.
 
+### 2.5 Names approved by the owner on 2026-11-13
+
+28. The product service is `liwan_products`, shown as "Products and services" (Arabic: «المنتجات والخدمات»). It was `liwan_catalog` in earlier versions of this file. Its routes are under `/api/v1/products`, its capabilities are `products.read`, `products.manage`, `products.prices.manage` and `products.settings.manage`, its tax bridge is `liwan_products_account` and its sharing setting is "Product sharing". A product has a type (goods, service or combo); a service is a product of the service type.
+29. "Catalog" means one thing: what a channel publishes from those products, with its publication state, such as the Meta catalog of customer messages (`liwan.inbox.catalog`, `liwan.inbox.catalog.item`, `inbox.catalog`). Those names stay.
+
 This design implements the 2026-11-06 decision on one customer record.
 
 The target: applications ask two shared services, and each service is the only writer of its table.
@@ -100,7 +105,7 @@ flowchart TD
   end
   subgraph shared["Shared services, rank 3"]
     CU["liwan_customers"]
-    CA["liwan_catalog"]
+    CA["liwan_products"]
   end
   apps --> CU
   apps --> CA
@@ -114,7 +119,7 @@ flowchart TD
 
 Rank 3, depends on `liwan_api` and `phone_validation`. It names no application. `liwan_core` cannot own it because R1 limits it to `base`, and `liwan_directory` is the user picker with a different population and contract.
 
-`tools/arch_policy.py:168` lets an addon reach only a strictly lower rank, and no rank-3 addon depends on another today. The design keeps that. Shared services exchange stock records: an application gets a partner from `liwan_customers` and a product from `liwan_catalog` and passes both to the order service, as callers of `liwan_payments` already do. Where one shared service must extend another, a rank-5 bridge with `auto_install` does it, as `liwan_ai_notify` does for `liwan_ai` and `liwan_notify`.
+`tools/arch_policy.py:168` lets an addon reach only a strictly lower rank, and no rank-3 addon depends on another today. The design keeps that. Shared services exchange stock records: an application gets a partner from `liwan_customers` and a product from `liwan_products` and passes both to the order service, as callers of `liwan_payments` already do. Where one shared service must extend another, a rank-5 bridge with `auto_install` does it, as `liwan_ai_notify` does for `liwan_ai` and `liwan_notify`.
 
 `phone_validation` installs itself whenever `mail` is present (`odoo/addons/phone_validation/__manifest__.py:28`). The service still declares the dependency so that `phone_sanitized` on `res.partner` is guaranteed by the addon that reads it.
 
@@ -203,7 +208,7 @@ A public path always ends with a customer of its own. The booking engine require
 
 Every internal user can read every partner field at ACL level; the routes are the gate, and the Odoo client is closed by the `ir.http` guard. The service adds no path that returns partner fields without one of the rows above.
 
-Every capability is checked in the user's current company. A tenant that wants shared records managed centrally grants `customers.manage` or `catalog.products.manage` only in the companies whose staff should edit them; no extra setting is needed for that.
+Every capability is checked in the user's current company. A tenant that wants shared records managed centrally grants `customers.manage` or `products.manage` only in the companies whose staff should edit them; no extra setting is needed for that.
 
 ### 3.6 Settings
 
@@ -240,7 +245,7 @@ Erasure replaces the name with a placeholder, clears phone, email, address, imag
 
 The medical application owns the patient and the visit, with their own capabilities and record rules, in the way payroll is isolated inside HR. No clinical field and no chatter goes on `res.partner`, and no clinical value goes into the tenant's customer fields. The name of a service on a booking or an invoice line can itself reveal a diagnosis; the medical design has to handle that and it is outside this file.
 
-## 4. `liwan_catalog`
+## 4. `liwan_products`
 
 ### 4.1 Place in the layers
 
@@ -249,11 +254,11 @@ Rank 3, depends on `liwan_api` and `product`. Applications and bridges that touc
 ### 4.2 What the service owns
 
 - Every write to a product's definition: `name`, `type` (goods, service or combo, the stock values), `list_price`, `image_1920`, `description_sale`, `default_code`, `barcode`, `categ_id`, `uom_id`, `active`, `sale_ok` and `company_id`.
-- Variants. Sizes, colours and similar options use stock product attributes and belong to the catalog, whichever application first needs them.
+- Variants. Sizes, colours and similar options use stock product attributes and belong to the product service, whichever application first needs them.
 - The price function. It takes a variant (`product.product`), a quantity, a unit of measure, a company, a customer and a date, and returns the unit price in the company's currency. It runs the stock computation the sale line already uses (`odoo/addons/sale/models/sale_order_line.py:590`), so a screen and an order agree, and it includes a variant's extra: a product at 100 whose variant adds 20 is shown and sold at 120 (`odoo/addons/product/models/product_product.py:325`). Whether that price includes tax is decided by the company's tax mode and stated next to every price the API returns. Applications never read `list_price` themselves. Pricelists later change what the stock computation returns and nothing else.
 - The settings in 4.5, including the tenant's categories and its own product fields.
-- The capabilities in 4.4, the routes under `/api/v1/catalog` and the "Products and services" screen, built from the Storybook catalog under [DESIGN.md](../../../DESIGN.md).
-- An extension hook through which another addon contributes product fields to the catalog's serializer and parser, in the way applications extend the company profile.
+- The capabilities in 4.4, the routes under `/api/v1/products` and the "Products and services" screen, built from the Storybook components under [DESIGN.md](../../../DESIGN.md).
+- An extension hook through which another addon contributes product fields to the product service's serializer and parser, in the way applications extend the company profile.
 
 Applications lose their direct product ACLs and their `sudo()` product writes.
 
@@ -261,7 +266,7 @@ A booking, an order line and a lead keep the name and price they were created wi
 
 ### 4.3 How each application records its use of a product
 
-The catalog holds no column per consumer. Each application keeps the relation in its own models:
+The product service holds no column per consumer. Each application keeps the relation in its own models:
 
 - CRM: the packages a company offers become a relation on `liwan.crm.settings`. The `liwan_crm_package` column, the three domains that read it (`crm_lead.py:23`, `controllers/sale.py:24`, `models/intake.py:214`) and CRM's product create and its tax clearing are replaced.
 - Customer messages: `liwan.inbox.catalog.item` already states which products are listed in Meta. The `liwan_inbox_catalog` column and the bridge's own product editor go. The product write override that triggers a Meta resync stays with the catalog items. Availability has one source per product: a tracked good takes it from inventory once an inventory application exists, a bookable service from its resources, and anything else, such as an untracked good or digital content, from the manual flag on the channel's item. Publishing a product in a channel stays a separate choice.
@@ -275,20 +280,20 @@ Stock `product.tag` stays free for the tenant's own grouping. A tag the tenant c
 
 | Capability | Allows |
 | --- | --- |
-| `catalog.products.read` | The catalog |
-| `catalog.products.manage` | Create, edit, archive: description, image, category, variants |
-| `catalog.prices.manage` | The base price |
-| `catalog.settings.manage` | The settings in 4.5 |
+| `products.read` | Products and services |
+| `products.manage` | Create, edit, archive: description, image, category, variants |
+| `products.prices.manage` | The base price |
+| `products.settings.manage` | The settings in 4.5 |
 
 A discount or a changed price on one transaction belongs to the application that owns the transaction, as CRM's discount settings do today.
 
 ### 4.5 Settings
 
-One settings record per tenant, changed by holders of `catalog.settings.manage` in the root company, readable through the API.
+One settings record per tenant, changed by holders of `products.settings.manage` in the root company, readable through the API.
 
 | Setting | Values | Default | Effect on existing data |
 | --- | --- | --- | --- |
-| Catalog sharing | `establishment`, `branch` | `establishment` | The same transfer as 3.3, applied to products |
+| Product sharing | `establishment`, `branch` | `establishment` | The same transfer as 3.3, applied to products |
 | Categories | A tree the tenant defines | One general category | Removing a category moves its products to the parent, after a preview of the product fields they lose |
 | Product fields | Per category, a list the tenant defines: label, type, choices | Empty | Removing a field removes its values, after a confirmation that names the count |
 
@@ -298,24 +303,24 @@ Pricing is a single base price in this phase. Pricelists by branch, customer, ch
 
 ### 4.6 Tax
 
-`taxes_id` exists only when `account` is installed, and a rank-3 catalog on `product` must not require it. A rank-5 bridge `liwan_catalog_account`, installed whenever `liwan_catalog` and stock `account` both are, contributes the default tax and the other accounting fields of a product through the extension hook. A tenant that invoices from finance and collects in cash has it, and so does a tenant with online payments and no finance, because `sale` brings `account`. The effective tax on a line stays in the order service, decided by the company's VAT registration and tax mode, so the price a screen shows, the order and the invoice agree.
+`taxes_id` exists only when `account` is installed, and a rank-3 service on `product` must not require it. A rank-5 bridge `liwan_products_account`, installed whenever `liwan_products` and stock `account` both are, contributes the default tax and the other accounting fields of a product through the extension hook. A tenant that invoices from finance and collects in cash has it, and so does a tenant with online payments and no finance, because `sale` brings `account`. The effective tax on a line stays in the order service, decided by the company's VAT registration and tax mode, so the price a screen shows, the order and the invoice agree.
 
 ### 4.7 Meta catalog
 
-Publishing a catalog to Meta should not depend on online payments being enabled. The target is a bridge between `liwan_inbox` and `liwan_catalog` that owns the catalog models, their sync and the public image route, while `liwan_inbox_payments` keeps the carts that become paid orders. This move waits until the catalog contract in 4.2 is built, and it must preserve the existing product links and `retailer_id` values that Meta already holds.
+Publishing a catalog to Meta should not depend on online payments being enabled. The target is a bridge between `liwan_inbox` and `liwan_products` that owns the Meta catalog models, their sync and the public image route, while `liwan_inbox_payments` keeps the carts that become paid orders. This move waits until the product service contract in 4.2 is built, and it must preserve the existing product links and `retailer_id` values that Meta already holds.
 
 ## 5. Orders
 
 `sale.order` is stock. `liwan_payments` adds the payment deadline, the retained amount and the refund-due amount (`liwan_payments/models/sale_order.py:19`), and its `_liwan_new_order` is the only order factory, elevated and for online payment only (`order_service.py:48`).
 
-Nothing changes in the schema now. When the store starts, a rank-3 `liwan_orders` on `sale` takes the order factory and the tax pricing, and `liwan_payments` keeps the pay state, expiry and refunds. It receives a partner and a product from its caller and depends on neither `liwan_customers` nor `liwan_catalog`. The store design then decides how confirmation, delivery and collection sit on the same model.
+Nothing changes in the schema now. When the store starts, a rank-3 `liwan_orders` on `sale` takes the order factory and the tax pricing, and `liwan_payments` keeps the pay state, expiry and refunds. It receives a partner and a product from its caller and depends on neither `liwan_customers` nor `liwan_products`. The store design then decides how confirmation, delivery and collection sit on the same model.
 
 A paid appointment after steps 1 and 2. The application fetches the two records and passes them on; the shared services do not call each other.
 
 ```mermaid
 flowchart TD
   A["Appointments: staff book a paid appointment"] --> CU["liwan_customers returns the partner"]
-  A --> CA["liwan_catalog returns the service and its price"]
+  A --> CA["liwan_products returns the service and its price"]
   CU --> PAY["liwan_payments creates the order and prices the tax"]
   CA --> PAY
   PAY --> FIN["Finance: the invoice after payment"]
@@ -325,12 +330,12 @@ flowchart TD
 
 | Added later | What it needs | Owner |
 | --- | --- | --- |
-| Physical goods | Variants, barcode, unit | The catalog (4.2) |
+| Physical goods | Variants, barcode, unit | `liwan_products` (4.2) |
 | | Stock, warehouses, availability | An inventory application on stock `stock`, contributing its fields through the hook |
 | | Shipping and delivery | The store or `liwan_orders` |
 | Services | Duration, resources, deposit | Appointments, through booking offers (4.3) |
 | | Recurring billing | A subscriptions application that links a product to a plan |
-| Bundles | Components | The catalog, with the stock `combo` type |
+| Bundles | Components | `liwan_products`, with the stock `combo` type |
 | Digital content | The file and its delivery | The application that delivers it |
 
 Each of these reuses the customer, order and payment models and adds the extension it needs: a subscription adds a billing cycle, and a booking offer adds a reference on the order line.
@@ -354,8 +359,8 @@ Nothing in the two services assumes a single company beyond one meaning: a recor
 | Step | Work | Notes |
 | --- | --- | --- |
 | 1 | `liwan_customers`, with the changes of 3.8 | First, because a customer on the wrong company is wrong data, and the fix removes a `sudo()` case and three creators |
-| 2 | `liwan_catalog`, with the changes of 4.3 and the tax bridge of 4.6 | Can be built in parallel with step 1. Booking offers are a part of this step that needs its own plan |
-| 3 | Move the Meta catalog to an inbox and catalog bridge | After step 2 |
+| 2 | `liwan_products`, with the changes of 4.3 and the tax bridge of 4.6 | Can be built in parallel with step 1. Booking offers are a part of this step that needs its own plan |
+| 3 | Move the Meta catalog to an inbox and products bridge | After step 2 |
 | 4 | `liwan_orders` | With the store |
 
 Steps 1 and 2 share `tools/arch_layers.json`, `tools/arch_documented_sudo.json`, `tools/arch_baseline.json`, `liwan_inbox_payments/__manifest__.py` and `docs/agents/repository-layout.md`; the orchestrator owns those, merges one pull request and rebases the other.
@@ -367,7 +372,7 @@ Both steps change schema and authorization across layers, so each takes the full
 Customers:
 
 - Under `establishment`, a customer created in one branch is found by staff who work only in another branch. Under `branch`, it is hidden from them.
-- Shared catalog with separate customers: `catalog sharing = establishment` and `customer sharing = branch` in the same tenant.
+- Shared products with separate customers: `product sharing = establishment` and `customer sharing = branch` in the same tenant.
 - A phone shared by two customers: staff are offered both and can create a third; an inbound message links to neither.
 - Automatic linking off and on for an inbound WhatsApp message with one match.
 - A public form with a matching phone creates a new customer, flags it, and returns nothing of the existing one.
@@ -379,14 +384,14 @@ Customers:
 - A tenant-defined customer field is saved, returned by the API and cleared by erasure.
 - The `sudo()` registry shrinks by the inbox contact case, and no new case is added.
 
-Catalog:
+Products:
 
 - A product created through the service is visible to staff of every branch under `establishment`.
 - One service offered in two branches with different durations; the booking and the order line keep the chosen offer.
 - CRM, appointments and the inbox bridge hold no product write ACL and no `sudo()` product write, and the registry shrinks accordingly.
-- An order line for a catalog product is taxed exactly as before the change, for a VAT-registered company and for one that is not.
+- An order line for a product of the service is taxed exactly as before the change, for a VAT-registered company and for one that is not.
 - Editing or archiving a product leaves an existing booking, order line and lead unchanged.
-- A product at 100 with a variant extra of 20 shows 120 in the catalog API and on the order line.
+- A product at 100 with a variant extra of 20 shows 120 in the products API and on the order line.
 - A tenant with finance and no online payments has the default tax on its products.
 - Moving a product to another category shows the fields it loses before saving.
 - `arch_policy.py` passes with no baseline growth.
@@ -399,8 +404,8 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 | --- | --- | --- |
 | Capacity | Not measured. The pass mark is in the [hosting contract](liwan-shared-saas-and-sovereign-deployment.md) | The load test planned there |
 | Currency and pricelists in the order service | Not reviewed | A read before pricelists or `liwan_orders` are designed |
-| Where the tax mode lives for a tenant with finance and no online payments | Not decided. It is a `liwan_payments` setting today | The catalog plan |
-| What stock Odoo does with product field values when the category changes | Not reviewed | The catalog plan |
+| Where the tax mode lives for a tenant with finance and no online payments | Not decided. It is a `liwan_payments` setting today | The products plan |
+| What stock Odoo does with product field values when the category changes | Not reviewed | The products plan |
 | How far the OCA booking link can carry several offers per service | Not reviewed | The appointments plan |
 | A group of separate legal companies in one tenant | Outside this design (section 7) | An owner decision if a customer needs it |
 | How staff of several branches choose their working company | The product has no company switch today (`apps/web/app/components/shell/AppUserMenu.vue:13`) | [2026-11-12-working-company-switch-design.md](2026-11-12-working-company-switch-design.md), before step 1 ships to tenants whose staff work in several branches |
@@ -427,12 +432,12 @@ Both run in `saas` and `non_saas` (R8), register their features (R10) and add no
 
 - Phone as a unique customer key: wrong for shared family numbers, and unsafe for a medical record.
 - A shared record owned by the root company: hidden from branch staff by the LiwanOS company fence.
-- Deriving customer scope from the branch access mode, or catalog scope from customer scope: one setting with two meanings.
+- Deriving customer scope from the branch access mode, or product scope from customer scope: one setting with two meanings.
 - Sector presets for these two services now: the owner asked for free settings first.
 - A dependency from one shared service on another: rejected by the layer check.
-- A marker column per application on `product.template`: one schema change for every new consumer, and the catalog would know its consumers.
+- A marker column per application on `product.template`: one schema change for every new consumer, and the product service would know its consumers.
 - Product tags to mark packages or listings: the tenant can edit them.
-- Taxes inside the catalog: the field needs `account`, and the order service already decides the effective tax.
+- Taxes inside the product service: the field needs `account`, and the order service already decides the effective tax.
 - Tying the product's accounting fields to online payments: a tenant that invoices and collects in cash would have none.
 - Linking a public form to an existing customer by a typed phone number: it would show a visitor another person's data.
 - A price function of our own beside the stock computation: the sale line would disagree with the screen.

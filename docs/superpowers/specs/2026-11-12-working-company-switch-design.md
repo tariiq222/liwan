@@ -2,7 +2,7 @@
 
 Status: the owner asked for this design and approved the decisions in section 2 on 2026-11-12. It is built on the branch `api-working-company-switch`, together with the [company membership](2026-11-12-company-membership-design.md) that gives a user a second company (section 8); the plan records what was verified.
 
-The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch-access-policy-design.md)) owns who may act in which company. This file adds one thing on top of it: how a person who belongs to several companies of a tenant chooses the one they are working in. It changes no capability and no policy mode. [2026-11-11-customers-and-catalog-foundation-design.md](2026-11-11-customers-and-catalog-foundation-design.md) depends on it, because "the branch that created the customer" is the working company of the user.
+The branch policy ([2026-10-22-branch-access-policy-design.md](2026-10-22-branch-access-policy-design.md)) owns who may act in which company. This file adds one thing on top of it: how a person who belongs to several companies of a tenant chooses the one they are working in. It changes no capability and no policy mode. [2026-11-11-customers-and-products-foundation-design.md](2026-11-11-customers-and-products-foundation-design.md) depends on it, because "the branch that created the customer" is the working company of the user.
 
 ## 1. Problem
 
@@ -75,7 +75,7 @@ Every HR self-service route finds the caller's employee in the request company, 
 - `isolated` mode. It stops the parent's context from reaching into a branch. A person who is a member of the branch and switches into it acts with their own assignments in that branch and nothing from the parent.
 - Reading into branches from the parent through declared gates, and naming a branch in a write payload.
 - Tenant isolation. The switch never leaves the tenant database.
-- The number of legal companies in a tenant. That limit is in section 7 of the customers and catalog design.
+- The number of legal companies in a tenant. That limit is in section 7 of the customers and products design.
 
 ## 6. Owner decisions
 
