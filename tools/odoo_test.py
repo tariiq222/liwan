@@ -30,6 +30,7 @@ import uuid
 from pathlib import Path
 
 import oca_addons
+import odoo_shards
 import test_slot
 
 REPO = Path(__file__).resolve().parents[1]
@@ -175,17 +176,11 @@ def test_weight(addons_dir, addon):
 def split_shards(weights, count):
     """Split ``weights`` (addon -> test weight) into at most ``count`` balanced groups.
 
-    Greedy longest-first packing, ties broken by name, so the same input always gives the same groups.
-    There are never more groups than addons that have tests, so no group is left with nothing to run;
-    addons without tests join the lightest group.
+    The packing is ``odoo_shards.split``. There are never more groups than addons that have tests, so no
+    group is left with nothing to run; addons without tests join the lightest group.
     """
     groups = max(1, min(count, sum(1 for w in weights.values() if w > 0)))
-    bins = [[0, []] for _ in range(groups)]
-    for name in sorted(weights, key=lambda n: (-weights[n], n)):
-        lightest = min(bins, key=lambda b: b[0])
-        lightest[0] += weights[name]
-        lightest[1].append(name)
-    return [sorted(members) for _, members in bins]
+    return odoo_shards.split(weights, groups)
 
 
 def check_shard_count(count):
@@ -411,8 +406,13 @@ def finish_odoo(proc, logfile):
 
 
 def run_odoo(addons_dirs, database, scratch, data_dir, port, extra, log_name):
+    """Run one Odoo process to the end; an interrupted wait (SIGTERM, Ctrl-C) stops it before cleanup runs."""
     proc, logfile = start_odoo(addons_dirs, database, scratch, data_dir, port, extra, log_name)
-    return finish_odoo(proc, logfile)
+    try:
+        return finish_odoo(proc, logfile)
+    except BaseException:
+        stop_process(proc)
+        raise
 
 
 def stop_process(proc):

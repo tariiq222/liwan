@@ -234,6 +234,17 @@ class TestShardSplit(TempDirCase):
         self.assertEqual(test_weight(self.root, 'liwan_b'), 0)
 
 
+class TestRunOdoo(TempDirCase):
+    def test_an_interrupted_wait_stops_the_process_before_cleanup(self):
+        proc = mock.Mock()
+        with mock.patch.object(odoo_test, 'start_odoo', return_value=(proc, self.root / 'run.log')), \
+                mock.patch.object(odoo_test, 'finish_odoo', side_effect=KeyboardInterrupt), \
+                mock.patch.object(odoo_test, 'stop_process') as stop:
+            with self.assertRaises(KeyboardInterrupt):
+                odoo_test.run_odoo([], 'liwan_scratch_x', self.root, self.root, 8170, [], 'run.log')
+        stop.assert_called_once_with(proc)
+
+
 class TestShardResults(TempDirCase):
     def shards(self, count):
         return [Shard(i, count, ['liwan_a%d' % i], self.root) for i in range(1, count + 1)]
