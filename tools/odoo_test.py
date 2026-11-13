@@ -6,8 +6,9 @@ merge-base with the base branch (keyed by Odoo commit, module list, the
 ``odoo-addons`` tree and the template format). The template's filestore is kept
 beside it in the cache directory. Each run clones that template, copies its
 filestore, updates only the changed addons and the addons that depend on them,
-runs their tests and drops the clone. Only ``liwan_scratch_*`` databases are ever
-created, cloned or dropped; the dev ``odoo19`` database is never touched.
+runs their tests and drops the clone. ``--shards N`` splits the tests of the selected
+addons over N clones that run at the same time. Only ``liwan_scratch_*`` databases are
+ever created, cloned or dropped; the dev ``odoo19`` database is never touched.
 ``npm test`` and CI stay the binding gate.
 """
 from __future__ import annotations
@@ -29,6 +30,7 @@ import uuid
 from pathlib import Path
 
 import oca_addons
+import odoo_shards
 import test_slot
 
 REPO = Path(__file__).resolve().parents[1]
@@ -38,6 +40,8 @@ GC_DB = re.compile(r'liwan_scratch_(tplb|run|tpl)_[a-z0-9_]{1,42}')
 RESULT_RE = re.compile(r'(\d+) failed, (\d+) error\(s\) of (\d+) tests')
 TEMPLATE_FORMAT = 3
 PORTS = range(8170, 8200)
+MAX_SHARDS = 4
+FAILED_SHARD_LOG = 'last-failure-shard-%d.log'
 
 
 class OdooTestError(Exception):
@@ -159,6 +163,47 @@ def with_dependents(changed, depends):
                 result.add(name)
                 grew = True
     return result
+
+
+def test_weight(addons_dir, addon):
+    """Lines of test code under ``addon``'s ``tests/``: a cheap stand-in for how long its tests take."""
+    tests = Path(addons_dir) / addon / 'tests'
+    if not tests.is_dir():
+        return 0
+    return sum(len(f.read_text(encoding='utf-8', errors='replace').splitlines()) for f in tests.rglob('*.py'))
+
+
+def split_shards(weights, count):
+    """Split ``weights`` (addon -> test weight) into at most ``count`` balanced groups.
+
+    The packing is ``odoo_shards.split``. There are never more groups than addons that have tests, so no
+    group is left with nothing to run; addons without tests join the lightest group.
+    """
+    groups = max(1, min(count, sum(1 for w in weights.values() if w > 0)))
+    return odoo_shards.split(weights, groups)
+
+
+def check_shard_count(count):
+    if not 1 <= count <= MAX_SHARDS:
+        raise OdooTestError('--shards must be between 1 and %d, got %d' % (MAX_SHARDS, count))
+    return count
+
+
+def shard_outcome(code, result):
+    """``(ok, reason)`` for one shard. The zero-test rule belongs to the whole run, see ``total_verdict``."""
+    if result is None:
+        return False, 'no test result line found (rc=%d)' % code
+    failed, errors, _tests = result
+    if failed or errors:
+        return False, '%d failed, %d errors' % (failed, errors)
+    if code:
+        return False, 'odoo exited with rc=%d' % code
+    return True, ''
+
+
+def total_verdict(results):
+    """Sum the ``(failed, errors, tests)`` triples of all shards and judge the total like a single run."""
+    return verdict(tuple(sum(column) for column in zip(*results)))
 
 
 def template_name(odoo_commit, modules, addons_tree, oca_pins):
@@ -338,7 +383,8 @@ def classification(database, output):
         raise OdooTestError('classification fixture failed: ' + result.stderr.strip())
 
 
-def run_odoo(addons_dirs, database, scratch, data_dir, port, extra, log_name):
+def start_odoo(addons_dirs, database, scratch, data_dir, port, extra, log_name):
+    """Start one Odoo process; ``finish_odoo`` waits for it. Its log and stderr go to files in ``scratch``."""
     config = scratch / 'odoo.conf'  # empty, so ~/.odoorc and ODOO_RC cannot leak in
     config.write_text('', encoding='utf-8')
     classification_file = scratch / ('classification-%s.json' % database)
@@ -346,9 +392,37 @@ def run_odoo(addons_dirs, database, scratch, data_dir, port, extra, log_name):
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', LIWAN_COMMERCIAL_CONFIG=str(classification_file))
     logfile = scratch / log_name
     cmd = odoo_command(addons_dirs, database, config, data_dir, logfile, port, extra)
-    result = run(cmd, cwd=str(ODOO_ROOT), env=env, capture_output=True)
+    with (scratch / (log_name + '.stderr')).open('w', encoding='utf-8') as errfile:
+        proc = subprocess.Popen(cmd, cwd=str(ODOO_ROOT), env=env, stdout=subprocess.DEVNULL, stderr=errfile)
+    return proc, logfile
+
+
+def finish_odoo(proc, logfile):
+    """``(returncode, log text, stderr text)`` once the process has exited."""
+    code = proc.wait()
     log_text = logfile.read_text(encoding='utf-8', errors='replace') if logfile.exists() else ''
-    return result.returncode, log_text, result.stderr
+    err_file = logfile.with_name(logfile.name + '.stderr')
+    return code, log_text, err_file.read_text(encoding='utf-8', errors='replace')
+
+
+def run_odoo(addons_dirs, database, scratch, data_dir, port, extra, log_name):
+    """Run one Odoo process to the end; an interrupted wait (SIGTERM, Ctrl-C) stops it before cleanup runs."""
+    proc, logfile = start_odoo(addons_dirs, database, scratch, data_dir, port, extra, log_name)
+    try:
+        return finish_odoo(proc, logfile)
+    except BaseException:
+        stop_process(proc)
+        raise
+
+
+def stop_process(proc):
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
 
 
 def _check_template(code, log_text, err):
@@ -436,10 +510,13 @@ def main(argv=None):
     parser.add_argument('--base', default='main', help='base ref for the diff and the template (default: main)')
     parser.add_argument('--no-dependents', action='store_true', help='do not add addons that depend on the changed ones')
     parser.add_argument('--all', action='store_true', help='test every release module')
+    parser.add_argument('--shards', type=int, default=1, metavar='N',
+                        help='run the tests on N clones at the same time, 1 to %d (default: 1)' % MAX_SHARDS)
     parser.add_argument('--dry-run', action='store_true', help='print the plan and exit')
-    parser.add_argument('--keep-db', action='store_true', help='keep the run database for inspection')
+    parser.add_argument('--keep-db', action='store_true', help='keep the run databases for inspection')
     parser.add_argument('--gc', action='store_true', help='drop orphan scratch databases and stale templates, then exit')
     args = parser.parse_args(argv)
+    check_shard_count(args.shards)
 
     release = release_modules()
     addons_dir = REPO / 'odoo-addons'
@@ -469,66 +546,136 @@ def main(argv=None):
         warn('no addon changed against %s; nothing to test (use --addons or --all)' % args.base)
         return 0
     pg = Pg()
+    weights = {a: test_weight(addons_dir, a) for a in selected}
+    groups = split_shards(weights, args.shards)
     warn('addons: %s' % ','.join(sorted(selected)))
     warn('template: %s (%s)' % (template, 'exists' if pg.exists(template) else 'will be built'))
+    for index, group in enumerate(groups, 1):
+        warn('shard %d/%d: test weight %d: %s' % (index, len(groups), sum(weights[a] for a in group), ','.join(group)))
     if args.dry_run:
         return 0
 
     signal.signal(signal.SIGTERM, _on_sigterm)
     with test_slot.hold('odoo_test ' + ','.join(sorted(selected))):
-        return run_tests(args, pg, cache, template, release, merge_base, addons_dir, known, selected)
+        return run_tests(args, pg, cache, template, release, merge_base, addons_dir, known, selected, groups)
 
 
-def run_tests(args, pg, cache, template, release, merge_base, addons_dir, known, selected):
-    """Clone the template, update ``selected`` and their closure, run their tests and drop the clone."""
+class Shard:
+    """One clone of the template with its own filestore, port and Odoo process."""
+
+    def __init__(self, index, count, addons, scratch):
+        self.index = index
+        self.label = 'shard %d/%d' % (index, count)
+        self.addons = addons
+        self.database = require_scratch('liwan_scratch_run_' + uuid.uuid4().hex[:10])
+        self.workdir = scratch / ('shard-%d' % index)
+        self.workdir.mkdir()
+        (self.workdir / 'data').mkdir()
+        self.created = False
+        self.port_lock = None
+        self.port = None
+        self.proc = None
+        self.logfile = None
+
+
+def update_arguments(pg, database, addons_dir, known, selected):
+    """``-u`` / ``-i`` arguments for the clone ``database``.
+
+    Only the local addons are updated: re-updating an installed stock or OCA module would reload its data over what
+    the LiwanOS addons configured on top of it. A dependency the template lacks is installed.
+    """
+    installed = pg.installed(database)
+    closure = with_dependencies(selected, addons_dir, known)
+    update = sorted(a for a in closure if a in installed and a in known)
+    install = sorted(a for a in closure if a not in installed)
+    extra = []
+    if update:
+        extra += ['-u', ','.join(update)]
+    if install:
+        extra += ['-i', ','.join(install)]
+    return extra
+
+
+def report_shards(shards, outcomes, cache):
+    """Print one line per shard and a total; ``True`` when every shard passed. A failing shard's log is kept in ``cache``."""
+    failing = False
+    for shard, (code, log_text, err, result) in zip(shards, outcomes):
+        ok, reason = shard_outcome(code, result)
+        if result is None:
+            sys.stdout.write('%s: no test result line (rc=%d):\n%s\n' % (
+                shard.label, code, '\n'.join(log_text.splitlines()[-20:]) or err))
+        else:
+            failed, errors, tests = result
+            sys.stdout.write('%s: %d tests, %d failed, %d errors (%s)\n' % (
+                shard.label, tests, failed, errors, ','.join(shard.addons)))
+        if ok:
+            continue
+        failing = True
+        kept = Path(cache) / (FAILED_SHARD_LOG % shard.index)
+        kept.write_text(log_text, encoding='utf-8')
+        sys.stdout.write('FAILED %s: %s; full log: %s\n' % (shard.label, reason, kept))
+        for line in log_text.splitlines():
+            if ' ERROR ' in line or 'FAIL:' in line or 'ERROR:' in line:
+                sys.stdout.write(line + '\n')
+    results = [outcome[3] for outcome in outcomes]
+    if None in results:
+        return False
+    failed, errors, tests = (sum(column) for column in zip(*results))
+    sys.stdout.write('total: %d tests, %d failed, %d errors in %d shard(s)\n' % (tests, failed, errors, len(shards)))
+    total_ok, total_reason = total_verdict(results)
+    if not total_ok and not failing:
+        sys.stdout.write('FAILED: %s\n' % total_reason)
+    return total_ok and not failing
+
+
+def run_tests(args, pg, cache, template, release, merge_base, addons_dir, known, selected, groups):
+    """Clone the template once per shard, update ``selected`` and their closure in every clone, run the tests, drop the clones.
+
+    Every shard updates the full closure and only the tests differ. Odoo upgrades the dependents of each module given
+    to ``-u`` (``ir.module.module.button_upgrade``), and a module that runs against the template's older copy of one of
+    its dependencies tests the wrong code, so a shard cannot update only its own group. ``--test-tags`` then picks the
+    tests: ``/<addon>`` matches by module, among the modules that were updated or installed in that run (at_install
+    tests while each module loads, post_install tests of ``registry.updated_modules``), so each selected addon's tests
+    run in exactly one shard and in none of the others. The speed-up comes from the tests, which dominate the update.
+    """
     scratch = Path(tempfile.mkdtemp(prefix='liwan-odoo-test-'))
-    (scratch / 'data').mkdir()
-    database = require_scratch('liwan_scratch_run_' + uuid.uuid4().hex[:10])
-    created = False
-    port_lock = None
+    shards = [Shard(index, len(groups), group, scratch) for index, group in enumerate(groups, 1)]
     try:
         port, port_lock = acquire_port(cache)
-        build_template(pg, template, release, merge_base, scratch, cache, port, warn)
-        pg.create_from(database, template)
-        created = True
-        copied = copy_filestore(cache, template, scratch / 'data', database)
-        warn('filestore copied from template %s (%d files)' % (template, copied))
-        installed = pg.installed(database)
-        # Only the local addons are updated: re-updating an installed stock or OCA module would reload its data
-        # over what the LiwanOS addons configured on top of it. A dependency the template lacks is installed.
-        closure = with_dependencies(selected, addons_dir, known)
-        update = sorted(a for a in closure if a in installed and a in known)
-        install = sorted(a for a in closure if a not in installed)
-        extra = []
-        if update:
-            extra += ['-u', ','.join(update)]
-        if install:
-            extra += ['-i', ','.join(install)]
-        extra += ['--test-tags', ','.join('/' + a for a in sorted(selected))]
-        warn('running tests on %s (port %d)' % (database, port))
-        code, log_text, err = run_odoo([addons_dir, *oca_dirs()], database, scratch, scratch / 'data', port, extra, 'run.log')
-        result = parse_result(log_text)
-        if result is None:
-            tail = '\n'.join(log_text.splitlines()[-20:]) or err
-            raise OdooTestError('no test result line found (rc=%d):\n%s' % (code, tail))
-        failed, errors, tests = result
-        sys.stdout.write('%d tests, %d failed, %d errors (%s)\n' % (tests, failed, errors, ','.join(sorted(selected))))
-        ok, reason = verdict(result)
-        if not ok or code:
-            sys.stdout.write('FAILED: %s\n' % (reason or 'odoo exited with rc=%d' % code))
-            for line in log_text.splitlines():
-                if ' ERROR ' in line or 'FAIL:' in line or 'ERROR:' in line:
-                    sys.stdout.write(line + '\n')
-            return 1
-        return 0
-    finally:
-        if created and args.keep_db:
-            warn('kept database %s' % database)
-        else:
-            pg.drop(database)
-        shutil.rmtree(str(scratch), ignore_errors=True)
-        if port_lock is not None:
+        try:
+            build_template(pg, template, release, merge_base, scratch, cache, port, warn)
+        finally:
             port_lock.close()
+        for shard in shards:
+            shard.port, shard.port_lock = acquire_port(cache)
+            pg.create_from(shard.database, template)
+            shard.created = True
+            copied = copy_filestore(cache, template, shard.workdir / 'data', shard.database)
+            warn('%s: filestore copied from template %s (%d files)' % (shard.label, template, copied))
+        extra = update_arguments(pg, shards[0].database, addons_dir, known, selected)
+        for shard in shards:
+            tags = ','.join('/' + a for a in shard.addons)
+            warn('%s: running tests on %s (port %d)' % (shard.label, shard.database, shard.port))
+            shard.proc, shard.logfile = start_odoo(
+                [addons_dir, *oca_dirs()], shard.database, shard.workdir, shard.workdir / 'data', shard.port,
+                extra + ['--test-tags', tags], 'run.log')
+        outcomes = []
+        for shard in shards:
+            code, log_text, err = finish_odoo(shard.proc, shard.logfile)
+            result = parse_result(log_text)
+            outcomes.append((code, log_text, err, result))
+        return 0 if report_shards(shards, outcomes, cache) else 1
+    finally:
+        for shard in shards:
+            if shard.proc is not None:
+                stop_process(shard.proc)
+            if shard.created and args.keep_db:
+                warn('kept database %s' % shard.database)
+            elif shard.created:
+                pg.drop(shard.database)
+            if shard.port_lock is not None:
+                shard.port_lock.close()
+        shutil.rmtree(str(scratch), ignore_errors=True)
 
 
 if __name__ == '__main__':
