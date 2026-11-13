@@ -2,8 +2,11 @@
 
 واجهة العميل: [DESIGN.md](../DESIGN.md). التقارير المؤرخة ليست تعليمات واجهة.
 
-LiwanOS uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/liwan` on `main`; a task worktree is not a
-permanent product pillar checkout. One writer owns each file. One orchestrator
+LiwanOS development runs in four fixed lanes (owner decision 2026-11-13): `claude-1` and `claude-2` for
+Claude sessions, `codex-1` and `codex-2` for Codex sessions, each a permanent worktree under
+`/Users/tariq/code/liwan/.worktrees/`. The main checkout `/Users/tariq/code/liwan` rests on `main` and
+belongs to the owner, for manual testing and the one running development stack; no agent develops in it.
+One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.
 
 ## Checkout and delivery context
@@ -73,7 +76,7 @@ shared change must state the contract and the single writer before work starts.
 1. Inspect the selected worktree's branch, status, remotes, and changed paths.
    Preserve unrelated edits. Use any normal task branch name (for example `<area>-<slug>`).
 2. Decide file ownership and list collisions before editing. Keep dependent
-   work sequential; run independent slices in separate worktrees.
+   work sequential; independent slices go to separate sessions of a lane, each with its own claim.
 3. Give each worktree independent `node_modules` and `.nuxt` directories. Use
    `npm ci --ignore-scripts`; if offline, use the available local npm cache.
    Never symlink dependency or generated-state directories between worktrees.
@@ -81,20 +84,60 @@ shared change must state the contract and the single writer before work starts.
    HTTP port. They live in the git-ignored `.env.worktree`; `npm run dev` (`tools/dev_web.mjs`) reads that
    file and rejects command-line overrides, so do not pass `--port` or export those variables by hand.
 
-`npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` performs the worktree
-creation, steps 3 and 4 (ports and scratch database name are written to `.env.worktree`) and the
-ownership claim in one command (`tools/wt.py`).
+`npm run wt -- lane setup <lane>` performs steps 3 and 4 once for a lane (ports and scratch database name
+are written to `.env.worktree`); the lane keeps them for every later task (`tools/wt.py`).
+
+### Fixed lanes
+
+| Lane | Tool | Use |
+| --- | --- | --- |
+| `claude-1` | Claude | The batch: several sessions on one branch, small and medium tasks, one PR |
+| `claude-2` | Claude | One long or sensitive task (money, authorization, schema or migrations, security, tenant isolation) with a PR of its own |
+| `codex-1` | Codex | Same use as `claude-1` |
+| `codex-2` | Codex | Same use as `claude-2` |
+
+1. **Four lanes, no others.** A Claude session writes only in a `claude-*` lane and a Codex session only in
+   a `codex-*` lane. Neither enters the other tool's lanes or develops in the main checkout, and no tool's
+   built-in worktree option is used. A temporary task worktree (`wt new`, rules below) needs the owner's
+   explicit words for that task.
+2. **One branch per lane at a time.** A lane rests on a detached `origin/main`.
+   `npm run wt -- lane start <lane> <branch>` starts the task branch there from the fetched `origin/main`.
+   `npm run wt -- lane finish <lane>` returns the lane to `origin/main` after the branch is merged and
+   deletes the local branch. Between the two, no session runs `git checkout`, `git switch`, `git stash`,
+   `git reset`, `git rebase` or `git pull` in the lane.
+3. **One coordinating session.** The session that starts the branch coordinates the lane: it alone merges
+   `origin/main` into the branch (after the other sessions have committed), runs the checks of the combined
+   branch, and finishes the lane.
+4. **One claim per session.** Before editing, a session records its paths inside the lane with
+   `npm run wt -- claim --owner <session> --task <what> --scope <path>`. The claim is refused when another
+   active claim holds an overlapping path, in the same lane or in any other worktree; that session waits or
+   takes another task. Its subagents work under the same claim. A claim expires 24 hours after its last
+   refresh and then no longer holds its paths; the session renews it with the same `claim` command. `npm run wt -- release --owner <session>`
+   drops the claim once the session's work is committed. A schema change of one addon (its version bump and
+   migration) stays with one session.
+5. **Commit by path, under the session's name.** `LIWAN_SESSION=<session> git commit -m "<subject>" -- <paths>`;
+   never `git add -A` or `git commit -a`. The pre-commit lane guard (`tools/hooks.py`) refuses a commit in a
+   lane that is not on the branch it started, a commit whose `LIWAN_SESSION` names no claim there or an expired one, and a
+   commit with a staged path outside that session's claim.
+6. **Checks.** Each session runs the focused checks of its own paths. Another session's unfinished edit can
+   fail a whole-tree check (the `apps/web` type check reads every file), so sessions commit small and often.
+   The coordinating session runs the combined branch's checks once, on a clean tree, before the PR.
+7. **Across tools.** Lanes isolate files on disk, not merges. The orchestrator splits each round's work
+   between Claude and Codex by area, and each file of the shared-file protocol has one owner per round.
+
+The lane guard is a commit-time check, not a lock: Git has no hook that stops a branch switch. `wt check`
+reports a lane that left its branch, and the guard refuses the commit that would land on the wrong one.
+`wt gc` never removes a lane.
 
 ### Worktree rules
 
-These rules apply to every worktree created from 2026-10-20 on, by a person, a Codex task or a Claude
-session or subagent. A worktree that predates them is reported by `wt check`, never moved, renamed or
+These rules apply to a temporary task worktree, which since 2026-11-13 is created only when the owner asks
+for one in words. A worktree that predates them is reported by `wt check`, never moved, renamed or
 removed by it; its owner records a claim with `wt claim` or finishes and merges it as it is.
 
 1. **One location.** Task worktrees live only in `<main checkout>/.worktrees/<area>-<slug>` (git-ignored),
    where `wt new` creates them, also when run from another worktree. Never create one with a bare
-   `git worktree add`, under `../liwan-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`); a
-   Claude subagent or session that needs isolation runs `wt new` instead of its built-in worktree option.
+   `git worktree add`, under `../liwan-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`).
 2. **One name.** Any valid Git branch name is accepted; descriptive names are recommended.
    `wt new <suffix>` creates branch `codex/<suffix>` and folder `.worktrees/<suffix>`.
    Other valid task branch names may be claimed; `wt check` checks their folder suffix and claim.
@@ -179,6 +222,9 @@ and review of the actual combined diff. CI does not repair code, merge PRs or cr
 with current remote `main` too. A merged head with dirty files still contains
 undelivered work. A child sharing its parent's head is dependent work, not a
 second independent delivery.
+
+After the merge, the coordinating session returns its lane with `wt lane finish <lane>`; a temporary task
+worktree is removed with `wt gc`.
 
 The task owner reports the files changed and verification evidence. The
 orchestrator resolves shared-file conflicts, verifies the combined candidate

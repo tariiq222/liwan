@@ -1,14 +1,33 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Create, claim, check, list and clean up task worktrees.
+"""Set up and run the fixed lanes; create, claim, check, list and clean up temporary task worktrees.
 
+    python3 -B tools/wt.py lane setup <lane> [--no-install]
+    python3 -B tools/wt.py lane start <lane> <branch>
+    python3 -B tools/wt.py lane finish <lane>
+    python3 -B tools/wt.py claim --owner <session> [--task <what>] [--scope <path> ...] [--allow-overlap <reason>]
+    python3 -B tools/wt.py release --owner <session>
     python3 -B tools/wt.py new <area>-<slug> --owner <who> --task <what> --scope <path> [--scope ...]
                                [--allow-overlap <reason>] [--base main] [--no-install] [--resume]
-    python3 -B tools/wt.py claim --owner <who> [--task <what>] [--scope <path> ...] [--allow-overlap <reason>]
     python3 -B tools/wt.py check
     python3 -B tools/wt.py status
     python3 -B tools/wt.py gc [--apply] [--branch codex/<area>-<slug>]
 
-``new`` creates ``.worktrees/<area>-<slug>``, the only location for task worktrees, under the main
+The four fixed lanes (``claude-1``, ``claude-2``, ``codex-1``, ``codex-2``) are permanent worktrees at
+``.worktrees/<lane>`` and are never removed. Between tasks a lane rests on a detached ``origin/main``.
+``lane setup`` creates (or adopts) the lane worktree, its ``.env.worktree`` with free ports, its lane record
+(``liwan-lane.json``, see ``tools/worktree_claims.py``) and its dependencies. ``lane start`` begins the
+task branch from ``origin/main`` in a clean lane that rests or holds a merged branch, and refuses a lane that left
+its recorded branch; ``lane finish`` returns the lane to a detached
+``origin/main`` once its branch is merged and deletes the branch. Several agent sessions then work on that one
+branch: ``claim``, run inside a lane, records or refreshes the claim of the session named by ``--owner``
+(a first claim needs ``--task`` and ``--scope``), refuses scopes that overlap an active claim of another
+session or worktree unless ``--allow-overlap`` states the reason, and takes over an expired claim of the lane
+that overlaps it; ``release`` removes the claim of a session. Both run under one repository-wide lock, so
+sessions that claim at the same moment are checked one after the other. The pre-commit lane guard of ``tools/hooks.py``
+refuses a commit outside the committing session's claim.
+
+Temporary task worktrees stay for exceptions the owner authorises. ``new`` creates
+``.worktrees/<area>-<slug>``, a location for them (a lane name is refused), under the main
 checkout (also when run from a worktree) on branch ``codex/<area>-<slug>`` from ``--base`` (``main`` or
 any valid branch), installs independent ``node_modules`` and ``.nuxt`` (never symlinked), and writes the
 git-ignored ``.env.worktree`` with free Nuxt and Odoo ports and a scratch
@@ -23,14 +42,15 @@ refresh it, or takes over a claim that has expired (no commit, edited file or re
 
 ``check`` reports every worktree that breaks a rule: outside ``.worktrees``, an invalid Git branch name,
 a folder name that does not match its branch suffix, no claim,
-and active claims that overlap without a stated reason; it exits 1 when there is one. It only reads: it never
+and active claims that overlap without a stated reason; a lane is exempt from the first three and instead
+reports a missing lane record or a branch that differs from the recorded one. It exits 1 when there is one. It only reads: it never
 moves, renames or removes a worktree, so a worktree that predates these rules is reported, never changed.
 ``status`` prints one table of every worktree, wherever it lives (``*`` marks one outside
-``.worktrees``; ``missing`` one whose folder is gone), with its owner and claim state, then the violations. ``gc`` lists the worktrees and branches that are
+``.worktrees``; ``missing`` one whose folder is gone), with its owner (for a lane, its session owners) and claim state, then the violations. ``gc`` lists the worktrees and branches that are
 merged into main with commits of their own, clean and held by no process, plus the scratch databases
 of those worktrees nobody is connected to; it only prints unless ``--apply`` is given, which needs the
 owner's authorization. Unmerged, dirty, current, in-use and missing worktrees and databases it cannot
-tie to a worktree (``liwan_scratch_e2e``, hand-named ones) are never touched. ``--branch`` limits ``gc``
+tie to a worktree (``liwan_scratch_e2e``, hand-named ones) are never touched. A fixed lane is never removed. ``--branch`` limits ``gc``
 to that one branch's worktree and scratch database, says why a worktree it names is kept, and deletes the
 local branch when it has no worktree and is merged into main.
 """
@@ -52,13 +72,19 @@ from git_policy import check_branch
 from odoo_test import GC_DB
 from worktree_claims import (
     CLAIM_TTL_HOURS,
+    LANES,
+    WORKTREES_DIR,
     Claim,
     ClaimError,
+    Lane,
+    claims_lock,
     is_expired,
     make_claim,
     overlapping,
     read_claim,
+    read_lane,
     write_claim,
+    write_lane,
 )
 
 # Vendor administration owns 3100 and its live-proof build owns 3103, even while idle.
@@ -69,7 +95,8 @@ TAIL = 400
 MAIN = 'main'
 E2E_DATABASE = 'liwan_scratch_e2e'  # SCRATCH_DB in tools/e2e_isolated.mjs, a fixed database no worktree owns
 SCRATCH_PREFIX = 'liwan_scratch_'
-WORKTREES_DIR = '.worktrees'
+LANE_BASE = 'origin/main'
+GIT_DIR = '.git'  # the main checkout's git directory, shared by every worktree
 INSTALL = (
     ['npm', 'ci', '--ignore-scripts', '--prefer-offline'],
     ['npm', '-w', 'apps/web', 'run', 'postinstall'],
@@ -123,7 +150,7 @@ def repo_root():
     """The main checkout, found from the shared git dir so any worktree works."""
     common = sh(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], Path(__file__).resolve().parent)
     common_dir = Path(common)
-    if not common_dir.is_dir() or common_dir.name != '.git':
+    if not common_dir.is_dir() or common_dir.name != GIT_DIR:
         message = 'cannot find the main checkout: git common dir %s is not a .git directory' % common
         raise WorktreeError(message)
     return common_dir.parent
@@ -226,11 +253,10 @@ def claim_conflicts(request, others):
     """Lines describing each active claim of ``others`` whose scopes overlap ``request``'s."""
     lines = []
     for other in others:
-        if other.claim is None or other.claim_expired:
-            continue
-        pairs = overlapping(request.scopes, other.claim.scopes)
-        lines += ['%s overlaps %s of %s (owner %s, task: %s)' % (
-            mine, theirs, other.path, other.claim.owner, other.claim.task) for mine, theirs in pairs]
+        for claim in other.active_claims():
+            pairs = overlapping(request.scopes, claim.scopes)
+            lines += ['%s overlaps %s of %s (owner %s, task: %s)' % (
+                mine, theirs, other.path, claim.owner, claim.task) for mine, theirs in pairs]
     return lines
 
 
@@ -242,9 +268,26 @@ def refuse_conflicts(request, others):
         raise WorktreeError(message)
 
 
+def prepare_worktree(root, path, entries, suffix, install):
+    """Write the worktree's ``.env.worktree`` when missing and install its dependencies; the env file's path."""
+    env = path / '.env.worktree'
+    if not env.exists():
+        used = used_ports(root / WORKTREES_DIR, [p for p, _ in entries])
+        nuxt = pick_port(NUXT_PORTS, used, port_is_free)
+        odoo = pick_port(ODOO_PORTS, used | {nuxt}, port_is_free)
+        env.write_text(env_content(nuxt, odoo, database_name(suffix)), encoding='utf-8')
+    if install and not (path / 'node_modules').is_dir():
+        install_dependencies(path)
+    return env
+
+
 def create(suffix, base, install, request, resume=False):
+    if suffix in LANES:
+        message = "'%s' is a fixed lane; set it up with: python3 -B tools/wt.py lane setup %s" % (suffix, suffix)
+        raise WorktreeError(message)
     if '/' in suffix:
-        raise WorktreeError('worktree suffix must be a single directory name')
+        message = 'worktree suffix must be a single directory name'
+        raise WorktreeError(message)
     branch = 'codex/' + suffix
     problem = check_branch(branch) or check_base(base)
     if problem:
@@ -265,14 +308,7 @@ def create(suffix, base, install, request, resume=False):
     if not path.exists():
         sh(['git', 'worktree', 'add', str(path), '-b', branch, base], root)
     write_claim(git_dir(path), claim)
-    env = path / '.env.worktree'
-    if not env.exists():
-        used = used_ports(root / WORKTREES_DIR, [p for p, _ in entries])
-        nuxt = pick_port(NUXT_PORTS, used, port_is_free)
-        odoo = pick_port(ODOO_PORTS, used | {nuxt}, port_is_free)
-        env.write_text(env_content(nuxt, odoo, database_name(suffix)), encoding='utf-8')
-    if install and not (path / 'node_modules').is_dir():
-        install_dependencies(path)
+    env = prepare_worktree(root, path, entries, suffix, install)
     values = dict(re.findall(r'^(NUXT_PORT|ODOO_HTTP_PORT)=(\d+)$', env.read_text(encoding='utf-8'), re.MULTILINE))
     return path, branch, int(values['NUXT_PORT']), int(values['ODOO_HTTP_PORT'])
 
@@ -294,6 +330,18 @@ class Worktree(NamedTuple):
     own_commits: bool = True
     claim: Claim | None = None
     claim_expired: bool = False
+    lane: Lane | None = None
+    is_lane: bool = False
+    expired_sessions: tuple = ()  # owners of the lane's session claims that expired
+
+    def claim_states(self):
+        """``[(claim, expired)]``: the one claim of a task worktree, or every session claim of a lane."""
+        if self.is_lane:
+            return [(claim, claim.owner in self.expired_sessions) for claim in (self.lane.sessions if self.lane else ())]
+        return [(self.claim, self.claim_expired)] if self.claim else []
+
+    def active_claims(self):
+        return [claim for claim, expired in self.claim_states() if not expired]
 
 
 AGE_UNITS = ((365, 'y'), (30, 'mo'), (1, 'd'))
@@ -373,6 +421,13 @@ def load_claim(path):
         raise WorktreeError(str(error)) from error
 
 
+def load_lane(path):
+    try:
+        return read_lane(git_dir(path))
+    except ClaimError as error:
+        raise WorktreeError(str(error)) from error
+
+
 def inspect_worktree(root, path, ref, now=None, sizes=True):
     """Everything ``status``, ``check`` and ``gc`` need to know about one registered worktree."""
     now = time.time() if now is None else now
@@ -388,13 +443,18 @@ def inspect_worktree(root, path, ref, now=None, sizes=True):
     claim = load_claim(wt_path)
     env = env_values(wt_path)
     ports = [int(env[k]) for k in ('NUXT_PORT', 'ODOO_HTTP_PORT') if k in env]
+    is_main = wt_path.resolve() == root.resolve()
+    canonical = (root / WORKTREES_DIR) in wt_path.resolve().parents or is_main
+    is_lane = not is_main and canonical and wt_path.name in LANES
+    lane = load_lane(wt_path) if is_lane else None
     return Worktree(
-        path=wt_path, branch=ref[len('refs/heads/'):] if ref else None, is_main=wt_path.resolve() == root.resolve(),
-        canonical=(root / WORKTREES_DIR) in wt_path.resolve().parents or wt_path.resolve() == root.resolve(),
+        path=wt_path, branch=ref[len('refs/heads/'):] if ref else None, is_main=is_main, canonical=canonical,
         ahead=ahead, behind=behind, merged=merged, dirty=bool(changed), age_days=max(0, int((now - commit_time) // 86400)),
         size=dir_size_kb(wt_path / 'node_modules') if sizes else None, database=env.get('NUXT_ODOO_DB'), ports=ports,
         own_commits=own_commits, claim=claim,
-        claim_expired=claim is not None and is_expired(last_activity(wt_path, commit_time, changed, claim), now))
+        claim_expired=claim is not None and is_expired(last_activity(wt_path, commit_time, changed, claim), now),
+        lane=lane, is_lane=is_lane,
+        expired_sessions=tuple(c.owner for c in lane.sessions if is_expired(c.refreshed_at, now)) if lane else ())
 
 
 def inspect_all(root, sizes=True):
@@ -416,29 +476,51 @@ def branch_violation(worktree):
     return None
 
 
-def violations(worktrees):
-    """``[(worktree, problem)]`` for every rule a task worktree breaks; the main checkout is not checked."""
+def lane_violation(worktree):
+    """Why a fixed lane breaks a rule, or ``None``: no lane record, or a branch other than the recorded one."""
+    name = worktree.path.name
+    if worktree.lane is None:
+        return 'no lane record; set it up with: wt.py lane setup %s' % name
+    if worktree.branch != worktree.lane.branch:
+        return 'lane is on %s but its recorded branch is %s; another session moved it, return with: git switch %s' % (
+            worktree.branch or 'a detached HEAD', worktree.lane.branch or 'none (resting)', worktree.lane.branch or '--detach origin/main')
+    return None
+
+
+def task_violations(worktree):
+    """Problems of one non-main worktree other than claim overlap; lanes are exempt from the task rules."""
     found = []
+    if not worktree.canonical:
+        found.append('outside %s/; task worktrees live only in <main checkout>/%s/<area>-<slug>' % (WORKTREES_DIR, WORKTREES_DIR))
+    if worktree.missing:
+        return found
+    if worktree.is_lane:
+        problem = lane_violation(worktree)
+        return found + ([problem] if problem else [])
+    problem = branch_violation(worktree)
+    if problem:
+        found.append(problem)
+    if worktree.claim is None:
+        found.append('no ownership claim; its owner records one with: wt.py claim --owner ... --task ... --scope ...')
+    return found
+
+
+def holder(worktree, claim):
+    """How a claim is named in an overlap message: the worktree path, plus the session for a lane."""
+    return '%s session %s' % (worktree.path, claim.owner) if worktree.is_lane else str(worktree.path)
+
+
+def violations(worktrees):
+    """``[(worktree, problem)]`` for every rule a worktree breaks; the main checkout is not checked."""
     tasks = [w for w in worktrees if not w.is_main]
-    for w in tasks:
-        if not w.canonical:
-            found.append((w, 'outside %s/; task worktrees live only in <main checkout>/%s/<area>-<slug>' % (
-                WORKTREES_DIR, WORKTREES_DIR)))
-        if w.missing:
-            continue
-        problem = branch_violation(w)
-        if problem:
-            found.append((w, problem))
-        if w.claim is None:
-            found.append((w, 'no ownership claim; its owner records one with: wt.py claim --owner ... --task ... --scope ...'))
-    for index, w in enumerate(tasks):
-        for other in tasks[index + 1:]:
-            if not (w.claim and other.claim) or w.claim_expired or other.claim_expired:
+    found = [(w, problem) for w in tasks for problem in task_violations(w)]
+    held = [(w, claim) for w in tasks for claim in w.active_claims()]
+    for index, (w, claim) in enumerate(held):
+        for other, other_claim in held[index + 1:]:
+            if claim.overlap_reason or other_claim.overlap_reason:
                 continue
-            if w.claim.overlap_reason or other.claim.overlap_reason:
-                continue
-            for mine, theirs in overlapping(w.claim.scopes, other.claim.scopes):
-                found.append((w, 'scope %s overlaps %s of %s without a stated reason' % (mine, theirs, other.path)))
+            for mine, theirs in overlapping(claim.scopes, other_claim.scopes):
+                found.append((w, 'scope %s overlaps %s of %s without a stated reason' % (mine, theirs, holder(other, other_claim))))
     return found
 
 
@@ -461,6 +543,8 @@ def display_name(worktree, root):
 def claim_label(worktree):
     if worktree.is_main or worktree.missing:
         return '-'
+    if worktree.is_lane:
+        return ', '.join('%s%s' % (c.owner, ' (expired)' if expired else '') for c, expired in worktree.claim_states()) or '-'
     if worktree.claim is None:
         return 'unclaimed'
     return '%s%s' % (worktree.claim.owner, ' (expired)' if worktree.claim_expired else '')
@@ -487,20 +571,61 @@ def format_status(worktrees, root):
     missing = sum(w.missing for w in others)
     if missing:
         summary += ', %d folder missing (git worktree prune)' % missing
-    claims = [w for w in others if w.claim]
+    claims = [state for w in others for state in w.claim_states()]
     summary += '; %d claimed, %d expired (claims expire after %dh without activity)' % (
-        len(claims), sum(w.claim_expired for w in claims), CLAIM_TTL_HOURS)
+        len(claims), sum(expired for _, expired in claims), CLAIM_TTL_HOURS)
     return '\n'.join(lines + ['', summary, '', format_violations(violations(worktrees), root)])
 
 
+def containing_worktree(worktrees, current):
+    """The non-main worktree whose folder holds ``current``, or ``None``."""
+    return next((w for w in worktrees if not w.is_main and not w.missing and inside(current.resolve(), w.path.resolve())), None)
+
+
+def require_record(name, lane):
+    """``lane``, the record of the fixed lane ``name``; a lane without one must be set up first."""
+    if lane is None:
+        message = 'lane %s has no record; set it up with: python3 -B tools/wt.py lane setup %s' % (name, name)
+        raise WorktreeError(message)
+    return lane
+
+
+def update_session_claim(mine, worktrees, request, now):
+    """Record, change or refresh the claim of one session in the lane ``mine``; expired overlapping claims are taken over."""
+    lane = require_record(mine.path.name, mine.lane)
+    if lane.branch is None:
+        message = 'lane %s has no started branch; start one with: python3 -B tools/wt.py lane start %s <branch>' % (
+            mine.path.name, mine.path.name)
+        raise WorktreeError(message)
+    owner = request.owner.strip()
+    old = next((c for c in lane.sessions if c.owner == owner), None)
+    task = request.task or (old.task if old else '')
+    scopes = request.scopes or (old.scopes if old else ())
+    reason = request.overlap_reason or (old.overlap_reason if old else '')
+    try:
+        claim = make_claim(owner, task, lane.branch, scopes, now, reason, old.claimed_at if old else None)
+    except ClaimError as error:
+        raise WorktreeError(str(error)) from error
+    peers = [c for c in lane.sessions if c.owner != owner]
+    taken = [c for c in peers if c.owner in mine.expired_sessions and overlapping(claim.scopes, c.scopes)]
+    kept = tuple(c for c in peers if c not in taken)
+    others = [w for w in worktrees if not w.is_main and w is not mine] + [mine._replace(lane=Lane(lane.branch, kept))]
+    refuse_conflicts(request._replace(scopes=claim.scopes, overlap_reason=claim.overlap_reason), others)
+    write_lane(git_dir(mine.path), Lane(lane.branch, kept + (claim,)))
+    action = 'refreshed' if old else 'took over the expired claim of %s' % taken[0].owner if taken else 'recorded'
+    return '%s claim of %s: owner %s, task: %s, scopes: %s' % (action, mine.path, claim.owner, claim.task, ', '.join(claim.scopes))
+
+
 def update_claim(root, current, request, now=None):
-    """Record, change, refresh or take over the claim of the task worktree containing ``current``."""
+    """Record, change, refresh or take over the claim of the worktree containing ``current``."""
     now = time.time() if now is None else now
     worktrees = inspect_all(root, sizes=False)
-    mine = next((w for w in worktrees if not w.is_main and not w.missing and inside(current.resolve(), w.path.resolve())), None)
+    mine = containing_worktree(worktrees, current)
     if mine is None:
-        message = 'run claim inside a task worktree under %s/, not the main checkout' % WORKTREES_DIR
+        message = 'run claim inside a lane or task worktree under %s/, not the main checkout' % WORKTREES_DIR
         raise WorktreeError(message)
+    if mine.is_lane:
+        return update_session_claim(mine, worktrees, request, now)
     old = mine.claim
     if old and old.owner != request.owner.strip() and not mine.claim_expired:
         template = 'this worktree is claimed by %s (task: %s) and the claim is active; ask that owner, or wait %dh without activity for it to expire'
@@ -521,6 +646,21 @@ def update_claim(root, current, request, now=None):
     action = 'refreshed' if keep else 'took over the expired claim of %s' % old.owner if old else 'recorded'
     return '%s claim of %s: owner %s, task: %s, scopes: %s' % (
         action, mine.path, claim.owner, claim.task, ', '.join(claim.scopes))
+
+
+def release_claim(root, current, owner):
+    """Remove the claim of session ``owner`` from the lane containing ``current``."""
+    mine = containing_worktree(inspect_all(root, sizes=False), current)
+    if mine is None or not mine.is_lane:
+        message = 'run release inside a fixed lane (%s)' % ', '.join(LANES)
+        raise WorktreeError(message)
+    lane = require_record(mine.path.name, mine.lane)
+    remaining = tuple(c for c in lane.sessions if c.owner != owner.strip())
+    if len(remaining) == len(lane.sessions):
+        message = 'session %s has no claim in lane %s' % (owner.strip(), mine.path.name)
+        raise WorktreeError(message)
+    write_lane(git_dir(mine.path), Lane(lane.branch, remaining))
+    return 'released the claim of session %s in lane %s' % (owner.strip(), mine.path.name)
 
 
 def busy_paths():
@@ -545,6 +685,7 @@ def keep_reason(worktree, busy, current):
     """Why ``gc`` keeps this worktree, or ``None`` when it may be removed (never main or the current one)."""
     reasons = (
         (worktree.is_main, 'it is the main checkout'),
+        (worktree.is_lane, 'it is a fixed lane; return it with: wt.py lane finish %s' % worktree.path.name),
         (worktree.missing, 'its folder is missing'),
         (not worktree.branch, 'it has no branch'),
         (not worktree.missing and inside(current.resolve(), worktree.path.resolve()),
@@ -658,6 +799,112 @@ def gc(root, apply, current, branch=None):
     return '\n'.join(lines)
 
 
+def lane_folder(root, name):
+    if name not in LANES:
+        message = "'%s' is not a fixed lane (%s)" % (name, ', '.join(LANES))
+        raise WorktreeError(message)
+    return root / WORKTREES_DIR / name
+
+
+def lane_worktree(root, name):
+    """The lane's folder; the lane must be one of ``LANES`` and already set up."""
+    path = lane_folder(root, name)
+    if not path.is_dir():
+        message = 'lane %s is not set up; run: python3 -B tools/wt.py lane setup %s' % (name, name)
+        raise WorktreeError(message)
+    return path
+
+
+def current_branch(path):
+    return sh(['git', 'branch', '--show-current'], path)
+
+
+def merged_into_base(path):
+    return run(['git', 'merge-base', '--is-ancestor', 'HEAD', LANE_BASE], path)[0] == 0
+
+
+def require_recorded_branch(name, lane, held):
+    """Refuse a lane whose checked-out branch ``held`` is not the one its record names; a resting lane is detached.
+
+    A lane that left its branch still has that branch's work and session claims, so neither ``lane start`` nor
+    ``lane finish`` may replace its record.
+    """
+    if held == (lane.branch or ''):
+        return
+    template = 'lane %s is on %s but its recorded branch is %s; return with: git switch %s'
+    message = template % (name, held or 'a detached HEAD', lane.branch or 'none (resting)', lane.branch or '--detach ' + LANE_BASE)
+    raise WorktreeError(message)
+
+
+def require_clean(path):
+    if changed_paths(path):
+        message = 'lane %s has uncommitted changes; commit or discard them first' % path.name
+        raise WorktreeError(message)
+
+
+def rest_lane(path, branch):
+    """Return the lane at ``path`` to a detached origin/main, delete its merged ``branch`` and clear its record."""
+    sh(['git', 'switch', '--detach', LANE_BASE], path)
+    sh(['git', 'branch', '-d', branch], path)
+    write_lane(git_dir(path), Lane(None, ()))
+
+
+def lane_setup(root, name, install):
+    """Create (or adopt) the lane worktree, its env file, its record and its dependencies."""
+    path = lane_folder(root, name)
+    entries = parse_worktrees(sh(['git', 'worktree', 'list', '--porcelain'], root))
+    registered = any(Path(p).resolve() == path.resolve() for p, _ in entries)
+    if path.exists() and not registered:
+        message = '%s exists but is not a registered worktree; move it away first' % path
+        raise WorktreeError(message)
+    if not path.exists():
+        sh(['git', 'fetch', 'origin', MAIN], root)
+        sh(['git', 'worktree', 'add', '--detach', str(path), LANE_BASE], root)
+    if load_lane(path) is None:
+        write_lane(git_dir(path), Lane(current_branch(path) or None, ()))
+    env = prepare_worktree(root, path, entries, name, install)
+    values = dict(re.findall(r'^(NUXT_PORT|ODOO_HTTP_PORT)=(\d+)$', env.read_text(encoding='utf-8'), re.MULTILINE))
+    return 'lane %s at %s\nNuxt port %s, Odoo port %s, see %s' % (name, path, values['NUXT_PORT'], values['ODOO_HTTP_PORT'], env)
+
+
+def lane_start(root, name, branch):
+    """Start ``branch`` from origin/main in a clean lane on its recorded branch; a merged branch it holds is finished first."""
+    problem = check_branch(branch)
+    if problem or branch in (MAIN, 'HEAD'):
+        message = problem or "'%s' cannot be a lane branch" % branch
+        raise WorktreeError(message)
+    path = lane_worktree(root, name)
+    lane = require_record(name, load_lane(path))
+    require_recorded_branch(name, lane, current_branch(path))
+    require_clean(path)
+    sh(['git', 'fetch', 'origin', MAIN], root)
+    if lane.branch and not merged_into_base(path):
+        message = 'lane %s still holds %s, which is not merged into %s; finish or merge it first' % (name, lane.branch, LANE_BASE)
+        raise WorktreeError(message)
+    if lane.branch:
+        rest_lane(path, lane.branch)
+    sh(['git', 'switch', '-c', branch, '--no-track', LANE_BASE], path)
+    write_lane(git_dir(path), Lane(branch, ()))
+    return 'lane %s started %s from %s' % (name, branch, LANE_BASE)
+
+
+def lane_finish(root, name):
+    """Return the lane to a detached origin/main after its branch is merged, and delete the branch."""
+    path = lane_worktree(root, name)
+    lane = require_record(name, load_lane(path))
+    if lane.branch is None:
+        message = 'lane %s is already resting; there is nothing to finish' % name
+        raise WorktreeError(message)
+    require_recorded_branch(name, lane, current_branch(path))
+    require_clean(path)
+    sh(['git', 'fetch', 'origin', MAIN], root)
+    if not merged_into_base(path):
+        message = 'lane %s: %s is not merged into %s yet' % (name, lane.branch, LANE_BASE)
+        raise WorktreeError(message)
+    rest_lane(path, lane.branch)
+    return 'lane %s finished %s and rests on %s' % (name, lane.branch, LANE_BASE)
+
+
 def add_claim_arguments(parser, required):
     parser.add_argument('--owner', required=True, help='the session, agent or person that writes in this worktree')
     parser.add_argument('--task', required=required, help='one line: what this worktree is for')
@@ -671,6 +918,14 @@ def claim_request(args):
     return ClaimRequest(args.owner, args.task or '', tuple(args.scope), args.allow_overlap)
 
 
+def run_lane(root, args):
+    if args.lane_command == 'setup':
+        return lane_setup(root, args.name, not args.no_install)
+    if args.lane_command == 'start':
+        return lane_start(root, args.name, args.branch)
+    return lane_finish(root, args.name)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     sub = parser.add_subparsers(dest='command', required=True)
@@ -680,8 +935,19 @@ def main(argv=None):
     new.add_argument('--no-install', action='store_true')
     new.add_argument('--resume', action='store_true', help='continue a worktree whose creation failed part way')
     add_claim_arguments(new, required=True)
-    claim = sub.add_parser('claim', help='record, change, refresh or take over the claim of the current worktree')
+    claim = sub.add_parser('claim', help='record, change, refresh or take over the claim of the current lane session or worktree')
     add_claim_arguments(claim, required=False)
+    release = sub.add_parser('release', help='remove the claim of a session from the current lane')
+    release.add_argument('--owner', required=True, help='the session whose claim is removed')
+    lane = sub.add_parser('lane', help='set up, start and finish a fixed lane')
+    lane_sub = lane.add_subparsers(dest='lane_command', required=True)
+    setup = lane_sub.add_parser('setup', help='create or adopt the lane worktree, its env file, record and dependencies')
+    setup.add_argument('name', help='one of: ' + ', '.join(LANES))
+    setup.add_argument('--no-install', action='store_true')
+    start = lane_sub.add_parser('start', help='start a task branch from origin/main in a resting lane')
+    start.add_argument('name')
+    start.add_argument('branch')
+    lane_sub.add_parser('finish', help='return a lane whose branch is merged to a detached origin/main').add_argument('name')
     sub.add_parser('check', help='report rule violations of every worktree; exit 1 when there is one')
     sub.add_parser('status')
     collect = sub.add_parser('gc')
@@ -698,7 +964,17 @@ def main(argv=None):
         sys.stdout.write(format_violations(found, root) + '\n')
         return 1 if found else 0
     if args.command == 'claim':
-        sys.stdout.write(update_claim(repo_root(), Path.cwd(), claim_request(args)) + '\n')
+        root = repo_root()
+        with claims_lock(root / GIT_DIR):
+            sys.stdout.write(update_claim(root, Path.cwd(), claim_request(args)) + '\n')
+        return 0
+    if args.command == 'release':
+        root = repo_root()
+        with claims_lock(root / GIT_DIR):
+            sys.stdout.write(release_claim(root, Path.cwd(), args.owner) + '\n')
+        return 0
+    if args.command == 'lane':
+        sys.stdout.write(run_lane(repo_root(), args) + '\n')
         return 0
     if args.command == 'gc':
         sys.stdout.write(gc(repo_root(), args.apply, Path.cwd(), args.branch) + '\n')
