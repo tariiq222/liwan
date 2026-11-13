@@ -1261,14 +1261,21 @@
         "amountHint": "In riyals, with at most two decimals, such as 123.45.",
         "amountInvalid": "Enter the amount as a number in riyals, such as 123.45, with no sign or letters.",
         "amountDecimals": "A riyal amount has at most two decimals. Enter the exact amount received, without rounding.",
-        "claimed": "The customer says it transferred this on {date}",
-        "claimedReference": "Sender or bank reference: {reference}",
+        "claimed": "Stated by the customer, not verified: it transferred this on {date}",
+        "claimedReference": "Sender or bank reference given by the customer: {reference}",
         "valueDate": "Value date"
       },
       "refund": {
         "action": "Record refund",
         "title": "Record that this credit note was refunded",
-        "description": "This does not refund anything. Refund the customer in the payment provider's dashboard first, then record the provider's reference here.",
+        "description": "This does not refund anything. Return the money another way first (a bank transfer, or the payment provider's dashboard after checking it was not already refunded there), then record the reference here.",
+        "automatic": {
+          "inProgress": "The refund is being made through the payment provider. Nothing else is needed; this page shows the result.",
+          "retrying": "The provider has not confirmed yet. Last answer: {reason}",
+          "failed": "The payment provider could not refund this payment: {reason}",
+          "failedHint": "Check the provider's dashboard first so the customer is not paid twice. If the money was not returned, return it another way and record the reference below.",
+          "done": "Refunded by the system through the payment provider. The reference below is the provider's."
+        },
         "dropsToFreeBase": "This is the customer's first payment: recording the refund drops the subscription to the free base at once. Items bought with a later payment stay.",
         "reference": "Provider refund reference",
         "referenceHint": "The refund or payment id shown in the provider's dashboard.",
@@ -1284,10 +1291,10 @@
         "alreadyRequested": "A refund was already requested for this invoice. Its credit note is listed under adjustments.",
         "request": {
           "title": "Refund request",
-          "hint": "When the customer asks for their money back inside the refund window, request the refund here. It opens a credit note for the whole invoice; this step refunds nothing.",
+          "hint": "When the customer asks for their money back inside the refund window, request the refund here. It opens a credit note for the whole invoice. A card payment is returned through the provider automatically; a bank transfer is returned by you and recorded on the note.",
           "action": "Request refund",
           "confirmTitle": "Request a full refund of this invoice",
-          "confirmHint": "This opens a pending credit note for the invoice total. Refund the customer in the payment provider's dashboard, then record the provider's reference on the note.",
+          "confirmHint": "This opens a credit note for the invoice total. A card payment is refunded by the system through the payment provider. A bank transfer is returned by you, then recorded on the note.",
           "confirm": "Request refund",
           "unitsUsed": "AI units already used",
           "unitsUsedHint": "Read the units this top-up has spent in the customer's workspace. Enter 0 if none were used. A top-up with any use cannot be refunded.",
@@ -1301,7 +1308,8 @@
           "refund_window_closed": "The refund window has closed, so this payment cannot be refunded.",
           "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot.",
           "lock_pending": "The subscription is still being moved to the free base. Record the refund again once that finishes.",
-          "fulfillment_pending": "This order is still being delivered. Request the refund once the delivery ends."
+          "fulfillment_pending": "This order is still being delivered. Request the refund once the delivery ends.",
+          "refund_in_progress": "The system is still refunding this payment through the provider. Wait for the result; the manual form opens only if the provider cannot refund."
         }
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",

@@ -492,7 +492,7 @@ suite('the 14-day refund window (W7)', () => {
 
   /** A paid order and its paid invoice at a chosen payment time; `withNote` also plants the pending note the old flow
    * closed, which the A2 route tests must NOT do (the route is what creates the note). */
-  async function paidWithCreditNote(paidAt: string, origin: 'vendor' | 'system' = 'vendor', withNote = true) {
+  async function paidWithCreditNote(paidAt: string, origin: 'vendor' | 'system' = 'vendor', withNote = true, provider: 'moyasar' | 'bank_transfer' = 'moyasar') {
     const id = randomUUID()
     const tenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','dedicated_managed',$2,true)", [tenant, `c-${tenant}`])
@@ -503,7 +503,7 @@ suite('the 14-day refund window (W7)', () => {
     const invoice = (await pool.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued'", [order.id])).rows[0]
     const attemptId = randomUUID()
     await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,updated_at,succeeded_at)
-      VALUES($1,$2,$3,'moyasar','live',$4,$5,$6,$7,'succeeded',$8,$8)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt])
+      VALUES($1,$2,$3,$9,'live',$4,$5,$6,$7,'succeeded',$8,$8)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt, provider])
     // Delivered: a paid order still being delivered cannot be refunded yet (`fulfillment_pending`).
     await pool.query("UPDATE orders SET payment_state='paid',paid_attempt_id=$2,fulfillment_state='applied' WHERE id=$1", [order.id, attemptId])
     await pool.query("UPDATE invoices SET status='paid',paid_at=$2 WHERE id=$1", [invoice.id, paidAt])
@@ -527,7 +527,7 @@ suite('the 14-day refund window (W7)', () => {
   it('records a vendor refund after the window closed, because the window was judged when the note was requested', async () => {
     // The operator refunds at the provider and records the reference days later. Judging the window again at that point
     // stranded the note: `refund_already_requested` blocked a second one and `refund_window_closed` blocked this one.
-    const paid = await paidWithCreditNote(new Date(Date.now() - 3 * 86_400_000).toISOString(), 'vendor', false)
+    const paid = await paidWithCreditNote(new Date(Date.now() - 3 * 86_400_000).toISOString(), 'vendor', false, 'bank_transfer')
     const requested = (await requestRefund(paid.invoice.id))!
     expect(requested.status).toBe(201)
     const noteId = (requested.data as { id: string }).id
@@ -615,7 +615,7 @@ suite('the 14-day refund window (W7)', () => {
     new URL('http://localhost/v1/commercial'))
 
   it('the refund route creates the pending vendor note for the full total of an eligible invoice', async () => {
-    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false)
+    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false, 'bank_transfer')
     const answer = (await requestRefund(paid.invoice.id))!
     expect(answer.status).toBe(201)
     expect(answer.data).toMatchObject({ invoice_id: paid.invoice.id, status: 'pending', kind: 'credit_note' })
@@ -683,7 +683,7 @@ suite('the 14-day refund window (W7)', () => {
 
   it('two duplicate transfers on one invoice are both refundable, while a vendor full refund is refused twice', async () => {
     // A4: the old unique index allowed one refunded note per invoice, so the second duplicate's money was stuck.
-    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false)
+    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false, 'bank_transfer')
     const duplicate = async () => {
       const noteId = randomUUID()
       await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)

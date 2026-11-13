@@ -2,9 +2,10 @@
 
 Status: **operator-approved refunds for launch**. Owner decision 9 in section 2 of
 [the self-service pricing and trial design](../superpowers/specs/2026-10-24-self-service-pricing-and-trial-design.md)
-(2026-10-24): the refund policy is written text plus a documented manual procedure, with no field and no
-automatic refund path in this phase. Money only moves when the operator refunds it; recording the refund of a
-first payment does change the subscription (see "Refund of the first payment").
+(2026-10-24): the refund policy is written text plus a documented manual procedure, with no field. Since
+2026-11-13 the 14-day refund of a card payment is made by the system through the payment provider when the vendor
+requests it (see "Refund of the first payment"); every other refund is still returned by the operator, who records
+the reference. Recording the refund of a first payment changes the subscription.
 
 ## What triggers a refund
 
@@ -32,9 +33,21 @@ the customer asks by message, and the vendor acts in the vendor console.
 - The vendor opens the paid invoice and chooses "Request refund". This creates one pending `vendor_refund` credit
   note for the whole invoice. The window and the first-payment rule are judged here, once. A paid order whose delivery
   has not ended is refused with `fulfillment_pending` (409) until it ends.
-- The vendor refunds the money at the payment provider (or by bank transfer) and records the reference on the note
-  (step 4 of the procedure below). Nothing moves money automatically.
-- Recording the refund drops the subscription to the free base in the same transaction, because the owner gives no
+- A payment made through the payment provider (a card) is refunded by the system: requesting the refund also queues one
+  `reconcile.refund` outbox row for the exact invoice amount. The refund worker confirms the original payment, asks the
+  provider only for what it has not returned yet (under an advisory lock per order, so a retry, a double click, two
+  operators or a restart never refunds twice), and when the provider confirms it records the note as `refunded` with the
+  provider's reference. The audit trail names the operator who requested it as the actor and `system` as the executor,
+  and the same code that the manual form runs arms the free-base lock. While the system owns the refund, recording by
+  hand is refused (`refund_in_progress`, 409) and the console does not offer it.
+- If the provider cannot refund (an error retrying does not change, or the six attempts are used), the note stays
+  `pending`, the vendor "today" list shows `refund_rejected` and the invoice page shows the reason. Only then the
+  operator checks the provider's dashboard, returns the money another way if it was not returned, and records the
+  reference (step 4 below). The provider's own `refunded` event for money already credited adds no second note and no
+  second lock.
+- A payment made by bank transfer has no provider payment to refund: the operator returns the money by transfer and
+  records the reference on the note (step 4 below).
+- Recording the refund (by the system or by hand) drops the subscription to the free base in the same transaction, because the owner gives no
   paid value without payment. This happens when the refunded `vendor_refund` and `provider_refund` notes cover the
   whole invoice, the invoice bought something other than an AI top-up or tax, its order was delivered, it is the
   customer's first payment and the subscription is past its trial (`active`, `past_due` or `suspended`). Unpaid
@@ -51,9 +64,11 @@ the customer asks by message, and the vendor acts in the vendor console.
 
 1. Find the invoice in the vendor-admin invoice page: a pending credit note is shown on it.
 2. Confirm the cause (runbook section 4.1) and that the customer was not provisioned.
-3. Refund the amount through the payment provider's dashboard. Nothing is refunded automatically.
-4. On the same invoice page choose "Record refund" on the pending credit note and enter the provider's refund
-   reference and a reason. This needs `vendor.billing.manage` (roles `owner` and `finance`) and a fresh step-up.
+3. Only for a bank transfer, or after the automatic provider refund failed: return the amount (a bank transfer; for a
+   failed automatic refund, first check the provider's dashboard that it was not already returned). A card refund the
+   console requested needs no step 3 or 4.
+4. On the same invoice page choose "Record refund" on the pending credit note and enter the refund reference and a
+   reason. The console offers this only when the server allows it (`manual_record_allowed`). This needs `vendor.billing.manage` (roles `owner` and `finance`) and a fresh step-up.
    The note becomes `refunded` with the reference, the recording account and the time, and an
    `invoice.credit_refunded` audit event is written. The action moves no money. Repeating it with the same
    reference returns the recorded note; a different reference on a closed note is refused (`credit_note_not_pending`).

@@ -29,7 +29,7 @@ const invoice = makeInvoice()
 const { tax_label: _taxLabel, ...withoutTaxLabel } = invoice
 const refundable = { refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false }
 /** A refund the vendor requested because the customer asked inside the window. */
-const creditNote = { id: 'note1', invoice_id: invoice.id, customer_id: 'customer1', kind: 'credit_note', origin: 'vendor', reason: 'Customer asked for the refund on day 3', amount: money, status: 'pending', created_at: '2026-10-04T12:34:00Z', created_by: 'account:7', refund_reference: null, refunded_at: null, refunded_by: null }
+const creditNote = { id: 'note1', invoice_id: invoice.id, customer_id: 'customer1', kind: 'credit_note', origin: 'vendor', reason: 'Customer asked for the refund on day 3', amount: money, status: 'pending', created_at: '2026-10-04T12:34:00Z', created_by: 'account:7', refund_reference: null, refunded_at: null, refunded_by: null, automatic_refund: null, manual_record_allowed: true }
 /** A duplicate payment the system found: it has no window, so it must be recordable at any date. */
 const systemNote = { ...creditNote, id: 'note2', origin: 'system', reason: 'Duplicate charge for the same invoice', created_by: 'system' }
 
@@ -106,6 +106,23 @@ describe('invoice refund eligibility', () => {
     expect(captured.some(c => c.props['data-testid'] === 'refund-ineligible')).toBe(false)
   })
 
+  it('shows the refund the system makes through the provider, and offers the manual form only when the server allows it', async () => {
+    const states = [
+      [{ state: 'in_progress', reason: null }, false, 'automatic-refund-in-progress'],
+      [{ state: 'failed', reason: 'provider_refund_unavailable' }, true, 'automatic-refund-failed'],
+    ] as const
+    for (const [automatic_refund, manual_record_allowed, testid] of states) {
+      const p = await page({ adjustments: [{ ...creditNote, automatic_refund, manual_record_allowed }], refund: refundable })
+      const { captured } = await p.rendered()
+      expect(captured.some(c => c.props['data-testid'] === testid)).toBe(true)
+      expect(captured.some(c => c.name === 'UButton' && c.props['data-testid'] === 'record-refund-action')).toBe(manual_record_allowed)
+    }
+    const done = await page({ adjustments: [{ ...creditNote, status: 'refunded', refund_reference: 'sim_pay_1', refunded_by: 'system', refunded_at: '2026-11-13T07:00:00.000Z', automatic_refund: { state: 'done', reason: null }, manual_record_allowed: false }], refund: refundable })
+    const rendered = await done.rendered()
+    expect(rendered.html).toContain('automatic-refund-done')
+    expect(rendered.captured.some(c => c.props['data-testid'] === 'record-refund-action')).toBe(false)
+  })
+
   it('warns in the record confirmation that the refund drops the subscription to the free base, only when the server says so', async () => {
     const confirmation = async (refund: Refundability) => {
       const p = await page({ adjustments: [creditNote], refund })
@@ -138,7 +155,7 @@ describe('invoice refund eligibility', () => {
     expect(html).not.toContain('vendor.invoices.transfer.title')
   })
 
-  it('shows what the customer claimed next to the confirm form and pre-fills the date and reference from it', async () => {
+  it('shows what the customer claimed next to the confirm form without copying it into the form', async () => {
     const claim = { value_date: '2026-11-05', sender_reference: 'Ahmed', claimed_at: '2026-11-06T09:00:00.000Z' }
     const claimed = await page({ taxLabel: null, overrides: { status: 'issued', bank_transfer_claim: claim } as never })
     const { captured } = await claimed.rendered()
@@ -146,7 +163,9 @@ describe('invoice refund eligibility', () => {
     expect(line?.props.title).toBe('vendor.invoices.transfer.claimed')
     expect(line?.props.description).toBe('vendor.invoices.transfer.claimedReference')
     claimed.state.openTransfer()
-    expect([claimed.state.transferDate.value, claimed.state.transferReference.value, claimed.state.transferAmount.value]).toEqual(['2026-11-05', 'Ahmed', '123.45'])
+    expect(claimed.state.transferDate.value).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(claimed.state.transferDate.value).not.toBe('2026-11-05')
+    expect([claimed.state.transferReference.value, claimed.state.transferAmount.value]).toEqual(['', '123.45'])
     const none = await page({ taxLabel: null, overrides: { status: 'issued', bank_transfer_claim: null } as never })
     expect((await none.rendered()).captured.some(c => c.props['data-testid'] === 'bank-transfer-claimed')).toBe(false)
   })
@@ -166,7 +185,7 @@ type Captured = { name: string; props: Record<string, unknown> }[]
 const byTestId = (captured: Captured, id: string) => captured.find(c => c.props['data-testid'] === id)
 const closed: Refundability = { refundable: false, first_payment: true, until: '2026-01-02T23:59:59+03:00', window_days: 14, locks_subscription: false }
 const later: Refundability = { refundable: false, first_payment: false, until: null, window_days: 14, locks_subscription: false }
-const refundedVendorNote = { ...creditNote, status: 'refunded', refund_reference: 'MOY-REFUND-77', refunded_at: '2026-10-05T08:00:00Z', refunded_by: 'account:7' }
+const refundedVendorNote = { ...creditNote, status: 'refunded', refund_reference: 'MOY-REFUND-77', refunded_at: '2026-10-05T08:00:00Z', refunded_by: 'account:7', manual_record_allowed: false }
 
 describe('requesting the refund of a paid invoice', () => {
   it('offers «طلب استرداد» on a paid invoice that is refundable, enabled and without a reason line', async () => {

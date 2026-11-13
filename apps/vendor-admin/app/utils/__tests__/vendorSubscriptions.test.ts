@@ -155,8 +155,6 @@ describe('bank transfer form values', () => {
     const total = sar(12345)
     expect(transferFormDefaults(total, new Date('2026-11-07T20:59:59Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-07', reference: '' })
     expect(transferFormDefaults(total, new Date('2026-11-07T21:00:00Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-08', reference: '' })
-    // What the customer said it transferred is the starting point; the vendor still edits it and the amount rule is unchanged.
-    expect(transferFormDefaults(total, new Date('2026-11-08T12:00:00Z'), { value_date: '2026-11-05', sender_reference: 'Ahmed' })).toEqual({ amount: '123.45', valueDate: '2026-11-05', reference: 'Ahmed' })
     expect(transferFormDefaults(sar(10000), new Date('2026-11-07T12:00:00Z')).amount).toBe('100.00')
   })
   it('reads riyals exactly, with Arabic-Indic digits, and never rounds', () => {

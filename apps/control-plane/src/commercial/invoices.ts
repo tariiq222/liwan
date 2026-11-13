@@ -6,7 +6,11 @@ import { refundEligibilityForInvoices, refundLockedInvoices, type Refundability 
 export type InvoiceView = Invoice
 /** Vendor-console view: the customer-facing invoice plus the customer's name, whether the owner may still refund its
  * payment, and whether recording its pending refund drops the subscription to the free base (never sent to customers). */
-export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: Adjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: Refundability & { locks_subscription: boolean } }
+/** The refund the system makes through the payment provider for a vendor-requested note: still running (with the last failure while it retries), done, or given up with the reason. */
+export type AutomaticRefund = { state: 'in_progress' | 'done' | 'failed'; reason: string | null }
+/** A credit note as the vendor console sees it: the server also says whether the operator may record its refund by hand (never while the system is refunding it). */
+export type VendorAdjustment = Adjustment & { automatic_refund: AutomaticRefund | null; manual_record_allowed: boolean }
+export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: Refundability & { locks_subscription: boolean } }
 export type VendorInvoiceSummary = { outstanding: Money[] }
 type Q = Pick<Pool, 'query'>
 
@@ -135,6 +139,12 @@ export async function getInvoice(pool: Q, id: string, { customer_id }: { custome
   return (await hydrate(pool, rows))[0] ?? null
 }
 
+const AUTOMATIC_REFUND_STATE = { pending: 'in_progress', done: 'done', failed: 'failed' } as const
+function vendorAdjustmentView(row: any, outbox?: { status: keyof typeof AUTOMATIC_REFUND_STATE; error: string | null }): VendorAdjustment {
+  const automatic_refund = outbox ? { state: AUTOMATIC_REFUND_STATE[outbox.status], reason: outbox.error } : null
+  return { ...adjustmentView(row), automatic_refund, manual_record_allowed: row.kind === 'credit_note' && row.status === 'pending' && automatic_refund?.state !== 'in_progress' }
+}
+
 async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]> {
   const views = await hydrate(pool, rows)
   const notes = rows.length ? (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id = ANY($1::uuid[]) ORDER BY created_at,id', [rows.map(r => r.id)])).rows : []
@@ -142,7 +152,9 @@ async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]>
   const eligibility = await refundEligibilityForInvoices(pool, rows.map(r => r.id))
   const locking = await refundLockedInvoices(pool, rows.map(r => r.id), ['refunded', 'pending'])
   const claims = rows.length ? (await pool.query('SELECT invoice_id,value_date::text AS value_date,sender_reference,claimed_at FROM bank_transfer_claims WHERE invoice_id = ANY($1::uuid[])', [rows.map(r => r.id)])).rows : []
-  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, bank_transfer_claim: claimView(claims.find(c => c.invoice_id === v.id)), adjustments: notes.filter(n => n.invoice_id === v.id).map(adjustmentView),
+  const automatic = notes.length ? (await pool.query(`SELECT payload->>'adjustment_id' AS adjustment_id,status,payload->>'error' AS error FROM commercial_outbox
+    WHERE kind='reconcile.refund' AND payload->>'adjustment_id'=ANY($1::text[])`, [notes.map(n => n.id)])).rows : []
+  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, bank_transfer_claim: claimView(claims.find(c => c.invoice_id === v.id)), adjustments: notes.filter(n => n.invoice_id === v.id).map(n => vendorAdjustmentView(n, automatic.find(a => a.adjustment_id === n.id))),
     refund: { ...(eligibility.get(rows[i].id) ?? { refundable: false, first_payment: false, until: null, window_days: 0 }), locks_subscription: locking.has(rows[i].id) } }))
 }
 

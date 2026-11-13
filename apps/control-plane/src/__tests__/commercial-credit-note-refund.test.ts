@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { transaction } from '../db.js'
@@ -7,6 +7,8 @@ import { processRefundOutbox, recordFulfillmentFailure, refundCreditNote, reques
 import { enqueueOutbox } from '../commercial/outbox.js'
 import { getVendorInvoice } from '../commercial/invoices.js'
 import { applyConfirmedEvent } from '../commercial/payments.js'
+import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { attention } from '../commercial/attention.js'
 import { setup, url } from './commercial-helpers.js'
 
 const suite = url ? describe : describe.skip
@@ -17,7 +19,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
   afterAll(async () => { await pool.end() })
 
   /** A paid order whose fulfillment failed: the invoice is credit_pending with one pending credit note. */
-  async function failedOrder(fulfillment: 'failed' | 'applied' = 'failed') {
+  async function failedOrder(fulfillment: 'failed' | 'applied' = 'failed', provider: 'moyasar' | 'bank_transfer' = 'moyasar') {
     const customer = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID()
     return transaction(pool, async c => {
       await c.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, 'Refund test'])
@@ -30,7 +32,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
       // A paid order was paid: its successful attempt is what makes the payment refundable (W7).
       const attempt = randomUUID()
       await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
-        VALUES($1,$2,$3,'moyasar','live',$4,11500,'SAR',2,'succeeded',now())`, [attempt, order, invoice, `moy-${attempt}`])
+        VALUES($1,$2,$3,$5,'live',$4,11500,'SAR',2,'succeeded',now())`, [attempt, order, invoice, `moy-${attempt}`, provider])
       await c.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [order, attempt])
       if (fulfillment === 'applied') return { invoice, order, attempt, note: '' }
       const [note] = await recordFulfillmentFailure(c, { order_id: order, reason: 'Fulfillment failed permanently', actor: 'system' })
@@ -197,7 +199,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
   const totalCredited = async (invoice: string) => (await notesOf(invoice)).filter(n => n.status !== 'void').reduce((sum, n) => sum + Number(n.amount_minor), 0)
 
   it('adds no second note when the operator refunded through the vendor flow before the provider event arrives', async () => {
-    const f = await failedOrder('applied')
+    const f = await failedOrder('applied', 'bank_transfer')
     const vendorNote = await askRefund(f.invoice)
     expect(vendorNote).toMatchObject({ origin: 'vendor', status: 'pending', amount: { minor: 11500 } })
     await recordRef(vendorNote.id, 'MOY-OPERATOR-1')
@@ -245,7 +247,8 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
    * A delivered first payment of a subscription past its trial: the refund the vendor records drops it to the free base.
    * `lines` are the invoice's (kind, amount) lines; `state` is the subscription state.
    */
-  async function deliveredFirstPayment(options: { lines?: [string, number][]; state?: string } = {}) {
+  /** A delivered first payment; `provider` is how it was paid: a bank transfer has no provider payment to refund, so its refund is recorded by hand. */
+  async function deliveredFirstPayment(options: { lines?: [string, number][]; state?: string; provider?: 'moyasar' | 'bank_transfer' | 'simulator'; mode?: string; providerRef?: string } = {}) {
     const lines = options.lines ?? [['bundle', 10000], ['tax', 1500]]
     const total = lines.reduce((sum, [, amount]) => sum + amount, 0)
     const customer = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID(), attempt = randomUUID()
@@ -264,7 +267,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
         await c.query(`INSERT INTO invoice_lines(id,invoice_id,position,key,kind,timing,description,quantity,unit_minor,amount_minor,currency,exponent,period_start,period_end,source_revision_id)
           VALUES($1,$2,$3,$4,$5,'now','Fixture line',1,$6,$6,'SAR',2,'2026-01-01','2026-02-01',$7)`, [randomUUID(), invoice, position, `${kind}:${position}`, kind, amount, revision])
       await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
-        VALUES($1,$2,$3,'moyasar','live',$4,$5,'SAR',2,'succeeded',now())`, [attempt, order, invoice, `moy-${attempt}`, total])
+        VALUES($1,$2,$3,$6,$7,$4,$5,'SAR',2,'succeeded',now())`, [attempt, order, invoice, options.providerRef ?? `moy-${attempt}`, total, options.provider ?? 'moyasar', options.mode ?? 'live'])
       await c.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [order, attempt])
     })
     return { customer, sub, revision, order, invoice, attempt, total }
@@ -280,7 +283,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
   }
 
   it('drops the subscription to the free base when the vendor records the refund of the first payment, once per reference', async () => {
-    const f = await deliveredFirstPayment()
+    const f = await deliveredFirstPayment({ provider: 'bank_transfer' })
     const note = await askRefund(f.invoice)
     expect((await getVendorInvoice(pool, f.invoice))!.refund.locks_subscription).toBe(true)
     await recordRef(note.id, 'MOY-LOCK-1')
@@ -337,7 +340,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     expect(await lockOf(f.sub)).toBeUndefined()
   })
   it('refuses to record while an earlier lock order is still being delivered, and records nothing', async () => {
-    const f = await deliveredFirstPayment()
+    const f = await deliveredFirstPayment({ provider: 'bank_transfer' })
     await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,trial_ended_at,cause,state,order_id)
       VALUES($1,$2,'2026-01-01',now(),'trial_end','ordered',$3)`, [f.sub, f.revision, f.order])
     const note = await askRefund(f.invoice)
@@ -347,7 +350,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     expect(await lockAudits(f.sub)).toHaveLength(0)
   })
   it('voids the unpaid renewal of the paid configuration when the refund is recorded', async () => {
-    const f = await deliveredFirstPayment({ state: 'past_due' })
+    const f = await deliveredFirstPayment({ state: 'past_due', provider: 'bank_transfer' })
     const renewalOrder = randomUUID(), renewalInvoice = randomUUID()
     await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
       VALUES($1,$2,$3,'renewal',$4,$5,'awaiting_payment','not_started',$6,'fixture',11500,'SAR',2)`, [renewalOrder, f.customer, f.sub, randomUUID(), f.revision, randomUUID()])
@@ -380,5 +383,177 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     await pool.query("UPDATE orders SET fulfillment_state='queued' WHERE id=$1", [f.order])
     await expect(askRefund(f.invoice)).rejects.toMatchObject({ status: 409, code: 'fulfillment_pending' })
     expect(await notesOf(f.invoice)).toHaveLength(0)
+  })
+  // ---- Vendor-requested refund of a card payment, made by the system through the provider ----
+  /** A delivered first payment whose attempt is a real payment inside the simulator, so the refund worker can look it up and refund it. */
+  async function simulatorPaid() {
+    const f = await deliveredFirstPayment({ provider: 'simulator', mode: 'simulator' })
+    const adapter = new SimulatorAdapter()
+    const created = await adapter.createAttempt({ attempt_id: f.attempt, order_id: f.order, amount: { minor: f.total, currency: 'SAR', exponent: 2 },
+      description: 'x', success_url: '', back_url: '', callback_url: '' })
+    adapter.settle(created.provider_ref)
+    await pool.query('UPDATE payment_attempts SET provider_ref=$2 WHERE id=$1', [f.attempt, created.provider_ref])
+    return { ...f, adapter, ref: created.provider_ref }
+  }
+  const refundRows = async (order: string) => (await pool.query("SELECT status,attempts,payload FROM commercial_outbox WHERE kind='reconcile.refund' AND aggregate_id=$1", [order])).rows
+  const vendorNoteOf = async (invoice: string) => (await pool.query("SELECT * FROM invoice_adjustments WHERE invoice_id=$1 AND origin='vendor'", [invoice])).rows
+  const refundAudits = async (note: string) => (await pool.query("SELECT * FROM audit_events WHERE subject=$1 AND action='invoice.credit_refunded'", [note])).rows
+  const providerPayment = (f: { adapter: SimulatorAdapter; ref: string }) => f.adapter.lookupAttempt(f.ref)
+
+  it('refunds a provider-paid first invoice through the provider with one call, records the provider reference and arms the lock once', async () => {
+    const f = await simulatorPaid()
+    const refund = vi.spyOn(f.adapter, 'refund')
+    const note = await askRefund(f.invoice)
+    // The request alone queues the refund and moves no money; the vendor page is told manual recording is not allowed.
+    expect((await refundRows(f.order))).toEqual([expect.objectContaining({ status: 'pending', payload: expect.objectContaining({ adjustment_id: note.id, automatic: true, requested_by: operator }) })])
+    expect((await providerPayment(f)).refunded).toBeUndefined()
+    const pending = (await getVendorInvoice(pool, f.invoice))!.adjustments[0]!
+    expect(pending).toMatchObject({ status: 'pending', automatic_refund: { state: 'in_progress' }, manual_record_allowed: false })
+    await expect(recordRef(note.id, 'BY-HAND')).rejects.toMatchObject({ status: 409, code: 'refund_in_progress' })
+    expect(await processRefundOutbox(pool, f.adapter)).toBe(1)
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect(refund).toHaveBeenCalledWith(expect.any(String), { minor: f.total, currency: 'SAR', exponent: 2 })
+    const [stored] = await vendorNoteOf(f.invoice)
+    expect(stored).toMatchObject({ id: note.id, status: 'refunded', refunded_by: 'system' })
+    expect(stored.refund_reference).toMatch(/^sim_pay_/)
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'done' })])
+    // The operator who asked is the actor of the audit; the system step is named in its metadata.
+    expect(await refundAudits(note.id)).toEqual([expect.objectContaining({ actor: 'vendor-test:7', metadata: expect.objectContaining({ automatic: true, executed_by: 'system', external_reference: stored.refund_reference }) })])
+    expect(await lockOf(f.sub)).toMatchObject({ cause: 'refund', state: 'pending' })
+    expect(await lockAudits(f.sub)).toEqual([expect.objectContaining({ actor: 'vendor-test:7' })])
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ automatic_refund: { state: 'done' }, manual_record_allowed: false })
+    // A later pass does nothing, and neither does the form: the money is back.
+    expect(await processRefundOutbox(pool, f.adapter)).toBe(0)
+    await expect(recordRef(note.id, 'AFTER')).rejects.toMatchObject({ status: 409, code: 'credit_note_not_pending' })
+    expect(refund).toHaveBeenCalledTimes(1)
+  })
+
+  it('makes one provider refund however many times the request is repeated, two workers run, or the worker restarts', async () => {
+    const f = await simulatorPaid()
+    const refund = vi.spyOn(f.adapter, 'refund')
+    const [first, second] = await Promise.allSettled([askRefund(f.invoice), askRefund(f.invoice)])
+    expect([first!.status, second!.status].sort()).toEqual(['fulfilled', 'rejected'])
+    await expect(askRefund(f.invoice)).rejects.toMatchObject({ status: 409, code: 'refund_already_requested' })
+    expect(await refundRows(f.order)).toHaveLength(1)
+    await Promise.all([processRefundOutbox(pool, f.adapter), processRefundOutbox(pool, f.adapter)])
+    // A worker that died after the provider refunded and before the note was recorded: the retry asks the provider for nothing more.
+    await processRefundOutbox(pool, f.adapter)
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect(await vendorNoteOf(f.invoice)).toEqual([expect.objectContaining({ status: 'refunded' })])
+    expect(await lockAudits(f.sub)).toHaveLength(1)
+  })
+
+  it('finishes recording after a crash between the provider refund and the note, without refunding again', async () => {
+    const f = await simulatorPaid()
+    const refund = vi.spyOn(f.adapter, 'refund')
+    await askRefund(f.invoice)
+    // The provider already returned the whole payment (an earlier run that died before recording).
+    await f.adapter.refund((await providerPayment(f)).payment_id!, { minor: f.total, currency: 'SAR', exponent: 2 })
+    refund.mockClear()
+    await processRefundOutbox(pool, f.adapter)
+    expect(refund).not.toHaveBeenCalled()
+    expect(await vendorNoteOf(f.invoice)).toEqual([expect.objectContaining({ status: 'refunded', refunded_by: 'system' })])
+    expect(await lockAudits(f.sub)).toHaveLength(1)
+  })
+
+  it('adds no second note and no second lock when the provider reports the refund afterwards, in either order', async () => {
+    const after = await simulatorPaid()
+    await askRefund(after.invoice)
+    await processRefundOutbox(pool, after.adapter)
+    const event = await providerPayment(after)
+    await applyConfirmedEvent(pool, { ...event, event_id: 'evt-after-1' })
+    await processRefundOutbox(pool, after.adapter)
+    expect(await notesOf(after.invoice)).toEqual([expect.objectContaining({ origin: 'vendor', status: 'refunded' })])
+    expect(await lockAudits(after.sub)).toHaveLength(1)
+    // The event arrives before the worker records: the pending vendor note already is that money.
+    const before = await simulatorPaid()
+    await askRefund(before.invoice)
+    await before.adapter.refund((await providerPayment(before)).payment_id!, { minor: before.total, currency: 'SAR', exponent: 2 })
+    await applyConfirmedEvent(pool, { ...(await providerPayment(before)), event_id: 'evt-before-1' })
+    // The worker has not reached the refund row yet (it is leased for later): only the provider's event is processed.
+    await pool.query("UPDATE commercial_outbox SET next_attempt_at=now() + interval '1 hour' WHERE kind='reconcile.refund' AND aggregate_id=$1", [before.order])
+    await processRefundOutbox(pool, before.adapter)
+    expect(await notesOf(before.invoice)).toEqual([expect.objectContaining({ origin: 'vendor', status: 'pending' })])
+    await pool.query("UPDATE commercial_outbox SET next_attempt_at=now() WHERE kind='reconcile.refund' AND aggregate_id=$1", [before.order])
+    await processRefundOutbox(pool, before.adapter)
+    expect(await notesOf(before.invoice)).toEqual([expect.objectContaining({ origin: 'vendor', status: 'refunded' })])
+    expect(await lockAudits(before.sub)).toHaveLength(1)
+  })
+
+  it('leaves the note pending when the provider cannot refund, shows the failure, and only then lets the operator record it by hand', async () => {
+    const f = await simulatorPaid()
+    await pool.query("UPDATE payment_attempts SET provider='moyasar',mode='live' WHERE id=$1", [f.attempt]) // another provider than the configured adapter
+    const note = await askRefund(f.invoice)
+    await processRefundOutbox(pool, f.adapter)
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'failed', payload: expect.objectContaining({ error: 'provider_refund_unavailable' }) })])
+    expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ id: note.id, status: 'pending' })
+    expect(await notesOf(f.invoice)).toHaveLength(1)
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(1)
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ status: 'pending', automatic_refund: { state: 'failed', reason: 'provider_refund_unavailable' }, manual_record_allowed: true })
+    await expect(recordRef(note.id, 'MANUAL-1')).resolves.toMatchObject({ status: 'refunded', refund_reference: 'MANUAL-1', refunded_by: 'vendor-test:7' })
+    expect(await lockOf(f.sub)).toMatchObject({ cause: 'refund' })
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(0)
+  })
+
+  it('keeps a bank-transfer-paid invoice manual: no provider refund is queued', async () => {
+    const f = await deliveredFirstPayment({ provider: 'bank_transfer' })
+    const note = await askRefund(f.invoice)
+    expect(await refundRows(f.order)).toHaveLength(0)
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ automatic_refund: null, manual_record_allowed: true })
+    await expect(recordRef(note.id, 'TRF-RETURN-1')).resolves.toMatchObject({ status: 'refunded' })
+  })
+
+  it('still refuses a payment that is not the customer\'s first, and queues nothing for it', async () => {
+    const f = await simulatorPaid()
+    const second = randomUUID(), secondOrder = randomUUID(), secondAttempt = randomUUID()
+    await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
+      VALUES($1,$2,$3,'change',$4,$5,'paid','applied',$6,'fixture',5000,'SAR',2)`, [secondOrder, f.customer, f.sub, randomUUID(), f.revision, randomUUID()])
+    await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at,paid_at)
+      VALUES($1,$2,$3,$4,'change','paid','SAR',2,5000,0,5000,'2026-01-10','2026-02-01',now(),now())`, [second, f.customer, f.sub, secondOrder])
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
+      VALUES($1,$2,$3,'moyasar','live',$4,5000,'SAR',2,'succeeded',now() + interval '1 day')`, [secondAttempt, secondOrder, second, `moy-${secondAttempt}`])
+    await pool.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [secondOrder, secondAttempt])
+    await expect(askRefund(second)).rejects.toMatchObject({ status: 409, code: 'refund_not_first_payment' })
+    expect(await refundRows(secondOrder)).toHaveLength(0)
+  })
+  it('makes no provider call when the note was voided or recorded by hand before the worker ran', async () => {
+    const voided = await simulatorPaid()
+    const refundVoided = vi.spyOn(voided.adapter, 'refund')
+    const voidedNote = await askRefund(voided.invoice)
+    await pool.query("UPDATE invoice_adjustments SET status='void' WHERE id=$1", [voidedNote.id])
+    await processRefundOutbox(pool, voided.adapter)
+    expect(refundVoided).not.toHaveBeenCalled()
+    expect((await providerPayment(voided)).refunded).toBeUndefined()
+    expect(await refundRows(voided.order)).toEqual([expect.objectContaining({ status: 'failed', payload: expect.objectContaining({ error: 'refund_note_unavailable' }) })])
+    expect(await lockOf(voided.sub)).toBeUndefined()
+    // Recorded by hand (the row was failed or removed first): the row closes as done and the provider is not asked.
+    const recorded = await simulatorPaid()
+    const refundRecorded = vi.spyOn(recorded.adapter, 'refund')
+    const recordedNote = await askRefund(recorded.invoice)
+    await pool.query("UPDATE invoice_adjustments SET status='refunded',refund_reference='BY-HAND',refunded_by='vendor-test:7',refunded_at=now() WHERE id=$1", [recordedNote.id])
+    await processRefundOutbox(pool, recorded.adapter)
+    expect(refundRecorded).not.toHaveBeenCalled()
+    expect(await refundRows(recorded.order)).toEqual([expect.objectContaining({ status: 'done' })])
+  })
+
+  it('keeps the row retryable when the lock is already ordered after the provider refunded, and records it once the delivery settles', async () => {
+    const f = await simulatorPaid()
+    const refund = vi.spyOn(f.adapter, 'refund')
+    const note = await askRefund(f.invoice)
+    await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,trial_ended_at,cause,state,order_id)
+      VALUES($1,$2,'2026-01-01',now(),'trial_end','ordered',$3)`, [f.sub, f.revision, f.order])
+    await processRefundOutbox(pool, f.adapter)
+    // The provider returned the money; recording was refused and rolled back, so the row waits for a retry.
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'pending', attempts: 1, payload: expect.objectContaining({ error: 'lock_pending' }) })])
+    expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ id: note.id, status: 'pending' })
+    expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ automatic_refund: { state: 'in_progress', reason: 'lock_pending' }, manual_record_allowed: false })
+    await pool.query('DELETE FROM free_base_locks WHERE subscription_id=$1', [f.sub])
+    await pool.query("UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1", [f.order])
+    await processRefundOutbox(pool, f.adapter)
+    expect(refund).toHaveBeenCalledTimes(1)
+    expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ status: 'refunded', refunded_by: 'system' })
+    expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'done' })])
+    expect(await lockAudits(f.sub)).toHaveLength(1)
   })
 })

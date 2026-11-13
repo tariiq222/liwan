@@ -43,21 +43,23 @@ const subjectsSql = `WITH latest AS (
   SELECT DISTINCT ON (r.aggregate_id) r.aggregate_id, r.processed_at, r.payload->>'error' AS reason, r.invoice_id,
     o.customer_id, COALESCE(c.name, r.aggregate_id) AS name, c.tenant_id
   FROM (
-    SELECT ob.aggregate_id, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id,
+    SELECT ob.aggregate_id, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id, n.status AS note_status,
       a.amount_minor AS paid_minor,
       CASE WHEN a.currency = ob.payload#>>'{refunded,currency}' AND ob.payload#>>'{refunded,minor}' ~ '^[0-9]{1,15}$'
         THEN (ob.payload#>>'{refunded,minor}')::bigint END AS refunded_minor,
       CASE WHEN a.id IS NOT NULL THEN ${creditedMinorSql('a.invoice_id')} END AS credited_minor
     FROM commercial_outbox ob
     LEFT JOIN payment_attempts a ON a.id::text = ob.payload->>'attempt_id'
+    LEFT JOIN invoice_adjustments n ON n.id::text = ob.payload->>'adjustment_id'
     WHERE ob.kind IN ('payment.intervention','reconcile.refund') AND ob.status='failed' AND ob.payload ? 'error'
   ) r
   LEFT JOIN orders o ON o.id::text = r.aggregate_id
   LEFT JOIN customers c ON c.id = o.customer_id
-  WHERE r.attempt_id IS NULL OR NOT (
+  WHERE CASE WHEN r.payload ? 'adjustment_id' THEN r.note_status = 'pending' -- a refund the vendor requested: its own pending note is not the credit that clears it, only recording the refund does
+    ELSE r.attempt_id IS NULL OR NOT (
     COALESCE(r.credited_minor >= CASE WHEN r.refunded_minor > 0 THEN LEAST(r.refunded_minor, r.paid_minor) ELSE 1 END, false)
     OR EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind = 'payment.intervention' AND later.status = 'done'
-      AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at))
+      AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at)) END
   ORDER BY r.aggregate_id, r.processed_at DESC
 ), claimed_transfers AS (
   -- The customer says it transferred; the vendor still has to confirm it. It leaves the list when the invoice is paid, voided or cancelled.

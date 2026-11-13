@@ -12,7 +12,11 @@ export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Whether the owner may still refund this invoice's payment (only the customer's first payment, inside the window), and
  * whether recording its pending refund drops the subscription to the free base. */
 export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number; locks_subscription: boolean }
-export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability }
+/** The refund the system makes through the payment provider for a note the vendor requested; the server sets it only for a card payment. */
+export type VendorAutomaticRefund = { state: 'in_progress' | 'done' | 'failed'; reason: string | null }
+/** A credit note with what the server allows: `manual_record_allowed` is false while the system is still refunding it. */
+export type VendorAdjustment = Adjustment & { automatic_refund: VendorAutomaticRefund | null; manual_record_allowed: boolean }
+export type VendorInvoice = Invoice & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -133,7 +137,7 @@ export type RefundRequestBlock = 'alreadyRequested' | 'windowClosed' | 'notFirst
  * the customer's first payment (`refund`); a vendor credit note that is not void means the request was already made, or
  * already recorded, and the server refuses a second one. A system note never blocks it.
  */
-export function refundRequestBlock(invoice: Pick<VendorInvoice, 'refund' | 'adjustments'>): RefundRequestBlock | null {
+export function refundRequestBlock(invoice: Pick<VendorInvoice, 'refund'> & { adjustments: Adjustment[] }): RefundRequestBlock | null {
   if (invoice.adjustments.some(note => note.origin === 'vendor' && note.kind === 'credit_note' && note.status !== 'void')) return 'alreadyRequested'
   if (invoice.refund.refundable) return null
   return invoice.refund.first_payment ? 'windowClosed' : 'notFirstPayment'
@@ -150,14 +154,14 @@ export function parseUnitsUsed(text: string): number | null {
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
-  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending'].includes(code)
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress'].includes(code)
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 
 // ---- Bank transfer form ----
-/** The form opens on the invoice total and on today's date in Riyadh (the calendar of the bank statement, never the UTC day), or on what the customer said it transferred. */
-export function transferFormDefaults(total: Money, now: Date = new Date(), claim: Pick<BankTransferClaim, 'value_date' | 'sender_reference'> | null = null): { amount: string; valueDate: string; reference: string } {
-  return { amount: minorToInput(total.minor, total.exponent), valueDate: claim?.value_date ?? riyadhDate(now), reference: claim?.sender_reference ?? '' }
+/** The form opens on the invoice total, today's date in Riyadh (the calendar of the bank statement, never the UTC day) and an empty reference: the vendor types the date and reference from the bank statement, never from what the customer claimed. */
+export function transferFormDefaults(total: Money, now: Date = new Date()): { amount: string; valueDate: string; reference: string } {
+  return { amount: minorToInput(total.minor, total.exponent), valueDate: riyadhDate(now), reference: '' }
 }
 export type TransferAmount = { minor: number } | { issue: 'invalid' | 'decimals' }
 /** The amount in riyals as typed (Arabic-Indic digits included) → minor units. More decimals than the currency has is refused, never rounded. */
