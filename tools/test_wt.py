@@ -883,6 +883,17 @@ class TestLaneCommands(unittest.TestCase):
         start.assert_called_once_with(Path('/r'), 'claude-1', 'tools-x')
         finish.assert_called_once_with(Path('/r'), 'claude-1')
 
+    def test_claim_and_release_run_under_the_repository_claims_lock(self):
+        with mock.patch.object(wt, 'repo_root', return_value=Path('/r')), \
+                mock.patch.object(wt, 'claims_lock') as lock, \
+                mock.patch.object(wt, 'update_claim', side_effect=lambda *a: 'held' if lock.return_value.__enter__.called else 'free'), \
+                mock.patch.object(wt, 'release_claim', return_value='released'), \
+                mock.patch.object(wt.sys, 'stdout') as out:
+            self.assertEqual(wt.main(['claim', '--owner', 'a']), 0)
+            self.assertEqual(wt.main(['release', '--owner', 'a']), 0)
+        self.assertEqual(lock.call_args_list, [mock.call(Path('/r/.git')), mock.call(Path('/r/.git'))])
+        self.assertEqual(out.write.call_args_list[0], mock.call('held\n'))
+
 
 class TestCleanEnv(unittest.TestCase):
     def test_drops_npm_run_variables_and_keeps_the_rest(self):

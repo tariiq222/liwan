@@ -10,12 +10,17 @@ claim refresh) for ``CLAIM_TTL_HOURS`` is expired: it is still listed, but its s
 The four fixed lanes (``LANES``) are permanent worktrees shared by several agent sessions. A lane keeps
 ``liwan-lane.json`` in its git directory: the branch the lane started and one claim per session (keyed by
 the claim owner, its ``base`` is the lane's branch). A session claim expires ``CLAIM_TTL_HOURS`` after its
-last refresh. ``commit_refusal`` is the rule behind the pre-commit lane guard of ``tools/hooks.py``: a commit
+last refresh. Sessions claim and release at the same time, so ``tools/wt.py`` does both under ``claims_lock``
+and ``write_lane`` replaces the record in one step, which keeps a reader from seeing half a file.
+``commit_refusal`` is the rule behind the pre-commit lane guard of ``tools/hooks.py``: a commit
 in a lane must be made on the started branch by a session whose claim covers every staged path.
 """
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
+import os
 import posixpath
 import time
 from pathlib import Path
@@ -23,6 +28,7 @@ from typing import NamedTuple
 
 CLAIM_FILE = 'liwan-claim.json'
 LANE_FILE = 'liwan-lane.json'
+CLAIMS_LOCK_FILE = 'liwan-claims.lock'  # in the shared git directory, one lock for every claim write
 LANES = ('claude-1', 'claude-2', 'codex-1', 'codex-2')
 WORKTREES_DIR = '.worktrees'
 SESSION_ENV = 'LIWAN_SESSION'  # the session id a commit in a lane is made under
@@ -160,7 +166,23 @@ def read_lane(git_dir):
 
 
 def write_lane(git_dir, lane):
-    lane_path(git_dir).write_text(json.dumps(lane.as_json(), ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    """Replace the lane record in one step, so the commit guard never reads a half-written file."""
+    path = lane_path(git_dir)
+    draft = path.with_name(path.name + '.tmp')
+    draft.write_text(json.dumps(lane.as_json(), ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    os.replace(draft, path)
+
+
+@contextlib.contextmanager
+def claims_lock(common_git_dir):
+    """Hold the repository's claims for one read-check-write; a second claim or release waits its turn.
+
+    Without it two sessions that claim at the same moment both pass the overlap check and the later
+    write drops the earlier claim.
+    """
+    with open(Path(common_git_dir) / CLAIMS_LOCK_FILE, 'w', encoding='utf-8') as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
 
 
 def covers(scope, path):

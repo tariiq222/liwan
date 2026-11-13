@@ -1,13 +1,17 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import fcntl
 import tempfile
 import unittest
 from pathlib import Path
 
 from worktree_claims import (
     CLAIM_TTL_HOURS,
+    CLAIMS_LOCK_FILE,
+    LANE_FILE,
     ClaimError,
     Lane,
     claim_path,
+    claims_lock,
     commit_refusal,
     is_expired,
     lane_path,
@@ -83,6 +87,13 @@ class TestLaneRecord(unittest.TestCase):
             self.assertEqual(read_lane(tmp), lane)
             write_lane(tmp, Lane(None, ()))
             self.assertEqual(read_lane(Path(tmp)), Lane(None, ()))
+            self.assertEqual([path.name for path in Path(tmp).iterdir()], [LANE_FILE])
+
+    def test_the_claims_lock_makes_a_second_writer_wait(self):
+        with tempfile.TemporaryDirectory() as tmp, claims_lock(tmp):
+            with open(Path(tmp) / CLAIMS_LOCK_FILE, 'w', encoding='utf-8') as other:
+                with self.assertRaises(BlockingIOError):
+                    fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
     def test_an_unreadable_lane_record_fails_loudly(self):
         with tempfile.TemporaryDirectory() as tmp:

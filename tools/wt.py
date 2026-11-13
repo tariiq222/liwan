@@ -21,7 +21,8 @@ task branch from ``origin/main`` in a clean, resting lane; ``lane finish`` retur
 branch: ``claim``, run inside a lane, records or refreshes the claim of the session named by ``--owner``
 (a first claim needs ``--task`` and ``--scope``), refuses scopes that overlap an active claim of another
 session or worktree unless ``--allow-overlap`` states the reason, and takes over an expired claim of the lane
-that overlaps it; ``release`` removes the claim of a session. The pre-commit lane guard of ``tools/hooks.py``
+that overlaps it; ``release`` removes the claim of a session. Both run under one repository-wide lock, so
+sessions that claim at the same moment are checked one after the other. The pre-commit lane guard of ``tools/hooks.py``
 refuses a commit outside the committing session's claim.
 
 Temporary task worktrees stay for exceptions the owner authorises. ``new`` creates
@@ -75,6 +76,7 @@ from worktree_claims import (
     Claim,
     ClaimError,
     Lane,
+    claims_lock,
     is_expired,
     make_claim,
     overlapping,
@@ -93,6 +95,7 @@ MAIN = 'main'
 E2E_DATABASE = 'liwan_scratch_e2e'  # SCRATCH_DB in tools/e2e_isolated.mjs, a fixed database no worktree owns
 SCRATCH_PREFIX = 'liwan_scratch_'
 LANE_BASE = 'origin/main'
+GIT_DIR = '.git'  # the main checkout's git directory, shared by every worktree
 INSTALL = (
     ['npm', 'ci', '--ignore-scripts', '--prefer-offline'],
     ['npm', '-w', 'apps/web', 'run', 'postinstall'],
@@ -146,7 +149,7 @@ def repo_root():
     """The main checkout, found from the shared git dir so any worktree works."""
     common = sh(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], Path(__file__).resolve().parent)
     common_dir = Path(common)
-    if not common_dir.is_dir() or common_dir.name != '.git':
+    if not common_dir.is_dir() or common_dir.name != GIT_DIR:
         message = 'cannot find the main checkout: git common dir %s is not a .git directory' % common
         raise WorktreeError(message)
     return common_dir.parent
@@ -951,10 +954,14 @@ def main(argv=None):
         sys.stdout.write(format_violations(found, root) + '\n')
         return 1 if found else 0
     if args.command == 'claim':
-        sys.stdout.write(update_claim(repo_root(), Path.cwd(), claim_request(args)) + '\n')
+        root = repo_root()
+        with claims_lock(root / GIT_DIR):
+            sys.stdout.write(update_claim(root, Path.cwd(), claim_request(args)) + '\n')
         return 0
     if args.command == 'release':
-        sys.stdout.write(release_claim(repo_root(), Path.cwd(), args.owner) + '\n')
+        root = repo_root()
+        with claims_lock(root / GIT_DIR):
+            sys.stdout.write(release_claim(root, Path.cwd(), args.owner) + '\n')
         return 0
     if args.command == 'lane':
         sys.stdout.write(run_lane(repo_root(), args) + '\n')
