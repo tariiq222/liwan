@@ -61,6 +61,17 @@ export const refundCreditNoteRequestSchema = z.strictObject({
   reason: z.string().trim().min(3).max(1000),
 })
 
+/** A customer's "I made the transfer" for one issued invoice: the day it says it paid, an optional sender name or bank reference, and when it was first said. */
+export const bankTransferClaimSchema = z.strictObject({
+  value_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sender_reference: z.string().nullable(),
+  claimed_at: z.iso.datetime(),
+})
+export const bankTransferClaimRequestSchema = z.strictObject({
+  value_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sender_reference: z.string().trim().max(200).optional(),
+})
+
 export const paymentProviderSchema = z.enum(['moyasar', 'simulator'])
 export const paymentModeSchema = z.enum(['test', 'live', 'simulator'])
 export const paymentAttemptStatusSchema = z.enum(['created', 'redirected', 'pending', 'succeeded', 'failed', 'canceled', 'unknown'])
@@ -82,6 +93,8 @@ export type InvoiceKind = z.infer<typeof invoiceKindSchema>
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>
 export type InvoiceLine = z.infer<typeof invoiceLineSchema>
 export type Invoice = z.infer<typeof invoiceSchema>
+export type BankTransferClaim = z.infer<typeof bankTransferClaimSchema>
+export type BankTransferClaimRequest = z.infer<typeof bankTransferClaimRequestSchema>
 export type Adjustment = z.infer<typeof adjustmentSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>

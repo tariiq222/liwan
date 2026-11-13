@@ -33,6 +33,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-alarm-clock', actionKey: action(item.kind) }
     case 'refund_rejected':
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
+    case 'bank_transfer_claimed':
+      return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'warning', icon: 'i-lucide-landmark', actionKey: action(item.kind) }
     case 'billing_blocked':
       return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
     case 'free_base_blocked':
@@ -47,6 +49,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: customerTab(item, 'workspace'), tone: 'destructive', icon: 'i-lucide-hourglass', actionKey: action(item.kind) }
     case 'invitation_failed':
       return { to: customerTab(item, 'workspace'), tone: 'destructive', icon: 'i-lucide-mail-x', actionKey: action(item.kind) }
+    case 'notice_failed':
+      return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-mail-warning', actionKey: action(item.kind) }
     case 'operation_failed':
       return { to: item.operation_id ? { path: `/operations/${item.operation_id}`, query: { source: 'legacy', returnTo: '/overview' } } : null, tone: 'destructive', icon: 'i-lucide-circle-alert', actionKey: action(item.kind) }
     case 'setup_required':
@@ -65,6 +69,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
   switch (item.kind) {
     case 'past_due': return { key: 'past_due', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'refund_rejected': return { key: 'refund_rejected', days: null, operation: item.detail }
+    case 'bank_transfer_claimed': return { key: 'bank_transfer_claimed', days: null, operation: item.detail }
     case 'billing_blocked': return { key: 'billing_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'free_base_blocked': return { key: 'free_base_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: item.detail }
     case 'trial_end_overdue': return { key: 'trial_end_overdue', days: Math.max(0, daysBetween(item.since, now)), operation: null }
@@ -75,6 +80,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
         ? { key: 'stalled_failed', days: null, operation: null }
         : { key: 'stalled_waiting', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'invitation_failed': return { key: 'invitation_failed', days: null, operation: null }
+    case 'notice_failed': return { key: 'notice_failed', days: null, operation: item.detail }
     case 'operation_failed': return { key: 'operation_failed', days: null, operation: item.detail }
     case 'setup_required': return { key: 'setup_required', days: null, operation: null }
     case 'renewal_missed': return { key: 'renewal_missed', days: daysSinceRenewal(item.since, now), operation: null }

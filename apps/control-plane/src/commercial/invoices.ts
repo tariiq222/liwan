@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { adjustmentSchema, invoiceSchema, TAX_LABELS, type Adjustment, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { adjustmentSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
 import { refundEligibilityForInvoices, refundLockedInvoices, type Refundability } from './settlements.js'
 
 export type InvoiceView = Invoice
 /** Vendor-console view: the customer-facing invoice plus the customer's name, whether the owner may still refund its
  * payment, and whether recording its pending refund drops the subscription to the free base (never sent to customers). */
-export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: Adjustment[]; refund: Refundability & { locks_subscription: boolean } }
+export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: Adjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: Refundability & { locks_subscription: boolean } }
 export type VendorInvoiceSummary = { outstanding: Money[] }
 type Q = Pick<Pool, 'query'>
 
@@ -34,6 +34,10 @@ export function invoiceView(row: any, lines: any[]): InvoiceView {
     tax_label: num(row.tax_minor) === 0 ? null : TAX_LABELS.vat_exclusive, official_tax_invoice: false,
   })
 }
+
+/** The claim as the wire shape: null while nobody has said they transferred. */
+export const claimView = (row: Record<string, any> | undefined): BankTransferClaim | null => row
+  ? { value_date: String(row.value_date).slice(0, 10), sender_reference: row.sender_reference ?? null, claimed_at: new Date(row.claimed_at).toISOString() } : null
 
 const DEFAULT_DUE_DAYS = 7
 /** Days between issuing an invoice and its due date: LIWAN_INVOICE_DUE_DAYS (0-90), default 7 (owner decision 2026-10-29). */
@@ -137,7 +141,8 @@ async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]>
   // One batched query for the page rather than three per invoice (B: performance).
   const eligibility = await refundEligibilityForInvoices(pool, rows.map(r => r.id))
   const locking = await refundLockedInvoices(pool, rows.map(r => r.id), ['refunded', 'pending'])
-  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, adjustments: notes.filter(n => n.invoice_id === v.id).map(adjustmentView),
+  const claims = rows.length ? (await pool.query('SELECT invoice_id,value_date::text AS value_date,sender_reference,claimed_at FROM bank_transfer_claims WHERE invoice_id = ANY($1::uuid[])', [rows.map(r => r.id)])).rows : []
+  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, bank_transfer_claim: claimView(claims.find(c => c.invoice_id === v.id)), adjustments: notes.filter(n => n.invoice_id === v.id).map(adjustmentView),
     refund: { ...(eligibility.get(rows[i].id) ?? { refundable: false, first_payment: false, until: null, window_days: 0 }), locks_subscription: locking.has(rows[i].id) } }))
 }
 

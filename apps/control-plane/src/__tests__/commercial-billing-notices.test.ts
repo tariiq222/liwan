@@ -7,7 +7,7 @@ import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { generateRenewals, applyDunning } from '../commercial/renewals.js'
 import { verifyReturnedAttempt } from '../commercial/payments.js'
-import { sendBillingNotices } from '../commercial/billing-notices.js'
+import { daysText, sendBillingNotices, billingNotice } from '../commercial/billing-notices.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
 const suite = url ? describe : describe.skip
@@ -65,6 +65,23 @@ suite('live PostgreSQL billing notices', () => {
     expect(await sendBillingNotices(pool, { now, mail, returnOrigin })).toBe(0)
     expect(sent).toHaveLength(0)
     expect(await rows()).toHaveLength(0)
+  })
+  it('sends no renewal notice to a subscription held by a free-base lock', async () => {
+    const s = await subscription('2026-10-05')
+    const revision = (await pool.query('SELECT applied_revision_id FROM subscriptions WHERE id=$1', [s.id])).rows[0].applied_revision_id
+    await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,trial_ended_at,cause,state)
+      VALUES($1,$2,'2026-10-01',now(),'trial_end','pending')`, [s.id, revision])
+    const { sent, mail } = mailbox()
+    expect(await sendBillingNotices(pool, { now, mail, returnOrigin })).toBe(0)
+    expect(sent).toHaveLength(0)
+    expect(await rows()).toHaveLength(0)
+  })
+  it('reads the day count correctly in Arabic and English', () => {
+    expect([1, 2, 3, 10, 11, 30].map(n => daysText(n, 'ar'))).toEqual(['يوم واحد', 'يومان', '3 أيام', '10 أيام', '11 يومًا', '30 يومًا'])
+    expect([1, 2, 7].map(n => daysText(n, 'en'))).toEqual(['1 day', '2 days', '7 days'])
+    const text = billingNotice({ type: 'renewal_upcoming', subscription_id: randomUUID(), renewal_on: '2026-10-03' }, 1, true, null).text
+    expect(text).toContain('(المتبقي يوم واحد)')
+    expect(text).toContain('(1 day left)')
   })
   it('does not send a renewal notice that stopped being true', async () => {
     const s = await subscription('2026-10-05')

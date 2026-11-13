@@ -61,21 +61,29 @@ export async function queueScheduledBillingNotices(pool: Pool, now: Date): Promi
 
 const formatMoney = (m: Money) => `${(m.minor / 10 ** m.exponent).toFixed(m.exponent)} ${m.currency}`
 
+/** "1 day" / "2 days" / "N days" in each language: Arabic has its own forms for 1, 2, 3-10 and 11 or more. */
+export function daysText(days: number, language: 'ar' | 'en'): string {
+  if (language === 'en') return days === 1 ? '1 day' : `${days} days`
+  if (days === 1) return 'يوم واحد'
+  if (days === 2) return 'يومان'
+  return days <= 10 ? `${days} أيام` : `${days} يومًا`
+}
+
 /** The subject and body (Arabic, then English) of one notice; `link` is the customer's subscription page when it is known. */
 export function billingNotice(payload: Payload, daysLeft: number, autoSuspend: boolean, link: string | null): { subject: string; text: string } {
   const tail = link ? { ar: `\nصفحة الاشتراك: ${link}`, en: `\nSubscription: ${link}` } : { ar: '', en: '' }
   const bodies: Record<BillingNoticeType, { subject: string; ar: string; en: string }> = {
     renewal_upcoming: { subject: 'اشتراكك في LiwanOS يتجدد قريبًا',
-      ar: `يتجدد اشتراكك في ${payload.renewal_on} (${daysLeft} يومًا متبقيًا). ستصدر فاتورة التجديد في ذلك اليوم، وتجد طريقة الدفع في صفحة الاشتراك.`,
-      en: `Your subscription renews on ${payload.renewal_on} (${daysLeft} days left). The renewal invoice is issued that day and you can pay it from Subscription.` },
+      ar: `يتجدد اشتراكك في ${payload.renewal_on} (المتبقي ${daysText(daysLeft, 'ar')}). ستصدر فاتورة التجديد في ذلك اليوم، وتجد طريقة الدفع في صفحة الاشتراك.`,
+      en: `Your subscription renews on ${payload.renewal_on} (${daysText(daysLeft, 'en')} left). The renewal invoice is issued that day and you can pay it from Subscription.` },
     overdue: { subject: 'فاتورة اشتراكك في LiwanOS لم تُسدَّد',
       ar: autoSuspend ? `لم نستلم دفعة فاتورة اشتراكك في موعدها. ادفعها قبل ${payload.grace_ends_on} حتى يبقى وصولك مفتوحًا، وإلا يُعلَّق الاشتراك.`
         : 'لم نستلم دفعة فاتورة اشتراكك في موعدها. ادفعها في أقرب وقت من صفحة الاشتراك.',
       en: autoSuspend ? `We have not received payment for your subscription invoice. Pay it before ${payload.grace_ends_on} to keep access, or the subscription is suspended.`
         : 'We have not received payment for your subscription invoice. Please pay it as soon as possible from Subscription.' },
     suspension_warning: { subject: 'سيتوقف وصولك إلى LiwanOS قريبًا',
-      ar: `سيُعلَّق اشتراكك في ${payload.grace_ends_on} (${daysLeft} يومًا متبقيًا) إذا بقيت الفاتورة دون سداد. ادفعها من صفحة الاشتراك لإبقاء الوصول مفتوحًا.`,
-      en: `Your subscription is suspended on ${payload.grace_ends_on} (${daysLeft} days left) if the invoice stays unpaid. Pay it from Subscription to keep access.` },
+      ar: `سيُعلَّق اشتراكك في ${payload.grace_ends_on} (المتبقي ${daysText(daysLeft, 'ar')}) إذا بقيت الفاتورة دون سداد. ادفعها من صفحة الاشتراك لإبقاء الوصول مفتوحًا.`,
+      en: `Your subscription is suspended on ${payload.grace_ends_on} (${daysText(daysLeft, 'en')} left) if the invoice stays unpaid. Pay it from Subscription to keep access.` },
     suspended: { subject: 'عُلِّق اشتراكك في LiwanOS',
       ar: 'عُلِّق اشتراكك بسبب فاتورة لم تُسدَّد. ادفعها من صفحة الاشتراك، ويعود الوصول تلقائيًا بعد وصول الدفعة.',
       en: 'Your subscription is suspended because an invoice is unpaid. Pay it from Subscription and access is restored automatically once the payment arrives.' },

@@ -16,7 +16,7 @@ import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
-import { bankTransferInstructions } from './bank-transfer.js'
+import { bankTransferInstructions, claimBankTransfer } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { trialEndPreview } from './trial-preview.js'
 import { retryFreeBaseLock } from './free-base-lock.js'
@@ -169,6 +169,13 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     requireCapability(principal,'billing.read')
     if(!z.uuid().safeParse(transferGuide[1]).success)throw new CommercialHttpError('not_found',404)
     return {status:200,data:await bankTransferInstructions(pool,{invoice_id:transferGuide[1]!,customer_id:customerId})}
+  }
+  // "I made the transfer": records the customer's claim for the vendor to confirm; it never pays the invoice.
+  const transferClaim=/^\/invoices\/([^/]+)\/bank-transfer-claim$/.exec(path)
+  if(m==='POST'&&transferClaim){
+    requireCapability(principal,'subscription.manage')
+    if(!z.uuid().safeParse(transferClaim[1]).success)throw new CommercialHttpError('not_found',404)
+    return {status:200,data:await claimBankTransfer(pool,{invoice_id:transferClaim[1]!,customer_id:customerId,body:parseBody(input.raw,z.unknown())})}
   }
   if(m==='GET'&&path==='/branches'){requireCapability(principal,'subscription.read');const view=await getSubscription(pool,customerId);return {status:200,data:await listBranches(pool,view.id)}}
   if(m==='POST'&&path==='/branch-quotes'){requireCapability(principal,'branches.manage');return {status:201,data:await createBranchQuote(pool,customerId,input.raw)}}

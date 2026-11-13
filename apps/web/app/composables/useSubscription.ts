@@ -1,4 +1,4 @@
-import { trialEndPreviewSchema, type Branch, type Order, type BranchSummary, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { trialEndPreviewSchema, type Branch, type Order, type BankTransferClaim, type BranchSummary, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
 import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
@@ -11,6 +11,7 @@ export type CustomerOrderResult = { order: NonNullable<SubscriptionView['pending
 export type BankTransferInstructions = {
   invoice_id: string; status: string; reference: string; amount_minor: number; currency: string; exponent: number
   bank: { account_name: string; account_number: string; iban: string; instructions_ar: string; instructions_en: string }
+  claim: BankTransferClaim | null
 }
 const CSRF_COOKIE = 'liwan_csrf'
 
@@ -36,6 +37,8 @@ export function useSubscriptionApi() {
     invoice: (id: string) => request<Invoice>(`invoices/${encodeURIComponent(id)}`),
     /** Where to transfer while an invoice is unpaid; the control plane answers 409 until the vendor sets the account. */
     bankTransfer: (id: string) => request<BankTransferInstructions>(`invoices/${encodeURIComponent(id)}/bank-transfer`),
+    /** "I made the transfer": records the claim for the vendor to confirm; it never pays the invoice. */
+    claimBankTransfer: (id: string, body: { value_date: string; sender_reference?: string }) => request<BankTransferClaim>(`invoices/${encodeURIComponent(id)}/bank-transfer-claim`, { method: 'POST', body }),
     order: (id: string) => request<CustomerOrderStatus>(`orders/${encodeURIComponent(id)}`),
     branches: () => request<BranchSummary>('branches'),
     quote: (body: unknown) => request<Quote>('quotes', { method: 'POST', body }),

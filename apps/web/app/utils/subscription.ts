@@ -43,6 +43,8 @@ export function refusalKey(code: unknown): string | null {
   // Release 1: the server refuses a quote above MAX_USERS; the customer is told the cap and who to contact.
   if (code === 'users_limit_exceeded') return 'subscription.change.usersCapNote'
   if (code === 'storage_step_invalid') return 'subscription.change.storageStepInvalid'
+  if (code === 'value_date_in_future' || code === 'value_date_before_invoice' || code === 'invalid_value_date' || code === 'invalid_sender_reference' || code === 'invoice_not_payable')
+    return `subscription.bankTransfer.claim.${code}`
   if (code === 'trial_ending' || code === 'lock_pending') return `subscription.trialEnd.details.${code}`
   return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'
     ? `subscription.trial.${code === 'tenant_upgrade_required' ? 'upgradeRequired' : 'notConfigured'}`
@@ -302,6 +304,22 @@ export function trialDaysRemaining(endsAt: string | null | undefined, now: Date 
 /** The invoice page asks for bank-transfer instructions only for a permitted reader of an invoice that is still `issued`. */
 export function invoiceWantsTransfer(allowed: boolean, invoice: { status: string } | null | undefined): boolean {
   return allowed && invoice?.status === 'issued'
+}
+
+/** Today's calendar day in Riyadh, the latest date a transfer can carry. */
+export const riyadhToday = (): string => riyadhDate(new Date())
+
+/** The customer's own "I made the transfer", as the control plane answers it with the instructions. */
+export type BankTransferClaimLike = { value_date: string; sender_reference: string | null; claimed_at: string }
+
+/**
+ * What the invoice page tells the customer about the transfer: the instructions alone until they say they paid, then
+ * "awaiting confirmation since <day>" (the day they first said it) with the date and reference they gave.
+ */
+export function transferClaimState(claim: BankTransferClaimLike | null | undefined, locale: string) {
+  if (!claim) return { stage: 'instructions' as const }
+  const day = (value: string | Date) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'Asia/Riyadh' }).format(new Date(value))
+  return { stage: 'awaiting' as const, since: day(claim.claimed_at), valueDate: day(`${claim.value_date}T12:00:00+03:00`), reference: claim.sender_reference }
 }
 
 /**

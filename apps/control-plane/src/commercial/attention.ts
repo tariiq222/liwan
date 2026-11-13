@@ -59,6 +59,11 @@ const subjectsSql = `WITH latest AS (
     OR EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind = 'payment.intervention' AND later.status = 'done'
       AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at))
   ORDER BY r.aggregate_id, r.processed_at DESC
+), claimed_transfers AS (
+  -- The customer says it transferred; the vendor still has to confirm it. It leaves the list when the invoice is paid, voided or cancelled.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, i.id AS invoice_id, k.claimed_at, k.value_date::text AS value_date
+  FROM bank_transfer_claims k JOIN invoices i ON i.id=k.invoice_id JOIN customers c ON c.id=i.customer_id
+  WHERE i.status='issued'
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), lock_blocked AS (
@@ -113,9 +118,19 @@ const subjectsSql = `WITH latest AS (
       AND NOT EXISTS (SELECT 1 FROM admin_invitations i WHERE i.tenant_id=c.tenant_id AND i.admin_login=c.admin_login)
     ORDER BY c.id, ob.processed_at DESC
   ) latest_issue_failure
+), failed_notices AS (
+  -- A billing or trial notice that gave up (no recipient, or every retry failed). A later notice of the same kind for the
+  -- same subscription that went out clears it: the customer has been reached since.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, ob.processed_at, ob.payload->>'error' AS reason
+  FROM commercial_outbox ob JOIN subscriptions s ON s.id::text=ob.aggregate_id JOIN customers c ON c.id=s.customer_id
+  WHERE ob.kind IN ('billing.notice','trial.notice') AND ob.status='failed'
+    AND NOT EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind=ob.kind AND later.aggregate_id=ob.aggregate_id
+      AND later.status='done' AND later.created_at>ob.created_at)
+  ORDER BY c.id, ob.processed_at DESC
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 2,'bank_transfer_claimed', customer_id, tenant_id, NULL, invoice_id, name, ${iso('claimed_at')}, value_date, claimed_at FROM claimed_transfers WHERE $3::boolean
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
@@ -124,6 +139,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 4,'invitation_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM invitation_failures
+  UNION ALL SELECT 4,'notice_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('processed_at')}, reason, processed_at FROM failed_notices
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
   UNION ALL SELECT 7,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}

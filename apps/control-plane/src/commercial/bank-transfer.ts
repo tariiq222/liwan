@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { transaction } from '../db.js'
-import { riyadhDate } from '@liwan/commercial-contracts'
+import { bankTransferClaimRequestSchema, riyadhDate, type BankTransferClaim, type BankTransferClaimRequest } from '@liwan/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 import { closeOtherAttempts, settleAttemptIn } from './payments.js'
 import { enqueueOutbox } from './outbox.js'
+import { claimView } from './invoices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { isPaidFirstOrder, requireReachableManager } from './orders.js'
 import type { ProviderEvent } from './payment-adapter.js'
@@ -195,7 +196,41 @@ function transferEvent(attempt: Record<string, any>, order: Record<string, any>)
   }
 }
 
-/** What a customer sees to make a transfer: the amount, the invoice reference and the vendor's own account. */
+/** `value_date` is a `date` column: node-postgres hands it back as a local-midnight Date, so it is read as text. */
+const CLAIM_COLUMNS = 'invoice_id,value_date::text AS value_date,sender_reference,claimed_at'
+
+export function parseBankTransferClaimInput(value: unknown): BankTransferClaimRequest {
+  const parsed = bankTransferClaimRequestSchema.safeParse(value)
+  if (parsed.success) return parsed.data
+  throw new CommercialHttpError(String(parsed.error.issues[0]?.path[0]) === 'sender_reference' ? 'invalid_sender_reference' : 'invalid_value_date', 422, String(parsed.error.issues[0]?.path[0] ?? 'body'))
+}
+
+/**
+ * A customer says it made the transfer for one of its own issued invoices. This only records the claim for the vendor
+ * to see: nothing is paid and the amount rule of `confirmBankTransfer` is untouched. One row per invoice, so a second
+ * claim while the invoice is open corrects the first (the original `claimed_at` stays: "waiting since" does not reset).
+ * The invoice row is locked, so a claim cannot slip in after the vendor confirmed the transfer.
+ */
+export async function claimBankTransfer(pool: Pool, input: { invoice_id: string; customer_id: string; body: unknown }): Promise<BankTransferClaim> {
+  const body = parseBankTransferClaimInput(input.body)
+  return transaction(pool, async client => {
+    const invoice = (await client.query('SELECT * FROM invoices WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.invoice_id, input.customer_id])).rows[0]
+    if (!invoice) throw new CommercialHttpError('not_found', 404)
+    if (invoice.status !== 'issued') throw new CommercialHttpError('invoice_not_payable', 409)
+    assertValueDateForInvoice(body.value_date, riyadhDate(new Date()), invoice)
+    const row = (await client.query(`INSERT INTO bank_transfer_claims(invoice_id,value_date,sender_reference) VALUES($1,$2::date,$3)
+      ON CONFLICT (invoice_id) DO UPDATE SET value_date=EXCLUDED.value_date,sender_reference=EXCLUDED.sender_reference,updated_at=now()
+      RETURNING ${CLAIM_COLUMNS}`, [invoice.id, body.value_date, body.sender_reference || null])).rows[0]
+    return claimView(row)!
+  })
+}
+
+/** The claim on one invoice, or null. */
+export async function claimOf(pool: Pick<Pool, 'query'>, invoiceId: string): Promise<BankTransferClaim | null> {
+  return claimView((await pool.query(`SELECT ${CLAIM_COLUMNS} FROM bank_transfer_claims WHERE invoice_id=$1`, [invoiceId])).rows[0])
+}
+
+/** What a customer sees to make a transfer: the amount, the invoice reference, the vendor's own account and its own claim, if any. */
 export async function bankTransferInstructions(pool: Pool, input: { invoice_id: string; customer_id?: string }) {
   const args: unknown[] = [input.invoice_id]
   let where = 'id=$1'
@@ -206,5 +241,5 @@ export async function bankTransferInstructions(pool: Pool, input: { invoice_id: 
   if (!account) throw new CommercialHttpError('bank_account_unavailable', 409)
   return { invoice_id: invoice.id as string, status: invoice.status as string, reference: (invoice.number ?? invoice.id) as string,
     amount_minor: Number(invoice.total_minor), currency: invoice.currency as string, exponent: Number(invoice.exponent),
-    bank: account }
+    bank: account, claim: await claimOf(pool, invoice.id) }
 }

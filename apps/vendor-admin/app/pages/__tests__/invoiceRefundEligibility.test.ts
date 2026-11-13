@@ -138,6 +138,19 @@ describe('invoice refund eligibility', () => {
     expect(html).not.toContain('vendor.invoices.transfer.title')
   })
 
+  it('shows what the customer claimed next to the confirm form and pre-fills the date and reference from it', async () => {
+    const claim = { value_date: '2026-11-05', sender_reference: 'Ahmed', claimed_at: '2026-11-06T09:00:00.000Z' }
+    const claimed = await page({ taxLabel: null, overrides: { status: 'issued', bank_transfer_claim: claim } as never })
+    const { captured } = await claimed.rendered()
+    const line = captured.find(c => c.props['data-testid'] === 'bank-transfer-claimed')
+    expect(line?.props.title).toBe('vendor.invoices.transfer.claimed')
+    expect(line?.props.description).toBe('vendor.invoices.transfer.claimedReference')
+    claimed.state.openTransfer()
+    expect([claimed.state.transferDate.value, claimed.state.transferReference.value, claimed.state.transferAmount.value]).toEqual(['2026-11-05', 'Ahmed', '123.45'])
+    const none = await page({ taxLabel: null, overrides: { status: 'issued', bank_transfer_claim: null } as never })
+    expect((await none.rendered()).captured.some(c => c.props['data-testid'] === 'bank-transfer-claimed')).toBe(false)
+  })
+
   it('labels an untaxed subtotal without the tax wording and keeps the taxed label otherwise', async () => {
     const untaxed = await page({ taxLabel: null })
     const { captured, html } = await untaxed.rendered()

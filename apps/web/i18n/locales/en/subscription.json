@@ -18,7 +18,24 @@
       "copy": "Copy",
       "copied": "Copied",
       "unavailable": "Bank transfer is not available for this invoice right now.",
-      "error": "The transfer details could not be loaded. Try again."
+      "error": "The transfer details could not be loaded. Try again.",
+      "claim": {
+        "title": "I made the transfer",
+        "hint": "Tell us once you have transferred. We confirm it when the money arrives; this does not mark the invoice as paid.",
+        "date": "Transfer date",
+        "sender": "Sender name or bank reference (optional)",
+        "submit": "I made the transfer",
+        "update": "Update details",
+        "awaiting": "Awaiting confirmation since {date}",
+        "awaitingDetail": "Transfer date: {date}",
+        "awaitingReference": "Reference: {reference}",
+        "failed": "We could not record this. Try again.",
+        "value_date_in_future": "The transfer date cannot be in the future.",
+        "value_date_before_invoice": "The transfer date cannot be before the invoice was issued.",
+        "invalid_value_date": "Enter a valid transfer date.",
+        "invalid_sender_reference": "The sender name or reference is too long.",
+        "invoice_not_payable": "This invoice is no longer open for payment."
+      }
     },
     "autoRenew": { "title": "Auto-renew", "on": "On", "off": "Off", "consent": "I agree that the renewal amount is charged automatically to the saved payment method each cycle, and that I can turn this off at any time.", "enable": "Turn on auto-renew", "disable": "Turn off auto-renew", "readOnly": "Changing this requires permission to manage the subscription." },
     "trial": { "daysLeft": "{count} days left in the trial", "endsOn": "The trial ends on {date}", "expiring": "Review what will remain available when the trial ends.", "start": "Start a {count}-day trial", "startFailed": "The trial could not be started. Try again.", "startSetup": "Start the trial", "convert": "Convert and review payment", "convertFailed": "Payment could not be started. Try again.", "activationPending": "Your subscription is still activating; the invoice appears once activation completes.", "upgradeRequired": "Your service needs an update before the trial can start. Contact support to complete it.", "notConfigured": "The trial could not be prepared right now. Contact support."},
