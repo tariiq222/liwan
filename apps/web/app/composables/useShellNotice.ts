@@ -9,7 +9,7 @@ const SUBSCRIPTION_STALE_MS = 5 * 60_000
  * The one subscription notice for the shell, or null. Inputs come from `/me`; the subscription view is read only for a
  * user who derives `subscription.read`, only in `saas`, and only after hydration, so a plain member never causes the
  * request and the page never waits on it. The result is cached per user and company by the query client.
- * It is not mounted in any layout yet: a layout renders `notice` and calls `dismiss`.
+ * The default layout renders `notice` (ShellNoticeBar) and calls `dismiss`.
  */
 export function useShellNotice(): { notice: ComputedRef<ShellNotice | null>, dismiss: (notice: ShellNotice) => void } {
   const { me } = useMe()

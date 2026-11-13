@@ -16,7 +16,7 @@ const at = (path: string) => async () => { await __getRouter()!.replace(path); r
 // The live drawer mounts this surface inside the padded USlideover body.
 const render = (surface: 'sidebar' | 'drawer' = 'sidebar') => () => ({ components: { AppSidebar }, setup: () => ({ surface }), template: `<div class="liwan-shell min-h-svh" :class="surface === 'drawer' ? 'p-4 sm:p-6' : undefined"><AppSidebar :surface="surface" /></div>` })
 
-export const Global: Story = { name: 'عام: المنظمة ويومي وتطبيقاتي', parameters: storyContext('apps/web/app/layouts/default.vue:65'), loaders: [at('/')], render: render() }
-export const Application: Story = { name: 'تطبيق مفتوح: رجوع وكتلة التطبيق وروابطه', parameters: storyContext('apps/web/app/layouts/default.vue:65'), loaders: [at('/projects')], render: render() }
-export const Settings: Story = { name: 'الإعدادات بالنمط نفسه', parameters: storyContext('apps/web/app/layouts/default.vue:65'), loaders: [at('/settings/team/users')], render: render() }
+export const Global: Story = { name: 'عام: المنظمة ويومي وتطبيقاتي', parameters: storyContext('apps/web/app/layouts/default.vue:74'), loaders: [at('/')], render: render() }
+export const Application: Story = { name: 'تطبيق مفتوح: رجوع وكتلة التطبيق وروابطه', parameters: storyContext('apps/web/app/layouts/default.vue:74'), loaders: [at('/projects')], render: render() }
+export const Settings: Story = { name: 'الإعدادات بالنمط نفسه', parameters: storyContext('apps/web/app/layouts/default.vue:74'), loaders: [at('/settings/team/users')], render: render() }
 export const Drawer: Story = { name: 'داخل درج الجوال', parameters: storyContext('apps/web/app/components/shell/AppDrawer.vue:25'), loaders: [at('/projects')], render: render('drawer') }
