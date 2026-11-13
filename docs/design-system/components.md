@@ -502,6 +502,8 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/web/app/components/home/HomeGreeting.vue` | التحية الكبيرة باسم الشخص حسب وقت المتصفح والتاريخ وعدّ ما ينتظره؛ بلا قصة (تُقرأ من المتصفح) | HomeHello |
 | `apps/web/app/components/home/HomeHello.vue` | عنوان صفحات الأساس («يومي» و«كل التطبيقات»): عنوان عرض كبير وسطر باهت؛ يُرى في قصة `apps/web/stories/home/HomeApps.stories.ts` بسياقه | — |
 | `apps/web/app/components/home/HomeSection.vue` | قسم بعنوان عرض وعلامة سدو صغيرة (معيّن أو مثلث) وسطر فرعي ومكان للأسهم أو الشرائح | — |
+| `apps/web/app/components/setup/SetupStepItem.vue` | خطوة واحدة في قائمة `/setup`: جملة الغرض والحالة (للإنجاز أو منجزة أو متخطّاة) والإجراء الذي يفتح الصفحة المالكة، أو ملاحظة بلا رابط حين لا صفحة أو التطبيق خارج الباقة، مع «تمت» و«تخطَّ» و«أعدها للإنجاز»؛ القصة `apps/web/stories/setup/SetupStepItem.stories.ts` | UButton، UIcon، SharedStatusBadge؛ سطح rounded-card |
+| `apps/web/app/components/setup/SetupHomeCard.vue` | بطاقة الإعداد في «يومي» ما دام الإعداد مفتوحًا: «n من 5» وشريط تقدّم ورابط إلى `/setup`؛ لا تطلب البيانات إلا ممن يفتح المسار؛ بلا قصة (تقرأ التقدّم من الخادم) | UButton، SharedProgress؛ سطح rounded-card |
 | `apps/web/app/components/home/HomeRail.vue` | سكة أفقية تقف عند كل بطاقة، منطقة مسمّاة قابلة للتركيز، تتحرك بالاتجاه المنطقي | — |
 | `apps/web/app/components/launcher/LauncherRow.vue` | صف تطبيق في «كل التطبيقات»: البلاطة والاسم والوصف وتثبيت وزر الفتح؛ القصة `apps/web/stories/launcher/LauncherRow.stories.ts` | UButton، UTooltip، liwan-app-tile؛ سطح rounded-card |
 | `apps/web/app/components/work/WorkRow.vue` | صف عمل يفتح سجله ويذكر مصدره؛ القصة `apps/web/stories/work/WorkRow.stories.ts` | UBadge، NuxtLink؛ نبرة الاستعجال وشارات الثيم |
