@@ -8,3 +8,6 @@ export const RENEWAL_NOTICE_DAYS = [7, 3, 1] as const
 
 /** A past-due subscription whose plan suspends automatically: this many days before access stops (only thresholds shorter than the plan's grace period are sent). */
 export const SUSPENSION_NOTICE_DAYS = [3, 1] as const
+
+/** A cancelled subscription: the reminder goes this many days before the paid period ends. */
+export const CANCELLATION_REMINDER_DAYS = 3

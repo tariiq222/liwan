@@ -50,7 +50,7 @@ export type TrialEnd = Awaited<ReturnType<typeof keptAtTrialEnd>>
 
 /** Both the host fallback and the final lock are priced from the same paid invoice lines. */
 export async function keptAtTrialEnd(client: Pick<PoolClient, 'query'>, input: {
-  subscription: Record<string, any>; snapshot: Record<string, any>; start: string; cutoff: Date; forceEmpty?: boolean
+  subscription: Record<string, any>; snapshot: Record<string, any>; start: string; cutoff: Date; forceEmpty?: boolean; paidAfter?: string
 }) {
   const { subscription, snapshot, start, cutoff } = input
   const sources = await loadQuoteSources(client, subscription.customer_id, {
@@ -63,7 +63,7 @@ export async function keptAtTrialEnd(client: Pick<PoolClient, 'query'>, input: {
   const branches = (await client.query(`SELECT count(*) FILTER (WHERE billing='paid')::int AS paid,count(*)::int AS live
     FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')
     AND NOT (id=ANY($2::uuid[]))`, [subscription.id, snapshot.branch_archive_ids ?? []])).rows[0]
-  const ledger = trialLedger(input.forceEmpty ? [] : await paidTrialLines(client, subscription.id, cutoff), applied, plan, branches.paid)
+  const ledger = trialLedger(input.forceEmpty ? [] : await paidTrialLines(client, subscription.id, cutoff, input.paidAfter), applied, plan, branches.paid)
   const keptIds = new Set([...plan.included_bundle_revision_ids, ...ledger.kept.bundle_revision_ids])
   sources.bundles = sources.bundles.filter(bundle => keptIds.has(bundle.id))
   const included = sources.terms?.included_extra_branches ?? plan.included_extra_branches

@@ -17,8 +17,12 @@ export const subscriptionRevisionSchema = z.strictObject({
   entitlement: entitlementSnapshotSchema, quote_id: z.string().min(1), created_at: z.string(),
 })
 export const trialOutcomeSchema = z.enum(['converted', 'kept_subset', 'free_base'])
-/** Why a subscription is being dropped to the free base: its trial ended, its first post-trial invoice went unpaid, or its first payment was refunded. */
-export const freeBaseLockCauseSchema = z.enum(['trial_end', 'first_invoice_unpaid', 'refund'])
+/** Why a subscription is being dropped to the free base: its trial ended, its first post-trial invoice went unpaid, its first payment was refunded, or it was cancelled and its paid period ended. */
+export const freeBaseLockCauseSchema = z.enum(['trial_end', 'first_invoice_unpaid', 'refund', 'cancelled'])
+/** A cancellation at the period end: renewals stop, the paid period stays, and the subscription drops to the free base on `effective_on` (its renewal date). */
+export const subscriptionCancellationSchema = z.strictObject({
+  requested_at: z.string(), requested_by: z.enum(['customer', 'vendor']), effective_on: isoDate,
+})
 export const subscriptionViewSchema = z.strictObject({
   id: z.string().min(1), customer_id: z.string().min(1), tenant_id: z.string().nullable(),
   state: subscriptionStateSchema,
@@ -35,6 +39,10 @@ export const subscriptionViewSchema = z.strictObject({
   // The cause of a free-base lock whose settlement (pending or ordered) has not finished; null when none is armed. After a
   // trial end, trial_ends_at is already cleared while it runs.
   pending_free_base_lock: freeBaseLockCauseSchema.nullable().optional(),
+  // Set while the subscription is cancelled at the period end and has not yet dropped; null otherwise.
+  cancellation: subscriptionCancellationSchema.nullable().optional(),
+  // Whether the subscription can be cancelled at the period end now (active, paid, nothing in flight); false once it is cancelled.
+  cancellable: z.boolean().optional(),
 })
 
 const quantity = z.number().int().nonnegative()
@@ -58,6 +66,7 @@ export type TrialEndPreview = z.infer<typeof trialEndPreviewSchema>
 export type SubscriptionState = z.infer<typeof subscriptionStateSchema>
 export type SubscriptionRevision = z.infer<typeof subscriptionRevisionSchema>
 export type SubscriptionView = z.infer<typeof subscriptionViewSchema>
+export type SubscriptionCancellation = z.infer<typeof subscriptionCancellationSchema>
 export type FreeBaseLockCause = z.infer<typeof freeBaseLockCauseSchema>
 
 /** UI label keys → بانتظار الدفع / جارٍ التفعيل / مفعّل / تعذر التنفيذ. `inactive` = suspended/cancelled. */

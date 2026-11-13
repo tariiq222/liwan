@@ -57,6 +57,9 @@ export function useSubscriptionApi() {
     payment: (orderId: string, action: string) =>
       request<PaymentAttempt>(`orders/${encodeURIComponent(orderId)}/payment-attempts`, { method: 'POST', body: { idempotency_key: idempotencyKey(store(), `${action}:pay`) } }),
     done: (action: string) => { forgetIdempotencyKey(store(), action); forgetIdempotencyKey(store(), `${action}:pay`) },
+    /** Stops the renewal; the paid period stays and the subscription drops to the free base on its renewal date. */
+    cancelSubscription: (reason?: string) => request<SubscriptionView>('subscription/cancel', { method: 'POST', body: reason ? { reason } : {} }),
+    resumeSubscription: () => request<SubscriptionView>('subscription/resume', { method: 'POST', body: {} }),
     setAutoRenew: (enabled: boolean) => request<SubscriptionView>('auto-renew', { method: 'POST', body: { enabled, consent: true } }),
   }
 }

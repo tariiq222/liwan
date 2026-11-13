@@ -105,10 +105,10 @@ suite('live PostgreSQL vendor analytics', () => {
     const r = data.current.revenue
     expect([minor(r.mrr), minor(r.arr), minor(r.new_mrr), minor(r.expansion_mrr), minor(r.contraction_mrr), minor(r.arpc)])
       .toEqual([45100, 541200, 10000, 20000, 5200, 11275])
-    expect(r.churned_mrr).toEqual({ available: false, reason: 'no_cancellation_date' })
+    expect(r.churned_mrr).toMatchObject({ available: true, value: { minor: 0 } })
     expect(data.current.customers.active).toEqual({ available: true, value: 4 })
     expect(data.current.customers.new).toEqual({ available: true, value: 1 })
-    expect(data.current.customers.churn_rate_by_count.available).toBe(false)
+    expect(data.current.customers.churned).toEqual({ available: true, value: 0 })
     expect(data.trend).toHaveLength(12)
     expect(data.trend[11]).toMatchObject({ month: '2026-10', customers: { available: true, value: 4 } })
     expect(minor(data.trend[11]!.mrr)).toBe(45100)
@@ -263,5 +263,39 @@ suite('live PostgreSQL vendor analytics', () => {
       expect(data.trend.every(point => minor(point.mrr) === 0)).toBe(true)
       await empty.query('ROLLBACK')
     } finally { await empty.end() }
+  })
+
+  it('counts a cancelled subscription that dropped to the free base as churn on its effective date, and keeps the paid history it dropped from', async () => {
+    const before = await getAnalytics(pool, period, now)
+    const k = await seedCustomer(pool, { name: 'K cancelled', state: 'active', renewal_at: '2026-11-12', steps: [
+      { at: '2026-09-10T09:00:00Z', plan_revision_id: p1, base_minor: 30000, paid_at: '2026-09-10T08:00:00Z' },
+      { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] })
+    const first = (await pool.query('SELECT id FROM subscription_revisions WHERE subscription_id=$1 ORDER BY revision LIMIT 1', [k.subscription_id])).rows[0].id
+    await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,state,order_id,next_attempt_at)
+      VALUES($1,$2,'2026-10-12','2026-10-12T00:00:00Z','cancelled','done',$3,'2026-10-12T00:00:00Z')`, [k.subscription_id, first, k.orders[1]!.id])
+    const after = await getAnalytics(pool, period, now)
+    expect(minor(after.current.revenue.churned_mrr)).toBe(minor(before.current.revenue.churned_mrr) + 30000)
+    expect(minor(after.current.revenue.contraction_mrr)).toBe(minor(before.current.revenue.contraction_mrr))
+    expect(after.current.customers.churned).toEqual({ available: true, value: 1 })
+    expect(after.current.customers.churn_rate_by_count).toMatchObject({ available: true })
+    expect(minor(after.current.revenue.mrr)).toBe(minor(before.current.revenue.mrr))
+  })
+
+  it('keeps the history a trial-end lock excluded after the same row is rewritten for a cancellation', async () => {
+    const august = { from: '2026-08-01', to: '2026-08-15' }
+    const before = await getAnalytics(pool, august, now)
+    const l = await seedCustomer(pool, { name: 'L trialled then cancelled', state: 'active', renewal_at: '2026-11-12', steps: [
+      { at: '2026-08-01T09:00:00Z', plan_revision_id: p1, base_minor: 20000 },
+      { at: '2026-08-12T09:00:00Z', plan_revision_id: p1, base_minor: 0 },
+      { at: '2026-09-05T09:00:00Z', plan_revision_id: p1, base_minor: 10000, paid_at: '2026-09-05T08:00:00Z' },
+      { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] })
+    const first = (await pool.query('SELECT id FROM subscription_revisions WHERE subscription_id=$1 ORDER BY revision LIMIT 1', [l.subscription_id])).rows[0].id
+    await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,state,order_id,next_attempt_at,excluded_until)
+      VALUES($1,$2,'2026-10-12','2026-10-12T00:00:00Z','cancelled','done',$3,'2026-10-12T00:00:00Z','2026-08-10T00:00:00Z')`, [l.subscription_id, first, l.orders[3]!.id])
+    const after = await getAnalytics(pool, august, now)
+    // The unbilled trial-era order (20000, before the trial-end cutoff) is still not revenue.
+    expect(minor(after.current.revenue.new_mrr)).toBe(minor(before.current.revenue.new_mrr))
+    const autumn = await getAnalytics(pool, { from: '2026-10-01', to: '2026-10-15' }, now)
+    expect(minor(autumn.current.revenue.churned_mrr)).toBeGreaterThanOrEqual(10000)
   })
 })

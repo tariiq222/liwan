@@ -14,6 +14,8 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
     FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
     LEFT JOIN free_base_locks l ON l.subscription_id=s.id AND l.state<>'superseded'
     LEFT JOIN subscription_revisions old ON old.id=l.pre_lock_revision_id WHERE s.customer_id=$1`, [customerId])).rows[0]
+  // The preview describes a trial's end. A cancellation drop is not one, even for a customer who once had a trial: it has no preview.
+  if (row?.lock_cause === 'cancelled') throw new CommercialHttpError('trial_not_active', 404)
   const cutoff = row?.lock_trial_ended_at ?? row?.trial_ended_at ?? row?.trial_ends_at
   if (!cutoff) throw new CommercialHttpError('trial_not_active', 404)
   const settled = row.lock_state === 'done' || row.trial_outcome === 'converted'

@@ -45,6 +45,9 @@ export function useVendorSubscriptions() {
     /** Stops the workspace now (users are refused at sign-in); a payment does not lift it, only `resumeSubscription` does. */
     suspendSubscription: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/suspend`, { method: 'POST', body: { reason: reason.trim() } }),
     resumeSubscription: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/resume`, { method: 'POST', body: { reason: reason.trim() } }),
+    /** Stops the renewal on the customer's behalf: the paid period stays and the subscription drops to the free base on its renewal date. */
+    cancelRenewal: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/cancel-renewal`, { method: 'POST', body: { reason: reason.trim() } }),
+    resumeRenewal: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/resume-renewal`, { method: 'POST', body: { reason: reason.trim() } }),
     endTrial: (id: string, body: { reason: string }) => request<{ customer_id: string }>(`commercial/trials/${seg(id)}/end`, { method: 'POST', body }),
   }
 }

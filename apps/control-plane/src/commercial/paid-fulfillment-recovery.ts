@@ -190,7 +190,7 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
           // Only an abandoned paid trial-time policy write with no branch operation may be refunded unreconciled, and only
           // once the trial has ended: the pending trial lock then orders the lock, whose delivery names the recorded digests as
           // predecessors. While the trial still runs nothing can reconcile Odoo, so the same delivery stays fenced.
-          const lapsed = (await client.query("SELECT 1 FROM free_base_locks WHERE subscription_id=$1 AND state='pending' AND cause<>'refund'", [subscription.id])).rowCount === 1
+          const lapsed = (await client.query("SELECT 1 FROM free_base_locks WHERE subscription_id=$1 AND state='pending' AND cause IN ('trial_end','first_invoice_unpaid')", [subscription.id])).rowCount === 1
           const trialPolicyOnly = lapsed && Boolean(delivery?.authority.trial_ends_at) && branches
             && !branches.apply.length && !branches.archive.length && !branches.restore?.length
           if (!trialPolicyOnly && (!delivery || !provenPreWrite(job, delivery))) {

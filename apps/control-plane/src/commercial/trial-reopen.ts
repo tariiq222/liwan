@@ -13,13 +13,13 @@ type Subscription = {
 
 const unavailable = () => new CommercialHttpError('trial_not_reopenable', 409)
 
-/** The old lock must still be the applied revision. A paid renewal or a later change owns its own configuration. */
+/** A cancellation drop is never reopened as a trial: its `pre_lock_revision_id` is a paying customer's paid configuration, which a trial reopen would restore free of charge. (A refund lock of a trialling customer stays reopenable by the vendor, an existing tested decision.) The old lock must still be the applied revision. A paid renewal or a later change owns its own configuration. */
 export async function settledTrialReopenSource(client: Query, sub: Subscription) {
   if (!['free_base','kept_subset'].includes(sub.trial_outcome ?? '') || sub.target_revision_id || sub.manual_suspension
     || !['active','past_due','suspended'].includes(sub.state)) return null
   return (await client.query(`SELECT l.pre_lock_revision_id,l.period_start::text AS period_start
     FROM free_base_locks l JOIN orders o ON o.id=l.order_id
-    WHERE l.subscription_id=$1 AND l.state='done' AND o.target_revision_id=$2 AND NOT EXISTS (
+    WHERE l.subscription_id=$1 AND l.state='done' AND l.cause<>'cancelled' AND o.target_revision_id=$2 AND NOT EXISTS (
       SELECT 1 FROM renewals r JOIN orders charged ON charged.id=r.order_id
       WHERE r.subscription_id=$1 AND r.period_start>=l.period_start AND r.status<>'superseded' AND charged.due_now_minor>0
         AND charged.payment_state IN ('paid','refund_pending','refunded'))`, [sub.id, sub.applied_revision_id])).rows[0] ?? null

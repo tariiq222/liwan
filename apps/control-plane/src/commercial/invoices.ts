@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { dateOnly } from './date-only.js'
 import { billingSettings, sellerIdentityOf } from './billing-settings.js'
 import { refundEligibilityForInvoices, refundLockedInvoices, systemRefunds, type Refundability, type SystemRefund } from './settlements.js'
 
@@ -20,7 +21,7 @@ export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustmen
 export type VendorInvoiceSummary = { outstanding: Money[] }
 type Q = Pick<Pool, 'query'>
 
-const d = (v: unknown): string => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10))
+const d = (v: unknown): string => dateOnly(v as Date | string)
 const ts = (v: unknown): string | null => (v == null ? null : v instanceof Date ? v.toISOString() : String(v))
 const num = (v: unknown): number => Number(v)
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { subscriptionStateBadge } from '@/utils/subscription'
+import { dayBefore, subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, safePaymentRedirect, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
@@ -13,7 +13,7 @@ const isMissing = (cause: any) => (cause?.statusCode ?? cause?.status ?? cause?.
 const { data, error, pending, refresh } = await useAsyncData('subscription:overview', async () => {
   // A secondary section that fails is reported as failed, never shown as empty.
   const failed = new Set<'usage' | 'branches' | 'invoices' | 'trial'>()
-  const soft = <T,>(key: 'usage' | 'branches' | 'invoices' | 'trial', request: Promise<T>) => request.catch(() => { failed.add(key); return null })
+  const soft = <T,>(key: 'usage' | 'branches' | 'invoices' | 'trial', request: Promise<T>) => request.catch((cause: any) => { if (key !== 'trial' || !isMissing(cause)) failed.add(key); return null })
   const [sub, usage, branches, invoices] = await Promise.all([
     api.subscription().catch((cause: any) => { if (isMissing(cause)) return null; throw cause }),
     soft('usage', api.usage()), soft('branches', api.branches()),
@@ -69,6 +69,13 @@ async function convertTrial() {
 }
 const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
 const appLabel = (app: string) => (te(`subscription.apps.${app}`) ? t(`subscription.apps.${app}`) : humanizeId(app))
+const cancelBusy = ref(false); const cancelError = ref<string | undefined>()
+async function changeCancellation(action: 'cancel' | 'resume', reason?: string) {
+  if (!hydrated.value || cancelBusy.value || !can('subscription.manage')) return
+  cancelBusy.value = true; cancelError.value = undefined
+  try { await (action === 'cancel' ? api.cancelSubscription(reason) : api.resumeSubscription()); await refresh() }
+  catch (cause) { cancelError.value = t(refusalKey(refusalCode(cause)) ?? 'subscription.cancel.failed') } finally { cancelBusy.value = false }
+}
 const arBusy = ref(false); const arError = ref<unknown>(null)
 async function setAutoRenew(enabled: boolean) {
   if (!hydrated.value || arBusy.value || !can('subscription.manage')) return
@@ -80,7 +87,7 @@ definePageMeta({ middleware: 'customer-commercial' })
 <template>
   <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.title')">
-      <template #actions><UButton v-if="can('subscription.manage') && !trialActions.blocked" to="/subscription/change" icon="i-lucide-repeat" :disabled="!hydrated">{{ t('subscription.summary.change') }}</UButton></template>
+      <template #actions><UButton v-if="can('subscription.manage') && !trialActions.blocked && !data?.sub?.cancellation" to="/subscription/change" icon="i-lucide-repeat" :disabled="!hydrated">{{ t('subscription.summary.change') }}</UButton></template>
     </SharedPageHeader>
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
@@ -147,6 +154,11 @@ definePageMeta({ middleware: 'customer-commercial' })
           <UAlert v-if="!data.invoices" class="m-(--liwan-card-pad)" color="warning" variant="subtle" role="status" :title="t('subscription.sectionError')" />
           <p v-else-if="!data.invoices.items.length" class="p-(--liwan-card-pad) text-sm text-muted">{{ t('subscription.invoices.empty') }}</p>
           <ul v-else class="divide-y divide-default"><li v-for="inv in data.invoices.items.slice(0, 3)" :key="inv.id" class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink><span class="tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></li></ul>
+        </SharedRecordSection>
+        <UAlert v-if="data.sub.cancellation" data-testid="cancelled-banner" color="warning" variant="subtle" icon="i-lucide-calendar-x" :title="t('subscription.cancel.endsTitle', { lastDay: formatDate(dayBefore(data.sub.cancellation.effective_on), 'Asia/Riyadh') })" :description="t('subscription.cancel.endsBody')" />
+        <SharedRecordSection v-if="data.sub.cancellation || data.sub.cancellable" variant="panel" :title="t('subscription.cancel.title')">
+          <SubscriptionCancelPanel :cancellation="data.sub.cancellation ?? null" :cancellable="data.sub.cancellable ?? false" :renewal-on="data.sub.renewal_at" :can-manage="can('subscription.manage')"
+            :pending="cancelBusy" :hydrated="hydrated" :error="cancelError" @cancel="changeCancellation('cancel', $event)" @resume="changeCancellation('resume')" />
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.autoRenew.title')">
           <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />

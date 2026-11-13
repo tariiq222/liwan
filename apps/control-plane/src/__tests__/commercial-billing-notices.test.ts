@@ -83,6 +83,16 @@ suite('live PostgreSQL billing notices', () => {
     expect(text).toContain('(المتبقي يوم واحد)')
     expect(text).toContain('(1 day left)')
   })
+  it('says a suspended workspace is read-only until payment, in both languages', () => {
+    const text = billingNotice({ type: 'suspended', subscription_id: randomUUID(), grace_ends_on: '2026-10-05' }, 0, true, null).text
+    expect(text).toContain('للقراءة والتصدير فقط')
+    expect(text).toContain('your workspace is read-only')
+    for (const notice of [{ type: 'suspension_warning', subscription_id: randomUUID(), grace_ends_on: '2026-10-05' }, { type: 'overdue', subscription_id: randomUUID(), grace_ends_on: '2026-10-05' }] as const) {
+      const warning = billingNotice(notice, 2, true, null).text
+      expect(warning).toContain('للقراءة والتصدير فقط')
+      expect(warning).toContain('read-only')
+    }
+  })
   it('does not send a renewal notice that stopped being true', async () => {
     const s = await subscription('2026-10-05')
     const { sent, mail } = mailbox()

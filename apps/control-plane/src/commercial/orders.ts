@@ -197,6 +197,9 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   // customer upgrades right after the lock, which is minutes in the normal case and visible to the vendor when it is blocked.
   if (subscription.manual_suspension) throw new CommercialHttpError('subscription_suspended', 409)
   if (subscription.applied_revision_id && await unresolvedFreeBaseLock(client, subscription)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
+  // A cancelled subscription takes no paid change: it would be prorated for a period the customer is leaving and dropped, unrefunded, at the
+  // period end. Refusing keeps the customer from paying for something that ends; resuming the subscription reopens changes.
+  if (subscription.cancel_requested_at) throw new CommercialHttpError('subscription_cancelling', 409)
   if (subscription.state === 'trialing' && subscription.trial_ends_at && subscription.applied_revision_id && new Date(subscription.trial_ends_at).getTime() <= now.getTime()) throw new CommercialHttpError('trial_ending', 409)
   if (subscription.revision !== input.expected_subscription_revision || quote.expected_subscription_revision !== subscription.revision || (quote.subscription_id && quote.subscription_id !== subscription.id)) throw new CommercialHttpError('revision_conflict', 409)
   // A hosted attempt may settle later. Keep its accepted target authoritative

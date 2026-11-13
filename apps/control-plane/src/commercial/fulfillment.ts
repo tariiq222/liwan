@@ -244,7 +244,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         if(!pending.rowCount)return null
         const found=await client.query(`SELECT o.*,s.tenant_id,s.applied_revision_id,s.target_revision_id AS subscription_target,
           s.trial_ends_at,s.state AS subscription_state,s.suspended_from,s.revision,s.commercial_expiry_revision,r.snapshot,
-          (SELECT trial_ended_at FROM free_base_locks WHERE subscription_id=s.id AND state='pending' AND cause<>'refund') AS trial_lock_cutoff
+          (SELECT trial_ended_at FROM free_base_locks WHERE subscription_id=s.id AND state='pending' AND cause IN ('trial_end','first_invoice_unpaid')) AS trial_lock_cutoff
           FROM orders o JOIN subscriptions s ON s.id=o.subscription_id JOIN subscription_revisions r ON r.id=o.target_revision_id
           WHERE o.id=$1 FOR UPDATE OF o,s`,[row.aggregate_id])
         const order=found.rows[0]

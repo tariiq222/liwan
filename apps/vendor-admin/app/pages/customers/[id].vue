@@ -3,7 +3,7 @@ import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
-import { cancellationErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
+import { cancellationErrorKey, renewalErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
@@ -133,6 +133,25 @@ async function changeSuspension() {
     await refreshCancellationState()
   } catch (cause) { suspensionFailure.value = t(commercialErrorKey(cause)) } finally { suspensionBusy.value = false }
 }
+// Cancelling the renewal on the customer's behalf keeps the paid period; the customer can resume before the renewal date. Both need a reason and a fresh passkey confirmation.
+const renewalAction = ref<'cancel' | 'resume' | null>(null)
+const renewalReason = ref('')
+const renewalBusy = ref(false)
+const renewalFailure = ref<string | undefined>()
+const canChangeRenewal = computed(() => can('vendor.subscriptions.manage') && !error.value && Boolean(view.value?.cancellation || view.value?.cancellable))
+const validRenewalReason = computed(() => renewalReason.value.trim().length >= 3 && renewalReason.value.trim().length <= 1000)
+function closeRenewal() { renewalAction.value = null; renewalReason.value = ''; renewalFailure.value = undefined }
+async function changeRenewal() {
+  const action = renewalAction.value
+  if (!hydrated.value || renewalBusy.value || !action || !view.value || !validRenewalReason.value) return
+  renewalBusy.value = true; renewalFailure.value = undefined
+  try {
+    if (action === 'cancel') await api.cancelRenewal(view.value.id, renewalReason.value)
+    else await api.resumeRenewal(view.value.id, renewalReason.value)
+    closeRenewal()
+    await refreshCancellationState()
+  } catch (cause) { renewalFailure.value = t(renewalErrorKey(cause)) } finally { renewalBusy.value = false }
+}
 async function refreshCancellationState() {
   await refresh()
   await refreshExtra()
@@ -219,6 +238,17 @@ async function cancelPendingOrder() {
               </SharedInlineConfirm>
               <UButton v-else-if="canSuspend" color="error" variant="outline" size="sm" icon="i-lucide-pause" :disabled="!hydrated" data-testid="suspend-subscription" @click="suspensionAction = 'suspend'">{{ t('vendor.customers.suspension.suspend') }}</UButton>
               <UButton v-else color="neutral" variant="outline" size="sm" icon="i-lucide-play" :disabled="!hydrated" data-testid="resume-subscription" @click="suspensionAction = 'resume'">{{ t('vendor.customers.suspension.resume') }}</UButton>
+            </div>
+            <div v-if="view?.cancellation || canChangeRenewal" class="mt-4 space-y-3" data-testid="renewal-actions">
+              <UAlert v-if="view?.cancellation" color="warning" variant="subtle" icon="i-lucide-calendar-x" :title="t('vendor.customers.renewalCancel.endsNotice', { date: formatLiwanDate(view.cancellation.effective_on), by: t(`vendor.customers.renewalCancel.by.${view.cancellation.requested_by}`), requested: formatLiwanDate(view.cancellation.requested_at) })" />
+              <UAlert v-if="renewalFailure" color="error" variant="subtle" role="alert" :title="renewalFailure" />
+              <template v-if="canChangeRenewal">
+                <SharedInlineConfirm v-if="renewalAction" :title="t(`vendor.customers.renewalCancel.${renewalAction}Title`)" :description="t(`vendor.customers.renewalCancel.${renewalAction}Hint`)" :confirm-label="t(`vendor.customers.renewalCancel.${renewalAction}`)" :color="renewalAction === 'cancel' ? 'error' : 'primary'" :pending="renewalBusy" :disabled="!hydrated || renewalBusy || !validRenewalReason" @confirm="changeRenewal" @cancel="closeRenewal">
+                  <UFormField :label="t('vendor.customers.renewalCancel.reason')" required class="mt-3"><UTextarea v-model="renewalReason" :maxlength="1000" :disabled="!hydrated || renewalBusy" class="w-full" /></UFormField>
+                </SharedInlineConfirm>
+                <UButton v-else-if="view?.cancellation" color="neutral" variant="outline" size="sm" icon="i-lucide-rotate-ccw" :disabled="!hydrated" data-testid="resume-renewal" @click="renewalAction = 'resume'">{{ t('vendor.customers.renewalCancel.resume') }}</UButton>
+                <UButton v-else color="error" variant="outline" size="sm" icon="i-lucide-calendar-x" :disabled="!hydrated" data-testid="cancel-renewal" @click="renewalAction = 'cancel'">{{ t('vendor.customers.renewalCancel.cancel') }}</UButton>
+              </template>
             </div>
             <VendorTrialPanel v-if="view && (view.state === 'trialing' || view.trial_reopenable)" :subscription="view" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
             <p v-if="view?.pending_order && can('vendor.subscriptions.manage')" class="mt-3 text-sm text-muted">{{ t('vendor.customers.changeBlocked') }}</p>

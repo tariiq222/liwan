@@ -34,7 +34,7 @@ export async function queueScheduledBillingNotices(pool: Pool, now: Date): Promi
   const upcoming = (await pool.query(`SELECT s.id,s.renewal_at::text AS renewal_on,sr.snapshot->'pricing' AS pricing,sr.snapshot->'cadence' AS cadence
     FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
     WHERE s.state='active' AND NOT s.manual_suspension AND s.renewal_at IS NOT NULL AND s.renewal_at <= $1::date + $2::int
-    AND NOT ${holdsFreeBaseLockSql('s')} ORDER BY s.id`, [today, Math.max(...RENEWAL_NOTICE_DAYS)])).rows
+    AND NOT ${holdsFreeBaseLockSql('s')} AND s.cancel_requested_at IS NULL ORDER BY s.id`, [today, Math.max(...RENEWAL_NOTICE_DAYS)])).rows
   for (const row of upcoming) {
     if (!owesAtRenewal(row.pricing)) continue
     const daysLeft = daysBetween(today, row.renewal_on)
@@ -77,16 +77,16 @@ export function billingNotice(payload: Payload, daysLeft: number, autoSuspend: b
       ar: `يتجدد اشتراكك في ${payload.renewal_on} (المتبقي ${daysText(daysLeft, 'ar')}). ستصدر فاتورة التجديد في ذلك اليوم، وتجد طريقة الدفع في صفحة الاشتراك.`,
       en: `Your subscription renews on ${payload.renewal_on} (${daysText(daysLeft, 'en')} left). The renewal invoice is issued that day and you can pay it from Subscription.` },
     overdue: { subject: 'فاتورة اشتراكك في LiwanOS لم تُسدَّد',
-      ar: autoSuspend ? `لم نستلم دفعة فاتورة اشتراكك في موعدها. ادفعها قبل ${payload.grace_ends_on} حتى يبقى وصولك مفتوحًا، وإلا يُعلَّق الاشتراك.`
+      ar: autoSuspend ? `لم نستلم دفعة فاتورة اشتراكك في موعدها. ادفعها قبل ${payload.grace_ends_on} حتى تبقى الكتابة متاحة، وإلا يُعلَّق الاشتراك وتصبح مساحة العمل للقراءة والتصدير فقط.`
         : 'لم نستلم دفعة فاتورة اشتراكك في موعدها. ادفعها في أقرب وقت من صفحة الاشتراك.',
-      en: autoSuspend ? `We have not received payment for your subscription invoice. Pay it before ${payload.grace_ends_on} to keep access, or the subscription is suspended.`
+      en: autoSuspend ? `We have not received payment for your subscription invoice. Pay it before ${payload.grace_ends_on} to keep editing, or the subscription is suspended and your workspace becomes read-only.`
         : 'We have not received payment for your subscription invoice. Please pay it as soon as possible from Subscription.' },
-    suspension_warning: { subject: 'سيتوقف وصولك إلى LiwanOS قريبًا',
-      ar: `سيُعلَّق اشتراكك في ${payload.grace_ends_on} (المتبقي ${daysText(daysLeft, 'ar')}) إذا بقيت الفاتورة دون سداد. ادفعها من صفحة الاشتراك لإبقاء الوصول مفتوحًا.`,
-      en: `Your subscription is suspended on ${payload.grace_ends_on} (${daysText(daysLeft, 'en')} left) if the invoice stays unpaid. Pay it from Subscription to keep access.` },
+    suspension_warning: { subject: 'ستصبح مساحة عملك في LiwanOS للقراءة فقط قريبًا',
+      ar: `سيُعلَّق اشتراكك في ${payload.grace_ends_on} (المتبقي ${daysText(daysLeft, 'ar')}) إذا بقيت الفاتورة دون سداد، وعندها تصبح مساحة العمل للقراءة والتصدير فقط. ادفعها من صفحة الاشتراك لإبقاء الكتابة متاحة.`,
+      en: `Your subscription is suspended on ${payload.grace_ends_on} (${daysText(daysLeft, 'en')} left) if the invoice stays unpaid, and your workspace becomes read-only (view and export only). Pay it from Subscription to keep editing.` },
     suspended: { subject: 'عُلِّق اشتراكك في LiwanOS',
-      ar: 'عُلِّق اشتراكك بسبب فاتورة لم تُسدَّد. ادفعها من صفحة الاشتراك، ويعود الوصول تلقائيًا بعد وصول الدفعة.',
-      en: 'Your subscription is suspended because an invoice is unpaid. Pay it from Subscription and access is restored automatically once the payment arrives.' },
+      ar: 'عُلِّق اشتراكك بسبب فاتورة لم تُسدَّد، فصارت مساحة العمل للقراءة والتصدير فقط. ادفعها من صفحة الاشتراك، وتعود الكتابة تلقائيًا بعد وصول الدفعة.',
+      en: 'Your subscription is suspended because an invoice is unpaid, so your workspace is read-only (you can still view and export). Pay it from Subscription and editing returns automatically once the payment arrives.' },
     payment_received: { subject: 'استلمنا دفعتك في LiwanOS',
       ar: `استلمنا دفعتك${payload.amount ? ` بقيمة ${formatMoney(payload.amount)}` : ''}. شكرًا لك.`,
       en: `We received your payment${payload.amount ? ` of ${formatMoney(payload.amount)}` : ''}. Thank you.` },

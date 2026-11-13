@@ -31,6 +31,11 @@ export function usageFigure(metric: UsageMetric, freshness: UsageSnapshot['fresh
   return { value: known ? metric.used : null, limit: metric.limit, known, stale: known && freshness === 'stale' }
 }
 
+/** The calendar day before an ISO date (`YYYY-MM-DD`): the last day a cancelled subscription's paid applications stay available. */
+export function dayBefore(iso: string): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+}
+
 /** The refusal code `createError({statusCode,data})` produces on the client: the body is nested one level. */
 export function refusalCode(cause: unknown): string | null {
   const e = cause as { data?: { code?: string; data?: { code?: string } } } | null
@@ -46,6 +51,8 @@ export function refusalKey(code: unknown): string | null {
   if (code === 'value_date_in_future' || code === 'value_date_before_invoice' || code === 'invalid_value_date' || code === 'invalid_sender_reference' || code === 'invoice_not_payable')
     return `subscription.bankTransfer.claim.${code}`
   if (code === 'trial_ending' || code === 'lock_pending') return `subscription.trialEnd.details.${code}`
+  if (code === 'subscription_cancelling' || code === 'nothing_to_cancel' || code === 'subscription_past_due' || code === 'subscription_suspended' || code === 'subscription_change_pending'
+    || code === 'cancel_trial_unsupported' || code === 'cancel_already_effective') return `subscription.cancel.refusals.${code}`
   return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'
     ? `subscription.trial.${code === 'tenant_upgrade_required' ? 'upgradeRequired' : 'notConfigured'}`
     : null

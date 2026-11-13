@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
+import { riyadhDate } from '@liwan/commercial-contracts'
 import type { Principal } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { cancelOrder } from './orders.js'
-import { keptAtTrialEnd, orderFreeBaseLock, trialOutcome } from './free-base.js'
+import { paidRenewalInFlight } from './cancellation-rules.js'
+import { holdsFreeBaseLockSql, keptAtTrialEnd, orderFreeBaseLock, trialOutcome } from './free-base.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 
@@ -65,6 +67,37 @@ export async function armRefundLock(client: PoolClient, input: { subscription_id
   return voidUnpaidRenewals(client, sub.id, null)
 }
 
+/**
+ * Arms the drop to the free base for every cancelled subscription whose paid period has ended (its renewal date is reached).
+ * The lock starts the new period, so the paid period before it is untouched, and an unpaid renewal invoice of that period is
+ * voided (the customer chose to leave, so it is not owed). A change or a paid renewal still being applied is waited for: the
+ * renewal's rows are locked first, so a payment settling at the same moment either lands before (and the drop waits) or finds the
+ * order cancelled. A
+ * subscription whose lock is already armed or done is not touched twice: a done lock is re-armed, as a refund does.
+ */
+export async function armCancellationLocks(pool: Pool, input: { now: Date; subscription_id?: string }) {
+  const today = riyadhDate(input.now)
+  const due = (await pool.query(`SELECT s.id FROM subscriptions s WHERE s.cancel_requested_at IS NOT NULL AND s.state IN ('active','past_due')
+    AND NOT s.manual_suspension AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND NOT ${holdsFreeBaseLockSql('s')}
+    AND ($2::uuid IS NULL OR s.id=$2) ORDER BY s.id`, [today, input.subscription_id ?? null])).rows
+  for (const { id } of due) await transaction(pool, async client => {
+    const sub = (await client.query('SELECT *,renewal_at::text AS renewal_on FROM subscriptions WHERE id=$1 FOR UPDATE', [id])).rows[0]
+    if (!sub.cancel_requested_at || sub.manual_suspension || sub.target_revision_id || !['active', 'past_due'].includes(sub.state)
+      || sub.renewal_on > today) return
+    if ((await client.query(`SELECT ${holdsFreeBaseLockSql('s')} AS held FROM subscriptions s WHERE s.id=$1`, [id])).rows[0].held) return
+    if (await paidRenewalInFlight(client, id, true)) return
+    const start = sub.renewal_on as string
+    await client.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,trial_ended_at,cause,next_attempt_at)
+      VALUES($1,$2,$3,$4,NULL,'cancelled',$4)
+      ON CONFLICT(subscription_id) DO UPDATE SET excluded_until=CASE WHEN free_base_locks.cause<>'cancelled' THEN free_base_locks.armed_at ELSE free_base_locks.excluded_until END,
+        pre_lock_revision_id=EXCLUDED.pre_lock_revision_id,period_start=EXCLUDED.period_start,
+        armed_at=EXCLUDED.armed_at,cause='cancelled',next_attempt_at=EXCLUDED.next_attempt_at,kept=NULL,
+        customer_retry_at=NULL,state='pending',order_id=NULL,attempts=0,reason=NULL`, [id, sub.applied_revision_id, start, input.now])
+    await voidUnpaidRenewals(client, id, start)
+  })
+  return due.length
+}
+
 /** Re-arm the original lock only after voiding its first invoice. The caller holds the subscription lock. */
 export async function rearmUnpaidTrialLock(client: PoolClient, subscriptionId: string, now: Date) {
   const found = (await client.query(`SELECT l.subscription_id,o.id AS order_id,i.id AS invoice_id,
@@ -87,6 +120,7 @@ export async function rearmUnpaidTrialLock(client: PoolClient, subscriptionId: s
 
 /** Every subscription progresses independently, including failures and customer retries. */
 export async function processFreeBaseLocks(pool: Pool, input: { now: Date; adapter?: PaymentAdapter; subscription_id?: string }) {
+  await armCancellationLocks(pool, input)
   const due = (await pool.query(`SELECT subscription_id FROM free_base_locks WHERE state IN ('pending','ordered')
     AND next_attempt_at <= $1 AND ($2::uuid IS NULL OR subscription_id=$2) ORDER BY subscription_id`,
   [input.now, input.subscription_id ?? null])).rows
@@ -142,12 +176,23 @@ async function attempt(pool: Pool, id: string, now: Date): Promise<string | unde
     }
     const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [sub.applied_revision_id])).rows[0].snapshot
     // A refund keeps what is still paid at the moment it is locked: a second, unrefunded payment keeps its items.
-    const cutoff = lock.cause === 'refund' ? now : lock.trial_ended_at
-    const kept = await keptAtTrialEnd(client, { subscription: sub, snapshot, start: lock.start, cutoff, forceEmpty: lock.cause === 'first_invoice_unpaid' })
+    // A cancellation keeps only what is paid through a date after the new period starts.
+    const cutoff = lock.cause === 'refund' || lock.cause === 'cancelled' ? now : lock.trial_ended_at
+    const kept = await keptAtTrialEnd(client, { subscription: sub, snapshot, start: lock.start, cutoff, forceEmpty: lock.cause === 'first_invoice_unpaid',
+      paidAfter: lock.cause === 'cancelled' ? lock.start : undefined })
     const orderId = await orderFreeBaseLock(client, { subscription: sub, snapshot, lock: kept, attempt: lock.order_seq + 1 })
     await client.query(`UPDATE free_base_locks SET state='ordered',order_id=$2,pre_lock_revision_id=CASE WHEN cause='first_invoice_unpaid' THEN pre_lock_revision_id ELSE $3 END,
       kept=$4,reason=NULL,order_seq=order_seq+1,next_attempt_at=$5 WHERE subscription_id=$1`, [id, orderId, sub.applied_revision_id, JSON.stringify(kept.ledger), now])
   })
+}
+
+const lastPaidThrough = (paidThrough: Record<string, { through: string }[]>) =>
+  Object.values(paidThrough).flat().map(entry => entry.through).sort().at(-1)!
+
+async function clearCancellation(client: PoolClient, subscriptionId: string) {
+  const cleared = await client.query(`UPDATE subscriptions SET cancel_requested_at=NULL,cancel_requested_by=NULL,cancel_reason=NULL,revision=revision+1
+    WHERE id=$1 AND cancel_requested_at IS NOT NULL`, [subscriptionId])
+  return cleared.rowCount === 1
 }
 
 async function settleOrdered(client: PoolClient, sub: Record<string, any>, lock: Record<string, any>, now: Date) {
@@ -158,10 +203,14 @@ async function settleOrdered(client: PoolClient, sub: Record<string, any>, lock:
     const owes = quote.next_renewal.minor > 0
     // When every remaining item is already paid through the cycle, the next invoice starts at the next cycle. A refund
     // leaves the paid period's renewal date unless the locked configuration itself owes, which is billed at once.
-    const renewalAt = lock.cause === 'refund' ? (owes ? lock.start : null)
+    // A cancellation never bills: the free base renews at the next cycle, and items still paid through a later date keep
+    // the cancellation armed until that date, when the drop runs again with nothing left to keep.
+    const stillPaid = lock.cause === 'cancelled' && outcome === 'kept_subset'
+    const renewalAt = lock.cause === 'cancelled' ? (stillPaid ? lastPaidThrough(lock.kept.paid_through) : quote.next_renewal_at)
+      : lock.cause === 'refund' ? (owes ? lock.start : null)
       : lock.cause === 'first_invoice_unpaid' || !owes ? quote.next_renewal_at : lock.start
-    // Only a subscription that had a trial has a trial outcome; a refunded paid customer who never trialled keeps none.
-    const hadTrial = lock.cause !== 'refund' || lock.trial_ended_at !== null || sub.trial_outcome !== null
+    // Only a subscription that had a trial has a trial outcome; a refunded or cancelled paid customer who never trialled keeps none.
+    const hadTrial = lock.cause === 'cancelled' ? false : lock.cause !== 'refund' || lock.trial_ended_at !== null || sub.trial_outcome !== null
     // A re-armed lock can settle on what the subscription already holds (the same outcome, date and state): the revision
     // moves only with a real change, as the subscription revision guard requires.
     await client.query(`UPDATE subscriptions s SET renewal_at=v.renewal_at,trial_outcome=v.trial_outcome,trial_paid_through=v.paid_through,
@@ -171,6 +220,10 @@ async function settleOrdered(client: PoolClient, sub: Record<string, any>, lock:
         CASE WHEN manual_suspension THEN state ELSE 'active' END AS state FROM subscriptions WHERE id=$1) v WHERE s.id=$1`,
     [sub.id, renewalAt, outcome, JSON.stringify(lock.kept.paid_through), hadTrial])
     await client.query("UPDATE free_base_locks SET state='done',reason=NULL WHERE subscription_id=$1", [sub.id])
+    // Only the cancelled drop ends the request (a partial drop keeps it until what is still paid runs out); any other lock leaves a cancellation standing.
+    if (lock.cause === 'cancelled' && !stillPaid && await clearCancellation(client, sub.id)) await client.query(
+      'INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(), 'system:free-base-lock', 'subscription.cancellation_effective', sub.id, '', JSON.stringify({ cause: lock.cause })])
     await enqueueOutbox(client, { kind: 'free_base.locked', aggregate_id: sub.id, dedupe_key: `free-base-lock:${lock.order_seq}`,
       payload: { cause: lock.cause, outcome, kept: lock.kept.kept } })
     return

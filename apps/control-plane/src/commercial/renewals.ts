@@ -4,6 +4,7 @@ import { addCadence, riyadhDate } from '@liwan/commercial-contracts'
 import { computeQuote } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { loadQuoteSources, pricingOf } from './quote-sources.js'
+import { dateOnly } from './date-only.js'
 import { policyWire } from './policies.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { orderView } from './orders.js'
@@ -17,7 +18,7 @@ import { rearmUnpaidTrialLock } from './free-base-lock.js'
 import { loadRelease } from './bundles.js'
 import { compilePurchasedEntitlement, holdsFreeBaseLockSql, owesAtRenewal } from './free-base.js'
 
-const date = (v: any): string => v instanceof Date ? riyadhDate(v) : String(v).slice(0,10)
+const date = (v: any): string => dateOnly(v)
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
   const instant = new Date(at).getTime()
   if (!Number.isSafeInteger(days) || days < 0 || !Number.isFinite(instant)) throw new Error('invalid_trial')
@@ -50,7 +51,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       AND r.period_start=s.renewal_at AND r.kind='renewal' AND r.status<>'superseded') AS has_renewal,sr.snapshot->'pricing' AS pricing
     FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id WHERE s.state IN ('active','past_due') AND NOT s.manual_suspension
     AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND ($2::uuid IS NULL OR s.id=$2)
-    AND NOT ${holdsFreeBaseLockSql('s')} ORDER BY s.id`, [today, subscription_id ?? null])).rows
+    AND NOT ${holdsFreeBaseLockSql('s')} AND s.cancel_requested_at IS NULL ORDER BY s.id`, [today, subscription_id ?? null])).rows
   // A subscription that is no longer a candidate (suspended, cancelled, changed, or already renewed) has nothing left to fail.
   await pool.query(`UPDATE subscriptions SET renewal_failure=NULL,renewal_failed_at=NULL WHERE renewal_failure IS NOT NULL
     AND ($2::uuid IS NULL OR id=$2) AND (NOT (id = ANY($1::uuid[])) OR id = ANY($3::uuid[]))`,
@@ -79,7 +80,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     }
     const result = await transaction(pool, async client => {
       const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [candidate.id])).rows[0]
-      if (sub.manual_suspension || sub.target_revision_id || !['active','past_due'].includes(sub.state) || !sub.applied_revision_id || !sub.renewal_at || date(sub.renewal_at)>today) return null
+      if (sub.manual_suspension || sub.cancel_requested_at || sub.target_revision_id || !['active','past_due'].includes(sub.state) || !sub.applied_revision_id || !sub.renewal_at || date(sub.renewal_at)>today) return null
       // An armed free-base lock still holds the paid snapshot until the lock applies: its renewal is the free base's, and that is
       // generated once the lock is applied. The locked configuration is never invoiced.
       if ((await client.query(`SELECT ${holdsFreeBaseLockSql('s')} AS held FROM subscriptions s WHERE s.id=$1`, [sub.id])).rows[0].held) return null

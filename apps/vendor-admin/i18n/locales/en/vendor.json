@@ -1086,6 +1086,29 @@
         "reason": "Reason (3-1000 characters)",
         "suspendedNotice": "The subscription is suspended: workspace users cannot sign in."
       },
+      "renewalCancel": {
+        "endsNotice": "Cancels on {date}, requested by {by} on {requested}.",
+        "by": {
+          "customer": "the customer",
+          "vendor": "the vendor"
+        },
+        "cancel": "Cancel renewal",
+        "cancelTitle": "Cancel the renewal on the customer's behalf?",
+        "cancelHint": "The customer keeps the paid period until the renewal date, then drops to the free base. Nothing is deleted and no refund is made. The customer can resume before that date. They receive an email.",
+        "resume": "Resume renewal",
+        "resumeTitle": "Withdraw the cancellation?",
+        "resumeHint": "The subscription renews on its renewal date as usual. The customer receives an email.",
+        "reason": "Reason (3-1000 characters)",
+        "errors": {
+          "nothing_to_cancel": "The plan has nothing paid to cancel.",
+          "subscription_past_due": "An invoice is overdue. Collect it first.",
+          "lock_pending": "A change to the free base is being applied. Try again later.",
+          "subscription_suspended": "The subscription is suspended.",
+          "subscription_change_pending": "A change is still being processed.",
+          "cancel_trial_unsupported": "A trial ends by itself.",
+          "cancel_already_effective": "The period has ended; the cancellation can no longer be withdrawn."
+        }
+      },
       "cancelOrder": {
         "action": "Cancel pending order",
         "title": "Cancel this unpaid order?",

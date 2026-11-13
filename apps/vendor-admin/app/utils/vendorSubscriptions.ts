@@ -263,3 +263,10 @@ export function cancellationErrorKey(cause: unknown): string {
   return ['order_not_cancellable', 'payment_reconciliation_required', 'provider_mismatch', 'reason_required'].includes(code)
     ? `vendor.customers.cancelOrder.errors.${code}` : commercialErrorKey(cause)
 }
+
+/** Renewal cancellation errors name the rule that refused them; anything else falls back to the shared message. */
+export function renewalErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return ['nothing_to_cancel', 'subscription_past_due', 'lock_pending', 'subscription_suspended', 'subscription_change_pending', 'cancel_trial_unsupported', 'cancel_already_effective'].includes(code)
+    ? `vendor.customers.renewalCancel.errors.${code}` : commercialErrorKey(cause)
+}

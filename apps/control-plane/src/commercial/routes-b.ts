@@ -20,6 +20,7 @@ import { getUsage } from './usage.js'
 import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-http.js'
 import { endTrial, extendTrial, startTrial } from './trial.js'
 import { resumeSubscription, suspendSubscription } from './suspension.js'
+import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
@@ -110,6 +111,15 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     await act(pool,{subscription_id:suspension[1],reason:body.reason,actor:principal.actor_id})
     const owner=(await pool.query('SELECT customer_id FROM subscriptions WHERE id=$1',[suspension[1]])).rows[0]
     return {status:200,data:await getSubscription(pool,owner.customer_id)}
+  }
+  const renewalCancel=/^\/subscriptions\/([^/]+)\/(cancel-renewal|resume-renewal)$/.exec(path)
+  if(m==='POST'&&renewalCancel){
+    need(input,'vendor.subscriptions.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(renewalCancel[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const act=renewalCancel[2]==='cancel-renewal'?cancelAtPeriodEnd:resumeCancelled
+    return {status:200,data:await act(pool,{subscription_id:renewalCancel[1],by:'vendor',actor:principal.actor_id,reason:body.reason,now:new Date()})}
   }
   if(m==='POST'&&path==='/customer-terms'){need(input,'vendor.pricing.manage','vendor.subscriptions.manage');return {status:201,data:await createCustomerTerms(pool,parseBody(input.raw,z.unknown()),principal)}}
   if(m==='POST'&&path==='/customer-quotes'){

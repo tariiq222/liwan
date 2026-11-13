@@ -20,6 +20,7 @@ import { bankTransferInstructions, claimBankTransfer } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { trialEndPreview } from './trial-preview.js'
 import { retryFreeBaseLock } from './free-base-lock.js'
+import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
 import { getUsage } from './usage.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import { aiTopupCatalog } from './ai-billing-settings.js'
@@ -112,6 +113,13 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(input.raw) { let body:unknown; try{body=JSON.parse(input.raw)}catch{throw new CommercialHttpError('invalid',400,'body')} assertNoCustomerIdentity(body) }
   const path=url.pathname.slice('/v1/customer'.length),m=input.method,customerId=principal.customer_id!
   if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
+  const cancelling=/^\/subscription\/(cancel|resume)$/.exec(path)
+  if (m==='POST' && cancelling) {
+    requireCapability(principal,'subscription.manage')
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().max(1000).optional()}))
+    const act=cancelling[1]==='cancel'?cancelAtPeriodEnd:resumeCancelled
+    return {status:200,data:await act(pool,{customer_id:customerId,by:'customer',actor:principal.actor_id,reason:body.reason||null,now:new Date()})}
+  }
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
   if (m==='GET' && path==='/trial/end-preview') {
     requireCapability(principal,'subscription.read')
@@ -153,7 +161,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   const cancel=/^\/orders\/([^/]+)\/cancel$/.exec(path)
   if(m==='POST'&&cancel){
     requireCapability(principal,'subscription.manage')
-    // Owner decision 2026-10-29: a customer cancels only its own unpaid first order; changes and renewals stay with the vendor.
+    // Owner decision 2026-10-29: a customer cancels only its own unpaid first order here. Cancelling the subscription itself is `/subscription/cancel` (owner decision 2026-11-13).
     const own=z.uuid().safeParse(cancel[1]).success?(await pool.query('SELECT kind FROM orders WHERE id=$1 AND customer_id=$2',[cancel[1],customerId])).rows[0]:undefined
     if(!own)throw new CommercialHttpError('not_found',404)
     if(own.kind!=='new')throw new CommercialHttpError('order_not_cancellable',409)

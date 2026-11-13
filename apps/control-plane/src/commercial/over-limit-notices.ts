@@ -9,6 +9,8 @@ type LockNotice = { cause: FreeBaseLockCause }
 export function overLimitNotice(payload: LockNotice): { subject: string; text: string } {
   if (payload.cause === 'refund') return { subject: 'تحديث الاشتراك بعد استرداد الدفعة',
     text: 'سجّلنا استرداد دفعتك الأولى، فعاد اشتراكك إلى الباقة الأساسية المجانية. يمكنك شراء المزايا مجددًا من صفحة الاشتراك.\nYour first payment was refunded, so your subscription is back on the free base. You can buy the features again from Subscription.' }
+  if (payload.cause === 'cancelled') return { subject: 'انتهى اشتراكك المدفوع في LiwanOS',
+    text: 'انتهت مدة اشتراكك المدفوع بعد إلغاء التجديد، وعادت مساحة عملك إلى القاعدة المجانية. بياناتك محفوظة، والتطبيقات غير المشمولة فيها للقراءة والتصدير فقط. يمكنك الاشتراك من جديد في أي وقت من صفحة الاشتراك.\nYour paid subscription ended after you cancelled the renewal, and your workspace is back on the free base. Your data is kept, and apps the free base does not include are read-only and exportable. You can subscribe again any time from Subscription.' }
   const subject = 'تحديث الاشتراك بعد انتهاء التجربة'
   if (payload.cause === 'first_invoice_unpaid') return { subject, text: 'انتهت مهلة دفع الفاتورة الأولى. يمكنك شراء المزايا مجددًا من صفحة الاشتراك.\nThe first invoice payment grace period ended. You can buy the features again from Subscription.' }
   return { subject, text: 'انتهت تجربتك. أصبحت التطبيقات غير المشتراة للقراءة والتصدير، ويُقيَّد الاستخدام الزائد. راجع الاشتراك لمعرفة ما بقي متاحًا.\nYour trial ended. Unpurchased apps now allow reading and export. Excess usage is restricted. See Subscription for what remains available.' }

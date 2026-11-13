@@ -3,7 +3,7 @@ import {
   analyticsQuerySchema, analyticsSchema, type Analytics, type AnalyticsFigure, type AnalyticsFigures, type AnalyticsSnapshot, type Cadence,
 } from '@liwan/commercial-contracts'
 import {
-  bookInHistory, DAY_MS, inForceAt, monthEnds, movementIn, periodBounds, previousPeriod, ratio, recurringOf, riyadhDay, settleTrials, toTimelines,
+  bookAt, bookInHistory, DAY_MS, inForceAt, monthEnds, movementIn, periodBounds, previousPeriod, ratio, recurringOf, riyadhDay, settleTrials, toTimelines,
   type AppliedOrder, type BookAt, type Period, type PricingBaseline, type Timelines,
 } from './analytics-model.js'
 import { CommercialHttpError } from './lifecycle.js'
@@ -27,7 +27,7 @@ interface Live { subscription_id: string, customer_id: string, customer_name: st
 interface Book { timelines: Timelines, departed: Set<string>, currency: string, exponent: number, excluded: number }
 
 const available = <T>(value: T): AnalyticsFigure<T> => ({ available: true, value })
-const unavailable = (reason: 'no_data' | 'no_cancellation_date' | 'history_not_recorded'): AnalyticsFigure<never> => ({ available: false, reason })
+const unavailable = (reason: 'no_data' | 'history_not_recorded'): AnalyticsFigure<never> => ({ available: false, reason })
 const orNoData = (value: number | null): AnalyticsFigure<number> => (value === null ? unavailable('no_data') : available(value))
 const num = (value: unknown): number => Number(value ?? 0)
 
@@ -42,6 +42,7 @@ async function liveSubscriptions(db: Ask): Promise<Live[]> {
 async function loadBook(db: Ask): Promise<Book> {
   const rows = (await db.query(
     `SELECT o.subscription_id, s.state, COALESCE(s.trial_ends_at, fbl.trial_ended_at) AS trial_ends_at, o.currency, o.exponent, COALESCE(fe.applied_at, o.effective_at, o.created_at) AS applied_at,
+            (fbl.cause = 'cancelled' AND fbl.state = 'done' AND fbl.order_id = o.id AND s.cancel_requested_at IS NULL) AS churn,
             r.snapshot->'pricing' AS pricing, r.snapshot->'cadence' AS cadence, p.plan_id, p.name AS plan_name
        FROM orders o
        JOIN subscriptions s ON s.id = o.subscription_id
@@ -52,8 +53,8 @@ async function loadBook(db: Ask): Promise<Book> {
       WHERE o.fulfillment_state = 'applied' AND NOT o.cancelled AND r.snapshot->'pricing' IS NOT NULL
         -- A subscription dropped to the free base never billed what it was configured with, paid upgrades included (their snapshot still
         -- holds the unpaid or refunded apps): what was applied up to the lock is not revenue. The lock order carries the kept items and is
-        -- booked from the moment the lock was armed.
-        AND NOT EXISTS (SELECT 1 FROM free_base_locks l WHERE l.subscription_id = o.subscription_id AND COALESCE(fe.applied_at, o.effective_at, o.created_at) <= l.armed_at)
+        -- booked from the moment the lock was armed. A cancelled lock excludes only what an earlier lock on the same row excluded (excluded_until, kept when the row is rewritten), because a cancelled subscription did bill what it was configured with until its paid period ended.
+        AND NOT EXISTS (SELECT 1 FROM free_base_locks l WHERE l.subscription_id = o.subscription_id AND COALESCE(fe.applied_at, o.effective_at, o.created_at) <= (CASE WHEN l.cause = 'cancelled' THEN l.excluded_until ELSE l.armed_at END))
       ORDER BY o.subscription_id, r.revision`)).rows
   const tally = new Map<string, { n: number, exponent: number }>()
   for (const row of rows) tally.set(row.currency, { n: (tally.get(row.currency)?.n ?? 0) + 1, exponent: row.exponent })
@@ -62,7 +63,7 @@ async function loadBook(db: Ask): Promise<Book> {
   const kept = rows.filter(row => row.currency === currency)
   const orders = kept.map((row): AppliedOrder => ({
     subscription_id: row.subscription_id, applied_at: new Date(row.applied_at).getTime(), plan_id: row.plan_id, plan_name: row.plan_name,
-    ...recurringOf(row.pricing as PricingBaseline, row.cadence as Cadence),
+    ...recurringOf(row.pricing as PricingBaseline, row.cadence as Cadence), churn: row.churn === true,
   }))
   const trialEnds = new Map<string, number>(kept.filter(row => row.trial_ends_at).map(row => [row.subscription_id, new Date(row.trial_ends_at).getTime()]))
   const departed = new Set<string>(kept.filter(row => DEPARTED_STATES.includes(row.state)).map(row => row.subscription_id))
@@ -138,20 +139,21 @@ async function figuresFor(db: Ask, book: Book, unit: Money, period: Period, now:
   const { start, end } = periodBounds(period)
   const stock = bookInHistory(book.timelines, book.departed, end, now.getTime())
   const movement = movementIn(book.timelines, start, end)
-  const lost = unavailable('no_cancellation_date')
+  const opening = bookAt(book.timelines, start)
   const stockMoney = (pick: (at: BookAt) => number) => (stock ? moneyFigure(unit, pick(stock)) : historyLost)
   return {
     revenue: {
       mrr: stockMoney(at => at.mrr_minor), arr: stockMoney(at => at.arr_minor),
       new_mrr: moneyFigure(unit, movement.new_minor), expansion_mrr: moneyFigure(unit, movement.expansion_minor),
-      contraction_mrr: moneyFigure(unit, movement.contraction_minor), churned_mrr: lost,
+      contraction_mrr: moneyFigure(unit, movement.contraction_minor), churned_mrr: moneyFigure(unit, movement.churned_minor),
       arpc: !stock ? historyLost : stock.customers > 0 ? moneyFigure(unit, stock.mrr_minor / stock.customers) : unavailable('no_data'),
       extra_branch_mrr: stockMoney(at => at.branch_mrr_minor),
     },
     collection: await collection(db, unit, period),
     customers: {
-      active: stock ? available(stock.customers) : historyLost, new: available(movement.new_customers), churned: lost,
-      churn_rate_by_count: lost, churn_rate_by_revenue: lost, ...await trialConversion(db, period, now),
+      active: stock ? available(stock.customers) : historyLost, new: available(movement.new_customers), churned: available(movement.churned_customers),
+      churn_rate_by_count: orNoData(ratio(movement.churned_customers, opening.customers)),
+      churn_rate_by_revenue: orNoData(ratio(movement.churned_minor, opening.mrr_minor)), ...await trialConversion(db, period, now),
     },
     operations: { avg_hours_to_ready: await hoursToReady(db, period) },
   }
