@@ -36,7 +36,8 @@ asking each time, provided the evidence rules of this file hold:
 - merge the PR once current-head `ci-result` is green and no blocking review
   finding or unresolved conversation remains;
 - resolve a review thread after verifying the fix in the code;
-- run `python3 -B tools/wt.py gc --apply` after a merge, once the content is preserved and no
+- after a merge, return the lane with `python3 -B tools/wt.py lane finish <lane>`, or remove a temporary
+  task worktree with `python3 -B tools/wt.py gc --apply`, once the content is preserved and no
   process uses the worktree (step 6).
 
 Excluded, and needing the owner's explicit words each time: a `release/19.0.X.Y.Z`
@@ -56,7 +57,7 @@ Owner keywords:
   requested changes, then follow the six steps. It does not authorize undoing an
   earlier decision, merging unrelated worktrees or deleting recovery material.
 - «انشر» means: commit, run the checks, open the PR, merge it after current-head
-  `ci-result` is green, and run `wt gc`. It never means a direct push to `main`,
+  `ci-result` is green, and return the lane (`wt lane finish`, or `wt gc` for a temporary worktree). It never means a direct push to `main`,
   a release tag or a deployment.
 
 ### Review-approval constraint on `protect-main` (recorded 2026-10-24)
@@ -83,7 +84,7 @@ count stays at `0`.
    or pruning refs; record local `main`, remote `main`, incoming branch/head,
    PR state and active claims. Remote `main` is the publication baseline; local
    `main` can be stale. Resolve policy conflicts with the current owner decision.
-2. **Prepare one candidate.** Work in an isolated, claimed worktree. Bring the
+2. **Prepare one candidate.** Work in a fixed lane under a recorded claim ([parallel-work.md](../parallel-work.md#fixed-lanes)). Bring the
    latest remote `main` into the candidate without rebasing another owner's
    branch. Small changes made in one session or one area share one PR: each is
    its own commit on one task branch, and the PR stays in draft until the batch is
@@ -131,8 +132,8 @@ count stays at `0`.
    or discard edits to synchronize. Release and deployment need their own
    authorization and evidence. Cleanup is a separate action: ancestry alone
    does not preserve uncommitted, untracked or ignored files, scratch data or
-   runtime state. Inspect ownership, preservation and process use, then use the
-   `tools/wt.py gc` path.
+   runtime state. Inspect ownership, preservation and process use, then return the
+   lane with `tools/wt.py lane finish`, or use the `tools/wt.py gc` path for a temporary task worktree.
 
 ## Local-only integration
 

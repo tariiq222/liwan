@@ -58,10 +58,11 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
   canonical local development checkout is `/Users/tariq/code/liwan` on `main`.
-- Develop bounded tasks in temporary worktrees (any normal branch name) based on current
-  `main`. Give each task explicit file ownership and independent dependencies,
-  generated files, databases, and ports. One orchestrator owns Git integration,
-  shared-file edits, runtime changes, and final checks.
+- Develop in the four fixed lanes under `.worktrees/` (owner decision 2026-11-13): Claude sessions in
+  `claude-1` and `claude-2`, Codex sessions in `codex-1` and `codex-2`, on task branches (any normal
+  branch name) started there from current `origin/main`. The main checkout stays on `main` for the owner;
+  no agent develops in it. Give each session explicit file ownership (its claim). One orchestrator owns
+  Git integration, shared-file edits, runtime changes, and final checks.
 - Preserve stock Odoo source. Extend `project` through `liwan_pmo` and `hr`
   through `liwan_hr`. Do not recreate either pillar.
 - The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `liwan_directory`). Preserve
@@ -74,7 +75,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   older WIP describe their own checkpoints, not the current source state.
 - When reviewing a diff, follow `REVIEW.md` (what to report and what is already automated).
 - Never run tests on `liwan_dev` or `odoo19`. Commit, push of the task branch, PR, merge
-  and `wt gc` fall under the standing authorization in
+  and returning the lane (`wt lane finish`, or `wt gc` for a temporary worktree) fall under the standing authorization in
   [integration-rules.md](docs/agents/integration-rules.md); deploying, release tags,
   force-push, direct push to `main` and discarding work still need the owner's explicit words.
 - Local verification does not prove production deployment. Report fresh test
@@ -352,18 +353,25 @@ cross-addon links.
 - Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
   Presentation follows DESIGN.md. Preserve URL query filters when returning.
 
-## Safe worktree workflow
+## Safe lane workflow
 
-Create every task worktree with `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>`:
-it lives only in `<main checkout>/.worktrees/<area>-<slug>`, branches from `main` (or the task's
-integration branch) and records its owner and scopes. Never use a bare `git worktree add` or a tool's own
-worktree folder (the Claude app's `worktrees` folder under `.claude`). Overlapping another active claim needs `--allow-overlap
-"<reason>"` agreed with its owner. `npm run wt -- check` reports violations and changes nothing; the full
-rules are in `docs/parallel-work.md` ("Worktree rules").
+Work happens in four permanent worktrees, the fixed lanes `claude-1`, `claude-2`, `codex-1` and `codex-2`
+in `<main checkout>/.worktrees/`. A Claude session uses only the `claude-*` lanes and a Codex session only
+the `codex-*` lanes; the first lane of each tool carries the batch of small and medium tasks, the second
+one long or sensitive task. A lane holds one branch at a time: `npm run wt -- lane start <lane> <branch>`
+starts it from `origin/main` and `npm run wt -- lane finish <lane>` returns the lane after the merge.
+Several sessions may share a lane's branch. Each one records its paths with
+`npm run wt -- claim --owner <session> --task <what> --scope <path>`, commits only those paths with
+`LIWAN_SESSION=<session> git commit -m "<subject>" -- <paths>`, and never switches the lane's branch.
+Overlapping another active claim needs `--allow-overlap "<reason>"` agreed with its owner.
+`npm run wt -- check` reports violations and changes nothing; the full rules are in
+`docs/parallel-work.md` ("Fixed lanes").
 
-Use one temporary worktree per bounded task. Worktrees have independent `node_modules` and
+Never create another worktree: no `wt new`, bare `git worktree add` or tool-owned worktree folder (the
+Claude app's `worktrees` folder under `.claude`) unless the owner asks for one in words for that task.
+Lanes have independent `node_modules` and
 `.nuxt` (never symlinked); install with `npm ci --ignore-scripts`. Ports, databases and Odoo/Nuxt
-endpoints come from the worktree's `.env.worktree` profile, not from command-line overrides.
+endpoints come from the lane's `.env.worktree` profile, not from command-line overrides.
 One writer owns each file and one orchestrator owns shared files, Git integration, runtime state
 and final checks; install, port and collision rules are in `docs/parallel-work.md`. Never run
 tests against `liwan_dev` or `odoo19`; use a scratch database. Temporary integration databases,
