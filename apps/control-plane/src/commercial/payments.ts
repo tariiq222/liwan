@@ -166,7 +166,10 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
   // The provider's registration code is not a payment event: it is answered with success and goes to the operator, and nothing else changes.
   try {
     const verification = input.provider === input.adapter.provider ? input.adapter.webhookVerification(toBytes(input.rawBody), input.headers) : null
-    if (verification) { await recordWebhookVerification(pool, verification); return { status: 200, outcome: 'verification' as const } }
+    if (verification) {
+      if (await recordWebhookVerification(pool, verification) === 'throttled') return { status: 429, outcome: 'throttled' as const }
+      return { status: 200, outcome: 'verification' as const }
+    }
   } catch (error) { if (error instanceof PaymentError) return { status: 401, outcome: 'rejected' as const }; throw error }
   let event: ProviderEvent
   try {
@@ -265,9 +268,9 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
 /** A direct payment the provider says does not exist never charged anyone, so it no longer blocks a new attempt. */
 const MISSING_CHARGE_GRACE_MS = 60 * 60_000
 async function closeMissingDirectPayment(pool: Pool, row: any): Promise<boolean> {
-  // Before the charge response arrived the reference is only our own order id, which proves nothing by itself:
+  // Before the charge response arrived the reference is only our own attempt id, which proves nothing by itself:
   // wait out a grace period (the response may simply have been lost) before declaring it missing.
-  const unproven = !row.provider_ref || row.provider_ref === row.order_id
+  const unproven = !row.provider_ref || row.provider_ref === row.id
   if (unproven && Date.now() - new Date(row.created_at).getTime() < MISSING_CHARGE_GRACE_MS) return false
   return transaction(pool, async client => {
     const closed = await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown') RETURNING id", [row.id])

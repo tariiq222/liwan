@@ -6,16 +6,6 @@ ALTER TABLE payment_attempts ADD COLUMN kind text NOT NULL DEFAULT 'hosted_invoi
 UPDATE payment_attempts SET kind = 'saved_card' WHERE token_charge;
 ALTER TABLE payment_attempts DROP COLUMN token_charge;
 
--- The embedded form's own bookkeeping: the provider-side intent reference, whether the customer asked to keep the card, the consent
--- that was shown (its time and the version of its text), and the provider's failure code. Saving a card needs a recorded consent.
-ALTER TABLE payment_attempts
-  ADD COLUMN provider_intent_ref text,
-  ADD COLUMN save_card boolean NOT NULL DEFAULT false,
-  ADD COLUMN consent_at timestamptz,
-  ADD COLUMN consent_text_version text,
-  ADD COLUMN failure_code text,
-  ADD CONSTRAINT payment_attempts_save_card_consent_check CHECK (NOT save_card OR (consent_at IS NOT NULL AND consent_text_version IS NOT NULL));
-
 -- A saved card: the provider's opaque token and the display facts the provider returned (brand, last four digits, expiry). Never a card
 -- number, a security code or a holder name. The customer's default active row is the one a renewal charges.
 CREATE TABLE payment_methods (

@@ -228,8 +228,8 @@ suite('simulated payment settlement on live PostgreSQL', () => {
   })
   it('closes a token charge the provider does not know so the renewal can be paid by hand',async()=>{
     const f=await fixture(),order=await state(f.order_id)
-    const insert=(ref:string)=>pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,kind)
-      SELECT $1,$2,$3,'simulator','simulator',$2::uuid::text,$4,11500,'SAR',2,'unknown','saved_card'`,[randomUUID(),f.order_id,f.invoice,ref])
+    const insert=(ref:string,id=randomUUID())=>pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,kind)
+      SELECT $1,$2,$3,'simulator','simulator',$2::uuid::text,$4,11500,'SAR',2,'unknown','saved_card'`,[id,f.order_id,f.invoice,ref])
     // A payment id the provider answered 404 for is authoritative.
     await insert(`pay_gone_${randomUUID()}`)
     const next=await createPaymentAttempt(pool,f.input)
@@ -237,10 +237,11 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND kind='saved_card'",[f.order_id])).rows).toEqual([{status:'failed'}])
     expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.direct_payment_missing' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
     expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
-    // Only our own order id as the reference proves nothing yet: it waits out a grace period.
+    // Only our own attempt id as the reference (the idempotency key before the answer arrived) proves nothing yet: it waits out a grace period.
     await pool.query("UPDATE payment_attempts SET status='canceled' WHERE order_id=$1 AND kind<>'saved_card'",[f.order_id])
     await pool.query('DELETE FROM payment_attempts WHERE order_id=$1 AND kind=\'saved_card\'',[f.order_id])
-    await insert(order.id)
+    const own=randomUUID()
+    await insert(own,own)
     await expect(createPaymentAttempt(pool,f.input)).rejects.toBeTruthy()
     expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND kind='saved_card'",[f.order_id])).rows).toEqual([{status:'unknown'}])
     await pool.query("UPDATE payment_attempts SET created_at=now()-interval '2 hours' WHERE order_id=$1 AND kind='saved_card'",[f.order_id])

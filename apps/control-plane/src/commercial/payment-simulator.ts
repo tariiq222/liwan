@@ -18,6 +18,8 @@ export type SimulatorConfig = {
   live?: boolean
   merchantAccount?: string
   webhookSecret?: string
+  /** Like MOYASAR_WEBHOOK_REGISTRATION=open: a registration event without the shared secret is accepted. */
+  webhookRegistrationOpen?: boolean
   defaultOutcome?: SimOutcome
 }
 type SimAttempt = { input: CreateAttemptInput; ref: string; payment_id: string; status: ProviderEventStatus; outcome: SimOutcome; refunded: number }
@@ -35,7 +37,9 @@ const DEFAULT_CARD = { brand: 'visa', last_four: '4242', exp_month: 12, exp_year
 type SimIntent = PaymentIntent & { fulfilled: boolean }
 /** What a scripted card does when the browser fulfils an intent or a saved token is charged. */
 export type SimCardOutcome = { outcome: 'paid' } | { outcome: 'declined'; message: string } | { outcome: 'needs_customer_action' } | { outcome: 'unknown' }
-export type FulfilIntentInput = { clientSecret: string; saveCard?: boolean; card?: SimCardOutcome }
+  /** The provider refuses the token (any state), or has already used the `given_id` of an earlier payment (which then exists). */
+  | { outcome: 'token_unusable' } | { outcome: 'used_given_id'; thenPaid?: boolean }
+export type FulfilIntentInput = { clientSecret: string; saveCard?: boolean; card?: Extract<SimCardOutcome, { outcome: 'paid' | 'declined' | 'needs_customer_action' | 'unknown' }> }
 export type SimVerificationOverrides = { secret?: string | null; merchant?: string; live?: boolean }
 
 export class SimulatorAdapter implements PaymentAdapter {
@@ -44,6 +48,7 @@ export class SimulatorAdapter implements PaymentAdapter {
   readonly merchantAccount: string
   readonly webhookSecret: string
   readonly publishableKey = 'pk_test_simulator'
+  private readonly registrationOpen: boolean
   private readonly outcomes = new Map<string, SimOutcome>()
   private readonly attempts = new Map<string, SimAttempt>()
   private readonly byAttempt = new Map<string, SimAttempt>()
@@ -64,6 +69,7 @@ export class SimulatorAdapter implements PaymentAdapter {
       throw new PaymentError('provider_forbidden', 'simulator is not selectable in production/live')
     this.merchantAccount = cfg.merchantAccount ?? 'sim-merchant'
     this.webhookSecret = cfg.webhookSecret ?? 'sim-webhook-secret'
+    this.registrationOpen = cfg.webhookRegistrationOpen ?? false
     this.defaultOutcome = cfg.defaultOutcome ?? 'succeed'
   }
 
@@ -305,6 +311,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     if (p?.type !== 'webhook_verification') return null
     const present = typeof p.secret_token === 'string' && p.secret_token.length > 0
     if (present && p.secret_token !== this.webhookSecret) throw new PaymentError('signature_invalid')
+    if (!present && !this.registrationOpen) throw new PaymentError('signature_invalid')
     if (p.account_name !== undefined && p.account_name !== this.merchantAccount) throw new PaymentError('merchant_mismatch')
     if (p.live !== undefined && p.live !== false) throw new PaymentError('mode_mismatch')
     if (typeof p.data?.webhook_id !== 'string' || !/^\d{6}$/.test(String(p.data?.verification_code))) throw new PaymentError('invalid_event', 'bad verification event')
@@ -320,8 +327,14 @@ export class SimulatorAdapter implements PaymentAdapter {
     const token = this.tokens.get(i.token)
     const script = this.tokenCharges.get(i.token) ?? { outcome: 'paid' as const }
     if (script.outcome === 'unknown') return { outcome: 'unknown', reason: 'timeout' }
-    if (!token || token.status === 'initiated' || token.status === 'inactive') return { outcome: 'token_unusable' }
-    const paymentId = `sim_pay_${i.given_id}`
+    if (script.outcome === 'token_unusable' || !token || token.status === 'initiated' || token.status === 'inactive') return { outcome: 'token_unusable' }
+    // Like the provider, the payment's id is the caller's `given_id`.
+    const paymentId = i.given_id
+    if (script.outcome === 'used_given_id') {
+      // A lost answer followed by a retry: the first charge exists at the provider, the second call is refused.
+      if (script.thenPaid !== false) this.newPayment({ payment_id: paymentId, status: 'succeeded', amount: i.amount, description: i.description, callback_url: i.callback_url })
+      throw new PaymentError('used_given_id', undefined, 400)
+    }
     const outcome = token.status === 'save_only' || script.outcome === 'needs_customer_action'
       ? { outcome: 'needs_customer_action' as const, payment: this.newPayment({ payment_id: paymentId, status: 'pending', amount: i.amount, description: i.description, callback_url: i.callback_url }) }
       : script.outcome === 'declined'

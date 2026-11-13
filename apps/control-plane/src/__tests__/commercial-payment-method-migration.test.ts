@@ -56,11 +56,12 @@ suite('schema_058 carries a database that ran schema_001..057', () => {
     expect(kinds).toEqual({ [ids.direct]: 'saved_card', [ids.hosted]: 'hosted_invoice' })
     const attemptColumns = await columns('payment_attempts')
     expect(attemptColumns).not.toContain('token_charge')
-    expect(attemptColumns).toEqual(expect.arrayContaining(['kind', 'provider_intent_ref', 'save_card', 'consent_at', 'consent_text_version', 'failure_code']))
+    expect(attemptColumns).toContain('kind')
+    // The form's bookkeeping columns arrive with the code that writes them, not before.
+    for (const unused of ['provider_intent_ref', 'save_card', 'consent_at', 'consent_text_version', 'failure_code']) expect(attemptColumns).not.toContain(unused)
     await expect(pool.query("UPDATE payment_attempts SET kind='token' WHERE id=$1", [ids.hosted])).rejects.toMatchObject({ constraint: 'payment_attempts_kind_check' })
-    await expect(pool.query('UPDATE payment_attempts SET save_card=true WHERE id=$1', [ids.hosted])).rejects.toMatchObject({ constraint: 'payment_attempts_save_card_consent_check' })
-    await pool.query("UPDATE payment_attempts SET save_card=true,consent_at=now(),consent_text_version='v1',kind='form' WHERE id=$1", [ids.hosted])
-    expect((await pool.query('SELECT save_card,kind FROM payment_attempts WHERE id=$1', [ids.hosted])).rows[0]).toEqual({ save_card: true, kind: 'form' })
+    await pool.query("UPDATE payment_attempts SET kind='form' WHERE id=$1", [ids.hosted])
+    expect((await pool.query('SELECT kind FROM payment_attempts WHERE id=$1', [ids.hosted])).rows[0]).toEqual({ kind: 'form' })
   })
 
   it('drops the subscription token and keeps the auto-renew consent check', async () => {

@@ -183,6 +183,17 @@ it('registers version fifty-nine once and gives a bank transfer its own attempt 
   await migrate(g.pool)
   expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(59)')
 })
+it('registers version sixty once and indexes the webhook registration codes', async () => {
+  const applied = Array.from({ length: 59 }, (_, i) => i + 1)
+  const f = fixture(applied)
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(60)')
+  expect(sql.some((s) => s.includes('CREATE INDEX audit_events_webhook_verification') && s.includes("WHERE action = 'payment.webhook_verification'"))).toBe(true)
+  const g = fixture([...applied, 60])
+  await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(60)')
+})
 it('registers immutable branch quotes and revision guard in versions fifteen and sixteen once', async () => {
   const applied = Array.from({length:14}, (_, i) => i+1)
   const f=fixture(applied)

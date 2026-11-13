@@ -77,9 +77,25 @@ describe('boot: the publishable key', () => {
     expect(adapter.publishableKey).toBe(PUBLISHABLE_KEY)
     expect(adapter.publishableKey).not.toBe(SECRET_KEY)
   })
-  it('is required when the provider is Moyasar and never for the simulator', () => {
-    expect(() => paymentAdapterFromEnv(env({ MOYASAR_PUBLISHABLE_KEY: undefined }))).toThrow(/provider_not_configured: missing MOYASAR_PUBLISHABLE_KEY/)
+  it('is optional: an adapter without it builds, has no key to expose, and refuses only card payments through the form', async () => {
+    const adapter = paymentAdapterFromEnv(env({ MOYASAR_PUBLISHABLE_KEY: undefined }))
+    expect(adapter.publishableKey).toBeNull()
     expect(paymentAdapterFromEnv({ LIWAN_PAYMENT_PROVIDER: 'simulator' }).provider).toBe('simulator')
+    const { a, calls } = mk([{ id: 'pay_1', status: 'refunded', amount: 5000, refunded: 5000, currency: 'SAR' }], { publishableKey: undefined })
+    expect(a.publishableKey).toBeNull()
+    const error = await failure(a.createIntent({ attempt_id: ATTEMPT, amount: sar(11500), callback_url: CALLBACK }))
+    expect(error.code).toBe('provider_not_configured')
+    expect(error.message).toContain('MOYASAR_PUBLISHABLE_KEY')
+    expect(calls).toHaveLength(0)
+    expect((await a.refund('pay_1')).outcome).toBe('refunded')
+  })
+  it('opens webhook registration only for the exact value `open`', () => {
+    for (const [value, open] of [['open', true], ['', false], ['true', false], ['OPEN', false], [undefined, false]] as const) {
+      const adapter = paymentAdapterFromEnv(env({ MOYASAR_WEBHOOK_REGISTRATION: value }))
+      const body = enc({ type: 'webhook_verification', account_name: 'acme', live: false, data: { webhook_id: 'wh_1', verification_code: '123456' } })
+      if (open) expect(adapter.webhookVerification(body, {})).toMatchObject({ authenticated: false })
+      else expect(() => adapter.webhookVerification(body, {})).toThrow(/signature_invalid/)
+    }
   })
   it('refuses a key of the other mode, like the secret key check', () => {
     expect(() => paymentAdapterFromEnv(env({ MOYASAR_PUBLISHABLE_KEY: 'pk_live_x' }))).toThrow(/key_mode_mismatch/)
@@ -244,19 +260,32 @@ describe('MoyasarAdapter charging a saved token', () => {
 
 describe('MoyasarAdapter refunds', () => {
   const ref = { id: 'pay_1', status: 'refunded', amount: 5000, refunded: 5000, currency: 'SAR' }
-  it('succeeds with the cumulative figure, whole when no amount is given', async () => {
+    it('succeeds with the cumulative figure, whole when no amount is given', async () => {
     const whole = mk([ref])
     expect(await whole.a.refund('pay_1')).toMatchObject({ outcome: 'refunded', payment_id: 'pay_1', status: 'refunded', refunded: sar(5000) })
     expect(JSON.parse(whole.calls[0].init.body)).toEqual({})
     expect(await mk([{ ...ref, refunded: 300 }]).a.refund('pay_1', sar(300))).toMatchObject({ outcome: 'refunded', refunded: sar(300) })
   })
-  it('tells a second refund from a refusal of the amount, by the provider`s error type and words', async () => {
+  it('answers already_refunded only for HTTP 400 with the provider`s words, and any other refusal stays a thrown error with its type', async () => {
     const already = { http: 400, body: { type: 'invalid_request', message: 'Payment is already refunded.' } }
     expect(await mk([already]).a.refund('pay_1', sar(300))).toEqual({ outcome: 'already_refunded' })
-    const below = { http: 400, body: { type: 'validation_error', message: 'Validation failed', errors: { amount: ['must be at least 100'] } } }
+    const other = await failure(mk([{ http: 400, body: { type: 'invalid_request', message: 'Only paid or captured payments can be refunded.' } }]).a.refund('pay_1'))
+    expect(other.code).toBe('invalid_request')
+    const wrongStatus = await failure(mk([{ http: 409, body: { type: 'invalid_request', message: 'Payment is already refunded.' } }]).a.refund('pay_1'))
+    expect(wrongStatus.code).toBe('invalid_request')
+    const wrongType = await failure(mk([{ http: 400, body: { type: 'validation_error', message: 'Payment is already refunded.' } }]).a.refund('pay_1'))
+    expect(wrongType.code).toBe('validation_error')
+    // A refusal that merely mentions the amount is not the minimum.
+    const amount = await failure(mk([{ http: 400, body: { type: 'validation_error', message: 'amount exceeds the payment', errors: { amount: ['too big'] } } }]).a.refund('pay_1', sar(300)))
+    expect(amount.code).toBe('validation_error')
+  })
+  it('decides the minimum itself, before any call', async () => {
     expect(MIN_REFUND_MINOR).toBe(100)
-    expect(await mk([below]).a.refund('pay_1', sar(50))).toEqual({ outcome: 'below_minimum' })
-    expect((await failure(mk([{ http: 400, body: { type: 'invalid_request', message: 'Only paid or captured payments can be refunded.' } }]).a.refund('pay_1'))).code).toBe('invalid_request')
+    const { a, calls } = mk([ref])
+    expect(await a.refund('pay_1', sar(MIN_REFUND_MINOR - 1))).toEqual({ outcome: 'below_minimum' })
+    expect(calls).toHaveLength(0)
+    expect((await a.refund('pay_1', sar(MIN_REFUND_MINOR))).outcome).toBe('refunded')
+    expect(calls).toHaveLength(1)
   })
 })
 
@@ -294,8 +323,15 @@ describe('MoyasarAdapter webhooks', () => {
     expect(() => a.webhookVerification(verification({ secret_token: 'wrong' }), {})).toThrow(/signature_invalid/)
     expect(() => a.webhookVerification(verification({ account_name: 'other' }), {})).toThrow(/merchant_mismatch/)
     expect(() => a.webhookVerification(verification({ live: true }), {})).toThrow(/mode_mismatch/)
-    expect(a.webhookVerification(verification({ secret_token: undefined }), {})).toMatchObject({ authenticated: false, code: '123456' })
-    expect(() => a.webhookVerification(verification({ secret_token: undefined, account_name: 'other' }), {})).toThrow(/merchant_mismatch/)
+    // Without the secret, registration must have been opened by the operator.
+    expect(() => a.webhookVerification(verification({ secret_token: undefined }), {})).toThrow(/signature_invalid/)
+    const open = mk([], { webhookRegistrationOpen: true }).a
+    expect(open.webhookVerification(verification({ secret_token: undefined }), {})).toMatchObject({ authenticated: false, code: '123456' })
+    expect(() => open.webhookVerification(verification({ secret_token: undefined, account_name: 'other' }), {})).toThrow(/merchant_mismatch/)
+    expect(() => open.webhookVerification(verification({ secret_token: undefined, live: true }), {})).toThrow(/mode_mismatch/)
+    // A signed event ignores the setting: right secret accepted closed, wrong secret refused open.
+    expect(a.webhookVerification(verification(), {})).toMatchObject({ authenticated: true })
+    expect(() => open.webhookVerification(verification({ secret_token: 'wrong' }), {})).toThrow(/signature_invalid/)
     for (const code of ['12345', '1234567', 'abcdef', '']) expect(() => a.webhookVerification(verification({}, { verification_code: code }), {})).toThrow(/invalid_event/)
     expect(() => a.webhookVerification(verification({}, { webhook_id: '' }), {})).toThrow(/invalid_event/)
   })
@@ -397,7 +433,8 @@ describe('the simulator keeps the same payment surface', () => {
     const payment = s.fulfilIntent(intent.id, { clientSecret: intent.client_secret })
     expect(s.verifyEvent(s.paymentWebhookBody(payment.payment_id), {})).toMatchObject({ provider_ref: payment.payment_id, attempt_id: ATTEMPT, status: 'succeeded' })
     expect(s.webhookVerification(s.verificationWebhookBody('wh_1', '123456'), {})).toMatchObject({ webhook_id: 'wh_1', code: '123456', authenticated: true })
-    expect(s.webhookVerification(s.verificationWebhookBody('wh_1', '123456', { secret: null }), {})?.authenticated).toBe(false)
+    expect(() => s.webhookVerification(s.verificationWebhookBody('wh_1', '123456', { secret: null }), {})).toThrow(/signature_invalid/)
+    expect(new SimulatorAdapter({ webhookRegistrationOpen: true }).webhookVerification(s.verificationWebhookBody('wh_1', '123456', { secret: null }), {})?.authenticated).toBe(false)
     expect(() => s.webhookVerification(s.verificationWebhookBody('wh_1', '123456', { secret: 'bad' }), {})).toThrow(/signature_invalid/)
     expect(s.webhookVerification(s.paymentWebhookBody(payment.payment_id), {})).toBeNull()
   })

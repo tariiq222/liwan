@@ -4,7 +4,7 @@
 // behaves is recorded in docs/operations/moyasar-form-spike.md.
 import { timingSafeEqual } from 'node:crypto'
 import {
-  PROVIDER_ERROR_TYPES, PaymentError, assertReturnUrl,
+  MIN_REFUND_MINOR, PROVIDER_ERROR_TYPES, PaymentError, assertReturnUrl,
   type AdapterHeaders, type ChargeTokenInput, type ChargeTokenOutcome, type CreateAttemptInput, type CreateAttemptResult, type CreateIntentInput,
   type IntentCancelOutcome, type IntentStatus, type Money, type PaymentAdapter, type PaymentErrorCode, type PaymentIntent, type PaymentRecord,
   type ProviderErrorType, type ProviderEvent, type ProviderEventStatus, type RefundOutcome, type TokenInfo, type TokenStatus, type WebhookVerification,
@@ -13,7 +13,10 @@ import { buildAttemptDescription, parseAttemptDescription } from './payment-desc
 
 export type MoyasarConfig = {
   secretKey: string
-  publishableKey: string
+  /** Needed only for card payments through the form (`createIntent`); a deployment without it keeps every other flow. */
+  publishableKey?: string
+  /** The operator opened webhook registration (`MOYASAR_WEBHOOK_REGISTRATION=open`): only then is a registration event without the shared secret accepted. */
+  webhookRegistrationOpen?: boolean
   webhookSecret: string
   merchantAccount: string
   expectLive: boolean
@@ -73,7 +76,7 @@ export class MoyasarAdapter implements PaymentAdapter {
   readonly provider = 'moyasar'
   readonly mode: 'test' | 'live'
   get merchantAccount(): string { return this.cfg.merchantAccount }
-  get publishableKey(): string { return this.cfg.publishableKey }
+  get publishableKey(): string | null { return this.cfg.publishableKey ?? null }
   private readonly base: string
   private readonly auth: string
   private readonly fetchImpl: typeof fetch
@@ -88,11 +91,13 @@ export class MoyasarAdapter implements PaymentAdapter {
       if (cfg.expectLive) throw new PaymentError('key_mode_mismatch', 'test key with expectLive=true')
     } else throw new PaymentError('provider_not_configured', 'secret key must start with sk_test_ or sk_live_')
     const publishable = cfg.publishableKey
-    if (publishable.startsWith('pk_live_')) {
-      if (!cfg.expectLive) throw new PaymentError('key_mode_mismatch', 'live publishable key requires expectLive=true')
-    } else if (publishable.startsWith('pk_test_')) {
-      if (cfg.expectLive) throw new PaymentError('key_mode_mismatch', 'test publishable key with expectLive=true')
-    } else throw new PaymentError('provider_not_configured', 'publishable key must start with pk_test_ or pk_live_')
+    if (publishable !== undefined) {
+      if (publishable.startsWith('pk_live_')) {
+        if (!cfg.expectLive) throw new PaymentError('key_mode_mismatch', 'live publishable key requires expectLive=true')
+      } else if (publishable.startsWith('pk_test_')) {
+        if (cfg.expectLive) throw new PaymentError('key_mode_mismatch', 'test publishable key with expectLive=true')
+      } else throw new PaymentError('provider_not_configured', 'publishable key must start with pk_test_ or pk_live_')
+    }
     if (!cfg.webhookSecret || !cfg.merchantAccount) throw new PaymentError('provider_not_configured', 'webhook secret/account required')
     this.mode = cfg.expectLive ? 'live' : 'test'
     this.base = (cfg.baseUrl ?? 'https://api.moyasar.com/v1').replace(/\/+$/, '')
@@ -167,6 +172,7 @@ export class MoyasarAdapter implements PaymentAdapter {
   }
 
   async createIntent(i: CreateIntentInput): Promise<PaymentIntent> {
+    if (!this.cfg.publishableKey) throw new PaymentError('provider_not_configured', 'MOYASAR_PUBLISHABLE_KEY is needed for card payments through the form')
     const callback_url = assertReturnUrl(i.callback_url, this.cfg.allowedReturnOrigins)
     if (!Number.isInteger(i.amount.minor) || i.amount.minor < 100) throw new PaymentError('invalid_amount', 'minimum 100 minor units')
     return this.intentOf(await this.call('POST', '/payment_intents', {
@@ -218,9 +224,9 @@ export class MoyasarAdapter implements PaymentAdapter {
   }
 
   /**
-   * The registration event. The sandbox document lists `secret_token` in the common envelope and does not say whether this event
-   * carries it. A token that is present must match (so a wrong one is refused like on any event). An absent one is accepted but
-   * the result says `authenticated: false`: the code only goes to the operator, and the caller bounds how many it records.
+   * The registration event. A `secret_token` that is present must match, whatever the registration setting. An event without one is
+   * accepted only while the operator has opened registration (`webhookRegistrationOpen`), because the sandbox document does not say the
+   * event carries the secret; it is then reported `authenticated: false`, and `account_name` and `live` must match when present.
    */
   webhookVerification(rawBody: Uint8Array, _headers: AdapterHeaders = {}): WebhookVerification | null {
     let p: Json
@@ -229,6 +235,7 @@ export class MoyasarAdapter implements PaymentAdapter {
     const token = text(p.secret_token)
     if (token) this.checkedWebhook(rawBody)
     else {
+      if (!this.cfg.webhookRegistrationOpen) throw new PaymentError('signature_invalid')
       if (p.account_name !== undefined && p.account_name !== this.cfg.merchantAccount) throw new PaymentError('merchant_mismatch')
       if (p.live !== undefined && p.live !== this.cfg.expectLive) throw new PaymentError('mode_mismatch')
     }
@@ -306,13 +313,12 @@ export class MoyasarAdapter implements PaymentAdapter {
   }
 
   async refund(paymentRef: string, amount?: Money): Promise<RefundOutcome> {
+    // The minimum is the provider's published rule; a smaller request is not worth a call and is never confused with another refusal.
+    if (amount && amount.minor < MIN_REFUND_MINOR) return { outcome: 'below_minimum' }
     let p: Json
     try { p = await this.call('POST', `/payments/${encodeURIComponent(paymentRef)}/refund`, amount ? { amount: amount.minor } : {}) }
     catch (e) {
-      if (e instanceof PaymentError && (e.code === 'invalid_request' || e.code === 'validation_error')) {
-        if (/already refunded/i.test(e.message)) return { outcome: 'already_refunded' }
-        if (/\bamount\b/i.test(e.message)) return { outcome: 'below_minimum' }
-      }
+      if (e instanceof PaymentError && e.httpStatus === 400 && e.code === 'invalid_request' && /already refunded/i.test(e.message)) return { outcome: 'already_refunded' }
       throw e
     }
     return {

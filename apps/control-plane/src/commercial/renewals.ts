@@ -10,7 +10,7 @@ import { policyWire } from './policies.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { orderView } from './orders.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
-import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
+import { createPaymentAttempt, lookup, paymentReturnUrls } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
 import { defaultPaymentMethod } from './payment-methods.js'
@@ -140,10 +140,12 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       // The block ends with the order it was blocking, in the same transaction: a run that fails or finds nothing to
       // generate leaves the flag for the vendor.
       await client.query('UPDATE subscriptions SET billing_blocked_at=NULL,renewal_failure=NULL,renewal_failed_at=NULL WHERE id=$1 AND (billing_blocked_at IS NOT NULL OR renewal_failure IS NOT NULL)', [sub.id])
-      return { order,sub,invoice }
+      // The saved card is read under the same lock as the subscription, so a card removed or replaced meanwhile is not charged.
+      const method = invoice && sub.auto_renew_enabled && sub.auto_renew_consent_at ? await defaultPaymentMethod(client, sub.customer_id) : null
+      return { order,sub,invoice,method }
     })
     if (!result) continue
-    const {order,sub,invoice} = result
+    const {order,sub,invoice,method} = result
     generated.push(order)
     if (!invoice) continue
     // Pricing that owed nothing but produced an invoice anyway still needs its payment page: resolve the origin now.
@@ -156,32 +158,27 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
         continue
       }
     }
+    // A card saved at another provider or in another mode is not this adapter's: it is no usable card, and the vendor can see why.
+    const usable = method && method.provider === adapter.provider && method.mode === adapter.mode ? method : null
+    if (method && !usable) await recordCardUnusable(pool, order.id, method, adapter)
     let activeToken = false
-    const method = sub.auto_renew_enabled && sub.auto_renew_consent_at ? await defaultPaymentMethod(pool, sub.customer_id) : null
-    if (method) {
-      try { activeToken = (await adapter.getToken(method.provider_token)).active } catch { /* use hosted payment instead */ }
+    if (usable) {
+      try { activeToken = (await adapter.getToken(usable.provider_token)).active } catch { /* use hosted payment instead */ }
     }
-    if (!activeToken || !method) {
+    if (!activeToken || !usable) {
       await createPaymentAttempt(pool,{order_id:order.id,customer_id:sub.customer_id,adapter,returnOrigin:async()=>origin})
       continue
     }
+    // The attempt's own id is the provider's idempotency key and, at the provider, the payment's id: a lost answer is found again by it.
     const attemptId = randomUUID()
     await transaction(pool, async client => {
       await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,kind)
-        VALUES($1,$2,$3,$4,$5,$2::uuid::text,$2::uuid::text,$6,$7,$8,'saved_card')`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
+        VALUES($1,$2,$3,$4,$5,$2::uuid::text,$1::uuid::text,$6,$7,$8,'saved_card')`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
       await client.query("UPDATE renewals SET status='charging' WHERE order_id=$1", [order.id])
     })
-    let chargedPaymentId: string | null = null
-    try {
-      const charged = await adapter.chargeToken({given_id:order.id,token:method.provider_token,amount:invoice.total,
-        description:`LiwanOS renewal ${order.id}`,callback_url:paymentReturnUrls(origin,attemptId)})
-      // A charge response only identifies the attempt; settlement requires provider lookup. Without a payment (the token was refused, or the
-      // answer never came) nothing is known: the attempt is parked as unknown.
-      if ('payment' in charged) chargedPaymentId = charged.payment.payment_id
-    } catch { /* uncertain: parked as unknown below */ }
-    if (chargedPaymentId) await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,chargedPaymentId])
-    // The committed invoice/order survive; uncertain charges must be reconciled, never blindly retried.
-    else await pool.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1 AND status='created'", [attemptId])
+    const closed = await chargeSavedCard(pool, adapter, { attemptId, order_id: order.id, method: usable, amount: invoice.total, callback_url: paymentReturnUrls(origin,attemptId) })
+    // A card that could not pay leaves the invoice payable: the customer gets the hosted link, as they do without a card.
+    if (closed) await createPaymentAttempt(pool,{order_id:order.id,customer_id:sub.customer_id,adapter,returnOrigin:async()=>origin})
     } catch (error) {
       await recordRenewalFailure(pool, candidate.id, error)
       failures.push(error)
@@ -192,6 +189,75 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
   if (failures.length && subscription_id) throw failures[0]
   if (unusableOrigins) throw new CommercialHttpError('return_url_forbidden', 422)
   return generated
+}
+
+const DECLINE_MESSAGE_MAX = 200
+
+async function recordCardUnusable(pool: Pool, orderId: string, method: { id: string; provider: string; mode: string }, adapter: PaymentAdapter) {
+  await pool.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+    [randomUUID(), 'system', 'payment.saved_card_unusable', orderId, 'The saved card belongs to another payment provider or mode; the invoice is payable by link',
+      JSON.stringify({ payment_method_id: method.id, method_provider: method.provider, method_mode: method.mode, adapter_provider: adapter.provider, adapter_mode: adapter.mode })])
+}
+
+/** Closes a saved-card attempt as failed, puts the renewal back to invoiced and records why (never the token or a provider URL). Returns whether it closed. */
+async function closeChargeAttempt(pool: Pool, input: { attemptId: string; order_id: string; action: string; reason: string; metadata: Record<string, unknown>; inactivateMethod?: string }) {
+  return transaction(pool, async client => {
+    const closed = await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1 AND status='created' RETURNING id", [input.attemptId])
+    if (!closed.rowCount) return false
+    await client.query("UPDATE renewals SET status='invoiced' WHERE order_id=$1 AND status='charging'", [input.order_id])
+    if (input.inactivateMethod) await client.query("UPDATE payment_methods SET status='inactive' WHERE id=$1 AND status='active'", [input.inactivateMethod])
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(), 'system', input.action, input.order_id, input.reason, JSON.stringify({ attempt_id: input.attemptId, ...input.metadata })])
+    return true
+  })
+}
+
+/** Parks the attempt as unknown: the charge may have happened, so the reconciler looks the payment up by the attempt id and nothing is retried blindly. */
+const parkUnknown = (pool: Pool, attemptId: string) =>
+  pool.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1 AND status IN ('created','pending')", [attemptId])
+
+/**
+ * Charges the saved card and acts on each of the five outcomes. `paid` and `unknown` leave the attempt live for settlement or the
+ * reconciler; every other outcome closes it as failed at once and returns true, so the caller can offer the hosted link. A thrown
+ * `used_given_id` means an earlier call of this attempt reached the provider: the payment is looked up by the attempt id.
+ */
+async function chargeSavedCard(pool: Pool, adapter: PaymentAdapter, input: { attemptId: string; order_id: string; method: { id: string; provider_token: string }
+  amount: Parameters<PaymentAdapter['chargeToken']>[0]['amount']; callback_url: string }): Promise<boolean> {
+  const { attemptId, order_id } = input
+  let charged: Awaited<ReturnType<PaymentAdapter['chargeToken']>>
+  try {
+    charged = await adapter.chargeToken({ given_id: attemptId, token: input.method.provider_token, amount: input.amount,
+      description: `LiwanOS renewal ${order_id}`, callback_url: input.callback_url })
+  } catch (error) {
+    const code = (error as { code?: string })?.code ?? 'error'
+    if (code === 'used_given_id') {
+      await pool.query("UPDATE payment_attempts SET status='pending',updated_at=now() WHERE id=$1 AND status='created'", [attemptId])
+      try { await lookup(pool, adapter, (await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [attemptId])).rows[0]) }
+      catch { await parkUnknown(pool, attemptId) }
+      return false
+    }
+    console.error(JSON.stringify({ event: 'commercial_saved_card_charge_failed', attempt_id: attemptId, error: code }))
+    await parkUnknown(pool, attemptId)
+    return false
+  }
+  switch (charged.outcome) {
+    case 'paid':
+      // A charge response only identifies the payment; settlement requires the provider lookup.
+      await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId, charged.payment.payment_id])
+      return false
+    case 'declined':
+      return closeChargeAttempt(pool, { attemptId, order_id, action: 'payment.saved_card_declined', reason: 'The provider declined the saved card',
+        metadata: { message: charged.message?.slice(0, DECLINE_MESSAGE_MAX) ?? null } })
+    case 'needs_customer_action':
+      return closeChargeAttempt(pool, { attemptId, order_id, action: 'payment.saved_card_needs_customer_action', reason: 'The saved card needs the customer to act (authentication); it cannot be charged in the background', metadata: {} })
+    case 'token_unusable':
+      return closeChargeAttempt(pool, { attemptId, order_id, action: 'payment.saved_card_unusable', reason: 'The provider refused the saved card; it is marked inactive',
+        metadata: { payment_method_id: input.method.id }, inactivateMethod: input.method.id })
+    case 'unknown':
+      await parkUnknown(pool, attemptId)
+      return false
+    default: { const exhausted: never = charged; throw new Error(`unhandled charge outcome ${JSON.stringify(exhausted)}`) }
+  }
 }
 
 /** Explicit log and a durable mark the vendor attention list shows (`renewal_failed`) until a renewal is generated for the subscription. */

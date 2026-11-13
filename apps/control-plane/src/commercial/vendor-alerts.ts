@@ -174,10 +174,12 @@ async function factCandidates(pool: Pool, since: Date, now: Date): Promise<Candi
   }
 
   // The provider's webhook registration code: an audit event written when the event arrives, so a worker that was down still announces it.
-  for (const row of (await pool.query(`SELECT a.id,a.subject,a.metadata->>'code' AS code,a.metadata->>'authenticated' AS authenticated FROM audit_events a
-    WHERE a.action=$1 AND a.created_at >= $2`, [WEBHOOK_VERIFICATION_ACTION, since])).rows)
+  for (const row of (await pool.query(`SELECT a.id,a.metadata->>'webhook_id' AS webhook_id,a.metadata->>'code' AS code,a.metadata->>'authenticated' AS authenticated FROM audit_events a
+    WHERE a.action='${WEBHOOK_VERIFICATION_ACTION}' AND a.created_at >= $1`, [since])).rows)
     out.push({ key: `audit:${row.id}`, event: 'webhook_verification', customerId: null, name: 'payment provider', noCustomer: true,
-      lines: [`الرمز: ${cleanAlertText(row.code, 6)}`, ...(row.authenticated === 'true' ? [] : ['تنبيه: الحدث لم يحمل الرمز السري المشترك فلم يُتحقق من مصدره. تأكد أنك سجّلت الـwebhook بنفسك قبل إدخال الرمز.'])] })
+      lines: [`معرّف الـwebhook: ${cleanAlertText(row.webhook_id, 64)}`, `الرمز: ${cleanAlertText(row.code, 6)}`,
+        'أدخل الرمز فقط إذا كان معرّف الـwebhook أعلاه هو المعروض لـwebhook الذي سجّلته في لوحة مزود الدفع.',
+        ...(row.authenticated === 'true' ? [] : ['الحدث وصل بلا الرمز السري المشترك فلم يُتحقق من مصدره، وهو مقبول لأنك فتحت التسجيل.'])] })
 
   const notes = `SELECT n.id,n.amount_minor AS total_minor,n.currency,n.exponent,c.id AS customer_id,c.name FROM invoice_adjustments n JOIN customers c ON c.id=n.customer_id
     WHERE n.origin='vendor' AND n.cause='vendor_refund'`

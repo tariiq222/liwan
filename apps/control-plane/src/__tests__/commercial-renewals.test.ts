@@ -4,7 +4,7 @@ import { Pool } from 'pg'
 import { setup, client, money, monthly, seedPaymentMethod, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
-import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { SimulatorAdapter, type SimCardOutcome } from '../commercial/payment-simulator.js'
 import { generateRenewals, applyDunning, trialEndsAt } from '../commercial/renewals.js'
 import { verifyReturnedAttempt } from '../commercial/payments.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
@@ -97,6 +97,73 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     expect((await pool.query('SELECT status FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].status).toBe('paid')
     expect(await generateRenewals(pool,args(adapter))).toHaveLength(0)
     expect((await pool.query('SELECT count(*)::int AS n FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].n).toBe(1)
+  })
+  /** A renewal due today for a customer with a saved card whose charge is scripted; returns what the customer is left with. */
+  async function renewWithCard(script:SimCardOutcome|null,card:{provider?:string;mode?:string}={}){
+    const s=await subscription()
+    const token=`token_secret_${randomUUID()}`
+    const method=await seedPaymentMethod(pool,s.customer,token,card)
+    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1 WHERE id=$1',[s.id,now])
+    const adapter=new SimulatorAdapter().addToken(token)
+    if(script)adapter.scriptTokenCharge(token,script)
+    const charge=vi.spyOn(adapter,'chargeToken')
+    await generateRenewals(pool,args(adapter))
+    const order=(await pool.query("SELECT id,payment_state FROM orders WHERE subscription_id=$1 AND kind='renewal'",[s.id])).rows[0]
+    const attempts=(await pool.query('SELECT id,kind,status,provider_ref FROM payment_attempts WHERE order_id=$1 ORDER BY created_at,id',[order.id])).rows
+    const audit=(await pool.query("SELECT action,reason,metadata FROM audit_events WHERE subject=$1 AND action LIKE 'payment.saved_card%' ORDER BY created_at",[order.id])).rows
+    const methodStatus=(await pool.query('SELECT status FROM payment_methods WHERE id=$1',[method])).rows[0].status
+    const renewal=(await pool.query('SELECT status FROM renewals WHERE order_id=$1',[order.id])).rows[0].status
+    expect(JSON.stringify(audit)).not.toContain(token)
+    return {s,order,attempts,audit,methodStatus,renewal,charge,adapter}
+  }
+  it('charges the card with the attempt id as the idempotency key, and keeps the attempt live until the payment settles',async()=>{
+    const r=await renewWithCard(null)
+    expect(r.attempts).toEqual([expect.objectContaining({kind:'saved_card',status:'pending'})])
+    expect(r.charge.mock.calls[0]![0].given_id).toBe(r.attempts[0].id)
+    expect(r.attempts[0].provider_ref).toBe(r.attempts[0].id)
+    expect(r.renewal).toBe('charging')
+  })
+  it('a decline closes the attempt at once, records the message, and leaves the order payable by the hosted link',async()=>{
+    const r=await renewWithCard({outcome:'declined',message:'INSUFFICIENT FUNDS'})
+    expect(r.attempts).toEqual([expect.objectContaining({kind:'saved_card',status:'failed'}),expect.objectContaining({kind:'hosted_invoice',status:'redirected'})])
+    expect(r.order.payment_state).toBe('awaiting_payment')
+    expect(r.audit).toEqual([expect.objectContaining({action:'payment.saved_card_declined',metadata:expect.objectContaining({message:'INSUFFICIENT FUNDS',attempt_id:r.attempts[0].id})})])
+    expect(r.methodStatus).toBe('active');expect(r.renewal).toBe('invoiced')
+  })
+  it('a payment that needs the customer is closed as failed, never left pending, and no provider URL is kept',async()=>{
+    const r=await renewWithCard({outcome:'needs_customer_action'})
+    expect(r.attempts.map(a=>[a.kind,a.status])).toEqual([['saved_card','failed'],['hosted_invoice','redirected']])
+    expect(r.audit.map(a=>a.action)).toEqual(['payment.saved_card_needs_customer_action'])
+    expect(JSON.stringify(r.audit)).not.toMatch(/https?:/)
+    expect(r.renewal).toBe('invoiced')
+  })
+  it('a refused token closes the attempt, marks the saved card inactive, and offers the hosted link',async()=>{
+    const r=await renewWithCard({outcome:'token_unusable'})
+    expect(r.attempts.map(a=>[a.kind,a.status])).toEqual([['saved_card','failed'],['hosted_invoice','redirected']])
+    expect(r.methodStatus).toBe('inactive')
+    expect(r.audit.map(a=>a.action)).toEqual(['payment.saved_card_unusable'])
+    expect(r.order.payment_state).toBe('awaiting_payment')
+  })
+  it('an unknown outcome parks the attempt for the reconciler, which finds the payment by the attempt id, and offers no second payment',async()=>{
+    const r=await renewWithCard({outcome:'unknown'})
+    expect(r.attempts).toEqual([expect.objectContaining({kind:'saved_card',status:'unknown',provider_ref:expect.any(String)})])
+    expect(r.attempts[0].provider_ref).toBe(r.attempts[0].id)
+    expect(r.methodStatus).toBe('active')
+  })
+  it('a given_id the provider already used is looked up by the attempt id, not swallowed',async()=>{
+    const found=await renewWithCard({outcome:'used_given_id'})
+    expect(found.attempts).toEqual([expect.objectContaining({kind:'saved_card',status:'succeeded'})])
+    expect(found.order.payment_state).toBe('paid')
+    const missing=await renewWithCard({outcome:'used_given_id',thenPaid:false})
+    expect(missing.attempts).toEqual([expect.objectContaining({kind:'saved_card',status:'unknown'})])
+  })
+  it('does not charge a card saved at another provider or mode, says so in the audit trail without the token, and offers the hosted link',async()=>{
+    for(const card of [{provider:'moyasar',mode:'live'},{mode:'test'}]){
+      const r=await renewWithCard(null,card)
+      expect(r.charge).not.toHaveBeenCalled()
+      expect(r.attempts.map(a=>[a.kind,a.status])).toEqual([['hosted_invoice','redirected']])
+      expect(r.audit).toEqual([expect.objectContaining({action:'payment.saved_card_unusable',metadata:expect.objectContaining({adapter_provider:'simulator',adapter_mode:'simulator',method_mode:card.mode})})])
+    }
   })
   it('dunning marks past_due then suspends only when pinned auto_suspend allows',async()=>{
     const yes=await subscription(suspend),no=await subscription(keep)

@@ -171,8 +171,8 @@ export interface PaymentAdapter {
   readonly provider: string
   readonly merchantAccount: string
   readonly mode: 'test' | 'live' | 'simulator'
-  /** Public by design: the browser needs it to fulfil an intent. Never the secret key. */
-  readonly publishableKey: string
+  /** Public by design: the browser needs it to fulfil an intent. Never the secret key. Null when the deployment has none (card payments through the form are then off). */
+  readonly publishableKey: string | null
   createAttempt(input: CreateAttemptInput): Promise<CreateAttemptResult>
   createIntent(input: CreateIntentInput): Promise<PaymentIntent>
   /** Reads an intent with the secret key; `client_secret` can be read again at any time. */
@@ -247,7 +247,8 @@ export function paymentAdapterFromEnv(env: Record<string, string | undefined>): 
     if (Buffer.byteLength(webhookSecret) < MIN_WEBHOOK_SECRET_BYTES) throw new PaymentError('provider_not_configured', `MOYASAR_WEBHOOK_SECRET must contain at least ${MIN_WEBHOOK_SECRET_BYTES} bytes`)
     return new MoyasarAdapter({
       secretKey: need('MOYASAR_SECRET_KEY'),
-      publishableKey: need('MOYASAR_PUBLISHABLE_KEY'),
+      ...(env.MOYASAR_PUBLISHABLE_KEY ? { publishableKey: env.MOYASAR_PUBLISHABLE_KEY } : {}),
+      webhookRegistrationOpen: env.MOYASAR_WEBHOOK_REGISTRATION === 'open',
       webhookSecret,
       merchantAccount: need('MOYASAR_ACCOUNT_NAME'),
       expectLive: mode === 'live',

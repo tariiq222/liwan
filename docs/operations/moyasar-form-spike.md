@@ -124,3 +124,8 @@ All names are in `apps/control-plane/src/commercial/moyasar-adapter.ts` unless n
 - `WEBHOOK_STATUS`: add `payment_faild` next to `payment_failed`. `OBJECT_STATUS` has no `save_only`, and `refunded` needs the cumulative figure to separate partial from full.
 - `payments.ts` `confirmEvent` and `lookupPayment`: the equality check on `provider_ref` assumes the invoice id for hosted payments; for intent payments it must compare payment id, amount, currency, description and callback URL as listed under the recommended binding.
 - `renewals.ts` (token charge) and `settlements.ts` (`refundThroughProvider`): no change needed for the happy path; the retry rules above apply.
+
+## Open for step 3
+
+- A payment made directly with the publishable key (not through an intent) can carry any description, amount and callback. The description-based attempt identity (`payment-description.ts`) is therefore trustworthy only for a payment that came from a server-created intent. The form flow must bind a payment to its attempt by more than the description: the intent reference stored on the attempt (the intent id is not on the payment, so it is checked by reading the intent), the locked callback URL, amount and currency, and a first verified fetch of the payment with the secret key before anything is settled.
+- A successful payment that did not go through 3-D Secure cannot be told apart from the payment object: the sandbox object has no field for it and a client can ask for `3ds: false` (the adapter's `authenticated` is always null). The provider-side switch that forbids such payments (open question 2 above) must be confirmed on the live account before go-live.
