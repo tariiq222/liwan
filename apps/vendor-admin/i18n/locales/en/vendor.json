@@ -1132,7 +1132,7 @@
       "deletion": {
         "requested": "Deletion requested on {requested}. Waiting for the customer to confirm with the emailed code.",
         "confirmed": "Deletion confirmed on {confirmed}. The workspace, its files and its backups are due to be deleted on {due}.",
-        "due": "The 30-day window ended on {due}. The deletion is due and nothing has carried it out yet.",
+        "due": "The deletion window ended on {due}. The deletion is due and nothing has carried it out yet.",
         "renewal": {
           "cancelled": "The paid renewal was cancelled at the period end. No refund is made.",
           "already_cancelled": "The paid renewal was already cancelled.",

@@ -1,5 +1,5 @@
 -- A tenant is deleted only on its own customer's request. The request is a two-step fact (an emailed code, then the company name),
--- followed by a 30-day window in which it can be withdrawn; at the end of the window it is `due`. This table is the whole record:
+-- followed by a window (TENANT_DELETION_WINDOW_DAYS) in which it can be withdrawn; at the end of the window it is `due`. This table is the whole record:
 -- who asked, confirmed or withdrew, from which address, and what happened to the paid renewal. Nothing here drops anything; a later
 -- stage adds the states that carry the drop out by replacing tenant_deletion_requests_state_check.
 CREATE TABLE tenant_deletion_requests (

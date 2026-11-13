@@ -5,6 +5,7 @@ import * as Vue from 'vue'
 import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 import { deletionErrorKey } from '../../../utils/subscription'
 
+const WINDOW_DAYS = 90 // the window the panel names; the component reads it from the contract, which pins the decided value
 const component = resolve(__dirname, '../DeleteWorkspacePanel.vue')
 const root = resolve(__dirname, '../../../..')
 const locale = (lang: 'ar' | 'en') => JSON.parse(readFileSync(resolve(root, `i18n/locales/${lang}/subscription.json`), 'utf8')).subscription.deletion as Record<string, unknown>
@@ -14,14 +15,15 @@ const messages = flatten(locale('en'), 'subscription.deletion.')
 const Field = Vue.defineComponent({ props: { label: String }, setup: (p, { slots }) => () => Vue.h('label', [p.label, slots.default?.()]) })
 const Input = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('input', attrs) })
 const render = (props: Record<string, unknown>) => renderShared(component, { hydrated: true, ...props }, {},
-  { messages, modules: { '@liwan/commercial-contracts': { daysBetween: (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000), riyadhDate: (value: string | Date) => new Date(value).toISOString().slice(0, 10) }, '@liwan/ui/app/utils/formatDate': { formatDate: (value: string) => value.slice(0, 10) } }, stubs: { UFormField: Field, UInput: Input }, globals: { ref: Vue.ref, computed: Vue.computed, onMounted: Vue.onMounted } })
+  { messages, modules: { '@liwan/commercial-contracts': { TENANT_DELETION_WINDOW_DAYS: WINDOW_DAYS, daysBetween: (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000), riyadhDate: (value: string | Date) => new Date(value).toISOString().slice(0, 10) }, '@liwan/ui/app/utils/formatDate': { formatDate: (value: string) => value.slice(0, 10) } }, stubs: { UFormField: Field, UInput: Input }, globals: { ref: Vue.ref, computed: Vue.computed, onMounted: Vue.onMounted } })
 const requested = { state: 'requested', requested_at: '2026-11-20T09:00:00.000Z', code_expires_at: '2026-11-20T09:15:00.000Z', confirmed_at: null, due_at: null }
-const confirmed = { state: 'confirmed', requested_at: '2026-11-20T09:00:00.000Z', code_expires_at: null, confirmed_at: '2026-11-20T09:05:00.000Z', due_at: '2026-12-20T09:05:00.000Z' }
+const confirmed = { state: 'confirmed', requested_at: '2026-11-20T09:00:00.000Z', code_expires_at: null, confirmed_at: '2026-11-20T09:05:00.000Z', due_at: '2027-02-18T09:05:00.000Z' }
 
 describe('DeleteWorkspacePanel', () => {
-  it('explains what is deleted and kept, the 30 days and the stopped renewal, with one request button', async () => {
+  it('explains what is deleted and kept, the withdrawal window and the stopped renewal, with one request button', async () => {
     const html = await render({ deletion: null })
-    for (const key of ['deletes', 'keeps', 'window', 'renewal', 'requestHint']) expect(html).toContain(messages[`subscription.deletion.${key}`])
+    for (const key of ['deletes', 'keeps', 'renewal', 'requestHint']) expect(html).toContain(messages[`subscription.deletion.${key}`])
+    expect(html).toContain(messages['subscription.deletion.window']!.replace('{days}', String(WINDOW_DAYS)))
     expect(html).toContain('data-testid="request-deletion"')
     expect(html).not.toContain('data-testid="confirm-deletion"')
   })

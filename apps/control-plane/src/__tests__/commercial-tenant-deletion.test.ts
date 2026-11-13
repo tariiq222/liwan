@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import type { Principal } from '@liwan/commercial-contracts'
+import { TENANT_DELETION_WINDOW_DAYS, type Principal } from '@liwan/commercial-contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
@@ -20,12 +20,13 @@ import { confirmDeletion, expireDeletionCodes, markDueDeletions, requestDeletion
 import { generateRenewals } from '../commercial/renewals.js'
 import { processFreeBaseLocks } from '../commercial/free-base-lock.js'
 import { sendTenantDeletionNotices } from '../commercial/tenant-deletion-notices.js'
+import { TENANT_DELETION_REMINDER_DAYS } from '../commercial/notice-timings.js'
 
 const POLICY = '6f1c3d8e-0000-4000-8000-000000000001'
 const suite = url ? describe : describe.skip
 const DAY = 86_400_000
 
-suite('a customer deletes its own workspace in two steps and a 30-day window (owner decision B8/O6)', () => {
+suite('a customer deletes its own workspace in two steps and the withdrawal window (owner decisions B8/O6 and 2026-11-13)', () => {
   const pool = new Pool({ connectionString: url, max: 8 })
   const api = client(pool)
   const reason = 'Tenant deletion acceptance'
@@ -151,7 +152,7 @@ suite('a customer deletes its own workspace in two steps and a 30-day window (ow
 
     const done = await confirm(f, code)
     const confirmedRow = await row(f.customer)
-    expect(done).toMatchObject({ state: 'confirmed', code_expires_at: null, confirmed_at: confirmedRow.confirmed_at.toISOString(), due_at: new Date(confirmedRow.confirmed_at.getTime() + 30 * DAY).toISOString() })
+    expect(done).toMatchObject({ state: 'confirmed', code_expires_at: null, confirmed_at: confirmedRow.confirmed_at.toISOString(), due_at: new Date(confirmedRow.confirmed_at.getTime() + TENANT_DELETION_WINDOW_DAYS * DAY).toISOString() })
     expect(confirmedRow.code_hash).toBeNull()
     expect(await audits(f.customer, 'tenant_deletion.confirmed')).toMatchObject([{ actor: '7', metadata: { client_address: '203.0.113.9', renewal_outcome: 'cancelled' } }])
     expect((await getSubscription(pool, f.customer)).deletion).toEqual(done)
@@ -208,7 +209,7 @@ suite('a customer deletes its own workspace in two steps and a 30-day window (ow
     expect(await ask(f)).toMatchObject({ state: 'requested' })
     await expect(pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by) VALUES($1,$2,'requested',now(),'7')`, [randomUUID(), f.customer])).rejects.toMatchObject({ code: '23505' })
     // Once the clock runs, asking again is refused.
-    await pool.query("UPDATE tenant_deletion_requests SET code_hash=NULL,code_expires_at=NULL,state='confirmed',confirmed_at=now(),confirmed_by='7',due_at=now()+interval '30 days',renewal_outcome='cancelled' WHERE customer_id=$1", [f.customer])
+    await pool.query(`UPDATE tenant_deletion_requests SET code_hash=NULL,code_expires_at=NULL,state='confirmed',confirmed_at=now(),confirmed_by='7',due_at=now()+interval '${TENANT_DELETION_WINDOW_DAYS} days',renewal_outcome='cancelled' WHERE customer_id=$1`, [f.customer])
     await age(f, 3_600_000)
     expect(await refused(ask(f))).toEqual({ code: 'deletion_pending', status: 409 })
   })
@@ -333,15 +334,15 @@ suite('a customer deletes its own workspace in two steps and a 30-day window (ow
     expect((await audits(f.customer, 'tenant_deletion.withdrawn')).find(a => a.metadata.by === 'vendor')).toMatchObject({ reason: 'Customer called', metadata: { by: 'vendor', was: 'requested', client_address: '198.51.100.4' } })
   })
 
-  it('moves a confirmed request to due at 30 days by the database clock and no sooner, once, and then stops without touching the tenant', async () => {
+  it('moves a confirmed request to due at the end of the window by the database clock and no sooner, once, and then stops without touching the tenant', async () => {
     const f = await paidCustomer()
     const { view } = await confirmed(f)
     const confirmedRow = await row(f.customer)
-    expect(new Date(view.due_at!).getTime() - confirmedRow.confirmed_at.getTime()).toBe(30 * DAY)
+    expect(new Date(view.due_at!).getTime() - confirmedRow.confirmed_at.getTime()).toBe(TENANT_DELETION_WINDOW_DAYS * DAY)
     const tenantBefore = JSON.stringify((await pool.query('SELECT * FROM tenants WHERE id=$1', [f.tenant])).rows)
     const operationsBefore = (await pool.query('SELECT count(*)::int AS n FROM operations WHERE tenant_id=$1', [f.tenant])).rows[0].n
-    // Twenty-nine days and a few seconds in: not due. The process clock plays no part.
-    await age(f, 30 * DAY - 60_000)
+    // A minute short of the window: not due. The process clock plays no part.
+    await age(f, TENANT_DELETION_WINDOW_DAYS * DAY - 60_000)
     expect(await markDueDeletions(pool)).toBe(0)
     expect((await row(f.customer)).state).toBe('confirmed')
     await age(f, 61_000)
@@ -410,25 +411,24 @@ suite('a customer deletes its own workspace in two steps and a 30-day window (ow
     expect(confirmedText).toMatch(/\d{4}-\d{2}-\d{2}/)
     expect(confirmedText).not.toContain('is being carried out')
     expect(dueOn).toMatch(/^\d{4}-/)
-    // Nothing for the first two weeks, then 14, 7 and 1 day before, each exactly once however often the worker runs.
-    for (const d of [29, 20, 15]) { await dueIn(f, d); await send() }
+    // Nothing while more days remain than the earliest reminder, then each threshold exactly once however often the worker runs.
+    const [first, ...later] = [...TENANT_DELETION_REMINDER_DAYS]
+    for (const d of [TENANT_DELETION_WINDOW_DAYS - 1, first! + 20, first! + 1]) { await dueIn(f, d); await send() }
     expect(mailsTo(f)).toHaveLength(2)
-    for (const d of [14, 14, 13, 8]) { await dueIn(f, d); await send() }
-    expect(mailsTo(f)).toHaveLength(3)
-    expect(texts()[2]).toContain('14 days')
-    expect(texts()[2]).toContain('scheduled for deletion')
-    for (const d of [7, 7, 3]) { await dueIn(f, d); await send() }
-    expect(mailsTo(f)).toHaveLength(4)
-    expect(texts()[3]).toContain('7 days')
-    for (const d of [1, 1]) { await dueIn(f, d); await send() }
-    expect(mailsTo(f)).toHaveLength(5)
-    expect(texts()[4]).toContain('1 day')
+    let sentSoFar = 2
+    for (const threshold of [first!, ...later]) {
+      for (const d of [threshold, threshold, threshold - 1]) { await dueIn(f, d); await send() }
+      sentSoFar++
+      expect(mailsTo(f)).toHaveLength(sentSoFar)
+      expect(texts()[sentSoFar - 1]).toContain(threshold === 1 ? '1 day' : `${threshold} days`)
+      expect(texts()[sentSoFar - 1]).toContain('scheduled for deletion')
+    }
     // The due moment says the window ended, withdrawal is over and the team will carry it out and confirm; it never says it is done or under way.
     await dueIn(f, -1); await markDueDeletions(pool)
     await send(); await send()
-    expect(mailsTo(f)).toHaveLength(6)
-    const dueText = texts()[5]!
-    expect(mailsTo(f)[5]!.subject).toBe('انتهت مهلة حذف مساحة العمل في LiwanOS')
+    expect(mailsTo(f)).toHaveLength(sentSoFar + 1)
+    const dueText = texts()[sentSoFar]!
+    expect(mailsTo(f)[sentSoFar]!.subject).toBe('انتهت مهلة حذف مساحة العمل في LiwanOS')
     expect(dueText).toContain('لم يعد سحب الطلب ممكنًا')
     expect(dueText).toContain('سينفّذ فريق ليوان الحذف، وسنرسل لك تأكيدًا عند اكتماله')
     expect(dueText).toContain('can no longer be withdrawn')

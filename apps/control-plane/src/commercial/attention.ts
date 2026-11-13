@@ -139,7 +139,7 @@ const subjectsSql = `WITH latest AS (
       AND later.status='done' AND later.created_at>ob.created_at)
   ORDER BY c.id, ob.processed_at DESC
 ), deletion_due AS (
-  -- A customer's own deletion request whose 30-day window has ended. Nothing carries it out yet, so it waits here for the vendor until the drop stage handles it.
+  -- A customer's own deletion request whose withdrawal window has ended. Nothing carries it out yet, so it waits here for the vendor until the drop stage handles it.
   SELECT c.id AS customer_id, c.name, c.tenant_id, r.due_at FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE r.state='due'
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean

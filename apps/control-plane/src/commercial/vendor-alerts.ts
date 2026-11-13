@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
-import type { AttentionItem, AttentionKind } from '@liwan/commercial-contracts'
+import { TENANT_DELETION_WINDOW_DAYS, type AttentionItem, type AttentionKind } from '@liwan/commercial-contracts'
 import { allAttentionItems } from './attention.js'
 import { refusalWords, renewalMayStillBill } from './tenant-deletion-notices.js'
 import type { MailAdapter } from './mail-adapter.js'
@@ -43,7 +43,7 @@ const EVENTS = {
   trial_converted: { title: 'انتهت تجربة وتحوّلت إلى اشتراك مدفوع', plural: 'تجارب تحوّلت إلى مدفوعة', need: 'none', collapsible: true, todo: 'لا إجراء مطلوب.' },
   trial_free_base: { title: 'انتهت تجربة ورجع العميل إلى الباقة المجانية', plural: 'تجارب رجعت إلى الباقة المجانية', need: 'none', collapsible: true, todo: 'لا إجراء مطلوب.' },
   deletion_requested: { title: 'عميل طلب حذف مساحته وينتظر رمز التأكيد', plural: 'طلبات حذف مساحة', need: 'maybe', collapsible: false, todo: 'إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل.' },
-  deletion_confirmed: { title: 'عميل أكّد حذف مساحته', plural: 'تأكيدات حذف مساحة', need: 'maybe', collapsible: false, todo: 'بدأت مهلة 30 يومًا ولم يُحذف شيء. إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل.' },
+  deletion_confirmed: { title: 'عميل أكّد حذف مساحته', plural: 'تأكيدات حذف مساحة', need: 'maybe', collapsible: false, todo: `بدأت مهلة ${TENANT_DELETION_WINDOW_DAYS} يومًا ولم يُحذف شيء. إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل.` },
   deletion_withdrawn: { title: 'سُحب طلب حذف مساحة عميل', plural: 'طلبات حذف مسحوبة', need: 'none', collapsible: false, todo: 'لا إجراء مطلوب.' },
   deletion_due: { title: 'انتهت مهلة حذف مساحة عميل', plural: 'حذف مساحات مستحق', need: 'yes', collapsible: false, todo: 'لا شيء ينفّذ الحذف تلقائيًا بعد. افتح صفحة العميل وتحقق من الطلب قبل تنفيذه.' },
   attention: { title: 'يحتاج انتباهك', plural: 'بنود تحتاج انتباهك', need: 'yes', collapsible: true, todo: 'افتح قائمة الانتباه في لوحة التحكم.' },
@@ -304,7 +304,7 @@ export type VendorAlertInput = {
  * re-run or a restart never queues it twice) and delivers every due alert by email and Telegram. Returns the number delivered.
  */
 export async function sendVendorAlerts(pool: Pool, input: VendorAlertInput): Promise<number> {
-  const log = input.log ?? ((m: string, e?: unknown) => console.error(`[vendor-alerts] ${m}`, e instanceof Error ? e.message : e ?? ''))
+  const log = input.log ?? ((m: string, e?: unknown) => console.error('[vendor-alerts] %s', m, e instanceof Error ? e.message : e ?? ''))
   if (input.signal?.aborted) return 0
   const since = new Date(input.now.getTime() - ALERT_LOOKBACK_HOURS * 3_600_000)
   try {

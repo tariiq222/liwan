@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TenantDeletion } from '@liwan/commercial-contracts'
-import { daysBetween, riyadhDate } from '@liwan/commercial-contracts'
+import { TENANT_DELETION_WINDOW_DAYS, daysBetween, riyadhDate } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 const props = defineProps<{ deletion: TenantDeletion | null; pending?: boolean; hydrated?: boolean; error?: string }>()
 const emit = defineEmits<{ request: []; confirm: [input: { code: string; companyName: string }]; withdraw: [] }>()
@@ -27,7 +27,7 @@ function submitConfirm() {
       <ul class="list-disc space-y-1 ps-5 text-sm">
         <li>{{ t('subscription.deletion.deletes') }}</li>
         <li>{{ t('subscription.deletion.keeps') }}</li>
-        <li>{{ t('subscription.deletion.window') }}</li>
+        <li>{{ t('subscription.deletion.window', { days: TENANT_DELETION_WINDOW_DAYS }) }}</li>
         <li>{{ t('subscription.deletion.renewal') }}</li>
       </ul>
       <template v-if="!deletion">

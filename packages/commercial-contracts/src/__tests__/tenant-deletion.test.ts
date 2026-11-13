@@ -10,7 +10,7 @@ describe('the tenant deletion contract', () => {
   it('is a customer capability of its own and an attention kind', () => {
     expect(CUSTOMER_CAPABILITIES).toContain('tenant.delete')
     expect(attentionKinds).toContain('tenant_deletion_due')
-    expect(TENANT_DELETION_WINDOW_DAYS).toBe(30)
+    expect(TENANT_DELETION_WINDOW_DAYS).toBe(90) // the decided window (owner decision 2026-11-13), pinned once here
   })
   it('accepts exactly six digits as the code', () => {
     expect(tenantDeletionCodeSchema.safeParse('012345').success).toBe(true)

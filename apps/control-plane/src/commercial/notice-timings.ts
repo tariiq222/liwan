@@ -13,4 +13,4 @@ export const SUSPENSION_NOTICE_DAYS = [3, 1] as const
 export const CANCELLATION_REMINDER_DAYS = 3
 
 /** A confirmed workspace deletion: the reminders go this many days before it falls due (the nearest one not yet passed is sent after a worker outage). */
-export const TENANT_DELETION_REMINDER_DAYS = [14, 7, 1] as const
+export const TENANT_DELETION_REMINDER_DAYS = [60, 30, 14, 7, 1] as const

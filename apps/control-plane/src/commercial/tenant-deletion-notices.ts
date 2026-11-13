@@ -67,8 +67,8 @@ export function tenantDeletionNotice(payload: DeletionNoticePayload, context: De
       ar: `سُحب طلب حذف مساحة عمل ${context.name} ولن تُحذف. ${context.renewal_outcome === 'cancelled' ? 'لم نستأنف اشتراكك تلقائيًا: ما زال تجديده ملغى، فاستأنفه من صفحة الاشتراك إن أردت أن يتجدد.' : ''}`.trim(),
       en: `The deletion of the workspace ${context.name} was withdrawn and it will not be deleted. ${context.renewal_outcome === 'cancelled' ? 'We did not resume your subscription automatically: its renewal is still cancelled, so resume it from Subscription if you want it to renew.' : ''}`.trim() },
     due: { subject: 'انتهت مهلة حذف مساحة العمل في LiwanOS',
-      ar: `انتهت مهلة الـ30 يومًا لحذف مساحة عمل ${context.name}، ولم يعد سحب الطلب ممكنًا. سينفّذ فريق ليوان الحذف، وسنرسل لك تأكيدًا عند اكتماله.`,
-      en: `The 30-day window for deleting the workspace ${context.name} has ended and the request can no longer be withdrawn. The LiwanOS team will carry out the deletion and we will send you a confirmation when it is complete.` },
+      ar: `انتهت مهلة حذف مساحة عمل ${context.name}، ولم يعد سحب الطلب ممكنًا. سينفّذ فريق ليوان الحذف، وسنرسل لك تأكيدًا عند اكتماله.`,
+      en: `The window for deleting the workspace ${context.name} has ended and the request can no longer be withdrawn. The LiwanOS team will carry out the deletion and we will send you a confirmation when it is complete.` },
   }
   const body = bodies[payload.type]
   const workspace = workspaceLines(context.origin ?? null)

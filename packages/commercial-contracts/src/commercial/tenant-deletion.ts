@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
-/** The customer's own request to delete its workspace: asked, confirmed with an emailed code (the 30-day window runs), withdrawn, or due. */
+/** The customer's own request to delete its workspace: asked, confirmed with an emailed code (the withdrawal window runs), withdrawn, or due. */
 export const tenantDeletionStateSchema = z.enum(['requested', 'confirmed', 'withdrawn', 'due'])
-/** The days between the confirmation and the day the deletion falls due. Nobody can shorten it. */
-export const TENANT_DELETION_WINDOW_DAYS = 30
+/** The days between the confirmation and the day the deletion falls due: the window in which the request can be withdrawn. Owner decision 2026-11-13: 90, because a customer may come back at any time. Nobody can shorten it. */
+export const TENANT_DELETION_WINDOW_DAYS = 90
 export const tenantDeletionCodeSchema = z.string().regex(/^\d{6}$/)
 
 /** What the tenant sees: the state and its dates. `code_expires_at` is set only while the emailed code can still be used. */
