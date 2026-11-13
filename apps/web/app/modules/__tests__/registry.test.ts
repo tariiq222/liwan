@@ -161,12 +161,22 @@ describe('capability gate derivation', () => {
     expect(canUse(writable, 'meetings.manage')).toBe(true)
   })
 
+  it('keeps every export open to a read-only tenant, as the server serves an export as a read', () => {
+    const readOnly = (feature: string) => ({ platform: { readable_features: [feature], writable_features: [] } })
+    for (const [capability, feature] of [['crm.leads.export', 'crm.enabled'], ['inbox.conversations.export', 'inbox.enabled'], ['customers.export', 'customers.enabled']] as const) {
+      expect(isWriteCapability(capability), capability).toBe(false)
+      expect(canUse(readOnly(feature), capability), capability).toBe(true)
+      expect(canUse({ platform: { readable_features: [], writable_features: [] } }, capability), capability).toBe(false)
+    }
+    expect(canUse(readOnly('customers.enabled'), 'customers.manage')).toBe(false)
+  })
+
   it('gates a newer application by its own <app>.enabled feature and action', () => {
     expect(featureForCapability('sales.orders.read')).toBe('sales.enabled')
     expect(featureForCapability('sales.orders.write')).toBe('sales.enabled')
     expect(isWriteCapability('sales.orders.read')).toBe(false)
     expect(isWriteCapability('sales.orders.write')).toBe(true)
-    expect(isWriteCapability('sales.reports.export')).toBe(true)
+    expect(isWriteCapability('sales.reports.export')).toBe(false)
     const tenant = (readable: string[], writable: string[]) => ({
       capabilities: ['sales.orders.read', 'sales.orders.write'],
       modules: ['liwan_sales'],
