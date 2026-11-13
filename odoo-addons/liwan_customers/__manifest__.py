@@ -2,7 +2,7 @@
 {
     'name': 'liwan Customers',
     'summary': 'liwan platform: the one writer of a commercial party (customer) on res.partner — /api/v1/customers',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -16,6 +16,7 @@
     'data': [
         'security/customers_capability_groups.xml',
         'security/ir.model.access.csv',
+        'security/customers_rules.xml',
         'data/customers_access_permissions.xml',
         'data/customers_settings.xml',
     ],

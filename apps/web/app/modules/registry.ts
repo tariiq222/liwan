@@ -51,10 +51,13 @@ export function featureForCapability(capability: string): string | null {
   return FEATURELESS_PREFIXES.has(prefix) ? null : `${prefix}.enabled`
 }
 
+// The actions that only read. The server serves an export as a read, so a read-only tenant still downloads its own data.
+const READ_ACTIONS: ReadonlySet<string> = new Set(['read', 'export'])
+
 export function isWriteCapability(capability: string): boolean {
   // An aliased capability (chat's `liwan.internal`) only opens its application for reading.
   if (aliasedFeature(capability)) return false
-  return capability.slice(capability.lastIndexOf('.') + 1) !== 'read'
+  return !READ_ACTIONS.has(capability.slice(capability.lastIndexOf('.') + 1))
 }
 
 export function featureForPath(path: string): string | null {

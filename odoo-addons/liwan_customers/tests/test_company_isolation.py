@@ -1,9 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Company isolation of the customer record route under branch sharing.
+"""Company isolation of the customer record and export routes under branch sharing.
 
-``GET /api/v1/customers/<id>`` is the one GET record route. Under establishment sharing a customer has no
+``GET /api/v1/customers/<id>`` and ``GET /api/v1/customers/export`` are the GET record routes. Under establishment sharing a customer has no
 company and is shared on purpose (test_customers_routes.py); under branch sharing it belongs to its branch.
 """
+import csv
+import io
+
 from odoo.tests import tagged
 
 from odoo.addons.liwan_api.tests.common import (
@@ -15,8 +18,9 @@ from odoo.addons.liwan_api.tests.common import (
     set_probe_feature,
 )
 
-EXPECTED_GET_RECORD_ROUTES = 1
+EXPECTED_GET_RECORD_ROUTES = 2
 DETAIL = '/api/v1/customers/{}'
+EXPORT = '/api/v1/customers/export'
 # The descendants each company's session may see besides its own records.
 DESCENDANTS = {'p': {'p1', 'p2'}, 'p1': set(), 'p2': set(), 'c': set()}
 
@@ -56,8 +60,18 @@ class TestCustomersCompanyIsolation(CompanyIsolationCase):
                 with self.subTest(current=current, hidden=tag):
                     self.assertHiddenEveryWay('GET', DETAIL.format(customer.id), self.by_tag[tag].id)
 
+    def test_export_never_includes_another_company(self):
+        for current, company in self.by_tag.items():
+            self.env_in(company)
+            response = self.assertVisible(EXPORT)
+            names = {row[0] for row in csv.reader(io.StringIO(response.content.decode('utf-8-sig')))}
+            self.assertIn(f'Isolated {current}', names)
+            for tag in self.by_tag:
+                if tag != current and tag not in DESCENDANTS[current]:
+                    self.assertNotIn(f'Isolated {tag}', names, f'{tag} leaked into {current}')
 
-cover_isolation_routes(('/api/v1/customers/<int:customer_id>',), 'liwan_customers/tests/test_company_isolation.py')
+
+cover_isolation_routes(('/api/v1/customers/<int:customer_id>', EXPORT), 'liwan_customers/tests/test_company_isolation.py')
 
 
 @tagged('post_install', '-at_install', 'liwan')

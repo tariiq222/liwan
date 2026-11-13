@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Stock keeps every properties definition of the database in properties.base.definition and writes it for
+         base.group_system only (properties_base_definition_rule_admin). The customer fields of the tenant are the one
+         row of res.partner.properties; the ACL rows of this addon give an internal user read and the customer
+         settings manager write on it, and this rule limits both to that row, so no other model's definition is
+         readable or writable through them. Odoo applies a group rule only to members of its groups, so the settings
+         manager group is listed too: a holder outside base.group_user would otherwise match no rule at all. -->
+    <record id="rule_properties_definition_partner" model="ir.rule">
+        <field name="name">properties.base.definition: the customer fields only</field>
+        <field name="model_id" ref="base.model_properties_base_definition"/>
+        <field name="groups" eval="[Command.link(ref('base.group_user')), Command.link(ref('group_cap_customers_settings_manage'))]"/>
+        <field name="domain_force">[('properties_field_id.model', '=', 'res.partner'), ('properties_field_id.name', '=', 'properties')]</field>
+    </record>
+</odoo>

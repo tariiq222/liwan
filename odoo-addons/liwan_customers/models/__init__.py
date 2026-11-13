@@ -3,6 +3,7 @@ from . import (
     access_service,
     customers_service,
     customers_settings,
+    entitlement_service,
     res_partner,
     res_partner_bank,
     res_users,

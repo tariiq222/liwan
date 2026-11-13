@@ -1,6 +1,6 @@
 # Customers and catalog foundation design
 
-Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2, and the owner approved them on 2026-11-12. Nothing here is implemented in any branch. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
+Status: the owner approved the direction and four decisions on 2026-11-11 (section 2.1). On 2026-11-12 three further reviews found design faults and the owner set the goal that one build serves any sector through free settings, with no sector presets for now; the changes are in section 2.2, and the owner approved them on 2026-11-12. Of this design, PR 1 of the [customers plan](../plans/2026-11-12-liwan-customers.md) is on `main` since `74a8ed6b5` (2026-11-13): `liwan_customers` with its three creators. PR 2 (the directory, the settings page and customer fields) is built on the branch that carries this edit. PRs 3 to 5 of that plan and all of `liwan_catalog` are not built. The evidence is a read of `main` at `b3db19af2`; no test was run and no load was measured. Section 11 lists which claims were checked in code.
 
 This file records the design. It does not change the rules in [AGENTS.md](../../../AGENTS.md). [repository-layout.md](../../agents/repository-layout.md) and `tools/arch_layers.json` change in the pull requests that build it.
 
@@ -75,6 +75,15 @@ The [implementation plan](../plans/2026-11-12-liwan-customers.md) read the code 
 21. Section 9 said no new `sudo()` case is added. The service has documented cases that answer a boolean only (whether a partner belongs to an account, whether any customer exists before the sharing setting changes), and may need one to write the custom field definition. The inbox contact case and finance's read of every company's partner are removed.
 22. Section 3.6 gains a setting, the default phone country, which defaults to the root company's country. A phone is stored as E.164, and a number that does not validate is refused.
 23. The public form path of decision 16 is built with the first public route that creates a customer; none exists today.
+
+### 2.4 Changes made while building the directory and the settings (PR 2 of the plan)
+
+Where a later section disagrees, these win. They follow from the approved decisions; none reverses one.
+
+24. Section 3.6 says the settings are readable through the API. They are read by a holder of `customers.read` or `customers.settings.manage`, because the create and edit forms need the party kinds and the field definition, and the answer states whether the session may change them. A change stays with a holder of `customers.settings.manage` in the root company (decision 18).
+25. The party kinds setting is checked when a customer is created from the directory. A customer that an application creates inside its own action is not checked, and neither is an edit, which keeps "no effect on existing data" true.
+26. Removing a customer field removes its values after a confirmation that names the count per field, as 3.6 says. The count covers every branch and archived customers, and the stored values are cleared with the field.
+27. The web client is told whether the service is open by a derived feature key, `customers.enabled`, present while a feature of an application that uses customers is. It is not an entitlement and is not sold.
 
 This design implements the 2026-11-06 decision on one customer record.
 

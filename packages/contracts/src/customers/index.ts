@@ -1,4 +1,11 @@
 import { z } from 'zod'
+import {
+  CustomFieldDefinitionPatchItemSchema,
+  CustomFieldDefinitionSchema,
+  CustomFieldLimitsSchema,
+  CustomFieldValuesSchema,
+  CustomFieldWithValueSchema,
+} from '../common/customFields'
 
 // liwan_customers: the commercial party (customer or vendor) on res.partner, owned by one shared service.
 // Field for field with odoo-addons/liwan_customers/serializers/{customer,settings}.py.
@@ -6,6 +13,9 @@ import { z } from 'zod'
 const RefSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
 
 export const CustomerSharingSchema = z.enum(['establishment', 'branch'])
+
+/** Which customers the tenant serves: it decides the forms a new customer gets, never an existing one. */
+export const CustomerPartyKindsSchema = z.enum(['individuals', 'companies', 'both'])
 
 /** A customer on the wire. `company` is null for a customer shared by every branch. Phones are E.164. */
 export const CustomerSchema = z.object({
@@ -17,6 +27,8 @@ export const CustomerSchema = z.object({
   parent: RefSchema.nullable(),
   active: z.boolean(),
   company: RefSchema.nullable(),
+  // The tenant's customer fields, in its order, each with this customer's value.
+  properties: z.array(CustomFieldWithValueSchema),
 }).strict()
 
 export const CustomerListSchema = z.object({
@@ -46,6 +58,8 @@ const IdentityFields = {
   email: z.string().min(1).max(254).nullable().optional(),
   is_company: z.boolean().optional(),
   parent_id: z.number().int().positive().nullable().optional(),
+  // Only the customer fields this write sets, keyed by the tenant definition's keys; null clears one.
+  properties: CustomFieldValuesSchema.optional(),
 }
 
 export const CustomerCreateSchema = z.object({
@@ -59,23 +73,55 @@ export const CustomerPatchSchema = z.object({
   ...IdentityFields,
 }).strict().refine((patch) => Object.keys(patch).length > 0, { message: 'nothing to change' })
 
+/** A country the tenant may read phone numbers in, named in the session's language. */
+export const CustomerCountrySchema = z.object({
+  id: z.number().int().positive(),
+  code: z.string().length(2),
+  name: z.string(),
+}).strict()
+
+export const CustomerCountryListSchema = z.object({
+  items: z.array(CustomerCountrySchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
 export const CustomerSettingsSchema = z.object({
   sharing: CustomerSharingSchema,
-  phone_country: z.object({
-    id: z.number().int().positive(),
-    code: z.string().length(2),
-    name: z.string(),
-  }).strict().nullable(),
+  party_kinds: CustomerPartyKindsSchema,
+  phone_country: CustomerCountrySchema.nullable(),
+  // The tenant's customer fields, in display order; every customer carries their values.
+  fields: z.array(CustomFieldDefinitionSchema),
+  field_limits: CustomFieldLimitsSchema,
+  // Whether this session may change the settings: the capability in the working company and in the root company.
+  can_manage: z.boolean(),
   revision: z.number().int().positive(),
 }).strict()
 
 export const CustomerSettingsPatchSchema = z.object({
   sharing: CustomerSharingSchema.optional(),
+  party_kinds: CustomerPartyKindsSchema.optional(),
   phone_country_id: z.number().int().positive().nullable().optional(),
+  // The whole definition in display order; a field left out is removed.
+  fields: z.array(CustomFieldDefinitionPatchItemSchema).optional(),
+  // Repeats a write that answered 409 `custom_field_values_exist`, after the user saw the counts.
+  confirm_field_removal: z.literal(true).optional(),
   revision: z.number().int().positive(),
-}).strict().refine((patch) => Object.keys(patch).length > 1, { message: 'nothing to change' })
+}).strict().refine(
+  (patch) => Object.keys(patch).some((key) => key !== 'revision' && key !== 'confirm_field_removal'),
+  { message: 'nothing to change' },
+)
+
+/** `details` of the 409 `custom_field_values_exist`: each removed field that still has values, with their count. */
+export const CustomerFieldRemovalDetailsSchema = z.object({
+  fields: z.array(z.object({
+    key: z.string().min(1),
+    label: z.string().min(1),
+    count: z.number().int().positive(),
+  }).strict()).min(1),
+}).strict()
 
 export type CustomerSharing = z.infer<typeof CustomerSharingSchema>
+export type CustomerPartyKinds = z.infer<typeof CustomerPartyKindsSchema>
 export type Customer = z.infer<typeof CustomerSchema>
 export type CustomerList = z.infer<typeof CustomerListSchema>
 export type CustomerCandidate = z.infer<typeof CustomerCandidateSchema>
@@ -83,5 +129,8 @@ export type CustomerCandidateList = z.infer<typeof CustomerCandidateListSchema>
 export type CustomerConflictDetails = z.infer<typeof CustomerConflictDetailsSchema>
 export type CustomerCreate = z.infer<typeof CustomerCreateSchema>
 export type CustomerPatch = z.infer<typeof CustomerPatchSchema>
+export type CustomerCountry = z.infer<typeof CustomerCountrySchema>
+export type CustomerCountryList = z.infer<typeof CustomerCountryListSchema>
 export type CustomerSettings = z.infer<typeof CustomerSettingsSchema>
 export type CustomerSettingsPatch = z.infer<typeof CustomerSettingsPatchSchema>
+export type CustomerFieldRemovalDetails = z.infer<typeof CustomerFieldRemovalDetailsSchema>

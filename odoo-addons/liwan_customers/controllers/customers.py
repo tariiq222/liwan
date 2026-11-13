@@ -18,12 +18,12 @@ from odoo.addons.liwan_customers.serializers.customer import (
     dump_customers,
     parse_customer_create,
     parse_customer_patch,
+    parse_list_filters,
 )
 
 SERVICE = 'liwan.customers.service'
 FEATURE_HOOK = '_liwan_customers_feature_keys'
 FEATURE_KEYS = ('registry:liwan.customers.service',)
-TRUE_VALUES = ('1', 'true')
 
 
 class CustomersController(http.Controller):
@@ -50,9 +50,11 @@ class CustomersController(http.Controller):
     def list_customers(self, **_):
         args = request.httprequest.args
         limit, offset = parse_page(args)
-        archived = args.get('archived', 'false').lower() in TRUE_VALUES
+        query, archived, filters = parse_list_filters(
+            args, request.env['res.partner']._liwan_party_properties_definition(),
+        )
         partners, total = request.env['liwan.customers.service']._liwan_search(
-            args.get('q') or None, archived=archived, limit=limit, offset=offset,
+            query, archived=archived, limit=limit, offset=offset, filters=filters,
         )
         return dump_customers(partners, total)
 
@@ -69,7 +71,9 @@ class CustomersController(http.Controller):
     @requires_capability(CUSTOMERS_MANAGE)
     def create_customer(self, **payload):
         values, create_new = parse_customer_create(payload)
-        customer = request.env['liwan.customers.service']._liwan_resolve(values=values, create_new=create_new)
+        service = request.env['liwan.customers.service']
+        service._liwan_check_party_kind(values)
+        customer = service._liwan_resolve(values=values, create_new=create_new)
         return request.make_json_response(dump_customer(customer), status=201)
 
     @http.route('/api/v1/customers/<int:customer_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
