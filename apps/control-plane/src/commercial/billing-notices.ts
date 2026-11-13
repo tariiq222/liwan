@@ -4,7 +4,7 @@ import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, deferOutbox, enqueueOutbox, failOutbox, leaseOutboxRow } from './outbox.js'
 import { holdsFreeBaseLockSql, owesAtRenewal } from './free-base.js'
 import { RENEWAL_NOTICE_DAYS, SUSPENSION_NOTICE_DAYS } from './notice-timings.js'
-import type { ReturnOrigin } from './return-origin.js'
+import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
 
 export const BILLING_NOTICE_KIND = 'billing.notice'
 export type BillingNoticeType = 'renewal_upcoming' | 'overdue' | 'suspension_warning' | 'suspended' | 'payment_received'
@@ -69,9 +69,10 @@ export function daysText(days: number, language: 'ar' | 'en'): string {
   return days <= 10 ? `${days} أيام` : `${days} يومًا`
 }
 
-/** The subject and body (Arabic, then English) of one notice; `link` is the customer's subscription page when it is known. */
-export function billingNotice(payload: Payload, daysLeft: number, autoSuspend: boolean, link: string | null): { subject: string; text: string } {
-  const tail = link ? { ar: `\nصفحة الاشتراك: ${link}`, en: `\nSubscription: ${link}` } : { ar: '', en: '' }
+/** The subject and body (Arabic, then English) of one notice; `origin` is the customer's workspace when it is known: the notice names it and links its subscription page. */
+export function billingNotice(payload: Payload, daysLeft: number, autoSuspend: boolean, origin: string | null): { subject: string; text: string } {
+  const workspace = workspaceLines(origin)
+  const tail = origin ? { ar: `${workspace.ar}\nصفحة الاشتراك: ${origin}/subscription`, en: `${workspace.en}\nSubscription: ${origin}/subscription` } : workspace
   const bodies: Record<BillingNoticeType, { subject: string; ar: string; en: string }> = {
     renewal_upcoming: { subject: 'اشتراكك في LiwanOS يتجدد قريبًا',
       ar: `يتجدد اشتراكك في ${payload.renewal_on} (المتبقي ${daysText(daysLeft, 'ar')}). ستصدر فاتورة التجديد في ذلك اليوم، وتجد طريقة الدفع في صفحة الاشتراك.`,
@@ -95,11 +96,11 @@ export function billingNotice(payload: Payload, daysLeft: number, autoSuspend: b
   return { subject: body.subject, text: `${body.ar}${tail.ar}\n${body.en}${tail.en}` }
 }
 
-type Context = { admin_login: string | null; state: string; manual_suspension: boolean; renewal_on: string | null; grace_ends_at: Date | null
+type Context = { customer_id: string; admin_login: string | null; state: string; manual_suspension: boolean; renewal_on: string | null; grace_ends_at: Date | null
   pricing: any; auto_suspend: boolean; locked: boolean; invoice_status: string | null }
 
 async function contextOf(pool: Pool, payload: Payload): Promise<Context | undefined> {
-  return (await pool.query(`SELECT c.admin_login,s.state,s.manual_suspension,s.renewal_at::text AS renewal_on,s.grace_ends_at,sr.snapshot->'pricing' AS pricing,
+  return (await pool.query(`SELECT c.id AS customer_id,c.admin_login,s.state,s.manual_suspension,s.renewal_at::text AS renewal_on,s.grace_ends_at,sr.snapshot->'pricing' AS pricing,
       COALESCE(p.auto_suspend,false) AS auto_suspend,${holdsFreeBaseLockSql('s')} AS locked,
       (SELECT i.status FROM invoices i WHERE i.id=$2::uuid) AS invoice_status
     FROM subscriptions s JOIN customers c ON c.id=s.customer_id LEFT JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
@@ -139,19 +140,11 @@ export async function sendBillingNotices(pool: Pool, input: { now: Date; mail: M
       if (!ctx || !stillTrue(row.payload, ctx, today)) { await completeOutbox(pool, row.id); continue }
       if (!ctx.admin_login) { await failOutbox(pool, row.id, 'no_recipient'); continue }
       const anchor = row.payload.renewal_on ?? row.payload.grace_ends_on
-      const notice = billingNotice(row.payload, anchor ? daysBetween(today, anchor) : 0, ctx.auto_suspend, await subscriptionLink(input.returnOrigin, pool, row.payload.subscription_id))
+      const notice = billingNotice(row.payload, anchor ? daysBetween(today, anchor) : 0, ctx.auto_suspend, await workspaceOrigin(input.returnOrigin, ctx.customer_id))
       await input.mail.send({ to: ctx.admin_login, subject: notice.subject, text: notice.text, message_id: `billing-${row.id}@liwan` })
       await completeOutbox(pool, row.id)
       sent++
     } catch (error) { await deferOutbox(pool, row.id, error instanceof Error ? error.message.slice(0, 200) : 'billing_notice_failed') }
   }
   return sent
-}
-
-/** The customer's subscription page on its own origin; a customer with no usable origin gets the notice without a link. */
-async function subscriptionLink(returnOrigin: ReturnOrigin | undefined, pool: Pool, subscriptionId: string): Promise<string | null> {
-  if (!returnOrigin) return null
-  const customer = (await pool.query('SELECT customer_id FROM subscriptions WHERE id=$1', [subscriptionId])).rows[0]?.customer_id
-  if (!customer) return null
-  try { return `${await returnOrigin(customer)}/subscription` } catch { return null }
 }

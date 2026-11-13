@@ -4,6 +4,11 @@ type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCo
 
 export const SIGNUP_API = /^\/api\/commercial\/signup\/(terms|start|verify-sms|send-email|verify-email)$/
 export const isSignupPage = (pathname: string) => /^\/register\/?$/.test(pathname)
+/** "Find my workspace": the page and its relay. They live on the common host only, beside the sign-up they share the human check with. */
+export const FIND_WORKSPACE_API = /^\/api\/invitations\/find-workspace$/
+export const isFindWorkspacePage = (pathname: string) => /^\/find-workspace\/?$/.test(pathname)
+/** The common host serves no sign-in: `/login` there leads to the find page (tenant hosts keep their own `/login`). */
+export const isProspectLogin = (pathname: string) => /^\/login\/?$/.test(pathname)
 const PROSPECT_PATHS = [/^\/payment-done\/?$/, /^\/api\/commercial\/payment-callback$/, /^\/_nuxt\//]
 
 /** The `x-liwan-tenant` value signed for a payment return that arrives on the LiwanOS public host. */
@@ -24,7 +29,7 @@ export function isProspectRequest(request: { host?: string; proxyToken?: string;
   const token = process.env.LIWAN_SHARED_PROXY_TOKEN ?? ''
   const supplied = request.proxyToken ?? ''
   if (token.length < 32 || Buffer.byteLength(token) !== Buffer.byteLength(supplied) || !timingSafeEqual(Buffer.from(token), Buffer.from(supplied))) return false
-  if (isSignupPage(request.pathname) || SIGNUP_API.test(request.pathname)) {
+  if (isSignupPage(request.pathname) || SIGNUP_API.test(request.pathname) || isFindWorkspacePage(request.pathname) || FIND_WORKSPACE_API.test(request.pathname) || isProspectLogin(request.pathname)) {
     return config.publicSignupEnabled === true || config.publicSignupEnabled === 'true'
   }
   return PROSPECT_PATHS.some(pattern => pattern.test(request.pathname))

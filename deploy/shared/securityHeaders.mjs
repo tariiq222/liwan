@@ -22,11 +22,11 @@ export const DOCUMENT_SECURITY_HEADERS = Object.freeze({
   'permissions-policy': 'camera=(), microphone=(), display-capture=(), geolocation=(self), fullscreen=(self)',
 })
 
-/** Cloudflare Turnstile on the public sign-up page (`/register`, the only page that shows the widget). The script, the
+/** Cloudflare Turnstile on the public sign-up page and the find-workspace page (`/register` and `/find-workspace`, the only pages that show the widget). The script, the
  * challenge iframe and its calls all come from one origin; every other document keeps `frame-src 'none'` and no
  * third-party script or connect origin. Customer-hosted (non-SaaS) edges do not use this file and never load it. */
 const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
-const REGISTER_PATH = /^\/register\/?$/
+const REGISTER_PATH = /^\/(?:register|find-workspace)\/?$/
 const registerPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
   .replace("script-src 'self'", `script-src 'self' ${TURNSTILE_ORIGIN}`)
   .replace("connect-src 'self'", `connect-src 'self' ${TURNSTILE_ORIGIN}`)

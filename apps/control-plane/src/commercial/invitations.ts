@@ -61,7 +61,7 @@ type InvitationRequest = { customer_id: string; tenant_id: string; admin_login: 
 const lockTenantInvitations = (c: PoolClient, tenant_id: string) => c.query(`SELECT pg_advisory_xact_lock(hashtextextended('invitation:' || $1::text, 0))`, [tenant_id])
 
 /** Runs `work` in one transaction that holds the tenant's invitation lock. */
-async function withTenantInvitationLock<T>(pool: Pool, tenant_id: string, work: (c: PoolClient) => Promise<T>): Promise<T> {
+export async function withTenantInvitationLock<T>(pool: Pool, tenant_id: string, work: (c: PoolClient) => Promise<T>): Promise<T> {
   const c = await pool.connect()
   try {
     await c.query('BEGIN')
@@ -176,7 +176,8 @@ export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; r
         `SELECT i.admin_login, i.customer_id, c.name FROM admin_invitations i JOIN customers c ON c.id=i.customer_id
          WHERE i.id=$1 AND i.consumed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()`, [invitation_id])
       if (!q.rows[0] || !token) { await pool.query(`UPDATE commercial_outbox SET ${DONE_WITHOUT_TOKEN} WHERE id=$1 AND status='pending'`, [row.id]); continue } // superseded/expired: nothing to send
-      const mail = renderInvitationEmail({ companyName: q.rows[0].name, url: buildInvitationUrl(await o.returnOrigin(q.rows[0].customer_id), token) })
+      const origin = await o.returnOrigin(q.rows[0].customer_id)
+      const mail = renderInvitationEmail({ companyName: q.rows[0].name, url: buildInvitationUrl(origin, token), origin })
       const message_id = `${invitation_id}@liwan`
       const res = await o.mail.send({ to: q.rows[0].admin_login, ...mail, message_id })
       delivery = { status: o.smtpHost && isLocalCapture(o.smtpHost) ? 'local_capture' : 'sent', provider_message_id: res.provider_message_id }

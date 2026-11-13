@@ -7,6 +7,7 @@
 	@privateRevision header X-Liwan-Tenant-Revision *
 	@signup path /api/commercial/signup/*
 	@invitationReissue path /api/invitations/reissue
+	@workspaceLookup path /api/invitations/find-workspace
 	@tenantDeletion path /api/commercial/v1/deletion/request /api/commercial/v1/deletion/confirm /api/commercial/v1/deletion/withdraw
 	route {
 		respond @privateToken 403
@@ -104,6 +105,7 @@
 		request_header -X-Liwan-Signup-Client
 		request_header -X-Liwan-Client-Ip
 		request_header @invitationReissue X-Liwan-Client-Ip {client_ip}
+		request_header @workspaceLookup X-Liwan-Client-Ip {client_ip}
 		request_header @tenantDeletion X-Liwan-Client-Ip {client_ip}
 		request_header @signup X-Liwan-Signup-Client {client_ip}
 		reverse_proxy guard:8080 {

@@ -1,7 +1,7 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
 import type { TenantDeletionRequest, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@liwan/commercial-contracts'
-import type { VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
+import type { AdminLoginChange, AdminLoginPreview, VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
 export function useVendorSubscriptions() {
@@ -52,6 +52,10 @@ export function useVendorSubscriptions() {
     tenantDeletion: (customerId: string) => request<{ deletion: TenantDeletionRequest | null }>(`commercial/customers/${seg(customerId)}/deletion`),
     /** Withdraws the open deletion request on the customer's behalf, any time before it is due. It never resumes a renewal the deletion stopped. */
     withdrawTenantDeletion: (customerId: string, reason: string) => request<{ deletion: TenantDeletionRequest | null }>(`commercial/customers/${seg(customerId)}/deletion/withdraw`, { method: 'POST', body: { reason: reason.trim() } }),
+    /** Changes the address that receives every control-plane mail for the workspace. No Odoo user, password or login changes; both addresses are told. */
+    changeAdminLogin: (customerId: string, body: { admin_login: string; reason: string }) => request<{ change: AdminLoginChange }>(`commercial/customers/${seg(customerId)}/admin-login`, { method: 'PATCH', body: { admin_login: body.admin_login.trim(), reason: body.reason.trim() } }),
+    /** Writes nothing: refuses a workspace nobody has activated, and says how many other customers already hold the address. */
+    previewAdminLogin: (customerId: string, adminLogin: string) => request<{ preview: AdminLoginPreview }>(`commercial/customers/${seg(customerId)}/admin-login`, { method: 'PATCH', body: { admin_login: adminLogin.trim(), dry_run: true } }),
     endTrial: (id: string, body: { reason: string }) => request<{ customer_id: string }>(`commercial/trials/${seg(id)}/end`, { method: 'POST', body }),
   }
 }

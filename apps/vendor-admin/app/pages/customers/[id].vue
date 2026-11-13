@@ -3,7 +3,7 @@ import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
-import { cancellationErrorKey, deletionErrorKey, renewalErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
+import { adminLoginErrorKey, cancellationErrorKey, deletionErrorKey, renewalErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
@@ -96,6 +96,37 @@ async function resendInvitation() {
   try { await api.resendInvitation(id.value); inviteState.value = 'queued' }
   catch { inviteState.value = 'failed' }
   finally { inviteBusy.value = false }
+}
+// The address on record receives every control-plane mail for the workspace (invitation, billing, trial, cancellation and deletion notices).
+// Changing it needs a reason and a fresh passkey confirmation; it never changes an account inside the workspace.
+const canChangeAdminLogin = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && !error.value)
+const adminLoginOpen = ref(false)
+const adminLoginValue = ref('')
+const adminLoginReason = ref('')
+const adminLoginBusy = ref(false)
+const adminLoginFailure = ref<string | undefined>()
+const adminLoginChanged = ref(false)
+const adminLoginShared = ref(0)
+const adminLoginRefusal = ref<string | undefined>()
+const validAdminLogin = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminLoginValue.value.trim()) && adminLoginValue.value.trim().length <= 100)
+const validAdminLoginReason = computed(() => adminLoginReason.value.trim().length >= 3 && adminLoginReason.value.trim().length <= 1000)
+function closeAdminLogin() { adminLoginOpen.value = false; adminLoginValue.value = ''; adminLoginReason.value = ''; adminLoginFailure.value = undefined; adminLoginShared.value = 0; adminLoginRefusal.value = undefined }
+// Before confirming, ask the server (it writes nothing) whether the workspace can change at all and whether the address is already used by another customer.
+async function checkAdminLogin() {
+  adminLoginShared.value = 0; adminLoginRefusal.value = undefined
+  if (!hydrated.value || !validAdminLogin.value) return
+  try { adminLoginShared.value = (await api.previewAdminLogin(id.value, adminLoginValue.value)).preview.other_customers_with_address }
+  catch (cause) { adminLoginRefusal.value = t(adminLoginErrorKey(cause)) }
+}
+async function changeAdminLogin() {
+  if (!hydrated.value || adminLoginBusy.value || !canChangeAdminLogin.value || !validAdminLogin.value || !validAdminLoginReason.value) return
+  adminLoginBusy.value = true; adminLoginFailure.value = undefined
+  try {
+    await api.changeAdminLogin(id.value, { admin_login: adminLoginValue.value, reason: adminLoginReason.value })
+    adminLoginChanged.value = true
+    closeAdminLogin()
+    await refresh()
+  } catch (cause) { adminLoginFailure.value = t(adminLoginErrorKey(cause)) } finally { adminLoginBusy.value = false }
 }
 // A hosted-payment link the vendor sends to the customer: reuses the order's live payment attempt (owner decision 2026-10-29).
 const canPayLink = computed(() => can('vendor.billing.manage') && view.value?.pending_order?.payment_state === 'awaiting_payment')
@@ -340,6 +371,20 @@ async function cancelPendingOrder() {
             <div v-if="tenant" class="space-y-6">
               <VendorTenantProperties :tenant="tenant" :progress="progress" hide-open />
               <VendorWorkspacePanel :tenant="tenant" :progress="progress" />
+              <SharedRecordSection variant="panel" :title="t('vendor.customers.adminLogin.title')" :description="t('vendor.customers.adminLogin.hint')">
+                <template v-if="canChangeAdminLogin && !adminLoginOpen" #actions>
+                  <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-pencil" data-testid="change-admin-login" :disabled="!hydrated" @click="adminLoginOpen = true">{{ t('vendor.customers.adminLogin.change') }}</UButton>
+                </template>
+                <p class="text-sm" data-testid="admin-login-value"><bdi dir="ltr" class="font-semibold">{{ customer.admin_login ?? t('vendor.customers.adminLogin.none') }}</bdi></p>
+                <SharedInlineConfirm v-if="adminLoginOpen" class="mt-3" :title="t('vendor.customers.adminLogin.changeTitle')" :description="t('vendor.customers.adminLogin.consequence')" :confirm-label="t('vendor.customers.adminLogin.confirm')" color="primary" :pending="adminLoginBusy" :disabled="!hydrated || adminLoginBusy || !validAdminLogin || !validAdminLoginReason || Boolean(adminLoginRefusal)" @confirm="changeAdminLogin" @cancel="closeAdminLogin">
+                  <UFormField :label="t('vendor.customers.adminLogin.newAddress')" required class="mt-3"><UInput v-model="adminLoginValue" type="email" dir="ltr" :maxlength="100" :disabled="!hydrated || adminLoginBusy" class="w-full" @blur="checkAdminLogin" /></UFormField>
+                  <UFormField :label="t('vendor.customers.adminLogin.reason')" required class="mt-3"><UTextarea v-model="adminLoginReason" :maxlength="1000" :disabled="!hydrated || adminLoginBusy" class="w-full" /></UFormField>
+                </SharedInlineConfirm>
+                <UAlert v-if="adminLoginOpen && adminLoginRefusal" class="mt-3" color="error" variant="subtle" role="alert" data-testid="admin-login-refusal" :title="adminLoginRefusal" />
+                <UAlert v-if="adminLoginOpen && adminLoginShared > 0" class="mt-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="admin-login-shared" :title="t('vendor.customers.adminLogin.shared', { count: adminLoginShared })" />
+                <UAlert v-if="adminLoginFailure" class="mt-3" color="error" variant="subtle" role="alert" :title="adminLoginFailure" />
+                <p v-if="adminLoginChanged" role="status" class="mt-3 text-sm text-muted" data-testid="admin-login-result">{{ t('vendor.customers.adminLogin.changed') }}</p>
+              </SharedRecordSection>
               <SharedRecordSection v-if="canInvite" variant="panel" :title="t('vendor.customers.resendInvitation')" :description="t('vendor.customers.resendInvitationHint')">
                 <template #actions>
                   <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-mail" data-testid="resend-invitation" :disabled="!hydrated || inviteBusy" :loading="inviteBusy" @click="resendInvitation">{{ t('vendor.customers.resendInvitation') }}</UButton>
@@ -367,5 +412,5 @@ async function cancelPendingOrder() {
         </template>
       </div>
 </SharedRecordPage>
-  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || Boolean(deletionReason.trim()) || operationsDirty" guard-route-updates />
+  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || Boolean(deletionReason.trim()) || Boolean(adminLoginReason.trim()) || Boolean(adminLoginValue.trim()) || operationsDirty" guard-route-updates />
 </template>

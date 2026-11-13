@@ -3,10 +3,11 @@ import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, deferOutbox, enqueueOutbox, failOutbox, leaseOutboxRow } from './outbox.js'
 import { daysText } from './billing-notices.js'
 import { TENANT_DELETION_REMINDER_DAYS } from './notice-timings.js'
+import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
 import { DELETION_CODE_TTL_MINUTES, TENANT_DELETION_NOTICE_KIND, type DeletionNoticePayload } from './tenant-deletion.js'
 
 type Language = 'ar' | 'en'
-export type DeletionNoticeContext = { name: string; due_on: string | null; renewal_outcome: string | null; renewal_refusal: string | null }
+export type DeletionNoticeContext = { name: string; origin?: string | null; due_on: string | null; renewal_outcome: string | null; renewal_refusal: string | null }
 
 /** Why the paid renewal could not be stopped, in words, for the customer and the owner. */
 const REFUSAL_WORDS: Record<string, Record<Language, string>> = {
@@ -70,7 +71,8 @@ export function tenantDeletionNotice(payload: DeletionNoticePayload, context: De
       en: `The 30-day window for deleting the workspace ${context.name} has ended and the request can no longer be withdrawn. The LiwanOS team will carry out the deletion and we will send you a confirmation when it is complete.` },
   }
   const body = bodies[payload.type]
-  return { subject: body.subject, text: `${body.ar}\n${body.en}` }
+  const workspace = workspaceLines(context.origin ?? null)
+  return { subject: body.subject, text: `${body.ar}${workspace.ar}\n${body.en}${workspace.en}` }
 }
 
 /**
@@ -89,8 +91,8 @@ async function queueReminders(pool: Pool): Promise<void> {
 }
 
 /** The recipient and wording context when the request is still in the state the notice is about; undefined when it moved on and the notice is stale. */
-async function liveContext(pool: Pool, payload: DeletionNoticePayload): Promise<(DeletionNoticeContext & { admin_login: string | null; days_left: number }) | undefined> {
-  const row = (await pool.query(`SELECT r.state,r.code_seq,(r.code_expires_at > now()) AS code_live,r.renewal_outcome,r.renewal_refusal,c.name,c.admin_login,
+async function liveContext(pool: Pool, payload: DeletionNoticePayload): Promise<(DeletionNoticeContext & { customer_id: string; admin_login: string | null; days_left: number }) | undefined> {
+  const row = (await pool.query(`SELECT r.state,r.code_seq,(r.code_expires_at > now()) AS code_live,r.renewal_outcome,r.renewal_refusal,c.name,c.id AS customer_id,c.admin_login,
       (r.due_at AT TIME ZONE 'Asia/Riyadh')::date::text AS due_on,((r.due_at AT TIME ZONE 'Asia/Riyadh')::date - (now() AT TIME ZONE 'Asia/Riyadh')::date)::int AS days_left
     FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE r.id=$1`, [payload.request_id])).rows[0]
   if (!row) return undefined
@@ -101,7 +103,7 @@ async function liveContext(pool: Pool, payload: DeletionNoticePayload): Promise<
     withdrawn: row.state === 'withdrawn',
     due: row.state === 'due',
   }[payload.type]
-  return live ? { name: row.name, admin_login: row.admin_login, due_on: row.due_on, days_left: row.days_left, renewal_outcome: row.renewal_outcome, renewal_refusal: row.renewal_refusal } : undefined
+  return live ? { name: row.name, customer_id: row.customer_id, admin_login: row.admin_login, due_on: row.due_on, days_left: row.days_left, renewal_outcome: row.renewal_outcome, renewal_refusal: row.renewal_refusal } : undefined
 }
 
 /**
@@ -109,7 +111,7 @@ async function liveContext(pool: Pool, payload: DeletionNoticePayload): Promise<
  * workers send it once and is checked against the live request just before sending: a code mail for a request that moved on, or a
  * reminder for a withdrawn one, is closed. The emailed code is scrubbed from the row as soon as it is handled.
  */
-export async function sendTenantDeletionNotices(pool: Pool, input: { mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
+export async function sendTenantDeletionNotices(pool: Pool, input: { mail: MailAdapter; returnOrigin?: ReturnOrigin; signal?: AbortSignal }): Promise<number> {
   if (input.signal?.aborted) return 0
   await queueReminders(pool)
   const rows = (await pool.query(`SELECT id,payload FROM commercial_outbox WHERE kind=$1 AND status='pending' AND next_attempt_at <= now() ORDER BY created_at,id LIMIT 50`,
@@ -122,7 +124,7 @@ export async function sendTenantDeletionNotices(pool: Pool, input: { mail: MailA
       const context = await liveContext(pool, row.payload)
       if (!context) { await closeWithoutCode(pool, row.id); continue }
       if (!context.admin_login) { await failOutbox(pool, row.id, 'no_recipient'); await scrubCode(pool, row.id); continue }
-      const notice = tenantDeletionNotice(row.payload, context, context.days_left)
+      const notice = tenantDeletionNotice(row.payload, { ...context, origin: await workspaceOrigin(input.returnOrigin, context.customer_id) }, context.days_left)
       await input.mail.send({ to: context.admin_login, subject: notice.subject, text: notice.text, message_id: `tenant-deletion-${row.id}@liwan` })
       await closeWithoutCode(pool, row.id)
       sent++

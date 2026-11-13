@@ -3,6 +3,7 @@ import type { Config } from '../config.js'
 import { processFulfillmentOutbox } from './fulfillment.js'
 import { claimOutbox, completeOutbox, releaseOutbox } from './outbox.js'
 import { onSubscriptionActivated, processReissueRequests, sendInvitationOutbox, settleFailedInvitationOutbox } from './invitations.js'
+import { runWorkspaceLookups } from './workspace-lookup.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
@@ -17,6 +18,7 @@ import { sendBillingNotices } from './billing-notices.js'
 import { sendCancellationNotices } from './cancellation-notices.js'
 import { expireDeletionCodes, markDueDeletions } from './tenant-deletion.js'
 import { sendTenantDeletionNotices } from './tenant-deletion-notices.js'
+import { sendAdminLoginNotices } from './admin-login.js'
 import { processRefundOutbox } from './settlements.js'
 import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -119,12 +121,14 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (o.mailAdapter) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
+        await job('workspace-lookup', () => runWorkspaceLookups(pool, { mail, returnOrigin, signal: o.signal, log }))
         await job('workspace-delay-notices', () => sendWorkspaceDelayNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
-        await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
+        await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
         await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
-        await job('cancellation-notices', () => sendCancellationNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
-        await job('tenant-deletion-notices', () => sendTenantDeletionNotices(pool, { mail, signal: o.signal }))
-        await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, signal: o.signal }))
+        await job('cancellation-notices', () => sendCancellationNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
+        await job('tenant-deletion-notices', () => sendTenantDeletionNotices(pool, { mail, returnOrigin, signal: o.signal }))
+        await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, returnOrigin, signal: o.signal }))
+        await job('admin-login-notices', () => sendAdminLoginNotices(pool, { mail, returnOrigin, signal: o.signal }))
       }
       await job('vendor-alerts', () => sendVendorAlerts(pool, { now: new Date(clock()), env, mail: o.mailAdapter, telegram, consoleOrigin: config.admin?.origin, signal: o.signal, log }))
       if (ticks % reconcileEvery === 0) {

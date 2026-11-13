@@ -283,6 +283,7 @@ async function verifyCode() {
         v-else role="status" color="success" variant="subtle" icon="i-lucide-mail-check"
         :description="`${t('signup.invitation', { email: details.email.trim() })} ${t('signup.invitationLate')}`"
       />
+      <UButton v-if="step === 'done'" to="/find-workspace" color="neutral" variant="link" class="justify-center" :label="t('signup.findLater')" />
     </div>
   </SharedStandalonePage>
 </template>

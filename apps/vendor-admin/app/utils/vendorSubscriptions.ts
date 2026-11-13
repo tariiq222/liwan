@@ -6,7 +6,7 @@ import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 
 export { subscriptionDisplayState }
-export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; signup_acceptance: SignupAcceptance | null; subscription: SubscriptionView | null }
+export type VendorCustomer = { id: string; name: string; tenant_id: string | null; admin_login: string | null; commercial_setup_required: boolean; signup_acceptance: SignupAcceptance | null; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
 /** Whether the owner may still refund this invoice's payment (only the customer's first payment, inside the window), and
@@ -269,6 +269,17 @@ export function renewalErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   return ['nothing_to_cancel', 'subscription_past_due', 'lock_pending', 'subscription_suspended', 'subscription_change_pending', 'cancel_trial_unsupported', 'cancel_already_effective'].includes(code)
     ? `vendor.customers.renewalCancel.errors.${code}` : commercialErrorKey(cause)
+}
+
+/** What changing the address on record did. */
+export type AdminLoginChange = { admin_login: string; previous_admin_login: string | null; deletion_code_invalidated: boolean }
+/** What a change would meet, without making it: other customers that already hold the address (nothing forbids it, but "find my workspace" lists all their workspaces to that mailbox). */
+export type AdminLoginPreview = { other_customers_with_address: number }
+
+/** Changing the address on record is refused for the same address, a customer with no workspace or a workspace nobody has activated; anything else falls back to the shared message. */
+export function adminLoginErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return ['admin_login_unchanged', 'no_workspace', 'workspace_not_activated'].includes(code) ? `vendor.customers.adminLogin.errors.${code}` : commercialErrorKey(cause)
 }
 
 /** Withdrawing a deletion request is refused once its window has ended; anything else falls back to the shared message. */

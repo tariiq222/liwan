@@ -201,6 +201,16 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('lets the console change the address on record with PATCH only', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await patch('/commercial/customers/c-1/admin-login', { body: { admin_login: 'new@example.test', reason: 'Manager left' } })).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['PATCH /v1/commercial/customers/c-1/admin-login'])
+    expect((await get('/commercial/customers/c-1/admin-login')).status).toBe(405)
+    expect((await post('/commercial/customers/c-1/admin-login')).status).toBe(405)
+    expect((await patch('/commercial/customers/c-1/admin-login/x')).status).toBe(404)
+    expect(calls).toHaveLength(1)
+  })
+
   it('forwards the subscription suspend and resume actions the customer page offers', async () => {
     // Without these the console answered its own 404 and a customer could never be suspended from the page.
     const calls = stubUpstream(() => json(200, {}))

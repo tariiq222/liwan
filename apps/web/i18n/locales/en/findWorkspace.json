@@ -1,0 +1,20 @@
+{
+  "findWorkspace": {
+    "title": "Find your workspace",
+    "intro": "Enter the workspace manager's email address. If it manages a LiwanOS workspace, we send its address there.",
+    "email": "Manager's email address",
+    "submit": "Send the workspace address",
+    "humanCheck": "Security check",
+    "sent": "If this address manages a workspace, we sent its address to it. The message can take a few minutes; check your spam folder too.",
+    "another": "Try another address",
+    "noWorkspace": "No workspace yet? Start your free trial",
+    "errors": {
+      "emailInvalid": "Enter a valid email address.",
+      "invalid": "Check the address you typed and try again.",
+      "rateLimited": "Too many attempts. Wait a moment before trying again.",
+      "unavailable": "The service is temporarily unavailable. Try again shortly.",
+      "humanCheckFailed": "The security check did not pass. Complete it again, then try once more.",
+      "humanCheckUnavailable": "We could not reach the security check, so we cannot send right now. Try again in a few minutes."
+    }
+  }
+}

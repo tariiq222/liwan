@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { isProspectRequest } from '../prospectHost'
+import { isFindWorkspacePage, isProspectLogin, isProspectRequest } from '../prospectHost'
 
 const TOKEN = 'p'.repeat(40)
 const config = { customerCommercialEnabled: true, customerCommercialPublicOrigin: 'https://app.liwan.example' }
@@ -33,5 +33,21 @@ describe('LiwanOS public host admission', () => {
     expect(isProspectRequest(request(), { ...config, customerCommercialEnabled: false })).toBe(false)
     expect(isProspectRequest(request(), { ...config, customerCommercialEnabled: 'true' })).toBe(true)
     for (const customerCommercialPublicOrigin of ['', 'not a url', undefined]) expect(isProspectRequest(request(), { ...config, customerCommercialPublicOrigin })).toBe(false)
+  })
+})
+
+describe('find my workspace on the LiwanOS public host', () => {
+  const signup = { ...config, publicSignupEnabled: true }
+  it.each(['/find-workspace', '/find-workspace/', '/api/invitations/find-workspace', '/login', '/login/'])('serves %s without a tenant when sign-up is on', pathname => {
+    expect(isProspectRequest(request({ pathname }), signup)).toBe(true)
+    expect(isProspectRequest(request({ pathname }), config)).toBe(false)
+  })
+  it('names its page and sign-in redirect exactly', () => {
+    expect([isFindWorkspacePage('/find-workspace'), isFindWorkspacePage('/find-workspace-x'), isFindWorkspacePage('/x/find-workspace')]).toEqual([true, false, false])
+    expect([isProspectLogin('/login'), isProspectLogin('/login/'), isProspectLogin('/login/x'), isProspectLogin('/logins')]).toEqual([true, true, false, false])
+  })
+  it('keeps the tenant hosts out of it: needs the proxy token and the exact host', () => {
+    expect(isProspectRequest(request({ pathname: '/find-workspace', host: 'acme.liwan.example' }), signup)).toBe(false)
+    expect(isProspectRequest(request({ pathname: '/find-workspace', proxyToken: undefined }), signup)).toBe(false)
   })
 })

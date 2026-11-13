@@ -5,7 +5,7 @@ import { MeSchema } from '@liwan/contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
 import { boundedTenantBody, tenantTransport, withTenantBody } from './tenantTransport'
-import { isProspectRequest, PROSPECT_TENANT, SIGNUP_API } from './prospectHost'
+import { FIND_WORKSPACE_API, isProspectRequest, PROSPECT_TENANT, SIGNUP_API } from './prospectHost'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
 
 type CustomerConfig = {
@@ -320,6 +320,60 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   }
   setResponseStatus(event, response.status)
   return response._data
+}
+
+const LOOKUP_BODY_LIMIT = 4096
+const LOOKUP_REFUSALS = ['invalid', 'rate_limited', 'human_check_failed', 'human_check_unavailable']
+
+/** Strips every field except the typed address and the human-check token; null unless both are bounded non-empty strings. */
+export function pickWorkspaceLookupBody(body: unknown): { email: string; human_token: string } | null {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null
+  const { email, human_token } = body as Record<string, unknown>
+  if (typeof email !== 'string' || typeof human_token !== 'string') return null
+  const trimmed = email.trim()
+  if (trimmed.length < 3 || trimmed.length > 254 || !human_token || human_token.length > 2048) return null
+  return { email: trimmed, human_token }
+}
+
+/** Relays the anonymous "find my workspace" request from the LiwanOS public host. The common host has no tenant, so the trust path is
+ * the sign-up relay's: the prospect-host check with the shared proxy token, the same-origin check, and the edge-derived visitor address
+ * signed together with the body. The answer is {ok:true} whether or not the address manages a workspace; the control plane decides later. */
+export async function forwardWorkspaceLookup(event: H3Event): Promise<unknown> {
+  const config = useRuntimeConfig(event) as CustomerConfig
+  const incoming = getRequestURL(event)
+  if (incoming.search || !FIND_WORKSPACE_API.test(incoming.pathname) || !isProspectRequest({
+    host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname: incoming.pathname,
+  }, config)) fail(404, 'not_found', 'Not found')
+  setResponseHeader(event, 'cache-control', 'no-store')
+  if (getHeader(event, 'origin') !== new URL(config.customerCommercialPublicOrigin!).origin) fail(403, 'forbidden', 'Origin denied')
+  const type = getHeader(event, 'content-type')?.split(';', 1)[0]?.trim().toLowerCase()
+  if (type !== 'application/json') fail(415, 'invalid', 'JSON is required')
+  const ip = getHeader(event, INVITATION_CLIENT_HEADER)
+  const key = config.customerCommercialServiceKey
+  const issuer = config.customerCommercialIssuer
+  if (!ip || !isIP(ip) || !key || Buffer.byteLength(key) < MIN_SERVICE_KEY_LENGTH || !issuer) fail(503, 'unavailable', 'Service unavailable')
+  const raw = await withTenantBody(event, 'public', () => boundedTenantBody(event, LOOKUP_BODY_LIMIT))
+  let parsed: unknown
+  try { parsed = JSON.parse(raw?.toString('utf8') ?? '') } catch { parsed = null }
+  const picked = pickWorkspaceLookupBody(parsed)
+  if (!picked) fail(400, 'invalid', 'Invalid request')
+  const body = JSON.stringify(picked)
+  const target = new URL('/v1/customer/find-workspace', customerControlBase(config))
+  const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: `liwan-find-workspace:${ip}\n${body}`, actor: 'anonymous', anonymous: true, issuer, key })
+  let response
+  try {
+    response = await $fetch.raw<{ code?: string }>(target.toString(), {
+      method: 'POST', body, headers: { ...signed, [INVITATION_CLIENT_HEADER]: ip, 'content-type': 'application/json', accept: 'application/json' },
+      redirect: 'error', signal: AbortSignal.timeout(12_000), retry: 0, ignoreResponseError: true,
+    })
+  } catch { fail(503, 'unavailable', 'Service unavailable') }
+  if (!response.ok) {
+    const code = response._data?.code
+    if (code && LOOKUP_REFUSALS.includes(code)) fail(response.status, code, 'Request rejected')
+    fail(503, 'unavailable', 'Service unavailable')
+  }
+  setResponseStatus(event, 202)
+  return { ok: true }
 }
 
 /** The dedicated edge sets this from the socket peer (deploy/Caddyfile, deploy/releases/Caddyfile.dedicated); the shared

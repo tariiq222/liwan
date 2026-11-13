@@ -233,9 +233,11 @@ suite('commercial trial', () => {
     await onlyTrial(c.id)
     const sent: unknown[] = []
     const mail = { send: async (message: unknown) => { sent.push(message); return { accepted: true, provider_message_id: 'p1' } } }
-    expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
+    expect(await sendTrialNotices(pool, { now, mail, returnOrigin: fixedReturnOrigin('https://liwan.test') })).toBe(1)
     expect(await sendTrialNotices(pool, { now, mail })).toBe(0)
     expect(sent).toHaveLength(1)
+    expect((sent[0] as { text: string }).text).toContain('مساحة عملك: https://liwan.test')
+    expect((sent[0] as { text: string }).text).toContain('Your workspace: https://liwan.test')
     const subscriptionId = (await getSubscription(pool, c.id)).id
     const notice = (await pool.query("SELECT payload FROM commercial_outbox WHERE kind='trial.notice' AND aggregate_id=$1", [subscriptionId])).rows[0]
     expect(notice.payload).toMatchObject({ subscription_id: subscriptionId, days_left: 3 })

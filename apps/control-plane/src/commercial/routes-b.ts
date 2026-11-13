@@ -23,6 +23,7 @@ import { resumeSubscription, suspendSubscription } from './suspension.js'
 import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
 import { latestTenantDeletionRequest, listTenantDeletionRequests } from './tenant-deletion-read.js'
 import { withdrawDeletion } from './tenant-deletion.js'
+import { adminLoginChangeSchema, changeAdminLogin, previewAdminLogin } from './admin-login.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
@@ -84,6 +85,17 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
     await withdrawDeletion(pool,{customer_id:deletion[1]!,by:'vendor',actor:principal.actor_id,client_address:input.clientAddress??null,reason:body.reason})
     return {status:200,data:{deletion:await latestTenantDeletionRequest(pool,deletion[1]!)}}
+  }
+  // The address on record receives every control-plane mail for the workspace, so only the vendor changes it, with a reason and a fresh step-up.
+  const adminLogin=/^\/customers\/([^/]+)\/admin-login$/.exec(path)
+  if(adminLogin&&m==='PATCH'){
+    need(input,'vendor.subscriptions.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(adminLogin[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,adminLoginChangeSchema)
+    if(body.dry_run)return {status:200,data:{preview:await previewAdminLogin(pool,adminLogin[1]!,body.admin_login)}}
+    const change=await changeAdminLogin(pool,{customer_id:adminLogin[1]!,admin_login:body.admin_login,reason:body.reason!,actor:principal.actor_id,client_address:input.clientAddress??null})
+    return {status:200,data:{change}}
   }
   const customerDetail=/^\/customers\/([^/]+)$/.exec(path)
   if(m==='GET'&&customerDetail){need(input,'vendor.read');if(!z.uuid().safeParse(customerDetail[1]).success)throw new CommercialHttpError('not_found',404);const customer=(await pool.query('SELECT * FROM customers WHERE id=$1',[customerDetail[1]])).rows[0];if(!customer)throw new CommercialHttpError('not_found',404);return {status:200,data:await customerView(pool,customer)}}

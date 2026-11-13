@@ -78,6 +78,18 @@ export async function requestDeletion(pool: Pool, input: Who & { customer_id: st
   return (await tenantDeletionOf(pool, input.customer_id))!
 }
 
+/**
+ * Inside the caller's transaction: kills the emailed code of a request still waiting for it, because the address it went to is no longer
+ * the address on record. The request stays open; asking again sends a new code to the new address. Returns whether a live code was killed.
+ */
+export async function invalidateDeletionCode(client: PoolClient, who: Who, customerId: string, reason: string): Promise<boolean> {
+  await lockCustomerDeletion(client, customerId)
+  const killed = (await client.query(`UPDATE tenant_deletion_requests SET code_hash=NULL,code_expires_at=NULL,revision=revision+1
+    WHERE customer_id=$1 AND state='requested' AND code_hash IS NOT NULL RETURNING id`, [customerId])).rows[0]
+  if (killed) await audited(client, who, 'tenant_deletion.code_invalidated', customerId, reason, { request_id: killed.id })
+  return !!killed
+}
+
 type Confirmation = { ok: true } | { ok: false; code: 'invalid_code' | 'company_name_mismatch' }
 
 /**

@@ -59,9 +59,12 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
  * The prospect origin belongs to no tenant. Only the listed public flows and built assets reach Nuxt.
  * Caddy replaces the signup client address with the socket peer. The guard is on the private network.
  */
-const signupApi = /^\/api\/commercial\/signup\/(?:start|verify-sms|send-email|verify-email)$/
+const signupApi = /^\/api\/commercial\/signup\/(?:terms|start|verify-sms|send-email|verify-email)$/
+// "Find my workspace" (the page, the common host's /login that leads to it, and its relay, which needs the visitor address).
+const findWorkspaceApi = '/api/invitations/find-workspace'
 const prospectRoutes = [
-  [/^\/(?:payment-done|register)\/?$/, ['GET', 'HEAD']],
+  [/^\/(?:payment-done|register|find-workspace|login)\/?$/, ['GET', 'HEAD']],
+  [/^\/api\/invitations\/find-workspace$/, ['POST']],
   [/^\/api\/commercial\/payment-callback$/, ['GET', 'POST']],
   [signupApi, ['POST']],
   [/^\/_nuxt\/[A-Za-z0-9._\-/]+$/, ['GET', 'HEAD']],
@@ -82,6 +85,11 @@ export function prospectPlan(req, prospectHost, token) {
     const ip = req.headers['x-liwan-signup-client']
     if (url.search || typeof ip !== 'string' || !isIP(ip)) throw Error('forbidden_route')
     headers['x-liwan-signup-client'] = ip
+  }
+  if (url.pathname === findWorkspaceApi) {
+    const ip = req.headers[CLIENT_ADDRESS_HEADER]
+    if (url.search || typeof ip !== 'string' || !isIP(ip)) throw Error('forbidden_route')
+    headers[CLIENT_ADDRESS_HEADER] = ip
   }
   delete headers.authorization
   delete headers.cookie

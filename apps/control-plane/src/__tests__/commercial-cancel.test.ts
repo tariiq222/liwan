@@ -340,9 +340,10 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
     const mail = { send } as unknown as MailAdapter
     const mine = () => (send.mock.calls as unknown as [{ to: string; subject: string; text: string }][]).map(call => call[0]).filter(message => message.to === `${f.customer}@example.test`)
     await cancelAtPeriodEnd(pool, customerAsks(f))
-    await sendCancellationNotices(pool, { now: asked, mail })
+    await sendCancellationNotices(pool, { now: asked, mail, returnOrigin: origin })
     await sendCancellationNotices(pool, { now: asked, mail })
     expect(mine()).toHaveLength(1)
+    expect(mine()[0]!.text).toContain('Your workspace: https://')
     expect(mine()[0]!.text).toContain(f.renewalOn)
     expect(mine()[0]!.subject).toBe(cancellationNotice({ type: 'cancelled', subscription_id: f.subscription, effective_on: f.renewalOn }, 0).subject)
 

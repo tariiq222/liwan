@@ -1111,6 +1111,24 @@
           "cancel_already_effective": "The period has ended; the cancellation can no longer be withdrawn."
         }
       },
+      "adminLogin": {
+        "title": "Address on record",
+        "hint": "Every message the control plane sends for this workspace goes to this address: the invitation, subscription billing, trial and cancellation notices and the workspace deletion code.",
+        "none": "No address on record",
+        "change": "Change address",
+        "changeTitle": "Change the address on record",
+        "consequence": "The new address receives all control-plane mail from now on, queued mail included, and both the old and the new address are told. Unused invitations to the old address stop working and a pending deletion code is cancelled. No account, password or login inside the workspace changes: the new person must already have an account there.",
+        "newAddress": "New address",
+        "reason": "Reason (3-1000 characters)",
+        "confirm": "Change address",
+        "errors": {
+          "admin_login_unchanged": "This is already the address on record.",
+          "no_workspace": "This customer has no workspace yet.",
+          "workspace_not_activated": "No manager has activated this workspace yet, so its address was fixed at provisioning and cannot be changed. Create the customer again with the right address, or wait for the rename action."
+        },
+        "changed": "The address was changed. No account in the workspace was touched. Both addresses were told.",
+        "shared": "{count} other customer(s) already use this address. \"Find my workspace\" will list all their workspaces to that mailbox."
+      },
       "deletion": {
         "requested": "Deletion requested on {requested}. Waiting for the customer to confirm with the emailed code.",
         "confirmed": "Deletion confirmed on {confirmed}. The workspace, its files and its backups are due to be deleted on {due}.",

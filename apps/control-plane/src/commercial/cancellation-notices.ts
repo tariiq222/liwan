@@ -6,9 +6,10 @@ import { daysText } from './billing-notices.js'
 import { holdsFreeBaseLockSql } from './free-base.js'
 import { CANCELLATION_NOTICE_KIND, type CancellationNoticePayload } from './cancellation.js'
 import { CANCELLATION_REMINDER_DAYS } from './notice-timings.js'
+import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
 
 /** The subject and body (Arabic, then English) of one cancellation notice. */
-export function cancellationNotice(payload: CancellationNoticePayload, daysLeft: number): { subject: string; text: string } {
+export function cancellationNotice(payload: CancellationNoticePayload, daysLeft: number, origin: string | null = null): { subject: string; text: string } {
   const on = payload.effective_on
   const last = new Date(Date.parse(`${on}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
   const bodies: Record<CancellationNoticePayload['type'], { subject: string; ar: string; en: string }> = {
@@ -23,12 +24,13 @@ export function cancellationNotice(payload: CancellationNoticePayload, daysLeft:
       en: `Your paid applications stay available through ${last}, and on ${on} (in ${daysText(daysLeft, 'en')}) your workspace returns to the free base and your data is kept, because you cancelled the renewal. To keep your subscription, resume it from Subscription.` },
   }
   const body = bodies[payload.type]
-  return { subject: body.subject, text: `${body.ar}\n${body.en}` }
+  const workspace = workspaceLines(origin)
+  return { subject: body.subject, text: `${body.ar}${workspace.ar}\n${body.en}${workspace.en}` }
 }
 
 /** The renewal date the cancellation takes effect on, if the subscription is still cancelled for it and no lock has started. */
-async function stillCancelledFor(pool: Pool, payload: CancellationNoticePayload): Promise<{ admin_login: string | null } | undefined> {
-  return (await pool.query(`SELECT c.admin_login FROM subscriptions s JOIN customers c ON c.id=s.customer_id WHERE s.id=$1
+async function stillCancelledFor(pool: Pool, payload: CancellationNoticePayload): Promise<{ customer_id: string; admin_login: string | null } | undefined> {
+  return (await pool.query(`SELECT c.id AS customer_id,c.admin_login FROM subscriptions s JOIN customers c ON c.id=s.customer_id WHERE s.id=$1
     AND s.cancel_requested_at IS NOT NULL AND s.renewal_at::text=$2 AND NOT ${holdsFreeBaseLockSql('s')}`, [payload.subscription_id, payload.effective_on])).rows[0]
 }
 
@@ -49,7 +51,7 @@ async function queueReminders(pool: Pool, today: string): Promise<void> {
  * "ending soon" notice for a cancellation that was withdrawn (or whose date moved) is closed, and so is a "resumed" notice for
  * a subscription cancelled again.
  */
-export async function sendCancellationNotices(pool: Pool, input: { now: Date; mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
+export async function sendCancellationNotices(pool: Pool, input: { now: Date; mail: MailAdapter; returnOrigin?: ReturnOrigin; signal?: AbortSignal }): Promise<number> {
   if (input.signal?.aborted) return 0
   const today = riyadhDate(input.now)
   await queueReminders(pool, today)
@@ -62,11 +64,11 @@ export async function sendCancellationNotices(pool: Pool, input: { now: Date; ma
     try {
       const { payload } = row
       const recipient = payload.type === 'resumed'
-        ? (await pool.query(`SELECT c.admin_login FROM subscriptions s JOIN customers c ON c.id=s.customer_id WHERE s.id=$1 AND s.cancel_requested_at IS NULL`, [payload.subscription_id])).rows[0]
+        ? (await pool.query(`SELECT c.id AS customer_id,c.admin_login FROM subscriptions s JOIN customers c ON c.id=s.customer_id WHERE s.id=$1 AND s.cancel_requested_at IS NULL`, [payload.subscription_id])).rows[0]
         : await stillCancelledFor(pool, payload)
       if (!recipient) { await completeOutbox(pool, row.id); continue }
       if (!recipient.admin_login) { await failOutbox(pool, row.id, 'no_recipient'); continue }
-      const notice = cancellationNotice(payload, daysBetween(today, payload.effective_on))
+      const notice = cancellationNotice(payload, daysBetween(today, payload.effective_on), await workspaceOrigin(input.returnOrigin, recipient.customer_id))
       await input.mail.send({ to: recipient.admin_login, subject: notice.subject, text: notice.text, message_id: `cancellation-${row.id}@liwan` })
       await completeOutbox(pool, row.id)
       sent++

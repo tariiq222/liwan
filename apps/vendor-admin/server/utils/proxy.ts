@@ -32,6 +32,8 @@ const ALLOWED = [
   // Workspace deletions are the customer's own: the console reads every request and withdraws one on the customer's behalf. It cannot ask for or confirm one.
   /^\/v1\/commercial\/deletion-requests$/,
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion(/withdraw)?$`),
+  // The address on record that receives every control-plane mail for a workspace: the vendor changes it with a reason and a fresh step-up.
+  new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
   // suspend and resume are separate actions the customer page offers; without them the console answered its own 404.
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage|suspend|resume|cancel-renewal|resume-renewal))?$`),
@@ -64,6 +66,7 @@ const METHOD_BOUND = [
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion/withdraw$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`), methods: ['PATCH'] },
 ] as const
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */

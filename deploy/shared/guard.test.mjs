@@ -421,7 +421,7 @@ test('the LiwanOS public host serves only the payment-done page, the payment rel
   assert.equal(prospectPlan(prospect('/payment-done', {}, 'GET', 'APP.liwan.test'), 'app.liwan.test', token).prospect, true)
 })
 test('the public host refuses everything else, and other hosts never take the prospect route', () => {
-  for (const [url, method] of [['/api/v1/me', 'GET'], ['/login', 'GET'], ['/api/commercial/v1/subscription', 'GET'], ['/payment-done', 'POST'], ['/api/commercial/payment-callback', 'PUT'], ['/_nuxt/', 'GET'], ['/_nuxt/../api/v1/me', 'GET'], ['/payment-done/../login', 'GET'], ['/payment-done?db=x', 'GET'], ['//evil.test/payment-done', 'GET'], ['/websocket', 'GET']]) {
+  for (const [url, method] of [['/api/v1/me', 'GET'], ['/logout', 'GET'], ['/api/commercial/v1/subscription', 'GET'], ['/payment-done', 'POST'], ['/api/commercial/payment-callback', 'PUT'], ['/_nuxt/', 'GET'], ['/_nuxt/../api/v1/me', 'GET'], ['/payment-done/../logout', 'GET'], ['/payment-done?db=x', 'GET'], ['//evil.test/payment-done', 'GET'], ['/websocket', 'GET']]) {
     assert.throws(() => prospectPlan(prospect(url, {}, method), 'app.liwan.test', token), undefined, `${method} ${url}`)
   }
   assert.throws(() => prospectPlan(prospect('/payment-done'), 'app.liwan.test', 'short'), /invalid_proxy_token/)
@@ -609,6 +609,22 @@ test('a guard with a restore registry needs a restore Odoo upstream over private
   assert.doesNotThrow(() => createGuard({ registryPath: paths.registryPath, proxyToken: token, keys, activeKid: 'test', ...upstreams }))
 })
 
+test('the common host serves the find-workspace page, its /login redirect source and its relay with the address the edge supplied', () => {
+  for (const page of ['/find-workspace', '/find-workspace/', '/login']) assert.equal(prospectPlan(prospect(page), 'app.liwan.test', token).path, page)
+  assert.throws(() => prospectPlan(prospect('/find-workspace', {}, 'POST'), 'app.liwan.test', token))
+  assert.throws(() => prospectPlan(prospect('/login', {}, 'POST'), 'app.liwan.test', token))
+  const path = '/api/invitations/find-workspace'
+  const plan = prospectPlan(prospect(path, { 'x-liwan-client-ip': '192.0.2.9', 'x-forwarded-for': '192.0.2.99', 'x-liwan-signup-client': '192.0.2.77', cookie: 'session_id=forged' }, 'POST'), 'app.liwan.test', token)
+  assert.equal(plan.headers['x-liwan-client-ip'], '192.0.2.9')
+  assert.equal(plan.headers['x-liwan-signup-client'], undefined)
+  assert.equal(plan.headers['x-forwarded-for'], undefined)
+  assert.equal(plan.headers.cookie, undefined)
+  // No address from the edge, a malformed one, a query string or another method: refused, never passed on without an address.
+  for (const [target, headers, method] of [[path, {}, 'POST'], [path, { 'x-liwan-client-ip': 'nope' }, 'POST'], [`${path}?a=1`, { 'x-liwan-client-ip': '192.0.2.9' }, 'POST'], [path, { 'x-liwan-client-ip': '192.0.2.9' }, 'GET']]) {
+    assert.throws(() => prospectPlan(prospect(target, headers, method), 'app.liwan.test', token))
+  }
+})
+
 test('with release routing on, a restore host is refused instead of leased', async t => {
   const restore = restoreTarget()
   const paths = restoreStack({ restore: restoreRegistry(restore) })
@@ -629,6 +645,7 @@ test('public signup allows only its exact routes and relays the address supplied
     assert.equal(prospectPlan(prospect(asset), 'app.liwan.test', token).path, asset)
   }
   assert.throws(() => prospectPlan(prospect('/fonts/LICENSE.txt'), 'app.liwan.test', token))
+  assert.equal(prospectPlan(prospect('/api/commercial/signup/terms', { 'x-liwan-signup-client': '192.0.2.9' }, 'POST'), 'app.liwan.test', token).headers['x-liwan-signup-client'], '192.0.2.9')
   const path = '/api/commercial/signup/start'
   const plan = prospectPlan(prospect(path, {
     'x-liwan-signup-client': '192.0.2.9', 'x-forwarded-for': '192.0.2.99', cookie: 'session_id=forged',

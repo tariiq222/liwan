@@ -53,6 +53,8 @@ suite('live PostgreSQL billing notices', () => {
     expect(sent).toHaveLength(1)
     expect(sent[0].to).toBe(`${s.customer}@example.test`)
     expect(sent[0].text).toContain('https://liwan.test/subscription')
+    expect(sent[0].text).toContain('مساحة عملك: https://liwan.test')
+    expect(sent[0].text).toContain('Your workspace: https://liwan.test')
     // Next day nothing is queued for threshold 3 again, but the missed threshold 1 is sent late (a day of downtime skipped 2 days).
     expect(await sendBillingNotices(pool, { now: new Date('2026-10-04T08:00:00Z'), mail, returnOrigin })).toBe(1)
     expect((await rows('renewal_upcoming')).map(r => r.status)).toEqual(['done', 'done'])
@@ -82,6 +84,8 @@ suite('live PostgreSQL billing notices', () => {
     const text = billingNotice({ type: 'renewal_upcoming', subscription_id: randomUUID(), renewal_on: '2026-10-03' }, 1, true, null).text
     expect(text).toContain('(المتبقي يوم واحد)')
     expect(text).toContain('(1 day left)')
+    expect(text).not.toContain('Your workspace')
+    expect(billingNotice({ type: 'payment_received', subscription_id: randomUUID() }, 0, true, 'https://t1.liwan.test').text).toContain('Your workspace: https://t1.liwan.test')
   })
   it('says a suspended workspace is read-only until payment, in both languages', () => {
     const text = billingNotice({ type: 'suspended', subscription_id: randomUUID(), grace_ends_on: '2026-10-05' }, 0, true, null).text
