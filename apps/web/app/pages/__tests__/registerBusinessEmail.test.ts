@@ -21,12 +21,14 @@ function mount(failure: unknown) {
   const bindings = {
     errorCode, errorSeconds, normalizeCode, normalizeMobileInput,
     ForgotPasswordInputSchema: { safeParse: () => ({ success: true }) },
-    _defineComponent: Vue.defineComponent, computed: Vue.computed, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
+    _defineComponent: Vue.defineComponent, computed: Vue.computed, onMounted: () => {}, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
     definePageMeta: () => {}, useHydrated: () => Vue.ref(true),
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar'), setLocale: () => {} }),
     useResendWait: () => ({ seconds: Vue.ref(0), waiting: Vue.ref(false), start: () => {}, stop: () => {} }),
   }
   const state = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings)).setup({}, { expose: () => {} })
+  state.legal.value = { legal_base_url: 'https://legal.example.test', terms_version: '2026-11-01' }
+  state.details.accept_terms = true
   return state
 }
 

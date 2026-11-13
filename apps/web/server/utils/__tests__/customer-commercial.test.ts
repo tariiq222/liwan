@@ -175,6 +175,8 @@ describe('customer commercial BFF', () => {
     expect(customerRoute('GET', 'orders/abc/payment-attempts')).toBeNull()
     expect(customerRoute('GET', 'invoices/inv-1')?.needs).toBe('billing.read')
     // A2: a customer's own transfer instructions, under the same capability as the invoice read itself.
+    expect(customerRoute('POST', 'invoices/inv-1/bank-transfer-claim')).toEqual({ upstream: '/v1/customer/invoices/inv-1/bank-transfer-claim', needs: 'subscription.manage' })
+    expect(customerRoute('GET', 'invoices/inv-1/bank-transfer-claim')).toBeNull()
     expect(customerRoute('GET', 'invoices/inv-1/bank-transfer')).toEqual({ upstream: '/v1/customer/invoices/inv-1/bank-transfer', needs: 'billing.read' })
     expect(customerRoute('POST', 'invoices/inv-1/bank-transfer')).toBeNull()
     expect(customerRoute('GET', 'invoices/inv-1/bank-transfers')).toBeNull()
@@ -396,6 +398,12 @@ describe('signup relay', () => {
   it('passes a refused free-mail address through as its own code and status', async () => {
     signup({ status: 422, _data: { code: 'business_email_required' } })
     await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 422, data: { code: 'business_email_required' } })
+  })
+  it('passes the missing and the stale terms acceptance through with their own codes', async () => {
+    signup({ status: 422, _data: { code: 'terms_not_accepted' } })
+    await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 422, data: { code: 'terms_not_accepted' } })
+    signup({ status: 409, _data: { code: 'terms_changed' } })
+    await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 409, data: { code: 'terms_changed' } })
   })
   it('still hides a code outside the whitelist behind unavailable', async () => {
     signup({ status: 500, _data: { code: 'database_exploded' } })

@@ -10,7 +10,7 @@ import { sar } from '../vendorCommercial'
 const now = new Date('2026-10-10T00:00:00Z')
 const order = (o: Partial<Order> = {}) => ({ id: 'o', payment_state: 'paid', fulfillment_state: 'applying', created_at: '2026-10-10T00:00:00Z', ...o }) as Order
 const sub = (o: Partial<SubscriptionView> = {}) => ({ id: 's', state: 'active', applied: { id: 'r1', cadence: { unit: 'month', count: 1 }, plan_revision_id: 'p', bundle_revision_ids: [], extra_branch_count: 1, entitlement: { features: { 'users.limit': 10, 'storage.limit_mb': 10240 } } }, target: null, pending_order: null, revision: 2, renewal_at: '2026-10-20', ...o }) as unknown as SubscriptionView
-const cust = (s: SubscriptionView | null, setup = false): VendorCustomer => ({ id: 'c', name: 'n', tenant_id: null, commercial_setup_required: setup, subscription: s })
+const cust = (s: SubscriptionView | null, setup = false): VendorCustomer => ({ id: 'c', name: 'n', tenant_id: null, commercial_setup_required: setup, signup_acceptance: null, subscription: s })
 
 describe('queries', () => {
   it('maps invoice filters and paging, dropping "all"', () => {
@@ -153,8 +153,10 @@ describe('refund request', () => {
 describe('bank transfer form values', () => {
   it('opens on the invoice total and on the Riyadh calendar day, not the UTC one', () => {
     const total = sar(12345)
-    expect(transferFormDefaults(total, new Date('2026-11-07T20:59:59Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-07' })
-    expect(transferFormDefaults(total, new Date('2026-11-07T21:00:00Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-08' })
+    expect(transferFormDefaults(total, new Date('2026-11-07T20:59:59Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-07', reference: '' })
+    expect(transferFormDefaults(total, new Date('2026-11-07T21:00:00Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-08', reference: '' })
+    // What the customer said it transferred is the starting point; the vendor still edits it and the amount rule is unchanged.
+    expect(transferFormDefaults(total, new Date('2026-11-08T12:00:00Z'), { value_date: '2026-11-05', sender_reference: 'Ahmed' })).toEqual({ amount: '123.45', valueDate: '2026-11-05', reference: 'Ahmed' })
     expect(transferFormDefaults(sar(10000), new Date('2026-11-07T12:00:00Z')).amount).toBe('100.00')
   })
   it('reads riyals exactly, with Arabic-Indic digits, and never rounds', () => {

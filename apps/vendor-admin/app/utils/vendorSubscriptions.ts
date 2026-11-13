@@ -1,18 +1,18 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
-import { riyadhDate, subscriptionDisplayState, type Adjustment, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
+import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 
 export { subscriptionDisplayState }
-export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
+export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; signup_acceptance: SignupAcceptance | null; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
 /** Whether the owner may still refund this invoice's payment (only the customer's first payment, inside the window), and
  * whether recording its pending refund drops the subscription to the free base. */
 export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number; locks_subscription: boolean }
-export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[]; refund: VendorRefundability }
+export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -155,9 +155,9 @@ export function refundErrorKey(cause: unknown): string {
 }
 
 // ---- Bank transfer form ----
-/** The form opens on the invoice total and on today's date in Riyadh, the calendar of the bank statement, never the UTC day. */
-export function transferFormDefaults(total: Money, now: Date = new Date()): { amount: string; valueDate: string } {
-  return { amount: minorToInput(total.minor, total.exponent), valueDate: riyadhDate(now) }
+/** The form opens on the invoice total and on today's date in Riyadh (the calendar of the bank statement, never the UTC day), or on what the customer said it transferred. */
+export function transferFormDefaults(total: Money, now: Date = new Date(), claim: Pick<BankTransferClaim, 'value_date' | 'sender_reference'> | null = null): { amount: string; valueDate: string; reference: string } {
+  return { amount: minorToInput(total.minor, total.exponent), valueDate: claim?.value_date ?? riyadhDate(now), reference: claim?.sender_reference ?? '' }
 }
 export type TransferAmount = { minor: number } | { issue: 'invalid' | 'decimals' }
 /** The amount in riyals as typed (Arabic-Indic digits included) → minor units. More decimals than the currency has is refused, never rounded. */

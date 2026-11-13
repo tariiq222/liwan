@@ -3,6 +3,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { client, money, monthly, setup, url } from '../__tests__/commercial-helpers.js'
 import { SignupService } from './service.js'
+import { customerView } from '../commercial/customers.js'
+
+const TERMS = '2026-11-01'
+const legal = { baseUrl: 'https://liwanos.com', termsVersion: TERMS }
+const accepted = { accept_terms: true, terms_version: TERMS }
 
 describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
   const pool = new Pool({ connectionString: url })
@@ -37,11 +42,11 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const n = ++testNumber
     const ip = `192.0.2.${n}`
     const input = { company_name: 'Signup company', admin_name: 'Administrator',
-      email: `trial-${randomUUID()}@example.test`, mobile: `+966555000${String(n).padStart(3, '0')}` }
+      email: `trial-${randomUUID()}@example.test`, mobile: `+966555000${String(n).padStart(3, '0')}`, ...accepted }
     let now = new Date()
     let sms = '', email = ''
     const service = new SignupService(pool, {
-      planId, secret: 'a'.repeat(32), dailyLimit: 100, now: () => now,
+      planId, legal, secret: 'a'.repeat(32), dailyLimit: 100, now: () => now,
       sms: async (_mobile, code) => { sms = code },
       email: async (_address, code) => { email = code },
     })
@@ -119,7 +124,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
   it('reserves delivery budget even when the SMS sender is unavailable', async () => {
     const f = fixture()
     const service = new SignupService(pool, {
-      planId, secret: 'a'.repeat(32), dailyLimit: 100,
+      planId, legal, secret: 'a'.repeat(32), dailyLimit: 100,
       sms: async () => { throw new Error('synthetic transport failure') },
       email: async () => {},
     })
@@ -150,10 +155,57 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     await expect(f.start()).resolves.toHaveProperty('signup_id')
   })
 
+  describe('acceptance of the terms', () => {
+    it('refuses to start without an acceptance, before anything is sent or stored', async () => {
+      const f = fixture()
+      const { accept_terms: _accepted, ...unticked } = f.input
+      for (const input of [unticked, { ...unticked, accept_terms: false }, { ...unticked, terms_version: undefined }]) {
+        await expect(f.service.start(input, f.ip)).rejects.toMatchObject({ code: 'terms_not_accepted', status: 422 })
+      }
+      expect(f.sms()).toBe('')
+      expect((await pool.query('SELECT 1 FROM public_signup_deliveries')).rowCount).toBe(0)
+      expect((await pool.query('SELECT 1 FROM public_signups WHERE email=$1', [f.input.email])).rowCount).toBe(0)
+    })
+
+    it('refuses a stale or missing terms version with its own code', async () => {
+      const f = fixture()
+      await expect(f.service.start({ ...f.input, terms_version: '2026-01-01' }, f.ip)).rejects.toMatchObject({ code: 'terms_changed', status: 409 })
+      const { terms_version: _version, ...unversioned } = f.input
+      await expect(f.service.start(unversioned, f.ip)).rejects.toMatchObject({ code: 'terms_changed', status: 409 })
+      expect(f.sms()).toBe('')
+      expect((await pool.query('SELECT 1 FROM public_signups WHERE email=$1', [f.input.email])).rowCount).toBe(0)
+    })
+
+    it('tells the page the current legal pages and version', () => {
+      expect(fixture().service.terms()).toEqual({ legal_base_url: 'https://liwanos.com', terms_version: TERMS })
+    })
+
+    it('stores the version, time and client address on the created customer and shows version and time to the vendor', async () => {
+      const f = fixture()
+      const startedAt = new Date()
+      const id = await f.reachEmail()
+      await f.service.verifyEmail(id, f.email())
+      const { rows: [claim] } = await pool.query(`SELECT t.customer_id,t.terms_version,t.terms_accepted_at,host(t.terms_accepted_ip) AS ip
+        FROM public_signup_trials t JOIN customers c ON c.id=t.customer_id WHERE c.admin_login=$1`, [f.input.email])
+      expect(claim).toMatchObject({ terms_version: TERMS, ip: f.ip })
+      expect(Math.abs(claim.terms_accepted_at.getTime() - startedAt.getTime())).toBeLessThan(60_000)
+      const customer = (await pool.query('SELECT * FROM customers WHERE id=$1', [claim.customer_id])).rows[0]
+      const view = await customerView(pool, customer)
+      expect(view.signup_acceptance).toEqual({ terms_version: TERMS, accepted_at: claim.terms_accepted_at.toISOString() })
+      expect(JSON.stringify(view)).not.toContain(f.ip)
+    })
+
+    it('shows no acceptance for a customer the vendor created', async () => {
+      const { rows: [customer] } = await pool.query("INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,'Vendor made','Admin',$2) RETURNING *",
+        [randomUUID(), `vendor-${randomUUID()}@example.test`])
+      expect((await customerView(pool, customer)).signup_acceptance).toBeNull()
+    })
+  })
+
   describe('limits keyed on the requester', () => {
     const person = (n: number) => ({ company_name: 'Signup company', admin_name: 'Administrator',
-      email: `owner@d${n}.example.test`, mobile: `+9665660${String(n).padStart(5, '0')}` })
-    const cheapService = (now: () => Date) => new SignupService(pool, { planId, secret: 'a'.repeat(32), dailyLimit: 100, now, sms: async () => {}, email: async () => {} })
+      email: `owner@d${n}.example.test`, mobile: `+9665660${String(n).padStart(5, '0')}`, ...accepted })
+    const cheapService = (now: () => Date) => new SignupService(pool, { planId, legal, secret: 'a'.repeat(32), dailyLimit: 100, now, sms: async () => {}, email: async () => {} })
 
     it('one client address cannot send more than its daily share, and another address is unaffected', async () => {
       let now = new Date()

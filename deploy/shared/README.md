@@ -452,6 +452,12 @@ key. Keep the Authentica key on the control API only. The delivery cap defaults
 to 100 per channel per rolling day and is configurable with
 `LIWAN_SIGNUP_DAILY_LIMIT`.
 
+Set `LIWAN_SIGNUP_LEGAL_BASE_URL` (an https URL, the site that hosts `/terms` and `/privacy`) and
+`LIWAN_SIGNUP_TERMS_VERSION` on the control API as well; sign-up stays off without them. The form requires
+the visitor to accept both pages, and the control API stores the accepted version, the time and the client
+address on the new customer. Change the version whenever the texts change: a form opened before the change
+asks the visitor to review and accept again.
+
 The workspace follows normal commercial worker fulfillment and invitation
 delivery. Verify SMS arrival and email delivery with test recipients on an
 authorized acceptance deployment before opening signup.

@@ -19,12 +19,15 @@ const SOURCE_DAILY_LIMIT = 20
 const ok = { ok: true } as const
 type Channel = 'sms' | 'email'
 type SendCode = (destination: string, code: string) => Promise<void>
-type Settings = { secret: string; planId: string; dailyLimit: number; sms: SendCode; email: SendCode; now?: () => Date }
+// The vendor-set legal pages: the terms version a visitor must accept and the site base URL that hosts the texts.
+export type LegalSettings = { baseUrl: string; termsVersion: string }
+type Settings = { secret: string; planId: string; dailyLimit: number; legal: LegalSettings; sms: SendCode; email: SendCode; now?: () => Date }
 type Challenge = {
   id: string; company_name: string; admin_name: string; email: string; mobile: string;
   expires_at: Date; mobile_verified: boolean; completed: boolean;
   sms_digest: Buffer; sms_expires_at: Date; sms_attempts: number;
   email_digest: Buffer | null; email_expires_at: Date | null; email_attempts: number;
+  terms_version: string; terms_accepted_at: Date; terms_accepted_ip: string;
 }
 
 const mobileSchema = z.string().trim().max(30).transform(value => value.replace(/[ ()-]/g, ''))
@@ -39,6 +42,9 @@ export const signupInput = z.strictObject({
   admin_name: personOrCompanyName(120),
   email: z.string().trim().toLowerCase().pipe(z.email().max(100)),
   mobile: mobileSchema,
+  // Both are checked by the service so a missing or stale acceptance gets its own code, not a generic invalid.
+  accept_terms: z.boolean().optional(),
+  terms_version: z.string().trim().max(40).optional(),
 })
 
 function refuse(code: string, status: number): never { throw new CommercialHttpError(code, status) }
@@ -92,8 +98,14 @@ export class SignupService {
     try { await this.settings[channel](destination, code) } catch { refuse('unavailable', 503) }
   }
 
+  /** What the sign-up page shows before the visitor accepts: the legal pages' base URL and the current terms version. */
+  terms() { return { legal_base_url: this.settings.legal.baseUrl, terms_version: this.settings.legal.termsVersion } }
+
   async start(input: z.input<typeof signupInput>, ip: string) {
-    const { company_name, admin_name, email, mobile } = signupInput.parse(input)
+    const { company_name, admin_name, email, mobile, accept_terms, terms_version } = signupInput.parse(input)
+    if (accept_terms !== true) refuse('terms_not_accepted', 422)
+    // The vendor changed the terms while the form was open: the visitor has not seen the current text.
+    if (terms_version !== this.settings.legal.termsVersion) refuse('terms_changed', 409)
     if (isFreeMailAddress(email)) refuse('business_email_required', 422)
     const id = randomUUID()
     const code = codeValue()
@@ -103,10 +115,11 @@ export class SignupService {
       await this.lockDeliveries(client)
       await this.reserveDelivery(client, 'sms', mobile, ip, now)
       await client.query('DELETE FROM public_signups WHERE expires_at <= $1', [now])
-      await client.query(`INSERT INTO public_signups(id,company_name,admin_name,email,mobile,expires_at,sms_digest,sms_expires_at)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [
+      await client.query(`INSERT INTO public_signups(id,company_name,admin_name,email,mobile,expires_at,sms_digest,sms_expires_at,
+          terms_version,terms_accepted_at,terms_accepted_ip)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [
         id, company_name, admin_name, email, mobile, new Date(+now + minutes(30)),
-        this.digest(id, 'sms', code), new Date(+now + minutes(5)),
+        this.digest(id, 'sms', code), new Date(+now + minutes(5)), terms_version, now, ip,
       ])
     })
     await this.deliver('sms', mobile, code)
@@ -164,8 +177,9 @@ export class SignupService {
       if (row.completed) return true
       const plan = await this.plan(client)
       const customerId = randomUUID()
-      const claim = await client.query(`INSERT INTO public_signup_trials(customer_id,email,mobile) VALUES($1,$2,$3)
-        ON CONFLICT DO NOTHING RETURNING customer_id`, [customerId, row.email, row.mobile])
+      const claim = await client.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,terms_version,terms_accepted_at,terms_accepted_ip)
+        VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING customer_id`,
+      [customerId, row.email, row.mobile, row.terms_version, row.terms_accepted_at, row.terms_accepted_ip])
       if (!claim.rowCount) refuse('trial_already_used', 409)
       await client.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)',
         [customerId, row.company_name, row.admin_name, row.email])

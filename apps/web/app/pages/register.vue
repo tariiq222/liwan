@@ -8,14 +8,19 @@ import { normalizeMobileInput } from '@/composables/useMe'
 definePageMeta({ layout: false, access: 'public' })
 
 type Step = 'details' | 'sms' | 'email' | 'done'
-type Action = 'start' | 'verify-sms' | 'send-email' | 'verify-email'
+type Action = 'terms' | 'start' | 'verify-sms' | 'send-email' | 'verify-email'
 
 const { t, locale, setLocale } = useI18n()
 const otherLanguage = computed(() => locale.value === 'ar' ? { code: 'en', label: 'English' } as const : { code: 'ar', label: 'العربية' } as const)
 const hydrated = useHydrated()
 const step = ref<Step>('details')
 const heading = ref<HTMLHeadingElement>()
-const details = reactive({ company_name: '', admin_name: '', email: '', mobile: '' })
+const details = reactive({ company_name: '', admin_name: '', email: '', mobile: '', accept_terms: false })
+// The legal pages and terms version the vendor currently sets; the server refuses a start that does not echo this version.
+const legal = ref<{ legal_base_url: string; terms_version: string }>()
+const legalPrefix = computed(() => locale.value === 'en' ? '/en' : '')
+const termsUrl = computed(() => legal.value ? `${legal.value.legal_base_url}${legalPrefix.value}/terms` : undefined)
+const privacyUrl = computed(() => legal.value ? `${legal.value.legal_base_url}${legalPrefix.value}/privacy` : undefined)
 const verification = reactive({ code: '' })
 const signupId = ref<string>()
 const emailSent = ref(false)
@@ -34,6 +39,8 @@ const errors: Record<string, string> = {
   unavailable: 'signup.errors.unavailable',
   trial_already_used: 'signup.errors.trialAlreadyUsed',
   signup_expired: 'signup.errors.expired',
+  terms_not_accepted: 'signup.errors.termsRequired',
+  terms_changed: 'signup.errors.termsChanged',
 }
 
 watch(step, () => heading.value?.focus(), { flush: 'post' })
@@ -49,6 +56,7 @@ function validateDetails(value: Partial<typeof details>): FormError[] {
   if (!/^\+9665[0-9]{8}$/.test(normalizeMobileInput(value.mobile ?? ''))) {
     problems.push({ name: 'mobile', message: t('signup.errors.mobileInvalid') })
   }
+  if (!value.accept_terms) problems.push({ name: 'accept_terms', message: t('signup.errors.termsRequired') })
   return problems
 }
 
@@ -66,9 +74,14 @@ function editDetails() {
   step.value = 'details'
 }
 
-function request<T>(action: Action, body: Record<string, string>) {
+function request<T>(action: Action, body: Record<string, string | boolean>) {
   return $fetch<T>(`/api/commercial/signup/${action}`, { method: 'POST', body })
 }
+
+async function loadTerms() {
+  try { legal.value = await request<{ legal_base_url: string; terms_version: string }>('terms', {}) } catch { errorKey.value = errors.unavailable }
+}
+onMounted(loadTerms)
 
 async function run(action: Action, execute: () => Promise<void>) {
   if (!hydrated.value || pending.value) return
@@ -83,6 +96,14 @@ async function run(action: Action, execute: () => Promise<void>) {
     if (code === 'rate_limited' && (action === 'start' || action === 'send-email') && step.value !== 'details') {
       resend.start(errorSeconds(error) || resendCooldownSeconds)
     }
+    if (code === 'terms_changed') {
+      // The vendor published new terms while the form was open: show the new links and ask for a fresh acceptance.
+      editDetails()
+      details.accept_terms = false
+      await loadTerms()
+      errorKey.value = errors.terms_changed
+      return
+    }
     if (code === 'business_email_required') {
       emailErrorKey.value = 'signup.errors.businessEmailRequired'
       return
@@ -94,13 +115,16 @@ async function run(action: Action, execute: () => Promise<void>) {
 }
 
 async function startSignup() {
-  if (waitingToResend.value) return
+  const version = legal.value?.terms_version
+  if (waitingToResend.value || !version || !details.accept_terms) return
   await run('start', async () => {
     const answer = await request<{ signup_id: string }>('start', {
       company_name: details.company_name.trim(),
       admin_name: details.admin_name.trim(),
       email: details.email.trim(),
       mobile: normalizeMobileInput(details.mobile),
+      accept_terms: true,
+      terms_version: version,
     })
     if (!answer.signup_id) throw new Error('Missing signup ID')
     signupId.value = answer.signup_id
@@ -140,6 +164,7 @@ async function verifyCode() {
       details.admin_name = ''
       details.email = ''
       details.mobile = ''
+      details.accept_terms = false
       step.value = 'done'
     }
   })
@@ -179,7 +204,17 @@ async function verifyCode() {
         <UFormField name="mobile" :label="t('signup.mobile')" required>
           <UInput v-model="details.mobile" type="tel" autocomplete="tel" dir="ltr" class="w-full text-start" :disabled="!!pending" />
         </UFormField>
-        <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated || !!pending" :loading="pending === 'start'" :label="t('signup.sendSms')" />
+        <UFormField name="accept_terms">
+          <UCheckbox v-model="details.accept_terms" :disabled="!!pending || !legal" data-testid="accept-terms">
+            <template #label>
+              <i18n-t keypath="signup.acceptTerms" tag="span">
+                <template #terms><a :href="termsUrl" target="_blank" rel="noopener" class="text-primary underline">{{ t('signup.termsLink') }}</a></template>
+                <template #privacy><a :href="privacyUrl" target="_blank" rel="noopener" class="text-primary underline">{{ t('signup.privacyLink') }}</a></template>
+              </i18n-t>
+            </template>
+          </UCheckbox>
+        </UFormField>
+        <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated || !!pending || !legal" :loading="pending === 'start'" :label="t('signup.sendSms')" />
       </UForm>
 
       <template v-else-if="step === 'sms' || step === 'email'">

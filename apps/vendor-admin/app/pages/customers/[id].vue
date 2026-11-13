@@ -179,6 +179,9 @@ async function cancelPendingOrder() {
         <template v-if="tab === 'summary'">
           <UAlert v-if="customer.commercial_setup_required" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.setupRequired')" :description="t('vendor.customers.setupHint')" />
           <VendorCustomerGlance :setup-required="customer.commercial_setup_required" :subscription="view" :plan-name="planNameOf(view?.applied?.plan_revision_id) ?? pendingPlanName" :plan-pending="!view?.applied && Boolean(pendingPlanName)" :invoices="glanceInvoices" :has-workspace="hasWorkspace" :workspace-badge="workspaceBadge" :provisioning-failed="progress.failed" :operation-failed="operationFailed" :workspace-unreadable="workspaceUnreadable" :invoices-offered="canBilling" :login-url="progress.loginUrl" :tab-to="tabTo" @retry="retryWorkspaceState" />
+          <p v-if="customer.signup_acceptance" class="text-sm text-muted" data-testid="signup-acceptance">
+            {{ t('vendor.customers.signupAcceptance', { version: customer.signup_acceptance.terms_version, date: formatLiwanDate(customer.signup_acceptance.accepted_at) }) }}
+          </p>
         </template>
 
         <template v-else-if="tab === 'subscription'">

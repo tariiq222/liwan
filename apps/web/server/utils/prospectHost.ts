@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 
 type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCommercialPublicOrigin?: string; publicSignupEnabled?: boolean | string }
 
-export const SIGNUP_API = /^\/api\/commercial\/signup\/(start|verify-sms|send-email|verify-email)$/
+export const SIGNUP_API = /^\/api\/commercial\/signup\/(terms|start|verify-sms|send-email|verify-email)$/
 export const isSignupPage = (pathname: string) => /^\/register\/?$/.test(pathname)
 const PROSPECT_PATHS = [/^\/payment-done\/?$/, /^\/api\/commercial\/payment-callback$/, /^\/_nuxt\//]
 

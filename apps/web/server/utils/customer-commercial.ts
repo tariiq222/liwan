@@ -73,6 +73,8 @@ const ROUTES: Route[] = [
   { method: 'GET', pattern: /^invoices\/[A-Za-z0-9_-]{1,128}$/ },
   // A2: where to transfer while an invoice is unpaid; reads no more than the invoice itself.
   { method: 'GET', pattern: /^invoices\/[A-Za-z0-9_-]{1,128}\/bank-transfer$/ },
+  // "I made the transfer": records a claim only; the vendor confirms the transfer by hand.
+  { method: 'POST', pattern: /^invoices\/[A-Za-z0-9_-]{1,128}\/bank-transfer-claim$/ },
   { method: 'GET', pattern: /^branches$/ },
   { method: 'POST', pattern: /^branch-quotes$/ },
   { method: 'GET', pattern: /^usage$/ },
@@ -81,6 +83,7 @@ const ROUTES: Route[] = [
 /** Capability each route needs (authoritative check also repeats in the control plane). */
 const NEEDS: Array<[RegExp, string, CustomerCommercialCapability]> = [
   [/^quotes$|^orders|^auto-renew$|^trial(\/(convert|retry))?$/, 'POST', 'subscription.manage'],
+  [/^invoices\/[^/]+\/bank-transfer-claim$/, 'POST', 'subscription.manage'],
   [/^preview$/, 'POST', 'subscription.read'],
   [/^branch-quotes$/, 'POST', 'branches.manage'],
   [/^invoices/, 'GET', 'billing.read'],
@@ -302,7 +305,7 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   } catch { fail(503, 'unavailable', 'Signup is unavailable') }
   if (!response.ok) {
     const code = response._data?.code
-    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required'].includes(code)) {
+    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required', 'terms_not_accepted', 'terms_changed'].includes(code)) {
       fail(response.status, code, 'Signup request rejected')
     }
     fail(503, 'unavailable', 'Signup is unavailable')
