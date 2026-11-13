@@ -31,7 +31,7 @@ suite('live PostgreSQL bank transfer claims', () => {
     plan = (await api('POST', `/plans/${c.body.id}/publish`, { edit_revision: v.body.edit_revision, reason: 'Claim acceptance' })).body
   })
   beforeEach(async () => { await pool.query('TRUNCATE customers CASCADE'); await pool.query('TRUNCATE commercial_outbox') })
-  afterAll(async () => { await pool.end() })
+  afterAll(async () => { await pool.query('TRUNCATE customers CASCADE'); await pool.query('TRUNCATE commercial_outbox'); await pool.end() })
 
   async function unpaid() {
     const customer = randomUUID(), tenant = randomUUID()

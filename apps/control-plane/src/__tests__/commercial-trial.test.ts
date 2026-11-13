@@ -37,6 +37,7 @@ suite('commercial trial', () => {
   }
   beforeAll(async () => {
     const { version } = await setup(pool)
+    await pool.query('TRUNCATE commercial_outbox') // the notice assertions count outbox rows: start from none, whatever an earlier file left
     await api('POST', '/catalog/releases', { catalog_version: version, reason })
     const created = await api('POST', '/plans', { name: `Trial ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(30000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
