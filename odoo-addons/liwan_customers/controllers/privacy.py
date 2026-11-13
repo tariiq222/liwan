@@ -26,7 +26,7 @@ XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 class CustomersPrivacyController(http.Controller):
     """Privacy requests about one customer (PDPL). A customer the caller cannot see is a 404 on every route."""
 
-    @http.route('/api/v1/customers/<int:customer_id>/privacy/erase-preview', type='json2', auth='user', methods=['POST'], readonly=True)
+    @http.route('/api/v1/customers/<int:customer_id>/privacy/erase-preview', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_registered_feature(SERVICE, FEATURE_HOOK, keys=FEATURE_KEYS, operation='read', match='any')
     @requires_capability(CUSTOMERS_ERASE)
