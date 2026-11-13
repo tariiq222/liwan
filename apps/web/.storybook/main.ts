@@ -102,11 +102,14 @@ function importMetaEnvShim(): Plugin {
   }
 }
 
+const isDevServer = process.argv.includes('dev')
+
 const config: StorybookConfig = {
   stories: ['../stories/**/*.mdx', '../stories/**/*.stories.ts'],
   addons: ['@storybook/addon-docs', '@storybook/addon-a11y', 'msw-storybook-addon', '@storybook/addon-mcp'],
   // The addon's docs toolset needs the components manifest, and Vue only gets component docs from the docgen server.
-  features: { componentsManifest: true, experimentalDocgenServer: true },
+  // Only the dev server serves MCP; the docgen worker runs out of memory in `storybook build`, which needs neither.
+  features: isDevServer ? { componentsManifest: true, experimentalDocgenServer: true } : {},
   framework: { name: '@storybook/vue3-vite', options: {} },
   staticDirs: ['../public', '../../../packages/ui/public', './public'],
   async viteFinal(viteConfig, { configType }) {
