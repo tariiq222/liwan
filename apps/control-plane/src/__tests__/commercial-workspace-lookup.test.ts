@@ -14,6 +14,7 @@ import {
   WORKSPACE_LOOKUP_KIND, WORKSPACE_LOOKUP_NOTICE_KIND,
 } from '../commercial/workspace-lookup.js'
 
+const KEY = 'lookup-test-key-'.repeat(4)
 const d = url ? describe : describe.skip
 d('find my workspace', () => {
   let pool: Pool
@@ -50,7 +51,7 @@ d('find my workspace', () => {
     return { tenant, customer, host, sub }
   }
   const ask = (email: string) => queueWorkspaceLookup(pool, { email, client_address: '203.0.113.7' })
-  const run = async () => { const r = await runWorkspaceLookups(pool, { mail, returnOrigin: origin(pool) }); return r }
+  const run = async () => { const r = await runWorkspaceLookups(pool, { key: KEY, mail, returnOrigin: origin(pool) }); return r }
   const lookupRows = async () => (await pool.query(`SELECT status, payload FROM commercial_outbox WHERE kind=$1 ORDER BY created_at`, [WORKSPACE_LOOKUP_KIND])).rows
   const mailed = async () => (await pool.query(`SELECT subject, metadata FROM audit_events WHERE action=$1`, [WORKSPACE_LOOKUP_ACTION])).rows
 
@@ -105,19 +106,65 @@ d('find my workspace', () => {
     })
     it('leaves out a workspace disabled between the decision and the send', async () => {
       const w = await workspace()
-      await ask('admin@x.test'); await processWorkspaceLookups(pool)
+      await ask('admin@x.test'); await processWorkspaceLookups(pool, { key: KEY })
       await pool.query('UPDATE shared_registry_bindings SET enabled=false, registry_revision=registry_revision+1 WHERE control_tenant_id=$1', [w.tenant])
-      expect(await sendWorkspaceLookupNotices(pool, { mail, returnOrigin: origin(pool) })).toBe(0)
+      expect(await sendWorkspaceLookupNotices(pool, { key: KEY, mail, returnOrigin: origin(pool) })).toBe(0)
       expect(sent).toEqual([])
+    })
+    const notices = async () => (await pool.query(`SELECT status, payload FROM commercial_outbox WHERE kind=$1 ORDER BY created_at`, [WORKSPACE_LOOKUP_NOTICE_KIND])).rows
+    const deliver = () => sendWorkspaceLookupNotices(pool, { key: KEY, mail, returnOrigin: origin(pool) })
+    const holdsNoAddress = async (...addresses: string[]) => {
+      const text = JSON.stringify((await pool.query(`SELECT payload FROM commercial_outbox`)).rows.map(r => r.payload)).toLowerCase()
+      for (const address of addresses) expect(text).not.toContain(address)
+    }
+    it('mails only the customer still on the matched address when the other one changed address before the send', async () => {
+      const a = await workspace({ name: 'Stays', admin: 'shared@x.test' }), b = await workspace({ name: 'Moves', admin: 'shared@x.test' })
+      await ask('Shared@X.test'); await processWorkspaceLookups(pool, { key: KEY })
+      expect((await notices()).map(r => Object.keys(r.payload).sort())).toEqual([['address_hash', 'customer_ids']])
+      await holdsNoAddress('shared@x.test')
+      await pool.query(`UPDATE customers SET admin_login='new-owner@x.test' WHERE id=$1`, [b.customer])
+      expect(await deliver()).toBe(1)
+      expect(sent.map(m => m.to)).toEqual(['shared@x.test'])
+      expect(sent[0]!.text).toContain(a.host); expect(sent[0]!.text).not.toContain(b.host); expect(sent[0]!.text).not.toContain('Moves')
+      await holdsNoAddress('shared@x.test', 'new-owner@x.test')
+    })
+    it('mails nothing when every matched customer changed address, and closes the notice with the reason', async () => {
+      const a = await workspace({ name: 'A' }), b = await workspace({ name: 'B', admin: 'admin@x.test' })
+      await ask('admin@x.test'); await processWorkspaceLookups(pool, { key: KEY })
+      await pool.query(`UPDATE customers SET admin_login = 'moved-' || id || '@x.test' WHERE id = ANY($1::uuid[])`, [[a.customer, b.customer]])
+      // The new holder of the address must not be told about the other customer's workspace either.
+      await pool.query(`UPDATE customers SET admin_login='admin@x.test' WHERE id=$1`, [b.customer])
+      await pool.query(`UPDATE customers SET admin_login='other-holder@x.test' WHERE id=$1`, [b.customer])
+      expect(await deliver()).toBe(0)
+      expect(sent).toEqual([])
+      expect((await notices()).map(r => [r.status, r.payload.reason])).toEqual([['done', 'address_changed']])
+      await holdsNoAddress('admin@x.test', 'other-holder@x.test')
+    })
+    it('does not list a workspace whose binding was disabled between the match and the send', async () => {
+      const a = await workspace({ name: 'Kept' }), b = await workspace({ name: 'Cut' })
+      await ask('admin@x.test'); await processWorkspaceLookups(pool, { key: KEY })
+      await pool.query('UPDATE shared_registry_bindings SET enabled=false, registry_revision=registry_revision+1 WHERE control_tenant_id=$1', [b.tenant])
+      await deliver()
+      expect(sent[0]!.text).toContain(a.host); expect(sent[0]!.text).not.toContain(b.host)
+      await holdsNoAddress('admin@x.test')
+    })
+    it('counts a mail decided for the same workspaces after the match against the address limits at send time', async () => {
+      const a = await workspace()
+      await ask('admin@x.test'); await processWorkspaceLookups(pool, { key: KEY })
+      await pool.query(`INSERT INTO audit_events(id,actor,action,subject,reason,metadata,created_at) VALUES($1,'a',$2,$3,'r',$4,now() - interval '5 seconds')`,
+        [randomUUID(), WORKSPACE_LOOKUP_ACTION, a.customer, JSON.stringify({ mail_id: randomUUID() })])
+      expect(await deliver()).toBe(0)
+      expect(sent).toEqual([])
+      expect((await notices()).map(r => r.payload.reason)).toEqual(['limited'])
     })
     it('mails an address at most once per cooldown, even when the requests are handled in parallel', async () => {
       await workspace()
       for (let n = 0; n < 8; n++) await ask('admin@x.test')
-      await Promise.all(Array.from({ length: 4 }, () => processWorkspaceLookups(pool, { limit: 2 })))
+      await Promise.all(Array.from({ length: 4 }, () => processWorkspaceLookups(pool, { key: KEY, limit: 2 })))
       expect((await lookupRows()).every(r => r.status === 'done')).toBe(true)
       expect(await mailed()).toHaveLength(1)
       expect((await pool.query(`SELECT count(*)::int AS n FROM commercial_outbox WHERE kind=$1`, [WORKSPACE_LOOKUP_NOTICE_KIND])).rows[0].n).toBe(1)
-      await sendWorkspaceLookupNotices(pool, { mail, returnOrigin: origin(pool) })
+      await sendWorkspaceLookupNotices(pool, { key: KEY, mail, returnOrigin: origin(pool) })
       expect(sent).toHaveLength(1)
       expect(WORKSPACE_LOOKUP_COOLDOWN_SECONDS).toBe(60)
     })
@@ -128,11 +175,11 @@ d('find my workspace', () => {
           [randomUUID(), WORKSPACE_LOOKUP_ACTION, w.customer, JSON.stringify({ mail_id: randomUUID() })])
       }
       for (let n = 0; n < 5; n++) await ask('admin@x.test')
-      await Promise.all([processWorkspaceLookups(pool, { limit: 3 }), processWorkspaceLookups(pool, { limit: 3 })])
+      await Promise.all([processWorkspaceLookups(pool, { key: KEY, limit: 3 }), processWorkspaceLookups(pool, { key: KEY, limit: 3 })])
       expect((await mailed()).length).toBe(WORKSPACE_LOOKUP_HOURLY_LIMIT)
       // An hour later the address may be mailed again.
       await pool.query(`UPDATE audit_events SET created_at = now() - interval '2 hours' WHERE action=$1`, [WORKSPACE_LOOKUP_ACTION])
-      await ask('admin@x.test'); await processWorkspaceLookups(pool)
+      await ask('admin@x.test'); await processWorkspaceLookups(pool, { key: KEY })
       expect((await mailed()).length).toBe(WORKSPACE_LOOKUP_HOURLY_LIMIT + 1)
     })
     it('stops at the daily ceiling for every address', async () => {
@@ -149,7 +196,7 @@ d('find my workspace', () => {
       await pool.query(`INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload) VALUES($1::uuid,$2,$1::text,$1::text,$3)`, [randomUUID(), WORKSPACE_LOOKUP_KIND, JSON.stringify({ email: 5, client_address: '203.0.113.7' })])
       const logs: string[] = []
       for (let n = 0; n < 5; n++) {
-        await processWorkspaceLookups(pool, { log: m => logs.push(m) })
+        await processWorkspaceLookups(pool, { key: KEY, log: m => logs.push(m) })
         await pool.query(`UPDATE commercial_outbox SET next_attempt_at=now() WHERE kind=$1`, [WORKSPACE_LOOKUP_KIND])
       }
       expect((await lookupRows()).map(r => [r.status, 'email' in r.payload])).toEqual([['failed', false]])
@@ -252,7 +299,7 @@ d('find my workspace', () => {
     const w = await workspace()
     await ask('admin@x.test')
     vi.spyOn(console, 'debug').mockImplementation(() => {})
-    const scheduler = createCommercialScheduler({ pool, config: {} as never, env: { LIWAN_TENANCY_MODE: 'shared', LIWAN_PAYMENT_RETURN_ORIGINS: 'https://*.liwan.test' }, mailAdapter: mail, log: () => {} })
+    const scheduler = createCommercialScheduler({ pool, config: { key: KEY } as never, env: { LIWAN_TENANCY_MODE: 'shared', LIWAN_PAYMENT_RETURN_ORIGINS: 'https://*.liwan.test' }, mailAdapter: mail, log: () => {} })
     await scheduler.tick()
     const tick = JSON.parse((console.debug as unknown as { mock: { calls: string[][] } }).mock.calls.at(-1)![0])
     expect(tick.jobs['workspace-lookup']).toEqual({ runs: 1, failures: 0 })

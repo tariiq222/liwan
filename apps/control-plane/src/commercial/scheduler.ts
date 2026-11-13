@@ -121,7 +121,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (o.mailAdapter) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
-        await job('workspace-lookup', () => runWorkspaceLookups(pool, { mail, returnOrigin, signal: o.signal, log }))
+        await job('workspace-lookup', () => runWorkspaceLookups(pool, { key: config.key, mail, returnOrigin, signal: o.signal, log }))
         await job('workspace-delay-notices', () => sendWorkspaceDelayNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
         await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHmac, randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { enqueueOutbox, claimOutbox, completeOutbox, deferOutbox, leaseOutboxRow, releaseOutbox } from './outbox.js'
 import { INVITATION_MAX_ATTEMPTS, settleFailedInvitationOutbox } from './invitations.js'
@@ -19,6 +19,10 @@ export const WORKSPACE_LOOKUP_DAILY_LIMIT = 200
 /** One lock for every decision, so parallel requests (the same address or many) cannot all pass a count read under it. */
 const DECISION_LOCK = 'workspace-lookup'
 
+/** Keyed hash of a normalised address: what a notice row keeps to prove at send time that a customer is still on the address the
+ *  lookup matched. The address itself is never stored in the row. */
+export const addressHash = (key: string, address: string) => createHmac('sha256', key).update(`workspace-lookup\n${address.trim().toLowerCase()}`).digest('hex')
+
 /** Records a request without looking at it: every valid request does exactly this, so the HTTP answer and its timing cannot
  *  tell an address on record from any other. The typed address is kept only until the worker has handled the row. */
 export async function queueWorkspaceLookup(pool: Pool, i: { email: string; client_address: string }): Promise<void> {
@@ -35,7 +39,7 @@ const MATCHES = `SELECT c.id, c.name FROM customers c
 
 /** Looks `email` up, decides whether a mail may go and, if so, records it and queues the notice, all in one transaction with the
  *  request row's completion. Returns whether a mail was queued. The address typed is removed from the row in the same statement. */
-async function handleLookup(pool: Pool, row: { id: string }, email: string): Promise<boolean> {
+async function handleLookup(pool: Pool, row: { id: string }, email: string, key: string): Promise<boolean> {
   const c = await pool.connect()
   try {
     await c.query('BEGIN')
@@ -55,7 +59,7 @@ async function handleLookup(pool: Pool, row: { id: string }, email: string): Pro
           await c.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
             [randomUUID(), WORKSPACE_LOOKUP_ACTOR, WORKSPACE_LOOKUP_ACTION, id, 'Manager asked for the workspace address', JSON.stringify({ mail_id: mailId })])
         }
-        await enqueueOutbox(c, { kind: WORKSPACE_LOOKUP_NOTICE_KIND, aggregate_id: mailId, dedupe_key: mailId, payload: { customer_ids: ids } })
+        await enqueueOutbox(c, { kind: WORKSPACE_LOOKUP_NOTICE_KIND, aggregate_id: mailId, dedupe_key: mailId, payload: { customer_ids: ids, address_hash: addressHash(key, email) } })
         queued = true
       }
     }
@@ -67,12 +71,12 @@ async function handleLookup(pool: Pool, row: { id: string }, email: string): Pro
 
 /** Worker side of `queueWorkspaceLookup`. Survives a process stop: an unfinished row is leased again and retried. The typed
  *  address is removed from the row as soon as it is handled, and from a row that fails for good. Returns the rows handled. */
-export async function processWorkspaceLookups(pool: Pool, o: { limit?: number; signal?: AbortSignal; log?: (message: string, error?: unknown) => void } = {}) {
+export async function processWorkspaceLookups(pool: Pool, o: { key: string; limit?: number; signal?: AbortSignal; log?: (message: string, error?: unknown) => void }) {
   let handled = 0
   for (const row of await claimOutbox(pool, [WORKSPACE_LOOKUP_KIND], o.limit ?? 20)) {
     if (o.signal?.aborted) { await releaseOutbox(pool, row.id); continue }
     try {
-      await handleLookup(pool, row, (row.payload as { email: string }).email)
+      await handleLookup(pool, row, (row.payload as { email: string }).email, o.key)
       handled++
     } catch (e) {
       o.log?.(`workspace lookup ${row.id} failed (attempt ${row.attempts + 1} of ${INVITATION_MAX_ATTEMPTS})`, e)
@@ -95,19 +99,29 @@ export function workspaceLookupMail(workspaces: { name: string; url: string }[])
 /** Sends each queued notice to the address on record, one mail listing every workspace of that address. The recipient and the
  *  workspaces are read again just before sending, so a workspace that was disabled meanwhile is left out. A row is leased so two
  *  workers send it once. */
-export async function sendWorkspaceLookupNotices(pool: Pool, o: { mail: MailAdapter; returnOrigin: ReturnOrigin; limit?: number; signal?: AbortSignal; log?: (message: string, error?: unknown) => void }): Promise<number> {
+export async function sendWorkspaceLookupNotices(pool: Pool, o: { key: string; mail: MailAdapter; returnOrigin: ReturnOrigin; limit?: number; signal?: AbortSignal; log?: (message: string, error?: unknown) => void }): Promise<number> {
   let sent = 0
-  const rows = (await pool.query(`SELECT id, attempts, payload FROM commercial_outbox WHERE kind=$1 AND status='pending' AND next_attempt_at <= now() ORDER BY created_at, id LIMIT $2`,
-    [WORKSPACE_LOOKUP_NOTICE_KIND, o.limit ?? 20])).rows as { id: string; attempts: number; payload: { customer_ids: string[] } }[]
+  const rows = (await pool.query(`SELECT id, aggregate_id, attempts, payload FROM commercial_outbox WHERE kind=$1 AND status='pending' AND next_attempt_at <= now() ORDER BY created_at, id LIMIT $2`,
+    [WORKSPACE_LOOKUP_NOTICE_KIND, o.limit ?? 20])).rows as { id: string; aggregate_id: string; attempts: number; payload: { customer_ids: string[]; address_hash: string } }[]
+  const close = (id: string, reason: string) => pool.query(`UPDATE commercial_outbox SET status='done', processed_at=now(), payload = payload || jsonb_build_object('reason', $2::text) WHERE id=$1 AND status='pending'`, [id, reason])
   for (const row of rows) {
     if (o.signal?.aborted) return sent
     if (!await leaseOutboxRow(pool, row.id)) continue
     try {
-      const live = (await pool.query(
+      // The match is proven again now: only customers still on the matched address, with an enabled binding, are listed, and the mail goes to that address.
+      const candidates = (await pool.query(
         `SELECT c.id, c.name, c.admin_login FROM customers c
          JOIN shared_registry_bindings b ON b.control_tenant_id=c.tenant_id AND b.enabled
          WHERE c.id = ANY($1::uuid[]) AND c.admin_login IS NOT NULL ORDER BY c.created_at, c.id`, [row.payload.customer_ids])).rows as { id: string; name: string; admin_login: string }[]
-      if (!live.length) { await completeOutbox(pool, row.id); continue }
+      const live = candidates.filter(c => addressHash(o.key, c.admin_login) === row.payload.address_hash)
+      if (!live.length) { await close(row.id, 'address_changed'); continue }
+      // Another mail to these workspaces since the match counts against the same limits.
+      const others = (await pool.query(
+        `SELECT count(DISTINCT metadata->>'mail_id') FILTER (WHERE created_at > now() - interval '1 hour')::int AS recent,
+                count(DISTINCT metadata->>'mail_id') FILTER (WHERE created_at > now() - make_interval(secs => $4))::int AS cooling
+         FROM audit_events WHERE action=$1 AND subject = ANY($2::text[]) AND metadata->>'mail_id' <> $3`,
+        [WORKSPACE_LOOKUP_ACTION, live.map(c => c.id), row.aggregate_id, WORKSPACE_LOOKUP_COOLDOWN_SECONDS])).rows[0]
+      if (others.recent >= WORKSPACE_LOOKUP_HOURLY_LIMIT || others.cooling > 0) { await close(row.id, 'limited'); continue }
       const workspaces = []
       for (const w of live) workspaces.push({ name: w.name, url: `${await o.returnOrigin(w.id)}/login` })
       const notice = workspaceLookupMail(workspaces)
@@ -123,7 +137,7 @@ export async function sendWorkspaceLookupNotices(pool: Pool, o: { mail: MailAdap
 }
 
 /** The two halves in the order the scheduler runs them: decide the queued requests, then send what was decided. */
-export async function runWorkspaceLookups(pool: Pool, o: { mail: MailAdapter; returnOrigin: ReturnOrigin; signal?: AbortSignal; log?: (message: string, error?: unknown) => void }) {
+export async function runWorkspaceLookups(pool: Pool, o: { key: string; mail: MailAdapter; returnOrigin: ReturnOrigin; signal?: AbortSignal; log?: (message: string, error?: unknown) => void }) {
   const handled = await processWorkspaceLookups(pool, o)
   const sent = await sendWorkspaceLookupNotices(pool, o)
   return { handled, sent }
