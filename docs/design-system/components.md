@@ -198,6 +198,7 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/web/app/components/subscription/BranchSummary.vue` | `apps/web/stories/subscription/BranchSummary.stories.ts` | `UBadge` |
 | `apps/web/app/components/subscription/UsagePanel.vue` | `apps/web/stories/subscription/UsagePanel.stories.ts` | `SharedMetricTile` (مقياس بشريط `progress` ونبرة)، `SharedStatusBadge` |
 | `apps/web/app/components/subscription/TrialEndPanel.vue` | `apps/web/stories/subscription/TrialEndPanel.stories.ts` | `SharedRecordSection`، `SharedPropertyRow`، `SharedInvoiceLines`، `SharedSegmentedControl`، `SharedStatusBadge`، `UAlert`، `UButton` |
+| `apps/web/app/components/subscription/LockedApplication.vue` | `apps/web/stories/subscription/LockedApplication.stories.ts` | `UIcon`, `UButton`؛ صفحة التطبيق المقفل التي يعرضها `error.vue` عند `feature_not_included` أو `tenant_read_only`: السبب، وإجراء واحد لمدير الاشتراك (الباقات أو السداد)، و«افتح البيانات الحالية» للقراءة فقط، ولا رابط فواتير لغير المدير ولا في `non_saas` |
 | `apps/web/app/components/subscription/InvoiceDocument.vue` | `apps/web/stories/subscription/InvoiceDocument.stories.ts` | `SharedInvoiceLines` |
 
 ## مكونات لوحة إدارة المورّد — apps/vendor-admin
