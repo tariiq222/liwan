@@ -165,7 +165,7 @@ class OverlayWiringCase(unittest.TestCase):
 
     def test_odoo_reaches_the_proxy_over_an_internal_network_and_has_no_routed_one(self):
         listed = [line.strip()[2:] for line in self.odoo_lines if re.match(r'^ {6}- \w+$', line)]
-        self.assertEqual(listed, ['guard_odoo', 'database', 'relay_odoo', 'odoo_egress'])
+        self.assertEqual(listed, ['guard_odoo', 'database', 'relay_odoo', 'odoo_egress', 'odoo_mail'])
         for name in listed:
             self.assertRegex(self.networks_block, rf'\n  {name}: \{{ internal: true \}}')
 

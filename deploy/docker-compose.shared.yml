@@ -108,6 +108,13 @@ services:
       HTTPS_PROXY: http://odoo-egress:3128
       HTTP_PROXY: http://odoo-egress:3128
       NO_PROXY: db,pgbouncer,tiktok-relay,localhost,127.0.0.1
+      # Outgoing mail for every tenant database: Odoo's own server-wide options, read from the environment (they win
+      # over the operator's config file and need no ir.mail_server record per database). SMTP is not HTTP, so it
+      # cannot use the proxy above; it goes to `odoo-mail`, a send-only relay. The sender is the one platform address
+      # the relay also enforces (docs/operations/odoo-mail.md). No credential is set here: the relay holds them.
+      ODOO_SMTP_SERVER: odoo-mail
+      ODOO_SMTP_PORT: "2525"
+      ODOO_EMAIL_FROM: "${ODOO_MAIL_SENDER:-}"
     ports: !reset []
     # `relay_odoo` carries the TikTok relay's binding calls (D13). It is internal and reaches only the
     # relay, so Odoo keeps it whether or not this deployment runs the app. `odoo_egress` is internal too and reaches
@@ -117,9 +124,11 @@ services:
       - database
       - relay_odoo
       - odoo_egress
+      - odoo_mail
     # Merged with the base file's `db` dependency.
     depends_on:
       odoo-egress: { condition: service_started }
+      odoo-mail: { condition: service_started }
     # dbfilter=^%h$ selects no database for 127.0.0.1, so Odoo answers /web/health (auth='none') without one; the
     # db_server_status check opens a PostgreSQL connection. The probe fails when no HTTP worker answers or the database
     # server is unreachable. Timing comes from the base file; the venv python exists in the image (deploy/odoo/Dockerfile).
@@ -171,6 +180,37 @@ services:
     expose: ["3128"]
     # The one routed network is the edge; odoo_egress is internal and holds only Odoo and this proxy.
     networks: [odoo_egress, edge]
+
+  # The send-only SMTP relay: the one way mail leaves Odoo (relay.py states its rules). It listens only on the internal
+  # network it shares with Odoo, relays to the single upstream smarthost over verified STARTTLS and refuses any sender
+  # but the platform address. Unset ODOO_MAIL_* values start it in refuse-everything mode, never as an open relay.
+  # Credentials come from deploy/.env like DB_PASSWORD; they are never in the image or in git.
+  odoo-mail:
+    build: { context: ./odoo-mail }
+    restart: unless-stopped
+    environment:
+      ODOO_MAIL_SENDER: "${ODOO_MAIL_SENDER:-}"
+      ODOO_MAIL_UPSTREAM_HOST: "${ODOO_MAIL_UPSTREAM_HOST:-}"
+      ODOO_MAIL_UPSTREAM_PORT: "${ODOO_MAIL_UPSTREAM_PORT:-587}"
+      ODOO_MAIL_UPSTREAM_USER: "${ODOO_MAIL_UPSTREAM_USER:-}"
+      ODOO_MAIL_UPSTREAM_PASSWORD: "${ODOO_MAIL_UPSTREAM_PASSWORD:-}"
+    # The image's numeric user on an unprivileged port, no capability, nothing writable beyond a tmpfs.
+    user: "10002:10002"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    # At most 8 connections hold a message of up to 10 MB each (a few copies while it is checked and sent).
+    mem_limit: 384m
+    expose: ["2525"]
+    # The one routed network is the edge, for the upstream; the internal one holds only Odoo and this relay.
+    networks: [odoo_mail, edge]
+    healthcheck:
+      test: ["CMD", "python3", "-I", "/usr/local/lib/odoo-mail/relay.py", "--healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   db:
     ports: !reset []
@@ -290,6 +330,8 @@ networks:
   ai_internal: { internal: true }
   # Odoo's only route off the host runs through `odoo-egress`; nothing else is on this network.
   odoo_egress: { internal: true }
+  # Odoo submits its mail to `odoo-mail` over this network; nothing else is on it.
+  odoo_mail: { internal: true }
   # Odoo registers each connected TikTok account with the relay over this internal network.
   relay_odoo: { internal: true }
   # The restore profile: the guard reaches restore-odoo, and restore-odoo reaches restore-db, over networks the live
