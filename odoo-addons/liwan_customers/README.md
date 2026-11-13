@@ -46,7 +46,9 @@ no application.
   Removing a field that still has a value on any party (archived ones and every company counted) answers
   `409 custom_field_values_exist` with the count per field and changes nothing, until the same write carries
   `confirm_field_removal: true`; the values are then cleared through the ORM, because stock leaves the stored values of a
-  removed definition item in place. `confirm_field_removal` without `fields` is a 422.
+  removed definition item in place. `confirm_field_removal` without `fields` is a 422. An option removed from a
+  selection or tags field that stays asks no confirmation: its key is cleared from the customers that hold it in the
+  same write, since the API can no longer read it.
 - D5, the definition without `sudo()`: stock writes the definition for `base.group_system` only. This addon adds an ACL
   row (read for internal users, read and write for `group_cap_customers_settings_manage`, no create or unlink) and one
   record rule on `base.group_user` limited to the `res.partner.properties` row, so the settings manager writes the

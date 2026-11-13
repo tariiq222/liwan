@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
 
+from odoo.addons.liwan_api.serializers.properties import OPTION_TYPES
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 SHARING_MODES = ('establishment', 'branch')
@@ -43,6 +44,7 @@ class LiwanCustomersSettings(models.Model):
         409 ``conflict`` on a stale read; 409 ``sharing_transfer_required`` when the sharing changes while any customer
         exists (archived ones and contacts counted); 409 ``custom_field_values_exist`` when ``definition`` drops fields
         that still have values, unless ``confirm_removal`` (then the values go with the field). A refusal changes nothing.
+        An option dropped from a field that stays is no longer readable on any customer, so its stored key goes too.
         """
         self.ensure_one()
         if self.revision != revision:
@@ -54,13 +56,14 @@ class LiwanCustomersSettings(models.Model):
                 code, 'customers exist: changing the sharing needs a transfer',
                 field='sharing', status=409,
             )
-        holders = {}
         if definition is not None:
-            holders = self._liwan_value_holders(self._liwan_removed_fields(definition))
+            holders, option_holders = self._liwan_value_holders(
+                self._liwan_removed_fields(definition), self._liwan_removed_options(definition),
+            )
             if holders and not confirm_removal:
                 self._liwan_refuse_removal(holders)
             self.env['res.partner']._liwan_set_party_properties_definition(definition)
-            self._liwan_clear_values(holders)
+            self._liwan_clear_values(option_holders.union(*(parties for _label, parties in holders.values())))
         self.write({**values, 'revision': revision + 1})
 
     @api.model
@@ -71,6 +74,17 @@ class LiwanCustomersSettings(models.Model):
             item['name']: item['string']
             for item in self.env['res.partner']._liwan_party_properties_definition() if item['name'] not in kept
         }
+
+    @api.model
+    def _liwan_removed_options(self, definition):
+        """The option keys that ``definition`` drops from the selection and tags fields it keeps, as
+        ``{field key: {option keys}}`` (only the fields that lose one)."""
+        kept = {item['name']: _option_keys(item) for item in definition}
+        removed = {
+            item['name']: _option_keys(item) - kept[item['name']]
+            for item in self.env['res.partner']._liwan_party_properties_definition() if item['name'] in kept
+        }
+        return {key: options for key, options in removed.items() if options}
 
     @api.model
     def _liwan_refuse_removal(self, holders):
@@ -84,32 +98,37 @@ class LiwanCustomersSettings(models.Model):
         )
 
     @api.model
-    def _liwan_value_holders(self, removed):
-        """``{key: (label, parties)}`` of the removed fields ``{key: label}`` that some party still holds a value of.
+    def _liwan_value_holders(self, removed, removed_options):
+        """``(holders, option_holders)`` of a definition change: ``holders`` is ``{key: (label, parties)}`` of the
+        removed fields ``{key: label}`` that some party still holds a value of, and ``option_holders`` the parties that
+        hold a removed option (``removed_options``, ``{field key: {option keys}}``) of a field that stays.
 
         Archived parties and every company's count, so the confirmation shows what the removal destroys.
         """
-        if not removed:
-            return {}
+        every_party = self._liwan_every_party()
+        holders = {key: every_party.browse() for key in removed}
+        option_holders = every_party.browse()
+        if not removed and not removed_options:
+            return {}, option_holders
         # The engine's comparison with false also drops a stored 0 and the whole-field comparison is not searchable,
         # so every party is read and the loop below decides from the values.
-        parties = self._liwan_every_party().search([('liwan_party', '=', True)])
-        holders = {key: parties.browse() for key in removed}
+        parties = every_party.search([('liwan_party', '=', True)])
         for row in parties.read([PROPERTIES_FIELD]):
+            party = parties.browse(row['id'])
             for item in row[PROPERTIES_FIELD]:
-                if item['name'] in removed and not _is_empty(item.get('value')):
-                    holders[item['name']] |= parties.browse(row['id'])
-        return {key: (removed[key], found) for key, found in holders.items() if found}
+                key, value = item['name'], item.get('value')
+                if key in removed and not _is_empty(value):
+                    holders[key] |= party
+                elif _holds_option(value, removed_options.get(key, ())):
+                    option_holders |= party
+        return {key: (removed[key], found) for key, found in holders.items() if found}, option_holders
 
     @api.model
-    def _liwan_clear_values(self, holders):
-        """Drop the removed fields' values from the parties that hold them: stock leaves the stored values of a removed
-        definition item in place, and they would outlive the field. Runs after the new definition is installed, so
-        the engine's read format carries only the fields that stay."""
-        found = [parties for _label, parties in holders.values()]
-        if not found:
-            return
-        parties = found[0].union(*found[1:])
+    def _liwan_clear_values(self, parties):
+        """Rewrite the values of ``parties`` so that what the new definition no longer reads is gone from them: the
+        values of a removed field and the key of a removed option. Stock leaves both in the stored column, where they
+        would outlive what they belonged to. Runs after the new definition is installed, so the engine's read format
+        carries only what stays."""
         parties.invalidate_recordset([PROPERTIES_FIELD])
         for party, row in zip(parties, parties.read([PROPERTIES_FIELD]), strict=True):
             party.write({PROPERTIES_FIELD: {item['name']: item.get('value') for item in row[PROPERTIES_FIELD]}})
@@ -123,7 +142,8 @@ class LiwanCustomersSettings(models.Model):
     @api.model
     def _liwan_every_party(self):
         """``res.partner`` over every company, archived records included, for the two reads that must not depend on
-        what the caller sees: whether any party exists, and which parties hold a value of a field being removed.
+        what the caller sees: whether any party exists, and which parties hold a value of a field or of an option being
+        removed.
 
         Elevated: the company fence hides the parties of branches the root settings manager holds no grant in.
         """
@@ -133,3 +153,15 @@ class LiwanCustomersSettings(models.Model):
 def _is_empty(value):
     """Whether an engine value of the read format is unset: nothing, false, an empty text or an empty list."""
     return value is None or value is False or value in ('', [])
+
+
+def _option_keys(item):
+    """The option keys of an engine definition item; none for a type without options."""
+    return {option[0] for option in item.get(item['type']) or ()} if item['type'] in OPTION_TYPES else set()
+
+
+def _holds_option(value, options):
+    """Whether an engine value names one of ``options``: the key of a selection, or one of the keys of a tags value."""
+    if not options or _is_empty(value):
+        return False
+    return bool(options.intersection(value if isinstance(value, list) else [value]))

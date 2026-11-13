@@ -432,24 +432,42 @@ class TestCustomersFieldValues(CustomersCase):
         self.assertEqual(confirmed.status_code, 200, confirmed.text)
         self.assertNotIn(count, self.stored_properties(customer['id']))
 
-    def test_removing_an_option_a_party_holds_reads_as_empty(self):
+    def test_removing_an_option_clears_it_from_the_parties_that_hold_it(self):
         fields = self.define_fields(SEGMENT)
         segment = fields[0]['key']
         gold, silver = fields[0]['options']
         self.sign_in('cu_a_staff')
-        customer = self.created({'name': 'Gold one', 'properties': {segment: gold['key']}})
+        golden = self.created({'name': 'Gold one', 'properties': {segment: gold['key']}})
+        silvery = self.created({'name': 'Silver one', 'properties': {segment: silver['key']}})
         self.sign_in('cu_root_settings')
         changed = self.api('PATCH', SETTINGS, {
             'fields': [{**fields[0], 'options': [silver]}], 'revision': self.settings.revision,
         })
+        # An option is not a field: no confirmation is asked, and what the API can no longer read is not kept.
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.sign_in('cu_a_staff')
+        detail = self.api('GET', f'{CUSTOMERS}/{golden["id"]}').json()
+        self.assertEqual([option['key'] for option in detail['properties'][0]['options']], [silver['key']])
+        self.assertIsNone(detail['properties'][0]['value'])
+        self.assertFalse(self.stored_properties(golden['id']).get(segment))
+        self.assertEqual(self.stored_properties(silvery['id']).get(segment), silver['key'])
+
+    def test_removing_a_tag_option_keeps_the_other_tags_of_a_party(self):
+        fields = self.define_fields(TOPICS)
+        topics = fields[0]['key']
+        first, second = fields[0]['options'][:2]
+        self.sign_in('cu_a_staff')
+        customer = self.created({'name': 'Tagged', 'properties': {topics: [first['key'], second['key']]}})
+        self.sign_in('cu_root_settings')
+        kept = [option for option in fields[0]['options'] if option['key'] != first['key']]
+        changed = self.api('PATCH', SETTINGS, {
+            'fields': [{**fields[0], 'options': kept}], 'revision': self.settings.revision,
+        })
         self.assertEqual(changed.status_code, 200, changed.text)
         self.sign_in('cu_a_staff')
         detail = self.api('GET', f'{CUSTOMERS}/{customer["id"]}').json()
-        # The option is gone from the definition and the engine reads a value that is not among the options as empty,
-        # so the API returns null for that party; the stored key stays in the column until the party is written again.
-        self.assertEqual([option['key'] for option in detail['properties'][0]['options']], [silver['key']])
-        self.assertIsNone(detail['properties'][0]['value'])
-        self.assertEqual(self.stored_properties(customer['id']).get(segment), gold['key'])
+        self.assertEqual(detail['properties'][0]['value'], [second['key']])
+        self.assertEqual(self.stored_properties(customer['id']).get(topics), [second['key']])
 
     def stored_properties(self, partner_id):
         self.env.flush_all()

@@ -141,7 +141,9 @@ Decided while building it (the spec's section 2.4 records them):
 - Removing a field that customers hold values for answers `409 custom_field_values_exist` with the count per field, and repeats with `confirm_field_removal`. The stored values are cleared then, because stock leaves them in place. The count and the clearing use the one elevated read the settings already had, since the company fence hides branch customers from the root manager.
 - Two additions the pages needed: `GET /api/v1/customers/settings/countries` for the phone country, and the list filter `is_company` for the parent company picker of a contact.
 
-Left as it is: the export has no row cap, as the CRM export has none; removing one option of a selection field leaves the old key stored, and the API reads it as empty.
+An option removed from a selection or tags field that stays is cleared from the customers that hold it, without a confirmation: the API can no longer read it, so nothing visible is lost beyond what removing the option already does.
+
+Left as it is: the export has no row cap, as the CRM export has none.
 
 Proves: export is refused without `customers.export`; party kinds decide which forms and values a new customer gets; a tenant-defined field is saved, returned by the API and filtered on; removing a field asks with the count of values it removes; the route probe's parameterless `GET /api/v1/customers` answers.
 
