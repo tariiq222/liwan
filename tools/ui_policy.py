@@ -169,6 +169,7 @@ RETIRED_PACKAGES = {'@lucide/vue', 'lucide-vue-next'}
 # become the drift this guard catches.
 REVIEWED_STORYBOOK_TOOLING = {
     'storybook', '@storybook/vue3-vite', '@storybook/addon-docs', '@storybook/addon-a11y',
+    '@storybook/addon-mcp',
     '@axe-core/playwright',
     'msw', 'msw-storybook-addon', '@vitejs/plugin-vue', 'vite',
 }
