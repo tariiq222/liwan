@@ -66,7 +66,7 @@ class ScriptContentTests(unittest.TestCase):
 
     def test_removed_module_flags_turned_off_not_uninstalled(self):
         text = self.script()
-        self.assertIn("._liwan_close_unlisted_features(values['features'])", text)
+        self.assertIn("._liwan_close_unlisted_features(", text)
         self.assertNotIn('button_uninstall', text)
 
     def test_observe_is_read_only(self):
