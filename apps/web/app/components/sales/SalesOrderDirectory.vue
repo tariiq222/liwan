@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { SalesOrderListItem } from '@liwan/contracts'
-import { SALES_LIST_PATH, SALES_PAGE_SIZE, SALES_STAGES, parseSalesListQuery, safeSalesReturnTo, salesListLocation } from '@/composables/sales/salesListParams'
+import { SALES_LIST_PATH, SALES_LIST_KEYS, SALES_PAGE_SIZE, SALES_STAGES, parseSalesListQuery } from '@/composables/sales/salesListParams'
 import { useSalesOrders } from '@/composables/sales/useSalesOrders'
-import { useLastPageClamp, useRouteListFilters } from '@/composables/useRouteListFilters'
+import { listLocation, safeListReturnTo, useLastPageClamp, useRouteListFilters } from '@/composables/useRouteListFilters'
 import SalesOrderTable from './SalesOrderTable.vue'
 
 // The body of the sales page: the filter bar (search by number or customer, the source, "mine only" and the stage),
@@ -13,7 +13,7 @@ const props = defineProps<{ background?: boolean }>()
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
-const { hydrated, filterQuery, search, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => SALES_LIST_PATH, safeReturnTo: safeSalesReturnTo })
+const { hydrated, filterQuery, search, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => SALES_LIST_PATH, safeReturnTo: value => safeListReturnTo(SALES_LIST_PATH, value) })
 
 const state = computed(() => parseSalesListQuery(filterQuery.value))
 const query = useSalesOrders(state)
@@ -22,7 +22,7 @@ const total = computed(() => query.data.value?.total ?? 0)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / SALES_PAGE_SIZE)))
 useLastPageClamp({ page: () => state.value.page, total: () => query.data.value?.total, pageSize: SALES_PAGE_SIZE })
 const activeCount = computed(() => Number(Boolean(state.value.q)) + Number(state.value.source !== null) + Number(state.value.mine))
-const backTo = computed(() => salesListLocation(filterQuery.value, route.hash))
+const backTo = computed(() => listLocation(SALES_LIST_PATH, SALES_LIST_KEYS, filterQuery.value, route.hash))
 const recordTo = (order: SalesOrderListItem) => ({ path: `${SALES_LIST_PATH}/${order.id}`, query: { returnTo: backTo.value } })
 
 const ANY_SOURCE = 'any'

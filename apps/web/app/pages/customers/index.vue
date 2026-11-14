@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CustomerDirectory from '@/components/customers/CustomerDirectory.vue'
-import { customerListLocation, parseCustomerListQuery } from '@/composables/customers/customerListParams'
+import { CUSTOMER_LIST_KEYS, CUSTOMERS_LIST_PATH, parseCustomerListQuery } from '@/composables/customers/customerListParams'
+import { listLocation } from '@/composables/useRouteListFilters'
 import { useCustomersExport } from '@/composables/customers/useCustomersExport'
 import { exportTooLargeMessage } from '@/utils/exportErrors'
 
@@ -13,7 +14,7 @@ const canExport = computed(() => can('customers.export'))
 const exportCsv = useCustomersExport()
 // The create link carries the list's state as its returnTo, so closing the panel returns to the same list.
 const createTo = computed(() => can('customers.manage')
-  ? { path: '/customers/new', query: { returnTo: customerListLocation(route.query, route.hash) } }
+  ? { path: '/customers/new', query: { returnTo: listLocation(CUSTOMERS_LIST_PATH, CUSTOMER_LIST_KEYS, route.query, route.hash) } }
   : undefined)
 function downloadCsv() {
   // The snapshot of the address is what the list shows now; the download reads nothing else.

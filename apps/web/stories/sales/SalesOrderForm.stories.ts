@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 import { SALES_ALL, customerPicks, draftOrder, meWith, salespeople } from './salesFixtures'
 
 const session = (capabilities: string[]) => http.get('/api/v1/me', () => HttpResponse.json(meWith([...capabilities, 'products.read'])))
-const picks = [http.get('/api/v1/customers/pick', () => HttpResponse.json({ items: customerPicks, total: customerPicks.length })), http.get('/api/v1/sales/salespeople', () => HttpResponse.json({ items: salespeople, total: salespeople.length }))]
+const picks = [http.get('/api/v1/customers/pick', () => HttpResponse.json({ items: customerPicks, total: customerPicks.length })), http.get('/api/v1/sales/salespeople', () => HttpResponse.json(salespeople))]
 const handlers = (capabilities: string[], ...extra: ReturnType<typeof http.get>[]) => ({ msw: { handlers: { api: [session(capabilities), ...picks, ...extra] } } })
 const agent = ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm']
 const refuse = (status: number, body: object) => handlers(agent, http.patch('/api/v1/sales/orders/1', () => HttpResponse.json(body, { status })))

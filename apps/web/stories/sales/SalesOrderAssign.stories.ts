@@ -4,7 +4,7 @@ import SalesOrderAssign from '../../app/components/sales/SalesOrderAssign.vue'
 import { storyContext } from '../support/context'
 import { draftOrder, salespeople } from './salesFixtures'
 
-const people = http.get('/api/v1/sales/salespeople', () => HttpResponse.json({ items: salespeople, total: salespeople.length }))
+const people = http.get('/api/v1/sales/salespeople', () => HttpResponse.json(salespeople))
 const meta = {
   title: 'Sales/SalesOrderAssign',
   component: SalesOrderAssign,

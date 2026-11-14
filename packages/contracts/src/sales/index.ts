@@ -111,11 +111,6 @@ export const SalesOrderPatchSchema = z.object({ customer_id: Id.optional(), ...W
 /** The body of `POST /sales/orders/<id>/assign` (`sales.documents.assign`): the new salesperson of a staff document. */
 export const SalesOrderAssignSchema = z.object({ salesperson_id: Id }).strict()
 
-export const SalesSalespeopleSchema = z.object({
-  items: z.array(PersonRefSchema),
-  total: z.number().int().nonnegative(),
-}).strict()
-
 export const SalesSettingsSchema = z.object({
   visibility: SalesVisibilitySchema,
   validity_days: z.number().int().nonnegative(),
@@ -148,6 +143,5 @@ export type SalesOrderLineInput = z.infer<typeof SalesOrderLineInputSchema>
 export type SalesOrderCreate = z.infer<typeof SalesOrderCreateSchema>
 export type SalesOrderPatch = z.infer<typeof SalesOrderPatchSchema>
 export type SalesOrderAssign = z.infer<typeof SalesOrderAssignSchema>
-export type SalesSalespeople = z.infer<typeof SalesSalespeopleSchema>
 export type SalesSettings = z.infer<typeof SalesSettingsSchema>
 export type SalesSettingsPatch = z.infer<typeof SalesSettingsPatchSchema>

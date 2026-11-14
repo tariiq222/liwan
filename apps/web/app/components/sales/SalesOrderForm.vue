@@ -4,7 +4,7 @@ import { SALES_LIMITS, type CustomerPick, type SalesOrder } from '@liwan/contrac
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { salesFormField, salesRefusalKey, type SalesOrderField } from '@/composables/sales/salesErrors'
 import { emptySalesDraft, hasSalesDraftErrors, salesCreateBody, salesDraftFromOrder, salesDraftSnapshot, salesPatchBody, validateSalesDraft, type SalesDraftErrors, type SalesOrderDraft } from '@/composables/sales/salesOrderDraft'
-import { useCreateSalesOrder, useSalesSalespeople, useUpdateSalesOrder } from '@/composables/sales/useSalesOrders'
+import { useCreateSalesOrder, useUpdateSalesOrder } from '@/composables/sales/useSalesOrders'
 import SalesLinesEditor from './SalesLinesEditor.vue'
 
 // The create form of the route-backed panel and the edit page of a quotation: the customer, the salesperson (for a
@@ -16,8 +16,6 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const canAssign = computed(() => can('sales.documents.assign'))
-const salespeople = useSalesSalespeople(canAssign)
-const salespersonItems = computed(() => (salespeople.data.value?.items ?? []).map(person => ({ value: person.id, label: person.name })))
 
 const draft = ref<SalesOrderDraft>(emptySalesDraft())
 const savedState = ref('')
@@ -84,7 +82,7 @@ async function submit() {
         </UFormField>
         <div class="liwan-auto-grid [--liwan-auto-grid-min:16rem]">
           <UFormField v-if="canAssign" :label="t('sales.form.salesperson')" name="sales-salesperson" :help="t('sales.form.salespersonHint')" :error="headerError('salesperson_id')">
-            <USelect :model-value="draft.salespersonId ?? undefined" :items="salespersonItems" class="w-full" :placeholder="t('sales.form.salespersonPlaceholder')" :loading="salespeople.isLoading.value" :disabled="off" data-testid="sales-salesperson" @update:model-value="value => { draft.salespersonId = value ?? null }" />
+            <SharedPersonPicker v-model="draft.salespersonId" value-key="user_id" endpoint="/api/v1/sales/salespeople" :known="props.order?.salesperson ? [props.order.salesperson] : []" :placeholder="t('sales.form.salespersonPlaceholder')" :disabled="off" data-testid="sales-salesperson" />
           </UFormField>
           <UFormField :label="t('sales.form.validity')" name="sales-validity" :help="props.order ? undefined : t('sales.form.validityHint')" :error="headerError('validity_date')">
             <SharedDateField v-model="draft.validityDate" :disabled="off" data-testid="sales-validity" />

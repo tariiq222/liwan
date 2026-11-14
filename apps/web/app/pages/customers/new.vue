@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import CustomerDirectory from '@/components/customers/CustomerDirectory.vue'
 import CustomerForm from '@/components/customers/CustomerForm.vue'
-import { CUSTOMERS_LIST_PATH, safeCustomersReturnTo } from '@/composables/customers/customerListParams'
+import { CUSTOMERS_LIST_PATH } from '@/composables/customers/customerListParams'
 import { useCustomerSettings } from '@/composables/customers/useCustomerSettings'
+import { safeListReturnTo } from '@/composables/useRouteListFilters'
 
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
-const backTo = computed(() => safeCustomersReturnTo(route.query.returnTo, CUSTOMERS_LIST_PATH))
+const backTo = computed(() => safeListReturnTo(CUSTOMERS_LIST_PATH, route.query.returnTo))
 const settings = useCustomerSettings()
 const canManage = computed(() => can('customers.manage'))
 function opened(id: number) { void navigateTo({ path: `${CUSTOMERS_LIST_PATH}/${id}`, query: { returnTo: backTo.value } }, { replace: true }) }

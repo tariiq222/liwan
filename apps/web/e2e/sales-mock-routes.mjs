@@ -20,6 +20,7 @@ const RESET_PATH = '/api/v1/__mock/reset-sales'
 const LIST_PATH = '/api/v1/sales/orders'
 const SETTINGS_PATH = '/api/v1/sales/settings'
 const SALESPEOPLE_PATH = '/api/v1/sales/salespeople'
+const SALESPEOPLE_LIMIT = 50
 const RECORD_PATH = /^\/api\/v1\/sales\/orders\/(\d+)(?:\/(confirm|cancel|reopen|lock|unlock|duplicate|assign))?$/
 const CURRENCY = { id: 2, name: 'SAR', symbol: 'ر.س' }
 const ME = { id: 2, name: 'Admin', user_id: 2 }
@@ -254,10 +255,7 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
   if (path === SALESPEOPLE_PATH && req.method === 'GET') {
     if (need('sales.documents.assign')) {
       const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
-      const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
-      const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? 50) || 50))
-      const matches = PEOPLE.filter(person => !q || person.name.toLowerCase().includes(q))
-      json(res, 200, { items: matches.slice(offset, offset + limit), total: matches.length })
+      json(res, 200, PEOPLE.filter(person => !q || person.name.toLowerCase().includes(q)).slice(0, SALESPEOPLE_LIMIT))
     }
     return true
   }

@@ -33,7 +33,7 @@ export const apiHandlers = [
     return HttpResponse.json({ items, total: items.length })
   }),
   http.get('/api/v1/sales/orders/:id', () => HttpResponse.json(draftOrder)),
-  http.get('/api/v1/sales/salespeople', () => HttpResponse.json({ items: salespeople, total: salespeople.length })),
+  http.get('/api/v1/sales/salespeople', () => HttpResponse.json(salespeople)),
   http.get('/api/v1/sales/settings', () => HttpResponse.json(salesSettings)),
   http.get('/api/v1/projects', () => HttpResponse.json(projectRefs)),
   http.get('/api/v1/projects/:id', () => HttpResponse.json(projectDetail)),

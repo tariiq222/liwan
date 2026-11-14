@@ -1,6 +1,6 @@
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { listFilterQuery, listPageNumber, pageBeyondLast, useLastPageClamp } from '../useRouteListFilters'
+import { listFilterQuery, listLocation, listPageNumber, pageBeyondLast, safeListReturnTo, singleQueryValue, useLastPageClamp } from '../useRouteListFilters'
 
 const safe = (value: unknown, fallback: string) => (typeof value === 'string' && value.startsWith('/operations') ? value : fallback)
 
@@ -17,6 +17,28 @@ describe('list filter query', () => {
   })
   it('clamps the page to a positive integer', () => {
     expect([listPageNumber('3'), listPageNumber('0'), listPageNumber('x'), listPageNumber(undefined), listPageNumber('1.5')]).toEqual([3, 1, 1, 1, 1])
+  })
+})
+
+describe('list address helpers', () => {
+  it('reads the first string of a query entry and nothing else', () => {
+    expect([singleQueryValue('a'), singleQueryValue(['b', 'c']), singleQueryValue([1]), singleQueryValue(undefined), singleQueryValue(null)]).toEqual(['a', 'b', '', '', ''])
+  })
+  it('builds a list location from the list keys only, encoded, with the hash', () => {
+    expect(listLocation('/things', ['q', 'page'], { q: 'منى', page: ['2', '3'], returnTo: '/x', view: 'board' }, '#top')).toBe('/things?q=%D9%85%D9%86%D9%89&page=2#top')
+    expect(listLocation('/things', ['q'], { q: '' })).toBe('/things')
+  })
+  it('accepts a return address only under the list path, else answers the list path', () => {
+    expect([
+      safeListReturnTo('/things', '/things'),
+      safeListReturnTo('/things', '/things?q=a'),
+      safeListReturnTo('/things', '/things#top'),
+      safeListReturnTo('/things', '/things/4'),
+      safeListReturnTo('/things', '/thingsx'),
+      safeListReturnTo('/things', '//evil.example/things'),
+      safeListReturnTo('/things', 'https://evil.test/things'),
+      safeListReturnTo('/things', undefined),
+    ]).toEqual(['/things', '/things?q=a', '/things#top', '/things', '/things', '/things', '/things', '/things'])
   })
 })
 

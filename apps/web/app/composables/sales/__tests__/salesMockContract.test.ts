@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { SalesOrderListSchema, SalesOrderSchema, SalesSalespeopleSchema, SalesSettingsSchema } from '@liwan/contracts'
+import { PersonRefSchema, SalesOrderListSchema, SalesOrderSchema, SalesSettingsSchema } from '@liwan/contracts'
 import { handleSales } from '../../../../e2e/sales-mock-routes.mjs'
 
 // The sales mock answers the shapes of the contracts and follows the server's rules, so it cannot drift.
@@ -80,14 +80,10 @@ describe('sales mock', () => {
     expect(copy.id).not.toBe(2)
   })
 
-  it('lists the salespeople to an assign holder only', async () => {
-    expect(SalesSalespeopleSchema.parse((await call('GET', '/api/v1/sales/salespeople')).body).total).toBe(3)
+  it('lists the salespeople as a bare person list to an assign holder only', async () => {
+    expect(PersonRefSchema.array().parse((await call('GET', '/api/v1/sales/salespeople')).body)).toHaveLength(3)
     expect((await call('GET', '/api/v1/sales/salespeople', undefined, 'mock_sales=agent')).status).toBe(403)
-    const found = SalesSalespeopleSchema.parse((await call('GET', '/api/v1/sales/salespeople?q=مها')).body)
-    expect(found.items.map(person => person.id)).toEqual([7])
-    const page = SalesSalespeopleSchema.parse((await call('GET', '/api/v1/sales/salespeople?limit=1&offset=1')).body)
-    expect(page.items.map(person => person.id)).toEqual([7])
-    expect(page.total).toBe(3)
+    expect(PersonRefSchema.array().parse((await call('GET', '/api/v1/sales/salespeople?q=مها')).body).map(person => person.id)).toEqual([7])
   })
 
   it('keeps the settings revision and refuses a stale one or a branch manager', async () => {

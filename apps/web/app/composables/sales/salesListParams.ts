@@ -1,9 +1,10 @@
 import { SalesOrderSourceSchema, type SalesOrderSource, type SalesOrderState } from '@liwan/contracts'
-import { listPageNumber } from '../useRouteListFilters'
+import { listPageNumber, singleQueryValue as single } from '../useRouteListFilters'
 
 export const SALES_LIST_PATH = '/sales'
 export const SALES_PAGE_SIZE = 25
-const LIST_QUERY_KEYS = ['q', 'state', 'source', 'mine', 'page'] as const
+/** The query keys of the list itself: the way back to it keeps these and drops the rest. */
+export const SALES_LIST_KEYS = ['q', 'state', 'source', 'mine', 'page'] as const
 
 /** The state filter of the list: quotations are the draft and sent documents, orders the confirmed ones. */
 export const SALES_STAGES = ['all', 'quotations', 'orders', 'cancelled'] as const
@@ -24,10 +25,6 @@ export interface SalesListState {
 
 type Query = Record<string, unknown>
 
-function single(value: unknown): string {
-  return typeof value === 'string' ? value : Array.isArray(value) && typeof value[0] === 'string' ? value[0] : ''
-}
-
 const isStage = (value: string): value is SalesStage => (SALES_STAGES as readonly string[]).includes(value)
 
 /** The list state of `/sales` from its URL query: anything unknown falls back to the default. */
@@ -41,21 +38,6 @@ export function parseSalesListQuery(query: Query): SalesListState {
     mine: single(query.mine) === '1',
     page: listPageNumber(single(query.page)),
   }
-}
-
-/** The list address of a route's query with only the list's own keys, kept as the create panel's and a record's way back. */
-export function salesListLocation(query: Query, hash = ''): string {
-  const search = new URLSearchParams()
-  for (const key of LIST_QUERY_KEYS) {
-    const value = single(query[key])
-    if (value) search.set(key, value)
-  }
-  return `${SALES_LIST_PATH}${search.size ? `?${search}` : ''}${hash}`
-}
-
-/** A return address that is the sales list (with or without its query), else the fallback. */
-export function safeSalesReturnTo(value: unknown, fallback: string): string {
-  return typeof value === 'string' && /^\/sales(?:[?#]|$)/.test(value) ? value : fallback
 }
 
 /** The API query of one list page: the filters (a stage as its comma-separated states), then `limit` and `offset`. */

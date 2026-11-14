@@ -4,6 +4,5 @@ export const salesKeys = {
   all: ['sales'] as const,
   list: (params: object) => ['sales', 'list', params] as const,
   detail: (id: number) => ['sales', 'order', id] as const,
-  salespeople: () => ['sales', 'salespeople'] as const,
   settings: (companyId: number | undefined) => ['sales', 'settings', { companyId }] as const,
 }

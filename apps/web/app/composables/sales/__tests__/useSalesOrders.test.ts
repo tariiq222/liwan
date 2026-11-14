@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { SalesOrderListSchema, SalesOrderSchema, SalesSalespeopleSchema, SalesSettingsSchema } from '@liwan/contracts'
+import { SalesOrderListSchema, SalesOrderSchema, SalesSettingsSchema } from '@liwan/contracts'
 
 // vue-query is replaced by the options each composable hands it, so the request each one sends can be read and run.
 const setQueryData = vi.fn()
@@ -12,7 +12,7 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 const $api = vi.fn()
-const { useSalesOrders, useSalesOrder, useSalesSalespeople, useCreateSalesOrder, useUpdateSalesOrder, useSalesTransition, useAssignSalesOrder, useDuplicateSalesOrder } = await import('../useSalesOrders')
+const { useSalesOrders, useSalesOrder, useCreateSalesOrder, useUpdateSalesOrder, useSalesTransition, useAssignSalesOrder, useDuplicateSalesOrder } = await import('../useSalesOrders')
 const { useSalesSettings, useSaveSalesSettings } = await import('../useSalesSettings')
 
 type Options = { queryFn: () => Promise<unknown>; queryKey: { value: readonly unknown[] } | readonly unknown[]; enabled?: { value: boolean }; mutationFn: (args: unknown) => Promise<unknown>; onSuccess: (saved: { id: number }) => Promise<void>; onError: (failure: unknown, args: unknown) => Promise<void> }
@@ -35,42 +35,15 @@ describe('sales reads', () => {
     expect((query.queryKey as { value: unknown[] }).value).toEqual(['sales', 'list', state])
   })
 
-  it('reads one order, the salespeople and the settings', async () => {
+  it('reads one order and the settings', async () => {
     const order = as(useSalesOrder(7))
     await order.queryFn()
     expect($api).toHaveBeenCalledWith('/api/v1/sales/orders/7', { schema: SalesOrderSchema })
     expect(as(useSalesOrder(null)).enabled?.value).toBe(false)
-    expect(as(useSalesSalespeople(() => false)).enabled?.value).toBe(false)
     const settings = as(useSalesSettings())
     await settings.queryFn()
     expect($api).toHaveBeenCalledWith('/api/v1/sales/settings', { schema: SalesSettingsSchema })
     expect((settings.queryKey as { value: unknown[] }).value).toEqual(['sales', 'settings', { companyId: 4 }])
-  })
-})
-
-describe('sales salespeople', () => {
-  const person = (id: number) => ({ id, name: `P${id}`, user_id: id })
-  const page = (from: number, count: number, total: number) => ({ items: Array.from({ length: count }, (_, i) => person(from + i)), total })
-
-  it('reads every page until the total is collected', async () => {
-    $api.mockResolvedValueOnce(page(1, 200, 250)).mockResolvedValueOnce(page(201, 50, 250))
-    const result = await as(useSalesSalespeople(() => true)).queryFn() as { items: { id: number }[]; total: number }
-    expect($api).toHaveBeenCalledTimes(2)
-    expect($api).toHaveBeenNthCalledWith(1, '/api/v1/sales/salespeople', { query: { limit: 200, offset: 0 }, schema: SalesSalespeopleSchema })
-    expect($api).toHaveBeenNthCalledWith(2, '/api/v1/sales/salespeople', { query: { limit: 200, offset: 200 }, schema: SalesSalespeopleSchema })
-    expect(result.total).toBe(250)
-    expect(result.items.map(item => item.id)).toEqual(Array.from({ length: 250 }, (_, i) => i + 1))
-  })
-
-  it('makes one call when there are none, and stops on an empty page', async () => {
-    $api.mockResolvedValueOnce({ items: [], total: 0 })
-    expect(await as(useSalesSalespeople(() => true)).queryFn()).toEqual({ items: [], total: 0 })
-    expect($api).toHaveBeenCalledTimes(1)
-    $api.mockReset()
-    $api.mockResolvedValueOnce(page(1, 200, 500)).mockResolvedValueOnce({ items: [], total: 500 })
-    const short = await as(useSalesSalespeople(() => true)).queryFn() as { items: unknown[] }
-    expect($api).toHaveBeenCalledTimes(2)
-    expect(short.items).toHaveLength(200)
   })
 })
 

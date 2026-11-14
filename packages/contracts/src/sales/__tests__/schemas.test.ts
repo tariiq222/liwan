@@ -6,7 +6,6 @@ import {
   SalesOrderListSchema,
   SalesOrderPatchSchema,
   SalesOrderSchema,
-  SalesSalespeopleSchema,
   SalesSettingsPatchSchema,
   SalesSettingsSchema,
 } from '../index'
@@ -83,13 +82,6 @@ describe('SalesOrderAssignSchema', () => {
     expect(SalesOrderAssignSchema.parse({ salesperson_id: 3 })).toEqual({ salesperson_id: 3 })
     expect(() => SalesOrderAssignSchema.parse({})).toThrow()
     expect(() => SalesOrderAssignSchema.parse({ salesperson_id: 3, state: 'draft' })).toThrow()
-  })
-})
-
-describe('SalesSalespeopleSchema', () => {
-  it('lists people refs', () => {
-    expect(SalesSalespeopleSchema.parse({ items: [{ id: 2, name: 'Maha', user_id: 2 }], total: 1 }).items).toHaveLength(1)
-    expect(() => SalesSalespeopleSchema.parse({ items: [{ id: 2, name: 'Maha' }], total: 1 })).toThrow()
   })
 })
 
