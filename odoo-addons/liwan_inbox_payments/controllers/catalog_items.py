@@ -6,12 +6,12 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     parse_page,
+    parse_positive_int,
     requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_inbox.controllers.helpers import (
     check_fields,
-    find_one,
     no_content,
     not_found,
     reject,
@@ -22,7 +22,6 @@ from odoo.addons.liwan_inbox_payments.controllers.helpers import whatsapp_conver
 from odoo.addons.liwan_inbox_payments.controllers.parsing import (
     ITEM_FIELDS,
     parse_item_fields,
-    parse_product,
 )
 from odoo.addons.liwan_inbox_payments.models.access_service import CATALOG_MANAGE
 from odoo.addons.liwan_inbox_payments.models.catalog_item import (
@@ -35,8 +34,7 @@ from odoo.addons.liwan_inbox_payments.serializers.catalog import (
     dump_pick_item,
 )
 
-CREATE_FIELDS = {'product_id', 'product', *ITEM_FIELDS}
-PATCH_FIELDS = {'product', *ITEM_FIELDS}
+CREATE_FIELDS = {'product_id', *ITEM_FIELDS}
 
 
 def get_item(item_id):
@@ -64,13 +62,23 @@ def item_filters(args, catalog):
     return domain
 
 
-def new_product(catalog, values):
-    """A product made for the catalog, in the catalog's company: only the catalog editor edits it afterwards."""
-    template = request.env['product.template'].create({
-        'type': 'consu', 'sale_ok': True, 'purchase_ok': False, 'liwan_inbox_catalog': True,
-        'company_id': catalog.company_id.id, **values,
-    })
-    return template.product_variant_id
+def pick_product(catalog, product_id):
+    """The variant of the service product ``product_id`` (an id of the products pick list) for an item of ``catalog``.
+
+    The products service refuses (404) a product that is not a service product, is archived or is not visible to the
+    caller; a product of another company than the catalog's, one with several variants (no variant can be named yet)
+    and one without a usable image are refused here (422).
+    """
+    template = request.env['liwan.products.service']._liwan_pick_product(parse_positive_int(product_id, 'product_id'))
+    if template.company_id and template.company_id != catalog.company_id:
+        reject('this product belongs to another company', 'product_id')
+    if template.product_variant_count != 1:
+        reject('a product with several variants cannot be listed yet', 'product_id')
+    product = template.product_variant_id
+    problem = request.env['liwan.inbox.catalog.item']._liwan_check_product_image(product)
+    if problem:
+        reject(problem, 'product_id')
+    return product
 
 
 class CatalogItemController(http.Controller):
@@ -95,20 +103,10 @@ class CatalogItemController(http.Controller):
     @requires_capability(CATALOG_MANAGE)
     def create_item(self, catalog_id, **payload):
         catalog = get_catalog(catalog_id)
-        check_fields(payload, CREATE_FIELDS)
-        if ('product_id' in payload) == ('product' in payload):
-            reject('send either product_id or product', 'product_id')
+        check_fields(payload, CREATE_FIELDS, required=('product_id',))
         Item = request.env['liwan.inbox.catalog.item']
         values = parse_item_fields(payload)
-        if 'product_id' in payload:
-            product = find_one('product.product', payload['product_id'], 'product_id')
-            if product.company_id and product.company_id != catalog.company_id:
-                reject('this product belongs to another company', 'product_id')
-            problem = Item._liwan_check_product_image(product)
-            if problem:
-                reject(problem, 'product_id')
-        else:
-            product = new_product(catalog, parse_product(payload['product'], creating=True))
+        product = pick_product(catalog, payload['product_id'])
         taken = Item.with_context(active_test=False)
         if taken.search_count([('catalog_id', '=', catalog.id), ('product_id', '=', product.id)]):
             reject('this product is already in the catalog', 'product_id')
@@ -117,30 +115,6 @@ class CatalogItemController(http.Controller):
             reject('this product id is already used in the catalog', 'product_retailer_id')
         item = Item.create({'catalog_id': catalog.id, 'product_id': product.id, 'retailer_id': retailer_id, **values})
         return request.make_json_response(dump_item(item), status=201)
-
-    @http.route('/api/v1/inbox/catalogs/<int:catalog_id>/products', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    @requires_feature('inbox.enabled', CATALOG_FEATURE, operation='read')
-    @requires_capability(CATALOG_MANAGE)
-    def list_products(self, catalog_id, **_):
-        """The saleable products of the catalog's company that can be listed, with whether each has an image and is listed."""
-        catalog = get_catalog(catalog_id)
-        limit, offset = parse_page(request.httprequest.args)
-        Product = request.env['product.product']
-        domain = [('sale_ok', '=', True), ('company_id', 'in', [False, catalog.company_id.id])]
-        if request.httprequest.args.get('q'):
-            query = request.httprequest.args['q']
-            domain += ['|', ('name', 'ilike', query), ('default_code', 'ilike', query)]
-        listed = set(catalog.with_context(active_test=False).item_ids.product_id.ids)
-        currency = catalog.company_id.currency_id.name
-        return {
-            'items': [{
-                'id': product.id, 'name': product.with_context(display_default_code=False).display_name,
-                'list_price': product.lst_price, 'currency': currency, 'has_image': bool(product.image_1024),
-                'listed': product.id in listed,
-            } for product in Product.search(domain, order='name, id', limit=limit, offset=offset)],
-            'total': Product.search_count(domain),
-        }
 
     @http.route('/api/v1/inbox/catalog-items/<int:item_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -155,7 +129,7 @@ class CatalogItemController(http.Controller):
     @requires_capability(CATALOG_MANAGE)
     def patch_item(self, item_id, **payload):
         item = get_item(item_id)
-        check_fields(payload, PATCH_FIELDS)
+        check_fields(payload, ITEM_FIELDS)
         values = parse_item_fields(payload)
         if 'retailer_id' in values and values['retailer_id'] != item.retailer_id and item._liwan_retailer_locked():
             reject('the product id cannot change once the product was sent to Meta', 'product_retailer_id')
@@ -163,11 +137,6 @@ class CatalogItemController(http.Controller):
             active_test=False,
         ).search_count([('catalog_id', '=', item.catalog_id.id), ('retailer_id', '=', values['retailer_id'])]):
             reject('this product id is already used in the catalog', 'product_retailer_id')
-        if 'product' in payload:
-            template = item.product_id.product_tmpl_id
-            if not template.liwan_inbox_catalog:
-                reject('only a product made in the catalog can be edited here', 'product')
-            template.write(parse_product(payload['product'], creating=False))
         if values:
             item.write(values)
         return dump_item(item)

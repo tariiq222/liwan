@@ -32,11 +32,11 @@ def dump_item(item):
     return {
         'id': item.id,
         'catalog_id': item.catalog_id.id,
-        'product': {'id': product.id, 'name': item.name},
+        'product': {'id': product.product_tmpl_id.id, 'name': item.name},
         'product_retailer_id': item.retailer_id,
         'name': item.name,
         'description': item.description,
-        'list_price': product.lst_price,
+        'list_price': item.unit_price,
         'price': item.price,
         'currency': item.currency,
         'availability': item.availability,
