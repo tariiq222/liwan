@@ -416,6 +416,17 @@ Internal route (reached only from the `relay_odoo` network, never through the ed
   `{"schemaVersion":1,"bindings":{"<user_openid>":"<tenant id>"}}`, written atomically
   (temporary sibling, fsync, rename) and read on every request.
 
+- `DELETE /internal/tiktok/tenants/<tenant id>` (no body): removes every binding of the tenant,
+  whether it is enabled, disabled or gone from the registry. The control plane's workspace
+  deletion calls it (step `unbind_relay`), because the bindings route above refuses a tenant that
+  is no longer active. The same `X-Liwan-Proxy-Token`, compared in constant time; a missing or
+  wrong token answers 403, another method 405, and an id outside the registry format
+  (`^[a-z][a-z0-9_-]{0,62}$`) 400. It does not consult the registry. Idempotent: a tenant with no
+  binding answers 200. The answer carries a count only: `{"removed": <n>}`. The control plane
+  needs `LIWAN_TIKTOK_RELAY_URL` and `LIWAN_TIKTOK_RELAY_TOKEN` in its worker environment, so the
+  operator publishes the relay's internal port to the host loopback for it (see
+  `docs/operations/saas-commercial-runbook.md` 4.4); without them the step is recorded `skipped`.
+
 Configuration (all operator-owned, never in Git):
 
 - `LIWAN_TIKTOK_RELAY_HOST`: the platform's TikTok delivery host; its DNS name and TLS

@@ -21,6 +21,8 @@ from restore_control_plane import (
     EXIT_NOT_VERIFIED,
     EXIT_OK,
     EXIT_REFUSED,
+    STAMP_PRESENT_SQL,
+    STAMP_SQL,
     VERIFY_SQL,
     checks_for,
     main,
@@ -50,11 +52,12 @@ class Completed:
 class ScriptedTools:
     """Answers psql and pg_restore like the real tools; openssl and pg_dump run for real or write the dump."""
 
-    def __init__(self, *, observed=None, source=None, create_fails=False) -> None:
+    def __init__(self, *, observed=None, source=None, create_fails=False, has_state_table=True) -> None:
         self.calls: list[list[str]] = []
         self._observed = observed or OBSERVED
         self._source = source or OBSERVED
         self._create_fails = create_fails
+        self._has_state_table = has_state_table
 
     def __call__(self, argv, **kwargs):
         argv = [str(argument) for argument in argv]
@@ -69,6 +72,10 @@ class ScriptedTools:
             return Completed()
         if '-c' in argv and argv[argv.index('-c') + 1].startswith('CREATE DATABASE'):
             return Completed(1, stderr='ERROR:  database already exists\n') if self._create_fails else Completed()
+        if '-c' in argv and argv[argv.index('-c') + 1] == STAMP_PRESENT_SQL:
+            return Completed(stdout='t\n' if self._has_state_table else 'f\n')
+        if '-c' in argv and argv[argv.index('-c') + 1] == STAMP_SQL:
+            return Completed()
         database = argv[argv.index('-d') + 1]
         return Completed(stdout=json.dumps(self._source if database == 'liwan_control_scratch_source' else self._observed))
 
@@ -136,6 +143,35 @@ class TestRestore(RestoreCase):
         self.run_restore(tools)
         reads = [call for call in tools.calls_to('psql') if VERIFY_SQL in call]
         self.assertEqual([call[call.index('-d') + 1] for call in reads], ['liwan_control_scratch_x'])
+
+    def test_the_restore_time_is_stamped_in_the_restored_database_after_pg_restore(self):
+        tools = ScriptedTools()
+        code, stdout, _stderr = self.run_restore(tools)
+        self.assertEqual(code, EXIT_OK)
+        self.assertTrue(json.loads(stdout)['restored_at_stamped'])
+        order = [call for call in tools.calls if Path(call[0]).name in ('pg_restore', 'psql')]
+        stamp = next(index for index, call in enumerate(order) if STAMP_SQL in call)
+        self.assertGreater(stamp, next(index for index, call in enumerate(order) if Path(call[0]).name == 'pg_restore'))
+        self.assertEqual(order[stamp][order[stamp].index('-d') + 1], 'liwan_control_scratch_x')
+        # The verification reads after the stamp, so a failed stamp can never leave a verified record.
+        self.assertGreater(next(index for index, call in enumerate(order) if VERIFY_SQL in call), stamp)
+
+    def test_a_backup_older_than_the_state_table_is_left_unstamped_and_says_so(self):
+        tools = ScriptedTools(has_state_table=False)
+        code, stdout, _stderr = self.run_restore(tools)
+        self.assertEqual(code, EXIT_OK)
+        self.assertFalse(json.loads(stdout)['restored_at_stamped'])
+        self.assertFalse([call for call in tools.calls if STAMP_SQL in call])
+
+    def test_a_failed_stamp_is_a_refusal_not_a_verified_copy(self):
+        class Broken(ScriptedTools):
+            def __call__(self, argv, **kwargs):
+                if STAMP_SQL in [str(argument) for argument in argv]:
+                    return Completed(1, stderr='ERROR:  permission denied for table control_plane_state\n')
+                return super().__call__(argv, **kwargs)
+        code, _stdout, stderr = self.run_restore(Broken())
+        self.assertEqual(code, EXIT_REFUSED)
+        self.assertIn('stamping the restore time', stderr)
 
     def test_an_existing_target_database_is_refused_before_pg_restore_runs(self):
         tools = ScriptedTools(create_fails=True)

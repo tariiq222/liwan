@@ -13,8 +13,8 @@ export interface DeletionEffects {
   stage(input: { stage: DropStage; plan: EffectPlan; planDigest: string; dryRun: boolean; assertOwned: AssertOwned }): Promise<Record<string, unknown>>
   /** Deletes every off-site object of the tenant and verifies the prefix is empty; throws `offsite_not_empty` otherwise. */
   purgeOffsite(input: { tenantId: string; settleSeconds: number; assertOwned: AssertOwned }): Promise<Record<string, unknown>>
-  /** Removes the tenant's bindings from the shared relay. `unsupported` when the relay has no route for a retired tenant. */
-  unbindRelay(input: { tenantId: string; assertOwned: AssertOwned }): Promise<{ state: 'unsupported' | 'unbound' | 'absent' }>
+  /** Removes the tenant's bindings from the shared relay. `not_configured` when the control plane has no relay address and token. */
+  unbindRelay(input: { tenantId: string; assertOwned: AssertOwned }): Promise<{ state: 'not_configured' | 'unbound' | 'absent' }>
   /** Removes the control plane's own backup artifact files (`shared_backups.artifact_path`). */
   removeBackupArtifacts(paths: string[]): Promise<{ removed: number }>
 }

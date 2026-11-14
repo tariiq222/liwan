@@ -379,6 +379,6 @@ export function latestOnly() {
 
 /** The sentence for a workspace-deletion refusal the control plane answers; an unknown code gets the generic one. */
 export function deletionErrorKey(code: unknown): string {
-  return ['invalid_code', 'company_name_mismatch', 'rate_limited', 'deletion_pending', 'deletion_due', 'no_workspace', 'no_manager_address'].includes(String(code))
+  return ['invalid_code', 'company_name_mismatch', 'rate_limited', 'deletion_pending', 'deletion_in_progress', 'tenant_retired', 'tenant_retiring', 'no_workspace', 'no_manager_address'].includes(String(code))
     ? `subscription.deletion.errors.${code}` : 'subscription.deletion.failed'
 }

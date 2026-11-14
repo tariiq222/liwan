@@ -953,6 +953,10 @@ class TestCommandLine(PipelineCase):
                  'filestore': 'liwan_scratch', 'enabled': True, 'registryRevision': 1},
                 {'host': 'other.example', 'tenantId': 'other', 'database': 'liwan_other',
                  'filestore': 'liwan_other', 'enabled': False, 'registryRevision': 1},
+                {'host': 'gone.example', 'tenantId': 'gone', 'database': 'liwan_gone',
+                 'filestore': 'liwan_gone', 'enabled': False, 'retired': True, 'registryRevision': 2},
+                {'host': 'kept.example', 'tenantId': 'kept', 'database': 'liwan_kept',
+                 'filestore': 'liwan_kept', 'enabled': False, 'retired': False, 'registryRevision': 2},
             ],
         }), encoding='utf-8')
         return {'LIWAN_TENANT_REGISTRY_PATH': str(registry)}
@@ -979,6 +983,38 @@ class TestCommandLine(PipelineCase):
         pg_dump = self.runner.calls[0]
         self.assertEqual(pg_dump[pg_dump.index('--db-name') + 1], 'liwan_other')
         self.assertEqual(len(FilesystemStore(self.root / 'cli-bucket').list('other/daily/')), 3)
+
+    def test_capture_skips_a_retired_tenant_without_failing_or_touching_anything(self):
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
+        with _environment(environ):
+            code, stdout, stderr = self.run_main(self.capture_argv(tenant='gone'))
+        # A retired tenant is an outcome, not a failure: exit 0, a named status, no dump, no upload, no work directory.
+        self.assertEqual((code, stderr), (bp.EXIT_OK, ''))
+        self.assertEqual(json.loads(stdout), {'status': 'skipped', 'reason': 'retired', 'source': 'gone'})
+        self.assertEqual(self.runner.calls, [])
+        self.assertEqual(FilesystemStore(self.root / 'cli-bucket').list('gone/'), [])
+        self.assertFalse(self.work_root.exists())
+
+    def test_capture_backs_up_a_suspended_tenant_that_is_explicitly_not_retired(self):
+        argv = self.capture_argv(tenant='kept')
+        (self.root / 'data' / 'filestore' / 'liwan_kept').mkdir()
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
+        with _environment(environ):
+            code, stdout, stderr = self.run_main(argv)
+        self.assertEqual((code, stderr), (bp.EXIT_OK, ''))
+        self.assertEqual(json.loads(stdout)['status'], 'captured')
+
+    def test_the_freshness_check_does_not_alert_for_a_retired_tenant(self):
+        environ = self.registry_environment()
+        with _environment(environ):
+            code, stdout, _stderr = self.run_main(['age', '--tenant', 'gone', '--store-root', str(self.root / 'cli-bucket'), '--now', STAMP])
+            self.assertEqual(code, bp.EXIT_OK)
+            self.assertEqual(json.loads(stdout), {'source': 'gone', 'status': 'skipped', 'reason': 'retired', 'stale': False})
+            # A tenant that is not retired with no backup is still stale; so is one the registry cannot answer for.
+            code, _stdout, _stderr = self.run_main(['age', '--tenant', 'kept', '--store-root', str(self.root / 'cli-bucket'), '--now', STAMP])
+            self.assertEqual(code, bp.EXIT_NOT_VERIFIED)
+            code, _stdout, _stderr = self.run_main(['age', '--tenant', 'unknown', '--store-root', str(self.root / 'cli-bucket'), '--now', STAMP])
+            self.assertEqual(code, bp.EXIT_NOT_VERIFIED)
 
     def test_capture_refuses_an_unknown_tenant_or_pending_registry(self):
         environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}

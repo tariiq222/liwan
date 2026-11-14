@@ -148,6 +148,14 @@ class PipelineError(Exception):
     """The pipeline refused or failed; nothing that claims success was uploaded."""
 
 
+class TenantRetiredError(Exception):
+    """The registry marks the tenant retired: its workspace is being or has been deleted.
+
+    This is an outcome, not a failure. A retired tenant has nothing left worth backing up and
+    its artifacts are purged, so neither a capture nor the freshness check may raise an alert.
+    """
+
+
 @dataclass(frozen=True)
 class RetentionPolicy:
     """The recovery budget and the two retention windows, in one place.
@@ -1115,13 +1123,8 @@ def _write_json(payload: Mapping[str, object]) -> None:
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + '\n')
 
 
-def _registry_source(args: argparse.Namespace) -> CaptureSource:
-    tenant = _require_tenant(args.tenant)
-    registry = Path(os.environ.get(REGISTRY_ENVIRONMENT_VARIABLE, ''))
-    _require(registry.is_absolute(), f'{REGISTRY_ENVIRONMENT_VARIABLE} must be an absolute tenant registry path')
-    data_dir = args.data_dir
-    _require(data_dir.is_absolute() and data_dir.is_dir(),
-             '--data-dir must be the absolute path to the existing Odoo data directory')
+def _registry_binding(registry: Path, tenant: str) -> dict[str, object]:
+    """The published binding of one tenant: database, filestore and whether it is retired."""
     resolver = Path(__file__).parent / 'shared' / 'backup-binding.mjs'
     try:
         result = subprocess.run(
@@ -1132,11 +1135,28 @@ def _registry_source(args: argparse.Namespace) -> CaptureSource:
         binding = json.loads(result.stdout)
         database = backup.validate_db_name(binding['database'])
         store_name = backup.validate_db_name(binding['filestore'])
+        retired = binding.get('retired', False)
+        _require(isinstance(retired, bool), 'the tenant registry binding is malformed')
     except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, backup.BackupError) as error:
         msg = 'could not read a valid tenant registry binding'
         raise PipelineError(msg) from error
     _require(database == store_name, 'tenant registry database and filestore do not match')
-    filestore = data_dir.resolve() / 'filestore' / store_name
+    return {'database': database, 'filestore': store_name, 'retired': retired}
+
+
+def _registry_source(args: argparse.Namespace) -> CaptureSource:
+    tenant = _require_tenant(args.tenant)
+    registry = Path(os.environ.get(REGISTRY_ENVIRONMENT_VARIABLE, ''))
+    _require(registry.is_absolute(), f'{REGISTRY_ENVIRONMENT_VARIABLE} must be an absolute tenant registry path')
+    data_dir = args.data_dir
+    _require(data_dir.is_absolute() and data_dir.is_dir(),
+             '--data-dir must be the absolute path to the existing Odoo data directory')
+    binding = _registry_binding(registry, tenant)
+    # A suspended tenant is still backed up (the binding ignores `enabled`); a retired one is not.
+    if binding['retired']:
+        raise TenantRetiredError(tenant)
+    database = str(binding['database'])
+    filestore = data_dir.resolve() / 'filestore' / str(binding['filestore'])
     _require(filestore.is_dir() and filestore.resolve() == filestore,
              'the registered filestore must be an existing directory under the Odoo data directory without links')
     return CaptureSource(database, filestore, args.pg_dump, args.pg_host, args.pg_port, args.pg_user)
@@ -1159,7 +1179,11 @@ def _run_capture(args: argparse.Namespace, runner: Callable[..., object]) -> int
     else:
         _require(args.data_dir is not None and args.db_name is None,
                  'a tenant capture needs --data-dir and takes no --db-name')
-        source = _registry_source(args)
+        try:
+            source = _registry_source(args)
+        except TenantRetiredError:
+            _write_json({'status': 'skipped', 'reason': 'retired', 'source': _source_name(args)})
+            return EXIT_OK
     manifest = capture(
         store=build_store(args.store_root, os.environ),
         tenant=_source_name(args),
@@ -1215,7 +1239,22 @@ def newest_age(
     }
 
 
+def _tenant_is_retired(args: argparse.Namespace) -> bool:
+    """Whether the registry marks the tenant retired. Any doubt answers no, so a missing registry never hides a stale backup."""
+    registry = os.environ.get(REGISTRY_ENVIRONMENT_VARIABLE, '')
+    if args.control_plane or not registry or not Path(registry).is_absolute():
+        return False
+    try:
+        return bool(_registry_binding(Path(registry), _require_tenant(args.tenant))['retired'])
+    except PipelineError:
+        return False
+
+
 def _run_age(args: argparse.Namespace, _runner: Callable[..., object]) -> int:
+    if _tenant_is_retired(args):
+        # Its artifacts are purged with the workspace; "no backup" is the expected state, not a stale one.
+        _write_json({'source': _source_name(args), 'status': 'skipped', 'reason': 'retired', 'stale': False})
+        return EXIT_OK
     report = newest_age(build_store(args.store_root, os.environ), _source_name(args), _parse_now(args.now))
     _write_json(report)
     return EXIT_NOT_VERIFIED if report['stale'] else EXIT_OK

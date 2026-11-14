@@ -550,3 +550,50 @@ test('an active tenant drops a binding whose own tenant is no longer active', as
     assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_acme: 'acme', openid_beta: 'beta' } })
   } finally { await f.close() }
 })
+
+/** The control plane's purge of a deleted workspace: every binding of the tenant, enabled or not. */
+async function purge(port, tenantId, { method = 'DELETE', token = PROXY_TOKEN } = {}) {
+  const headers = token === null ? {} : { 'x-liwan-proxy-token': token }
+  const response = await fetch(`http://127.0.0.1:${port}/internal/tiktok/tenants/${tenantId}`, { method, headers })
+  return { status: response.status, body: await response.text() }
+}
+
+test('the purge route removes every binding of a tenant that is disabled or left the registry, and keeps the others', async () => {
+  const disabled = targets.map(target => target.tenantId === 'acme' ? { ...target, enabled: false, retired: true } : target)
+  const f = await fixture({
+    registry: { schemaVersion: 1, snapshotRevision: 2, targets: disabled },
+    bindings: { schemaVersion: 1, bindings: { openid_a1: 'acme', openid_a2: 'acme', openid_beta: 'beta', openid_gone: 'gone' } },
+  })
+  try {
+    const first = await purge(f.port, 'acme')
+    assert.equal(first.status, 200)
+    assert.deepEqual(JSON.parse(first.body), { removed: 2 })
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_beta: 'beta', openid_gone: 'gone' } })
+    // A tenant that left the registry entirely is purged the same way.
+    assert.deepEqual(JSON.parse((await purge(f.port, 'gone')).body), { removed: 1 })
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_beta: 'beta' } })
+  } finally { await f.close() }
+})
+
+test('the purge route is idempotent and leaves the file alone when there is nothing to remove', async () => {
+  const f = await fixture({ bindings: false })
+  try {
+    // No bindings file at all, then a tenant with no binding: both are success.
+    assert.deepEqual(JSON.parse((await purge(f.port, 'acme')).body), { removed: 0 })
+    assert.equal((await purge(f.port, 'nobody')).status, 200)
+  } finally { await f.close() }
+})
+
+test('the purge route needs the relay token, only DELETE, and a registry-format tenant id', async () => {
+  const f = await fixture()
+  try {
+    assert.equal((await purge(f.port, 'acme', { token: null })).status, 403)
+    assert.equal((await purge(f.port, 'acme', { token: 'x'.repeat(PROXY_TOKEN.length) })).status, 403)
+    assert.equal((await purge(f.port, 'acme', { method: 'GET' })).status, 405)
+    assert.equal((await purge(f.port, 'Acme')).status, 400)
+    assert.equal((await purge(f.port, 'a.b')).status, 400)
+    assert.equal((await purge(f.port, '%E0%A4%A')).status, 400)
+    assert.equal((await purge(f.port, 'a'.repeat(64))).status, 400)
+    assert.deepEqual(storedBindings(f.dir), bindings)
+  } finally { await f.close() }
+})

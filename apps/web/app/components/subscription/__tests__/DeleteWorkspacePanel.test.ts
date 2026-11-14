@@ -15,9 +15,9 @@ const messages = flatten(locale('en'), 'subscription.deletion.')
 const Field = Vue.defineComponent({ props: { label: String }, setup: (p, { slots }) => () => Vue.h('label', [p.label, slots.default?.()]) })
 const Input = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('input', attrs) })
 const render = (props: Record<string, unknown>) => renderShared(component, { hydrated: true, ...props }, {},
-  { messages, modules: { '@liwan/commercial-contracts': { TENANT_DELETION_WINDOW_DAYS: WINDOW_DAYS, daysBetween: (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000), riyadhDate: (value: string | Date) => new Date(value).toISOString().slice(0, 10) }, '@liwan/ui/app/utils/formatDate': { formatDate: (value: string) => value.slice(0, 10) } }, stubs: { UFormField: Field, UInput: Input }, globals: { ref: Vue.ref, computed: Vue.computed, onMounted: Vue.onMounted } })
-const requested = { state: 'requested', requested_at: '2026-11-20T09:00:00.000Z', code_expires_at: '2026-11-20T09:15:00.000Z', confirmed_at: null, due_at: null }
-const confirmed = { state: 'confirmed', requested_at: '2026-11-20T09:00:00.000Z', code_expires_at: null, confirmed_at: '2026-11-20T09:05:00.000Z', due_at: '2027-02-18T09:05:00.000Z' }
+  { messages, modules: { '@liwan/commercial-contracts': { TENANT_DELETION_WINDOW_DAYS: WINDOW_DAYS, daysBetween: (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000), riyadhDate: (value: string | Date) => new Date(value).toISOString().slice(0, 10) }, '@liwan/ui/app/utils/formatDate': { formatDate: (value: string) => value.slice(0, 10), formatDateTime: (value: string) => value.slice(0, 16).replace('T', ' ') } }, stubs: { UFormField: Field, UInput: Input }, globals: { ref: Vue.ref, computed: Vue.computed, onMounted: Vue.onMounted } })
+const requested = { state: 'requested', requested_at: '2026-11-20T09:00:00.000Z', code_expires_at: '2026-11-20T09:15:00.000Z', confirmed_at: null, due_at: null, hold_until: null, can_withdraw: true }
+const confirmed = { state: 'confirmed', requested_at: '2026-11-20T09:00:00.000Z', code_expires_at: null, confirmed_at: '2026-11-20T09:05:00.000Z', due_at: '2027-02-18T09:05:00.000Z', hold_until: null, can_withdraw: true }
 
 describe('DeleteWorkspacePanel', () => {
   it('explains what is deleted and kept, the withdrawal window and the stopped renewal, with one request button', async () => {
@@ -42,11 +42,30 @@ describe('DeleteWorkspacePanel', () => {
     expect(html).toContain('data-testid="withdraw-deletion"')
     expect(html).toContain(messages['subscription.deletion.withdrawNote'])
   })
-  it('has no action once the window has ended and says the team will carry it out', async () => {
-    const html = await render({ deletion: { ...confirmed, state: 'due' } })
-    expect(html).toContain('data-testid="deletion-due"')
-    expect(html).toContain('The LiwanOS team will carry out the deletion')
+  it('shows the final hold with its end date and time, says the workspace still works and offers to withdraw', async () => {
+    const html = await render({ deletion: { ...confirmed, state: 'due', hold_until: '2027-02-21T09:05:00.000Z', can_withdraw: true } })
+    expect(html).toContain('data-testid="deletion-hold"')
+    expect(html).toContain('Final hold: your workspace is deleted after 2027-02-21 09:05')
+    expect(html).toContain('Your workspace still works')
+    expect(html).toContain('data-testid="withdraw-deletion"')
+    expect(html).not.toContain('data-testid="cannot-withdraw"')
+    expect(html).not.toMatch(/can no longer be withdrawn|team will carry out/)
+  })
+  it('falls back to the window end date when a due request carries no hold end', async () => {
+    const html = await render({ deletion: { ...confirmed, state: 'due', hold_until: null, can_withdraw: true } })
+    expect(html).toContain('The deletion window ended on 2027-02-18')
+    expect(html).toContain('data-testid="withdraw-deletion"')
+  })
+  it('says why a request cannot be withdrawn and offers no action once the deletion is running', async () => {
+    const html = await render({ deletion: { ...confirmed, state: 'deleting', hold_until: '2027-02-21T09:05:00.000Z', can_withdraw: false } })
+    expect(html).toContain('data-testid="deletion-running"')
+    expect(html).toContain('Your workspace is being deleted')
+    expect(html).toContain('data-testid="cannot-withdraw"')
+    expect(html).toContain(messages['subscription.deletion.cannotWithdraw'])
     expect(html).not.toContain('<button')
+    const stopped = await render({ deletion: { ...confirmed, state: 'due', hold_until: '2027-02-21T09:05:00.000Z', can_withdraw: false } })
+    expect(stopped).toContain('data-testid="cannot-withdraw"')
+    expect(stopped).not.toContain('data-testid="withdraw-deletion"')
   })
   it('disables every action until the page is interactive', async () => {
     const html = await render({ deletion: null, hydrated: false })
@@ -58,7 +77,7 @@ describe('deletion copy', () => {
   it('keeps the same keys in Arabic and English and names every refusal the control plane answers', () => {
     const keys = (value: Record<string, unknown>, prefix = ''): string[] => Object.entries(value).flatMap(([k, v]) => typeof v === 'object' ? keys(v as Record<string, unknown>, `${prefix}${k}.`) : [`${prefix}${k}`])
     expect(keys(locale('ar')).sort()).toEqual(keys(locale('en')).sort())
-    for (const code of ['invalid_code', 'company_name_mismatch', 'rate_limited', 'deletion_pending', 'deletion_due', 'no_workspace', 'no_manager_address']) {
+    for (const code of ['invalid_code', 'company_name_mismatch', 'rate_limited', 'deletion_pending', 'deletion_in_progress', 'tenant_retired', 'tenant_retiring', 'no_workspace', 'no_manager_address']) {
       expect(deletionErrorKey(code)).toBe(`subscription.deletion.errors.${code}`)
       for (const lang of ['ar', 'en'] as const) expect(typeof (locale(lang).errors as Record<string, string>)[code]).toBe('string')
     }

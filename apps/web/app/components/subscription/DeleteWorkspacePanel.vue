@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TenantDeletion } from '@liwan/commercial-contracts'
 import { TENANT_DELETION_WINDOW_DAYS, daysBetween, riyadhDate } from '@liwan/commercial-contracts'
-import { formatDate } from '@liwan/ui/app/utils/formatDate'
+import { formatDate, formatDateTime } from '@liwan/ui/app/utils/formatDate'
 const props = defineProps<{ deletion: TenantDeletion | null; pending?: boolean; hydrated?: boolean; error?: string; canExport?: boolean }>()
 const emit = defineEmits<{ request: []; confirm: [input: { code: string; companyName: string }]; withdraw: [] }>()
 const { t } = useI18n()
@@ -11,6 +11,8 @@ const blocked = computed(() => props.pending || props.hydrated === false)
 const validCode = computed(() => /^\d{6}$/.test(code.value.trim()))
 const canConfirm = computed(() => validCode.value && companyName.value.trim().length > 0 && !blocked.value)
 const dueDate = computed(() => (props.deletion?.due_at ? formatDate(props.deletion.due_at, 'Asia/Riyadh') : ''))
+const holdEnd = computed(() => (props.deletion?.hold_until ? formatDateTime(props.deletion.hold_until, 'Asia/Riyadh') : ''))
+const scheduled = computed(() => props.deletion?.state === 'confirmed' || props.deletion?.state === 'due')
 // Counted in the browser only, so server and client render the same markup.
 const today = ref<string | null>(null)
 onMounted(() => { today.value = riyadhDate(new Date()) })
@@ -54,14 +56,21 @@ function submitConfirm() {
         </div>
       </form>
     </template>
-    <template v-else-if="deletion.state === 'confirmed'">
-      <UAlert color="error" variant="subtle" icon="i-lucide-trash-2" data-testid="deletion-scheduled" :title="t('subscription.deletion.scheduledTitle', { date: dueDate })" :description="t('subscription.deletion.scheduledBody')" />
-      <p v-if="daysLeft !== null" class="text-sm font-medium">{{ t('subscription.deletion.daysLeft', { count: daysLeft }) }}</p>
-      <p class="text-sm text-muted">{{ t('subscription.deletion.deletes') }} {{ t('subscription.deletion.keeps') }}</p>
-      <UButton color="neutral" variant="outline" :disabled="blocked" :loading="pending" data-testid="withdraw-deletion" @click="emit('withdraw')">{{ t('subscription.deletion.withdraw') }}</UButton>
-      <p class="text-sm text-muted">{{ t('subscription.deletion.withdrawNote') }}</p>
+    <template v-else-if="scheduled">
+      <UAlert v-if="deletion.state === 'confirmed'" color="error" variant="subtle" icon="i-lucide-trash-2" data-testid="deletion-scheduled" :title="t('subscription.deletion.scheduledTitle', { date: dueDate })" :description="t('subscription.deletion.scheduledBody')" />
+      <UAlert v-else color="warning" variant="subtle" icon="i-lucide-hourglass" data-testid="deletion-hold" :title="holdEnd ? t('subscription.deletion.holdTitle', { date: holdEnd }) : t('subscription.deletion.holdTitleNoDate', { date: dueDate })" :description="t('subscription.deletion.holdBody')" />
+      <p v-if="deletion.state === 'confirmed' && daysLeft !== null" class="text-sm font-medium">{{ t('subscription.deletion.daysLeft', { count: daysLeft }) }}</p>
+      <p v-if="deletion.state === 'confirmed'" class="text-sm text-muted">{{ t('subscription.deletion.deletes') }} {{ t('subscription.deletion.keeps') }}</p>
+      <template v-if="deletion.can_withdraw">
+        <UButton color="neutral" variant="outline" :disabled="blocked" :loading="pending" data-testid="withdraw-deletion" @click="emit('withdraw')">{{ t('subscription.deletion.withdraw') }}</UButton>
+        <p class="text-sm text-muted">{{ t('subscription.deletion.withdrawNote') }}</p>
+      </template>
+      <p v-else class="text-sm text-muted" data-testid="cannot-withdraw">{{ t('subscription.deletion.cannotWithdraw') }}</p>
     </template>
-    <UAlert v-else color="error" variant="subtle" icon="i-lucide-trash-2" data-testid="deletion-due" :title="t('subscription.deletion.dueTitle', { date: dueDate })" :description="t('subscription.deletion.dueBody')" />
+    <template v-else>
+      <UAlert color="error" variant="subtle" icon="i-lucide-trash-2" data-testid="deletion-running" :title="t('subscription.deletion.deletingTitle')" :description="t('subscription.deletion.deletingBody')" />
+      <p class="text-sm text-muted" data-testid="cannot-withdraw">{{ t('subscription.deletion.cannotWithdraw') }}</p>
+    </template>
     <UAlert v-if="error" color="error" variant="subtle" role="alert" :title="error" />
   </div>
 </template>

@@ -59,6 +59,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-wrench', actionKey: action(item.kind) }
     case 'tenant_deletion_due':
       return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-trash-2', actionKey: action(item.kind) }
+    case 'tenant_deletion_stuck':
+      return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-octagon-alert', actionKey: action(item.kind) }
     case 'form_payment_review':
       return { to: customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
     case 'renewal_missed':
@@ -91,6 +93,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'operation_failed': return { key: 'operation_failed', days: null, operation: item.detail }
     case 'setup_required': return { key: 'setup_required', days: null, operation: null }
     case 'tenant_deletion_due': return { key: 'tenant_deletion_due', days: null, operation: null }
+    case 'tenant_deletion_stuck': return { key: 'tenant_deletion_stuck', days: null, operation: item.detail }
     case 'form_payment_review': return { key: 'form_payment_review', days: null, operation: item.detail }
     case 'renewal_missed': return { key: 'renewal_missed', days: daysSinceRenewal(item.since, now), operation: null }
     case 'renewal_soon': return { key: 'renewal_soon', days: daysUntil(item.since, now), operation: null }

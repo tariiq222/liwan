@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { deletionWithdrawable, isDeletionShown } from '@/utils/vendorDeletion'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
@@ -99,7 +100,7 @@ async function resendInvitation() {
 }
 // The address on record receives every control-plane mail for the workspace (invitation, billing, trial, cancellation and deletion notices).
 // Changing it needs a reason and a fresh passkey confirmation; it never changes an account inside the workspace.
-const canChangeAdminLogin = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && !error.value)
+const canChangeAdminLogin = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && !error.value && !workspaceDeleted.value && deletion.value?.state !== 'deleting')
 const adminLoginOpen = ref(false)
 const adminLoginValue = ref('')
 const adminLoginReason = ref('')
@@ -205,13 +206,15 @@ async function changeCard() {
   } catch (cause) { cardFailure.value = t(cardActionErrorKey(cause)) } finally { cardBusy.value = false }
 }
 // The customer's own workspace-deletion request: the console shows its dates and what happened to the renewal, and withdraws it on the customer's behalf with a reason and a fresh passkey confirmation. It cannot ask for or confirm one.
-const { data: deletionData, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletion(id.value))).value?.deletion ?? null)
-const deletion = computed(() => (deletionData.value && ['requested', 'confirmed', 'due'].includes(deletionData.value.state) ? deletionData.value : null))
+const { data: deletionRun, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletionRun(id.value))).value?.run ?? null)
+const deletion = computed(() => (isDeletionShown(deletionRun.value?.request) ? deletionRun.value!.request : null))
+const workspaceDeleted = computed(() => deletion.value?.state === 'deleted' || tenant.value?.status === 'deleted')
+const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatLiwanDate(deletion.value?.deleted_at ?? '') }))
 const deletionWithdrawOpen = ref(false)
 const deletionReason = ref('')
 const deletionBusy = ref(false)
 const deletionFailure = ref<string | undefined>()
-const canWithdrawDeletion = computed(() => can('vendor.subscriptions.manage') && !error.value && deletion.value !== null && deletion.value.state !== 'due')
+const canWithdrawDeletion = computed(() => can('vendor.subscriptions.manage') && !error.value && deletion.value !== null && deletionWithdrawable(deletion.value))
 const validDeletionReason = computed(() => deletionReason.value.trim().length >= 3 && deletionReason.value.trim().length <= 1000)
 function closeDeletion() { deletionWithdrawOpen.value = false; deletionReason.value = ''; deletionFailure.value = undefined }
 async function withdrawDeletion() {
@@ -225,6 +228,7 @@ async function withdrawDeletion() {
 }
 const deletionMessage = computed(() => deletion.value && t(`vendor.customers.deletion.${deletion.value.state}`, {
   requested: formatLiwanDate(deletion.value.requested_at), confirmed: formatLiwanDate(deletion.value.confirmed_at ?? ''), due: formatLiwanDate(deletion.value.due_at ?? ''),
+  hold: formatLiwanDateTime(deletion.value.hold_until ?? ''), deleting: formatLiwanDateTime(deletion.value.deleting_at ?? ''), deleted: formatLiwanDate(deletion.value.deleted_at ?? ''),
 }))
 const deletionRenewal = computed(() => {
   const request = deletion.value
@@ -268,6 +272,7 @@ async function cancelPendingOrder() {
             <SharedStatusBadge v-if="workspaceBadge" :tone="workspaceBadge.tone" :label="t(workspaceBadge.labelKey)" />
             <SharedStatusBadge v-else tone="neutral" variant="outline" :label="t('vendor.customers.noWorkspace')" />
           </span>
+          <span v-if="workspaceDeleted" class="text-sm text-muted" data-testid="workspace-deleted-summary">{{ workspaceDeletedText }}</span>
           <SharedStatusBadge v-if="customer.commercial_setup_required" tone="warning" icon="i-lucide-triangle-alert" :label="t('vendor.customers.setupRequired')" />
         </div>
       </template>
@@ -342,7 +347,8 @@ async function cancelPendingOrder() {
               </template>
             </div>
             <div v-if="deletion" class="mt-4 space-y-3" data-testid="deletion-request">
-              <UAlert :color="deletion.state === 'due' ? 'error' : 'warning'" variant="subtle" icon="i-lucide-trash-2" :title="deletionMessage ?? undefined" :description="deletionRenewal ?? undefined" />
+              <UAlert :color="deletion.state === 'requested' || deletion.state === 'confirmed' ? 'warning' : 'error'" variant="subtle" icon="i-lucide-trash-2" :title="deletionMessage ?? undefined" :description="deletionRenewal ?? undefined" />
+              <VendorDeletionRunPanel v-if="deletionRun" :run="deletionRun" />
               <UAlert v-if="deletionFailure" color="error" variant="subtle" role="alert" :title="deletionFailure" />
               <template v-if="canWithdrawDeletion">
                 <SharedInlineConfirm v-if="deletionWithdrawOpen" :title="t('vendor.customers.deletion.withdrawTitle')" :description="t('vendor.customers.deletion.withdrawHint')" :confirm-label="t('vendor.customers.deletion.withdraw')" color="primary" :pending="deletionBusy" :disabled="!hydrated || deletionBusy || !validDeletionReason" @confirm="withdrawDeletion" @cancel="closeDeletion">
@@ -400,6 +406,7 @@ async function cancelPendingOrder() {
 
         <template v-else-if="tab === 'workspace' || tab === 'operations'">
           <SharedEmptyState v-if="!customer.tenant_id" :title="t('vendor.customers.noWorkspaceYet')" :description="t('vendor.customers.noWorkspaceHint')" />
+          <SharedEmptyState v-else-if="workspaceDeleted" :title="workspaceDeletedText" data-testid="workspace-deleted" />
           <SharedPageState v-else-if="tab === 'workspace'" :loading="tenantPending && !tenant" :error="tenantError" @retry="refreshTenant">
             <div v-if="tenant" class="space-y-6">
               <VendorTenantProperties :tenant="tenant" :progress="progress" hide-open />

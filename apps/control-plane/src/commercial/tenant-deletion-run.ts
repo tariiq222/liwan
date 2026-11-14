@@ -214,11 +214,11 @@ async function currentRow(ctx: Ctx): Promise<Row> {
   return row
 }
 
-/** S3: the relay refuses a disabled tenant, so its bindings go through a relay purge route; without one the step is skipped and says why. */
+/** S3: the relay refuses a disabled tenant, so its bindings go through the relay's purge route; without the relay address and token the step is skipped and says why. */
 async function unbindRelay(ctx: Ctx): Promise<Outcome> {
   const row = await currentRow(ctx)
   const result = await ctx.effects.unbindRelay({ tenantId: planOf(row).relay.tenantId, assertOwned: ownership(ctx, row.plan_digest, false) })
-  return result.state === 'unsupported' ? { skip: 'relay_purge_route_missing' } : { evidence: { state: result.state } }
+  return result.state === 'not_configured' ? { skip: 'relay_not_configured' } : { evidence: { state: result.state } }
 }
 
 /** S4: the point of no return, as late as possible and only when everything still matches the frozen plan. */

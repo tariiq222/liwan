@@ -288,7 +288,7 @@ export function adminLoginErrorKey(cause: unknown): string {
   return ['admin_login_unchanged', 'no_workspace', 'workspace_not_activated'].includes(code) ? `vendor.customers.adminLogin.errors.${code}` : commercialErrorKey(cause)
 }
 
-/** Withdrawing a deletion request is refused once its window has ended; anything else falls back to the shared message. */
+/** Withdrawing a deletion request is refused once the deletion passed its point of no return; anything else falls back to the shared message. */
 export function deletionErrorKey(cause: unknown): string {
-  return commercialFailure(cause).code === 'deletion_due' ? 'vendor.customers.deletion.errors.deletion_due' : commercialErrorKey(cause)
+  return commercialFailure(cause).code === 'deletion_in_progress' ? 'vendor.customers.deletion.errors.deletion_in_progress' : commercialErrorKey(cause)
 }

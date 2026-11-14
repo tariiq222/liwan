@@ -1,6 +1,6 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { TenantDeletionRequest, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@liwan/commercial-contracts'
+import type { TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@liwan/commercial-contracts'
 import type { AdminLoginChange, AdminLoginPreview, VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
@@ -52,9 +52,9 @@ export function useVendorSubscriptions() {
     /** Stops automatic renewal and keeps the card; the customer's next invoice is paid by hand. */
     disableAutoRenew: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/disable-auto-renew`, { method: 'POST', body: { reason: reason.trim() } }),
     resumeRenewal: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/resume-renewal`, { method: 'POST', body: { reason: reason.trim() } }),
-    /** The customer's latest workspace-deletion request (any state), or null. The customer asks for and confirms it; the console only reads it. */
-    tenantDeletion: (customerId: string) => request<{ deletion: TenantDeletionRequest | null }>(`commercial/customers/${seg(customerId)}/deletion`),
-    /** Withdraws the open deletion request on the customer's behalf, any time before it is due. It never resumes a renewal the deletion stopped. */
+    /** The customer's latest workspace-deletion request (any state) with its frozen plan, pre-checks and step ledger, or null. The customer asks for and confirms it; the console only reads it. */
+    tenantDeletionRun: (customerId: string) => request<{ run: TenantDeletionRun | null }>(`commercial/customers/${seg(customerId)}/deletion/run`),
+    /** Withdraws the open deletion request on the customer's behalf, any time before the deletion passes its point of no return. It never resumes a renewal the deletion stopped. */
     withdrawTenantDeletion: (customerId: string, reason: string) => request<{ deletion: TenantDeletionRequest | null }>(`commercial/customers/${seg(customerId)}/deletion/withdraw`, { method: 'POST', body: { reason: reason.trim() } }),
     /** Changes the address that receives every control-plane mail for the workspace. No Odoo user, password or login changes; both addresses are told. */
     changeAdminLogin: (customerId: string, body: { admin_login: string; reason: string }) => request<{ change: AdminLoginChange }>(`commercial/customers/${seg(customerId)}/admin-login`, { method: 'PATCH', body: { admin_login: body.admin_login.trim(), reason: body.reason.trim() } }),

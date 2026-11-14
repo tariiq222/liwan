@@ -33,6 +33,8 @@
     },
     "status": {
       "registered": "Registered",
+      "deleting": "Deleting",
+      "deleted": "Deleted",
       "provisioning": "Provisioning",
       "active": "Active",
       "needs_intervention": "Needs attention",
@@ -81,7 +83,8 @@
         "setup_required": "Needs commercial setup",
         "renewal_missed": "Renewal date passed {duration} ago and not renewed",
         "renewal_soon": "Renews within {duration}",
-        "tenant_deletion_due": "The customer's deletion request is due. Nothing carries it out yet: check the request before it is handled",
+        "tenant_deletion_due": "The customer's deletion request is in its final hold. The workspace still works: withdraw the request if it is not legitimate, otherwise it is deleted when the hold ends",
+        "tenant_deletion_stuck": "A workspace deletion is stuck ({operation}) and waits for you",
         "form_payment_review": "A card payment needs checking at the payment provider ({operation}): money may have been taken that nothing settled, or a card token was not deleted"
       },
       "refundReasons": {
@@ -109,6 +112,7 @@
         "renewal_missed": "Open the subscription",
         "renewal_soon": "Open the subscription",
         "tenant_deletion_due": "Open the request",
+        "tenant_deletion_stuck": "Open the deletion",
         "form_payment_review": "Open the invoices"
       },
       "statusTitle": "Overall status",
@@ -1150,7 +1154,10 @@
       "deletion": {
         "requested": "Deletion requested on {requested}. Waiting for the customer to confirm with the emailed code.",
         "confirmed": "Deletion confirmed on {confirmed}. The workspace, its files and its backups are due to be deleted on {due}.",
-        "due": "The deletion window ended on {due}. The deletion is due and nothing has carried it out yet.",
+        "due": "The withdrawal window ended on {due}. The request is in its final hold until {hold} and the workspace still works.",
+        "deleting": "Access to the workspace has been stopped since {deleting} and the deletion is being carried out.",
+        "deleted": "The workspace was deleted on {deleted}.",
+        "workspaceDeleted": "Workspace deleted {date}",
         "renewal": {
           "cancelled": "The paid renewal was cancelled at the period end. No refund is made.",
           "already_cancelled": "The paid renewal was already cancelled.",
@@ -1169,9 +1176,62 @@
         },
         "withdraw": "Withdraw deletion request",
         "withdrawTitle": "Withdraw the deletion request on the customer's behalf?",
-        "withdrawHint": "The workspace is not deleted. A cancelled renewal is not resumed: the customer resumes it from the subscription page. The customer receives an email and so do you.",
+        "withdrawHint": "The workspace is not deleted, and access is restored if it was stopped. A cancelled renewal is not resumed: the customer resumes it from the subscription page. The customer receives an email and so do you.",
         "reason": "Reason (3-1000 characters)",
-        "errors": { "deletion_due": "The window has ended: the request can no longer be withdrawn." }
+        "run": {
+          "title": "Deletion run",
+          "runnerOn": "The deletion runner is on.",
+          "runnerOff": "The deletion runner is off: it records its plan and carries nothing out.",
+          "holdUntil": "Hold ends",
+          "deletingAt": "Access stopped",
+          "committedAt": "Point of no return passed",
+          "deletedAt": "Deleted",
+          "notCommitted": "The point of no return has not been passed: you can still withdraw the request.",
+          "committed": "The point of no return has passed: the request can no longer be withdrawn.",
+          "stuck": "Stuck at {step}: {code}",
+          "planTitle": "Frozen plan",
+          "planDatabase": "Database",
+          "planHost": "Host",
+          "planBackups": "Backups",
+          "planRestoreCopies": "Restore copies",
+          "planCards": "Saved cards",
+          "noPlan": "The plan is frozen when the hold ends.",
+          "prechecksTitle": "Pre-checks",
+          "prechecksBlocked": "Blocked by {code}",
+          "prechecksClear": "Nothing blocks the deletion.",
+          "checkOk": "passed",
+          "checkFailing": "blocking",
+          "stepsTitle": "Steps",
+          "noSteps": "No step has run yet.",
+          "attempts": "{attempts} attempts, {failures} failed",
+          "nextAttempt": "Next attempt {date}",
+          "lastError": "Last error: {code}",
+          "states": {
+            "pending": "Pending",
+            "running": "Running",
+            "done": "Done",
+            "failed": "Failed",
+            "skipped": "Skipped"
+          },
+          "stepNames": {
+            "preflight": "Pre-checks",
+            "stop_access": "Stop access",
+            "unbind_relay": "Unbind the TikTok relay",
+            "commit": "Point of no return",
+            "delete_cards": "Delete saved cards",
+            "drop_database": "Drop the database",
+            "remove_filestore": "Remove the files",
+            "remove_restore_copies": "Remove restore copies",
+            "purge_local_backups": "Purge local backups",
+            "purge_offsite": "Purge off-site backups",
+            "remove_side_files": "Remove side files",
+            "clean_registry_rows": "Clean registry rows",
+            "finish": "Finish",
+            "anonymise_contacts": "Remove the administrator contact",
+            "reinstate": "Reinstate the workspace"
+          }
+        },
+        "errors": { "deletion_in_progress": "The deletion has passed its point of no return: the request can no longer be withdrawn." }
       },
       "cancelOrder": {
         "action": "Cancel pending order",

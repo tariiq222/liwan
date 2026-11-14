@@ -21,12 +21,18 @@ describe('attentionPresentation', () => {
     expect(attentionPresentation(item({ kind: 'setup_required' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'renewal_soon' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'tenant_deletion_due' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
+    expect(attentionPresentation(item({ kind: 'tenant_deletion_stuck' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'renewal_missed' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'operation_failed', customer_id: null, operation_id: 'o1' })).to).toEqual({ path: '/operations/o1', query: { source: 'legacy', returnTo: '/overview' } })
   })
   it('words a due deletion request as its own kind and needs the owner (destructive tone)', () => {
     expect(attentionPresentation(item({ kind: 'tenant_deletion_due' }))).toMatchObject({ tone: 'destructive', actionKey: 'vendor.today.actions.tenant_deletion_due' })
     expect(attentionMessage(item({ kind: 'tenant_deletion_due' }), now)).toEqual({ key: 'tenant_deletion_due', days: null, operation: null })
+  })
+  it('words a stuck deletion with the machine code and needs the owner (destructive tone)', () => {
+    expect(attentionPresentation(item({ kind: 'tenant_deletion_stuck' }))).toMatchObject({ tone: 'destructive', actionKey: 'vendor.today.actions.tenant_deletion_stuck' })
+    expect(attentionMessage(item({ kind: 'tenant_deletion_stuck', detail: 'offsite_not_empty' }), now)).toEqual({ key: 'tenant_deletion_stuck', days: null, operation: 'offsite_not_empty' })
+    expect(attentionPresentation(item({ kind: 'tenant_deletion_stuck', customer_id: null })).to).toBeNull()
   })
   it('sends a card payment that needs checking to the customer\'s invoices with the machine reason', () => {
     expect(attentionPresentation(item({ kind: 'form_payment_review' }))).toMatchObject({ to: { path: '/customers/c1', query: { tab: 'invoices' } }, tone: 'destructive', actionKey: 'vendor.today.actions.form_payment_review' })

@@ -70,6 +70,8 @@ The script refuses a missing or tampered artifact (the manifest tag is checked b
 - the `invoice_number_seq` position, which must be ahead of the highest issued invoice number (`NSQ-<year>-<serial>`), together with the latest invoice number;
 - the highest `schema_migrations` version.
 
+After `pg_restore` and before it reads anything back, `restore` stamps `control_plane_state.restored_at` with the restore time in the new database and records `restored_at_stamped` in `control-plane-restore.json`. The deletion runner commits no customer's workspace deletion until `restored_at` plus 72 hours has passed. The reason: a control plane restored from an older backup may have lost a customer's withdrawal of a deletion request, and replaying the old request would destroy a workspace the customer chose to keep. Within those 72 hours the customer or the vendor can withdraw again; the final hold is meant to give that time. A backup taken before the table existed (before migration 66) holds no deletion request to replay, so it stays unstamped and the record says `restored_at_stamped: false`; run the build's migration afterwards as above. `verify` (a read of an already restored database) never writes the stamp, so a database restored by hand with `pg_restore` instead of this script needs `UPDATE control_plane_state SET restored_at = now() WHERE singleton = true` before the control plane starts.
+
 A passing verification says the restored copy is complete and readable. It does not say the copy is current: see the next section.
 
 ## Reconcile after a restore up to one hour old

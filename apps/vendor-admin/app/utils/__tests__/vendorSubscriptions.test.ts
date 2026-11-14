@@ -170,7 +170,7 @@ describe('bank transfer form values', () => {
 
 describe('deletionErrorKey', () => {
   it('names the closed window and leaves every other failure to the shared message', () => {
-    expect(deletionErrorKey({ status: 409, data: { code: 'deletion_due' } })).toBe('vendor.customers.deletion.errors.deletion_due')
+    expect(deletionErrorKey({ status: 409, data: { code: 'deletion_in_progress' } })).toBe('vendor.customers.deletion.errors.deletion_in_progress')
     expect(deletionErrorKey({ status: 404, data: { code: 'not_found' } })).toBe('vendor.pricing.errors.not_found')
   })
 })

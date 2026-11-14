@@ -6,6 +6,8 @@ export type TenantHostTarget = {
   database: string
   filestore: string
   enabled: boolean
+  /** The workspace is being or has been deleted: always disabled, and a backup capture refuses it. Absent in older snapshots, which means not retired. */
+  retired?: boolean
   registryRevision: number
 }
 

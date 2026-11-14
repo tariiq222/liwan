@@ -203,12 +203,15 @@ describe('vendor API proxy', () => {
     // The customer alone asks for and confirms the deletion of its workspace; the console reads the requests and withdraws on the customer's behalf.
     const calls = stubUpstream(() => json(200, {}))
     expect((await get('/commercial/customers/c-1/deletion')).status).toBe(200)
+    expect((await get('/commercial/customers/c-1/deletion/run')).status).toBe(200)
     expect((await get('/commercial/deletion-requests')).status).toBe(200)
     expect((await post('/commercial/customers/c-1/deletion/withdraw')).status).toBe(200)
-    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['GET /v1/commercial/customers/c-1/deletion', 'GET /v1/commercial/deletion-requests', 'POST /v1/commercial/customers/c-1/deletion/withdraw'])
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['GET /v1/commercial/customers/c-1/deletion', 'GET /v1/commercial/customers/c-1/deletion/run', 'GET /v1/commercial/deletion-requests', 'POST /v1/commercial/customers/c-1/deletion/withdraw'])
     const forwarded = calls.length
     // The withdraw route is POST only; the read routes are GET only.
     expect((await get('/commercial/customers/c-1/deletion/withdraw')).status).toBe(405)
+    // The run is a read: nothing can be posted to or patched on it.
+    for (const send of [post, patch]) expect((await send('/commercial/customers/c-1/deletion/run')).status).toBe(405)
     expect((await post('/commercial/customers/c-1/deletion')).status).toBe(405)
     expect((await post('/commercial/deletion-requests')).status).toBe(405)
     for (const path of ['/commercial/customers/c-1/deletion/request', '/commercial/customers/c-1/deletion/confirm', '/commercial/customers/c-1/deletion/shorten']) {

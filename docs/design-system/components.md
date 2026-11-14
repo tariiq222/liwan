@@ -233,6 +233,7 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/vendor-admin/app/components/vendor/CatalogTabs.vue` | تبويبات قسم الكتالوج (الباقات والحزم والحزم القديمة) عبر `SharedRouteTabs` | `SharedRouteTabs` |
 | `apps/vendor-admin/app/components/vendor/CustomerGlance.vue` | ملخص العميل في لمحة: الباقة والتجديد وآخر فاتورة والمساحة وما يحتاج متابعة مع رابط لتبويبه | `SharedMetricTile`, `SharedStatusBadge`, `UButton`, `UIcon` |
 | `apps/vendor-admin/app/components/vendor/CustomerTermsForm.vue` | نموذج شروط العميل | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/DeletionRunPanel.vue` | تنفيذ حذف مساحة العميل للقراءة فقط: حالة المنفّذ، التواريخ، الخطة المجمّدة، الفحوص المسبقة وسجل الخطوات مع المتعثر منها | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
 | `apps/vendor-admin/app/components/vendor/EntitlementSummary.vue` | ملخص الاستحقاقات: التطبيقات والميزات المختارة والحدود | `UBadge` |
 | `apps/vendor-admin/app/components/vendor/FormSubsection.vue` | عنوان فرعي ووصف وخط فاصل لكتلة داخل بطاقة قسم النموذج | |
 | `apps/vendor-admin/app/components/vendor/LifecyclePanel.vue` | إجراءات دورة حياة الاشتراك بتأكيد داخلي | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |

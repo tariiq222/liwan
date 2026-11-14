@@ -14,6 +14,11 @@ refused, never overwritten), then read back:
   invoice number, or the next invoice would reuse a number a customer already holds;
 * the highest ``schema_migrations`` version (``--expect-migration`` refuses a copy older
   than the control plane build that will run on it);
+* ``control_plane_state.restored_at`` is stamped with the restore time (``restore`` only), so a
+  restored control plane commits no workspace deletion until the hold has passed again: the
+  backup may predate a customer's withdrawal, and replaying that deletion would destroy a
+  workspace the customer kept. A backup older than the table has no deletion to replay and
+  is left unstamped (the record says so);
 * with ``--compare-with``, equality of all of the above with a live database, for a
   drill taken while the source still exists.
 
@@ -109,6 +114,19 @@ def observe(args: argparse.Namespace, database: str, runner: Callable[..., objec
         raise RestoreError(f'{database} answered with something that is not the verification JSON') from error
 
 
+STAMP_PRESENT_SQL = "SELECT to_regclass('public.control_plane_state') IS NOT NULL"
+STAMP_SQL = 'UPDATE control_plane_state SET restored_at = now() WHERE singleton = true'
+
+
+def stamp_restored(args: argparse.Namespace, database: str, runner: Callable[..., object]) -> bool:
+    """Record the restore time in the restored database; False when the backup predates the table."""
+    connection = [args.psql, '-X', '-At', '-v', 'ON_ERROR_STOP=1', *_connection(args), '-d', _target(database)]
+    if _run(runner, [*connection, '-c', STAMP_PRESENT_SQL], f'checking {database}').strip() != 't':
+        return False
+    _run(runner, [*connection, '-c', STAMP_SQL], f'stamping the restore time in {database}')
+    return True
+
+
 def checks_for(observed: Mapping[str, object], compare: Mapping[str, object] | None,
                expect_migration: int | None) -> dict[str, bool]:
     """Every verdict as a named boolean, so a failure says what failed."""
@@ -145,6 +163,7 @@ def restore(args: argparse.Namespace, runner: Callable[..., object]) -> int:
     if args.owner_role:
         restore_argv += ['--role', args.owner_role]
     _run(runner, restore_argv, 'pg_restore')
+    stamped = stamp_restored(args, target, runner)
     observed = observe(args, target, runner)
     compare = observe(args, args.compare_with, runner) if args.compare_with else None
     checks = checks_for(observed, compare, args.expect_migration)
@@ -163,6 +182,7 @@ def restore(args: argparse.Namespace, runner: Callable[..., object]) -> int:
         'rpo_ok': rpo_ok,
         'rto_ok': rto_ok,
         'target_db': target,
+        'restored_at_stamped': stamped,
         'checks': checks,
         'observed': observed,
     }

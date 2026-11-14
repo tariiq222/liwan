@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
+import http from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -44,7 +46,7 @@ class FakeEffects implements DeletionEffects {
     return { state: input.dryRun ? 'would' : 'done' }
   }
   purgeOffsite: DeletionEffects['purgeOffsite'] = async input => { await input.assertOwned(); await this.hit('purge_offsite'); return { state: 'empty' } }
-  unbindRelay: DeletionEffects['unbindRelay'] = async () => { await this.hit('unbind_relay'); return { state: 'unsupported' } }
+  unbindRelay: DeletionEffects['unbindRelay'] = async () => { await this.hit('unbind_relay'); return { state: 'not_configured' } }
   removeBackupArtifacts: DeletionEffects['removeBackupArtifacts'] = async paths => { await this.hit('remove_artifacts'); return { removed: paths.length } }
 }
 
@@ -104,7 +106,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(row.committed_at).toBeInstanceOf(Date); expect(row.deleted_at).toBeInstanceOf(Date)
     const ledger = await steps(f)
     expect(Object.keys(ledger).sort()).toEqual(['clean_registry_rows', 'commit', 'delete_cards', 'drop_database', 'finish', 'preflight', 'purge_local_backups', 'purge_offsite', 'remove_filestore', 'remove_restore_copies', 'remove_side_files', 'stop_access', 'unbind_relay', 'anonymise_contacts'].sort())
-    expect(ledger.unbind_relay).toMatchObject({ state: 'skipped', error_code: 'relay_purge_route_missing' })
+    expect(ledger.unbind_relay).toMatchObject({ state: 'skipped', error_code: 'relay_not_configured' })
     for (const [name, step] of Object.entries(ledger)) if (name !== 'unbind_relay' && name !== 'anonymise_contacts') expect(step, name).toMatchObject({ state: 'done', failures: 0 })
     expect(ledger.anonymise_contacts).toMatchObject({ state: 'pending', error_code: 'final_mail_pending' })
     // The database goes before any backup, and the off-site purge comes after the local one.
@@ -474,8 +476,35 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(denied).toMatchObject({ code: 'deletion_lease_lost' })
     // A digest that does not match the plan never leaves the control plane.
     expect(await refused(Promise.resolve().then(() => real.stage({ stage: 'verify', plan: effectPlan, planDigest: '0'.repeat(64), dryRun: true, assertOwned: async () => {} })))).toMatchObject({ code: 'plan_digest_mismatch' })
-    // The relay has no purge route yet: the step is reported as unsupported.
-    expect(await real.unbindRelay({ tenantId: 'tenant_a', assertOwned: async () => {} })).toEqual({ state: 'unsupported' })
+    // Without the relay address and token the step reports it and is skipped.
+    expect(await real.unbindRelay({ tenantId: 'tenant_a', assertOwned: async () => {} })).toEqual({ state: 'not_configured' })
+    // With them it calls the relay's purge route with the relay token, by tenant id, and reports the count only.
+    const calls: { method?: string; url?: string; token?: string | string[] }[] = []
+    let answer = { status: 200, body: '{"removed":2}' }
+    const relay = http.createServer((request, response) => { calls.push({ method: request.method, url: request.url, token: request.headers['x-liwan-proxy-token'] }); response.writeHead(answer.status); response.end(answer.body) })
+    await new Promise<void>(resolve => relay.listen(0, '127.0.0.1', resolve))
+    try {
+      const token = 'relay-test-token-'.repeat(3)
+      const env = { LIWAN_TIKTOK_RELAY_URL: `http://127.0.0.1:${(relay.address() as AddressInfo).port}/`, LIWAN_TIKTOK_RELAY_TOKEN: token }
+      const wired = createDeletionEffects(config, runtime as any, new AbortController().signal, { spawnChild, env })
+      expect(await wired.unbindRelay({ tenantId: 'tenant_a', assertOwned: async () => {} })).toEqual({ state: 'unbound' })
+      expect(calls).toEqual([{ method: 'DELETE', url: '/internal/tiktok/tenants/tenant_a', token }])
+      answer = { status: 200, body: '{"removed":0}' }
+      expect(await wired.unbindRelay({ tenantId: 'tenant_a', assertOwned: async () => {} })).toEqual({ state: 'absent' })
+      answer = { status: 403, body: 'invalid_proxy_token' }
+      expect(await refused(wired.unbindRelay({ tenantId: 'tenant_a', assertOwned: async () => {} }))).toMatchObject({ code: 'relay_purge_failed' })
+      answer = { status: 200, body: 'not json' }
+      expect(await refused(wired.unbindRelay({ tenantId: 'tenant_a', assertOwned: async () => {} }))).toMatchObject({ code: 'relay_purge_failed' })
+      // Ownership lost: nothing is sent.
+      const sent = calls.length
+      expect(await refused(wired.unbindRelay({ tenantId: 'tenant_a', assertOwned: async () => { throw new Error('deletion_lease_lost') } }))).toMatchObject({ code: 'deletion_lease_lost' })
+      expect(calls.length).toBe(sent)
+      // A half-set or malformed setting is a misconfiguration that fails the step, not a silent skip.
+      for (const bad of [{ LIWAN_TIKTOK_RELAY_URL: env.LIWAN_TIKTOK_RELAY_URL }, { ...env, LIWAN_TIKTOK_RELAY_TOKEN: 'short' }, { ...env, LIWAN_TIKTOK_RELAY_URL: 'ftp://relay.invalid' }]) {
+        const broken = createDeletionEffects(config, runtime as any, new AbortController().signal, { spawnChild, env: bad })
+        expect(await refused(broken.unbindRelay({ tenantId: 'tenant_a', assertOwned: async () => {} }))).toMatchObject({ code: 'relay_settings_invalid' })
+      }
+    } finally { await new Promise(resolve => relay.close(resolve)) }
   })
 
   it('states the dates and the hold end in the notices, and says what is deleted, kept and left to the customer', () => {

@@ -6,6 +6,7 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../utils/vendorSubscriptions'
+import * as deletionUtils from '../../utils/vendorDeletion'
 import * as commercial from '../../utils/vendorCommercial'
 import * as clients from '../../utils/vendorClients'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
@@ -52,7 +53,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
   const bindings = {
     formatLiwanDate, formatLiwanDateTime,
     invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
-    ...subscriptions, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
+    ...subscriptions, ...deletionUtils, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),
     definePageMeta: () => {}, useHydrated: () => hydrated,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),

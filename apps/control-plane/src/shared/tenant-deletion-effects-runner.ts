@@ -12,6 +12,8 @@ const CODE = /^[a-z][a-z0-9_]{2,63}$/
 const DROP_TIMEOUT_MS = 30 * 60 * 1000
 const HEARTBEAT_MS = 15_000
 const OFFSITE_TIMEOUT_MS = 60 * 60 * 1000
+const RELAY_TIMEOUT_MS = 15_000
+const RELAY_TOKEN_MIN_BYTES = 32
 
 type Child = ReturnType<typeof spawn>
 type Spawner = typeof spawn
@@ -85,6 +87,17 @@ function offsiteEnv(env: NodeJS.ProcessEnv): Record<string, string> {
   return out
 }
 
+/** The TikTok relay's internal purge route needs its address and its own token (the relay's `LIWAN_TIKTOK_RELAY_TOKEN`, never the guard's token).
+ * Without both the step is recorded as skipped; a value that is set but malformed is a misconfiguration and fails the step. */
+function relaySettings(env: NodeJS.ProcessEnv): { url: string; token: string } | null {
+  const raw = env.LIWAN_TIKTOK_RELAY_URL, token = env.LIWAN_TIKTOK_RELAY_TOKEN
+  if (!raw && !token) return null
+  let url: URL
+  try { url = new URL(raw ?? '') } catch { throw Error('relay_settings_invalid') }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || Buffer.byteLength(token ?? '') < RELAY_TOKEN_MIN_BYTES) throw Error('relay_settings_invalid')
+  return { url: url.origin + url.pathname.replace(/\/+$/, ''), token: token! }
+}
+
 export function createDeletionEffects(config: Config, runtime: SharedRuntimeConfig, signal: AbortSignal, options: { spawnChild?: Spawner; env?: NodeJS.ProcessEnv } = {}): DeletionEffects {
   const spawnChild = options.spawnChild ?? spawn
   const env = options.env ?? process.env
@@ -114,9 +127,21 @@ export function createDeletionEffects(config: Config, runtime: SharedRuntimeConf
         }))
       })
     },
-    // The relay's internal bindings route refuses a tenant that left the registry, and the control plane does not hold the relay token: until the
-    // relay offers a purge by tenant id this reports `unsupported` and the step is recorded as skipped (docs/operations/tenant-deletion-effects.md).
-    unbindRelay: async () => ({ state: 'unsupported' }),
+    async unbindRelay({ tenantId, assertOwned }) {
+      const relay = relaySettings(env)
+      if (!relay) return { state: 'not_configured' }
+      await assertOwned()
+      let reply: Response
+      try {
+        reply = await fetch(`${relay.url}/internal/tiktok/tenants/${encodeURIComponent(tenantId)}`, {
+          method: 'DELETE', headers: { 'x-liwan-proxy-token': relay.token }, redirect: 'manual', signal: AbortSignal.any([signal, AbortSignal.timeout(RELAY_TIMEOUT_MS)]),
+        })
+      } catch { throw Error('relay_purge_unreachable') }
+      if (reply.status !== 200) throw Error('relay_purge_failed')
+      const { removed } = await reply.json().catch(() => ({})) as { removed?: unknown }
+      if (typeof removed !== 'number' || !Number.isInteger(removed) || removed < 0) throw Error('relay_purge_failed')
+      return { state: removed > 0 ? 'unbound' : 'absent' }
+    },
     async removeBackupArtifacts(paths) {
       let removed = 0
       for (const path of paths) {

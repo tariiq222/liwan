@@ -29,9 +29,9 @@ const ALLOWED = [
   // through the existing invoice-adjustments refund route above.
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
-  // Workspace deletions are the customer's own: the console reads every request and withdraws one on the customer's behalf. It cannot ask for or confirm one.
+  // Workspace deletions are the customer's own: the console reads every request and its run (plan, pre-checks, step ledger) and withdraws one on the customer's behalf. It cannot ask for or confirm one, or drive the run.
   /^\/v1\/commercial\/deletion-requests$/,
-  new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion(/withdraw)?$`),
+  new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion(/withdraw|/run)?$`),
   // The address on record that receives every control-plane mail for a workspace: the vendor changes it with a reason and a fresh step-up.
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
@@ -67,6 +67,7 @@ const METHOD_BOUND = [
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },
+  { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion/run$`), methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion/withdraw$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`), methods: ['PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/disable-auto-renew$`), methods: ['POST'] },
