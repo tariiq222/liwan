@@ -98,14 +98,13 @@ application's AI agent and tools.
 - `odoo-addons/liwan_document_service` (shared service, rank 3) owns document records, grants,
   branch isolation, OCA DMS storage, binary access and tenant export. Consumer modules supply
   the feature and record policy through `liwan.document._liwan_scope_predicate`.
-- `odoo-addons/liwan_documents` (application, rank 4) owns the base central library, its lifecycle and
-  management role and `/api/v1/documents` library routes. The `liwan_documents_hr` bridge
-  auto-installs with HR and the document service. Its employee self-service routes use HR
-  eligibility and the document's grant, including when the central library is disabled.
-  Its contextual management routes live under `/api/v1/document-contexts`; they pin every
-  operation to a visible employee or department of the working company.
-  The `liwan_documents_pmo` bridge uses the same routes for project documents.
-  Projects enforce their own visibility and manager rights. Document grants are also required.
+- `odoo-addons/liwan_documents` (application, rank 4) owns the central library, its management role
+  and its `/api/v1/documents` routes. The catalog lists the addon in `base_modules` for every
+  installation. The central routes enforce tenant lifecycle and document permissions.
+  The `liwan_documents_hr` and `liwan_documents_pmo` bridges reuse the shared management routes
+  under `/api/v1/document-contexts`. HR authorizes the employee or department. PMO authorizes
+  the project and checks project management rights for writes. Company scope and document grants
+  apply in both contexts. HR also exposes an employee's granted documents in self-service.
 - `odoo-addons/liwan_meetings` (application, rank 4) owns the meeting engine
   (`liwan.meeting.minute`, `liwan.meeting.resolution`; LGPL, vendored from Cyan,
   see `odoo-addons/liwan_meetings/PROVENANCE.md`) and the meeting,
@@ -142,15 +141,17 @@ application's AI agent and tools.
 - `odoo-addons/liwan_approval_service` (shared service, rank 3) owns process versions,
   requests, stage snapshots, tier decisions, audit events and approval data export.
   Its manifest has the one approved same-rank dependency on the pinned OCA tier engine.
-- `odoo-addons/liwan_operations` (application, rank 4) owns the base central process editor,
-  queues, monitoring and notification presentation.
+- `odoo-addons/liwan_operations` (application, rank 4) owns the central process editor, queues,
+  monitoring and notification presentation. The catalog lists the addon in `base_modules` for
+  every installation. Access to the central routes follows tenant lifecycle, capabilities and
+  request visibility.
 - `odoo-addons/liwan_operations_pmo` (bridge, rank 5, `auto_install`) adapts the central
   workflow to the existing designated-reviewer rule of project task completion.
 - `odoo-addons/liwan_hr_operations` (bridge, rank 5, `auto_install`) runs leave
-  approval from HR directly, including while the central Operations application is disabled.
-  Archiving the published leave process prevents new requests entering it and leaves open
-  requests attached to their submitted stage snapshots. HR settings can also edit and
-  republish the process using the central form and the same approval model.
+  approval from HR. Its routes check the HR feature and the acting user's rights. Review
+  notifications link to the HR leave record when the recipient can read it. Archiving the
+  published leave process stops new requests entering it. Open requests retain their submitted
+  stage snapshots. HR settings reuse the process form to edit and republish the process.
 - `odoo-addons/liwan_pmo_finance` (bridge, rank 5, `auto_install`) is installed whenever `liwan_pmo`
   and `liwan_finance` both are. While `finance.enabled` is on, a project's actual cost is the posted
   expense of its cost center (an analytic account linked by `liwan_project_id`) instead of manual

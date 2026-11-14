@@ -1,5 +1,7 @@
 # Implementation plan: HR-60 leave approval on the operations workflow engine (new bridge `liwan_hr_operations`)
 
+> Historical plan from 2026-10-29. See the [repository layout](../../agents/repository-layout.md) for the current ownership, HR approval routes and process lifecycle.
+
 Status: plan, 2026-10-29. Owner decision: tariiq222/liwan#165 (HR-60), comments «قرارات المالك 2026-10-29» and
 «تكملة قرار المالك 2026-10-29». No code exists yet. Task 1 starts after the #163 operations change merges,
 because both edit `liwan_operations/models/process.py` and `operation_request.py`.
