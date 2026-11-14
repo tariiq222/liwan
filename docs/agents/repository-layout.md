@@ -98,7 +98,7 @@ application's AI agent and tools.
 - `odoo-addons/liwan_document_service` (shared service, rank 3) owns document records, grants,
   branch isolation, OCA DMS storage, binary access and tenant export. Consumer modules supply
   the feature and record policy through `liwan.document._liwan_scope_predicate`.
-- `odoo-addons/liwan_documents` (application, rank 4) owns the central library, its feature,
+- `odoo-addons/liwan_documents` (application, rank 4) owns the base central library, its lifecycle and
   management role and `/api/v1/documents` library routes. The `liwan_documents_hr` bridge
   auto-installs with HR and the document service. Its employee self-service routes use HR
   eligibility and the document's grant, including when the central library is disabled.
@@ -142,7 +142,7 @@ application's AI agent and tools.
 - `odoo-addons/liwan_approval_service` (shared service, rank 3) owns process versions,
   requests, stage snapshots, tier decisions, audit events and approval data export.
   Its manifest has the one approved same-rank dependency on the pinned OCA tier engine.
-- `odoo-addons/liwan_operations` (application, rank 4) owns the central process editor,
+- `odoo-addons/liwan_operations` (application, rank 4) owns the base central process editor,
   queues, monitoring and notification presentation.
 - `odoo-addons/liwan_operations_pmo` (bridge, rank 5, `auto_install`) adapts the central
   workflow to the existing designated-reviewer rule of project task completion.

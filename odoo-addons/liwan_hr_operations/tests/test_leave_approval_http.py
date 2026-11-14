@@ -2,7 +2,6 @@
 from odoo.tests import tagged
 
 from .common import LEAVES, PROCESS, LeaveApprovalCase
-from odoo.addons.liwan_hr.tests.common import set_hr_feature
 
 APPROVAL_KEYS = {'request_id', 'revision', 'can_review', 'state', 'steps'}
 
@@ -64,7 +63,6 @@ class TestLeaveApprovalRoutes(LeaveApprovalCase):
         self.login_as(self.employee)
         self.assertEqual(self.api('POST', f'{PROCESS}/default', json={}).status_code, 403)
         self.login_as(self.officer)
-        set_hr_feature(self, 'operations.enabled', False)
         self.assertEqual(self.api('POST', f'{PROCESS}/default', json={'name': 'x'}).status_code, 422)
         response = self.api('POST', f'{PROCESS}/default', json={})
         self.assertEqual(response.status_code, 201, response.text)
@@ -79,11 +77,10 @@ class TestLeaveApprovalRoutes(LeaveApprovalCase):
         self.assertIsNone(body['process'])
         self.assertIsNone(body['href'])
 
-    def test_editor_republishes_without_the_operations_application_feature(self):
+    def test_editor_republishes_from_hr(self):
         leave = self.file_leave()
         approval = self.approval_request(leave)
         revision = approval.process_revision
-        set_hr_feature(self, 'operations.enabled', False)
         self.login_as(self.officer)
         editor = f'{PROCESS}/editor'
         process = self.api('GET', editor)

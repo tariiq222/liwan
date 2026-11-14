@@ -22,6 +22,10 @@ class LiwanDirectory(models.AbstractModel):
         return ()
 
     @api.model
+    def _liwan_directory_has_base_consumer(self):
+        return False
+
+    @api.model
     def _liwan_people_domain(self):
         return [
             ('active', '=', True),

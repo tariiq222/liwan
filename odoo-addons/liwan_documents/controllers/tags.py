@@ -2,7 +2,7 @@
 from odoo import http
 from odoo.http import request
 
-from odoo.addons.liwan_api.controllers.common import api_handler, requires_feature
+from odoo.addons.liwan_api.controllers.common import api_handler, requires_tenant_access
 from odoo.addons.liwan_document_service.controllers.common import page_args, require
 from odoo.addons.liwan_document_service.serializers.document import (
     dump_tag,
@@ -20,7 +20,7 @@ class Tags(http.Controller):
         readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def tags(self, **kwargs):
         require('documents.items.read')
         args = request.httprequest.args
@@ -45,7 +45,7 @@ class Tags(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def create_tag(self, **payload):
         require('documents.library.manage')
         strict(payload, {'name'})

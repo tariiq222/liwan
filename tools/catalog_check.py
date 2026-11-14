@@ -23,6 +23,11 @@ import re
 import sys
 from pathlib import Path
 
+if __package__:
+    from .arch_policy import BASE_APPLICATIONS
+else:
+    from arch_policy import BASE_APPLICATIONS
+
 try:  # run as a script (tools/ on the path) or imported as tools.catalog_check
     from liwan_cli.module_closure import ClosureError, install_closure, install_order
 except ModuleNotFoundError:
@@ -473,8 +478,13 @@ def _check_release_apps(root, where, data, errors):
             placed.setdefault(module, []).append(str(tier.get('id')))
             if module not in ranks:
                 errors.append(f'{where}: release_app_missing: tier module {module!r} is not registered in {ARCH_LAYERS}')
+    for addon in BASE_APPLICATIONS & ranks.keys():
+        if addon not in data.get('base_modules', []):
+            errors.append(f'{where}: base application {addon!r} must be installed outside tier selection')
+        if addon in placed:
+            errors.append(f'{where}: base application {addon!r} must not belong to a tier')
     for module, rank in sorted(ranks.items()):
-        if rank != APPLICATION_RANK:
+        if rank != APPLICATION_RANK or module in BASE_APPLICATIONS:
             continue
         tiers = placed.get(module, [])
         if len(tiers) != 1:

@@ -227,17 +227,9 @@ class TestDocumentAccess(DocumentCase):
         document = self.create_document()
         document._liwan_set_active(False, 1)
         profile = self.env.ref('liwan_platform.tenant_profile')
-        values = (
-            {'valid_until': '2000-01-01'}
-            if profile.commercial_mode == 'saas'
-            else {
-                'features': {**profile.features, 'documents.enabled': False},
-                'retained_read_features': [
-                    *profile.retained_read_features,
-                    'documents.enabled',
-                ],
-            }
-        )
+        if profile.commercial_mode != 'saas':
+            self.skipTest('Independent installations have no subscription expiry')
+        values = {'valid_until': '2000-01-01'}
         profile.with_context(**{OPERATOR_CONTEXT: True}).write(values)
         self.assertTrue(
             document._liwan_can('read'),

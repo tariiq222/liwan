@@ -216,6 +216,9 @@ never add an entry or raise a count to make a check pass.
   `liwan.feature.registry` with `owner` set to its addon name, and every route checks its feature. A
   shared service (rank 3) gates its routes with `requires_registered_feature`, whose keys the
   applications register in that service's registry.
+  The base Documents and Operations applications are installed outside tier selection. Their routes
+  use `requires_tenant_access` to enforce tenant lifecycle and still enforce capabilities and record
+  access. Features of consuming applications still gate their own business functions.
 
 - **UI1** The shared UI layers `packages/ui` and `packages/commercial-ui` import no
   application, addon, app alias, `@liwan/contracts` or control-plane code.

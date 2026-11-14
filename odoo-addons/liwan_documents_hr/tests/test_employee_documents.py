@@ -202,7 +202,7 @@ class TestEmployeeDocuments(DocumentHttpCase):
         })
         self.assertEqual(self.api('GET', '/api/v1/documents/employee/me').status_code, 403)
 
-    def test_own_document_and_download_remain_available_when_library_is_disabled(self):
+    def test_own_document_and_download_remain_available_through_context_routes(self):
         document = self.linked(self.own_employee, grant=True)
         payload = {'name': 'employment-letter.txt', 'data': 'ZW1wbG95bWVudCBsZXR0ZXI='}
         file = self.env['liwan.document.files'].with_user(self.linker)._liwan_upload(
@@ -212,13 +212,6 @@ class TestEmployeeDocuments(DocumentHttpCase):
         hidden = self.linked(self.own_employee)
         archived = self.linked(self.own_employee, grant=True)
         archived._liwan_set_active(False, archived.revision)
-        profile = self.env.ref('liwan_platform.tenant_profile')
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**profile.features, 'documents.enabled': False},
-            'retained_read_features': [
-                key for key in profile.retained_read_features if key != 'documents.enabled'
-            ],
-        })
 
         self.authenticate('docs_reader', 'docs_reader')
         path = '/api/v1/documents/employee/me'
@@ -232,15 +225,10 @@ class TestEmployeeDocuments(DocumentHttpCase):
         self.assertEqual(response.content, b'employment letter')
         for excluded in (other, hidden):
             self.assertEqual(self.api('GET', f'{path}/{excluded.id}').status_code, 404)
-            self.assertFalse(excluded.with_user(self.reader)._liwan_can('read'))
-        self.assertEqual(self.api('GET', f'/api/v1/documents/{document.id}').status_code, 403)
+        self.assertFalse(hidden.with_user(self.reader)._liwan_can('read'))
+        self.assertEqual(self.api('GET', f'/api/v1/documents/{document.id}').status_code, 200)
 
-    def test_employee_context_management_with_library_disabled(self):
-        profile = self.env.ref('liwan_platform.tenant_profile')
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**profile.features, 'documents.enabled': False},
-            'retained_read_features': [key for key in profile.retained_read_features if key != 'documents.enabled'],
-        })
+    def test_employee_context_management_through_context_routes(self):
         self.authenticate('employee_docs_linker', 'employee_docs_linker')
         path = f'/api/v1/document-contexts/employee/{self.own_employee.id}'
         result = self.api('POST', path, {'name': 'Employment verification'})
@@ -263,17 +251,12 @@ class TestEmployeeDocuments(DocumentHttpCase):
         self.assertEqual(locked.status_code, 200, locked.text)
         shared = self.api('POST', f'{document_path}/employee-access', {'expected_revision': locked.json()['revision']})
         self.assertEqual(shared.status_code, 200, shared.text)
-        self.assertEqual(self.api('GET', f'/api/v1/documents/{body["id"]}').status_code, 403)
+        self.assertEqual(self.api('GET', f'/api/v1/documents/{body["id"]}').status_code, 200)
         self.authenticate('docs_reader', 'docs_reader')
         self.assertEqual(self.api('GET', f'/api/v1/documents/employee/me/{body["id"]}').status_code, 200)
 
-    def test_context_access_updates_participants_when_library_is_disabled(self):
+    def test_context_access_updates_participants_through_context_routes(self):
         document = self.linked(self.own_employee)
-        profile = self.env.ref('liwan_platform.tenant_profile')
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**profile.features, 'documents.enabled': False},
-            'retained_read_features': [key for key in profile.retained_read_features if key != 'documents.enabled'],
-        })
         self.authenticate('employee_docs_linker', 'employee_docs_linker')
         path = f'/api/v1/document-contexts/employee/{self.own_employee.id}/{document.id}/access'
         access = self.api('GET', path)

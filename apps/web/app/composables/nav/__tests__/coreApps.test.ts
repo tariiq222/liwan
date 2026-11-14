@@ -13,7 +13,7 @@ const manifest = (id: string, core?: number, order = 10): AppManifest => ({
 })
 // Declared out of order on purpose: the row follows `core`, not the manifest `order` or the declaration order.
 const manifests = [manifest('documents', 5, 70), manifest('projects', undefined, 20), manifest('chat', 4, 40), manifest('ai', 1, 60), manifest('meetings', 3, 30), manifest('tasks', 2, 15)]
-const features = manifests.map(item => item.feature)
+const features = manifests.flatMap(item => item.feature ? [item.feature] : [])
 const me = (grants: string[]) => ({ capabilities: grants, platform: { state: 'active', read_only: false, readable_features: features, writable_features: features } })
 const everything = manifests.map(item => `${item.id}.read`)
 const translate = (key: string) => `t:${key}`

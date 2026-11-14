@@ -215,11 +215,9 @@ class TestDocumentsApi(DocumentHttpCase):
             200,
         )
         profile = self.env.ref('liwan_platform.tenant_profile')
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write(
-            {'valid_until': '2000-01-01'}
-            if profile.commercial_mode == 'saas'
-            else {'features': {**profile.features, 'documents.enabled': False}},
-        )
+        if profile.commercial_mode != 'saas':
+            return
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'valid_until': '2000-01-01'})
         self.assertEqual(self.api('GET', path).status_code, 200)
         self.assertEqual(
             self.api(

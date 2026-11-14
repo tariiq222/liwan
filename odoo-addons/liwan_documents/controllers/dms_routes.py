@@ -4,7 +4,7 @@ from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
     api_handler,
-    requires_feature,
+    requires_tenant_access,
 )
 from odoo.addons.liwan_document_service.controllers.common import (
     current_document,
@@ -21,7 +21,7 @@ class DocumentDownload(http.Controller):
         readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def download(self, document_id, file_id, **kwargs):
         request.env['liwan.access.service']._liwan_require_capability(
             'documents.items.read',

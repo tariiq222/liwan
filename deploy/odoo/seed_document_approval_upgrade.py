@@ -21,7 +21,10 @@ profile._liwan_initialize_legacy_policy(
     env['liwan.feature.registry']._liwan_installed_module_ids()
 )
 profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-    'features': {**profile.features, 'documents.enabled': True, 'hr.enabled': True, 'operations.enabled': True},
+    'features': {
+        **profile.features, 'hr.enabled': True,
+        **{key: True for key in ('documents.enabled', 'operations.enabled') if key in profile.features},
+    },
 })
 branch = env['res.company'].create({'name': 'Upgrade fixture branch', 'parent_id': company.id})
 assignment_service = env['liwan.access.service']

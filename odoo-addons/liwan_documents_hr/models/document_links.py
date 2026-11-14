@@ -34,8 +34,6 @@ class DocumentLinks(models.AbstractModel):
         )
         entitlement = self.env['liwan.entitlement.service']
         if write:
-            # Normal document create/update also checks documents.enabled under
-            # its own profile/policy locks. Provider ownership remains in HR.
             entitlement.require('hr.enabled')
         else:
             entitlement.require_read('hr.enabled')

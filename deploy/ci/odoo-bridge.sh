@@ -58,6 +58,9 @@ else
 fi
 for index in "${!LIWAN_SIDES[@]}"; do
   off="${LIWAN_SIDES[$index]}"
+  case "$off" in
+    liwan_documents|liwan_operations) continue ;;
+  esac
   other=""
   other_rank=""
   if [ "${#LIWAN_SIDES[@]}" -eq 2 ]; then

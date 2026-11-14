@@ -17,7 +17,7 @@ class LiwanOperationsNotificationTypes(models.AbstractModel):
     def _liwan_notification_types(self):
         return (
             *super()._liwan_notification_types(),
-            *({'kind': kind, 'owner': 'liwan_operations', 'model': REQUEST_MODEL, 'feature_key': 'operations.enabled'}
+            *({'kind': kind, 'owner': 'liwan_operations', 'model': REQUEST_MODEL, 'feature_key': None}
               for kind in KINDS),
         )
 
@@ -42,7 +42,7 @@ class LiwanOperationsNotificationTypes(models.AbstractModel):
     def _liwan_notify_dump(self, row, extra):
         message = row.mail_message_id
         if message.liwan_notification_kind in KINDS:
-            return {
+            result = {
                 'id': row.id,
                 'kind': message.liwan_notification_kind,
                 'request_id': message.res_id,
@@ -50,6 +50,12 @@ class LiwanOperationsNotificationTypes(models.AbstractModel):
                 'created_at': iso(message.date),
                 'is_read': bool(row.is_read),
             }
+            if message.liwan_notification_kind == REVIEW_REQUESTED:
+                request = self.env[REQUEST_MODEL].browse(message.res_id)
+                target = request._operations_target()
+                if target:
+                    result['href'] = target['href']
+            return result
         return super()._liwan_notify_dump(row, extra)
 
 

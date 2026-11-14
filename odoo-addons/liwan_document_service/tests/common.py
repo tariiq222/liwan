@@ -21,9 +21,6 @@ class DocumentFixtures:
         profile._liwan_initialize_legacy_policy(
             cls.env['liwan.feature.registry']._liwan_installed_module_ids(),
         )
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write(
-            {'features': {**(profile.features or {}), 'documents.enabled': True}},
-        )
         cls.manager = new_test_user(
             cls.env,
             login='docs_manager',
@@ -77,8 +74,11 @@ class CommittedDocumentFixtures:
             profile._liwan_initialize_legacy_policy(
                 env['liwan.feature.registry']._liwan_installed_module_ids(),
             )
-            features = dict(profile.features or {})
-            profile.write({'features': {**features, 'documents.enabled': True}})
+            profile_values = {
+                'features': dict(profile.features or {}),
+                'status': profile.status,
+                'suspension_reason': profile.suspension_reason,
+            }
             company_id = env.company.id
             user = new_test_user(
                 env,
@@ -107,17 +107,17 @@ class CommittedDocumentFixtures:
             env['liwan.document.grant'].create(
                 {'document_id': document.id, 'user_id': other.id, 'access': 'editor'},
             )
-            result = document.id, user.id, company_id, features, other.id
+            result = document.id, user.id, company_id, profile_values, other.id
             cursor.commit()
             return result
 
     def cleanup(self, fixture):
-        document_id, user_id, _, features, other_id = fixture
+        document_id, user_id, _, profile_values, other_id = fixture
         with self.registry.cursor() as cursor:
             env = api.Environment(cursor, SUPERUSER_ID, {OPERATOR_CONTEXT: True})
             env['liwan.document'].browse(document_id).unlink()
             env['res.users'].browse([user_id, other_id]).unlink()
-            env.ref('liwan_platform.tenant_profile').write({'features': features})
+            env.ref('liwan_platform.tenant_profile').write(profile_values)
             cursor.commit()
 
     def actor(self, cursor, fixture):

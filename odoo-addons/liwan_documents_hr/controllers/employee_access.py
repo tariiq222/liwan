@@ -34,7 +34,7 @@ def share_employee_document(document, payload):
 class EmployeeDocumentAccess(http.Controller):
     @http.route('/api/v1/documents/<int:document_id>/employee-access', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature('documents.enabled', 'hr.enabled', operation='write')
+    @requires_feature('hr.enabled', operation='write')
     @requires_capability('documents.access.manage', 'hr.employees.manage', match='all')
     def share_with_employee(self, document_id, **payload):
         """The explicit choice made when a document is linked to an employee: let the employee read it.

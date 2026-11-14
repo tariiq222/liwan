@@ -394,7 +394,13 @@ class OperationRequest(models.Model):
     def _operations_allowed_actions(self):
         self.ensure_one()
         service = self.env['liwan.access.service']
-        writable = self.company_id == self.env.company and self.env['liwan.entitlement.service']._liwan_feature_write(self._operations_feature(self.execution_kind)) and self.env.user.active
+        entitlement = self.env['liwan.entitlement.service']
+        feature = self._operations_feature(self.execution_kind)
+        feature_writable = (
+            entitlement._liwan_effective_state() == 'active' if feature is False
+            else entitlement._liwan_feature_write(feature)
+        )
+        writable = self.company_id == self.env.company and feature_writable and self.env.user.active
         creator = writable and self.requester_id == self.env.user and service._liwan_has_capability(self.env.user, self._operations_creation_capability(self.execution_kind), record=self)
         reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and bool(self._decidable_reviews())
         editable = creator and self.state in ('draft', 'returned')

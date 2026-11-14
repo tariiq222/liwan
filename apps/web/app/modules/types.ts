@@ -339,7 +339,7 @@ export interface AppSidebarMenu {
 }
 export interface AppManifest {
   id: string                         // 'pmo' | 'meetings' | 'hr' | 'chat' | '<app>'
-  feature: string                    // '<app>.enabled'
+  feature: string | null             // null for an application included in the base
   routePrefixes: string[]            // feature gate + active rail module
   rail: AppRailEntry[]               // usually one; PMO declares 'home' (order 10) and 'projects' (order 20)
   nav: AppNavItem[]

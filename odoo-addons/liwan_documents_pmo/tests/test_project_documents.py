@@ -10,9 +10,6 @@ from odoo.addons.liwan_pmo.tests.common import LiwanPmoCase
 class TestProjectDocuments(LiwanPmoCase):
     def test_document_follows_project_visibility_and_is_independent_of_library(self):
         set_probe_feature(self, key='pmo.enabled', enabled=True)
-        registry = self.env['liwan.feature.registry']
-        if 'documents.enabled' in registry._liwan_feature_map():
-            set_probe_feature(self, key='documents.enabled', enabled=False)
         owner = new_test_user(self.env, login='project_docs_owner', groups='liwan_core.group_employee')
         policy = self.env['liwan.access.service']
         permissions = self.env['liwan.access.permission'].search([

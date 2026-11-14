@@ -16,8 +16,6 @@ class TestOwnDocumentsFollowTheHomeCompany(WorkingCompanyCase):
         super().setUpClass()
         profile = cls.env.ref('liwan_platform.tenant_profile')
         features = {**(profile.features or {}), 'hr.enabled': True}
-        if 'documents.enabled' in features:
-            features['documents.enabled'] = True
         profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': features})
         cls.worker = cls._member(
             'wc_doc_worker', cls.branch_a, [cls.branch_a, cls.branch_b],

@@ -4,7 +4,7 @@ from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
     api_handler,
-    requires_feature,
+    requires_tenant_access,
 )
 from odoo.addons.liwan_document_service.controllers.common import (
     apply_document_file_action,
@@ -21,7 +21,7 @@ class Files(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def list_files(self, document_id, **kwargs):
         require('documents.items.read')
         return files_page(current_document(document_id))
@@ -34,7 +34,7 @@ class Files(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def upload_file(self, document_id, **payload):
         require('documents.items.manage')
         return upload_document_file(current_document(document_id), payload)
@@ -52,7 +52,7 @@ class Files(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def file_action(self, document_id, file_id, **payload):
         action = request.httprequest.path.rsplit('/', 1)[-1]
         require(

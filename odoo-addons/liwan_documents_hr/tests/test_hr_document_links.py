@@ -125,7 +125,7 @@ class TestHrDocumentLinks(DocumentCase):
         self.assertEqual(caught.exception.code, 'department_in_use')
         self.assertFalse(caught.exception.details)
 
-    def test_expiry_uses_only_visible_active_documents_and_both_features(self):
+    def test_expiry_uses_only_visible_active_documents_and_hr_feature(self):
         self.assertIn('department_id', self.env['liwan.document']._fields)
         due = fields.Date.today() + timedelta(days=2)
         hidden = self.model(self.linker).create(
@@ -146,8 +146,8 @@ class TestHrDocumentLinks(DocumentCase):
         visible._liwan_set_active(True, 3)
         profile = self.env.ref('liwan_platform.tenant_profile')
         profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**profile.features, 'documents.enabled': False},
-            'retained_read_features': [key for key in profile.retained_read_features if key != 'documents.enabled'],
+            'features': {**profile.features, 'hr.enabled': False},
+            'retained_read_features': [key for key in profile.retained_read_features if key != 'hr.enabled'],
         })
         self.assertEqual(report._liwan_additional_expiring(30), [])
 

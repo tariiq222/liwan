@@ -8,8 +8,4 @@ class Document(models.Model):
 
     @api.model
     def _liwan_scope_predicate(self, operation):
-        entitlement = self.env['liwan.entitlement.service']
-        feature = entitlement._liwan_feature_read if operation == 'read' else entitlement._liwan_feature_write
-        if feature('documents.enabled'):
-            return SQL('TRUE')
-        return super()._liwan_scope_predicate(operation)
+        return SQL('TRUE')

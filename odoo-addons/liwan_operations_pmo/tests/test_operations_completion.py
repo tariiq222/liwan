@@ -40,9 +40,8 @@ class TestOperationsCompletion(LiwanPmoCase):
         self.assertEqual((record.state, record.execution_count, task.state), ('done', 1, '1_done'))
         self.assertFalse(task.liwan_completion_pending)
 
-    def test_task_approval_uses_the_shared_engine_when_operations_is_disabled(self):
+    def test_task_approval_uses_the_shared_engine(self):
         record, task = self._operation()
-        set_probe_feature(self, key='operations.enabled', enabled=False)
         record.with_user(self.manager).action_approve(record.revision)
         self.assertEqual((record.state, record.execution_count, task.state), ('done', 1, '1_done'))
 

@@ -154,8 +154,8 @@ describe('contextual module links', () => {
     expect(apps(pmoAdmin, '/settings/apps/projects').map(link => link.id)).toEqual(['settings-overview', 'settings-projects', 'settings-operations', 'project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
     expect(apps(pmoAdmin, '/settings/apps/projects').filter(link => link.group).map(link => link.group)).toEqual(['settings.sections.apps.title', 'settings.sections.apps.title'])
     expect(apps(pmoAdmin, '/settings/apps/operations/processes').map(link => link.id)).toEqual(['settings-overview', 'settings-projects', 'settings-operations', 'processes'])
-    const noOperations = { ...pmoAdmin, platform: { readable_features: ['pmo.enabled'], writable_features: ['pmo.enabled'] } }
-    expect(apps(noOperations, '/settings/apps/projects').map(link => link.id)).toEqual(['settings-overview', 'settings-projects', 'project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
+    const baseOperations = { ...pmoAdmin, platform: { readable_features: ['pmo.enabled'], writable_features: ['pmo.enabled'] } }
+    expect(apps(baseOperations, '/settings/apps/projects').map(link => link.id)).toEqual(['settings-overview', 'settings-projects', 'settings-operations', 'project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
     expect(visibleSettingsPages(pmoAdmin).map(({ page }) => page.id)).toEqual(['projects', 'operations'])
     expect(contextLinksForModule('projects', full).map(link => link.id).at(-1)).not.toBe('project-settings')
     expect(contextLinksForModule('projects', employee).map(link => link.id)).not.toContain('project-settings')

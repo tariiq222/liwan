@@ -18,6 +18,7 @@ class PeopleController(http.Controller):
     @requires_registered_feature(
         'liwan.directory', '_liwan_directory_feature_keys',
         keys=('registry:liwan.directory',), operation='read', match='any',
+        open_method='_liwan_directory_has_base_consumer',
     )
     def list_people(self, **_):
         # json2 routes do not receive query-string params as kwargs; read them

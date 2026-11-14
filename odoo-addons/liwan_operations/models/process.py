@@ -7,4 +7,4 @@ class OperationsProcess(models.Model):
 
     @api.model
     def _operations_feature(self, execution_kind):
-        return super()._operations_feature(execution_kind) or 'operations.enabled'
+        return super()._operations_feature(execution_kind) or False

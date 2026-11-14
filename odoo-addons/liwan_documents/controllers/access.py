@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
 
-from odoo.addons.liwan_api.controllers.common import api_handler, requires_feature
+from odoo.addons.liwan_api.controllers.common import api_handler, requires_tenant_access
 from odoo.addons.liwan_document_service.controllers.common import (
     current_document,
     require,
@@ -21,7 +21,7 @@ class Access(http.Controller):
         readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def get_access(self, document_id):
         require('documents.access.manage')
         return dump_access(current_document(document_id))
@@ -34,7 +34,7 @@ class Access(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def set_access(self, document_id, **payload):
         require('documents.access.manage')
         return update_document_access(current_document(document_id), payload)

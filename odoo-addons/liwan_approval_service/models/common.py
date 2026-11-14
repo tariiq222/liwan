@@ -15,10 +15,15 @@ def trusted(env):
 
 
 def require(env, key=None, *, feature):
-    if not feature:
+    if feature is None:
         msg = 'No installed application owns this approval.'
         raise AccessError(env._(msg))
-    env['liwan.entitlement.service'].require(feature)
+    entitlement = env['liwan.entitlement.service']
+    if feature is False:
+        entitlement._liwan_assert_lifecycle(write=True)
+    else:
+        entitlement.require(feature)
+
     if key:
         env['liwan.access.service']._liwan_require_capability(key)
 

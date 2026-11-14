@@ -18,7 +18,6 @@ from odoo.addons.liwan_api.tests.common import (
     cover_isolation_routes,
     exempt_isolation_route,
 )
-from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 # Every GET /api/v1 route of this addon carrying an <int:...> record id. The
 # remaining GET routes (/api/v1/documents, /api/v1/documents/contexts,
@@ -49,9 +48,6 @@ class DocumentsCompanyIsolationCase(CompanyIsolationCase):
         profile = cls.env.ref('liwan_platform.tenant_profile')
         profile._liwan_initialize_legacy_policy(
             cls.env['liwan.feature.registry']._liwan_installed_module_ids(),
-        )
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write(
-            {'features': {**(profile.features or {}), 'documents.enabled': True}},
         )
         role = cls.env.ref('liwan_documents.role_documents_manager')
         Assignment = cls.env['liwan.access.assignment'].sudo()

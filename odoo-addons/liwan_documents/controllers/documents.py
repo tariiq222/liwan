@@ -6,7 +6,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     parse_positive_int,
-    requires_feature,
+    requires_tenant_access,
 )
 from odoo.addons.liwan_document_service.controllers.common import (
     archived_arg,
@@ -28,7 +28,7 @@ class Documents(http.Controller):
         '/api/v1/documents', type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def list_documents(self, **kwargs):
         require('documents.items.read')
         args = request.httprequest.args
@@ -63,7 +63,7 @@ class Documents(http.Controller):
         readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def get_document(self, document_id):
         require('documents.items.read')
         return dump_detail(current_document(document_id))
@@ -72,7 +72,7 @@ class Documents(http.Controller):
         '/api/v1/documents', type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def create_document(self, **payload):
         require('documents.items.manage')
         values = parse_values(request.env, payload)
@@ -90,7 +90,7 @@ class Documents(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def patch_document(self, document_id, **payload):
         require('documents.items.manage')
         revision = parse_revision(payload)
@@ -110,7 +110,7 @@ class Documents(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def set_document_active(self, document_id, **payload):
         require('documents.items.archive')
         revision = parse_revision(payload, only=True)

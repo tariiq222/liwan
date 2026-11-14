@@ -29,4 +29,8 @@ assert env.ref('liwan_approval_service.model_liwan_operation_request').model == 
 assert env.ref('liwan_document_service.model_liwan_document').model == 'liwan.document'
 assert env.ref('liwan_documents.role_documents_manager').key == 'documents_manager'
 assert env['liwan.access.permission'].search([('key', '=', 'documents.items.read')]).group_xmlid == 'liwan_document_service.group_cap_documents_items_read'
+profile = env.ref('liwan_platform.tenant_profile')
+retired = {'documents.enabled', 'operations.enabled'}
+for policy in (profile.features, profile.post_trial_features, profile.retained_read_features):
+    assert retired.isdisjoint(policy or ()), 'base features must not remain in tenant policy'
 print('DOCUMENT_UPGRADE_FIXTURE_OK')

@@ -8,7 +8,9 @@
   "base_modules": [
     "liwan_core",
     "liwan_platform",
-    "liwan_api"
+    "liwan_api",
+    "liwan_documents",
+    "liwan_operations"
   ],
   "tiers": [
     {
@@ -18,9 +20,7 @@
       "modules": [
         "liwan_ai",
         "liwan_chat",
-        "liwan_documents",
         "liwan_meetings",
-        "liwan_operations",
         "liwan_payments",
         "liwan_tasks"
       ],
@@ -31,8 +31,6 @@
         "boolean:tasks.enabled",
         "boolean:chat.enabled",
         "boolean:meetings.enabled",
-        "boolean:documents.enabled",
-        "boolean:operations.enabled",
         "boolean:ai.enabled",
         "boolean:ai.knowledge",
         "limit:ai.messages.monthly",
