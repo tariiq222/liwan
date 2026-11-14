@@ -12,7 +12,7 @@ const approval = { request_id: 15, state: 'pending' as 'pending' | 'done', revis
   { sequence: 2, name: 'HR', reviewers: [person(9, 'Officer')], status: 'pending' as const },
 ] as { sequence: number; name: string; reviewers: ReturnType<typeof person>[]; status: 'waiting' | 'pending' | 'approved' | 'rejected' | 'cancel' }[] }
 
-async function render(personal: boolean, cancellationState?: 'approved' | 'refused', canCancel = false, stages: { data?: typeof approval; error?: unknown; viewer?: number; listReachable?: boolean } = {}) {
+async function render(personal: boolean, cancellationState?: 'approved' | 'refused', canCancel = false, stages: { data?: typeof approval; error?: unknown; viewer?: number; unreachable?: string[] } = {}) {
   const filename = resolve(import.meta.dirname, '../../../components/hr/LeaveRecord.vue')
   const descriptor = parse(readFileSync(filename,'utf8'),{filename}).descriptor
   const script = compileScript(descriptor,{id:'own-leave-record'}).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm,'').replace('export default','return')
@@ -26,7 +26,7 @@ async function render(personal: boolean, cancellationState?: 'approved' | 'refus
     useAccess:() => ({can:() => true}),useMe:() => ({me:Vue.ref({id:stages.viewer ?? 2})}),joinList:(items:string[]) => items.join(', '),
     useHrLeaveApproval:() => ({data:Vue.ref(stages.data),error:Vue.ref(stages.error ?? null)}),useHydrated:() => Vue.ref(true),useHrLeaveFormat:() => ({period:() => '',days:String}),
     useLeaveApprovalDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useMyHrLeaveRequest:query,useHrLeaveRequest:query,useCancellationDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useLeaveDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useWithdrawLeaveRequest:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),
-    owningListBack:(_query:unknown,paths:string[]) => paths[0],canReachPath:() => stages.listReachable ?? true,hrLeaveBadge:() => ({tone:'success',labelKey:'approved'}),statusTag:() => ({}),ApiError:Error,
+    owningListBack:(_query:unknown,paths:string[]) => paths[0],canReachPath:(_identity:unknown,path:string) => !(stages.unreachable ?? []).includes(path),hrLeaveBadge:() => ({tone:'success',labelKey:'approved'}),statusTag:() => ({}),ApiError:Error,
   }
   const component = new Function(...Object.keys(bindings),transpile(script))(...Object.values(bindings))
   const state = component.setup({personal},{expose:() => {}})
@@ -80,7 +80,10 @@ describe('management record back target',() => {
     expect(await render(false)).toContain('data-back-to="/hr/leave"')
   })
   it('returns to the personal list when the viewer cannot open the HR list', async () => {
-    expect(await render(false, undefined, false, { listReachable: false })).toContain('data-back-to="/account/leave"')
+    expect(await render(false, undefined, false, { unreachable: ['/hr/leave'] })).toContain('data-back-to="/account/leave"')
+  })
+  it('returns to the self-service home when the viewer can open neither list', async () => {
+    expect(await render(false, undefined, false, { unreachable: ['/hr/leave', '/account/leave'] })).toContain('data-back-to="/account"')
   })
 })
 
