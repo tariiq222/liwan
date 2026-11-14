@@ -11,14 +11,12 @@ archived branch is reached depends on the caller's `active_test`; without the br
 migration therefore names the branches it read with `active_test=False` and does not rely on either: an archived
 branch must carry the establishment's one value too, or reactivating it would leave a branch that differs from its
 root, which `_check_root_delegated_fields` refuses. One write also means that constraint sees one value. A branch that
-stored a different mode stops the upgrade. Odoo has already committed module versions by the end stage, so a retry
-starts by restoring the database and filestore from before the upgrade (docs/migrations.md).
+stored a different mode stops the upgrade. A retry starts by restoring the database and filestore from before
+the upgrade (docs/migrations.md).
 
-Stage: `end-`. `odoo/modules/loading.py` runs each module's `post_init_hook` as it loads it (`load_module_graph`,
-lines 239-243) and every `end-` script only once the whole module graph is loaded (STEP 3.5, lines 497-501). A
-module installed in the same upgrade therefore has its install hook run before this carry, even though it is not
-yet in the graph when the upgraded module loads; `liwan_api_account`'s hook sets the establishment default
-`tax_included`, and this carry writes the old payments mode over it. The old column is still there: Odoo
+Stage: `post-`. Odoo's module graph upgrades installed modules before installing the new accounting bridge
+alongside them. The bridge sees the successful carry on the same registry and keeps the migrated values
+instead of applying its default. This also lets Finance's end migration compare against the final mode. Odoo
 19 keeps a removed field's column (it only drops its NOT NULL constraint, `odoo/orm/models.py`
 `_check_removed_columns`), so this script reads it and drops it at the end. The values are read with a read-only
 `SELECT` because the ORM field is gone; every company write goes through the ORM.
@@ -32,6 +30,11 @@ import logging
 from odoo import SUPERUSER_ID, api
 from odoo.exceptions import UserError
 from odoo.tools.sql import column_exists
+
+from odoo.addons.liwan_api.models.tax_upgrade import (
+    PAYMENTS_PRICE_MODE_CARRIED,
+    refuse_open_documents_with_changed_company_modes,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -81,7 +84,10 @@ def migrate(cr, version):
     for root, branches, mode in establishments:
         stock_value = STOCK_PRICE_INCLUDE[mode]
         if not root._existing_accounting():
-            (root | branches).write({'account_price_include': stock_value})
+            companies = root | branches
+            refuse_open_documents_with_changed_company_modes(env, companies, stock_value)
+            if any(company.account_price_include != stock_value for company in companies):
+                companies.write({'account_price_include': stock_value})
         elif root.account_price_include != stock_value:
             _logger.warning(
                 "Company %s keeps its stock tax mode %s, not the payments tax mode %s it was set to: it already has "
@@ -91,3 +97,4 @@ def migrate(cr, version):
     # Odoo leaves the column of a removed field behind; one schema has no remnant of it.
     env.flush_all()
     cr.execute('ALTER TABLE liwan_payments_settings DROP COLUMN tax_mode')
+    setattr(env.registry, PAYMENTS_PRICE_MODE_CARRIED, True)

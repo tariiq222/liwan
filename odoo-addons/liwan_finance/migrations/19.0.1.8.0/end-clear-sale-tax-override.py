@@ -2,46 +2,12 @@
 import logging
 
 from odoo import SUPERUSER_ID, api
-from odoo.exceptions import UserError
+
+from odoo.addons.liwan_api.models.tax_upgrade import (
+    refuse_open_documents_with_changed_taxes,
+)
 
 _logger = logging.getLogger(__name__)
-
-
-def _check_open_documents(env, taxes):
-    changed = taxes.filtered(lambda tax: tax.price_include_override != tax.company_id.account_price_include)
-    if not changed:
-        return
-    # A document may hold a group tax whose child is the tax being changed.
-    affected = changed
-    while parents := env['account.tax'].with_context(active_test=False).search([
-        ('children_tax_ids', 'in', affected.ids), ('id', 'not in', affected.ids),
-    ]):
-        affected |= parents
-    invoices = env['account.move.line'].search([
-        ('tax_ids', 'in', affected.ids), ('move_id.state', '=', 'draft'),
-        ('move_id.move_type', 'in', ('out_invoice', 'out_refund', 'out_receipt')),
-    ]).move_id
-    report = [
-        f'account.move #{move.id} ({move.display_name}) — {move.company_id.display_name}'
-        for move in invoices.sorted('id')
-    ]
-    if 'sale.order.line' in env:
-        orders = env['sale.order.line'].search([
-            ('tax_ids', 'in', affected.ids), '|',
-            ('order_id.state', 'in', ('draft', 'sent')),
-            '&', ('order_id.state', '=', 'sale'), ('order_id.invoice_status', '!=', 'invoiced'),
-        ]).order_id
-        report.extend(
-            f'sale.order #{order.id} ({order.display_name}) — {order.company_id.display_name}'
-            for order in orders.sorted('id')
-        )
-    if report:
-        raise UserError(env._(
-            "Clearing the old sale tax override would change the calculation of these open documents:\n"
-            "%(documents)s\n"
-            "Restore the database and filestore from before the upgrade, then resolve these documents before retrying.",
-            documents='\n'.join(report),
-        ))
 
 
 def migrate(cr, version):
@@ -60,7 +26,8 @@ def migrate(cr, version):
         ('type_tax_use', '=', 'sale'),
         ('price_include_override', '!=', False),
     ])
-    _check_open_documents(env, taxes)
+    changed = taxes.filtered(lambda tax: tax.price_include_override != tax.company_id.account_price_include)
+    refuse_open_documents_with_changed_taxes(env, changed)
     if taxes:
         taxes.write({'price_include_override': False})
     _logger.info('liwan_finance: %d active sale taxes follow the company price mode again', len(taxes))

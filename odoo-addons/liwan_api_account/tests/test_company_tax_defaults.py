@@ -1,14 +1,21 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """D5 defaults and the stock root-delegated price mode: a root starts included, branches follow it."""
+from unittest.mock import patch
+
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests import tagged
 
+from odoo.addons.liwan_api.models.tax_upgrade import PAYMENTS_PRICE_MODE_CARRIED
 from odoo.addons.liwan_api_account.hooks import post_init_hook
 from odoo.addons.liwan_api_account.tests.common import CompanyTaxCase
 
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestCompanyTaxDefaults(CompanyTaxCase):
+
+    def setUp(self):
+        super().setUp()
+        self.enterContext(patch.object(self.env.registry, PAYMENTS_PRICE_MODE_CARRIED, False, create=True))
 
     def test_a_new_root_starts_with_the_price_included(self):
         company = self.env['res.company'].create({'name': 'Fresh root'})
@@ -60,6 +67,14 @@ class TestCompanyTaxDefaults(CompanyTaxCase):
         post_init_hook(self.env)
         self.assertEqual(clean.account_price_include, 'tax_included')
         self.assertEqual(clean_branch.account_price_include, 'tax_included')
+
+    def test_the_install_hook_keeps_the_mode_carried_from_payments_during_this_upgrade(self):
+        clean = self.saudi_root('Carried root', account_price_include='tax_excluded')
+        clean_branch = self.saudi_branch(clean, 'Carried branch')
+        with patch.object(self.env.registry, PAYMENTS_PRICE_MODE_CARRIED, True):
+            post_init_hook(self.env)
+        self.assertEqual(clean.account_price_include, 'tax_excluded')
+        self.assertEqual(clean_branch.account_price_include, 'tax_excluded')
 
     def test_the_install_hook_leaves_a_started_establishment_alone(self):
         started = self.saudi_root('Started root')

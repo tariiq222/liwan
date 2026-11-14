@@ -2,6 +2,10 @@
 from odoo.exceptions import UserError
 
 from .models.res_company import DEFAULT_PRICE_MODE
+from odoo.addons.liwan_api.models.tax_upgrade import (
+    PAYMENTS_PRICE_MODE_CARRIED,
+    refuse_open_documents_with_changed_company_modes,
+)
 
 
 def post_init_hook(env):
@@ -12,14 +16,19 @@ def post_init_hook(env):
     base propagates it to the active branches, and a branch reactivated later takes it from its parent.
     """
     Company = env['res.company'].with_context(active_test=False)
+    carried = getattr(env.registry, PAYMENTS_PRICE_MODE_CARRIED, False)
     for root in Company.search([('parent_id', '=', False)]):
-        if not root._existing_accounting():
-            root.write({'account_price_include': DEFAULT_PRICE_MODE})
-        _align_branches(Company, root)
+        branches = Company.search([('id', 'child_of', root.id), ('id', '!=', root.id)], order='parent_path')
+        if not carried and not root._existing_accounting():
+            establishment = root | branches
+            refuse_open_documents_with_changed_company_modes(env, establishment, DEFAULT_PRICE_MODE)
+            if any(company.account_price_include != DEFAULT_PRICE_MODE for company in establishment):
+                root.write({'account_price_include': DEFAULT_PRICE_MODE})
+        _align_branches(root, branches)
     env['account.tax']._liwan_default_purchase_taxes_to_added(Company.search([]))
 
 
-def _align_branches(Company, root):
+def _align_branches(root, branches):
     """Give every branch of ``root`` the root's price mode, which the old model let a branch hold apart from it.
 
     From now on base's ``_check_root_delegated_fields`` refuses any write touching a delegated field of a branch
@@ -29,15 +38,16 @@ def _align_branches(Company, root):
     An incompatible branch stops installation before the bridge can expose two modes for the establishment.
     """
     mode = root.account_price_include
-    for branch in Company.search([('parent_id', 'child_of', root.id), ('id', '!=', root.id)], order='parent_path'):
-        if branch.account_price_include == mode:
-            continue
+    differing = branches.filtered(lambda branch: branch.account_price_include != mode)
+    for branch in differing:
         if branch._existing_accounting():
-            raise UserError(Company.env._(
+            raise UserError(root.env._(
                 "Branch %(branch)s uses %(branch_mode)s while its root %(root)s uses %(root_mode)s. "
                 "The branch has journal items. Restore the database and filestore from before the upgrade "
                 "and have the operator reconcile the two modes before retrying.",
                 branch=branch.display_name, branch_mode=branch.account_price_include,
                 root=root.display_name, root_mode=mode,
             ))
+    refuse_open_documents_with_changed_company_modes(root.env, differing, mode)
+    for branch in differing:
         branch.write({'account_price_include': mode})
