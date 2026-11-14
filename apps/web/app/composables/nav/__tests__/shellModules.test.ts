@@ -113,10 +113,10 @@ describe('contextual module links', () => {
   it('lists the fixed settings pages on top and the open page\'s parts under its heading', () => {
     expect(contextLinksForModule('settings', employee)).toEqual([])
     const ids = (identity: typeof admin, path?: string) => contextLinksForModule('settings', identity, path).map(link => link.id)
-    expect(ids(admin)).toEqual(['settings-overview', 'settings-company', 'settings-team'])
-    expect(ids(admin, '/settings/team/roles/3')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'users', 'roles', 'access-policy', 'access-log'])
-    expect(ids(admin, '/settings/company')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'branding'])
-    expect(ids({ ...admin, capabilities: [...admin.capabilities, 'settings.company.read'] }, '/settings/company#contact')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'profile', 'address', 'contact', 'tax', 'branding'])
+    expect(ids(admin)).toEqual(['settings-company', 'settings-team'])
+    expect(ids(admin, '/settings/team/roles/3')).toEqual(['settings-company', 'settings-team', 'users', 'roles', 'access-policy', 'access-log'])
+    expect(ids(admin, '/settings/company')).toEqual(['settings-company', 'settings-team', 'branding'])
+    expect(ids({ ...admin, capabilities: [...admin.capabilities, 'settings.company.read'] }, '/settings/company#contact')).toEqual(['settings-company', 'settings-team', 'profile', 'address', 'contact', 'tax', 'branding'])
     const taxSection = { capabilities: ['settings.company.read'], platform: { readable_features: ['company_tax.enabled'], writable_features: ['company_tax.enabled'] } }
     expect(contextLinksForModule('settings', taxSection, '/settings/company').map(link => link.id)).toContain('tax')
     // The sub-list link carries the part's feature, so the filter re-checks it rather than trusting the page list.
@@ -131,7 +131,6 @@ describe('contextual module links', () => {
     // The page link opens its first part; the page is active through its prefix, not its own path.
     expect(contextLinksForModule('settings', admin).find(link => link.id === 'settings-team')).toMatchObject({ to: '/settings/team', within: '/settings/team' })
     expect(contextLinksForModule('settings', admin).find(link => link.id === 'settings-company')).toMatchObject({ to: '/settings/company', within: '/settings/company' })
-    expect(contextLinksForModule('settings', admin).find(link => link.id === 'settings-overview')).toMatchObject({ to: '/settings', exact: true })
   })
   it('scrolls a card of the open page, and a card with a full list page stays lit there', () => {
     const company = { capabilities: ['settings.company.read', 'settings.branding.manage', 'access.users.read'] }
@@ -142,7 +141,7 @@ describe('contextual module links', () => {
   it('hides the sub-list of a page with tabs, and keeps its top link', () => {
     const crmAdmin = { capabilities: ['crm.settings.read'] }
     const links = contextLinksForModule('settings', crmAdmin, '/settings/apps/crm')
-    expect(links.map(link => link.id)).toEqual(['settings-overview', 'settings-crm'])
+    expect(links.map(link => link.id)).toEqual(['settings-crm'])
     expect(links.find(link => link.id === 'settings-crm')).toMatchObject({ within: '/settings/apps/crm' })
     // Another page keeps its sub-list, and a tab page's palette links still name their tab.
     expect(contextLinksForModule('settings', admin, '/settings/company')).toContainEqual(expect.objectContaining({ id: 'branding' }))
@@ -151,11 +150,11 @@ describe('contextual module links', () => {
   it('lists one link per application under the Applications heading, gated by capability and feature', () => {
     const pmoAdmin = { capabilities: ['pmo.settings.manage', 'operations.processes.manage'] }
     const apps = (identity: typeof pmoAdmin, path: string) => contextLinksForModule('settings', identity, path)
-    expect(apps(pmoAdmin, '/settings/apps/projects').map(link => link.id)).toEqual(['settings-overview', 'settings-projects', 'settings-operations', 'project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
+    expect(apps(pmoAdmin, '/settings/apps/projects').map(link => link.id)).toEqual(['settings-projects', 'settings-operations', 'project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
     expect(apps(pmoAdmin, '/settings/apps/projects').filter(link => link.group).map(link => link.group)).toEqual(['settings.sections.apps.title', 'settings.sections.apps.title'])
-    expect(apps(pmoAdmin, '/settings/apps/operations/processes').map(link => link.id)).toEqual(['settings-overview', 'settings-projects', 'settings-operations', 'processes'])
+    expect(apps(pmoAdmin, '/settings/apps/operations/processes').map(link => link.id)).toEqual(['settings-projects', 'settings-operations', 'processes'])
     const baseOperations = { ...pmoAdmin, platform: { readable_features: ['pmo.enabled'], writable_features: ['pmo.enabled'] } }
-    expect(apps(baseOperations, '/settings/apps/projects').map(link => link.id)).toEqual(['settings-overview', 'settings-projects', 'settings-operations', 'project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
+    expect(apps(baseOperations, '/settings/apps/projects').map(link => link.id)).toEqual(['settings-projects', 'settings-operations', 'project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
     expect(visibleSettingsPages(pmoAdmin).map(({ page }) => page.id)).toEqual(['projects', 'operations'])
     expect(contextLinksForModule('projects', full).map(link => link.id).at(-1)).not.toBe('project-settings')
     expect(contextLinksForModule('projects', employee).map(link => link.id)).not.toContain('project-settings')
@@ -166,7 +165,7 @@ describe('contextual module links', () => {
     vi.stubGlobal('useRuntimeConfig', () => ({ public: { customerCommercialEnabled: true } }))
     try {
       const links = contextLinksForModule('settings', settingsAdmin, '/subscription/status')
-      expect(links.map(link => link.id)).toEqual(['settings-overview', 'settings-company', 'settings-billing', 'subscription', 'subscription-change', 'subscription-status', 'subscription-branches', 'subscription-invoices'])
+      expect(links.map(link => link.id)).toEqual(['settings-company', 'settings-billing', 'subscription', 'subscription-change', 'subscription-status', 'subscription-branches', 'subscription-invoices'])
       expect(links.find(link => link.id === 'subscription')).toMatchObject({ exact: true, section: 'settings.sections.billing.title' })
       expect(links.find(link => link.id === 'subscription-status')?.exact).toBeUndefined()
       expect(activeShellModule('/subscription/invoices')).toBe('settings')
