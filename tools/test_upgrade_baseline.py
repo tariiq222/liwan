@@ -27,4 +27,4 @@ class UpgradeBaselineTest(unittest.TestCase):
         selector = 'BASE_TAG="$(python3 -B tools/upgrade_baseline.py)"'
         self.assertIn(selector, source)
         self.assertLess(source.index(selector), source.index('SCRATCH_DB="liwan_ci_upgrade_scratch"'))
-        self.assertIn('no LiwanOS-namespace release baseline; fresh-install gate remains binding', source)
+        self.assertIn('no LiwanOS-namespace release baseline: the upgrade gate cannot run" >&2; exit 1', source)

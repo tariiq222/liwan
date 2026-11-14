@@ -196,10 +196,10 @@ sys.exit(3)
         self.assertNotEqual(process.returncode, 0)
         self.assertIn('odoo exited 3', process.stderr)
 
-    def test_upgrade_without_baseline_is_an_explicit_completed_result(self):
+    def test_upgrade_without_baseline_fails_before_any_odoo_run(self):
         process = self.execute('upgrade')
-        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
-        self.assertIn('no LiwanOS-namespace release baseline; fresh-install gate remains binding', process.stdout)
+        self.assertNotEqual(process.returncode, 0, process.stdout + process.stderr)
+        self.assertIn('no LiwanOS-namespace release baseline: the upgrade gate cannot run', process.stderr)
         self.assertFalse([x for x in self.calls.read_text().splitlines() if '"odoo-python"' in x])
 
     def test_upgrade_uses_previous_odoo_pin_without_mutating_upstream_or_worktrees(self):
