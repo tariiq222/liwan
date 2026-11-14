@@ -831,6 +831,30 @@
       "handler": "role",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/tenant-export": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "tenant.export"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_exports",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/admin/tenant-export/{export_id}/download": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "tenant.export"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "download_export",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/users": {
       "addon": "liwan_api",
       "auth": "user",
@@ -7921,6 +7945,18 @@
       "capability_source": "body",
       "feature_keys": [],
       "handler": "role_state",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/admin/tenant-export": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "tenant.export"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "request_export",
       "no_capability_reason": null
     },
     "POST /api/v1/admin/users": {
