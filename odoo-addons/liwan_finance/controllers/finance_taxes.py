@@ -42,10 +42,43 @@ def _set_tax_account(tax, account):
     tax.refund_repartition_line_ids.filtered(lambda line: line.repartition_type == 'tax').account_id = account
 
 
-def _values(parsed):
-    values = {key: parsed[key] for key in ('name', 'type_tax_use', 'amount_type', 'amount') if key in parsed}
+def _effective_use(tax, parsed):
+    """The tax use the request leaves on the tax: the body's answer, else the stored one (``None`` on create)."""
+    return parsed.get('type_tax_use', tax.type_tax_use if tax else None)
+
+
+def _require_price_include_allowed(tax, parsed):
+    """A sale tax follows the establishment's one mode, so its payload never answers "does the price include the tax"."""
+    if _effective_use(tax, parsed) == 'sale' and 'price_include' in parsed:
+        raise ApiError(
+            422, 'invalid', 'a sale tax follows the company price mode: price_include is not set per tax',
+            field='price_include',
+        )
+
+
+def _price_include_values(tax, parsed):
+    """The price-include answer a create/patch body leaves on the tax.
+
+    A sale tax follows ``res.company.account_price_include`` through stock's computed ``price_include``, so it keeps no
+    override; a tax that becomes a sale tax loses the one it had. A sale tax that stays one and does not name
+    ``price_include`` keeps its stored answer: renaming a tax used by journal items must not change what it computes.
+    A purchase tax always carries one explicit answer: ``tax_excluded`` unless the accountant sends ``price_include``,
+    so an amount typed on a vendor bill keeps meaning that amount under every company mode.
+    """
+    if _effective_use(tax, parsed) == 'sale':
+        becomes_sale = tax is not None and tax.type_tax_use != 'sale'
+        return {'price_include_override': False} if becomes_sale and tax.price_include_override else {}
     if 'price_include' in parsed:
-        values['price_include_override'] = 'tax_included' if parsed['price_include'] else 'tax_excluded'
+        return {'price_include_override': 'tax_included' if parsed['price_include'] else 'tax_excluded'}
+    # A new purchase tax, and a tax that becomes one, answers "tax added"; an existing purchase tax keeps its answer.
+    if tax is None or tax.type_tax_use != 'purchase':
+        return {'price_include_override': 'tax_excluded'}
+    return {}
+
+
+def _values(tax, parsed):
+    values = {key: parsed[key] for key in ('name', 'type_tax_use', 'amount_type', 'amount') if key in parsed}
+    values.update(_price_include_values(tax, parsed))
     return values
 
 
@@ -88,7 +121,8 @@ class FinanceTaxController(http.Controller):
     def create_tax(self, **payload):
         require_capability('finance.taxes.manage')
         parsed = parse_tax_create(payload)
-        values = _values(parsed)
+        _require_price_include_allowed(None, parsed)
+        values = _values(None, parsed)
         values.setdefault('amount_type', 'percent')
         account = _tax_account(parsed['tax_account_id'], request.env.company)
 
@@ -109,8 +143,9 @@ class FinanceTaxController(http.Controller):
         require_capability('finance.taxes.manage')
         tax = _find_tax(tax_id)
         parsed = parse_tax_patch(payload)
+        _require_price_include_allowed(tax, parsed)
         _require_unused_for(tax, parsed)
-        values = _values(parsed)
+        values = _values(tax, parsed)
 
         def write():
             tax.write(values)
@@ -139,6 +174,19 @@ class FinanceTaxController(http.Controller):
     def unarchive_tax(self, tax_id, **_):
         require_capability('finance.taxes.manage')
         tax = _find_tax(tax_id)
-        attempt(tax.action_unarchive)
+        if not tax.active and tax.type_tax_use == 'sale' and tax.price_include_override:
+            if tax.is_used:
+                raise ApiError(
+                    422, 'tax_in_use',
+                    request.env._('This archived sale tax has a historical price override. Create a new sale tax to use it again.'),
+                )
+
+            def unarchive():
+                tax.write({'price_include_override': False})
+                tax.action_unarchive()
+
+            attempt(unarchive)
+        else:
+            attempt(tax.action_unarchive)
         request.env['liwan.finance.audit.event']._liwan_log('tax_unarchived', tax)
         return dump_tax(tax)

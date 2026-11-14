@@ -1,5 +1,6 @@
 export * from './branding'
 export * from './company'
+export * from './companyTax'
 export * from './customFields'
 export * from './error'
 export * from './lookup'

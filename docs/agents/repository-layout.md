@@ -33,6 +33,15 @@ application's AI agent and tools.
 - `odoo-addons/liwan_api` owns shared `/api/v1` plumbing, common serializers,
   authentication, branding, and the shared test fixture. It does not import a
   pillar.
+- `odoo-addons/liwan_api_account` (bridge, rank 5, `auto_install` on `liwan_api` and stock `account`) owns the
+  establishment's one tax choice: whether it is VAT-registered and whether a typed price includes the tax, at
+  `/api/v1/admin/company/tax` (`GET`/`PATCH`; reads need `settings.company.read`, writes
+  `settings.company.vat.manage` in the root company and a root-company session). Stock
+  `res.company.account_price_include` is the stored fact, declared a root-delegated company field so base copies
+  the root's value to its active branches and refuses a branch that differs; the route answers
+  `409 tax_mode_locked` once stock would refuse the change. A new establishment starts at "price includes tax",
+  and every purchase tax without an override is set to "tax added" at install and after a chart is loaded. It has
+  no `sudo()`.
 - `odoo-addons/liwan_notify` (shared service, rank 3) owns the notification bell:
   the generic `mail.message` columns `liwan_notification`, `liwan_notification_kind`
   and `liwan_notification_key` with its unique index, the `liwan.notify.registry`

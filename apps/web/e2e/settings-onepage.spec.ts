@@ -136,27 +136,37 @@ test.describe('settings page of cards', () => {
     })
   })
 
-  test('the VAT number appears and is required only while the company is registered for VAT', async ({ page }) => {
-    // The mock keeps what this test saves, so start every run from a registered company.
+  test('the VAT number appears and is required only while the establishment is registered for VAT', async ({ page }) => {
+    // The mock keeps what this test saves, so start every run from a registered establishment.
     await page.request.patch('/api/v1/admin/company', { data: { vat_registered: true, vat: '300000000000003' } })
+    await page.request.patch('/api/v1/admin/company/tax', { data: { registered: true, price_mode: 'included' } })
     await open(page, '/settings/company')
-    const card = page.getByTestId('company-profile')
+    // The establishment tax card owns the registration; the profile card keeps only the number.
+    const taxCard = page.getByTestId('company-tax')
+    const profileCard = page.getByTestId('company-profile')
+    // The option card is the click target; its radio is visually hidden inside the label.
+    const choice = (name: string) => taxCard.getByTestId('company-tax-choice').locator('label').filter({ hasText: name })
+    await expect(taxCard).toBeVisible()
+    await expect(page.getByTestId('company-vat-registered')).toHaveCount(0)
     await expect(page.getByTestId('company-vat')).toBeVisible()
-    await page.getByTestId('company-vat-registered').click()
-    await expect(page.getByTestId('company-vat')).toHaveCount(0)
-    // Turning it off is saved on its own, without the number.
+    // Turning it off is saved as the card's own change, without the profile's number.
     const bodies: unknown[] = []
-    page.on('request', request => { if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/admin/company')) bodies.push(request.postDataJSON()) })
+    page.on('request', request => {
+      if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/admin/company/tax')) bodies.push(request.postDataJSON())
+    })
+    await choice('بدون ضريبة').click()
     await page.getByTestId('settings-save-bar-save').click()
     await expect(page.getByTestId('settings-save-bar')).toBeHidden()
-    expect(bodies).toEqual([{ vat_registered: false }])
+    expect(bodies).toEqual([{ registered: false }])
     await expect(page.getByTestId('company-vat')).toHaveCount(0)
-    // Back on, the number is required: the card refuses the save and names the field.
-    await page.getByTestId('company-vat-registered').click()
+    // Back on, the profile number is offered again; clearing it refuses the save and names the field.
+    await choice('السعر شامل الضريبة').click()
+    await page.getByTestId('settings-save-bar-save').click()
+    await expect(page.getByTestId('settings-save-bar')).toBeHidden()
     await expect(page.getByTestId('company-vat')).toBeVisible()
     await page.getByTestId('company-vat').fill('')
     await page.getByTestId('settings-save-bar-save').click()
-    await expect(card).toContainText('أدخل الرقم الضريبي')
+    await expect(profileCard).toContainText('أدخل الرقم الضريبي')
     await expect(page.getByTestId('company-vat')).toHaveAttribute('aria-invalid', 'true')
   })
 

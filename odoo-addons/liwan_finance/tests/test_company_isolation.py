@@ -15,6 +15,7 @@ chart.
 from odoo import Command
 from odoo.tests import tagged
 
+from .common import TAX_EXCLUDED
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
     assert_isolation_discovery,
@@ -90,6 +91,7 @@ class TestFinanceCompanyIsolation(CompanyIsolationCase):
             company.write({
                 'country_id': cls.env.ref('base.sa').id,
                 'currency_id': cls.env.ref('base.SAR').id,
+                'account_price_include': TAX_EXCLUDED,
             })
             cls.env['account.chart.template'].try_loading('sa', company)
         cls.env.cr.execute('ANALYZE account_account, account_account_res_company_rel, res_company')

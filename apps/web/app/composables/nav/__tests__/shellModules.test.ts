@@ -116,7 +116,16 @@ describe('contextual module links', () => {
     expect(ids(admin)).toEqual(['settings-overview', 'settings-company', 'settings-team'])
     expect(ids(admin, '/settings/team/roles/3')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'users', 'roles', 'access-policy', 'access-log'])
     expect(ids(admin, '/settings/company')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'branding'])
-    expect(ids({ ...admin, capabilities: [...admin.capabilities, 'settings.company.read'] }, '/settings/company#contact')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'profile', 'address', 'contact', 'branding'])
+    expect(ids({ ...admin, capabilities: [...admin.capabilities, 'settings.company.read'] }, '/settings/company#contact')).toEqual(['settings-overview', 'settings-company', 'settings-team', 'profile', 'address', 'contact', 'tax', 'branding'])
+    const taxSection = { capabilities: ['settings.company.read'], platform: { readable_features: ['company_tax.enabled'], writable_features: ['company_tax.enabled'] } }
+    expect(contextLinksForModule('settings', taxSection, '/settings/company').map(link => link.id)).toContain('tax')
+    // The sub-list link carries the part's feature, so the filter re-checks it rather than trusting the page list.
+    expect(contextLinksForModule('settings', taxSection, '/settings/company').find(link => link.id === 'tax')?.feature).toBe('company_tax.enabled')
+    // The settings palette/search item is gated the same way: the part carries its feature into the nav item too.
+    expect(useNav(taxSection).map(item => item.to)).toContain('/settings/company#tax')
+    const noTaxSection = { capabilities: ['settings.company.read'], platform: { readable_features: [], writable_features: [] } }
+    expect(useNav(noTaxSection).map(item => item.to)).not.toContain('/settings/company#tax')
+    expect(contextLinksForModule('settings', noTaxSection, '/settings/company').map(link => link.id)).not.toContain('tax')
     const open = contextLinksForModule('settings', admin, '/settings/team/users').filter(link => link.section)
     expect(open.every(link => link.section === 'settings.sections.team.title')).toBe(true)
     // The page link opens its first part; the page is active through its prefix, not its own path.

@@ -3,7 +3,7 @@ from odoo import Command
 from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
-from .common import LiwanFinanceCase
+from .common import LiwanFinanceCase, company_values
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -16,11 +16,9 @@ class TestTaxRounding(LiwanFinanceCase):
         self.assertEqual(self.company.tax_calculation_rounding_method, 'round_globally')
 
     def test_non_saudi_company_can_choose_either_tax_rounding_method(self):
-        company = self.env['res.company'].create({
-            'name': 'Finance US Company',
-            'country_id': self.env.ref('base.us').id,
-            'currency_id': self.env.ref('base.USD').id,
-        })
+        company = self.env['res.company'].create(company_values(
+            'Finance US Company', country_id=self.env.ref('base.us').id, currency_id=self.env.ref('base.USD').id,
+        ))
         for method in ('round_per_line', 'round_globally'):
             with self.subTest(method=method):
                 company.write({'tax_calculation_rounding_method': method})

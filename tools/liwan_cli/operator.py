@@ -55,8 +55,8 @@ CREATE_MODULES = (
     'liwan_customers', 'liwan_crm', 'liwan_crm_ai', 'liwan_inbox', 'liwan_inbox_payments',
     'liwan_pmo', 'liwan_meetings_pmo', 'liwan_operations_pmo', 'liwan_pmo_ai', 'liwan_tasks_pmo',
     'liwan_hr', 'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_ai', 'liwan_hr_operations',
-    'liwan_integrations_sa', 'liwan_finance', 'liwan_finance_ai', 'liwan_hr_finance',
-    'liwan_pmo_finance', 'liwan_appointments', 'liwan_appointments_payments',
+    'liwan_integrations_sa', 'liwan_finance', 'liwan_api_account', 'liwan_finance_ai',
+    'liwan_hr_finance', 'liwan_pmo_finance', 'liwan_appointments', 'liwan_appointments_payments',
 )
 CATALOG_PATH = Path(__file__).resolve().parents[2] / 'deploy' / 'catalog' / 'solutions' / 'platform.json'
 PROFILE_SQL = (

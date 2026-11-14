@@ -8,6 +8,8 @@ const PROFILE = {
   report_header: null,
   company_registry: '1010000000',
   vat_registered: true,
+  vat_registration_editable: true,
+  is_root_company: true,
   vat: '300000000000003',
   address: {
     street: 'King Fahd Road',
@@ -47,6 +49,20 @@ describe('CompanyProfileSchema', () => {
 
   it('accepts an address without a state or country', () => {
     expect(CompanyProfileSchema.parse({ ...PROFILE, address: { ...PROFILE.address, state: null, country: null } })).toBeTruthy()
+  })
+
+  it('says whether the registration can be changed here, and requires that answer', () => {
+    expect(CompanyProfileSchema.parse({ ...PROFILE, vat_registration_editable: false }).vat_registration_editable).toBe(false)
+    const { vat_registration_editable: _omitted, ...withoutFlag } = PROFILE
+    expect(CompanyProfileSchema.safeParse(withoutFlag).success).toBe(false)
+    expect(CompanyProfileSchema.safeParse({ ...PROFILE, vat_registration_editable: 'yes' }).success).toBe(false)
+  })
+
+  it('says whether the session company is the root, and requires that answer', () => {
+    expect(CompanyProfileSchema.parse({ ...PROFILE, is_root_company: false }).is_root_company).toBe(false)
+    const { is_root_company: _omitted, ...withoutFlag } = PROFILE
+    expect(CompanyProfileSchema.safeParse(withoutFlag).success).toBe(false)
+    expect(CompanyProfileSchema.safeParse({ ...PROFILE, is_root_company: 'yes' }).success).toBe(false)
   })
 })
 

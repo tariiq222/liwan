@@ -1,30 +1,24 @@
 <script setup lang="ts">
 import { InboxCatalogCreateSchema, type InboxCatalog } from '@liwan/contracts'
 import { useCreateInboxCatalog } from '@/composables/inbox/useInboxCatalog'
-import { useCompanyProfile } from '@/composables/useCompanyProfile'
 import { useInboxChannels } from '@/composables/inbox/useInboxSettings'
 
 // Connects the catalog made in Commerce Manager to a WhatsApp business account: the number to use, the catalog's id
 // (pasted from Commerce Manager), whether LiwanOS connects it to the account through the API, and the defaults every
-// product gets (brand, product link, and whether prices include VAT, offered only while the company is registered for
-// VAT: otherwise the option is hidden and left out of the request, and the server picks the default).
-// The registration comes from the company profile, which a user without company access cannot read: then it counts as off.
+// product gets (brand and product link). The tax is the establishment's one choice in the company settings; an item's
+// price is the total the customer pays, which the server computes.
 const props = defineProps<{ backTo: string }>()
 const emit = defineEmits<{ saved: [catalog: InboxCatalog] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const channels = useInboxChannels()
-const { can } = useAccess()
-const profile = useCompanyProfile(() => can('settings.company.read'))
-const vatRegistered = computed(() => profile.data.value?.vat_registered === true)
 const { mutateAsync: create, isPending } = useCreateInboxCatalog()
 const channelId = ref<number | undefined>(undefined)
 const metaCatalogId = ref('')
 const connect = ref(true)
 const brand = ref('')
 const link = ref('')
-const includeTax = ref(true)
 const attempted = ref(false)
 const saved = ref(false)
 const serverError = ref<{ field?: string; message: string } | null>(null)
@@ -32,7 +26,6 @@ const channelItems = computed(() => (channels.data.value?.items ?? []).map(item 
 const body = computed(() => ({
   channel_id: channelId.value, meta_catalog_id: metaCatalogId.value.trim(), connect: connect.value, brand: brand.value.trim(),
   default_link: link.value.trim() || null,
-  ...(vatRegistered.value ? { prices_include_tax: includeTax.value } : {}),
 }))
 const parsed = computed(() => InboxCatalogCreateSchema.safeParse(body.value))
 const dirty = computed(() => !saved.value && (!!metaCatalogId.value.trim() || !!link.value.trim() || channelId.value !== undefined))
@@ -76,10 +69,6 @@ async function submit() {
     <UFormField :label="t('inbox.catalog.defaultLink')" :description="t('inbox.catalog.defaultLinkHint')" :error="fieldError('default_link', 'link')">
       <UInput v-model="link" class="w-full" dir="ltr" type="url" placeholder="https://" :disabled="off" data-testid="inbox-catalog-link" />
     </UFormField>
-    <label v-if="vatRegistered" class="flex items-start gap-3 text-sm">
-      <USwitch v-model="includeTax" class="mt-0.5" :disabled="off" data-testid="inbox-catalog-include-tax" />
-      <span><span class="block font-medium text-highlighted">{{ t('inbox.catalog.pricesIncludeTax') }}</span><span class="block text-xs text-muted">{{ t('inbox.catalog.pricesIncludeTaxHint') }}</span></span>
-    </label>
     <div class="flex justify-end gap-2">
       <UButton :to="props.backTo" color="neutral" variant="outline" :disabled="off" :label="t('app.cancel')" />
       <UButton type="submit" :disabled="off" :loading="isPending" :label="t('inbox.catalog.connect.submit')" data-testid="inbox-catalog-connect-submit" />
