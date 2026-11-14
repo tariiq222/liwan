@@ -57,7 +57,7 @@ class TestNonSaasPolicy(unittest.TestCase):
         # DB invariants enforce this pair and forbid a non-SaaS cutoff.
         self.profile = types.SimpleNamespace(
             commercial_mode='non_saas', entitlement_source='local_policy',
-            status='active', valid_until=False, commercial_valid_until=False,
+            status='active', suspension_reason=False, valid_until=False, commercial_valid_until=False,
             trial_ends_at=False, support_access_enabled=False,
             features={'pmo.enabled': True, 'hr.enabled': False, 'users.limit': 2},
             retained_read_features=['hr.enabled'],
