@@ -28,7 +28,7 @@ const BINDINGS_ROUTE = '/internal/tiktok/bindings/'
 const TENANT_PURGE_ROUTE = '/internal/tiktok/tenants/'
 const HEALTH_ROUTE = '/healthz'
 const TENANT_WEBHOOK_PATH = '/api/v1/inbox/hooks/tiktok'
-const TENANT_CALLBACK_PATH = '/api/v1/inbox/tiktok/callback'
+const TENANT_CALLBACK_PATH = '/api/v1/integrations/oauth/tiktok/callback'
 const MAX_WEBHOOK_BYTES = 1024 * 1024
 /** One binding document names one account; a larger body is not a binding request. */
 const MAX_BINDING_BYTES = 4096

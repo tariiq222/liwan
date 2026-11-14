@@ -34,7 +34,7 @@ class TestBranchCompanyWebhook(LiwanInboxCase):
         cls.branch_channel = cls.make_channel(phone_id='700000000001', owner_company_id=cls.branch.id)
 
     def test_get_verify_reaches_a_branch_channel(self):
-        query = f'hub.mode=subscribe&hub.verify_token={self.branch_channel._liwan_verify_token()}&hub.challenge=77'
+        query = f'hub.mode=subscribe&hub.verify_token={self.verify_token(self.branch_channel)}&hub.challenge=77'
         response = self.url_open(f'{HOOK}?{query}')
         self.assertEqual((response.status_code, response.text), (200, '77'))
 
@@ -339,8 +339,7 @@ class TestChannelCapabilityScope(LiwanInboxCase):
         self.assertNotIn(self.channel.id, ids)
         self.assertEqual((self.child_channel.id in ids, listed['total'] == len(ids)), (True, True))
         created = self.api('POST', '/api/v1/inbox/channels', {
-            'name': 'New', 'kind': 'whatsapp', 'phone_number_id': '800000000002',
-            'business_account_id': '800000000003', 'access_token': 'x' * 20, 'app_secret': 'y' * 20,
+            'name': 'New', 'kind': 'whatsapp', 'phone_number_id': '800000000002', 'connection_id': self.channel.connection_id.id,
         })
         self.assertError(created, 403, 'forbidden')
 

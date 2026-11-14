@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from urllib.parse import quote, urlencode
 
 import requests
@@ -13,18 +13,6 @@ import requests
 from odoo.addons.liwan_inbox.adapters import errors, media_download
 
 API_BASE = 'https://business-api.tiktok.com/open_api/v1.3'
-AUTHORIZE_URL = 'https://www.tiktok.com/v2/auth/authorize'
-SCOPES = (
-    'user.info.basic',
-    'user.info.username',
-    'user.info.stats',
-    'user.info.profile',
-    'user.account.type',
-    'user.insights',
-    'message.list.read',
-    'message.list.send',
-    'message.list.manage',
-)
 SIGNATURE_HEADER = 'Tiktok-Signature'
 # TikTok signs `{timestamp}.{raw body}`. The relay receives the delivery directly from TikTok and refuses one
 # older than this strict window (deploy/shared/tiktok-relay.mjs, SIGNATURE_MAX_AGE_SECONDS).
@@ -59,7 +47,6 @@ MAX_MEDIA_BYTES = 16 * 1024 * 1024
 MEDIA_DOMAINS = ('tiktok.com', 'tiktokcdn.com', 'tiktokcdn-us.com', 'tiktokv.com')
 CONVERSATION_PAGE = 100
 ERROR_TEXT_LENGTH = 200
-WEBHOOK_EVENT = 'DIRECT_MESSAGE'
 # The message types of the webhook content (lowercase) and of the REST answers (uppercase), read as one.
 MESSAGE_KINDS = {
     'text': 'text',
@@ -74,35 +61,10 @@ MEDIA_TYPES = {'image': 'IMAGE', 'video': 'VIDEO'}
 
 
 @dataclass(frozen=True)
-class AppConfig:
-    """The operator's own TikTok app: environment configuration, never a channel field."""
-    client_key: str
-    client_secret: str
-    redirect_uri: str
-
-
-@dataclass(frozen=True)
 class Credentials:
     """One business account's token; the account's `open_id` is its identity everywhere."""
     business_id: str
     access_token: str
-
-
-@dataclass(frozen=True)
-class TokenGrant:
-    """An OAuth answer: the access token and the refresh token that replaces it, with both deadlines."""
-    open_id: str
-    scopes: frozenset[str]
-    access_token: str
-    refresh_token: str
-    expires_at: datetime
-    refresh_expires_at: datetime
-
-
-@dataclass(frozen=True)
-class Profile:
-    username: str
-    display_name: str
 
 
 @dataclass(frozen=True)
@@ -168,15 +130,6 @@ class AutoMessageChanged:
     """An automatic message was approved, rejected, created, updated or enabled/disabled."""
 
 
-def app_config(environ):
-    """The app configuration of `environ`, or None when the operator has not set all three variables."""
-    values = [
-        (environ.get(key) or '').strip()
-        for key in ('LIWAN_TIKTOK_CLIENT_KEY', 'LIWAN_TIKTOK_CLIENT_SECRET', 'LIWAN_TIKTOK_REDIRECT_URI')
-    ]
-    return AppConfig(*values) if all(values) else None
-
-
 def verify_signature(secret, raw, header, now, max_age=SIGNATURE_MAX_AGE):
     """True when `header` ("t=<unix s>,s=<hex>") signs `raw` and is within ``max_age`` seconds of `now`.
 
@@ -205,48 +158,6 @@ def verify_signature(secret, raw, header, now, max_age=SIGNATURE_MAX_AGE):
     if not hmac.compare_digest(digest, signature):
         return False
     return abs(now - timestamp) <= max_age
-
-
-def authorize_url(config, state):
-    """The TikTok account-holder authorization URL for `state`; the caller signs that state itself."""
-    query = urlencode({
-        'response_type': 'code',
-        'client_key': config.client_key,
-        'redirect_uri': config.redirect_uri,
-        'scope': ','.join(SCOPES),
-        'state': state,
-    }, quote_via=quote)
-    return f'{AUTHORIZE_URL}?{query}'
-
-
-def exchange_code(config, code):
-    """Exchange a single-use authorization code for the business account's first token pair."""
-    return _grant(_answer(_call('POST', _api('tt_user/oauth2/token/'), json={
-        'client_id': config.client_key,
-        'client_secret': config.client_secret,
-        'grant_type': 'authorization_code',
-        'auth_code': code,
-        'redirect_uri': config.redirect_uri,
-    })))
-
-
-def refresh_tokens(config, refresh_token):
-    """Replace an access token; TikTok may rotate the refresh token, so the caller stores the answer."""
-    return _grant(_answer(_call('POST', _api('tt_user/oauth2/refresh_token/'), json={
-        'client_id': config.client_key,
-        'client_secret': config.client_secret,
-        'grant_type': 'refresh_token',
-        'refresh_token': refresh_token,
-    })))
-
-
-def business_profile(credentials):
-    """The business account's own username and display name."""
-    data = _answer(_call('GET', _api('business/get/'), credentials.access_token, params={
-        'business_id': credentials.business_id,
-        'fields': 'username,display_name,profile_image',
-    }))
-    return Profile(_text(data.get('username')), _text(data.get('display_name')))
 
 
 def event_business_id(payload):
@@ -452,36 +363,6 @@ def set_auto_message_status(credentials, auto_type, enabled):
     }))
 
 
-def webhook_show(config):
-    """The callback URL subscribed for direct messages, or None when the app has no subscription."""
-    data = _answer(_call('GET', _api('business/webhook/list/'), params={
-        'app_id': config.client_key,
-        'secret': config.client_secret,
-        'event_type': WEBHOOK_EVENT,
-    }))
-    url = data.get('callback_url')
-    return url if isinstance(url, str) and url else None
-
-
-def webhook_register(config, callback_url):
-    """Subscribe the app's single direct-message webhook to `callback_url`."""
-    _answer(_call('POST', _api('business/webhook/update/'), json={
-        'app_id': config.client_key,
-        'secret': config.client_secret,
-        'event_type': WEBHOOK_EVENT,
-        'callback_url': callback_url,
-    }))
-
-
-def webhook_delete(config):
-    """Delete the app's direct-message subscription."""
-    _answer(_call('POST', _api('business/webhook/delete/'), json={
-        'app_id': config.client_key,
-        'secret': config.client_secret,
-        'event_type': WEBHOOK_EVENT,
-    }))
-
-
 def _api(path):
     return f'{API_BASE}/{path}'
 
@@ -543,18 +424,6 @@ def _error_code(response):
         return None
     code = _dict(payload).get('code')
     return code if isinstance(code, int) and not isinstance(code, bool) else None
-
-
-def _grant(data):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    return TokenGrant(
-        open_id=_require_text(data, 'open_id'),
-        scopes=frozenset(scope for scope in _text(data.get('scope')).split(',') if scope),
-        access_token=_require_text(data, 'access_token'),
-        refresh_token=_require_text(data, 'refresh_token'),
-        expires_at=now + timedelta(seconds=_seconds(data.get('expires_in'))),
-        refresh_expires_at=now + timedelta(seconds=_seconds(data.get('refresh_token_expires_in'))),
-    )
 
 
 def _seconds(value):

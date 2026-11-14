@@ -205,7 +205,7 @@ class LiwanInboxCampaign(models.Model):
         problem = self._liwan_template_problem() or self._liwan_params_problem()
         if problem:
             raise ValidationError(problem)
-        if self.channel_id.state != 'connected':
+        if not self.channel_id._liwan_can_send():
             raise ValidationError(self.env._('The channel is not connected.'))
         if self.scheduled_at and self.scheduled_at < fields.Datetime.now():
             raise ValidationError(self.env._('scheduled_at is in the past.'))

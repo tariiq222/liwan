@@ -80,13 +80,13 @@ class CatalogController(http.Controller):
         if channel.owner_company_id != request.env.company:
             raise not_found()
         Catalog = request.env['liwan.inbox.catalog']
-        if Catalog.search_count([('business_account_id', '=', channel.business_account_id)]):
+        if Catalog.search_count([('business_account_id', '=', channel.connection_id.external_id)]):
             raise ApiError(409, 'conflict', 'this WhatsApp account already has a catalog')
         credentials = channel._liwan_credentials()
         name = check_with_meta(credentials, meta_catalog_id, connect)
         try:
             catalog = Catalog.create({
-                'company_id': channel.owner_company_id.id, 'business_account_id': channel.business_account_id,
+                'company_id': channel.owner_company_id.id, 'business_account_id': channel.connection_id.external_id,
                 'meta_catalog_id': meta_catalog_id, 'name': name, **values,
             })
             request.env.flush_all()

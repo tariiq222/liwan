@@ -134,6 +134,56 @@ class LiwanIntegrationConnection(models.Model):
         secret = self.secret_ids.filtered(lambda row: row.name == name)
         return secret_box.decrypt(self.env, SECRET_PURPOSE, secret.value_enc) if secret else None
 
+    # Webhooks have no session: the caller is a machine identity that holds no capability in any company, so the
+    # company record rules and the capability fence would hide every connection from it. The provider signature or
+    # the handshake token that a caller checks with these values is the webhook's whole authentication. Each accessor
+    # elevates one read and returns plain data, never a recordset of the elevated environment. A caller must compare
+    # the values it gets in constant time (`hmac.compare_digest`).
+
+    @api.model
+    def _liwan_webhook_provider(self, provider):
+        definition = self.env['liwan.integration.registry']._liwan_provider_map().get(provider)
+        if not definition or definition['auth'] == AUTH_EXTERNAL:
+            raise ValidationError(self.env._('%(provider)s is not a provider with stored connections.', provider=provider))
+        return definition
+
+    @api.model
+    def _liwan_webhook_check_name(self, provider, name):
+        if name not in self._liwan_webhook_provider(provider)['webhook_secrets']:
+            raise ValidationError(self.env._('%(name)s is not a secret a webhook of %(provider)s may read.', name=name, provider=provider))
+
+    @api.model
+    def _liwan_webhook_accounts(self, provider, external_ids):
+        """``[{'id', 'company_id', 'external_id'}]`` of the not disabled connections of ``provider`` that hold one of
+        ``external_ids``, in any company of the database (a delivery names the account before any company is known).
+        """
+        self._liwan_webhook_provider(provider)
+        # Elevated: the connection company rule and the capability fence admit a webhook identity to no company.
+        found = self.sudo().search([
+            ('provider', '=', provider), ('external_id', 'in', list(external_ids)), ('state', '!=', 'disabled'),
+        ])
+        return [{'id': row.id, 'company_id': row.company_id.id, 'external_id': row.external_id} for row in found]
+
+    @api.model
+    def _liwan_webhook_secret(self, connection_id, name):
+        """The decrypted secret ``name`` of one not disabled connection, or None; only the names its provider declares
+        in ``webhook_secrets`` are readable here.
+        """
+        connection = self.sudo().browse(connection_id).exists()
+        if not connection:
+            return None
+        self._liwan_webhook_check_name(connection.provider, name)
+        return None if connection.state == 'disabled' else connection._liwan_secret(name)
+
+    @api.model
+    def _liwan_webhook_secrets(self, provider, name):
+        """The decrypted secret ``name`` of every not disabled connection of ``provider`` (a handshake compares the
+        token it was presented with against all of them); only a name in the provider's ``webhook_secrets``.
+        """
+        self._liwan_webhook_check_name(provider, name)
+        connections = self.sudo().search([('provider', '=', provider), ('state', '!=', 'disabled')])
+        return [value for value in (connection._liwan_secret(name) for connection in connections) if value]
+
     def _liwan_store_secrets(self, values):
         """Encrypt and store ``{name: value}``, replacing a secret of the same name."""
         self.ensure_one()

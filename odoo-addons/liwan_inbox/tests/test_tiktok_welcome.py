@@ -1,13 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The TikTok welcome message: TikTok holds it, so switching it off switches it off at TikTok too."""
-from datetime import timedelta
 from unittest.mock import patch
 
-from odoo import fields
 from odoo.tests import tagged
 
-from . import tiktok_payloads as tt
-from .common import LiwanInboxCase
+from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import AUTOMATION_FEATURE, TIKTOK_FEATURE
@@ -25,15 +22,9 @@ class TestTikTokWelcome(LiwanInboxCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        now = fields.Datetime.now()
-        cls.tiktok = cls.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': tt.BUSINESS_ID, 'state': 'connected',
-        })
-        cls.tiktok._liwan_tiktok_store(tiktok.TokenGrant(
-            open_id=tt.BUSINESS_ID, scopes=frozenset(tiktok.SCOPES),
-            access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
-            expires_at=now + timedelta(days=1), refresh_expires_at=now + timedelta(days=365),
-        ))
+        cls.tiktok = cls.make_tiktok_channel(
+            authorization=tiktok_grant(access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN),
+        )
 
     def setUp(self):
         super().setUp()

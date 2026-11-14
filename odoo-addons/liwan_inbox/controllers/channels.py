@@ -29,76 +29,74 @@ from odoo.addons.liwan_inbox.models.access_service import (
 )
 from odoo.addons.liwan_inbox.models.constants import (
     AUTOMATION_FEATURE,
+    CHANNEL_FEATURES,
+    CHANNEL_USES,
     FLOWS_FEATURE,
     TEMPLATES_FEATURE,
 )
+from odoo.addons.liwan_inbox.models.integration_registry import USE_PROVIDERS
 from odoo.addons.liwan_inbox.serializers.settings import (
     dump_channel,
     dump_channel_work,
+    dump_connection,
     dump_event,
 )
 
-HOOK_PATHS = {'whatsapp': '/api/v1/inbox/hooks/whatsapp', 'tiktok': '/api/v1/inbox/hooks/tiktok'}
 # The channels a page may pick from, by the capability and sub-feature that give a user work on them.
 WORK_SCOPES = ((MANAGE_TEMPLATES, TEMPLATES_FEATURE), (MANAGE_FLOWS, FLOWS_FEATURE), (MANAGE_AUTOMATION, AUTOMATION_FEATURE))
-CREATE_FIELDS = {
-    'name', 'kind', 'department_id', 'phone_number_id', 'business_account_id', 'access_token', 'app_secret', 'app_id',
-}
-PATCH_FIELDS = {'name', 'department_id', 'state', 'access_token', 'app_secret', 'app_id'}
-SECRET_LIMITS = {'access_token': (16, 1024), 'app_secret': (16, 256)}
+CREATE_FIELDS = {'name', 'kind', 'department_id', 'connection_id', 'phone_number_id'}
+PATCH_FIELDS = {'name', 'department_id', 'state'}
+KINDS = tuple(USE_PROVIDERS)
 
 
-def public_base():
-    """The public origin the tenant is reached at: the pinned `web.base.url`, never the request's own root.
-
-    Shared hosting hands Odoo the tenant database as the request Host (`proxy_mode=False`), and a dedicated
-    install may answer on `localhost`; either would produce a webhook URL Meta or TikTok can never reach. The
-    pinned parameter is set by provisioning and every `DOMAIN` change (`liwan_platform._liwan_set_public_origin`).
-    ``get_base_url`` is Odoo's own public accessor, which reads the parameter elevated for any caller.
-    """
-    base = (request.env['liwan.inbox.channel'].get_base_url() or '').strip().rstrip('/')
-    if not base:
-        # Without the pinned origin the hook URL would be a bare path that no provider can call, and the
-        # administrator would paste it and fail verification with no visible reason. Say so instead.
-        reject(
-            request.env._('Set the public base URL of this site before copying a webhook address.'),
-            reason='inbox_public_base_missing',
-        )
-    return base.replace('http://', 'https://', 1)
+def parse_connection(payload, kind):
+    """The connection a new channel serves: a live account of its kind's provider, connected by the current company."""
+    connection = find_one('liwan.integration.connection', payload['connection_id'], 'connection_id')
+    if (connection.provider != USE_PROVIDERS[kind] or connection.company_id != request.env.company
+            or connection.state != 'connected'):
+        reject(f'connection_id must name a connected {USE_PROVIDERS[kind]} connection of the current company', 'connection_id')
+    return connection
 
 
-def dump(channel):
-    return dump_channel(channel, public_base() + HOOK_PATHS[channel.kind])
+def parse_create(payload):
+    """The values of a new channel; 422 on any bad field."""
+    check_fields(payload, CREATE_FIELDS, required=('name', 'kind', 'connection_id'))
+    kind = payload['kind']
+    if kind not in KINDS:
+        reject(f'kind must be one of {", ".join(KINDS)}', 'kind')
+    if (kind == 'whatsapp') != ('phone_number_id' in payload):
+        reject('phone_number_id is required for a whatsapp channel and refused for a tiktok one', 'phone_number_id')
+    values = {
+        'name': parse_text(payload, 'name', 128), 'kind': kind, 'connection_id': parse_connection(payload, kind).id,
+        **parse_department(payload),
+    }
+    if kind == 'whatsapp':
+        values['phone_number_id'] = parse_provider_id(payload, 'phone_number_id')
+    else:
+        # A TikTok channel is its account: the connected account is the channel's state from the start.
+        values['state'] = 'connected'
+    return values
 
 
-def parse_channel(payload, creating):
-    """The channel values (secrets encrypted) of a create or patch body; 422 on any bad field."""
-    check_fields(payload, CREATE_FIELDS if creating else PATCH_FIELDS,
-                 required=('name', 'kind', 'phone_number_id', 'business_account_id', 'access_token', 'app_secret') if creating else ())
-    values = {}
+def parse_department(payload):
+    if 'department_id' not in payload:
+        return {}
+    if payload['department_id'] is None:
+        return {'department_id': False}
+    return {'department_id': find_one('liwan.inbox.department', payload['department_id'], 'department_id').id}
+
+
+def parse_patch(payload):
+    """The values of a channel patch; 422 on any bad field."""
+    check_fields(payload, PATCH_FIELDS)
+    values = parse_department(payload)
     if 'name' in payload:
         values['name'] = parse_text(payload, 'name', 128)
-    if creating and payload['kind'] != 'whatsapp':
-        reject('kind must be whatsapp', 'kind')
-    if 'department_id' in payload:
-        values['department_id'] = (
-            find_one('liwan.inbox.department', payload['department_id'], 'department_id').id
-            if payload['department_id'] is not None else False
-        )
     if 'state' in payload:
         if payload['state'] != 'disabled':
             reject('state can only be set to disabled; a passing connection test connects the channel', 'state')
         values['state'] = payload['state']
-    for key in ('phone_number_id', 'business_account_id'):
-        if key in payload:
-            values[key] = parse_provider_id(payload, key)
-    if 'app_id' in payload:
-        values['app_id'] = parse_provider_id(payload, 'app_id') if payload['app_id'] is not None else False
-    secrets = {
-        key: parse_text(payload, key, maximum=high, minimum=low)
-        for key, (low, high) in SECRET_LIMITS.items() if key in payload
-    }
-    return {**values, **request.env['liwan.inbox.channel']._liwan_secret_values(**secrets)}
+    return values
 
 
 class ChannelController(http.Controller):
@@ -113,9 +111,24 @@ class ChannelController(http.Controller):
         companies = request.env['liwan.access.service']._liwan_capability_company_ids((MANAGE_CHANNELS,))
         domain = [('owner_company_id', 'in', companies)]
         return {
-            'items': [dump(c) for c in Channel.search(domain, limit=limit, offset=offset)],
+            'items': [dump_channel(c) for c in Channel.search(domain, limit=limit, offset=offset)],
             'total': Channel.search_count(domain),
         }
+
+    @http.route('/api/v1/inbox/channels/accounts', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('inbox.enabled', operation='read')
+    @requires_capability(MANAGE_CHANNELS)
+    def list_accounts(self, **_):
+        """The provider accounts of the current company a new channel of `kind` may serve (no integrations capability needed)."""
+        kind = request.httprequest.args.get('kind')
+        if kind not in KINDS:
+            reject(f'kind must be one of {", ".join(KINDS)}', 'kind')
+        if not holds(MANAGE_CHANNELS, request.env.company):
+            raise ApiError(403, 'forbidden', f'{MANAGE_CHANNELS} capability is required in the current company')
+        request.env['liwan.entitlement.service'].require_read(CHANNEL_FEATURES[kind])
+        accounts = request.env['liwan.integration.connection']._liwan_for_use(CHANNEL_USES[kind])
+        return {'items': [dump_connection(account) for account in accounts], 'total': len(accounts)}
 
     @http.route('/api/v1/inbox/channels/work', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -183,17 +196,26 @@ class ChannelController(http.Controller):
     def create_channel(self, **payload):
         if not holds(MANAGE_CHANNELS, request.env.company):
             raise ApiError(403, 'forbidden', f'{MANAGE_CHANNELS} capability is required in the current company')
-        values = parse_channel(payload, creating=True)
-        with unique_as_invalid('phone_number_id', 'this phone number id is already connected', 'inbox_phone_number_taken'):
+        values = parse_create(payload)
+        taken = ('connection_id', 'this TikTok account already has a channel', None) if values['kind'] == 'tiktok' else (
+            'phone_number_id', 'this phone number id is already connected', 'inbox_phone_number_taken',
+        )
+        with unique_as_invalid(*taken):
             channel = request.env['liwan.inbox.channel'].create(values)
-        return dump(channel)
+        if channel.kind == 'tiktok':
+            # A shared-SaaS tenant registers the account with the relay so deliveries reach it (D13); the cron retries
+            # an unreachable relay, and a direct-webhook tenant makes no relay call at all. The account then imports
+            # its history (D11).
+            channel._liwan_tiktok_bind()
+            channel._liwan_tiktok_queue_first_sync()
+        return dump_channel(channel)
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
     @requires_capability(MANAGE_CHANNELS)
     def read_channel(self, channel_id, **_):
-        return dump(get_channel(channel_id, MANAGE_CHANNELS))
+        return dump_channel(get_channel(channel_id, MANAGE_CHANNELS))
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -201,8 +223,8 @@ class ChannelController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def patch_channel(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
-        channel.write(parse_channel(payload, creating=False))
-        return dump(channel)
+        channel.write(parse_patch(payload))
+        return dump_channel(channel)
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
@@ -212,16 +234,6 @@ class ChannelController(http.Controller):
         get_channel(channel_id, MANAGE_CHANNELS).unlink()
         return no_content()
 
-    @http.route('/api/v1/inbox/channels/<int:channel_id>/verify-token', type='json2', auth='user',
-                methods=['POST'], readonly=False)
-    @api_handler
-    @requires_feature('inbox.enabled', operation='write')
-    @requires_capability(MANAGE_CHANNELS)
-    def rotate_verify_token(self, channel_id, **_):
-        """A fresh handshake token for the Meta app; the only response that carries it, and only once."""
-        channel = get_channel(channel_id, MANAGE_CHANNELS)
-        return {'verify_token': channel._liwan_rotate_verify_token()}
-
     @http.route('/api/v1/inbox/channels/<int:channel_id>/test', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('inbox.enabled', operation='write')
@@ -229,4 +241,4 @@ class ChannelController(http.Controller):
     def test_channel(self, channel_id, **_):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
         channel._liwan_test_connection()
-        return dump(channel)
+        return dump_channel(channel)

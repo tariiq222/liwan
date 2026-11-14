@@ -1,10 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The TikTok account behind one `liwan.inbox.channel` of kind `tiktok`.
 
-The channel is keyed by the business account's own `open_id` (`tiktok_business_id`), which every
-webhook delivery names as `user_openid`. The TikTok app key, app secret and redirect URI are
-operator configuration (`adapters/tiktok.py: app_config`); a channel stores only its own tokens,
-encrypted with `secret_box`.
+The channel serves one TikTok connection of the integrations service. Its `external_id` is the
+business account's own `open_id`, which every webhook delivery names as `user_openid`; the tokens, their
+refresh and the operator's app keys belong to the service.
 """
 import logging
 import os
@@ -13,15 +12,14 @@ from urllib.parse import quote
 import requests
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
 
-from .channel import INVALID, SECRET_GROUPS
-from .constants import SECRET_PURPOSE, TIKTOK_TOKEN_MARGIN
+from .channel import INVALID
 from .tiktok_shortcut import AUDIT_STATUSES, AUTO_TYPES, ENABLED_FIELDS
 from .tiktok_sync import ACTIVE_STATES
-from odoo.addons.liwan_core.models import secret_box
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
+from odoo.addons.liwan_integrations_sa.providers import errors as integration_errors
+from odoo.addons.liwan_integrations_sa.providers import tiktok as integration_tiktok
 
 _logger = logging.getLogger(__name__)
 
@@ -82,12 +80,6 @@ def _liwan_tiktok_relay_delete(dbname, channel_id, open_id):
 class LiwanInboxChannel(models.Model):
     _inherit = 'liwan.inbox.channel'
 
-    # The business account identity (D2): unique, and the routing key of its webhook deliveries.
-    tiktok_business_id = fields.Char(copy=False)
-    tiktok_username = fields.Char(copy=False)
-    refresh_token_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
-    token_expires_at = fields.Datetime(copy=False)
-    refresh_expires_at = fields.Datetime(copy=False)
     # The account's own welcome message (D10): TikTok holds its content and its audit status.
     tiktok_welcome_id = fields.Char(copy=False)
     tiktok_welcome_audit = fields.Selection(
@@ -100,92 +92,15 @@ class LiwanInboxChannel(models.Model):
     tiktok_prompts_enabled = fields.Boolean(default=False, copy=False)
     tiktok_shortcut_ids = fields.One2many('liwan.inbox.tiktok.shortcut', 'channel_id')
 
-    _tiktok_business_id_unique = models.Constraint(
-        'UNIQUE(tiktok_business_id)', 'This TikTok business account is already connected.',
+    # One TikTok account is one channel: the webhook is routed by the account alone.
+    _tiktok_connection_unique = models.UniqueIndex(
+        "(connection_id) WHERE kind = 'tiktok'", 'This TikTok business account is already connected to a channel.',
     )
 
-    @api.constrains('kind', 'tiktok_business_id')
-    def _check_tiktok_business_id(self):
-        for channel in self.filtered(lambda channel: channel.kind == 'tiktok'):
-            if not channel.tiktok_business_id:
-                raise ValidationError(self.env._('A TikTok channel needs the business account open id.'))
-
-    @api.model
-    def _liwan_tiktok_config(self):
-        """The operator's TikTok app configuration (environment); 422 `inbox_tiktok_not_configured` without it."""
-        config = tiktok.app_config(os.environ)
-        if config is None:
-            message = self.env._('The TikTok app is not configured.')
-            raise LiwanAccessRule(INVALID, message, details={'reason': 'inbox_tiktok_not_configured'})
-        return config
-
-    def _liwan_tiktok_store(self, grant, profile=None):
-        """Store one OAuth answer on the channel (tokens encrypted) and mark it connected."""
-        self.ensure_one()
-        previous = self.tiktok_business_id
-        switched = bool(previous and previous != grant.open_id)
-        self.write({
-            'tiktok_business_id': grant.open_id,
-            'tiktok_username': profile.username if profile else self.tiktok_username,
-            **self._liwan_tiktok_token_values(grant),
-            'state': 'connected',
-            'last_error': False,
-            **({'tiktok_bound': False} if switched else {}),
-        })
-        if switched:
-            # The channel now serves another account: the old account's routing must leave this tenant.
-            self._liwan_tiktok_unbind(previous)
-
-    def _liwan_tiktok_token_values(self, grant):
-        """The encrypted fields of one grant, without the account identity or the channel state."""
-        return {
-            'access_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, grant.access_token),
-            'refresh_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, grant.refresh_token),
-            'token_expires_at': grant.expires_at,
-            'refresh_expires_at': grant.refresh_expires_at,
-        }
-
-    def _liwan_tiktok_store_refreshed(self, grant):
-        """Store a refreshed grant without touching the state: a disabled channel stays disabled."""
-        self.ensure_one()
-        self.write(self._liwan_tiktok_token_values(grant))
-
-    def _liwan_tiktok_credentials(self):
-        """The account's credentials, refreshing the access token once when it is near its deadline.
-
-        The channel row is locked first, so two requests that find the same old deadline refresh once:
-        the second caller reads the token the first one stored.
-        """
-        self.ensure_one()
-        self._liwan_tiktok_lock()
-        self.invalidate_recordset([
-            'access_token_enc', 'refresh_token_enc', 'token_expires_at', 'refresh_expires_at', 'state', 'last_error',
-        ])
-        if not (self.access_token_enc and self.refresh_token_enc):
-            self._liwan_tiktok_reconnect_required()
-        if self.token_expires_at and self.token_expires_at - TIKTOK_TOKEN_MARGIN > fields.Datetime.now():
-            return tiktok.Credentials(self.tiktok_business_id, secret_box.decrypt(self.env, SECRET_PURPOSE, self.access_token_enc))
-        return self._liwan_tiktok_refresh()
-
     def _liwan_tiktok_lock(self):
-        """Serialize token refreshes across requests on the channel row (a LiwanOS table)."""
+        """Serialize the history-import queueing of one channel across requests on its row (a LiwanOS table)."""
         self.ensure_one()
         self.env.cr.execute('SELECT id FROM liwan_inbox_channel WHERE id = %s FOR UPDATE', [self.id])
-
-    def _liwan_tiktok_refresh(self):
-        if self.refresh_expires_at and self.refresh_expires_at <= fields.Datetime.now():
-            self._liwan_tiktok_reconnect_required()
-        config = self._liwan_tiktok_config()
-        try:
-            grant = tiktok.refresh_tokens(config, secret_box.decrypt(self.env, SECRET_PURPOSE, self.refresh_token_enc))
-        except errors.ProviderError as error:
-            # A transient failure (rate limit, 5xx, network) is retried by the caller: only a refused
-            # authorization means the customer has to reconnect the account.
-            if error.retryable:
-                raise
-            self._liwan_tiktok_reconnect_required()
-        self._liwan_tiktok_store_refreshed(grant)
-        return tiktok.Credentials(self.tiktok_business_id, grant.access_token)
 
     def _liwan_tiktok_test_connection(self):
         """The connection test of a TikTok channel: read the business profile, then mark it connected or error.
@@ -195,29 +110,19 @@ class LiwanInboxChannel(models.Model):
         self.ensure_one()
         try:
             with self.env.cr.savepoint():
-                profile = tiktok.business_profile(self._liwan_tiktok_credentials())
-        except errors.ProviderError as error:
+                credentials = self._liwan_credentials()
+                integration_tiktok.probe(credentials.business_id, credentials.access_token)
+        except (errors.ProviderError, integration_errors.ProviderError) as error:
             self.write({'state': 'disabled' if self.state == 'disabled' else 'error', 'last_error': str(error)})
         else:
-            values = {'state': 'connected', 'last_error': False}
-            if profile.username:
-                values['tiktok_username'] = profile.username
-            self.write(values)
-
-    def _liwan_tiktok_reconnect_required(self):
-        """Mark the channel so the administrator sees it must reconnect it; the caller gets a clear error."""
-        message = self.env._('Reconnect the TikTok account: its authorization is no longer valid.')
-        self.write({'state': 'error', 'last_error': message})
-        raise UserError(message)
+            self.write({'state': 'connected', 'last_error': False})
 
     # relay binding (D13)
 
     def _liwan_tiktok_bind(self):
         """Register the account with the shared relay; `tiktok_bound` records whether it succeeded."""
         self.ensure_one()
-        if not self.tiktok_business_id:
-            return False
-        answer = _liwan_tiktok_relay_answer(self.env.cr.dbname, self.id, 'PUT', self.tiktok_business_id)
+        answer = _liwan_tiktok_relay_answer(self.env.cr.dbname, self.id, 'PUT', self.connection_id.external_id)
         if answer is None:
             return False
         if not answer.ok:
@@ -226,21 +131,10 @@ class LiwanInboxChannel(models.Model):
         self.tiktok_bound = True
         return True
 
-    def _liwan_tiktok_unbind(self, open_id=None):
-        """Remove one account's relay binding, by default this channel's own."""
-        self.ensure_one()
-        open_id = open_id or self.tiktok_business_id
-        if not open_id:
-            return
-        _liwan_tiktok_relay_delete(self.env.cr.dbname, self.id, open_id)
-        if open_id == self.tiktok_business_id:
-            self.tiktok_bound = False
-
     def unlink(self):
         """Deleting a channel removes its relay routing with it; a refused deletion keeps the binding."""
         bindings = [
-            (channel.id, channel.tiktok_business_id)
-            for channel in self.filtered(lambda channel: channel.kind == 'tiktok' and channel.tiktok_business_id)
+            (channel.id, channel.connection_id.external_id) for channel in self.filtered(lambda channel: channel.kind == 'tiktok')
         ]
         result = super().unlink()
         for channel_id, open_id in bindings:
@@ -253,8 +147,7 @@ class LiwanInboxChannel(models.Model):
         if not self.env['liwan.entitlement.service']._liwan_may_act_outward():
             return
         channels = self.search([
-            ('kind', '=', 'tiktok'), ('state', 'in', ('connected', 'error')),
-            ('tiktok_business_id', '!=', False), ('tiktok_bound', '=', False),
+            ('kind', '=', 'tiktok'), ('state', 'in', ('connected', 'error')), ('tiktok_bound', '=', False),
         ])
         for channel in channels:
             channel._liwan_tiktok_bind()
@@ -316,8 +209,6 @@ class LiwanInboxChannel(models.Model):
     def _liwan_tiktok_push_welcome(self):
         """Push the welcome record to TikTok's own WELCOME_MESSAGE (D10); LiwanOS never sends that message itself."""
         self.ensure_one()
-        if not self.access_token_enc:
-            return
         credentials = self._liwan_credentials()
         try:
             if not self.welcome_enabled:

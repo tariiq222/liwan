@@ -7,7 +7,7 @@ from odoo.addons.liwan_api.tests.common import set_probe_feature
 
 EXTERNAL = {
     'code': 'test_external', 'owner': 'liwan_integrations_sa', 'auth': 'external', 'secrets': (),
-    'generated_secrets': (), 'attributes': (), 'settings_path': '/settings/apps/test', 'exclusive': False, 'external_id_pattern': None,
+    'generated_secrets': (), 'attributes': (), 'webhook_secrets': (), 'settings_path': '/settings/apps/test', 'exclusive': False, 'external_id_pattern': None,
 }
 
 
@@ -25,6 +25,8 @@ class TestIntegrationRegistry(LiwanIntegrationsCase):
         self.assertEqual(providers['meta']['generated_secrets'], ('verify_token',))
         self.assertEqual(providers['meta']['attributes'], ('app_id',))
         self.assertEqual(providers['tiktok']['secrets'], ())
+        self.assertEqual(providers['meta']['webhook_secrets'], ('app_secret', 'verify_token'))
+        self.assertEqual(providers['tiktok']['webhook_secrets'], ())
 
     def test_a_registered_use_is_listed_and_open_only_with_its_feature(self):
         def test_uses(uses):
@@ -50,6 +52,12 @@ class TestIntegrationRegistry(LiwanIntegrationsCase):
     def test_names_must_be_tuples_of_text(self):
         self.assert_invalid_provider({**EXTERNAL, 'secrets': ['access_token']})
         self.assert_invalid_provider({**EXTERNAL, 'attributes': (1,)})
+
+    def test_webhook_secrets_are_declared_secrets_of_a_stored_provider(self):
+        stored = {**EXTERNAL, 'code': 'test_keys', 'auth': 'keys', 'settings_path': None, 'external_id_pattern': r'\d+', 'secrets': ('key',)}
+        self.assert_invalid_provider({**stored, 'webhook_secrets': ('other',)})
+        self.assert_invalid_provider({**stored, 'webhook_secrets': 'key'})
+        self.assert_invalid_provider({**EXTERNAL, 'webhook_secrets': ('key',)})
 
     def test_an_external_provider_names_a_settings_path_and_stores_nothing(self):
         self.assert_invalid_provider({**EXTERNAL, 'settings_path': None})

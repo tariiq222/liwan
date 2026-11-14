@@ -247,6 +247,10 @@
     "odoo-addons/liwan_integrations_sa/models/connection_oauth.py": {
       "count": 2,
       "reason": "integrations service, the two writes `_liwan_access` can trigger for a consuming application's user who holds read ACL rows only. `stored = self.sudo()` in `_liwan_oauth_refresh` stores a refreshed grant (the two token secrets and the two deadlines); `self.sudo()._liwan_record_state('error', message)` in `_liwan_reconnect_required` records that the authorization is dead. Both are blocked by `access_liwan_integration_connection_manager` and `access_liwan_integration_secret_manager`, which give write only to group_cap_integrations_manage; giving the application's groups write rows would let them replace any secret. The row lock, the checks, the secret reads and the provider call stay in the caller's environment."
+    },
+    "odoo-addons/liwan_integrations_sa/models/connection.py": {
+      "count": 3,
+      "reason": "integrations service webhook accessors, for a provider delivery that has no session: `self.sudo().search(...)` in `_liwan_webhook_accounts` returns the ids, company ids and account ids of the not disabled connections holding the delivered account id; `self.sudo().browse(connection_id).exists()` in `_liwan_webhook_secret` reads one secret of one connection, only a name the provider declares in `webhook_secrets`; `self.sudo().search(...)` in `_liwan_webhook_secrets` reads that secret across the provider's connections for the handshake. All three are blocked by the company record rules `liwan_integration_connection_company_rule` and `liwan_integration_secret_company_rule` and by the liwan_core capability fence, which admit a webhook identity to no company but its own although a delivery names the account before any company is known. Each returns plain data, never an elevated recordset; the provider signature or handshake token checked with these values is the delivery's authentication."
     }
   }
 }

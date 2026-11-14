@@ -125,7 +125,7 @@ class TestCampaignDispatch(CampaignCase):
             template = self.make_template(channel=sibling, category='marketing', body='Hi {{1}}')
             second = self.launched(channel=sibling, template=template, audience=second_audience)
             self.run_campaigns()
-            self.assertEqual(sibling.business_account_id, BUSINESS_ACCOUNT_ID)
+            self.assertEqual(sibling.connection_id.external_id, BUSINESS_ACCOUNT_ID)
             self.assertEqual(len(first.recipient_ids.filtered(lambda row: row.state == 'queued')), 2)
             self.assertEqual(len(second.recipient_ids.filtered(lambda row: row.state == 'queued')), 0)
             self.assertEqual((first.waiting, second.waiting), (False, 'messaging_limit'))

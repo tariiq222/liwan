@@ -16,7 +16,7 @@ class LiwanFinanceIntegrationRegistry(models.AbstractModel):
         return super()._liwan_provider_definitions() + (
             {
                 'code': ZATCA_PROVIDER, 'owner': 'liwan_finance', 'auth': 'external',
-                'secrets': (), 'generated_secrets': (), 'attributes': (), 'settings_path': ZATCA_SETTINGS_PATH,
+                'secrets': (), 'generated_secrets': (), 'attributes': (), 'webhook_secrets': (), 'settings_path': ZATCA_SETTINGS_PATH,
                 'exclusive': False,
             },
         )

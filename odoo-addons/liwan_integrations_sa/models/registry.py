@@ -6,7 +6,7 @@ from odoo.exceptions import ValidationError
 
 from .constants import AUTH_EXTERNAL, AUTH_KEYS, AUTH_OAUTH, AUTH_TYPES, OWNER
 
-TUPLE_FIELDS = ('secrets', 'generated_secrets', 'attributes')
+TUPLE_FIELDS = ('secrets', 'generated_secrets', 'attributes', 'webhook_secrets')
 
 
 def _is_text(value):
@@ -30,12 +30,13 @@ class LiwanIntegrationRegistry(models.AbstractModel):
             {
                 'code': 'meta', 'owner': OWNER, 'auth': AUTH_KEYS,
                 'secrets': ('access_token', 'app_secret'), 'generated_secrets': ('verify_token',),
-                'attributes': ('app_id',), 'settings_path': None, 'exclusive': False,
+                'attributes': ('app_id',), 'webhook_secrets': ('app_secret', 'verify_token'), 'settings_path': None,
+                'exclusive': False,
                 'external_id_pattern': r'\d{5,32}',
             },
             {
                 'code': 'tiktok', 'owner': OWNER, 'auth': AUTH_OAUTH,
-                'secrets': (), 'generated_secrets': (), 'attributes': (), 'settings_path': None,
+                'secrets': (), 'generated_secrets': (), 'attributes': (), 'webhook_secrets': (), 'settings_path': None,
                 # The webhook is routed by the account id alone, so one database holds an account once.
                 'exclusive': True,
                 'external_id_pattern': r'[A-Za-z0-9_-]{1,128}',
@@ -92,7 +93,9 @@ class LiwanIntegrationRegistry(models.AbstractModel):
             raise ValidationError(self.env._(
                 'liwan_integrations: provider %(code)s names a settings path exactly when it is external', code=code,
             ))
-        if external and (item['secrets'] or item['generated_secrets'] or item['attributes']):
+        if not set(item['webhook_secrets']) <= {*item['secrets'], *item['generated_secrets']}:
+            raise ValidationError(self.env._('liwan_integrations: provider %(code)s names a webhook secret it does not store', code=code))
+        if external and (item['secrets'] or item['generated_secrets'] or item['attributes'] or item['webhook_secrets']):
             raise ValidationError(self.env._('liwan_integrations: external provider %(code)s stores nothing here', code=code))
         if item['auth'] == AUTH_OAUTH and (item['secrets'] or item['generated_secrets']):
             raise ValidationError(self.env._('liwan_integrations: oauth provider %(code)s has no typed secrets', code=code))

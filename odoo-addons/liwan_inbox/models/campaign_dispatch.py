@@ -178,9 +178,10 @@ class LiwanInboxCampaignDispatch(models.Model):
     def _liwan_within_tier(self, pending, run):
         """The pending recipients that fit the messaging limit's remaining budget (shared by the channels of one business account)."""
         channel = self.channel_id
-        if channel.business_account_id not in run['used']:
-            run['used'][channel.business_account_id] = channel._liwan_used_addresses()
-        used = run['used'][channel.business_account_id]
+        account_id = channel.connection_id.external_id
+        if account_id not in run['used']:
+            run['used'][account_id] = channel._liwan_used_addresses()
+        used = run['used'][account_id]
         cap = channel._liwan_tier_cap()
         selected = self.env['liwan.inbox.campaign.recipient']
         for recipient in pending:
@@ -282,7 +283,7 @@ class LiwanInboxCampaignDispatch(models.Model):
         problem = self._liwan_template_problem() or self._liwan_params_problem()
         if problem:
             raise ValidationError(problem)
-        if self.channel_id.state != 'connected':
+        if not self.channel_id._liwan_can_send():
             raise ValidationError(self.env._('The channel is not connected.'))
         identity = contact.identity_ids.filtered(lambda row: row.channel_kind == 'whatsapp')[:1]
         if not identity:

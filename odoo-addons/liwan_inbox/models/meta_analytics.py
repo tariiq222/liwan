@@ -139,7 +139,7 @@ class LiwanInboxMetaAnalytics(models.AbstractModel):
         A run cut short by the cron budget continues with the channels that have no reading yet, then the oldest ones;
         a synced channel moves to the end, so the same tail cannot starve on every run.
         """
-        base = [('kind', '=', 'whatsapp'), ('state', '=', 'connected')]
+        base = [('kind', '=', 'whatsapp'), *self.env['liwan.inbox.channel']._liwan_sendable_domain()]
         never = self.env['liwan.inbox.channel'].search(base + [('analytics_synced_at', '=', False)], order='id')
         old = self.env['liwan.inbox.channel'].search(base + [('analytics_synced_at', '!=', False)], order='analytics_synced_at asc, id')
         for channels in (never, old):
@@ -148,7 +148,9 @@ class LiwanInboxMetaAnalytics(models.AbstractModel):
 
     @api.model
     def _liwan_run_requested(self):
-        channels = self.env['liwan.inbox.channel'].search([('analytics_sync_requested', '=', True), ('state', '=', 'connected')])
+        channels = self.env['liwan.inbox.channel'].search([
+            ('analytics_sync_requested', '=', True), *self.env['liwan.inbox.channel']._liwan_sendable_domain(),
+        ])
         process_each(channels, self._liwan_sync, self._liwan_failed)
 
     @api.model

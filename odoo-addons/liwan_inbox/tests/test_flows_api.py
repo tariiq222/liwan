@@ -53,7 +53,7 @@ class TestFlowsApi(FlowCase):
             {'key': 'o1', 'title': 'Checkup', 'description': None}, {'key': 'o2', 'title': 'Dental', 'description': None},
         ])
         self.assertNotIn('sensitive', body['screens'][1]['fields'][3])
-        (payload,) = self.meta.bodies(f'{self.channel.business_account_id}/flows')
+        (payload,) = self.meta.bodies(f'{self.channel.connection_id.external_id}/flows')
         self.assertEqual((payload['name'], payload['categories']), ('Appointment', ['APPOINTMENT_BOOKING']))
         self.assertEqual(json.loads(payload['flow_json'])['version'], '7.3')
         flow = self.stored(body['id'])
@@ -251,7 +251,7 @@ class TestFlowsApi(FlowCase):
         for label, overrides in cases.items():
             result = self.create(**overrides)
             self.assertEqual((label, result.status_code), (label, 422), result.text)
-        self.assertFalse(self.meta.bodies(f'{self.channel.business_account_id}/flows'))
+        self.assertFalse(self.meta.bodies(f'{self.channel.connection_id.external_id}/flows'))
 
     def test_too_many_choices_in_all_are_refused(self):
         screens = [{'title': 'T', 'footer_label': 'Go', 'fields': [
