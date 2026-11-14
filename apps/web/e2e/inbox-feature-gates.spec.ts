@@ -51,16 +51,18 @@ test('forms off: the channel offers no forms entry', async ({ page }) => {
   await expect(page.getByTestId('inbox-channel-flows')).toHaveCount(0)
 })
 
-test('WhatsApp off: no connect button for a new number', async ({ page }) => {
+test('WhatsApp off: the new channel form offers TikTok only, with no number field', async ({ page }) => {
   await signIn(page, 'inbox.whatsapp')
-  await open(page, '/settings/apps/inbox#channels')
-  await expect(page.getByTestId('inbox-channel-connect')).toHaveCount(0)
+  await open(page, '/settings/apps/inbox/channels/new')
+  await expect(page.getByTestId('inbox-tiktok-notice')).toBeVisible()
+  await expect(page.getByTestId('inbox-channel-phone-id')).toHaveCount(0)
 })
 
-test('TikTok off: no TikTok connect entry', async ({ page }) => {
+test('TikTok off: the new channel form offers WhatsApp only, with no TikTok notice', async ({ page }) => {
   await signIn(page, 'inbox.tiktok')
-  await open(page, '/settings/apps/inbox#channels')
-  await expect(page.getByRole('button', { name: 'ربط TikTok' })).toHaveCount(0)
+  await open(page, '/settings/apps/inbox/channels/new')
+  await expect(page.getByTestId('inbox-channel-phone-id')).toBeVisible()
+  await expect(page.getByTestId('inbox-tiktok-notice')).toHaveCount(0)
 })
 
 test('campaigns off: no campaign navigation entry', async ({ page }) => {

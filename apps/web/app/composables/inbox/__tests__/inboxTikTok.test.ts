@@ -20,7 +20,6 @@ vi.stubGlobal('computed', Vue.computed)
 vi.stubGlobal('toValue', Vue.toValue)
 
 const tiktok = await import('../inboxTikTok')
-const last = () => seen.at(-1)!
 
 beforeEach(() => {
   seen.length = 0
@@ -45,10 +44,7 @@ describe('TikTok refusal reasons', () => {
     'inbox_tiktok_auto_message_limit',
     'inbox_tiktok_auto_message_refused',
     'inbox_tiktok_sync_running',
-    'inbox_tiktok_not_configured',
     'inbox_channel_kind_unsupported',
-    'inbox_tiktok_scopes_missing',
-    'inbox_tiktok_account_taken',
   ])('translates the reason %s', (reason) => {
     expect(tiktok.inboxTikTokReasonKey(reason)).toBe(`inbox.tiktokErrors.${reason}`)
   })
@@ -68,23 +64,5 @@ describe('TikTok refusal reasons', () => {
     expect(tiktok.inboxTikTokErrorKey({ status: 422, details: { reason: 'inbox_tiktok_reply_limit' } })).toBe('inbox.tiktokErrors.inbox_tiktok_reply_limit')
     expect(tiktok.inboxTikTokErrorKey(new Error('boom'))).toBeNull()
     expect(tiktok.inboxTikTokErrorKey({ details: { reason: 7 } })).toBeNull()
-  })
-})
-
-describe('connect', () => {
-  it('asks for the authorization URL of a new channel and its department', async () => {
-    tiktok.useConnectInboxTikTok()
-    const body = { name: 'تيك توك المتجر', department_id: 3 }
-    await last().mutationFn!(body as never)
-    const [path, options] = $api.mock.calls.at(-1)!
-    expect(path).toBe('/api/v1/inbox/channels/tiktok/connect')
-    expect(options).toMatchObject({ method: 'POST', body })
-    expect((options as { schema?: unknown }).schema).toBeTruthy()
-  })
-
-  it('reconnects an existing channel by its id', async () => {
-    tiktok.useConnectInboxTikTok()
-    await last().mutationFn!({ channel_id: 9, department_id: null } as never)
-    expect($api.mock.calls.at(-1)![1]).toMatchObject({ method: 'POST', body: { channel_id: 9, department_id: null } })
   })
 })

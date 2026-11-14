@@ -18,7 +18,7 @@ const NOT_INBOX_HOOKS = new Map([
 const DIRECT_PROVIDER_HOOKS = new Map([['/api/v1/inbox/hooks/whatsapp', 'Meta calls the tenant host itself']])
 
 const publicHooks = [...PUBLIC_API_METHODS.keys()].filter(path => !NOT_INBOX_HOOKS.has(path)).sort()
-const odooHooks = Object.values(Object.fromEntries([...read('odoo-addons/liwan_inbox/controllers/channels.py')
+const odooHooks = Object.values(Object.fromEntries([...read('odoo-addons/liwan_inbox/models/constants.py')
   .match(/^HOOK_PATHS = \{(.*)\}$/m)![1]!.matchAll(/'(\w+)': '([^']+)'/g)].map(match => [match[1], match[2]]))) as string[]
 const relayDestination = read('deploy/shared/tiktok-relay.mjs').match(/^const TENANT_WEBHOOK_PATH = '([^']+)'$/m)![1]!
 const relayHeader = read('deploy/shared/tiktok-relay.mjs').match(/^export const SIGNATURE_HEADER = '([^']+)'$/m)![1]!

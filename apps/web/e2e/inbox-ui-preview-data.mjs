@@ -19,25 +19,34 @@ const HOUR = 3_600_000
 const iso = ms => new Date(Math.floor(ms / 1000) * 1000).toISOString().replace('.000Z', 'Z')
 const ago = hours => iso(Date.now() - hours * HOUR)
 
+// The provider accounts the channels run on, as the integrations mock serves them (apps/web/e2e/integrations-mock-routes.mjs;
+// its state is private to that module, so the accounts are repeated here): 1 is the `meta` account (Meta app id 555),
+// 2 the `tiktok` account in `error`. A channel created on another id gets a synthetic account of the kind's provider.
+const ACCOUNTS = () => ({
+  1: { id: 1, provider: 'meta', external_id: '1029384756', label: 'متجر الورد', app_id: '555', state: 'connected', status_message: '' },
+  2: { id: 2, provider: 'tiktok', external_id: 'open-id-77', label: 'liwan.shop', app_id: null, state: 'error', status_message: 'انتهت صلاحية الربط. أعد الربط.' },
+})
+const PROVIDER_OF_KIND = { whatsapp: 'meta', tiktok: 'tiktok' }
+
 function seed() {
   const departments = [
     { id: 1, name: 'الاستقبال', members: [AGENTS[0]] },
     { id: 2, name: 'المبيعات', members: [AGENTS[1]] },
   ]
   const tags = [{ id: 1, name: 'شكوى' }, { id: 2, name: 'حجز' }, { id: 3, name: 'استفسار' }]
+  const accounts = ACCOUNTS()
   const channels = [{
     id: 1, name: 'واتساب الاستقبال', kind: 'whatsapp', state: 'connected', department: { id: 1, name: 'الاستقبال' },
-    phone_number_id: '109876543210987', business_account_id: '203456789012345', has_access_token: true, has_app_secret: true, app_id: '1234567890123',
-    has_verify_token: true, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
+    phone_number_id: '109876543210987', connection: { ...accounts[1] },
     last_error: null, last_event_at: ago(0.2), health: seedHealth(ago),
-    tiktok_username: null, token_expires_at: null, needs_reconnect: false, tiktok_welcome_audit: null, tiktok_questions_enabled: false, tiktok_prompts_enabled: false,
+    needs_reconnect: false, tiktok_welcome_audit: null, tiktok_questions_enabled: false, tiktok_prompts_enabled: false,
   }, {
-    // A connected TikTok account: no phone number, no Meta secret, no handshake token and no number health.
-    id: 2, name: 'تيك توك العيادة', kind: 'tiktok', state: 'connected', department: { id: 2, name: 'المبيعات' },
-    phone_number_id: null, business_account_id: null, has_access_token: true, has_app_secret: null, app_id: null, has_verify_token: null,
-    callback_url: 'https://app.example.test/api/v1/inbox/hooks/tiktok',
+    // A TikTok account whose connection is in `error` (the integrations mock holds it the same way): no phone number and
+    // no number health, and its page links to the account to reconnect it.
+    id: 2, name: 'تيك توك العيادة', kind: 'tiktok', state: 'error', department: { id: 2, name: 'المبيعات' },
+    phone_number_id: null, connection: { ...accounts[2] },
     last_error: null, last_event_at: ago(1.1), health: seedHealth(ago),
-    tiktok_username: 'al_amal_clinic', token_expires_at: iso(Date.now() + 6 * HOUR), needs_reconnect: false,
+    needs_reconnect: true,
     tiktok_welcome_audit: 'approved', tiktok_questions_enabled: true, tiktok_prompts_enabled: true,
   }]
   const contacts = [
@@ -261,6 +270,7 @@ function seed() {
     events: [{ id: 901, channel_id: 1, state: 'failed', attempts: 5, error: 'item 2: RuntimeError', created_at: ago(0.5) }],
     // Number-health timeline and business profile per channel (inbox-reports-preview-data.mjs).
     health: seedChannelExtras(channels.map(item => item.id), ago),
+    accounts,
     ids: { department: 3, tag: 4, canned: 3, channel: 3, template: 9, rule: 3, flow: 4, submission: 2, field: nextFieldId, upload: 100, shortcut: 6, message: () => nextMessageId++ },
     // The TikTok channel's suggested questions and chat prompts, with the audit status TikTok reports.
     tiktokShortcuts: [
@@ -540,8 +550,7 @@ function crud(collection, method, id, body, make) {
 }
 
 function channelRoute(method, parts, body, url) {
-  // The connect route names the kind instead of a channel id: the browser then leaves for the account page.
-  if (method === 'POST' && parts[4] === 'tiktok' && parts[5] === 'connect') return ok({ authorize_url: 'https://auth.example.test/tiktok/authorize?state=mock' })
+  if (method === 'GET' && parts[4] === 'accounts') return channelAccounts(url)
   const id = parts[4] ? Number(parts[4]) : undefined
   const action = parts[5] === 'templates' && parts[6] ? parts[6] : parts[5]
   const channel = state.channels.find(item => item.id === id)
@@ -566,16 +575,50 @@ function channelRoute(method, parts, body, url) {
   }
   if (method === 'POST' && action === 'sync') return ok(list(state.templates))
   const department = value => value ? { id: value, name: state.departments.find(item => item.id === value)?.name ?? '' } : null
+  if (method === 'POST' && id === undefined) return createChannel(body, department)
   return crud('channels', method, id, body, (input, current) => ({
-    id: current?.id ?? state.ids.channel++,
-    name: input.name ?? current.name, kind: 'whatsapp', state: input.state ?? current?.state ?? 'draft',
-    department: 'department_id' in input ? department(input.department_id) : current?.department ?? null,
-    phone_number_id: current?.phone_number_id ?? input.phone_number_id, business_account_id: current?.business_account_id ?? input.business_account_id,
-    has_access_token: current?.has_access_token || !!input.access_token, has_app_secret: current?.has_app_secret || !!input.app_secret,
-    app_id: 'app_id' in input ? input.app_id : current?.app_id ?? null,
-    has_verify_token: true, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
-    last_error: current?.last_error ?? null, last_event_at: current?.last_event_at ?? null, health: current?.health ?? emptyHealth(),
+    ...current,
+    name: input.name ?? current.name, state: input.state ?? current.state,
+    department: 'department_id' in input ? department(input.department_id) : current.department,
   }))
+}
+
+// A channel runs on a connected account of its kind's provider; it holds no credential. WhatsApp names its number.
+function createChannel(input, department) {
+  const kind = input.kind
+  if (!PROVIDER_OF_KIND[kind]) return fail(422, 'invalid', 'kind must be whatsapp or tiktok', 'kind')
+  if (typeof input.name !== 'string' || !input.name.trim()) return fail(422, 'invalid', 'اسم القناة مطلوب', 'name')
+  const account = state.accounts[input.connection_id]
+  if (!Number.isInteger(input.connection_id) || input.connection_id < 1) return fail(422, 'invalid', 'اختر حسابًا مربوطًا', 'connection_id')
+  if (account && account.provider !== PROVIDER_OF_KIND[kind]) return fail(422, 'invalid', 'الحساب ليس من مزوّد هذه القناة', 'connection_id')
+  if (kind === 'whatsapp' && !/^\d{5,32}$/.test(input.phone_number_id ?? '')) return fail(422, 'invalid', 'معرّف رقم الهاتف غير صحيح', 'phone_number_id')
+  if (kind === 'tiktok' && 'phone_number_id' in input) return fail(422, 'invalid', 'قناة TikTok بلا رقم هاتف', 'phone_number_id')
+  const connection = account ?? {
+    id: input.connection_id, provider: PROVIDER_OF_KIND[kind], external_id: `mock-${input.connection_id}`, label: `حساب ${input.connection_id}`,
+    app_id: null, state: 'connected', status_message: '',
+  }
+  const channel = {
+    id: state.ids.channel++, name: input.name.trim(), kind, state: 'connected', department: department(input.department_id ?? null),
+    phone_number_id: kind === 'whatsapp' ? input.phone_number_id : null,
+    connection: { ...connection, state: 'connected', status_message: '' },
+    last_error: null, last_event_at: null, health: emptyHealth(),
+    needs_reconnect: false, tiktok_welcome_audit: null, tiktok_questions_enabled: false, tiktok_prompts_enabled: false,
+  }
+  state.channels.push(channel)
+  return ok(channel)
+}
+
+// The accounts a channel of the kind may run on: the provider's, not disabled. Readable with the channels capability alone.
+function channelAccounts(url) {
+  const kind = url.searchParams.get('kind')
+  if (!PROVIDER_OF_KIND[kind]) return fail(422, 'invalid', 'kind must be whatsapp or tiktok', 'kind')
+  return ok(list(Object.values(state.accounts).filter(account => account.provider === PROVIDER_OF_KIND[kind] && account.state !== 'disabled')))
+}
+
+/** Test hook: set or clear the Meta app id of an account (the integrations page edits it on the real server). */
+export function setInboxConnectionAppId(connectionId, value) {
+  if (state.accounts[connectionId]) state.accounts[connectionId].app_id = value
+  for (const channel of state.channels) if (channel.connection.id === connectionId) channel.connection.app_id = value
 }
 
 // ---------------------------------------------------------------- TikTok (suggested questions, chat prompts, import)
@@ -851,7 +894,7 @@ function templateFromWrite(channel, input, current) {
   if (/forbidden/i.test(input.body)) return { refusal: fail(422, 'invalid', 'Meta: the body contains text that is not allowed.', 'body') }
   let header = null
   if (input.header && ['image', 'video', 'document'].includes(input.header.type)) {
-    if (!channel.app_id) return { refusal: fail(422, 'invalid', 'معرّف تطبيق Meta مطلوب لرفع عينة الرأس', 'app_id') }
+    if (!channel.connection.app_id) return { refusal: fail(422, 'invalid', 'معرّف تطبيق Meta مطلوب لرفع عينة الرأس', 'app_id') }
     const example = state.samples.get(input.header.example_attachment_id)
     if (!example) return { refusal: fail(422, 'invalid', 'ملف العينة غير موجود', 'header') }
     header = { type: input.header.type, example_attachment: example }

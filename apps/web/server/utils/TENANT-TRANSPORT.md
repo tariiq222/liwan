@@ -7,7 +7,7 @@ No guard trust contract changed, no upstream authority registered as a tenant.
 
 One exception: the provider OAuth callback (`CALLBACK_REDIRECT_PATHS`) passes its in-app
 redirect through so the browser follows it after the connection is stored. It must be a
-302/303 whose `location` is a path under `/settings/apps/inbox` or `/settings/integrations`, so an upstream can never
+302/303 whose `location` is a path under `/settings/integrations`, so an upstream can never
 leave this app or open an arbitrary route.
 
 Request headers are allowlisted; response hop-by-hop headers are removed including

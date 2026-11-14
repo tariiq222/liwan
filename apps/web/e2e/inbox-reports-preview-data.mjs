@@ -67,7 +67,7 @@ export function channelHealthRoute(ctx, method, action, parts, url, body, channe
   if (action === 'profile') {
     const profile = extras.profiles.get(channel.id)
     if (method === 'PUT' && parts[6] === 'picture') {
-      if (!channel.app_id) return fail(422, 'invalid', 'يلزم معرّف تطبيق ميتا', 'app_id')
+      if (!channel.connection.app_id) return fail(422, 'invalid', 'يلزم معرّف تطبيق ميتا', 'app_id')
       if (!['image/jpeg', 'image/png'].includes(body.mimetype)) return fail(422, 'invalid', 'يجب أن تكون الصورة JPEG أو PNG', 'mimetype')
       const next = { ...profile, picture_url: PICTURE }
       extras.profiles.set(channel.id, next)
