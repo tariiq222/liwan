@@ -5,7 +5,9 @@
 # pass, and nothing else may come along. The route probe then runs with every feature on, and once per side
 # with the OTHER side's features switched off: an application side's routes keep answering (a shared-service
 # side's routes only must not fail), the switched-off side's routes refuse with feature_not_included (nothing
-# leaks), and the bridge's routes fail with no server error.
+# leaks), and the bridge's routes fail with no server error. A bridge between two shared services has no
+# application to open the routes they gate on registered keys (customers), so with both on only no server error
+# is required of them; the services' own answers are proven by the bridges that carry an application.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 BRIDGE="${1:?usage: odoo-bridge.sh <bridge>}"
@@ -16,8 +18,12 @@ test "${#SIDES[@]}" -eq 2 || { echo "$BRIDGE is not a rank-5 bridge with two sid
 isolation_setup "$BRIDGE"
 isolation_install_and_test "${SIDES[0]},${SIDES[1]}" "/$BRIDGE"
 isolation_check "$BRIDGE"
-LIWAN_PROBE_ANSWER="${SIDES[0]},${SIDES[1]}" LIWAN_PROBE_ALSO_ANSWER="$BRIDGE" \
-  isolation_probe "$BRIDGE with both sides on"
+if [ "$(python3 -B tools/app_isolation.py rank "${SIDES[0]}")" != 4 ] && [ "$(python3 -B tools/app_isolation.py rank "${SIDES[1]}")" != 4 ]; then
+  LIWAN_PROBE_CALM="${SIDES[0]},${SIDES[1]},$BRIDGE" isolation_probe "$BRIDGE: two shared services, no application"
+else
+  LIWAN_PROBE_ANSWER="${SIDES[0]},${SIDES[1]}" LIWAN_PROBE_ALSO_ANSWER="$BRIDGE" \
+    isolation_probe "$BRIDGE with both sides on"
+fi
 for side in 0 1; do
   kept="${SIDES[$side]}"
   off="${SIDES[$((1 - side))]}"
