@@ -7,7 +7,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import {
   MIN_REFUND_MINOR, PaymentError, toBytes,
   type AdapterHeaders, type ChargeTokenInput, type ChargeTokenOutcome, type CreateAttemptInput, type CreateAttemptResult, type CreateIntentInput,
-  type IntentCancelOutcome, type Money, type PaymentAdapter, type PaymentIntent, type PaymentRecord, type ProviderEvent, type ProviderEventStatus,
+  intentStatusAt, type IntentCancelOutcome, type Money, type PaymentAdapter, type PaymentIntent, type PaymentRecord, type ProviderEvent, type ProviderEventStatus,
   type RefundOutcome, type TokenInfo, type TokenStatus, type WebhookVerification,
 } from './payment-adapter.js'
 import { buildAttemptDescription, parseAttemptDescription } from './payment-description.js'
@@ -34,7 +34,8 @@ const PROVIDER_STATUS: Record<ProviderEventStatus, string> = { succeeded: 'paid'
 
 type SimToken = { status: TokenStatus; brand: string; last_four: string; exp_month: number; exp_year: number; funding: string }
 const DEFAULT_CARD = { brand: 'visa', last_four: '4242', exp_month: 12, exp_year: 2030, funding: 'credit' }
-type SimIntent = PaymentIntent & { fulfilled: boolean }
+/** What the simulator holds of an intent: the provider's own statuses only; `expired` is derived from the end time, as the real adapter does. */
+type SimIntent = Omit<PaymentIntent, 'status'> & { status: 'created' | 'fulfilled' | 'canceled'; fulfilled: boolean }
 /** What a scripted card does when the browser fulfils an intent or a saved token is charged. */
 export type SimCardOutcome = { outcome: 'paid' } | { outcome: 'declined'; message: string } | { outcome: 'needs_customer_action' } | { outcome: 'unknown' }
   /** The provider refuses the token (any state), or has already used the `given_id` of an earlier payment (which then exists). */
@@ -252,11 +253,13 @@ export class SimulatorAdapter implements PaymentAdapter {
     if (!intent) throw new PaymentError('not_found', id)
     return intent
   }
-  private publicIntent({ fulfilled: _fulfilled, ...intent }: SimIntent): PaymentIntent { return { ...intent } }
+  private publicIntent({ fulfilled: _fulfilled, ...intent }: SimIntent): PaymentIntent { return { ...intent, status: intentStatusAt(intent.status, intent.expires_at) } }
+  /** Test helper: the intent's hour is over. */
+  expireIntent(intentId: string): void { this.needIntent(intentId).expires_at = new Date(Date.now() - 1000).toISOString() }
   async getIntent(intentId: string): Promise<PaymentIntent> { return this.publicIntent(this.needIntent(intentId)) }
   async cancelIntent(intentId: string): Promise<IntentCancelOutcome> {
     const intent = this.needIntent(intentId)
-    if (intent.status !== 'created') return 'not_cancelable'
+    if (this.publicIntent(intent).status !== 'created') return 'not_cancelable'
     intent.status = 'canceled'
     return 'canceled'
   }
@@ -269,7 +272,7 @@ export class SimulatorAdapter implements PaymentAdapter {
   fulfilIntent(intentId: string, input: FulfilIntentInput): PaymentRecord {
     const intent = this.needIntent(intentId)
     if (input.clientSecret !== intent.client_secret) throw new PaymentError('invalid_client_secret')
-    if (intent.status !== 'created') throw new PaymentError('intent_not_fulfillable', intent.status)
+    if (this.publicIntent(intent).status !== 'created') throw new PaymentError('intent_not_fulfillable', intent.status)
     const card = input.card ?? { outcome: 'paid' }
     if (card.outcome === 'unknown') throw new PaymentError('timeout', 'simulated timeout')
     intent.status = 'fulfilled'

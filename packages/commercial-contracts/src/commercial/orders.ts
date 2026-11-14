@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { moneySchema, revisionIdSchema } from './schemas.js'
 import { CommercialError } from './types.js'
 
-export const paymentStateSchema = z.enum(['not_required', 'awaiting_payment', 'paid', 'failed', 'refund_pending', 'refunded'])
+export const paymentStateSchema = z.enum(['not_required', 'awaiting_payment', 'paid', 'refund_pending', 'refunded'])
 export const fulfillmentStateSchema = z.enum(['not_started', 'queued', 'applying', 'applied', 'failed', 'needs_intervention'])
 export const orderKindSchema = z.enum(['new', 'change', 'renewal', 'branch_add', 'branch_archive', 'branch_restore'])
 
@@ -42,7 +42,6 @@ export type OrderStateInput = {
 export type OrderEvent =
   | { type: 'payment_pending' }
   | { type: 'payment_succeeded' }
-  | { type: 'payment_failed' }
   | { type: 'payment_refunded' }
   | { type: 'order_cancelled' }
   | { type: 'fulfillment_started' }
@@ -71,7 +70,8 @@ const mayFulfil = (p: PaymentState) => p === 'paid' || p === 'not_required'
 
 /**
  * Pure order state machine. Returns the next states or throws CommercialError('invalid_order_transition').
- * Duplicates/late events return `ignored: true` with unchanged states (paid never regresses to pending/failed).
+ * Duplicates/late events return `ignored: true` with unchanged states (paid never regresses to pending).
+ * A declined payment is not an order event: the attempt closes and the order stays `awaiting_payment`, so the customer can pay another way.
  */
 export function nextOrderState(order: OrderStateInput, event: OrderEvent): OrderTransition {
   const cancelled = order.cancelled === true
@@ -85,18 +85,15 @@ export function nextOrderState(order: OrderStateInput, event: OrderEvent): Order
     case 'payment_pending':
       return ignore() // pending never changes state: awaiting stays awaiting, paid stays paid
     case 'payment_succeeded':
-      if (cancelled && (p === 'awaiting_payment' || p === 'failed')) return { ...cur, payment_state: 'refund_pending', reconcile: true }
-      if (p === 'awaiting_payment' || p === 'failed') return { ...cur, payment_state: 'paid', fulfillment_state: f === 'not_started' ? 'queued' : f }
+      if (cancelled && p === 'awaiting_payment') return { ...cur, payment_state: 'refund_pending', reconcile: true }
+      if (p === 'awaiting_payment') return { ...cur, payment_state: 'paid', fulfillment_state: f === 'not_started' ? 'queued' : f }
       return ignore() // paid/not_required/refund_pending/refunded duplicates
-    case 'payment_failed':
-      if (p === 'awaiting_payment') return { ...cur, payment_state: 'failed' }
-      return ignore() // failed only from awaiting_payment; late failure after paid is ignored
     case 'payment_refunded':
       if (p === 'paid' || p === 'refund_pending') return { ...cur, payment_state: 'refunded', reconcile: false }
       return ignore()
     case 'order_cancelled':
       if (cancelled) return ignore()
-      if ((p === 'awaiting_payment' || p === 'failed') && f === 'not_started') return { ...cur, cancelled: true }
+      if (p === 'awaiting_payment' && f === 'not_started') return { ...cur, cancelled: true }
       return bad() // paid/started orders cannot be cancelled here (downgrade/cancel happen at renewal)
     case 'fulfillment_started':
       if (!mayFulfil(p) || cancelled) return bad()

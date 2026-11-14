@@ -6,6 +6,7 @@ import { refusalWords, renewalMayStillBill } from './tenant-deletion-notices.js'
 import type { MailAdapter } from './mail-adapter.js'
 import type { TelegramSender } from './telegram-adapter.js'
 import { WEBHOOK_VERIFICATION_ACTION } from './payment-webhook-verification.js'
+import { REJECTION_SUPPRESSED_ACTION } from './form-payments.js'
 import { completeOutbox, deferOutbox, failOutbox, leaseOutboxRow, releaseOutbox } from './outbox.js'
 
 export const VENDOR_ALERT_KIND = 'vendor.alert'
@@ -48,6 +49,7 @@ const EVENTS = {
   deletion_withdrawn: { title: 'سُحب طلب حذف مساحة عميل', plural: 'طلبات حذف مسحوبة', need: 'none', collapsible: false, todo: 'لا إجراء مطلوب.' },
   deletion_due: { title: 'انتهت مهلة حذف مساحة عميل', plural: 'حذف مساحات مستحق', need: 'yes', collapsible: false, todo: 'لا شيء ينفّذ الحذف تلقائيًا بعد. افتح صفحة العميل وتحقق من الطلب قبل تنفيذه.' },
   webhook_verification: { title: 'مزود الدفع أرسل رمز تسجيل الـwebhook', plural: 'رموز تسجيل webhook', need: 'yes', collapsible: false, todo: 'أدخل الرمز في لوحة مزود الدفع خلال 30 دقيقة. بعد خمس محاولات خاطئة يُقفل التسجيل.' },
+  form_rejection_suppressed: { title: 'سجل رفض دفعات البطاقة توقف لطلب واحد', plural: 'طلبات توقف سجل رفض دفعاتها', need: 'yes', collapsible: false, todo: 'تجاوز طلب واحد حدّ السجل في الساعة فلم تُكتب بقية الرفضات له. افتح صفحة العميل وراجع دفعاته عند مزود الدفع، فقد يكون أحدهم يرسل دفعات بالمفتاح العام.' },
   attention: { title: 'يحتاج انتباهك', plural: 'بنود تحتاج انتباهك', need: 'yes', collapsible: true, todo: 'افتح قائمة الانتباه في لوحة التحكم.' },
 } as const satisfies Record<string, { title: string; plural: string; need: Need; collapsible: boolean; todo: string }>
 export type AlertEvent = keyof typeof EVENTS
@@ -181,6 +183,12 @@ async function factCandidates(pool: Pool, since: Date, now: Date): Promise<Candi
       lines: [`معرّف الـwebhook: ${cleanAlertText(row.webhook_id, 64)}`, `الرمز: ${cleanAlertText(row.code, 6)}`,
         'أدخل الرمز فقط إذا كان معرّف الـwebhook أعلاه هو المعروض لـwebhook الذي سجّلته في لوحة مزود الدفع.',
         ...(row.authenticated === 'true' ? [] : ['الحدث وصل بلا الرمز السري المشترك فلم يُتحقق من مصدره، وهو مقبول لأنك فتحت التسجيل.'])] })
+
+  // The card form's rejection budget of one order was spent: one audit row per order per hour says so, so the log's gap is never silent.
+  for (const row of (await pool.query(`SELECT a.id,a.subject,a.metadata->>'last_reason' AS last_reason FROM audit_events a
+    WHERE a.action='${REJECTION_SUPPRESSED_ACTION}' AND a.created_at >= $1`, [since])).rows)
+    out.push({ key: `audit:${row.id}`, event: 'form_rejection_suppressed', customerId: null, name: 'payment provider', noCustomer: true,
+      lines: [`الطلب: ${cleanAlertText(row.subject, 40)}`, `آخر سبب لم يُكتب: ${cleanAlertText(row.last_reason, 40)}`] })
 
   const notes = `SELECT n.id,n.amount_minor AS total_minor,n.currency,n.exponent,c.id AS customer_id,c.name FROM invoice_adjustments n JOIN customers c ON c.id=n.customer_id
     WHERE n.origin='vendor' AND n.cause='vendor_refund'`

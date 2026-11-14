@@ -129,7 +129,7 @@ describe('customer detail repairs', () => {
     expect(html).not.toContain('NESTED PAGE')
     expect(captured.find(c => c.name === 'SharedRecordPage')?.props['back-to']).toBe('/customers?state=active')
   })
-  it.each([['paid', 'not_started'], ['failed', 'not_started'], ['awaiting_payment', 'queued']])('never offers cancellation for %s/%s', async (payment_state, fulfillment_state) => {
+  it.each([['paid', 'not_started'], ['refund_pending', 'not_started'], ['awaiting_payment', 'queued']])('never offers cancellation for %s/%s', async (payment_state, fulfillment_state) => {
     const p = await page('customers/[id].vue', { tab: 'subscription', subscription: { ...subscription, pending_order: { ...order, payment_state, fulfillment_state } } })
     expect((await p.rendered()).html).not.toContain('vendor.customers.cancelOrder.action')
   })

@@ -987,8 +987,7 @@
         "not_required": "No payment required",
         "awaiting_payment": "Awaiting payment",
         "paid": "Paid",
-        "failed": "Payment failed",
-        "refund_pending": "Refund pending",
+                "refund_pending": "Refund pending",
         "refunded": "Refunded"
       },
       "fulfillment": {

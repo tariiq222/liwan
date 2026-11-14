@@ -9,7 +9,7 @@ const statesSql = `WITH customer_states AS (
   SELECT c.*, CASE
     WHEN c.commercial_setup_required OR s.id IS NULL THEN 'setup_required'
     WHEN o.fulfillment_state IN ('failed','needs_intervention') THEN 'failed'
-    WHEN o.payment_state IN ('awaiting_payment','failed') THEN 'awaiting_payment'
+    WHEN o.payment_state='awaiting_payment' THEN 'awaiting_payment'
     WHEN o.payment_state IN ('refund_pending','refunded') THEN 'failed'
     WHEN o.id IS NOT NULL THEN 'activating'
     WHEN s.state IN ('suspended','cancelled') THEN 'inactive'

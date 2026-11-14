@@ -66,13 +66,13 @@ suite('schema_058 carries a database that ran schema_001..057', () => {
   })
 
   it('schema_061 keeps a card from being saved without its consent record and an intent from sitting on a non-form attempt', async () => {
-    await expect(pool.query("UPDATE payment_attempts SET save_card=true WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_save_card_consent_check' })
-    await expect(pool.query("UPDATE payment_attempts SET save_card=true,consent_at=now(),consent_text_version='' WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_save_card_consent_check' })
+    await expect(pool.query("UPDATE payment_attempts SET save_card=true,opened_by='7' WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_save_card_consent_check' })
+    await expect(pool.query("UPDATE payment_attempts SET save_card=true,opened_by='7',consent_at=now(),consent_text_version='' WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_save_card_consent_check' })
     await expect(pool.query("UPDATE payment_attempts SET provider_intent_ref='intent_1' WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_intent_form_check' })
     expect((await pool.query('SELECT save_card FROM payment_attempts WHERE id=$1', [ids.direct])).rows[0]).toEqual({ save_card: false })
-    await pool.query("UPDATE payment_attempts SET kind='form',provider_intent_ref='intent_1',save_card=true,consent_at=now(),consent_text_version='v1' WHERE id=$1", [ids.direct])
+    await pool.query("UPDATE payment_attempts SET kind='form',provider_intent_ref='intent_1',save_card=true,opened_by='7',consent_at=now(),consent_text_version='v1' WHERE id=$1", [ids.direct])
     await expect(pool.query("UPDATE payment_attempts SET provider_intent_ref='intent_1' WHERE id=$1", [ids.hosted])).rejects.toBeTruthy()
-    await pool.query("UPDATE payment_attempts SET kind='saved_card',provider_intent_ref=NULL,save_card=false,consent_at=NULL,consent_text_version=NULL WHERE id=$1", [ids.direct])
+    await pool.query("UPDATE payment_attempts SET kind='saved_card',provider_intent_ref=NULL,save_card=false,opened_by=NULL,consent_at=NULL,consent_text_version=NULL WHERE id=$1", [ids.direct])
   })
 
   it('schema_062 keeps the callback secret with its intent, and lets only a removed card have no token', async () => {

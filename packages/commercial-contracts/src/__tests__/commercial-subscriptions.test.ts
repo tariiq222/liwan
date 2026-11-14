@@ -26,7 +26,6 @@ describe('subscription view + display state', () => {
     expect(subscriptionDisplayState(view({ pending_order: order('paid', 'applying') }))).toBe('activating')
     expect(subscriptionDisplayState(view({ pending_order: order('paid', 'applied') }))).toBe('activating')
     expect(subscriptionDisplayState(view({ pending_order: order('paid', 'needs_intervention') }))).toBe('failed')
-    expect(subscriptionDisplayState(view({ pending_order: order('failed', 'not_started') }))).toBe('awaiting_payment')
     expect(subscriptionDisplayState(view({ pending_order: order('paid', 'queued'), state: 'active', applied: rev as never }))).toBe('activating')
   })
   it('active only with applied revision', () => {

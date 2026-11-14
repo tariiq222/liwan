@@ -78,8 +78,9 @@ describe('customer invoice extras', () => {
 import { formPaymentSessionSchema, paymentAttemptRequestSchema } from '../commercial/billing.js'
 
 describe('payment attempt request', () => {
-  it('defaults to the hosted invoice and keeps no card', () => {
-    expect(paymentAttemptRequestSchema.parse({})).toEqual({ method: 'hosted_invoice', save_card: false })
+  it('defaults to the card form and keeps no card', () => {
+    expect(paymentAttemptRequestSchema.parse({})).toEqual({ method: 'form', save_card: false })
+    expect(paymentAttemptRequestSchema.parse({ method: 'hosted_invoice' })).toEqual({ method: 'hosted_invoice', save_card: false })
     expect(paymentAttemptRequestSchema.parse({ method: 'form' })).toEqual({ method: 'form', save_card: false })
   })
   it('saving the card needs the form and the consent text version', () => {

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { TENANT_DELETION_WINDOW_DAYS, type Principal } from '@liwan/commercial-contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
-import { client, money, monthly, setup, url } from './commercial-helpers.js'
+import { client, money, monthly, seedPaymentMethod, setup, url } from './commercial-helpers.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { acceptQuoteOn } from '../commercial/orders.js'
 import { createPaymentAttempt, handleProviderEvent } from '../commercial/payments.js'
@@ -128,6 +128,19 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
     routesB(pool, { method, pathname: `/v1/commercial${path.split('?')[0]}`, raw: body === undefined ? '' : JSON.stringify(body), issuer: 'del-test', actor: 7,
       capabilities: ['vendor.read', 'vendor.subscriptions.manage'], stepUpFresh: true, clientAddress: '198.51.100.4', ...extra } as never, new URL(`http://x/v1/commercial${path}`))
     .then(r => r as { status: number; data: any } | null, (e: any) => ({ status: e.status as number, data: { code: e.code as string } }))
+
+  it('turns automatic renewal off when the deletion is confirmed, keeps the card, and writes the audit event', async () => {
+    const f = await paidCustomer()
+    const cardId = await seedPaymentMethod(pool, f.customer, `tok_${randomUUID()}`)
+    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=now(),revision=revision+1 WHERE customer_id=$1', [f.customer])
+    await confirmed(f)
+    expect((await pool.query('SELECT auto_renew_enabled FROM subscriptions WHERE customer_id=$1', [f.customer])).rows[0].auto_renew_enabled).toBe(false)
+    expect((await pool.query('SELECT status,is_default FROM payment_methods WHERE id=$1', [cardId])).rows[0]).toEqual({ status: 'active', is_default: true })
+    expect(await audits(f.subscription, 'auto_renew.disabled')).toEqual([expect.objectContaining({ actor: '7', reason: expect.stringContaining('Workspace deletion confirmed') })])
+    // Withdrawing the deletion does not switch it back on: the customer decides that.
+    await withdrawDeletion(pool, { ...who, customer_id: f.customer, by: 'customer', reason: null })
+    expect((await pool.query('SELECT auto_renew_enabled FROM subscriptions WHERE customer_id=$1', [f.customer])).rows[0].auto_renew_enabled).toBe(false)
+  })
 
   it('sends the code only to the address on record, keeps only its hash, and confirms with the exact company name', async () => {
     const f = await paidCustomer()
@@ -261,7 +274,7 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
 
   it('opens no new paid period for a tenant whose deletion is confirmed, and says plainly when the renewal could not be stopped', async () => {
     const renewalDay = async (f: { subscription: string }) => (await pool.query('SELECT renewal_at::text AS on FROM subscriptions WHERE id=$1', [f.subscription])).rows[0].on as string
-    const generate = (day: string) => generateRenewals(pool, { now: new Date(`${day}T09:00:00Z`), adapter, returnOrigin: origin })
+    const generate = (day: string) => generateRenewals(pool, { now: new Date(`${day}T09:00:00Z`), returnOrigin: origin })
     const renewalsOf = async (f: { subscription: string }) => (await pool.query("SELECT count(*)::int AS n FROM renewals WHERE subscription_id=$1 AND status<>'superseded'", [f.subscription])).rows[0].n
     // A past-due tenant cannot have its renewal cancelled: the deletion is accepted, the renewal still is not generated.
     const blocked = await paidCustomer()

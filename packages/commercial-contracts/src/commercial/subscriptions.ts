@@ -93,7 +93,7 @@ export function subscriptionDisplayState(view: DisplayInput): SubscriptionDispla
   const o: Order | null = view.pending_order
   if (o) {
     if (o.fulfillment_state === 'failed' || o.fulfillment_state === 'needs_intervention') return 'failed'
-    if (o.payment_state === 'awaiting_payment' || o.payment_state === 'failed') return 'awaiting_payment'
+    if (o.payment_state === 'awaiting_payment') return 'awaiting_payment'
     if (o.payment_state === 'refund_pending' || o.payment_state === 'refunded') return 'failed'
     // paid / not_required but fulfillment not confirmed (incl. 'applied' not yet reflected in applied revision)
     return 'activating'

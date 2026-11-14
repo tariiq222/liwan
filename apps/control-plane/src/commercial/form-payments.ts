@@ -23,10 +23,19 @@ export const TOKEN_DELETE_KIND = 'payment_token.delete'
 /** A token the provider keeps refusing to delete is given up on after this many tries or this long, and left to the operator. */
 const TOKEN_DELETE_MAX_ATTEMPTS = 12
 const TOKEN_DELETE_MAX_AGE_HOURS = 24
-/** A rejected payment id is answered from the audit log, without asking the provider again, for this long. */
+/** A payment id rejected for a permanent reason is answered from the audit log, without asking the provider again, for this long. */
 const REJECTION_MEMORY_MINUTES = 5
-/** More webhook rejections than this in an hour are shed without a provider call or an audit row. */
-const REJECTION_HOURLY_BUDGET = 200
+/**
+ * A budget never gates a provider read or a settlement; it only keeps one subject from filling the audit log. Money-relevant rejections
+ * are counted per order (or attempt, or payment when neither is known) per hour; the trivial `bad_shape` ones have a budget of their own, so
+ * they can never use up the one that records money.
+ */
+const REJECTION_SUBJECT_HOURLY_BUDGET = 20
+const TRIVIAL_REJECTION_HOURLY_BUDGET = 200
+/** One row per subject per hour says a rejection was not written, so the operator knows the log is incomplete for it (and raises a vendor alert). */
+export const REJECTION_SUPPRESSED_ACTION = 'payment.form_rejection_suppressed'
+/** A card that was refunded in full without any attempt having claimed it: the fact that clears its attention item. */
+export const FORM_PAYMENT_REFUNDED_ACTION = 'payment.form_payment_refunded'
 const CALLBACK_SECRET_PARAM = 'k'
 
 /** What a payment id from a browser may look like: an opaque provider id, never a place for anything else. */
@@ -36,9 +45,14 @@ export const isPaymentHint = (value: unknown): value is string => typeof value =
 export type FormRejection =
   | 'bad_shape' | 'payment_not_found' | 'description_unrecognized' | 'attempt_unknown' | 'attempt_mismatch' | 'not_form_attempt' | 'mode_mismatch'
   | 'amount_mismatch' | 'intent_missing' | 'intent_not_fulfilled' | 'callback_mismatch' | 'payment_bound_elsewhere' | 'attempt_has_other_payment'
-  | 'settlement_mismatch' | 'refunded_unclaimed' | 'rate_limited'
+  | 'settlement_mismatch' | 'refunded_unclaimed' | 'rate_limited' | 'intent_closed'
 export type FormSource = 'hint' | 'webhook'
 const REJECTION_ACTION: Record<FormSource, string> = { hint: 'payment.form_hint_rejected', webhook: 'payment.form_payment_rejected' }
+
+/** Thrown inside the settlement transaction to roll it back; the caller turns it into the refusal it names. */
+class SettlementRefused extends Error {
+  constructor(readonly reason: FormRejection) { super(reason) }
+}
 
 const logCode = (error: unknown) => (error as { code?: string } | null)?.code ?? (error as Error | null)?.constructor?.name ?? 'error'
 
@@ -56,30 +70,54 @@ export function callbackWithSecret(attemptUrl: string, secret: string): string {
 }
 
 /**
+ * Reasons that can change by themselves: the webhook of a payment can arrive before its intent reads as fulfilled, or before the
+ * payment can be read at all. They are answered so that the provider retries, and nothing is written or remembered for them.
+ */
+const TRANSIENT_REJECTIONS: ReadonlySet<FormRejection> = new Set(['intent_not_fulfilled', 'payment_not_found'])
+/** What a payment id that no one can mean (not an id at all) costs: a row of its own kind, outside the money budget. */
+const TRIVIAL_REJECTIONS: ReadonlySet<FormRejection> = new Set(['bad_shape'])
+
+/**
  * A payment that could not be tied to its attempt changes nothing. The audit event names the attempt, the order and the payment so the
  * operator can find money that arrived and settled nothing; `form_hint_rejected` is the browser's hint, `form_payment_rejected` a payment
- * the provider itself reported. A repeat (same action, payment and reason) adds no row, and the webhook source stops adding rows at an
- * hourly budget. No untrusted text goes into the row: only the reason code and ids of a bounded shape.
+ * the provider itself reported. A repeat (same action, payment, reason and attempt) adds no row. Only permanent reasons are written (see
+ * `TRANSIENT_REJECTIONS`); a subject (an order) that has used its hourly budget gets no more rows that hour, and one `form_rejection_suppressed`
+ * row says so. No untrusted text goes into the row: only the reason code and ids of a bounded shape.
  */
 export async function rejectFormPayment(db: Queryable, source: FormSource, reason: FormRejection, ids: { attempt_id?: string; order_id?: string; payment_id?: string }) {
+  const result = { outcome: 'rejected' as const, reason }
+  if (TRANSIENT_REJECTIONS.has(reason)) return result
   const paymentId = ids.payment_id && PAYMENT_HINT.test(ids.payment_id) ? ids.payment_id : null
   const action = REJECTION_ACTION[source]
-  await db.query(`INSERT INTO audit_events(id,actor,action,subject,reason,metadata)
+  const subject = ids.order_id ?? ids.attempt_id ?? 'unattributed'
+  const trivial = TRIVIAL_REJECTIONS.has(reason)
+  const written = await db.query(`INSERT INTO audit_events(id,actor,action,subject,reason,metadata)
     SELECT $1,'system',$2,$3,$4,$5::jsonb
     WHERE NOT EXISTS (SELECT 1 FROM audit_events WHERE action=$2 AND metadata->>'payment_id' IS NOT DISTINCT FROM $6 AND metadata->>'reason'=$7 AND metadata->>'attempt_id' IS NOT DISTINCT FROM $8)
-      AND (SELECT count(*) FROM audit_events WHERE action=$2 AND created_at > now() - interval '1 hour') < $9`,
-  [randomUUID(), action, ids.order_id ?? ids.attempt_id ?? paymentId ?? 'unknown', `Card form payment not accepted: ${reason}`,
-    JSON.stringify({ reason, attempt_id: ids.attempt_id ?? null, payment_id: paymentId }), paymentId, reason, ids.attempt_id ?? null, REJECTION_HOURLY_BUDGET])
-  return { outcome: 'rejected' as const, reason }
+      AND (SELECT count(*) FROM audit_events WHERE action=$2 AND created_at > now() - interval '1 hour'
+        AND (metadata->>'reason' = ANY($10::text[])) = $11 AND ($11 OR subject=$3)) < $9
+    RETURNING id`,
+  [randomUUID(), action, subject, `Card form payment not accepted: ${reason}`,
+    JSON.stringify({ reason, attempt_id: ids.attempt_id ?? null, payment_id: paymentId }), paymentId, reason, ids.attempt_id ?? null,
+    trivial ? TRIVIAL_REJECTION_HOURLY_BUDGET : REJECTION_SUBJECT_HOURLY_BUDGET, [...TRIVIAL_REJECTIONS], trivial])
+  if (!written.rowCount && !(await alreadyRejected(db, action, paymentId, reason, ids.attempt_id ?? null)) && !trivial) {
+    await db.query(`INSERT INTO audit_events(id,actor,action,subject,reason,metadata)
+      SELECT $1,'system',$2,$3,'Card form rejections of this order are no longer written this hour',$4::jsonb
+      WHERE NOT EXISTS (SELECT 1 FROM audit_events WHERE action=$2 AND subject=$3 AND created_at > now() - interval '1 hour')`,
+    [randomUUID(), REJECTION_SUPPRESSED_ACTION, subject, JSON.stringify({ source, last_reason: reason })])
+  }
+  return result
 }
 
-/** True when this payment id was rejected a moment ago, or the source has spent its hourly budget: the provider is not asked again. */
+const alreadyRejected = async (db: Queryable, action: string, paymentId: string | null, reason: string, attemptId: string | null) =>
+  (await db.query(`SELECT 1 FROM audit_events WHERE action=$1 AND metadata->>'payment_id' IS NOT DISTINCT FROM $2 AND metadata->>'reason'=$3 AND metadata->>'attempt_id' IS NOT DISTINCT FROM $4`,
+    [action, paymentId, reason, attemptId])).rowCount
+
+/** True when this payment id was rejected a moment ago for a permanent reason: the provider is not asked again. Nothing here depends on how many other payments were rejected. */
 async function rejectionMemory(db: Queryable, source: FormSource, paymentId: string): Promise<boolean> {
-  const action = REJECTION_ACTION[source]
-  const remembered = await db.query(`SELECT 1 FROM audit_events WHERE action=$1 AND metadata->>'payment_id'=$2 AND created_at > now() - make_interval(mins => $3) LIMIT 1`, [action, paymentId, REJECTION_MEMORY_MINUTES])
-  if (remembered.rowCount) return true
-  if (source !== 'webhook') return false
-  return Number((await db.query("SELECT count(*) AS n FROM audit_events WHERE action=$1 AND created_at > now() - interval '1 hour'", [action])).rows[0].n) >= REJECTION_HOURLY_BUDGET
+  const remembered = await db.query(`SELECT 1 FROM audit_events WHERE action=$1 AND metadata->>'payment_id'=$2 AND created_at > now() - make_interval(mins => $3) LIMIT 1`,
+    [REJECTION_ACTION[source], paymentId, REJECTION_MEMORY_MINUTES])
+  return (remembered.rowCount ?? 0) > 0
 }
 
 /** The callback URL a payment must carry: the one the provider locked into this attempt's current intent, which holds this attempt's current secret. */
@@ -114,6 +152,8 @@ export async function checkFormPayment(db: Queryable, adapter: PaymentAdapter, a
   const intent = await readIntent(adapter, attempt.provider_intent_ref)
   if (!intent) return 'intent_missing'
   if (!same(intent.amount)) return 'amount_mismatch'
+  // `created` (or a status nobody recognises) may still become fulfilled, so that is transient; a cancelled or expired intent never will.
+  if (intent.status === 'canceled' || intent.status === 'expired') return 'intent_closed'
   if (intent.status !== 'fulfilled') return 'intent_not_fulfilled'
   if (!callbackMatches(record.callback_url, intent.callback_url, attempt)) return 'callback_mismatch'
   const elsewhere = await db.query('SELECT 1 FROM payment_attempts WHERE provider=$1 AND provider_ref=$2 AND id<>$3', [attempt.provider, record.payment_id, attempt.id])
@@ -175,9 +215,9 @@ async function saveCard(client: PoolClient, order: Row, attempt: Row, card: Extr
       { customer_id: order.customer_id, payment_method_id: previous.id, card: { brand: previous.brand, last_four: previous.last_four } })
   }
   const saved = await client.query(`INSERT INTO payment_methods(id,customer_id,provider,mode,provider_token,brand,last_four,exp_month,exp_year,funding,status,is_default,
-      consent_at,consent_text_version,source_attempt_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'active',true,$11,$12,$13,'customer')
+      consent_at,consent_text_version,source_attempt_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'active',true,$11,$12,$13,$14)
       ON CONFLICT ON CONSTRAINT payment_methods_token_unique DO NOTHING RETURNING id`,
-  [randomUUID(), order.customer_id, attempt.provider, attempt.mode, card.token, card.brand, card.last_four, card.exp_month, card.exp_year, card.funding, attempt.consent_at, attempt.consent_text_version, attempt.id])
+  [randomUUID(), order.customer_id, attempt.provider, attempt.mode, card.token, card.brand, card.last_four, card.exp_month, card.exp_year, card.funding, attempt.consent_at, attempt.consent_text_version, attempt.id, attempt.opened_by])
   if (!saved.rowCount) return 'token_already_saved'
   await writeAudit(client, 'payment_method.saved', order.customer_id, 'Card saved from a card form payment',
     { payment_method_id: saved.rows[0].id, attempt_id: attempt.id, brand: card.brand, last_four: card.last_four })
@@ -223,10 +263,10 @@ export async function applyCardDecision(client: PoolClient, order: Row, attempt:
   }
 }
 
-/** The plan flag that lets a customer keep a card for renewal: read from the plan the order's target revision was sold under. */
-export async function assertAutoRenewAllowed(client: Queryable, order: Row) {
+/** The plan flag that lets a customer keep a card for renewal: read from the plan a subscription revision was sold under. */
+export async function assertAutoRenewAllowed(client: Queryable, revisionId: string) {
   const plan = (await client.query(`SELECT p.auto_renew_allowed FROM subscription_revisions r
-    JOIN plan_revisions p ON p.id::text = r.snapshot->>'plan_revision_id' WHERE r.id=$1`, [order.target_revision_id])).rows[0]
+    JOIN plan_revisions p ON p.id::text = r.snapshot->>'plan_revision_id' WHERE r.id=$1`, [revisionId])).rows[0]
   if (!plan?.auto_renew_allowed) throw new CommercialHttpError('auto_renew_not_allowed', 409)
 }
 
@@ -259,7 +299,12 @@ export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, in
     // A payment nobody claimed that was refunded in full has returned its money and owes nothing. One refunded in part still holds money the
     // control plane has no order for, so it is audited like any other unmatched payment.
     const kept = record.amount.minor - (record.refunded?.minor ?? record.amount.minor)
-    if (kept <= 0) return { outcome: 'not_paid', status: record.status }
+    if (kept <= 0) {
+      // The money is back: the fact that ends any attention item for this payment (an earlier rejection of it needed the operator).
+      await pool.query(`INSERT INTO audit_events(id,actor,action,subject,reason,metadata) SELECT $1,'system',$2,$3,'Card form payment refunded in full',$4::jsonb
+        WHERE NOT EXISTS (SELECT 1 FROM audit_events WHERE action=$2 AND metadata->>'payment_id'=$3)`, [randomUUID(), FORM_PAYMENT_REFUNDED_ACTION, input.payment_id, JSON.stringify({ payment_id: input.payment_id })])
+      return { outcome: 'not_paid', status: record.status }
+    }
     const owner = record.attempt_id ? (await pool.query('SELECT id,order_id FROM payment_attempts WHERE id=$1', [record.attempt_id])).rows[0] : undefined
     return reject('refunded_unclaimed', { attempt_id: owner?.id, order_id: owner?.order_id })
   }
@@ -275,19 +320,23 @@ export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, in
   if (reason) return refuse(reason, { attempt_id: attempt.id, order_id: attempt.order_id })
   if (record.status === 'failed') return recordDecline(pool, attempt, record)
   const plan = await planCard(adapter, attempt, record)
+  // One lock order everywhere: customer, subscription, order, attempt (`lockOrder` and fulfilment take them so). A card may be saved
+  // only for this order's customer, who is read first because it never changes.
+  const owner = plan.kind === 'save' ? (await pool.query('SELECT customer_id FROM orders WHERE id=$1', [attempt.order_id])).rows[0]?.customer_id as string | undefined : undefined
   let result: FormResolution | { outcome: 'refused'; reason: FormRejection }
   try {
     result = await transaction(pool, async client => {
+      if (owner) await client.query('SELECT id FROM customers WHERE id=$1 FOR UPDATE', [owner])
       const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [attempt.order_id])).rows[0]
       const current = (await client.query('SELECT * FROM payment_attempts WHERE id=$1 FOR UPDATE', [attempt.id])).rows[0]
-      if (plan.kind === 'save') await client.query('SELECT id FROM customers WHERE id=$1 FOR UPDATE', [order.customer_id])
       if (current.provider_ref === record.payment_id) return { outcome: 'ignored' as const }
       if (current.provider_ref) return { outcome: 'refused' as const, reason: 'attempt_has_other_payment' as const }
       await client.query('UPDATE payment_attempts SET provider_ref=$2,updated_at=now() WHERE id=$1', [current.id, record.payment_id])
       const target = { ...current, provider_ref: record.payment_id }
       const event = formPaymentEvent(adapter, record, target.id, input.event_id)
       const outcome = await input.settle(client, event)
-      if (outcome === 'rejected') return { outcome: 'refused' as const, reason: 'settlement_mismatch' as const }
+      // The binding and the settlement are one: a refusal rolls the binding back, so a payment that settled nothing is bound to nothing.
+      if (outcome === 'rejected') throw new SettlementRefused('settlement_mismatch')
       const after = (await client.query('SELECT payment_state,paid_attempt_id FROM orders WHERE id=$1', [order.id])).rows[0]
       const keep = outcome === 'accepted' && after.paid_attempt_id === target.id && after.payment_state === 'paid'
       const decision = decideCard(plan, keep)
@@ -295,8 +344,9 @@ export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, in
       return { outcome: outcome === 'accepted' ? 'settled' as const : 'ignored' as const }
     })
   } catch (error) {
+    if (error instanceof SettlementRefused) result = { outcome: 'refused', reason: error.reason }
     // Another settlement took this payment id between the check and the update: the same refusal, typed.
-    if ((error as { code?: string }).code === '23505' && (error as { constraint?: string }).constraint === 'payment_attempts_provider_ref') result = { outcome: 'refused', reason: 'payment_bound_elsewhere' }
+    else if ((error as { code?: string }).code === '23505' && (error as { constraint?: string }).constraint === 'payment_attempts_provider_ref') result = { outcome: 'refused', reason: 'payment_bound_elsewhere' }
     else throw error
   }
   if (result.outcome === 'refused') return reject(result.reason, { attempt_id: attempt.id, order_id: attempt.order_id })
@@ -342,9 +392,10 @@ export function intentUsable(intent: PaymentIntent): boolean {
 /**
  * An intent that was fulfilled (or is in a state nobody recognises) may hold a payment, paid or still being authenticated, that nothing can
  * look up from the attempt alone. Only a decline the provider reported for this intent's payment (`declined_payment_ref`) says it does not.
+ * One that was never fulfilled holds none: cancelled, or expired (`created` past its end, as the adapter reports it).
  */
 export function intentMayHoldPayment(row: Row, intent: PaymentIntent | null): boolean {
-  return !!intent && intent.status !== 'created' && intent.status !== 'canceled' && !row.declined_payment_ref
+  return !!intent && intent.status !== 'created' && intent.status !== 'canceled' && intent.status !== 'expired' && !row.declined_payment_ref
 }
 
 export async function readIntent(adapter: PaymentAdapter, ref: string | null): Promise<PaymentIntent | null> {

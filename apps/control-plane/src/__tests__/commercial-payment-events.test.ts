@@ -286,13 +286,16 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
     expect(await counts(f.order_id)).toEqual({payments:1,outbox:1})
   })
-  it('a declined attempt fails the order and refuses a new attempt, but a late success is still honoured',async () => {
+  it('a declined attempt closes it and leaves the order payable: a new attempt opens, and a late success of the first is still honoured',async () => {
     const f=await fixture(),first=await createPaymentAttempt(pool,f.input)
     f.adapter.settle(first.provider_ref,'failed')
     expect(await deliver(f.adapter,f.adapter.webhookBody(first.provider_ref))).toEqual({status:200,outcome:'accepted'})
-    expect(await state(f.order_id)).toMatchObject({payment_state:'failed'})
+    expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[first.id])).rows[0].status).toBe('failed')
-    await expect(createPaymentAttempt(pool,f.input)).rejects.toMatchObject({status:409,code:'payment_not_awaiting'})
+    const second=await createPaymentAttempt(pool,f.input)
+    expect(second.id).not.toBe(first.id)
+    // A repeated decline event changes nothing.
+    expect(await deliver(f.adapter,f.adapter.webhookBody(first.provider_ref))).toEqual({status:200,outcome:'duplicate'})
   })
   it('paid after cancellation requires refund rather than fulfillment',async () => {
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)

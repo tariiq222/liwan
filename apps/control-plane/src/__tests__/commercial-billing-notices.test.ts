@@ -9,6 +9,8 @@ import { generateRenewals, applyDunning } from '../commercial/renewals.js'
 import { verifyReturnedAttempt } from '../commercial/payments.js'
 import { daysText, sendBillingNotices, billingNotice } from '../commercial/billing-notices.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { riyadhDate } from '@liwan/commercial-contracts'
+import { chargeSavedCards } from '../commercial/saved-card-charges.js'
 
 const suite = url ? describe : describe.skip
 suite('live PostgreSQL billing notices', () => {
@@ -81,18 +83,18 @@ suite('live PostgreSQL billing notices', () => {
   it('reads the day count correctly in Arabic and English', () => {
     expect([1, 2, 3, 10, 11, 30].map(n => daysText(n, 'ar'))).toEqual(['يوم واحد', 'يومان', '3 أيام', '10 أيام', '11 يومًا', '30 يومًا'])
     expect([1, 2, 7].map(n => daysText(n, 'en'))).toEqual(['1 day', '2 days', '7 days'])
-    const text = billingNotice({ type: 'renewal_upcoming', subscription_id: randomUUID(), renewal_on: '2026-10-03' }, 1, true, null).text
+    const text = billingNotice({ type: 'renewal_upcoming', subscription_id: randomUUID(), renewal_on: '2026-10-03' }, 1).text
     expect(text).toContain('(المتبقي يوم واحد)')
     expect(text).toContain('(1 day left)')
     expect(text).not.toContain('Your workspace')
-    expect(billingNotice({ type: 'payment_received', subscription_id: randomUUID() }, 0, true, 'https://t1.liwan.test').text).toContain('Your workspace: https://t1.liwan.test')
+    expect(billingNotice({ type: 'payment_received', subscription_id: randomUUID() }, 0, { origin: 'https://t1.liwan.test' }).text).toContain('Your workspace: https://t1.liwan.test')
   })
   it('says a suspended workspace is read-only until payment, in both languages', () => {
-    const text = billingNotice({ type: 'suspended', subscription_id: randomUUID(), grace_ends_on: '2026-10-05' }, 0, true, null).text
+    const text = billingNotice({ type: 'suspended', subscription_id: randomUUID(), grace_ends_on: '2026-10-05' }, 0).text
     expect(text).toContain('للقراءة والتصدير فقط')
     expect(text).toContain('your workspace is read-only')
     for (const notice of [{ type: 'suspension_warning', subscription_id: randomUUID(), grace_ends_on: '2026-10-05' }, { type: 'overdue', subscription_id: randomUUID(), grace_ends_on: '2026-10-05' }] as const) {
-      const warning = billingNotice(notice, 2, true, null).text
+      const warning = billingNotice(notice, 2).text
       expect(warning).toContain('للقراءة والتصدير فقط')
       expect(warning).toContain('read-only')
     }
@@ -120,7 +122,7 @@ suite('live PostgreSQL billing notices', () => {
   })
   it('queues overdue and suspended notices in the dunning transaction and warns before suspension', async () => {
     const s = await subscription('2026-10-01')
-    await generateRenewals(pool, { now, adapter: new SimulatorAdapter(), returnOrigin })
+    await generateRenewals(pool, { now, returnOrigin })
     const due = new Date((await pool.query('SELECT max(due_at) AS at FROM invoices WHERE subscription_id=$1', [s.id])).rows[0].at)
     const pastDue = new Date(due.getTime() + 1000)
     await applyDunning(pool, { now: pastDue })
@@ -144,7 +146,7 @@ suite('live PostgreSQL billing notices', () => {
   })
   it('does not send overdue or suspended notices once the invoice is paid', async () => {
     const s = await subscription('2026-10-01')
-    await generateRenewals(pool, { now, adapter: new SimulatorAdapter(), returnOrigin })
+    await generateRenewals(pool, { now, returnOrigin })
     const due = new Date((await pool.query('SELECT max(due_at) AS at FROM invoices WHERE subscription_id=$1', [s.id])).rows[0].at)
     await applyDunning(pool, { now: new Date(due.getTime() + 1000) })
     await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE subscription_id=$1", [s.id])
@@ -158,7 +160,8 @@ suite('live PostgreSQL billing notices', () => {
     await seedPaymentMethod(pool, s.customer, 'token')
     await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1 WHERE id=$1', [s.id, now])
     const adapter = new SimulatorAdapter().addToken('token')
-    await generateRenewals(pool, { now, adapter, returnOrigin })
+    await generateRenewals(pool, { now, returnOrigin })
+    await chargeSavedCards(pool, { now: new Date(), adapter, returnOrigin })
     const attempt = (await pool.query('SELECT a.id FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.subscription_id=$1', [s.id])).rows[0]
     await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1", [attempt.id])
     await verifyReturnedAttempt(pool, { attempt_id: attempt.id, customer_id: s.customer, adapter })
@@ -168,5 +171,101 @@ suite('live PostgreSQL billing notices', () => {
     expect(await sendBillingNotices(pool, { now, mail, returnOrigin })).toBe(1)
     expect(sent[0].subject).toBe('استلمنا دفعتك في LiwanOS')
     expect(sent[0].text).toContain('115.00 SAR')
+  })
+  /** A subscription with a saved card and automatic renewal on; `card` overrides the card's expiry. */
+  async function withCard(renewalAt: string, card: { exp_month?: number; exp_year?: number } = {}, autoRenew = true) {
+    const s = await subscription(renewalAt)
+    const token = `token_secret_${randomUUID()}`
+    const method = await seedPaymentMethod(pool, s.customer, token)
+    if (card.exp_month) await pool.query('UPDATE payment_methods SET exp_month=$2,exp_year=$3 WHERE id=$1', [method, card.exp_month, card.exp_year])
+    if (autoRenew) await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1 WHERE id=$1', [s.id, now])
+    return { ...s, token, method, adapter: new SimulatorAdapter().addToken(token) }
+  }
+  it('names the card and the amount when automatic renewal will charge, and says to pay by hand when it will not', async () => {
+    const on = await withCard('2026-10-05')
+    const off = await withCard('2026-10-05', {}, false)
+    const { sent, mail } = mailbox()
+    expect(await sendBillingNotices(pool, { now, mail, returnOrigin })).toBe(2)
+    const auto = sent.find(m => m.to.startsWith(on.customer))!, manual = sent.find(m => m.to.startsWith(off.customer))!
+    for (const text of [auto.text.split('\n')[0]!, auto.text]) expect(text).toContain('visa')
+    expect(auto.text).toContain('4242')
+    expect(auto.text).toContain('115.00 SAR')
+    expect(auto.text).toContain('your visa card ending 4242')
+    expect(auto.text).not.toMatch(/token_secret|\b\d{12,19}\b/)
+    expect(manual.text).toContain('Automatic renewal is off, so you pay the renewal invoice yourself')
+    expect(manual.text).toContain('التجديد التلقائي غير مفعّل')
+    expect(manual.text).not.toContain('4242')
+  })
+  it('does not promise a charge to a card that is expired on the renewal day', async () => {
+    await withCard('2026-10-05', { exp_month: 10, exp_year: 2026 }) // valid through 31 October, renewal on the 5th
+    const expired = await withCard('2026-11-05', { exp_month: 10, exp_year: 2026 })
+    const { sent, mail } = mailbox()
+    await sendBillingNotices(pool, { now: new Date('2026-11-02T08:00:00Z'), mail, returnOrigin })
+    const text = sent.find(m => m.to.startsWith(expired.customer))!.text
+    expect(text).toContain('Automatic renewal is off')
+  })
+  it('tells the customer a charge failed, with the next try or that there will be none, never more than the brand and last four', async () => {
+    const soft = await withCard('2026-10-01')
+    await generateRenewals(pool, { now, returnOrigin })
+    soft.adapter.scriptTokenCharge(soft.token, { outcome: 'declined', message: 'INSUFFICIENT FUNDS' })
+    const issued = riyadhDate((await pool.query('SELECT created_at FROM invoices WHERE subscription_id=$1', [soft.id])).rows[0].created_at)
+    const at = (plus: number) => new Date(Date.parse(`${issued}T09:00:00+03:00`) + plus * 86_400_000)
+    await chargeSavedCards(pool, { now: at(0), adapter: soft.adapter, returnOrigin })
+    const { sent, mail } = mailbox()
+    // The renewal-upcoming notice is no longer true (the renewal day has come); only the failure goes out.
+    await sendBillingNotices(pool, { now: at(0), mail, returnOrigin })
+    const failed = sent.filter(m => m.subject.includes('تعذّر خصم'))
+    expect(failed).toHaveLength(1)
+    expect(failed[0]!.text).toContain(`سنعيد المحاولة تلقائيًا في ${riyadhDate(at(1))}`)
+    expect(failed[0]!.text).toContain(`We try again automatically on ${riyadhDate(at(1))}`)
+    expect(failed[0]!.text).toMatch(/visa.*4242/)
+    expect(failed[0]!.text).not.toMatch(/token_secret|\b\d{12,19}\b/)
+    const hard = await withCard('2026-10-01')
+    hard.adapter.scriptTokenCharge(hard.token, { outcome: 'declined', message: 'DECLINED: STOLEN CARD' })
+    await generateRenewals(pool, { now, returnOrigin })
+    await chargeSavedCards(pool, { now: at(0), adapter: hard.adapter, returnOrigin, subscription_id: hard.id })
+    await sendBillingNotices(pool, { now: at(0), mail, returnOrigin })
+    const none = sent.filter(m => m.subject.includes('تعذّر خصم') && m.to.startsWith(hard.customer))
+    expect(none).toHaveLength(1)
+    expect(none[0]!.text).toContain('لن نعيد المحاولة تلقائيًا')
+    expect(none[0]!.text).toContain('We will not try again automatically')
+    // The invoice paid by hand before the notice goes out: it is no longer true, so it is closed unsent.
+    const paid = await withCard('2026-10-01')
+    paid.adapter.scriptTokenCharge(paid.token, { outcome: 'declined', message: 'INSUFFICIENT FUNDS' })
+    await generateRenewals(pool, { now, returnOrigin })
+    await chargeSavedCards(pool, { now: at(0), adapter: paid.adapter, returnOrigin, subscription_id: paid.id })
+    await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE subscription_id=$1", [paid.id])
+    const before = sent.length
+    await sendBillingNotices(pool, { now: at(0), mail, returnOrigin })
+    expect(sent.slice(before).filter(m => m.to.startsWith(paid.customer))).toEqual([])
+  })
+  it('warns 30 and 7 days before the default card expires, once each, only while it is the card automatic renewal uses', async () => {
+    const s = await withCard('2026-11-30', { exp_month: 10, exp_year: 2026 })
+    const off = await withCard('2026-11-30', { exp_month: 10, exp_year: 2026 }, false)
+    const { sent, mail } = mailbox()
+    const mails = () => sent.filter(m => m.subject.includes('ستنتهي قريبًا') && m.to.startsWith(s.customer))
+    await sendBillingNotices(pool, { now, mail, returnOrigin }) // 29 days left: the 30-day warning
+    await sendBillingNotices(pool, { now, mail, returnOrigin })
+    expect(mails()).toHaveLength(1)
+    expect(mails()[0]!.text).toContain('صالحة حتى 2026-10-31')
+    expect(mails()[0]!.text).toContain('is valid until 2026-10-31')
+    expect(mails()[0]!.text).toMatch(/visa.*4242/)
+    await sendBillingNotices(pool, { now: new Date('2026-10-20T08:00:00Z'), mail, returnOrigin }) // 11 days: still only the 30-day threshold, already sent
+    expect(mails()).toHaveLength(1)
+    await sendBillingNotices(pool, { now: new Date('2026-10-26T08:00:00Z'), mail, returnOrigin }) // 5 days: the 7-day warning
+    expect(mails()).toHaveLength(2)
+    await sendBillingNotices(pool, { now: new Date('2026-11-02T08:00:00Z'), mail, returnOrigin }) // expired: nothing more
+    expect(mails()).toHaveLength(2)
+    expect(sent.filter(m => m.to.startsWith(off.customer) && m.subject.includes('ستنتهي'))).toEqual([])
+    expect((await rows('card_expiring')).map(r => r.payload.payment_method_id).filter(Boolean).length).toBeGreaterThan(0)
+  })
+  it('does not send a card-expiry warning for a card that was replaced or removed before it went out', async () => {
+    const s = await withCard('2026-11-30', { exp_month: 10, exp_year: 2026 })
+    await sendBillingNotices(pool, { now, mail: { send: async () => { throw new Error('smtp_down') } }, returnOrigin })
+    await pool.query("UPDATE payment_methods SET status='removed',is_default=false,provider_token=NULL,removed_at=now(),removed_by='customer' WHERE id=$1", [s.method])
+    await pool.query("UPDATE commercial_outbox SET next_attempt_at=now()")
+    const { sent, mail } = mailbox()
+    await sendBillingNotices(pool, { now, mail, returnOrigin })
+    expect(sent.filter(m => m.to.startsWith(s.customer))).toEqual([])
   })
 })

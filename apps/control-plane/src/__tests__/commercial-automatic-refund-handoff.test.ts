@@ -18,7 +18,7 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
   afterAll(async () => { await pool.end() })
 
   /** An order cancelled by trial expiry whose payment arrived late: refund_pending, an automatic refund row, and the invoice state the case needs. */
-  async function lateOrder(options: { provider?: string; undelivered?: boolean; vendorNote?: boolean; automatic?: boolean } = {}) {
+  async function lateOrder(options: { provider?: string; undelivered?: boolean; vendorNote?: boolean; automatic?: boolean; kind?: 'form' | 'saved_card' } = {}) {
     const customer = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID(), attempt = randomUUID()
     return transaction(pool, async c => {
       await c.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, 'Handoff test'])
@@ -30,7 +30,7 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'change',$5,'SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [invoice, customer, sub, order, options.undelivered || options.vendorNote ? 'paid' : 'void'])
       await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at,kind)
-        VALUES($1,$2,$3,$4,$5,$6,11500,'SAR',2,'succeeded',now(),CASE WHEN $4::text='bank_transfer' THEN 'bank_transfer' ELSE 'hosted_invoice' END)`, [attempt, order, invoice, options.provider ?? 'moyasar', options.provider === 'simulator' ? 'simulator' : 'live', `ref-${attempt}`])
+        VALUES($1,$2,$3,$4,$5,$6,11500,'SAR',2,'succeeded',now(),COALESCE($7::text,CASE WHEN $4::text='bank_transfer' THEN 'bank_transfer' ELSE 'hosted_invoice' END))`, [attempt, order, invoice, options.provider ?? 'moyasar', options.provider === 'simulator' ? 'simulator' : 'live', `ref-${attempt}`, options.kind ?? null])
       await c.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [order, attempt])
       let note = ''
       if (options.undelivered) note = (await recordFulfillmentFailure(c, { order_id: order, reason: 'Fulfillment failed permanently', actor: 'commercial-fulfillment' }))[0]!
@@ -84,6 +84,19 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     // A transient error may follow a refund the provider made: no note, the operator verifies the provider first.
     expect(await notes(f.invoice)).toHaveLength(0)
     expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(1)
+  })
+
+  it.each(['form', 'saved_card'] as const)('F1 reads a %s payment by its payment id, never as an invoice', async kind => {
+    const f = await lateOrder({ provider: 'simulator', kind })
+    const adapter = new SimulatorAdapter()
+    const byPayment = vi.spyOn(adapter, 'lookupPayment'), byInvoice = vi.spyOn(adapter, 'lookupAttempt')
+    await processRefundOutbox(pool, adapter)
+    expect(byPayment).toHaveBeenCalledWith(`ref-${f.attempt}`)
+    expect(byInvoice).not.toHaveBeenCalled()
+    // A hosted invoice is the opposite: its reference is an invoice id.
+    const hosted = await lateOrder({ provider: 'simulator' })
+    await processRefundOutbox(pool, adapter)
+    expect(byInvoice).toHaveBeenCalledWith(`ref-${hosted.attempt}`)
   })
 
   it('F1 keeps the single fulfilment note of an undelivered order when its refund is handed over', async () => {

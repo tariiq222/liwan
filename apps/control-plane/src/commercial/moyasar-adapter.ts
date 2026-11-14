@@ -6,7 +6,7 @@ import { timingSafeEqual } from 'node:crypto'
 import {
   MIN_REFUND_MINOR, PROVIDER_ERROR_TYPES, PaymentError, assertReturnUrl,
   type AdapterHeaders, type ChargeTokenInput, type ChargeTokenOutcome, type CreateAttemptInput, type CreateAttemptResult, type CreateIntentInput,
-  type IntentCancelOutcome, type IntentStatus, type Money, type PaymentAdapter, type PaymentErrorCode, type PaymentIntent, type PaymentRecord,
+  intentStatusAt, type IntentCancelOutcome, type IntentStatus, type Money, type PaymentAdapter, type PaymentErrorCode, type PaymentIntent, type PaymentRecord,
   type ProviderErrorType, type ProviderEvent, type ProviderEventStatus, type RefundOutcome, type TokenInfo, type TokenStatus, type WebhookVerification,
 } from './payment-adapter.js'
 import { buildAttemptDescription, parseAttemptDescription } from './payment-description.js'
@@ -43,7 +43,7 @@ const OBJECT_STATUS: Record<string, ProviderEventStatus> = {
   canceled: 'canceled', voided: 'canceled', expired: 'canceled',
 }
 const TOKEN_STATUS: readonly TokenStatus[] = ['initiated', 'active', 'inactive', 'save_only']
-const INTENT_STATUS: readonly IntentStatus[] = ['created', 'fulfilled', 'canceled']
+const INTENT_STATUS: readonly Exclude<IntentStatus, 'expired' | 'unrecognized'>[] = ['created', 'fulfilled', 'canceled']
 
 type Json = Record<string, any>
 
@@ -166,7 +166,7 @@ export class MoyasarAdapter implements PaymentAdapter {
     const id = text(i.id), clientSecret = text(i.client_secret), expiresAt = text(i.expires_at)
     if (!id || !clientSecret || !expiresAt || !text(i.callback_url) || typeof i.description !== 'string') throw new PaymentError('provider_error', 'malformed intent response')
     return {
-      id, client_secret: clientSecret, status: INTENT_STATUS.includes(i.status) ? i.status : 'unrecognized', expires_at: expiresAt,
+      id, client_secret: clientSecret, status: INTENT_STATUS.includes(i.status) ? intentStatusAt(i.status, expiresAt) : 'unrecognized', expires_at: expiresAt,
       amount: money(i.amount, i.currency), description: i.description, callback_url: i.callback_url,
     }
   }

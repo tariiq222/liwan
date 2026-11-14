@@ -32,7 +32,7 @@ const display = computed(() => {
 // Only when the read failed and the order is no longer open: its result is unknown, which is not a failure.
 const readFailed = computed(() => !order.value && Boolean(loaded.value?.readFailed))
 const settled = computed(() => !!data.value && !order.value && Boolean(orderId.value) && !readFailed.value)
-// The control plane opens a payment attempt only while the order still awaits payment; a declined one is final.
+// The control plane opens a payment attempt only while the order still awaits payment; a declined payment leaves the order payable.
 const canRetry = computed(() => outcome.value === 'awaiting_payment' && can('subscription.manage'))
 // Poll while activation or payment confirmation is in flight, one request at a time, for at most POLL_LIMIT_MS.
 const POLL_INTERVAL_MS = 5000
@@ -46,7 +46,7 @@ onMounted(() => {
   }, POLL_INTERVAL_MS)
 })
 onBeforeUnmount(() => clearInterval(timer))
-const OUTCOME_COLOR = { applied: 'success', processing: 'info', recovering: 'info', awaiting_payment: 'warning', cancelled: 'neutral', payment_failed: 'error', activation_failed: 'error', refund: 'error' } as const
+const OUTCOME_COLOR = { applied: 'success', processing: 'info', recovering: 'info', awaiting_payment: 'warning', cancelled: 'neutral', activation_failed: 'error', refund: 'error' } as const
 const payBusy = ref(false); const payError = ref<string | undefined>()
 async function continuePayment() {
   if (!hydrated.value || !canRetry.value || !order.value || payBusy.value) return
@@ -98,7 +98,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           <div class="flex flex-wrap gap-2">
             <UButton v-if="canCancel && !cancelOpen" color="error" variant="outline" :disabled="!hydrated" @click="cancelOpen = true">{{ t('subscription.status.cancel.action') }}</UButton>
             <UButton v-if="canRetry" :disabled="!hydrated || payBusy" :loading="payBusy" @click="continuePayment">{{ t('subscription.status.retryPayment') }}</UButton>
-            <UButton v-if="!order || outcome === 'applied' || outcome === 'cancelled' || outcome === 'payment_failed' || outcome === 'activation_failed' || outcome === 'refund'" to="/subscription" color="neutral" variant="outline">{{ t('subscription.status.viewSubscription') }}</UButton>
+            <UButton v-if="!order || outcome === 'applied' || outcome === 'cancelled' || outcome === 'activation_failed' || outcome === 'refund'" to="/subscription" color="neutral" variant="outline">{{ t('subscription.status.viewSubscription') }}</UButton>
             <UButton color="neutral" variant="outline" :disabled="!hydrated" @click="refresh()">{{ t('subscription.status.refresh') }}</UButton>
           </div>
         </div>

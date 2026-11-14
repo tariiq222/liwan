@@ -74,7 +74,14 @@ export type RefundOutcome =
   | { outcome: 'already_refunded' }
   | { outcome: 'below_minimum' }
 
-export type IntentStatus = 'created' | 'fulfilled' | 'canceled' | 'unrecognized'
+/**
+ * `expired`: a `created` intent past its `expires_at`. The provider was observed to answer only `created`, `fulfilled` and `canceled` (spike U9),
+ * so the adapters derive this one: an intent nobody fulfilled before its end holds no payment and can never get one.
+ */
+export type IntentStatus = 'created' | 'fulfilled' | 'canceled' | 'expired' | 'unrecognized'
+/** The status an intent has now: a `created` one past its end is `expired`, whatever the provider still calls it. */
+export const intentStatusAt = (status: Exclude<IntentStatus, 'expired'>, expiresAt: string, now = Date.now()): IntentStatus =>
+  status === 'created' && Date.parse(expiresAt) <= now ? 'expired' : status
 /** A payment intent: the server-locked amount, currency, description and callback URL a browser may only fulfil. `client_secret` goes to that browser and nowhere else. */
 export type PaymentIntent = {
   id: string

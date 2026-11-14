@@ -93,7 +93,7 @@ suite('the one-time onboarding fee (W6)', () => {
     await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1", [order.id])
     await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE order_id=$1", [order.id])
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',renewal_at='2026-11-01',revision=revision+1 WHERE customer_id=$1", [id])
-    await generateRenewals(pool, { now: new Date('2026-11-06T08:00:00Z'), adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://liwan.test') })
+    await generateRenewals(pool, { now: new Date('2026-11-06T08:00:00Z'), returnOrigin: fixedReturnOrigin('https://liwan.test') })
     const renewal = (await pool.query(`SELECT l.kind FROM invoice_lines l JOIN invoices i ON i.id=l.invoice_id
       JOIN orders o ON o.id=i.order_id WHERE o.kind='renewal' AND o.customer_id=$1`, [id])).rows.map((r: any) => r.kind)
     expect(renewal).not.toContain('onboarding')

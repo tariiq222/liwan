@@ -7,6 +7,7 @@ import { runWorkspaceLookups } from './workspace-lookup.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
+import { chargeSavedCards } from './saved-card-charges.js'
 import { expireTrials } from './trial-expiry.js'
 import { processFreeBaseLocks } from './free-base-lock.js'
 import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
@@ -169,7 +170,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('trial-expiry', () => expireTrials(pool, { now: new Date(now) }))
         const adapter = o.paymentAdapter
         await job('free-base-lock', () => processFreeBaseLocks(pool, { now: new Date(now), adapter }))
-        if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
+        await job('renewals', () => generateRenewals(pool, { now: new Date(now), returnOrigin }))
+        if (adapter) await job('saved-card-charges', () => chargeSavedCards(pool, { now: new Date(now), adapter, returnOrigin }))
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
         await job('payment-tokens', () => processTokenDeletions(pool, o.paymentAdapter))

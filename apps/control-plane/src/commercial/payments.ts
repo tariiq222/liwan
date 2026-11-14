@@ -52,11 +52,11 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [found.order_id])).rows[0]
   const attempt = (await client.query('SELECT * FROM payment_attempts WHERE provider=$1 AND provider_ref=$2 FOR UPDATE', [event.provider, event.provider_ref])).rows[0]
   if (!matches(attempt, event)) return 'rejected'
-  // A provider cancel or expiry is not a payment failure: nobody was charged and the invoice cannot be paid
-  // any more, so the order stays `awaiting_payment` and the customer can start a new attempt. Only a decline
-  // (`failed`) moves the order to `failed`.
-  if (event.status === 'canceled') {
-    const closed = await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')", [attempt.id])
+  // A provider cancel, expiry or decline closes the attempt and nothing else: nobody was charged, so the order stays `awaiting_payment`
+  // and the customer can pay another way. A late decline of an attempt that already paid is not live and changes nothing.
+  if (event.status === 'canceled' || event.status === 'failed') {
+    const closed = await client.query("UPDATE payment_attempts SET status=$2,updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')",
+      [attempt.id, event.status === 'failed' ? 'failed' : 'canceled'])
     return closed.rowCount ? 'accepted' : 'ignored'
   }
   // Only the attempt that paid the order may move it. A refund (or any other event) of a recorded duplicate
@@ -74,8 +74,7 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
     await flagRefundAfterFulfillment(client, order, attempt, event)
     return 'accepted'
   }
-  const type = event.status === 'succeeded' ? 'payment_succeeded' : event.status === 'refunded' ? 'payment_refunded'
-    : event.status === 'failed' ? 'payment_failed' : 'payment_pending'
+  const type = event.status === 'succeeded' ? 'payment_succeeded' : event.status === 'refunded' ? 'payment_refunded' : 'payment_pending'
   const next = nextOrderState(order as OrderStateInput, { type })
   if (next.ignored) {
     // A confirmed charge for an attempt that did not pay an order that is already paid (or refund-bound) is a
@@ -125,8 +124,6 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
     // A refund or chargeback of a top-up order takes the balance back, whole: a provider refund is not reported per purchase.
     await markTopupRefunded(client, order.id, 'system', 'payment refunded at the provider')
     await flagRefundAfterFulfillment(client, order, attempt, event)
-  } else if (event.status === 'failed') {
-    await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1", [attempt.id])
   }
   return 'accepted'
 }
@@ -312,8 +309,9 @@ async function closeMissingDirectPayment(pool: Pool, row: any): Promise<boolean>
 const HOSTED_ATTEMPT_LIFETIME_MS = 30 * 60_000
 
 /** What a new attempt row is: a hosted invoice, or a card form payment with what the customer asked and consented to. */
-type NewAttempt = { kind: 'hosted_invoice' } | { kind: 'form'; save_card: boolean; consent_text_version: string | null }
-type AttemptInput = { order_id: string; customer_id: string; adapter: PaymentAdapter; returnOrigin: ReturnOrigin }
+type NewAttempt = { kind: 'hosted_invoice' } | { kind: 'form'; save_card: boolean; consent_text_version: string | null; actor: string }
+/** `actor` is the customer actor id of the person a card form is opened for: it is the consenting person when the form keeps the card. */
+type AttemptInput = { order_id: string; customer_id: string; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; actor?: string }
 
 /** Locks the order, checks it can be paid and returns its live attempt, or reserves a new one of the given kind. */
 function reserveAttempt(pool: Pool, input: AttemptInput, attemptId: string, spec: NewAttempt) {
@@ -328,21 +326,21 @@ function reserveAttempt(pool: Pool, input: AttemptInput, attemptId: string, spec
       const subscription = (await client.query('SELECT id,tenant_id FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0]
       await requireReachableManager(client, customer, subscription)
     }
-    if (spec.kind === 'form' && spec.save_card) await assertAutoRenewAllowed(client, order)
+    if (spec.kind === 'form' && spec.save_card) await assertAutoRenewAllowed(client, order.target_revision_id)
     const live = (await client.query('SELECT * FROM payment_attempts WHERE order_id=$1 AND status = ANY($2::text[])', [order.id, LIVE_ATTEMPT_STATUSES])).rows[0]
     if (live) return { row: live, fresh: false }
     const invoice = (await client.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued' ORDER BY created_at LIMIT 1 FOR UPDATE", [order.id])).rows[0]
     if (!invoice || Number(invoice.total_minor) <= 0) throw new CommercialHttpError('issued_invoice_required', 409)
     const form = spec.kind === 'form' ? spec : null
-    const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,amount_minor,currency,exponent,kind,save_card,consent_at,consent_text_version)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CASE WHEN $11 THEN now() END,$12) RETURNING *`,
-    [attemptId,order.id,invoice.id,input.adapter.provider,input.adapter.mode,order.id,invoice.total_minor,invoice.currency,invoice.exponent,spec.kind,form?.save_card ?? false,form?.consent_text_version ?? null])).rows[0]
+    const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,amount_minor,currency,exponent,kind,save_card,consent_at,consent_text_version,opened_by)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CASE WHEN $11 THEN now() END,$12,$13) RETURNING *`,
+    [attemptId,order.id,invoice.id,input.adapter.provider,input.adapter.mode,order.id,invoice.total_minor,invoice.currency,invoice.exponent,spec.kind,form?.save_card ?? false,form?.consent_text_version ?? null,form?.actor ?? null])).rows[0]
     return { row, fresh: true }
   })
 }
 
 type AttemptRequest = PaymentAttemptRequest
-export async function createPaymentAttempt(pool: Pool, input: AttemptInput & { request: AttemptRequest & { method: 'form' } }): Promise<FormPaymentSession>
+export async function createPaymentAttempt(pool: Pool, input: AttemptInput & { actor: string; request: AttemptRequest & { method: 'form' } }): Promise<FormPaymentSession>
 export async function createPaymentAttempt(pool: Pool, input: AttemptInput & { request?: AttemptRequest & { method: 'hosted_invoice' } }): Promise<ReturnType<typeof paymentAttemptView>>
 export async function createPaymentAttempt(pool: Pool, input: AttemptInput & { request?: AttemptRequest }): Promise<ReturnType<typeof paymentAttemptView> | FormPaymentSession> {
   if (input.request?.method === 'form') return createFormAttempt(pool, input, input.request)
@@ -402,7 +400,8 @@ async function createFormAttempt(pool: Pool, input: AttemptInput, request: Attem
   const { adapter } = input
   if (!adapter.publishableKey) throw new CommercialHttpError('card_form_unavailable', 409)
   if (request.save_card && !request.consent_text_version) throw new CommercialHttpError('consent_required', 422)
-  const spec: NewAttempt = { kind: 'form', save_card: request.save_card, consent_text_version: request.save_card ? request.consent_text_version ?? null : null }
+  if (!input.actor) throw new Error('form_actor_required')
+  const spec: Extract<NewAttempt, { kind: 'form' }> = { kind: 'form', save_card: request.save_card, consent_text_version: request.save_card ? request.consent_text_version ?? null : null, actor: input.actor }
   const callbackFor = async (attemptId: string) => paymentReturnUrls(await input.returnOrigin(input.customer_id), attemptId)
   for (let round = 0; round < 3; round++) {
     const attemptId = randomUUID()
@@ -447,6 +446,17 @@ async function openFormIntent(pool: Pool, input: AttemptInput, row: any, attempt
 }
 
 /**
+ * What the person asked for and consented to is recorded on the attempt, and only while no payment can be on it: while the intent is
+ * still `created` or is known to hold none. A different person never gets another person's live client secret: the unused intent is
+ * cancelled and a fresh one is opened for them with their own choice. An intent that may hold a payment is left alone and the call is refused.
+ */
+async function recordFormChoice(pool: Pool, live: any, spec: Extract<NewAttempt, { kind: 'form' }>): Promise<any | null> {
+  if (live.opened_by === spec.actor && live.save_card === spec.save_card && live.consent_text_version === spec.consent_text_version) return live
+  return (await pool.query(`UPDATE payment_attempts SET opened_by=$2,save_card=$3,consent_at=CASE WHEN $3 THEN now() END,consent_text_version=$4,updated_at=now()
+    WHERE id=$1 AND provider_ref IS NULL RETURNING *`, [live.id, spec.actor, spec.save_card, spec.consent_text_version])).rows[0] ?? null
+}
+
+/**
  * The form for an attempt that is already open, or null when the attempt had to be closed and the caller starts again. An intent that
  * was fulfilled may hold a payment nobody has seen, so it is replaced only when its payment is known to have been declined; otherwise
  * the customer is told a payment is in progress, and the callback or webhook settles it.
@@ -461,20 +471,20 @@ async function reenterFormAttempt(pool: Pool, input: AttemptInput, live: any, sp
     await lookup(pool, input.adapter, live)
     return null
   }
-  let row = live
-  if (live.save_card !== spec.save_card || live.consent_text_version !== spec.consent_text_version) {
-    row = (await pool.query(`UPDATE payment_attempts SET save_card=$2,consent_at=CASE WHEN $2 THEN now() END,consent_text_version=$3,updated_at=now()
-      WHERE id=$1 AND provider_ref IS NULL RETURNING *`, [live.id, spec.save_card, spec.consent_text_version])).rows[0] ?? live
+  const intent = await readIntent(input.adapter, live.provider_intent_ref)
+  // The same person with a form still open: the choice may change and the same form is handed back.
+  if (live.opened_by === spec.actor && intent && intentUsable(intent)) {
+    const row = await recordFormChoice(pool, live, spec)
+    return row ? formSession(input.adapter, row, intent) : null
   }
-  const intent = await readIntent(input.adapter, row.provider_intent_ref)
-  if (intent && intentUsable(intent)) return formSession(input.adapter, row, intent)
-  if (intentMayHoldPayment(row, intent)) throw new CommercialHttpError('payment_in_progress', 409)
+  if (intentMayHoldPayment(live, intent)) throw new CommercialHttpError('payment_in_progress', 409)
   if (intent?.status === 'created') {
     const cancelled = await cancelIntentQuietly(input.adapter, intent.id)
     if (cancelled === 'not_cancelable') throw new CommercialHttpError('payment_in_progress', 409)
     if (cancelled === 'failed') throw new CommercialHttpError('payment_unknown', 503)
   }
-  return openFormIntent(pool, input, row, callbackUrl, row.provider_intent_ref)
+  const row = await recordFormChoice(pool, live, spec)
+  return row ? openFormIntent(pool, input, row, callbackUrl, live.provider_intent_ref) : null
 }
 
 /**

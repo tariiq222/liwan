@@ -461,7 +461,7 @@ suite('bank transfer (W5)', () => {
     expect(after).toEqual({ state: 'active', trial_outcome: null, renewal_at: sub.snapshot.period_start })
     expect((await pool.query("SELECT payload FROM commercial_outbox WHERE kind='free_base.locked' AND aggregate_id=$1", [sub.id])).rows[0].payload)
       .toMatchObject({ cause: 'refund', outcome: 'free_base' })
-    const [renewal] = await generateRenewals(pool, { now: at, subscription_id: sub.id, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://liwan.test') })
+    const [renewal] = await generateRenewals(pool, { now: at, subscription_id: sub.id, returnOrigin: fixedReturnOrigin('https://liwan.test') })
     expect(renewal).toMatchObject({ kind: 'renewal', due_now: { minor: 9900 } })
   })
 })

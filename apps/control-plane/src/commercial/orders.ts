@@ -67,7 +67,7 @@ export const cancelOrderBodySchema = z.strictObject({ reason: z.string().max(100
 
 const LIVE_ATTEMPT = ['created','redirected','pending','unknown']
 const cancellable = (order: Record<string, any>) => order.kind !== 'renewal' && !order.cancelled
-  && ['awaiting_payment','failed'].includes(order.payment_state) && order.fulfillment_state === 'not_started'
+  && order.payment_state === 'awaiting_payment' && order.fulfillment_state === 'not_started'
 
 /** Locks the customer, subscription and order in the one order every payment path uses, and re-checks scope. */
 async function lockOrder(client: PoolClient, input: { order_id: string; principal: Principal }) {

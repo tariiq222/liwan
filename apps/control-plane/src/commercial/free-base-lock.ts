@@ -7,6 +7,7 @@ import { CommercialHttpError } from './lifecycle.js'
 import { cancelOrder } from './orders.js'
 import { paidRenewalInFlight } from './cancellation-rules.js'
 import { holdsFreeBaseLockSql, keptAtTrialEnd, orderFreeBaseLock, trialOutcome } from './free-base.js'
+import { disableAutoRenew } from './auto-renew.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 
@@ -27,7 +28,7 @@ export async function voidUnpaidRenewals(client: PoolClient, subscriptionId: str
   const unpaid = (await client.query(`SELECT o.id,i.id AS invoice_id FROM renewals r
     JOIN orders o ON o.id=r.order_id JOIN invoices i ON i.id=r.invoice_id
     WHERE r.subscription_id=$1 AND ($2::date IS NULL OR r.period_start >= $2::date) AND i.status='issued' AND NOT o.cancelled
-      AND o.payment_state IN ('awaiting_payment','failed') AND o.fulfillment_state='not_started'
+      AND o.payment_state='awaiting_payment' AND o.fulfillment_state='not_started'
     ORDER BY o.id FOR UPDATE OF o,i`, [subscriptionId, fromPeriodStart])).rows
   if (!unpaid.length) return []
   const orderIds = unpaid.map(row => row.id)
@@ -64,6 +65,8 @@ export async function armRefundLock(client: PoolClient, input: { subscription_id
     // A pending first-invoice lock already takes everything; any other pending lock now judges what is still paid at the refund.
     await client.query("UPDATE free_base_locks SET cause='refund' WHERE subscription_id=$1", [sub.id])
   }
+  // The first payment went back: nothing is charged to the saved card any more (the card record stays).
+  await disableAutoRenew(client, sub.id, { actor: 'system', reason: 'The first payment was refunded and the subscription drops to the free base' })
   return voidUnpaidRenewals(client, sub.id, null)
 }
 
@@ -105,7 +108,7 @@ export async function rearmUnpaidTrialLock(client: PoolClient, subscriptionId: s
         AND a.status IN ('created','redirected','pending','unknown')) AS live
     FROM free_base_locks l JOIN renewals r ON r.subscription_id=l.subscription_id AND r.period_start=l.period_start
     JOIN orders o ON o.id=r.order_id JOIN invoices i ON i.id=r.invoice_id
-    WHERE l.subscription_id=$1 AND l.state='done' AND l.cause='trial_end' AND o.payment_state IN ('awaiting_payment','failed')
+    WHERE l.subscription_id=$1 AND l.state='done' AND l.cause='trial_end' AND o.payment_state='awaiting_payment'
       AND o.fulfillment_state='not_started' AND NOT o.cancelled AND i.status='issued'
     FOR UPDATE OF l,o,i`, [subscriptionId])).rows[0]
   if (!found) return false
@@ -165,7 +168,7 @@ async function attempt(pool: Pool, id: string, now: Date): Promise<string | unde
     if (sub.target_revision_id) {
       const pending = (await client.query('SELECT * FROM orders WHERE subscription_id=$1 AND target_revision_id=$2 AND NOT cancelled', [id, sub.target_revision_id])).rows[0]
       if (pending && pending.kind !== 'renewal' && pending.fulfillment_state === 'not_started'
-        && ['awaiting_payment', 'failed'].includes(pending.payment_state)) return pending.id
+        && pending.payment_state === 'awaiting_payment') return pending.id
       await postpone(client, id, now, 'order_in_flight')
       return
     }

@@ -79,6 +79,9 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^branch-quotes$/ },
   { method: 'GET', pattern: /^usage$/ },
   { method: 'POST', pattern: /^auto-renew$/ },
+  // The customer's saved cards: a masked list, and removal (the control plane deletes the token at the provider first).
+  { method: 'GET', pattern: /^payment-methods$/ },
+  { method: 'POST', pattern: /^payment-methods\/[A-Za-z0-9_-]{1,128}\/remove$/ },
   { method: 'POST', pattern: /^subscription\/(cancel|resume)$/ },
   // Deleting the workspace: read the request, ask for the emailed code, confirm with it, or withdraw. The vendor never asks or confirms.
   { method: 'GET', pattern: /^deletion$/ },
@@ -87,11 +90,11 @@ const ROUTES: Route[] = [
 /** Capability each route needs (authoritative check also repeats in the control plane). */
 const NEEDS: Array<[RegExp, string, CustomerCommercialCapability]> = [
   [/^deletion\/(request|confirm|withdraw)$/, 'POST', 'tenant.delete'],
-  [/^quotes$|^orders|^auto-renew$|^subscription\/(cancel|resume)$|^trial(\/(convert|retry))?$/, 'POST', 'subscription.manage'],
+  [/^quotes$|^orders|^auto-renew$|^subscription\/(cancel|resume)$|^trial(\/(convert|retry))?$|^payment-methods\/[^/]+\/remove$/, 'POST', 'subscription.manage'],
   [/^invoices\/[^/]+\/bank-transfer-claim$/, 'POST', 'subscription.manage'],
   [/^preview$/, 'POST', 'subscription.read'],
   [/^branch-quotes$/, 'POST', 'branches.manage'],
-  [/^invoices/, 'GET', 'billing.read'],
+  [/^invoices|^payment-methods$/, 'GET', 'billing.read'],
   [/./, 'GET', 'subscription.read'],
 ]
 
@@ -410,16 +413,20 @@ const PAYMENT_RETURN_BODY = (tenantId: string) => `liwan-payment-return:${tenant
 
 type PaymentReturn = { orderId: string; paymentState: string }
 
-/** Asks the control plane to verify one attempt with the provider; resolves its order, or null on any failure. */
-async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attempt: string, prospect: boolean): Promise<PaymentReturn | null> {
+/** What a provider payment id looks like (the control plane's own check): an opaque id, never a place for anything else. */
+const PAYMENT_HINT = /^[A-Za-z0-9_-]{8,100}$/
+
+/** Asks the control plane to verify one attempt with the provider; resolves its order, or null on any failure. `payment` is the provider's payment id from the return, a hint to fetch and never proof. */
+async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attempt: string, payment: string | null, prospect: boolean): Promise<PaymentReturn | null> {
   try {
     if (!config.customerCommercialServiceKey || !config.customerCommercialIssuer) return null
     const tenantId = prospect ? PROSPECT_TENANT : boundTenantId(tenantRequest(event), config)
     if (!tenantId) return null
     if (!allowPaymentReturn(`${tenantId}|${paymentReturnClient(event)}`, `${tenantId}|${attempt}`)) { console.warn('[payment-return] rate limited'); return null }
     const target = new URL(`/v1/customer/payment-returns/${attempt}`, customerControlBase(config))
+    if (payment) target.searchParams.set('payment', payment)
     // Anonymous signature: the return carries no user, so it proves only that this web server asked.
-    const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: PAYMENT_RETURN_BODY(tenantId), actor: 'anonymous', anonymous: true, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey })
+    const signed = signServiceRequest({ method: 'POST', path: `${target.pathname}${target.search}`, body: PAYMENT_RETURN_BODY(tenantId), actor: 'anonymous', anonymous: true, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey })
     const response = await $fetch.raw(target.toString(), { method: 'POST', headers: { ...signed, 'x-liwan-tenant': tenantId, accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(8000) })
     const data = response._data as { order_id?: unknown; payment_state?: unknown } | null
     return typeof data?.order_id === 'string' && UUID.test(data.order_id) ? { orderId: data.order_id, paymentState: typeof data.payment_state === 'string' ? data.payment_state : '' } : null
@@ -435,7 +442,7 @@ async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attem
 export function prospectLanding(result: PaymentReturn | null): string {
   if (!result) return '/payment-done'
   if (['paid', 'not_required'].includes(result.paymentState)) return '/payment-done?result=paid'
-  return ['failed', 'refund_pending', 'refunded'].includes(result.paymentState) ? '/payment-done?result=failed' : '/payment-done'
+  return ['refund_pending', 'refunded'].includes(result.paymentState) ? '/payment-done?result=failed' : '/payment-done'
 }
 
 /**
@@ -448,11 +455,15 @@ export async function relayPaymentReturn(event: H3Event): Promise<string> {
   if (!customerCommercialEnabled(config)) fail(404, 'not_found', 'Not found')
   const method = getMethod(event).toUpperCase()
   setResponseHeader(event, 'cache-control', 'no-store')
+  // The return URL carries the attempt's secret (`k`): nothing it leads to may learn it from a Referer.
+  setResponseHeader(event, 'referrer-policy', 'no-referrer')
   if (method !== 'GET' && method !== 'POST') { setResponseStatus(event, 405); setResponseHeader(event, 'allow', 'GET, POST'); return '' }
   const url = getRequestURL(event)
   const prospect = isProspectRequest({ host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname: url.pathname }, config)
   const attempt = url.searchParams.get('attempt') ?? ''
-  const result = UUID.test(attempt) ? await verifyPaymentReturn(event, config, attempt, prospect) : null
+  // `k` (the callback secret the provider holds) is never read here: the control plane compares the provider's copy with its own. `id` is only a hint.
+  const hint = url.searchParams.get('id')
+  const result = UUID.test(attempt) ? await verifyPaymentReturn(event, config, attempt, hint && PAYMENT_HINT.test(hint) ? hint : null, prospect) : null
   if (method === 'POST') { setResponseStatus(event, 204); return '' }
   setResponseStatus(event, 303)
   setResponseHeader(event, 'location', prospect ? prospectLanding(result) : result ? `/subscription/status?order=${result.orderId}` : '/subscription')

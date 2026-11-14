@@ -5,6 +5,7 @@ import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { cancelRefusal } from './cancellation-rules.js'
 import { cancelRenewalOn } from './cancellation.js'
+import { disableAutoRenew } from './auto-renew.js'
 import { enqueueOutbox } from './outbox.js'
 import { OPEN_DELETION_STATES, tenantDeletionOf } from './tenant-deletion-read.js'
 
@@ -127,6 +128,8 @@ export async function confirmDeletion(pool: Pool, input: Who & { customer_id: st
 async function stopRenewal(client: PoolClient, input: Who & { customer_id: string }, requestId: string): Promise<{ outcome: 'cancelled' | 'already_cancelled' | 'not_cancellable'; refusal: string | null }> {
   const sub = (await client.query('SELECT *,renewal_at::text AS renewal_on FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [input.customer_id])).rows[0]
   if (!sub) return { outcome: 'not_cancellable', refusal: 'no_subscription' }
+  // A confirmed deletion ends every automatic charge, whether or not the renewal can also be cancelled (the card record stays).
+  await disableAutoRenew(client, sub.id, { actor: input.actor, reason: `Workspace deletion confirmed (request ${requestId})` })
   if (sub.cancel_requested_at) return { outcome: 'already_cancelled', refusal: null }
   const refusal = await cancelRefusal(client, sub)
   if (refusal) return { outcome: 'not_cancellable', refusal }

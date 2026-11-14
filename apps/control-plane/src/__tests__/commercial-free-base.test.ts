@@ -195,7 +195,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     })
     await lapse(f)
     await lock(f)
-    const [first] = await generateRenewals(pool, { now, subscription_id: f.subscription, adapter, returnOrigin: origin })
+    const [first] = await generateRenewals(pool, { now, subscription_id: f.subscription, returnOrigin: origin })
     expect(first?.due_now.minor).toBe(Math.round((2 * 2900 + 19900) * 1.15))
     expect((await getSubscription(pool, f.customer)).applied?.bundle_revision_ids).toEqual([secondBundle.id])
   })
@@ -225,7 +225,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const bought = await change(f, { requested_users: 5 }, beforeEnd)
     expect(await runJob(bought.order.id, okRunner)).toMatchObject({ state: 'verified' })
     const conversionAt = new Date('2026-11-15T09:00:00Z')
-    const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, adapter, returnOrigin: origin })
+    const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
     expect(converted.order?.due_now.minor).toBe(Math.round((19900 + Math.round(5800 * 26 / 30)) * 1.15))
     const job = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
     expect(job.payload.authority).toMatchObject({ trial_ends_at: conversionAt.toISOString(), post_trial_features: { 'pmo.enabled': false, 'users.limit': 5 } })
@@ -236,8 +236,9 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     await runSubscriptionReconfigure(pool, job.id, async input => ({
       ...await okRunner(input), observed_at: conversionAt.toISOString(), observed_entitlement_digest: job.payload.authority.post_trial_digest,
     }))
-    adapter.settle(converted.attempt!.provider_ref, 'succeeded')
-    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(converted.attempt!.provider_ref), headers: {}, adapter })
+    const hosted = await createPaymentAttempt(pool, { order_id: converted.order!.id, customer_id: f.customer, adapter, returnOrigin: origin })
+    adapter.settle(hosted.provider_ref!, 'succeeded')
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(hosted.provider_ref!), headers: {}, adapter })
     expect(await runJob(converted.order!.id, async input => {
       expect(input.job.authority).toMatchObject({ previous_revision_id: prior,
         target_revision_id: converted.order!.target_revision_id, trial_ends_at: null,
@@ -286,8 +287,8 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
     await lapse(f)
     await lock(f)
-    const [invoiceOrder] = await generateRenewals(pool, { now, subscription_id: f.subscription, adapter, returnOrigin: origin })
-    const { provider_ref } = (await pool.query('SELECT provider_ref FROM payment_attempts WHERE order_id=$1', [invoiceOrder!.id])).rows[0]
+    const [invoiceOrder] = await generateRenewals(pool, { now, subscription_id: f.subscription, returnOrigin: origin })
+    const { provider_ref } = await createPaymentAttempt(pool, { order_id: invoiceOrder!.id, customer_id: f.customer, adapter, returnOrigin: origin })
     await extendTrial(pool, { subscription_id: f.subscription, days: 5, reason: 'Vendor reopened trial', actor: vendor.actor_id, now })
     expect((await pool.query('SELECT status FROM invoices WHERE order_id=$1', [invoiceOrder!.id])).rows[0].status).toBe('void')
     adapter.settle(provider_ref, 'succeeded')
@@ -306,16 +307,15 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
     await lapse(f, at)
     await lock(f, at)
-    const [oldOrder] = await generateRenewals(pool, { now: at, subscription_id: f.subscription, adapter, returnOrigin: origin })
+    const [oldOrder] = await generateRenewals(pool, { now: at, subscription_id: f.subscription, returnOrigin: origin })
     expect(oldOrder?.id).toBeTruthy()
     await extendTrial(pool, { subscription_id: f.subscription, days: 5, reason: 'Vendor reopened trial', actor: vendor.actor_id, now: at })
     const pending = (await getSubscription(pool, f.customer)).pending_order!
     expect(await runJob(pending.id, okRunner)).toMatchObject({ state: 'verified' })
 
-    const conversion = await convertTrial(pool, { customer_id: f.customer, now: new Date('2026-11-19T11:00:00Z'), adapter, returnOrigin: origin })
+    const conversion = await convertTrial(pool, { customer_id: f.customer, now: new Date('2026-11-19T11:00:00Z'), returnOrigin: origin })
     expect(conversion.pending).toBe(false)
     expect(conversion.order?.id).not.toBe(oldOrder!.id)
-    expect(conversion.attempt?.redirect_url).toBeTruthy()
     const rows = (await pool.query(`SELECT r.order_id,i.status FROM renewals r JOIN invoices i ON i.id=r.invoice_id
       WHERE r.subscription_id=$1 AND r.period_start='2026-11-19' ORDER BY r.created_at`, [f.subscription])).rows
     expect(rows).toEqual([{ order_id: oldOrder!.id, status: 'void' }, { order_id: conversion.order!.id, status: 'issued' }])
@@ -326,9 +326,8 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const paid = await change(f, { requested_users: 5 }, beforeEnd)
     expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
 
-    const conversion = await convertTrial(pool, { customer_id: f.customer, now, adapter, returnOrigin: origin })
+    const conversion = await convertTrial(pool, { customer_id: f.customer, now, returnOrigin: origin })
     expect(conversion.pending).toBe(false)
-    expect(conversion.attempt?.redirect_url).toBeTruthy()
     const renewal = (await pool.query('SELECT period_start::text FROM renewals WHERE order_id=$1', [conversion.order!.id])).rows[0]
     expect(renewal.period_start).toBe('2026-11-19')
   })
@@ -467,7 +466,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
     await lapse(f)
     await lock(f)
-    const [first] = await generateRenewals(pool, { now, subscription_id: f.subscription, adapter, returnOrigin: origin })
+    const [first] = await generateRenewals(pool, { now, subscription_id: f.subscription, returnOrigin: origin })
     await pool.query("UPDATE payment_attempts SET status='failed' WHERE order_id=$1", [first!.id])
     const deadline = new Date(Math.max(now.getTime(), Date.now()) + 8 * 86_400_000)
     await applyDunning(pool, { now: deadline })
@@ -674,13 +673,14 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   it('drops a converted trial whose conversion payment is refunded, and records the free-base outcome', async () => {
     const f = await endedTrial()
     const conversionAt = new Date('2026-11-15T09:00:00Z')
-    const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, adapter, returnOrigin: origin })
+    const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
     const job = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
     await runSubscriptionReconfigure(pool, job.id, async input => ({
       ...await okRunner(input), observed_at: conversionAt.toISOString(), observed_entitlement_digest: job.payload.authority.post_trial_digest,
     }))
-    adapter.settle(converted.attempt!.provider_ref, 'succeeded')
-    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(converted.attempt!.provider_ref), headers: {}, adapter })
+    const hosted = await createPaymentAttempt(pool, { order_id: converted.order!.id, customer_id: f.customer, adapter, returnOrigin: origin })
+    adapter.settle(hosted.provider_ref!, 'succeeded')
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(hosted.provider_ref!), headers: {}, adapter })
     expect(await runJob(converted.order!.id, okRunner)).toMatchObject({ state: 'verified' })
     expect(await row(f.subscription)).toMatchObject({ state: 'active', trial_outcome: 'converted' })
     await refundInvoice((await invoiceOf(converted.order!.id)).id)
@@ -717,11 +717,11 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const period = (await pool.query("SELECT period_start::text AS start,(period_start + interval '1 month')::date::text AS next FROM free_base_locks WHERE subscription_id=$1", [f.subscription])).rows[0]
     expect(await day()).toBe(period.start)
     expect(renewalAt).not.toBeNull()
-    const [paidThrough] = await generateRenewals(pool, { now: at, subscription_id: f.subscription, adapter, returnOrigin: origin })
+    const [paidThrough] = await generateRenewals(pool, { now: at, subscription_id: f.subscription, returnOrigin: origin })
     expect(paidThrough?.due_now.minor).toBe(0)
     for (let pass = 0; pass < 20 && await day() !== period.next; pass++) await processFulfillmentOutbox(pool, { limit: 100 })
     expect(await day()).toBe(period.next)
-    const [next] = await generateRenewals(pool, { now: new Date(`${period.next}T09:00:00+03:00`), subscription_id: f.subscription, adapter, returnOrigin: origin })
+    const [next] = await generateRenewals(pool, { now: new Date(`${period.next}T09:00:00+03:00`), subscription_id: f.subscription, returnOrigin: origin })
     expect(next?.due_now.minor).toBe(Math.round(19900 * 1.15))
     const charged = (await pool.query("SELECT key FROM invoice_lines WHERE invoice_id=(SELECT id FROM invoices WHERE order_id=$1) AND kind<>'tax' AND amount_minor>0", [next!.id])).rows
     expect(charged.map(line => line.key)).toEqual([expect.stringContaining(bundle.id)])

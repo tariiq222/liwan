@@ -170,7 +170,7 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
     await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1", [o.id])
     await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE order_id=$1", [o.id])
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',renewal_at='2026-11-01',revision=revision+1 WHERE customer_id=$1", [id])
-    await generateRenewals(pool, { now: new Date('2026-11-06T08:00:00Z'), adapter, returnOrigin: runtime.returnOrigin })
+    await generateRenewals(pool, { now: new Date('2026-11-06T08:00:00Z'), returnOrigin: runtime.returnOrigin })
     const kinds = (await pool.query(`SELECT l.kind FROM invoice_lines l JOIN invoices i ON i.id=l.invoice_id JOIN orders o ON o.id=i.order_id WHERE o.kind='renewal' AND o.customer_id=$1`, [id])).rows.map((r: any) => r.kind)
     expect(kinds).toContain('base')
     expect(kinds).not.toContain('ai_topup')
@@ -899,7 +899,7 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       const o = (await order(id, newRequest(paid, 2500))).order
       await pay(id, o.id); await applyViaWorker(o.id)
       await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-01',revision=revision+1 WHERE customer_id=$1", [id])
-      await generateRenewals(pool, { now: new Date('2026-11-06T08:00:00Z'), adapter, returnOrigin: runtime.returnOrigin })
+      await generateRenewals(pool, { now: new Date('2026-11-06T08:00:00Z'), returnOrigin: runtime.returnOrigin })
       const renewal = (await pool.query("SELECT id,fulfillment_state FROM orders WHERE customer_id=$1 AND kind='renewal'", [id])).rows[0]
       expect(renewal.fulfillment_state).not.toBe('applied')
       await providerRefund(o.id)

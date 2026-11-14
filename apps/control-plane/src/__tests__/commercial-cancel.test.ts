@@ -167,11 +167,11 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
     await queueScheduledBillingNotices(pool, nextDay)
     expect(await notices()).toHaveLength(1)
 
-    await generateRenewals(pool, { now: at(f.renewalOn), adapter, returnOrigin: origin, subscription_id: f.subscription })
+    await generateRenewals(pool, { now: at(f.renewalOn), returnOrigin: origin, subscription_id: f.subscription })
     expect((await pool.query('SELECT 1 FROM renewals WHERE subscription_id=$1', [f.subscription])).rowCount).toBe(0)
 
     await resumeCancelled(pool, customerAsks(f))
-    const renewals = await generateRenewals(pool, { now: at(f.renewalOn), adapter, returnOrigin: origin, subscription_id: f.subscription })
+    const renewals = await generateRenewals(pool, { now: at(f.renewalOn), returnOrigin: origin, subscription_id: f.subscription })
     expect(renewals).toHaveLength(1)
     expect((await pool.query('SELECT 1 FROM renewals WHERE subscription_id=$1', [f.subscription])).rowCount).toBe(1)
   })
@@ -214,7 +214,7 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
   it('voids the unpaid renewal invoice of the period the customer is leaving', async () => {
     const f = await paidCustomer()
     const when = at(f.renewalOn)
-    await generateRenewals(pool, { now: when, adapter, returnOrigin: origin, subscription_id: f.subscription })
+    await generateRenewals(pool, { now: when, returnOrigin: origin, subscription_id: f.subscription })
     expect((await pool.query("SELECT 1 FROM invoices WHERE subscription_id=$1 AND status='issued'", [f.subscription])).rowCount).toBe(1)
     await cancelAtPeriodEnd(pool, customerAsks(f, when))
     await freshUsage(f, when)
@@ -266,7 +266,7 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
     expect((await pool.query('SELECT renewal_at::text AS on FROM subscriptions WHERE id=$1', [f.subscription])).rows[0].on).toBe(through)
     expect((await outbox(f.subscription, 'free_base.locked')).map(r => r.payload.outcome)).toEqual(['kept_subset'])
     // The renewal is not generated for the still-paid items; at their date the drop runs again and nothing is left.
-    await generateRenewals(pool, { now: at(through), adapter, returnOrigin: origin, subscription_id: f.subscription })
+    await generateRenewals(pool, { now: at(through), returnOrigin: origin, subscription_id: f.subscription })
     expect((await pool.query("SELECT 1 FROM renewals WHERE subscription_id=$1 AND period_start=$2", [f.subscription, through])).rowCount).toBe(0)
     await dropAt(f, at(through))
     const done = await row(f.subscription)
@@ -374,11 +374,13 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
     JOIN invoices i ON i.id=r.invoice_id WHERE r.subscription_id=$1 AND r.status<>'superseded' ORDER BY r.created_at DESC LIMIT 1`, [subscription])).rows[0]
   const due = async (f: Fixture) => {
     const when = at(f.renewalOn)
-    await generateRenewals(pool, { now: when, adapter, returnOrigin: origin, subscription_id: f.subscription })
+    await generateRenewals(pool, { now: when, returnOrigin: origin, subscription_id: f.subscription })
     return when
   }
   async function payRenewal(f: Fixture) {
     const order = await renewalOf(f.subscription)
+    // A customer pays through the card form; the vendor's hosted link is the one flow these tests can settle by reference.
+    await createPaymentAttempt(pool, { order_id: order.id, customer_id: f.customer, adapter, returnOrigin: origin })
     const attempt = (await pool.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending') ORDER BY created_at DESC LIMIT 1", [order.id])).rows[0]
     adapter.settle(attempt.provider_ref, 'succeeded')
     await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(attempt.provider_ref), headers: {}, adapter })
@@ -394,6 +396,7 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
     const f = await paidCustomer()
     const when = await due(f)
     const order = await renewalOf(f.subscription)
+    await createPaymentAttempt(pool, { order_id: order.id, customer_id: f.customer, adapter, returnOrigin: origin })
     const attempt = (await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1', [order.id])).rows[0]
     await cancelAtPeriodEnd(pool, customerAsks(f, when))
     await freshUsage(f, when)
@@ -471,7 +474,7 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
     await cancelAtPeriodEnd(pool, customerAsks(g))
     const afterDate = new Date(at(g.renewalOn).getTime() + 86_400_000)
     await resumeCancelled(pool, customerAsks(g, afterDate))
-    const renewals = await generateRenewals(pool, { now: afterDate, adapter, returnOrigin: origin, subscription_id: g.subscription })
+    const renewals = await generateRenewals(pool, { now: afterDate, returnOrigin: origin, subscription_id: g.subscription })
     expect(renewals).toHaveLength(1)
     await processFreeBaseLocks(pool, { now: afterDate, adapter, subscription_id: g.subscription })
     expect(await lockRow(g.subscription)).toBeUndefined()
@@ -547,7 +550,7 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
       const now = new Date(when.getTime() + days * 86_400_000)
       await freshUsage(f, now)
       await processFreeBaseLocks(pool, { now, adapter, subscription_id: f.subscription })
-      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await generateRenewals(pool, { now, returnOrigin: origin, subscription_id: f.subscription })
       await applyDunning(pool, { now })
       await queueScheduledBillingNotices(pool, now)
     }

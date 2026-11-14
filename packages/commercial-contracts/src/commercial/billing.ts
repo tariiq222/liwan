@@ -108,7 +108,7 @@ export const paymentAttemptSchema = z.strictObject({
   amount: moneySchema, status: paymentAttemptStatusSchema, redirect_url: z.string().nullable(),
   created_at: z.string(), updated_at: z.string(),
 })
-/** How a customer pays an order: the provider's hosted invoice page, or the card form inside the product. */
+/** How an order is paid: the card form inside the product (what a customer uses), or the provider's hosted invoice page (a vendor-issued link). */
 export const paymentMethodChoiceSchema = z.enum(['hosted_invoice', 'form'])
 const CONSENT_TEXT_VERSION = z.string().min(1).max(64)
 /**
@@ -116,7 +116,7 @@ const CONSENT_TEXT_VERSION = z.string().min(1).max(64)
  * consent text the customer saw; the server records the moment itself and never takes it from the request.
  */
 export const paymentAttemptRequestSchema = z.strictObject({
-  method: paymentMethodChoiceSchema.default('hosted_invoice'),
+  method: paymentMethodChoiceSchema.default('form'),
   save_card: z.boolean().default(false),
   consent_text_version: CONSENT_TEXT_VERSION.optional(),
 }).superRefine((request, ctx) => {

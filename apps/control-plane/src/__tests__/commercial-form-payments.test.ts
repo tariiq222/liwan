@@ -10,8 +10,11 @@ import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { buildAttemptDescription } from '../commercial/payment-description.js'
 import { createPaymentAttempt, handleProviderEvent, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
+import { cancelOrder } from '../commercial/orders.js'
+import { processTokenDeletions, resolveFormPayment, REJECTION_SUPPRESSED_ACTION } from '../commercial/form-payments.js'
+import { allAttentionItems } from '../commercial/attention.js'
+import { sendVendorAlerts } from '../commercial/vendor-alerts.js'
 import { attention } from '../commercial/attention.js'
-import { processTokenDeletions } from '../commercial/form-payments.js'
 import { processRefundOutbox } from '../commercial/settlements.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
@@ -34,7 +37,11 @@ suite('card form payments on PostgreSQL', () => {
     plans.allowed = await make(true)
     plans.forbidden = await make(false)
   })
-  beforeEach(async () => { vi.restoreAllMocks(); await pool.query('TRUNCATE customers CASCADE'); await pool.query('TRUNCATE commercial_outbox') })
+  beforeEach(async () => {
+    vi.restoreAllMocks(); await pool.query('TRUNCATE customers CASCADE'); await pool.query('TRUNCATE commercial_outbox')
+    // Rejections naming no order belong to no customer, so nothing above removes them: each test starts without the earlier ones'.
+    await pool.query("DELETE FROM audit_events WHERE action LIKE 'payment.form%'")
+  })
   afterAll(async () => { await pool.end() })
 
   /** A customer with one awaiting order and its issued invoice, and the simulator that pays it. */
@@ -52,8 +59,9 @@ suite('card form payments on PostgreSQL', () => {
       input: { order_id: row.id as string, customer_id: customer, adapter, returnOrigin: fixedReturnOrigin('https://liwan.test') } }
   }
   type F = Awaited<ReturnType<typeof order>>
-  const form = (f: F, over: Partial<PaymentAttemptRequest> = {}): Promise<FormPaymentSession> =>
-    createPaymentAttempt(pool, { ...f.input, request: paymentAttemptRequestSchema.parse({ method: 'form', ...over }) as PaymentAttemptRequest & { method: 'form' } })
+  const ACTOR = '7'
+  const form = (f: F, over: Partial<PaymentAttemptRequest> = {}, actor = ACTOR): Promise<FormPaymentSession> =>
+    createPaymentAttempt(pool, { ...f.input, actor, request: paymentAttemptRequestSchema.parse({ method: 'form', ...over }) as PaymentAttemptRequest & { method: 'form' } })
   const saving = { save_card: true, consent_text_version: 'v1' }
   const fulfil = (f: F, s: FormPaymentSession, o: Parameters<SimulatorAdapter['fulfilIntent']>[1] extends infer T ? Partial<T> : never = {}) =>
     f.adapter.fulfilIntent(s.intent.id, { clientSecret: s.intent.client_secret, ...o })
@@ -71,6 +79,7 @@ suite('card form payments on PostgreSQL', () => {
   const callbackOf = (attemptId: string) => `https://liwan.test/api/commercial/payment-callback?attempt=${attemptId}`
   const forge = (s: FormPaymentSession, f: F, over: Record<string, unknown> = {}) => f.adapter.directPayment({
     status: 'succeeded', amount: s.amount, description: buildAttemptDescription(s.attempt_id), callback_url: callbackOf(s.attempt_id), ...over } as any)
+  const consumeIntent = (f: F, s: FormPaymentSession) => fulfil(f, s, { card: { outcome: 'declined', message: 'DECLINED' } })
   const everything = async () => JSON.stringify([(await pool.query('SELECT * FROM audit_events')).rows, (await pool.query('SELECT payload FROM commercial_outbox')).rows])
 
   describe('opening the form', () => {
@@ -84,7 +93,7 @@ suite('card form payments on PostgreSQL', () => {
     })
     it('records the consent the server saw when the card is to be kept, and refuses without a consent text version', async () => {
       const f = await order()
-      await expect(createPaymentAttempt(pool, { ...f.input, request: { method: 'form', save_card: true } as any })).rejects.toMatchObject({ status: 422, code: 'consent_required' })
+      await expect(createPaymentAttempt(pool, { ...f.input, actor: ACTOR, request: { method: 'form', save_card: true } as any })).rejects.toMatchObject({ status: 422, code: 'consent_required' })
       const s = await form(f, saving)
       expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, consent_text_version: 'v1' })
       expect((await attemptRow(s.attempt_id)).consent_at).toBeInstanceOf(Date)
@@ -138,7 +147,7 @@ suite('card form payments on PostgreSQL', () => {
       const row = await attemptRow(s.attempt_id)
       expect(row).toMatchObject({ provider_intent_ref: next.intent.id, declined_payment_ref: null })
       expect(row.callback_secret).not.toBe(oldSecret)
-      if (how === 'expired') expect((await f.adapter.getIntent(s.intent.id)).status).toBe('canceled')
+      if (how === 'expired') expect((await f.adapter.getIntent(s.intent.id)).status).toBe('expired')
     })
     it('a consumed intent whose payment nobody has seen is not replaced: the customer is told a payment is in progress, and the callback settles it', async () => {
       const f = await order()
@@ -299,9 +308,10 @@ suite('card form payments on PostgreSQL', () => {
       // The attacker pays with their own card straight with the public key: every field of it is derivable from the attempt id.
       const attack = forge(s, f, { token: 'sim_attacker_card' })
       f.adapter.addToken('sim_attacker_card')
-      // While the victim's intent has not been fulfilled, the payment names an intent that nobody used.
+      // While the victim's intent has not been fulfilled, the payment names an intent that nobody used: that can change by itself, so
+      // it is answered (the provider would retry) and nothing is written, raised or remembered.
       await hint(f, s.attempt_id, attack.payment_id)
-      expect((await audits('payment.form_hint_rejected', f.order_id)).map(r => r.metadata.reason)).toEqual(['intent_not_fulfilled'])
+      expect(await audits('payment.form_hint_rejected', f.order_id)).toEqual([])
       // Once the victim's own attempt consumed the intent, only the missing secret stands in the way.
       consume(f, s)
       await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1", [s.attempt_id])
@@ -382,7 +392,9 @@ suite('card form payments on PostgreSQL', () => {
       await hint(f, s.attempt_id, 'x y; DROP')
       await rejected(f, s, 'bad_shape')
       await hint(f, s.attempt_id, 'sim_pay_unknown_999')
-      await rejected(f, s, 'payment_not_found')
+      // A payment the provider cannot read yet may still appear: nothing is written for it.
+      expect((await audits('payment.form_hint_rejected')).map(r => r.metadata.reason)).not.toContain('payment_not_found')
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ provider_ref: null, status: 'pending' })
     })
     it('a webhook for a forged payment is neither settled nor recorded as a final event, and every redelivery is answered the same way', async () => {
       const f = await order()
@@ -677,13 +689,16 @@ suite('card form payments on PostgreSQL', () => {
       expect(await hint(f, s.attempt_id, p.payment_id)).toMatchObject({ payment_state: 'paid' })
       expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'succeeded', provider_ref: p.payment_id })
     })
-    it('a paid payment that could not be tied to its attempt shows on the vendor list; a payer typing a bad hint does not', async () => {
+    it('a paid payment that could not be tied to its attempt shows on the vendor list with no customer; a payer typing a bad hint does not', async () => {
       const f = await order()
       const s = await form(f)
       await hint(f, s.attempt_id, 'bad hint!')
       expect((await attention(pool, true)).items.filter(i => i.kind === 'form_payment_review')).toEqual([])
-      await hint(f, s.attempt_id, forge(s, f, { amount: sar(100) }).payment_id)
-      expect((await attention(pool, true)).items.find(i => i.kind === 'form_payment_review')).toMatchObject({ customer_id: f.customer, detail: 'amount_mismatch' })
+      const forged = forge(s, f, { amount: sar(100) })
+      await hint(f, s.attempt_id, forged.payment_id)
+      expect((await attention(pool, true)).items.filter(i => i.kind === 'form_payment_review')).toEqual([])
+      await webhook(f, forged.payment_id) // the provider itself reports it: nobody is shown to have made it, so no customer carries it
+      expect((await attention(pool, true)).items.find(i => i.kind === 'form_payment_review' && i.detail === 'amount_mismatch')).toMatchObject({ customer_id: null, name: 'payment provider' })
     })
     it('after a decline the customer may switch to a hosted invoice at once', async () => {
       const f = await order()
@@ -725,6 +740,246 @@ suite('card form payments on PostgreSQL', () => {
       expect(refund).toHaveBeenCalledWith(p.payment_id, expect.objectContaining({ minor: s.amount.minor }))
       expect(await orderRow(f)).toMatchObject({ payment_state: 'refunded' })
       expect((await f.adapter.readPayment(p.payment_id)).status).toBe('refunded')
+    })
+  })
+  describe('review hardening of the form payment path', () => {
+    const reviewItems = async () => (await allAttentionItems(pool)).filter(i => i.kind === 'form_payment_review')
+    const settleNothing = async () => 'rejected' as const
+
+    describe('the rejection budget never gates money', () => {
+      it('500 unrelated rejected events do not stop a genuine payment for another order, and a money-relevant rejection for another order is still audited', async () => {
+        const noise = await order()
+        const sn = await form(noise)
+        for (let i = 0; i < 500; i++) {
+          const stranger = noise.adapter.directPayment({ status: 'succeeded', amount: sar(100 + i), description: buildAttemptDescription(randomUUID()), callback_url: 'https://elsewhere.test/cb' })
+          await handleProviderEvent(pool, { provider: 'simulator', adapter: noise.adapter, rawBody: noise.adapter.paymentWebhookBody(stranger.payment_id), headers: {} })
+        }
+        // The unattributed budget is spent and says so once; the rejections that were written are bounded.
+        expect((await audits('payment.form_payment_rejected')).length).toBeLessThanOrEqual(20)
+        expect(await audits(REJECTION_SUPPRESSED_ACTION)).toHaveLength(1)
+        // A genuine payment of another order settles on its first webhook, with the same adapter reading it.
+        const b = await order(true, noise.adapter)
+        const sb = await form(b)
+        const genuine = fulfil(b, sb)
+        expect(await webhook(b, genuine.payment_id)).toEqual({ status: 200, outcome: 'accepted' })
+        expect(await orderRow(b)).toMatchObject({ payment_state: 'paid' })
+        // A money-relevant rejection naming a third order is audited for that order although the unattributed budget is spent.
+        const c = await order(true, noise.adapter)
+        const sc = await form(c)
+        const wrong = forge(sc, c, { amount: sar(100) })
+        expect(await webhook(c, wrong.payment_id)).toEqual({ status: 409, outcome: 'unmatched' })
+        expect((await audits('payment.form_payment_rejected', c.order_id)).map(r => r.metadata.reason)).toEqual(['amount_mismatch'])
+        void sn
+      })
+      it('raises one vendor alert when an audit write was suppressed, naming the order and no customer', async () => {
+        const f = await order()
+        const s = await form(f)
+        for (let i = 0; i < 25; i++) await webhook(f, forge(s, f, { amount: sar(100 + i) }).payment_id)
+        expect(await audits('payment.form_payment_rejected', f.order_id)).toHaveLength(20)
+        const suppressed = await audits(REJECTION_SUPPRESSED_ACTION, f.order_id)
+        expect(suppressed).toHaveLength(1)
+        const sent: { subject: string; text: string }[] = []
+        await sendVendorAlerts(pool, { now: new Date(), env: { LIWAN_VENDOR_ALERT_EMAIL_TO: 'owner@example.test' }, mail: { send: async (m: any) => { sent.push(m); return { accepted: true, provider_message_id: 'p' } } } as any })
+        const alert = sent.filter(m => m.subject.includes('سجل رفض دفعات البطاقة'))
+        expect(alert).toHaveLength(1)
+        expect(alert[0]!.text).toContain(f.order_id.slice(0, 8))
+        expect(alert[0]!.text).not.toContain('العميل:')
+      })
+      it('a transient reason is never budgeted, and a trivial one cannot use up the money budget', async () => {
+        const f = await order()
+        const s = await form(f)
+        for (let i = 0; i < 30; i++) await hint(f, s.attempt_id, `bad hint ${i}!`)
+        expect((await audits('payment.form_hint_rejected')).filter(r => r.metadata.reason === 'bad_shape').length).toBeGreaterThan(0)
+        await hint(f, s.attempt_id, forge(s, f, { amount: sar(100) }).payment_id)
+        expect((await audits('payment.form_hint_rejected', f.order_id)).map(r => r.metadata.reason)).toContain('amount_mismatch')
+      })
+    })
+
+    describe('transient reasons are answered, never written', () => {
+      it('an early webhook (the intent does not read as fulfilled yet) writes nothing, raises nothing and is not remembered; the retry settles', async () => {
+        const f = await order()
+        const s = await form(f)
+        const p = fulfil(f, s)
+        const real = await f.adapter.getIntent(s.intent.id)
+        vi.spyOn(f.adapter, 'getIntent').mockResolvedValueOnce({ ...real, status: 'created' })
+        expect(await webhook(f, p.payment_id)).toEqual({ status: 409, outcome: 'unmatched' })
+        expect(await audits('payment.form_payment_rejected')).toEqual([])
+        expect(await reviewItems()).toEqual([])
+        expect(await webhook(f, p.payment_id)).toEqual({ status: 200, outcome: 'accepted' })
+        expect(await orderRow(f)).toMatchObject({ payment_state: 'paid' })
+        expect(await fulfilments(f)).toBe(1)
+      })
+      it('a permanent rejection is remembered for a few minutes: the provider is not asked again', async () => {
+        const f = await order()
+        const s = await form(f)
+        const forged = forge(s, f, { amount: sar(100) })
+        const read = vi.spyOn(f.adapter, 'readPayment')
+        await webhook(f, forged.payment_id)
+        await webhook(f, forged.payment_id)
+        expect(read).toHaveBeenCalledTimes(1)
+      })
+    })
+
+    describe('the binding and the settlement are one', () => {
+      it('a settlement the machine refuses leaves the payment bound to nothing', async () => {
+        const f = await order()
+        const s = await form(f)
+        const p = fulfil(f, s)
+        const refused = await resolveFormPayment(pool, f.adapter, { payment_id: p.payment_id, source: 'webhook', settle: settleNothing })
+        expect(refused).toEqual({ outcome: 'rejected', reason: 'settlement_mismatch' })
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ provider_ref: null, status: 'pending' })
+        expect(await orderRow(f)).toMatchObject({ payment_state: 'awaiting_payment' })
+        // The payment is still free to settle the way it should (once the short memory of its rejection has passed).
+        await pool.query("DELETE FROM audit_events WHERE action LIKE 'payment.form%'")
+        expect(await webhook(f, p.payment_id)).toEqual({ status: 200, outcome: 'accepted' })
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ provider_ref: p.payment_id, status: 'succeeded' })
+      })
+    })
+
+    describe('a forged failed payment', () => {
+      it('without the secret leaves no decline mark, and does not open a fresh intent for the victim', async () => {
+        const f = await order()
+        const s = await form(f)
+        const before = await attemptRow(s.attempt_id)
+        consumeIntent(f, s)
+        const forgedFail = forge(s, f, { status: 'failed' })
+        await hint(f, s.attempt_id, forgedFail.payment_id)
+        await webhook(f, forgedFail.payment_id)
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ declined_payment_ref: null, provider_ref: null })
+        expect(before.declined_payment_ref).toBeNull()
+        expect(await audits('payment.form_declined', f.order_id)).toEqual([])
+      })
+    })
+
+    describe('who a form is for', () => {
+      it('records the person the form was opened for and keeps that person as the creator of the saved card', async () => {
+        const f = await order()
+        const s = await form(f, saving, '42')
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ opened_by: '42', save_card: true })
+        await webhook(f, fulfil(f, s, { saveCard: true }).payment_id)
+        expect((await methods(f)).map(m => m.created_by)).toEqual(['42'])
+      })
+      it('the same person may change the choice while the intent is unused, and not once it is fulfilled', async () => {
+        const f = await order()
+        const s = await form(f, {}, '42')
+        await form(f, saving, '42')
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, opened_by: '42' })
+        fulfil(f, s)
+        await expect(form(f, {}, '42')).rejects.toMatchObject({ status: 409, code: 'payment_in_progress' })
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, consent_text_version: 'v1' })
+      })
+      it('another person is never handed a live client secret: the unused intent is cancelled and they get a fresh one with their own choice', async () => {
+        const f = await order()
+        const mine = await form(f, saving, '42')
+        const theirs = await form(f, {}, '43')
+        expect(theirs.attempt_id).toBe(mine.attempt_id)
+        expect(theirs.intent.id).not.toBe(mine.intent.id)
+        expect(theirs.intent.client_secret).not.toBe(mine.intent.client_secret)
+        expect((await f.adapter.getIntent(mine.intent.id)).status).toBe('canceled')
+        expect(() => fulfil(f, mine)).toThrow()
+        expect(await attemptRow(theirs.attempt_id)).toMatchObject({ opened_by: '43', save_card: false, consent_at: null, consent_text_version: null, provider_intent_ref: theirs.intent.id })
+        // And the first person is now the stranger: the same rule applies to them.
+        const back = await form(f, saving, '42')
+        expect(back.intent.id).not.toBe(theirs.intent.id)
+        expect(await attemptRow(theirs.attempt_id)).toMatchObject({ opened_by: '42', save_card: true })
+      })
+      it('another person gets nothing while the intent may hold a payment', async () => {
+        const f = await order()
+        const s = await form(f, {}, '42')
+        fulfil(f, s)
+        await expect(form(f, {}, '43')).rejects.toMatchObject({ status: 409, code: 'payment_in_progress' })
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ opened_by: '42' })
+        expect((await f.adapter.getIntent(s.intent.id)).status).toBe('fulfilled')
+      })
+    })
+
+    describe('an expired intent holds no payment', () => {
+      it('is replaced at once, with no payment in progress', async () => {
+        const f = await order()
+        const s = await form(f)
+        f.adapter.expireIntent(s.intent.id)
+        expect((await f.adapter.getIntent(s.intent.id)).status).toBe('expired')
+        const next = await form(f)
+        expect(next.attempt_id).toBe(s.attempt_id)
+        expect(next.intent.id).not.toBe(s.intent.id)
+      })
+      it('closing an attempt whose intent expired unused asks for no review', async () => {
+        const f = await order()
+        const s = await form(f)
+        f.adapter.expireIntent(s.intent.id)
+        await pool.query("UPDATE payment_attempts SET created_at=now()-interval '56 minutes' WHERE id=$1", [s.attempt_id])
+        const next = await form(f)
+        expect(next.attempt_id).not.toBe(s.attempt_id)
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'canceled' })
+        expect(await audits('payment.form_attempt_needs_review', f.order_id)).toEqual([])
+      })
+    })
+
+    describe('what the operator is shown', () => {
+      const backdate = () => pool.query("UPDATE audit_events SET created_at=created_at-interval '30 days' WHERE action LIKE 'payment.form%'")
+      it('keeps a paid payment of this customer\'s own attempt until it is settled or refunded, however old', async () => {
+        const f = await order()
+        const s = await form(f)
+        await hint(f, s.attempt_id, fulfil(f, s).payment_id)
+        const again = forge(s, f, { callback_url: (await f.adapter.getIntent(s.intent.id)).callback_url })
+        await webhook(f, again.payment_id)
+        expect((await audits('payment.form_payment_rejected', f.order_id)).map(r => r.metadata.reason)).toEqual(['attempt_has_other_payment'])
+        await backdate()
+        expect((await reviewItems()).filter(i => i.customer_id === f.customer)).toEqual([expect.objectContaining({ detail: 'attempt_has_other_payment' })])
+        await f.adapter.refund(again.payment_id)
+        await webhook(f, again.payment_id)
+        expect((await reviewItems()).filter(i => i.customer_id === f.customer)).toEqual([])
+      })
+      it('does not attach a payment that never held the secret to the customer: it is a provider item until refunded', async () => {
+        const f = await order()
+        const s = await form(f)
+        consumeIntent(f, s)
+        const attack = forge(s, f) // right description and amount, the public callback, no secret
+        await webhook(f, attack.payment_id)
+        await backdate()
+        const items = await reviewItems()
+        expect(items.filter(i => i.customer_id === f.customer)).toEqual([])
+        expect(items.find(i => i.detail === 'callback_mismatch')).toMatchObject({ customer_id: null, name: 'payment provider' })
+        await f.adapter.refund(attack.payment_id)
+        await webhook(f, attack.payment_id)
+        expect((await reviewItems()).find(i => i.detail === 'callback_mismatch')).toBeUndefined()
+      })
+      it('keeps an attempt used with no payment reported until its order is paid or cancelled, and clears it then', async () => {
+        const f = await order()
+        const s = await form(f)
+        fulfil(f, s)
+        await pool.query("UPDATE payment_attempts SET created_at=now()-interval '56 minutes' WHERE id=$1", [s.attempt_id])
+        await form(f).catch(() => undefined)
+        expect(await audits('payment.form_attempt_needs_review', f.order_id)).toHaveLength(1)
+        await backdate()
+        expect((await reviewItems()).filter(i => i.customer_id === f.customer)).toEqual([expect.objectContaining({ detail: 'attempt_needs_review' })])
+        await pool.query("UPDATE orders SET cancelled=true WHERE id=$1", [f.order_id])
+        expect((await reviewItems()).filter(i => i.customer_id === f.customer)).toEqual([])
+      })
+    })
+
+    describe('one lock order', () => {
+      it('a cancellation racing a card-saving settlement neither deadlocks nor loses money', async () => {
+        for (let round = 0; round < 12; round++) {
+          const f = await order()
+          const s = await form(f, saving)
+          const p = fulfil(f, s, { saveCard: true })
+          const principal = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage'] } as any
+          const results = await Promise.allSettled([webhook(f, p.payment_id), cancelOrder(pool, { order_id: f.order_id, principal, reason: 'Cancelled while paying', adapter: f.adapter })])
+          for (const r of results) if (r.status === 'rejected') expect((r.reason as { code?: string }).code).not.toBe('40P01')
+          const o = await orderRow(f)
+          // Paid (the cancel found it paid), or cancelled with the payment taken back to the refund path: never both unpaid and charged.
+          expect(['paid', 'refund_pending', 'awaiting_payment']).toContain(o.payment_state)
+          const settled = (await attemptRow(s.attempt_id)).provider_ref === p.payment_id
+          if (o.payment_state === 'awaiting_payment') {
+            // The cancellation won and the payment is not yet settled: a later webhook turns it into a refund, never a lost payment.
+            expect(o.cancelled).toBe(true)
+            expect(await webhook(f, p.payment_id)).toMatchObject({ status: 200 })
+            expect((await orderRow(f)).payment_state).toBe('refund_pending')
+          } else expect(settled).toBe(true)
+          if (o.payment_state === 'refund_pending' || (await orderRow(f)).payment_state === 'refund_pending') expect(await methods(f)).toEqual([])
+        }
+      })
     })
   })
 })

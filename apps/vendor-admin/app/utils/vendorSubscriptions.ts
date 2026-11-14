@@ -43,7 +43,7 @@ export function targetStatus(view: Pick<SubscriptionView, 'applied' | 'target' |
   return view.applied ? 'applied_only' : 'none'
 }
 export const orderBadgeColor = (o: Pick<Order, 'payment_state' | 'fulfillment_state'>) => {
-  if (o.fulfillment_state === 'failed' || o.fulfillment_state === 'needs_intervention' || o.payment_state === 'failed' || o.payment_state === 'refund_pending') return 'error' as const
+  if (o.fulfillment_state === 'failed' || o.fulfillment_state === 'needs_intervention' || o.payment_state === 'refund_pending') return 'error' as const
   if (o.fulfillment_state === 'applied') return 'success' as const
   if (o.payment_state === 'awaiting_payment') return 'warning' as const
   return 'info' as const

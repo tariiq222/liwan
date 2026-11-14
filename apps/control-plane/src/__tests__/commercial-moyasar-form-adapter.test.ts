@@ -41,7 +41,7 @@ const enc = (o: unknown) => new TextEncoder().encode(JSON.stringify(o))
 
 const intentBody = (over: Record<string, unknown> = {}) => ({
   id: 'intent_1', status: 'created', amount: 11500, currency: 'SAR', description: buildAttemptDescription(ATTEMPT), callback_url: CALLBACK,
-  client_secret: 'secret_for_the_browser', expires_at: '2026-11-13T20:00:00.000Z', created_at: '2026-11-13T19:00:00.000Z', ...over,
+  client_secret: 'secret_for_the_browser', expires_at: '2099-01-01T01:00:00.000Z', created_at: '2099-01-01T00:00:00.000Z', ...over,
 })
 const paymentBody = (over: Record<string, unknown> = {}, source: Record<string, unknown> = {}) => ({
   id: 'pay_1', status: 'paid', amount: 11500, fee: 118, currency: 'SAR', refunded: 0, captured: 0, description: buildAttemptDescription(ATTEMPT), callback_url: CALLBACK,
@@ -110,10 +110,17 @@ describe('boot: the publishable key', () => {
 })
 
 describe('MoyasarAdapter payment intents', () => {
+  it('reads a created intent past its end as expired, never as one that may hold a payment, and leaves the observed statuses alone', async () => {
+    for (const [status, expires, want] of [['created', '2020-01-01T00:00:00.000Z', 'expired'], ['created', '2099-01-01T01:00:00.000Z', 'created'], ['fulfilled', '2020-01-01T00:00:00.000Z', 'fulfilled'],
+      ['canceled', '2020-01-01T00:00:00.000Z', 'canceled'], ['something_new', '2020-01-01T00:00:00.000Z', 'unrecognized']] as const) {
+      const { a } = mk([intentBody({ status, expires_at: expires })])
+      expect((await a.getIntent('intent_1')).status).toBe(want)
+    }
+  })
   it('creates an intent with the secret key and server-set values only', async () => {
     const { a, calls } = mk([intentBody()])
     const intent = await a.createIntent({ attempt_id: ATTEMPT, amount: sar(11500), callback_url: CALLBACK })
-    expect(intent).toEqual({ id: 'intent_1', client_secret: 'secret_for_the_browser', status: 'created', expires_at: '2026-11-13T20:00:00.000Z', amount: sar(11500), description: buildAttemptDescription(ATTEMPT), callback_url: CALLBACK })
+    expect(intent).toEqual({ id: 'intent_1', client_secret: 'secret_for_the_browser', status: 'created', expires_at: '2099-01-01T01:00:00.000Z', amount: sar(11500), description: buildAttemptDescription(ATTEMPT), callback_url: CALLBACK })
     expect(calls).toHaveLength(1)
     expect(calls[0].url).toBe('https://api.moyasar.com/v1/payment_intents')
     expect(calls[0].init.method).toBe('POST')

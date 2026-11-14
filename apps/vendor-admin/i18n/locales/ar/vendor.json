@@ -987,8 +987,7 @@
         "not_required": "لا دفع مطلوب",
         "awaiting_payment": "بانتظار الدفع",
         "paid": "مدفوع",
-        "failed": "فشل الدفع",
-        "refund_pending": "استرداد معلّق",
+                "refund_pending": "استرداد معلّق",
         "refunded": "مُسترد"
       },
       "fulfillment": {

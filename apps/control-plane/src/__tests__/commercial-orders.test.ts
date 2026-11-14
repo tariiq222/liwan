@@ -52,6 +52,28 @@ suite('commercial B1 atomic orders', () => {
     await expect(acceptQuote(pool,{...input,expected_subscription_revision:1},vendor)).rejects.toMatchObject({status:409,code:'idempotency_conflict'})
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE order_id=$1',[first.order.id])).rows[0].n).toBe(1)
   })
+  it('a declined payment leaves the order payable: a new attempt can be opened and paid, and a refund of the first attempt is not a decline', async () => {
+    const id = await customer(), tenant = randomUUID()
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Declined payment','saas','dedicated_managed',$2,true)", [tenant, `declined-${tenant}`])
+    await pool.query('UPDATE customers SET tenant_id=$2 WHERE id=$1', [id, tenant])
+    const quote = await createQuoteForCustomer(pool, { customer_id:id, request:request() })
+    const { order } = await acceptQuote(pool, accept(quote), vendor)
+    const adapter = new SimulatorAdapter(), origin = fixedReturnOrigin('https://liwan.test')
+    const declined = await createPaymentAttempt(pool, { order_id:order.id, customer_id:id, adapter, returnOrigin:origin })
+    adapter.settle(declined.provider_ref, 'failed')
+    await handleProviderEvent(pool, { provider:'simulator', adapter, rawBody:adapter.webhookBody(declined.provider_ref), headers:{} })
+    const state = async () => (await pool.query('SELECT payment_state,cancelled FROM orders WHERE id=$1', [order.id])).rows[0]
+    expect(await state()).toEqual({ payment_state:'awaiting_payment', cancelled:false })
+    const second = await createPaymentAttempt(pool, { order_id:order.id, customer_id:id, adapter, returnOrigin:origin })
+    expect(second.id).not.toBe(declined.id)
+    adapter.settle(second.provider_ref, 'succeeded')
+    await handleProviderEvent(pool, { provider:'simulator', adapter, rawBody:adapter.webhookBody(second.provider_ref), headers:{} })
+    expect((await state()).payment_state).toBe('paid')
+    // A late decline of the first attempt changes neither the paid order nor the attempt that paid it.
+    await handleProviderEvent(pool, { provider:'simulator', adapter, rawBody:adapter.webhookBody(declined.provider_ref, { eventId:'late-decline' }), headers:{} })
+    expect((await state()).payment_state).toBe('paid')
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1', [second.id])).rows[0].status).toBe('succeeded')
+  })
   it.each(['pending', 'failed'] as const)('keeps a %s hosted payment authoritative when a fresh quote precedes its late success', async initialPayment => {
     const id = await customer(), tenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Pending payment','saas','dedicated_managed',$2,true)", [tenant, `pending-${tenant}`])
@@ -63,9 +85,10 @@ suite('commercial B1 atomic orders', () => {
     if (initialPayment === 'failed') {
       adapter.settle(attempt.provider_ref, 'failed')
       expect(await handleProviderEvent(pool, {provider:'simulator',adapter,rawBody:adapter.webhookBody(attempt.provider_ref),headers:{}})).toEqual({status:200,outcome:'accepted'})
-      expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [first.order.id])).rows[0].payment_state).toBe('failed')
-      // A failed attempt can still settle later, so until the order is explicitly cancelled
-      // accepting a replacement must stay blocked.
+      // A decline closes the attempt and leaves the order payable; it can still settle later, so until the order is
+      // explicitly cancelled accepting a replacement must stay blocked.
+      expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [first.order.id])).rows[0].payment_state).toBe('awaiting_payment')
+      expect((await pool.query('SELECT status FROM payment_attempts WHERE order_id=$1', [first.order.id])).rows[0].status).toBe('failed')
     }
     const beforeReject = (await pool.query(`SELECT
       (SELECT count(*) FROM invoices WHERE order_id=$1) AS invoices,
@@ -78,7 +101,7 @@ suite('commercial B1 atomic orders', () => {
       (SELECT count(*) FROM invoices WHERE order_id=$1) AS invoices,
       (SELECT count(*) FROM audit_events WHERE subject=$1::text) AS audits,
       (SELECT count(*) FROM commercial_outbox WHERE aggregate_id=$1::text) AS outbox`, [first.order.id])).rows[0]).toEqual(beforeReject)
-    expect(await acceptQuote(pool, input, vendor)).toEqual({ order:{...first.order,payment_state:initialPayment === 'failed' ? 'failed' : 'awaiting_payment'}, replay:true })
+    expect(await acceptQuote(pool, input, vendor)).toEqual({ order:first.order, replay:true })
     expect(await getSubscription(pool, id)).toMatchObject({ revision:1, target:{id:first.order.target_revision_id}, pending_order:{id:first.order.id} })
     expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE customer_id=$1', [id])).rows[0].n).toBe(1)
     expect((await pool.query('SELECT count(*)::int AS n FROM subscription_revisions WHERE subscription_id=$1', [first.order.subscription_id])).rows[0].n).toBe(1)
@@ -289,11 +312,6 @@ describe('order cancellation provider uncertainty', () => {
     await cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})
     expect(f.providerCalls).toEqual([])
     expect(f.log.filter(line=>line.startsWith('begin'))).toEqual(['begin 1'])
-    expect(f.writes).toHaveLength(5)
-  })
-  it('cancels a failed order', async()=>{
-    const f=fixture([],{payment_state:'failed'})
-    expect(await cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})).toMatchObject({id:'order'})
     expect(f.writes).toHaveLength(5)
   })
   it.each([{payment_state:'paid'}, {fulfillment_state:'applying'}])('refuses an order outside cancellable state %j', async(state)=>{

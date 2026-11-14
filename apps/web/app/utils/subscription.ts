@@ -312,7 +312,7 @@ export function sellerLegalName(seller: NonNullable<CustomerInvoice['seller']>, 
   return (locale.startsWith('ar') ? seller.legal_name_ar || seller.legal_name_en : seller.legal_name_en || seller.legal_name_ar)
 }
 
-export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payment_failed' | 'processing' | 'recovering' | 'activation_failed' | 'refund'
+export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'processing' | 'recovering' | 'activation_failed' | 'refund'
 
 /** What the customer should see for an order, whether it is still open or already closed. */
 export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_state'> & { cancelled?: boolean }): OrderOutcome {
@@ -323,7 +323,6 @@ export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_s
     return order.payment_state === 'paid' && !order.cancelled ? 'recovering' : 'activation_failed'
   }
   if (order.cancelled) return 'cancelled'
-  if (order.payment_state === 'failed') return 'payment_failed'
   if (order.payment_state === 'awaiting_payment') return 'awaiting_payment'
   return 'processing'
 }
