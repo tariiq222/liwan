@@ -1,6 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import math
-
 from odoo import api, models
 from odoo.exceptions import AccessError
 
@@ -14,6 +12,10 @@ NAME_MAX = 200
 # PostgreSQL stores no NUL character in text: it would answer 500.
 NUL = '\x00'
 DESCRIPTION_MAX = 4000
+# The largest price and quantity a caller may give. Compared before anything converts or rounds the number, so a huge
+# integer, 1e308, NaN and Infinity are all refused by the comparison and no exception escapes.
+MAX_PRICE = 1_000_000_000
+MAX_QUANTITY = 1_000_000
 ORDER = 'name, id'
 # The largest offset a list may ask: PostgreSQL refuses one beyond a bigint, and nobody pages that far.
 MAX_OFFSET = 2**31 - 1
@@ -282,8 +284,8 @@ class LiwanProductsService(models.AbstractModel):
             vals['type'] = WIRE_TYPES[values['type']]
         if 'list_price' in values:
             price = values['list_price']
-            if not _is_number(price) or not math.isfinite(price) or price < 0:
-                _refuse_invalid('list_price', 'list_price must be a number, zero or more')
+            if not _is_number(price) or not 0 <= price <= MAX_PRICE:
+                _refuse_invalid('list_price', f'list_price must be a number from 0 to {MAX_PRICE}')
             vals['list_price'] = float(price)
         elif required:
             vals['list_price'] = 0.0
@@ -315,11 +317,11 @@ class LiwanProductsService(models.AbstractModel):
         caller), then the amounts for the quantity. The tax part is ``_liwan_price_amounts``, which the tax bridge
         extends; without it there is no tax. 403 unless the caller may price a product (``_liwan_can_price``); an elevated caller (a cron, a
         public page) is not checked and passes ``company`` explicitly. A non-elevated caller may ask only for a company of
-        its session (403 otherwise). ``quantity`` is a number above zero (422 otherwise). ``unit_price`` is rounded to
-        the currency; the amounts come from the unrounded unit price.
+        its session (403 otherwise). ``quantity`` is a number above zero and at most ``MAX_QUANTITY`` (422 otherwise).
+        ``unit_price`` is rounded to the currency; the amounts come from the unrounded unit price.
         """
-        if not _is_number(quantity) or not math.isfinite(quantity) or quantity <= 0:
-            _refuse_invalid('quantity', 'quantity must be a number greater than zero')
+        if not _is_number(quantity) or not 0 < quantity <= MAX_QUANTITY:
+            _refuse_invalid('quantity', f'quantity must be a number greater than zero, at most {MAX_QUANTITY}')
         company = company or self.env.company
         if not self.env.su:
             self._liwan_require_price()

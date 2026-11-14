@@ -68,9 +68,16 @@ class TestBookingPaymentRoutes(LiwanPaidBookingCase):
 
     def test_a_price_that_is_not_a_real_amount_is_refused(self):
         # An HTTP client cannot even send these (JSON has no NaN or Infinity), but Python's JSON reader accepts them.
-        for price in (float('nan'), float('inf')):
+        for price in (float('nan'), float('inf'), 1e308, 10**400, -(10**400)):
             with self.subTest(price=price), self.assertRaises(ApiError):
                 parse_type_payment({'price': price})
+
+    def test_a_huge_price_is_refused_by_the_route_not_a_server_error(self):
+        self.authenticate('appointments_manager', 'appointments_manager_pass_123')
+        for price in (1e308, 10**400, -(10**400)):
+            with self.subTest(price=price):
+                response = self.api('PATCH', self.type_url(), json={'price': price})
+                self.assertEqual((response.status_code, response.json()['field']), (422, 'price'))
 
     def test_only_a_manager_changes_how_a_type_is_paid(self):
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')

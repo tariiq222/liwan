@@ -346,3 +346,56 @@ class TestCatalogResyncOnVatRegistration(TaxModeCase):
         })
         self.assertEqual(self.item.sync_state, 'pending')
         self.assertEqual(self.pushed_price(self.run_sync()), '132.25')
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestPriceFunctionMatchesTheSaleLine(TaxModeCase):
+    """The price function and a stock sale order line (which a catalog order becomes) agree for a foreign customer,
+    from the root's session and from a branch's, on a price-included tax that only the root owns."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.branch = cls.catalog_company('Parity branch', parent=cls.tax_company)
+        abroad = cls.env['account.fiscal.position'].create({
+            'name': 'Parity abroad', 'company_id': cls.tax_company.id, 'auto_apply': True, 'sequence': -100,
+            'country_id': cls.env.ref('base.ae').id,
+        })
+        export = cls.env['account.tax'].with_company(cls.tax_company).create({
+            'name': 'Parity export 0', 'amount': 0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.tax_company.id, 'tax_group_id': cls.tax_group.id,
+            'fiscal_position_ids': [Command.set(abroad.ids)], 'original_tax_ids': [Command.set(cls.tax.ids)],
+        })
+        reduced = cls.env['account.tax'].with_company(cls.tax_company).create({
+            'name': 'Parity reduced 5', 'amount': 5, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.tax_company.id, 'tax_group_id': cls.tax_group.id,
+        })
+        egypt = cls.env['account.fiscal.position'].create({
+            'name': 'Parity Egypt', 'company_id': cls.tax_company.id, 'auto_apply': True, 'sequence': -99,
+            'country_id': cls.env.ref('base.eg').id,
+        })
+        reduced.write({'fiscal_position_ids': [Command.set(egypt.ids)], 'original_tax_ids': [Command.set(cls.tax.ids)]})
+        cls.exports = export | reduced
+        cls.uae = cls.env['res.partner'].create({'name': 'Parity UAE', 'country_id': cls.env.ref('base.ae').id})
+        cls.egypt_customer = cls.env['res.partner'].create({'name': 'Parity Egypt', 'country_id': cls.env.ref('base.eg').id})
+        cls.shared_product = cls.env['product.product'].with_company(cls.tax_company).create({
+            'name': 'Parity product', 'type': 'consu', 'list_price': 115.0, 'company_id': False,
+            'taxes_id': [Command.set(cls.tax.ids)], 'liwan_product': True,
+        })
+
+    def test_the_price_function_equals_the_sale_order_line(self):
+        service = self.env['liwan.products.service'].sudo()
+        for company in (self.tax_company, self.branch):
+            for customer, expected in ((self.uae, (100.0, 0.0, 100.0)), (self.egypt_customer, (100.0, 5.0, 105.0))):
+                with self.subTest(company=company.name, customer=customer.name):
+                    price = service._liwan_price(self.shared_product.product_tmpl_id, company=company, customer=customer)
+                    order = self.env['sale.order'].with_company(company).create({
+                        'partner_id': customer.id, 'company_id': company.id,
+                        'order_line': [Command.create({'product_id': self.shared_product.id, 'product_uom_qty': 1})],
+                    })
+                    line = order.order_line
+                    self.assertEqual(
+                        (price['amount_untaxed'], price['amount_tax'], price['amount_total']),
+                        (line.price_subtotal, line.price_total - line.price_subtotal, line.price_total),
+                    )
+                    self.assertEqual((price['amount_untaxed'], price['amount_tax'], price['amount_total']), expected)

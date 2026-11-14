@@ -15,7 +15,10 @@ Contributed through `product.template._liwan_product_extension_specs()` under th
 - The ids must be among the choices: the sale taxes of the product's company (the root for a shared product) and of
   its ancestors: the active ones and the inactive ones a chart loaded (an accountant's archived tax is never offered
   or re-activated), less the Saudi chart's private education and healthcare 0% taxes, which need a
-  Saudi-national buyer. Else 422 `invalid` on `taxes`. More than one tax is accepted; their amounts combine.
+  Saudi-national buyer. Else 422 `invalid` on `taxes`. More than one tax is accepted; their amounts combine. The taxes must all belong to one
+  company (the product's own or the root's): stock puts on a sale the taxes of the first level that owns one, so a
+  mixed list is 422 on `taxes` instead of being stored whole and priced with one level. The choices route still lists
+  both levels, since a branch may pick either.
 - "No tax" on a registered establishment is a zero-rated or exempt tax picked from the choices; picking an inactive
   chart tax activates it. A ZATCA invoice line needs a tax (`l10n_sa_edi` `account_edi_format.py:403-404`).
 - A new product takes the establishment's default sale tax (the company's `account_sale_tax_id`, else its root's, as
@@ -30,9 +33,11 @@ amount, active}], total}`, the choices for a new product of this session; empty 
 `liwan.products.service._liwan_price_amounts` computes, for a registered establishment, the stock tax computation
 (`account.tax.compute_all`) on the product's taxes that stock would put on a sale line of the company
 (`_filter_taxes_by_company`), mapped through the fiscal position stock picks for the customer
-(`account.fiscal.position._get_fiscal_position`). When the mapping drops a price-included tax, the price loses it
-first, as a stock line does (`account.tax._fix_tax_included_price_company`): 115 with 15% included, for a customer
-mapped to export 0%, is 100 / 0 / 100. Each tax follows stock's price mode of the company that owns it
+(`account.fiscal.position._get_fiscal_position`). The unit price follows the mapping the way a stock sale line does
+(`product.product._get_tax_included_unit_price_from_price`, ending in `account.tax._adapt_price_unit_to_another_taxes`,
+on the taxes of every owning company): when every product tax is price-included, the price loses the tax the mapping
+drops and takes the one it adds (115 with 15% included, for a customer mapped to export 0%, is 100 / 0 / 100; mapped to
+5% included, 100 / 5 / 105); with any added tax the price is left as typed. Each tax follows stock's price mode of the company that owns it
 (`account_price_include`, the establishment's one choice, managed by `liwan_api_account`); there is no LiwanOS copy of
 it. For an establishment that is not registered there is no tax, whatever taxes the product still carries.
 
@@ -46,6 +51,8 @@ the service's capability and company checks. Only tax ids, names, rates, active 
 the stored value between parse and write is a tuple of ids, and the product returned to the service stays in the
 caller's environment.
 
-`_liwan_adopt` is extended: an adopted product whose sale taxes are not valid establishment sale taxes (or has none)
-gets the establishment default, and its purchase taxes are cleared. The case is
+`_liwan_adopt` is extended: an adopted product keeps the sale taxes that are valid establishment sale taxes (a dormant
+chart tax among them is activated, as picking it does); the establishment default takes over only when none is valid
+or the product has none, and with no default either the product is left untaxed and a warning in the log names it.
+An adopted product is shared, so its taxes are the root's and the one-company rule holds. Its purchase taxes are cleared. The case is
 documented in `tools/arch_documented_sudo.json`.

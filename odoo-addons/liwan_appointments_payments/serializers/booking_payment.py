@@ -1,6 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import math
-
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_appointments_payments.models.resource_booking_type import (
@@ -58,7 +56,8 @@ def parse_type_payment(payload):
         values['product_id'] = product_id
     if 'price' in payload:
         price = payload['price']
-        if type(price) not in (int, float) or not math.isfinite(price) or not 0 < price <= MAX_PRICE:
+        # The range comes first: it refuses NaN, Infinity and a huge integer without converting them.
+        if type(price) not in (int, float) or not 0 < price <= MAX_PRICE:
             raise ApiError(422, 'invalid', 'must be a positive amount up to %d' % MAX_PRICE, field='price')
         values['price'] = float(price)
     refund_rules = parse_refund_rules(payload)

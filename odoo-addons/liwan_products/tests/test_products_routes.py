@@ -4,6 +4,7 @@ from odoo.tests import tagged
 
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_products.models.products_service import MAX_PRICE
 from odoo.addons.liwan_products.tests.common import (
     PICK,
     PRODUCTS,
@@ -177,7 +178,7 @@ class TestProductsRoutes(ProductsCase):
                             self.assertEqual(response.json()['field'], key)
                 self.assertEqual(self.env['product.template'].browse(product['id']).type, 'consu')
 
-    def test_a_price_that_is_not_a_finite_number_is_refused(self):
+    def test_a_price_that_is_not_a_finite_or_a_reasonable_number_is_refused(self):
         # requests cannot send NaN or Infinity, but Python's JSON reader accepts the bare words: send the text itself.
         product = self.created({'name': 'Finite', 'type': 'goods', 'list_price': 7})
         path = f'{PRODUCTS}/{product["id"]}'
@@ -186,7 +187,7 @@ class TestProductsRoutes(ProductsCase):
                 self.set_mode(mode)
                 set_probe_feature(self)
                 self.sign_in('pr_root_staff')
-                for word in ('NaN', 'Infinity', '-Infinity'):
+                for word in ('NaN', 'Infinity', '-Infinity', '1e308', '1' + '0' * 400, '-1' + '0' * 400):
                     for method, url, body in (
                         ('POST', PRODUCTS, '{"name": "X", "type": "goods", "list_price": %s}' % word),
                         ('PATCH', path, '{"list_price": %s}' % word),
@@ -216,7 +217,7 @@ class TestProductsRoutes(ProductsCase):
 
     def test_the_service_refuses_values_of_the_wrong_kind(self):
         service = self.env['liwan.products.service'].with_user(self.root_staff).with_company(self.root_company)
-        for number in (float('nan'), float('inf')):
+        for number in (float('nan'), float('inf'), 1e308, 10**400, MAX_PRICE + 1):
             with self.subTest(number=number), self.assertRaisesRegex(LiwanAccessRule, 'list_price'):
                 service._liwan_create({'name': 'X', 'type': 'goods', 'list_price': number})
         for offset in (-1, 2**31, 10**20, 1.5, [], True):

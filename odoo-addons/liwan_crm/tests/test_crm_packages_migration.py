@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 
+from odoo import Command
 from odoo.tests import TransactionCase, tagged
 from odoo.tools.sql import column_exists
 
@@ -54,12 +55,36 @@ class TestPackagesMigration(TransactionCase):
         self.assertNotIn(self.plain, self.packages(self.company), 'a product only a lead names is not offered')
         self.assertFalse(column_exists(self.env.cr, 'product_template', 'liwan_crm_package'))
 
-    def test_a_second_run_changes_nothing(self):
+    def test_a_rerun_after_a_failure_repeats_the_adoption_and_the_links_without_duplicating_them(self):
+        """A failure before the column was dropped leaves it in place: the script then runs again over the same
+        marked products. The state is rebuilt here, since the first run drops the column."""
         migration = load()
         migration.migrate(self.env.cr, PREVIOUS)
+        self.assertFalse(column_exists(self.env.cr, 'product_template', 'liwan_crm_package'))
+        self.env.cr.execute('ALTER TABLE product_template ADD COLUMN liwan_crm_package boolean')
+        self.env.cr.execute(
+            'UPDATE product_template SET liwan_crm_package = true WHERE id = ANY(%s)',
+            [[self.own.id, self.foreign.id, self.everywhere.id]],
+        )
         migration.migrate(self.env.cr, PREVIOUS)
         self.env.invalidate_all()
+        self.assertFalse(column_exists(self.env.cr, 'product_template', 'liwan_crm_package'))
         self.assertEqual(self.packages(self.company), self.own | self.everywhere)
+        self.assertEqual(self.packages(self.other), self.foreign | self.everywhere)
+        settings = self.env['liwan.crm.settings'].search([('company_id', '=', self.company.id)])
+        self.assertEqual(len(settings), 1)
+        self.assertEqual(len(settings.package_ids), 2)
+
+    def test_a_company_that_already_has_a_settings_row_keeps_it_and_gains_its_packages(self):
+        offered = self.env['product.template'].create({'name': 'Already offered', 'liwan_product': True})
+        existing = self.env['liwan.crm.settings'].create({
+            'company_id': self.company.id, 'package_ids': [Command.link(offered.id)],
+        })
+        load().migrate(self.env.cr, PREVIOUS)
+        self.env.invalidate_all()
+        rows = self.env['liwan.crm.settings'].search([('company_id', '=', self.company.id)])
+        self.assertEqual(rows, existing)
+        self.assertEqual(existing.package_ids, offered | self.own | self.everywhere)
 
     def test_a_fresh_install_runs_nothing(self):
         load().migrate(self.env.cr, None)

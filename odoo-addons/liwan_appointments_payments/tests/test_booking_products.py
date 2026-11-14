@@ -97,6 +97,34 @@ class TestBookingProductCapabilities(BookingProductsCase):
             self.env['product.template'].with_user(self.plain).create({'name': 'Mine', 'type': 'service'})
         self.assertFalse(self.fresh_type._liwan_product())
 
+    def test_the_vendor_support_role_cannot_price_or_link_a_booking_types_product(self):
+        """The role holds no appointments or product capability: it manages access, not a tenant's catalog."""
+        existing = self.service_product()
+        root = self.root_company
+        # The built-in role is not assignable: a role holding exactly its permissions stands for it.
+        vendor = self.env.ref('liwan_core.role_vendor_support')
+        like_support = self._role('bp_test_vendor_support', *vendor.permission_ids.mapped('key'))
+        support = self._member(self.mail('bp_vendor_support'), root, [root], {root: like_support})
+        for mode in MODES:
+            with self.subTest(mode=mode), self.undone():
+                self.set_mode(mode)
+                self.sign_in('bp_vendor_support')
+                for payload in ({'price': 80}, {'product_id': existing.id}):
+                    self.assertRefused(self.patch(self.fresh_type, payload), 403, 'forbidden')
+                self.assertRefused(self.patch(self.paid_type, {'price': 80}), 403, 'forbidden')
+        with self.assertRaises(LiwanAccessRule):
+            self.fresh_type.with_user(support)._liwan_set_payment(price=80)
+        self.assertFalse(self.fresh_type._liwan_product())
+        self.assertEqual(self.paid_type._liwan_product().list_price, 115.0)
+
+    def test_a_product_created_through_the_payment_route_stays_purchasable_as_stock_defaults_it(self):
+        """The product is a service product sold online; the route sets no purchase flag, so stock's default holds."""
+        self.authenticate('appointments_manager', 'appointments_manager_pass_123')
+        self.assertEqual(self.patch(self.fresh_type, {'price': 80}).status_code, 200)
+        product = self.fresh_type._liwan_product()
+        self.assertTrue(product.product_tmpl_id.purchase_ok)
+        self.assertTrue(product.product_tmpl_id.sale_ok)
+
     def test_the_built_in_manager_creates_prices_and_links(self):
         existing = self.service_product()
         for mode in MODES:

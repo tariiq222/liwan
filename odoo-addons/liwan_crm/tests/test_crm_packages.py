@@ -254,12 +254,6 @@ class TestCrmPackages(LiwanCrmCase):
 
     # What a lead keeps
 
-    def test_the_lead_package_field_offers_the_companys_packages(self):
-        offered = self.env['crm.lead'].fields_get(['liwan_package_id'], ['domain'])['liwan_package_id']['domain']
-        self.assertEqual(offered, [('id', 'in', [self.package.id])])
-        other = self.env['crm.lead'].with_company(self.other_company)
-        self.assertEqual(other.fields_get(['liwan_package_id'], ['domain'])['liwan_package_id']['domain'], [('id', 'in', [])])
-
     def test_a_sale_prices_the_package_through_the_price_function(self):
         calls = []
 

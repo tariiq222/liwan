@@ -8,7 +8,6 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 from .catalog import is_https_url
-from .catalog_image import inspect_image
 from .constants import (
     IMAGE_PATH,
     MAX_PRODUCT_DESCRIPTION,
@@ -16,6 +15,7 @@ from .constants import (
     MIN_IMAGE_SIDE,
     RETAILER_ID,
 )
+from odoo.addons.liwan_products.models.product_image import inspect_image
 
 AVAILABILITY = [('in_stock', 'In stock'), ('out_of_stock', 'Out of stock')]
 META_AVAILABILITY = {'in_stock': 'in stock', 'out_of_stock': 'out of stock'}
@@ -105,9 +105,15 @@ class LiwanInboxCatalogItem(models.Model):
         return bool(self.last_synced_at or self.synced_hash or self.pushed_hash or self.sync_state == 'syncing')
 
     def _liwan_orderable(self):
-        """Whether a cart or an agent may put this item in an order: listed in the catalog and not rejected by Meta."""
+        """Whether a cart or an agent may put this item in an order: on offer and not rejected by Meta."""
         self.ensure_one()
-        return bool(self) and self.active and self.listed and self.review_status != 'rejected'
+        return bool(self) and self._liwan_on_offer() and self.review_status != 'rejected'
+
+    def _liwan_on_offer(self):
+        """Whether this item is meant to be at Meta: listed, not deleted, and its product not archived. The product
+        is read as the many2one gives it, an archived one too."""
+        self.ensure_one()
+        return self.active and self.listed and self.product_id.active
 
     def _liwan_reset_sync(self):
         """After a change that reaches Meta: unlisted and deleted items are removed there, the others resent.
@@ -117,7 +123,7 @@ class LiwanInboxCatalogItem(models.Model):
         """
         for item in self:
             in_flight = item.sync_state == 'syncing'
-            if not item.listed or not item.active:
+            if not item._liwan_on_offer():
                 state = 'removing' if item.synced_hash or in_flight else 'synced'
             else:
                 state = 'syncing' if in_flight else 'pending'
@@ -134,26 +140,45 @@ class LiwanInboxCatalogItem(models.Model):
 
     @api.model
     def _liwan_product_changed(self, product_ids, image_changed):
-        """Mark the items of changed products for resync; a changed image gets a new public address.
+        """Mark the items of changed products for resync; a changed image gets a new public address. An item whose
+        product is now archived is withdrawn from Meta as an unlisted one is, and one whose product came back is sent
+        again (``_liwan_reset_sync`` states).
 
         Plain SQL on this model's own table: whoever edits a product (any product writer) may hold no right on items.
         """
         self.flush_model()
+        ids = tuple(product_ids) or (0,)
+        archived = self.env['product.product'].with_context(active_test=False).browse(product_ids).filtered(
+            lambda product: not product.active,
+        ).ids or [0]
+        # An archived product is withdrawn: removed at Meta when Meta has it (or may get it from the open batch).
         self.env.cr.execute(
-            "SELECT id FROM liwan_inbox_catalog_item WHERE product_id IN %s AND listed AND active", [tuple(product_ids) or (0,)],
+            "UPDATE liwan_inbox_catalog_item SET sync_state = CASE "
+            "WHEN COALESCE(synced_hash, '') <> '' OR sync_state = 'syncing' THEN 'removing' ELSE 'synced' END "
+            "WHERE product_id IN %s AND product_id IN %s AND listed AND active RETURNING id",
+            [ids, tuple(archived)],
         )
-        ids = [row[0] for row in self.env.cr.fetchall()]
-        if not ids:
-            return
+        withdrawn = [row[0] for row in self.env.cr.fetchall()]
+        # An item on offer is resent; one withdrawn with its product is offered again once the product is back.
         self.env.cr.execute(
-            "UPDATE liwan_inbox_catalog_item SET sync_state = 'pending' WHERE id IN %s AND sync_state IN ('synced', 'error')",
-            [tuple(ids)],
+            "UPDATE liwan_inbox_catalog_item SET sync_state = 'pending' "
+            "WHERE product_id IN %s AND product_id NOT IN %s AND listed AND active "
+            "AND sync_state IN ('synced', 'error', 'removing')",
+            [ids, tuple(archived)],
         )
+        self.env.cr.execute(
+            "SELECT id FROM liwan_inbox_catalog_item "
+            "WHERE product_id IN %s AND product_id NOT IN %s AND listed AND active",
+            [ids, tuple(archived)],
+        )
+        offered = [row[0] for row in self.env.cr.fetchall()]
         if image_changed:
-            for item_id in ids:
+            for item_id in offered:
                 self.env.cr.execute('UPDATE liwan_inbox_catalog_item SET image_token = %s WHERE id = %s', [new_image_token(), item_id])
         self.invalidate_model(['sync_state', 'image_token'])
-        self.browse(ids).catalog_id._liwan_request_sync()
+        touched = self.browse({*withdrawn, *offered})
+        if touched:
+            touched.catalog_id._liwan_request_sync()
 
     @api.model
     def _liwan_establishment_price_changed(self, establishment_ids):
@@ -303,7 +328,7 @@ class LiwanInboxCatalogItem(models.Model):
                 return {'method': 'DELETE', 'data': {'id': self.retailer_id}}
             self._liwan_removed()
             return None
-        if not self.listed or not self.active:
+        if not self._liwan_on_offer():
             self.sync_state = 'synced'
             return None
         digest = self._liwan_payload_hash()

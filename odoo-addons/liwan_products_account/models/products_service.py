@@ -1,7 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+
 from odoo import Command, api, models
 
 from .elevated import elevated_env
+
+_logger = logging.getLogger(__name__)
 
 
 class LiwanProductsService(models.AbstractModel):
@@ -11,8 +15,10 @@ class LiwanProductsService(models.AbstractModel):
     def _liwan_price_amounts(self, variant, unit_price, quantity, company, customer):
         """The tax part of the price function (plan D6): the stock tax computation on the taxes stock puts on a sale
         line of ``company`` (``_filter_taxes_by_company`` climbs to the first ancestor that owns one), mapped through
-        the fiscal position stock picks for ``customer``. When the mapping drops a price-included tax, the price loses
-        that tax first, as a stock line does (``account.tax._fix_tax_included_price_company``). Each tax follows
+        the fiscal position stock picks for ``customer``. The unit price follows the mapping exactly as a stock sale line
+        does (``product.product._get_tax_included_unit_price_from_price``, which ends in
+        ``account.tax._adapt_price_unit_to_another_taxes``): a price whose every tax is price-included loses the
+        tax the mapping drops and takes the one it adds. Each tax follows
         stock's price mode of the company that owns it (``account_price_include``, the establishment's one choice).
         An establishment that is not registered for VAT has no tax, whatever taxes the product still carries.
 
@@ -29,8 +35,8 @@ class LiwanProductsService(models.AbstractModel):
             taxes = elevated['account.fiscal.position'].with_company(company)._get_fiscal_position(partner).map_tax(
                 product_taxes,
             )
-            unit_price = elevated['account.tax']._fix_tax_included_price_company(
-                unit_price, product_taxes, taxes, company,
+            unit_price = variant.with_env(elevated)._get_tax_included_unit_price_from_price(
+                unit_price, product_taxes, product_taxes_after_fp=taxes,
             )
         result = taxes.with_company(company).compute_all(
             unit_price, company.currency_id, quantity, product=variant.with_env(elevated), partner=partner,
@@ -51,14 +57,27 @@ class LiwanProductsService(models.AbstractModel):
 
     @api.model
     def _liwan_adopt(self, products):
-        """Adopted products carry valid establishment sale taxes: taxes outside the choices (or none) give way to the
-        establishment's default, and purchase taxes are cleared (a service product is sold, plan D20)."""
+        """Adopted products carry valid establishment sale taxes: the valid ones they already have are kept (a dormant
+        chart tax is activated, as picking it does), and only when none is valid the establishment's default takes
+        their place. With no default either the product has no tax and the adoption says so in the log. Purchase
+        taxes are cleared (a service product is sold, plan D20). An adopted product is shared, so its taxes are the
+        root's: the one-company rule of the choices holds."""
         adopted = super()._liwan_adopt(products)
         templates, shared = self.env['product.template'], self.env['res.company']
         allowed = set(templates._liwan_elevated_tax_choices(shared).ids)
         default = templates._liwan_default_sale_tax_ids(shared)
         for product in adopted.with_context(active_test=False):
-            if not product.taxes_id or not set(product.taxes_id.ids) <= allowed:
-                product.taxes_id = [Command.set(default)]
+            current = product.taxes_id
+            kept = tuple(tax_id for tax_id in current.ids if tax_id in allowed)
+            if not current or len(kept) != len(current) or not all(current.mapped('active')):
+                kept = kept or default
+                if kept:
+                    product._liwan_store_sale_taxes(kept)
+                else:
+                    _logger.warning(
+                        'Adopted product %s (id %s) has no valid sale tax and the establishment has no default',
+                        product.name, product.id,
+                    )
+                    product.taxes_id = [Command.clear()]
             product.supplier_taxes_id = [Command.clear()]
         return adopted

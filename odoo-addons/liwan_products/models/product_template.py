@@ -58,11 +58,18 @@ class ProductTemplate(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        if not self.env.is_superuser():
-            through_service = self.env.uid in self.env.cr.precommit.data.get(PRODUCT_CREATE_MARKER, set())
-            if any(vals.get('liwan_product') for vals in vals_list) and not through_service:
-                refuse(self._name, 'create', {'liwan_product'})
-        return super().create(vals_list)
+        """A service product is created only by the service. The check follows the create, on the records made: Odoo
+        applies ``default_*`` context keys (``default_liwan_product``) inside the base ``create``, after any check of
+        ``vals_list`` could look."""
+        products = super().create(vals_list)
+        if not self.env.is_superuser() and any(products.mapped('liwan_product')) and not self._liwan_through_service():
+            refuse(self._name, 'create', {'liwan_product'})
+        return products
+
+    @api.model
+    def _liwan_through_service(self):
+        """Whether the service is creating a product in this transaction for the caller."""
+        return self.env.uid in self.env.cr.precommit.data.get(PRODUCT_CREATE_MARKER, set())
 
     def write(self, vals):
         if not self.env.is_superuser():

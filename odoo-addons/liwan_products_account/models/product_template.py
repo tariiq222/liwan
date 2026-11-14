@@ -58,7 +58,8 @@ class ProductTemplate(models.Model):
         """Private to this addon: the sale taxes a product owned by ``company`` may carry, as elevated records (a
         branch session cannot read its root's taxes through the company fence). Those of its company and of every
         ancestor: the active ones, and the inactive ones a chart loaded that no journal item ever carried (a tax an
-        accountant made or used and then archived stays out), less the ones that need a Saudi-national buyer."""
+        accountant made or used and then archived stays out), less the ones that need a Saudi-national buyer. A product
+        takes taxes of one of these companies only (``_liwan_parse_sale_taxes``)."""
         elevated = elevated_env(self.env)
         owner = elevated['res.company'].browse(self._liwan_tax_owner(company).id)
         taxes = elevated['account.tax'].with_context(active_test=False).search([
@@ -94,16 +95,21 @@ class ProductTemplate(models.Model):
 
     @api.model
     def _liwan_parse_sale_taxes(self, value, company):
-        """The tax ids of a wire list: one or more of the choices of ``company``, else 422. "No tax" is a zero-rated
+        """The tax ids of a wire list: one or more of the choices of ``company``, all owned by one company, else 422. "No tax" is a zero-rated
         or exempt tax picked from the choices, because a ZATCA invoice line needs one (plan D21)."""
         if not isinstance(value, list) or not value or not all(
             isinstance(tax_id, int) and not isinstance(tax_id, bool) for tax_id in value
         ):
             _refuse_taxes('taxes must be a non-empty list of tax ids')
-        allowed = set(self._liwan_elevated_tax_choices(company).ids)
-        if not set(value) <= allowed:
+        choices = self._liwan_elevated_tax_choices(company)
+        picked = choices.filtered(lambda tax: tax.id in value)
+        if len(picked) != len(set(value)):
             _refuse_taxes("taxes must be the establishment's own sale taxes")
-        return tuple(sorted(set(value)))
+        if len(picked.company_id) > 1:
+            # Stock puts on a sale the taxes of the first level that owns one (``_filter_taxes_by_company``): a list
+            # that mixes levels would be stored whole and priced with one level only.
+            _refuse_taxes("taxes must all belong to one company: the branch's own or the root's")
+        return tuple(sorted(picked.ids))
 
     def _liwan_store_sale_taxes(self, tax_ids):
         """Store the taxes ``tax_ids`` (from the choices or the default) on this product, activating a chart tax that

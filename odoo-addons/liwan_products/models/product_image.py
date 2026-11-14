@@ -25,9 +25,10 @@ def _refuse_image(message):
     raise LiwanAccessRule(code, message, field=IMAGE_FIELD, status=422)
 
 
-def _image_format(raw):
+def inspect_image(raw):
     """``(format word, width, height)`` of an image header, or None when ``raw`` is no readable image. The pixels are
-    not decoded, and a decompression bomb is refused instead."""
+    not decoded, and a decompression bomb is refused instead. Shared: a consumer that lists the image (the Meta
+    catalog) inspects it through this one function."""
     try:
         with Image.open(io.BytesIO(raw)) as image:
             return image.format, image.width, image.height
@@ -56,7 +57,7 @@ def parse_image(value):
         _refuse_image('the image data must be valid base64')
     if not raw or len(raw) > MAX_IMAGE_BYTES:
         _refuse_image('the image must not be empty or larger than 5 MB')
-    found = _image_format(raw)
+    found = inspect_image(raw)
     if not found or found[0] != IMAGE_FORMATS[mimetype]:
         _refuse_image('the file is not the JPEG or PNG image it says')
     if found[1] * found[2] > IMAGE_MAX_RESOLUTION:

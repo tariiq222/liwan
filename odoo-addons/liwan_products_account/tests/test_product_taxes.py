@@ -83,6 +83,29 @@ class TestProductTaxes(ProductTaxesCase):
                 service._liwan_update(product, {'taxes': value})
         self.assertEqual(product.taxes_id, self.vat15)
 
+    def test_taxes_of_two_levels_are_refused_and_taxes_of_one_level_are_kept(self):
+        """Stock puts on a sale the taxes of the first level that owns one: a mixed list would be priced with the
+        branch's tax only, so it is refused (the choices still offer both levels to a branch)."""
+        self.settings.sharing = 'branch'
+        service = self.service_as(self.a_staff, self.branch_a)
+        choices = {choice['id'] for choice in service._liwan_sale_tax_choices()}
+        self.assertTrue({self.branch_tax.id, self.vat5.id} <= choices)
+        mixed = [self.branch_tax.id, self.vat5.id]
+        with self.assertRaisesRegex(LiwanAccessRule, 'one company'):
+            service._liwan_create({'name': 'Mixed', 'type': 'goods', 'taxes': mixed})
+        product = service._liwan_create({'name': 'Branch taxed', 'type': 'goods', 'list_price': 115})
+        before = product.with_env(self.env).taxes_id
+        with self.assertRaisesRegex(LiwanAccessRule, 'one company'):
+            service._liwan_update(product, {'taxes': mixed})
+        self.sign_in('pr_a_staff')
+        response = self.api('PATCH', f'{PRODUCTS}/{product.id}', {'taxes': mixed})
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'taxes'))
+        self.assertEqual(product.with_env(self.env).taxes_id, before)
+        self.assertFalse(self.env['product.template'].search([('name', '=', 'Mixed')]))
+        for taxes in (self.branch_tax, self.vat5 | self.vat15):
+            service._liwan_update(product, {'taxes': taxes.ids})
+            self.assertEqual(product.with_env(self.env).taxes_id, taxes)
+
     def test_two_taxes_are_accepted_and_combined(self):
         self.set_price_mode('tax_excluded')
         product = self.product(price=100.0, taxes=self.vat15 | self.vat5)
@@ -218,18 +241,51 @@ class TestProductTaxes(ProductTaxesCase):
                     self.assertEqual(response.status_code, 403, response.text)
                 self.assertEqual(product.taxes_id, self.vat15)
 
+    def abroad(self, name='Abroad', country='base.ae'):
+        return self.env['res.partner'].create({'name': name, 'country_id': self.env.ref(country).id})
+
     def test_a_foreign_customer_of_a_price_included_establishment_pays_the_price_without_the_tax(self):
-        """Stock removes a price-included tax the fiscal position drops (account_tax.py
-        _fix_tax_included_price_company) before computing the line: 115 with 15% included becomes 100 at 0%."""
+        """Stock drops the price-included tax a fiscal position unmaps before the line is computed: 115 with 15%
+        included becomes 100 at 0%."""
         self.set_price_mode('tax_included')
         product = self.product(price=115.0)
-        abroad = self.env['res.partner'].create({'name': 'Abroad incl', 'country_id': self.env.ref('base.ae').id})
+        abroad = self.abroad('Abroad incl')
         self.assertEqual(self.amounts(product, customer=abroad), (100.0, 0.0, 100.0))
         self.assertEqual(self.amounts(product, quantity=3.0, customer=abroad), (300.0, 0.0, 300.0))
-        stock_price = self.env['account.tax']._fix_tax_included_price_company(
-            115.0, self.vat15, self.export0, self.root_company,
+        self.assertEqual(self.amounts(product), (100.0, 15.0, 115.0))
+
+    def test_a_branch_session_prices_the_roots_included_tax_for_a_foreign_customer(self):
+        """The branch does not own the tax: the stock sale line adapts the price on the taxes of every company."""
+        self.set_price_mode('tax_included')
+        product = self.product(price=115.0)
+        self.assertEqual(
+            self.amounts(product, company=self.branch_a, user=self.picker, customer=self.abroad('Branch abroad')),
+            (100.0, 0.0, 100.0),
         )
-        self.assertEqual(stock_price, 100.0)
+
+    def test_a_price_included_tax_mapped_to_another_included_tax_keeps_the_new_tax_in_the_price(self):
+        self.set_price_mode('tax_included')
+        product = self.product(price=115.0)
+        egypt = self.env['account.fiscal.position'].create({
+            'name': 'Products Egypt', 'company_id': self.root_company.id, 'auto_apply': True, 'sequence': -100,
+            'country_id': self.env.ref('base.eg').id,
+        })
+        reduced = self.sale_tax(self.root_company, 5.0, 'Products reduced 5')
+        reduced.write({'fiscal_position_ids': [Command.set(egypt.ids)], 'original_tax_ids': [Command.set(self.vat15.ids)]})
+        customer = self.abroad('Egypt customer', 'base.eg')
+        for company, user in ((self.root_company, self.root_staff), (self.branch_a, self.picker)):
+            with self.subTest(company=company.name):
+                self.assertEqual(self.amounts(product, company=company, user=user, customer=customer), (100.0, 5.0, 105.0))
+        self.assertEqual(self.amounts(product, customer=customer, quantity=2.0), (200.0, 10.0, 210.0))
+
+    def test_a_product_with_an_included_and_an_added_tax_keeps_its_price_as_typed(self):
+        """Stock adapts the price only when every product tax is price-included."""
+        self.set_price_mode('tax_excluded')
+        self.vat15.price_include_override = 'tax_included'
+        product = self.product(price=115.0, taxes=self.vat15 | self.vat5)
+        self.assertEqual(self.amounts(product), (100.0, 20.0, 120.0))
+        # The mapping drops the included 15% for export 0%, but with one added tax among them stock keeps the typed price.
+        self.assertEqual(self.amounts(product, customer=self.abroad('Mixed abroad')), (115.0, 5.75, 120.75))
 
     def test_the_choices_and_the_detail_carry_no_record(self):
         product = self.product()
@@ -258,6 +314,39 @@ class TestProductTaxes(ProductTaxesCase):
         self.assertEqual(legacy.taxes_id, self.vat15)
         self.assertFalse(legacy.supplier_taxes_id)
         self.assertEqual(kept.taxes_id, self.vat5)
+
+    def test_adopt_keeps_the_valid_taxes_and_the_default_takes_over_only_when_none_is_valid(self):
+        other_root = self.env['res.company'].create({
+            'name': 'Products adopt other kept', 'country_id': self.env.ref('base.sa').id,
+        })
+        foreign_tax = self.sale_tax(other_root, 15.0, 'Adopt kept foreign VAT')
+        templates = self.env['product.template']
+        mixed = templates.create({'name': 'Legacy mixed', 'taxes_id': [Command.set((self.vat5 | foreign_tax).ids)]})
+        invalid = templates.create({'name': 'Legacy invalid', 'taxes_id': [Command.set(foreign_tax.ids)]})
+        none = templates.create({'name': 'Legacy untaxed', 'taxes_id': [Command.clear()]})
+        self.env['liwan.products.service']._liwan_adopt(mixed | invalid | none)
+        self.assertEqual((mixed.taxes_id, invalid.taxes_id, none.taxes_id), (self.vat5, self.vat15, self.vat15))
+
+    def test_adopt_activates_a_dormant_chart_tax_it_keeps(self):
+        legacy = self.env['product.template'].create({
+            'name': 'Legacy zero rated', 'taxes_id': [Command.set(self.zero_inactive.ids)],
+        })
+        self.assertFalse(self.zero_inactive.active)
+        self.env['liwan.products.service']._liwan_adopt(legacy)
+        self.assertEqual(legacy.with_context(active_test=False).taxes_id, self.zero_inactive)
+        self.assertTrue(self.zero_inactive.active)
+
+    def test_adopt_with_no_valid_tax_and_no_default_leaves_the_product_untaxed_and_says_so(self):
+        self.root_company.account_sale_tax_id = False
+        other_root = self.env['res.company'].create({
+            'name': 'Adopt no default other', 'country_id': self.env.ref('base.sa').id,
+        })
+        foreign_tax = self.sale_tax(other_root, 15.0, 'Adopt nd VAT')
+        legacy = self.env['product.template'].create({'name': 'Legacy no default', 'taxes_id': [Command.set(foreign_tax.ids)]})
+        with self.assertLogs('odoo.addons.liwan_products_account.models.products_service', 'WARNING') as logs:
+            self.env['liwan.products.service']._liwan_adopt(legacy)
+        self.assertIn('Legacy no default', logs.output[0])
+        self.assertFalse(legacy.taxes_id)
 
     def test_taxes_written_outside_the_service_are_refused(self):
         product = self.product()

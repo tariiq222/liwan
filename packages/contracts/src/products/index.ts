@@ -9,7 +9,7 @@ const RefSchema = z.object({ id: Id, name: z.string() }).strict()
 const Amount = z.number().nonnegative()
 
 // `image.data` is base64 text: four characters encode three bytes, so 5 MB of file is at most `imageData` characters.
-export const PRODUCT_LIMITS = { name: 200, description: 4000, imageName: 255, imageBytes: 5 * 1024 * 1024, imageData: 4 * Math.ceil((5 * 1024 * 1024) / 3) } as const
+export const PRODUCT_LIMITS = { name: 200, description: 4000, price: 1_000_000_000, imageName: 255, imageBytes: 5 * 1024 * 1024, imageData: 4 * Math.ceil((5 * 1024 * 1024) / 3) } as const
 
 /** The image formats a product accepts; the minimum size is the catalog's own rule when it lists the product. */
 export const ProductImageMimetypeSchema = z.enum(['image/jpeg', 'image/png'])
@@ -91,7 +91,7 @@ const DefinitionFields = {
   name: z.string().trim().min(1).max(PRODUCT_LIMITS.name),
   type: ProductTypeSchema,
   // The price is `products.prices.manage`; the rest of the definition is `products.manage`.
-  list_price: Amount,
+  list_price: Amount.max(PRODUCT_LIMITS.price),
   description: z.string().max(PRODUCT_LIMITS.description).nullable(),
   // `products.manage`. A new product has no image until one is sent; `null` on an edit removes it.
   image: ProductImageSchema.nullable(),

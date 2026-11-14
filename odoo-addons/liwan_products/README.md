@@ -30,7 +30,8 @@ Every write method checks the capability and D23 from the keys of `values` befor
 so a refused caller gets 403, never a 422 about a value. `_liwan_update`, `_liwan_archive` and `_liwan_restore` take
 one product. A service product (template or variant) is never deleted except by the superuser; it is archived.
 
-The single-writer guard: for everyone but the superuser, a create with `liwan_product`, and a write that touches a
+The single-writer guard: for everyone but the superuser, a create that makes a service product (checked on the records
+made, so a `default_liwan_product` or `default_product_tmpl_id` context key cannot slip past it), and a write that touches a
 definition field of a service product (`name`, `type`, `list_price`, `description_sale`, `image_1920`, `active`,
 `company_id`, `liwan_product` and every contributed field), is refused with
 `AccessError('use_liwan_products_service:<model>_<operation>:<fields>')` unless the service marked it. The same holds on
@@ -81,13 +82,13 @@ application that calls them from its own route cannot skip the checks.
 | `_liwan_archive(product)`, `_liwan_restore(product)` | `products.manage`; D23 | `product` |
 | `_liwan_price(product, quantity=1.0, uom=None, company=None, customer=None, date=None)` | `_liwan_require_price()` and `company` in the session's companies, unless the environment is elevated; `quantity` a number above zero (422) | see below |
 | `_liwan_price_amounts(variant, unit_price, quantity, company, customer)` | | `(untaxed, tax, total)`; the base has no tax; the tax bridge overrides it |
-| `_liwan_adopt(products)` | any `env.su` caller, for consumers' migrations (`AccessError('use_liwan_products_migration: ...')` otherwise) | the templates, marked and with their company cleared (D17); with the tax bridge, sale taxes that are not the establishment's valid sale taxes (or none) become its default, and purchase taxes are cleared |
+| `_liwan_adopt(products)` | any `env.su` caller, for consumers' migrations (`AccessError('use_liwan_products_migration: ...')` otherwise) | the templates, marked and with their company cleared (D17); with the tax bridge, the valid sale taxes are kept, the establishment's default takes over only when none is valid, and purchase taxes are cleared |
 
 `values` keys: `name` (text, 1-200 characters, required on create), `type` (`goods` = stock `consu`, `service`;
 required on create; `combo` is not offered, D10), `list_price` (a number, zero or more; 0 on a create without it),
 `description` (text up to 4000 characters, or null), `image` (below), plus each contributed field that applies (`taxes` with the tax
 bridge). Any other key is 422 `invalid` with `field` set to it. Every value is checked for its JSON kind first: a `type` that
-is not text (`[]`, `{}`), a text with a NUL character, a `list_price` that is not a finite number and a `q` argument
+is not text (`[]`, `{}`), a text with a NUL character, a `list_price` that is not a number from 0 to `MAX_PRICE` (1 000 000 000; compared before anything converts it, so NaN, Infinity, 1e308 and a huge integer are all 422), a `quantity` outside 0 (excluded) to `MAX_QUANTITY` (1 000 000) and a `q` argument
 with a NUL character are 422 `invalid` on their field, never a server error.
 
 `image` is `{name, mimetype, data}` (all three required, no other key): `data` is base64 text, `mimetype` is
@@ -97,7 +98,8 @@ needs `products.manage` (it is not a price key), checked before the value is rea
 `image`. The service stores the file in `image_1920`, so a catalog item listing the product watches it (a change
 resyncs the item and renews its public image address). The smallest size (500 x 500) is the catalog's own rule when it
 lists a product, not the product's. The image is part of the definition: no code but the service writes it (the
-single-writer guard). Parsing lives in `models/product_image.py`.
+single-writer guard). Parsing lives in `models/product_image.py`, whose `inspect_image(raw)` (`(format word, width, height)` of a header, or
+None) is the one shared inspector: the Meta catalog bridge builds its own minimum-size rule on it and keeps no copy.
 
 D23: a product with no company (shared) is created, edited, priced, archived and restored only in a root-company
 session (`liwan.tenant.profile.root_company_id`) by a holder of the capability there; a product with a company only in

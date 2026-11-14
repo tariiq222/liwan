@@ -4,7 +4,10 @@ from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_core.models.protected_write import marked
-from odoo.addons.liwan_products.models.product_template import PRODUCT_MARKER
+from odoo.addons.liwan_products.models.product_template import (
+    PRODUCT_CREATE_MARKER,
+    PRODUCT_MARKER,
+)
 
 WRITER_GROUPS = 'base.group_user,liwan_products.group_products_writer'
 REFUSED = 'use_liwan_products_service'
@@ -44,6 +47,30 @@ class TestProductGuard(TransactionCase):
             self.env['product.product'].with_user(self.system).create({'product_tmpl_id': self.product.id})
         with self.assertRaisesRegex(AccessError, REFUSED):
             self.env['product.product'].with_user(self.system).create({'name': 'Inherits', 'liwan_product': True})
+
+    def test_a_context_default_does_not_make_a_service_product_outside_the_service(self):
+        """Odoo applies ``default_*`` keys inside the base create, after the vals were looked at."""
+        for user in (self.writer, self.system):
+            with self.subTest(user=user.login, model='template'), self.assertRaisesRegex(AccessError, REFUSED), self.env.cr.savepoint():
+                self.env['product.template'].with_user(user).with_context(default_liwan_product=True).create(
+                    {'name': 'Default made'},
+                )
+            with self.subTest(user=user.login, model='variant'), self.assertRaisesRegex(AccessError, REFUSED), self.env.cr.savepoint():
+                self.env['product.product'].with_user(user).with_context(
+                    default_product_tmpl_id=self.product.id,
+                ).create({})
+            with self.subTest(user=user.login, model='copy'), self.assertRaisesRegex(AccessError, REFUSED), self.env.cr.savepoint():
+                self.product.with_user(user).with_context(default_liwan_product=True).copy()
+        self.assertFalse(self.env['product.template'].search([('name', '=', 'Default made')]))
+
+    def test_the_create_marker_still_lets_the_service_create_and_a_context_default_on_a_write_changes_nothing(self):
+        with marked(self.env, {PRODUCT_CREATE_MARKER: [self.system.id]}):
+            made = self.env['product.template'].with_user(self.system).create({'name': 'Through service', 'liwan_product': True})
+        self.assertTrue(made.liwan_product)
+        self.product.with_user(self.writer).with_context(default_name='Never', default_liwan_product=False).write(
+            {'default_code': 'SKU-2'},
+        )
+        self.assertEqual((self.product.name, self.product.liwan_product), ('Guarded', True))
 
     def test_liwan_product_is_set_only_by_the_service(self):
         for user in (self.writer, self.system):

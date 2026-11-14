@@ -4,7 +4,10 @@ from odoo.tests import tagged
 
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-from odoo.addons.liwan_products.models.products_service import LiwanProductsService
+from odoo.addons.liwan_products.models.products_service import (
+    MAX_QUANTITY,
+    LiwanProductsService,
+)
 from odoo.addons.liwan_products.tests.common import PICK, ProductsCase
 
 
@@ -79,7 +82,7 @@ class TestProductsPrice(ProductsCase):
         )
         with self.assertRaisesRegex(LiwanAccessRule, 'forbidden'):
             picker._liwan_price(self.product, company=self.branch_b)
-        for quantity in (0, -1, True, '2'):
+        for quantity in (0, -1, True, '2', float('nan'), float('inf'), 1e308, 10**400, MAX_QUANTITY + 1):
             with self.subTest(quantity=quantity), self.assertRaisesRegex(LiwanAccessRule, 'invalid'):
                 picker._liwan_price(self.product, quantity=quantity)
         elevated = self.env['liwan.products.service'].sudo()
