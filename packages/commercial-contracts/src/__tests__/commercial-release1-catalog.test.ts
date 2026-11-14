@@ -12,10 +12,17 @@ const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')
 const AI_LIMITS = { 'ai.messages.monthly': 500, 'ai.tokens.monthly': 2500000, 'ai.assist.monthly': 100,
   'ai.tool_calls.per_run': 8, 'ai.output_tokens.per_run': 2000 }
 
-/** Release 1 composition (owner decision 2026-11-06): the always-included set and the two sold applications. */
-const INCLUDED = ['tasks.enabled', 'chat.enabled', 'documents.enabled', 'meetings.enabled', 'operations.enabled', 'ai.enabled']
-const SOLD = ['crm.enabled', 'inbox.enabled']
-const LOCKED = ['hr.enabled', 'finance.enabled', 'pmo.enabled', 'appointments.enabled', 'integrations.enabled']
+/** Release 1 composition (owner decisions 2026-11-06 and 2026-11-14): the always-included set, which holds the
+ *  Saudi integrations, the five sold applications, and appointments installed but locked. */
+const INCLUDED = ['tasks.enabled', 'chat.enabled', 'documents.enabled', 'meetings.enabled', 'operations.enabled', 'ai.enabled', 'integrations.enabled']
+const SOLD = ['crm.enabled', 'inbox.enabled', 'hr.enabled', 'finance.enabled', 'pmo.enabled']
+const LOCKED = ['appointments.enabled']
+/** Every key of one sold application (the keys of the catalog tier), used to prove a purchase opens only its own. */
+const KEYS_OF: Record<string, string[]> = {
+  people: ['hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.insurance', 'hr.payroll'],
+  finance: ['finance.enabled'],
+  projects: ['pmo.enabled', 'pmo.change_control', 'pmo.baselines', 'pmo.evm'],
+}
 
 function releaseOf(name = 'platform_v4.json'): CatalogRelease {
   return { id: id(1), version: name, source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: catalogApplicationsFromSolution(read(name), name) }
@@ -41,9 +48,16 @@ function features(purchased: BundleRevision[]) {
 }
 
 describe('release 1 catalog composition (platform_v4)', () => {
-  it('sells only CRM and customer messages', () => {
+  it('sells CRM, customer messages, HR, finance and projects', () => {
     const sold = releaseOf().applications.filter(app => app.sellable).map(app => app.id)
-    expect(sold).toEqual(['crm', 'inbox'])
+    expect(sold).toEqual(['crm', 'inbox', 'projects', 'people', 'finance'])
+  })
+
+  it('keeps the Saudi integrations in the always-included core tier, never sold and never an application of its own', () => {
+    const apps = releaseOf().applications
+    expect(apps.find(app => app.id === 'core')?.modules).toContain('liwan_integrations_sa')
+    expect(apps.find(app => app.id === 'core')?.features.map(feature => feature.key)).toContain('integrations.enabled')
+    expect(apps.map(app => app.id)).not.toContain('integrations')
   })
 
   it('keeps tasks and chat in the core tier and drops their own tiers', () => {
@@ -86,7 +100,7 @@ describe('release 1 entitlement boundaries', () => {
     const release = releaseOf()
     const open = features([bundle(release, 2, 'crm')])
     expect(open['crm.enabled']).toBe(true)
-    for (const key of ['inbox.enabled', ...LOCKED]) expect(open[key], key).toBe(false)
+    for (const key of SOLD.filter(k => k !== 'crm.enabled').concat(LOCKED)) expect(open[key], key).toBe(false)
     for (const key of INCLUDED) expect(open[key], key).toBe(true)
   })
 
@@ -100,9 +114,20 @@ describe('release 1 entitlement boundaries', () => {
     expect(releaseOf().applications.filter(app => app.sellable).map(app => app.id)).not.toContain('payments')
   })
 
-  it('still keeps an empty or HR-only purchase away from the sold applications', () => {
-    expect(features([])['crm.enabled']).toBe(false)
-    expect(features([])['inbox.enabled']).toBe(false)
+  it('still keeps an empty purchase away from the sold applications', () => {
+    for (const key of SOLD) expect(features([])[key], key).toBe(false)
+  })
+
+  it.each([['people', 2], ['finance', 3], ['projects', 4]])('opens %s alone when only it is bought', (app, n) => {
+    const open = features([bundle(releaseOf(), n, app)])
+    const own = new Set(KEYS_OF[app])
+    for (const key of [...SOLD, ...LOCKED, ...Object.values(KEYS_OF).flat()].filter(k => !own.has(k))) expect(open[key], key).toBe(false)
+    for (const key of KEYS_OF[app]!) expect(open[key], key).toBe(true)
+    for (const key of INCLUDED) expect(open[key], key).toBe(true)
+  })
+
+  it('opens the Saudi integrations for a customer that buys nothing', () => {
+    expect(features([])['integrations.enabled']).toBe(true)
   })
 
   it('opens customer messages alone when only messages are bought', () => {
@@ -111,15 +136,14 @@ describe('release 1 entitlement boundaries', () => {
     expect(open['inbox.enabled']).toBe(true)
     expect(open['inbox.whatsapp']).toBe(true)
     expect(open['inbox.tiktok']).toBe(true)
-    for (const key of ['crm.enabled', ...LOCKED]) expect(open[key], key).toBe(false)
+    for (const key of SOLD.filter(k => k !== 'inbox.enabled').concat(LOCKED)) expect(open[key], key).toBe(false)
   })
 
-  it('refuses to grant an application that is installed but not sold', () => {
+  it('refuses to grant an application that is installed but not sold, and the free Saudi integrations, which are no application', () => {
     const release = releaseOf()
-    for (const app of ['people', 'finance', 'projects', 'appointments', 'integrations']) {
-      expect(() => compileEntitlements({ release, plan: plan(release, [bundle(release, 9, app)]), bundles: [bundle(release, 9, app)], terms: null, quantities: { users: 3, storage_mb: 5120 } }), app)
-        .toThrow(expect.objectContaining({ code: 'app_not_selectable' }))
-    }
+    const compile = (app: string) => compileEntitlements({ release, plan: plan(release, [bundle(release, 9, app)]), bundles: [bundle(release, 9, app)], terms: null, quantities: { users: 3, storage_mb: 5120 } })
+    expect(() => compile('appointments')).toThrow(expect.objectContaining({ code: 'app_not_selectable' }))
+    expect(() => compile('integrations')).toThrow(expect.objectContaining({ code: 'unknown_app' }))
   })
 })
 

@@ -3,7 +3,7 @@
   "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
   "id": "platform_v4",
   "name": "liwan Platform",
-  "description": "Release 1 composition: tasks, chat, meetings, documents, operations and the AI assistant join the always-included platform base; CRM and customer messages are the only applications sold. Every other application is installed in every tenant and locked by entitlement. Earlier catalog revisions remain unchanged.",
+  "description": "Release 1 composition: tasks, chat, meetings, documents, operations, the AI assistant and the Saudi integrations join the always-included platform base; CRM, customer messages, HR and payroll, finance and projects are the applications sold. Appointments is installed in every tenant and locked by entitlement. Earlier catalog revisions remain unchanged.",
   "industry": "none",
   "base_modules": [
     "liwan_core",
@@ -14,11 +14,12 @@
     {
       "id": "core",
       "name": "Core",
-      "description": "Base modules and the always-included applications: the platform, its capability catalog, the shared API, tasks, chat, meetings, documents, operations, the AI assistant and the tenant's own payment gateway connection.",
+      "description": "Base modules and the always-included applications: the platform, its capability catalog, the shared API, tasks, chat, meetings, documents, operations, the AI assistant, the Saudi integrations status page and the tenant's own payment gateway connection.",
       "modules": [
         "liwan_ai",
         "liwan_chat",
         "liwan_documents",
+        "liwan_integrations_sa",
         "liwan_meetings",
         "liwan_operations",
         "liwan_payments",
@@ -43,7 +44,8 @@
         "limit:ai.balance.granted:0",
         "limit:ai.allowance.trial:0",
         "limit:ai.allowance.monthly:0",
-        "boolean:payments.enabled"
+        "boolean:payments.enabled",
+        "boolean:integrations.enabled"
       ]
     },
     {
@@ -88,7 +90,7 @@
       "id": "projects",
       "name": "Projects",
       "description": "The project management application.",
-      "sellable": false,
+      "sellable": true,
       "modules": [
         "liwan_pmo"
       ],
@@ -104,7 +106,7 @@
       "id": "people",
       "name": "People",
       "description": "The HR application.",
-      "sellable": false,
+      "sellable": true,
       "modules": [
         "liwan_hr"
       ],
@@ -124,24 +126,12 @@
       "id": "finance",
       "name": "Finance",
       "description": "The Finance application: Saudi accounting over Odoo accounting.",
-      "sellable": false,
+      "sellable": true,
       "modules": [
         "liwan_finance"
       ],
       "features": [
         "boolean:finance.enabled"
-      ]
-    },
-    {
-      "id": "integrations",
-      "name": "Saudi integrations",
-      "description": "Status of the live ZATCA and bank links on the dedicated settings page.",
-      "sellable": false,
-      "modules": [
-        "liwan_integrations_sa"
-      ],
-      "features": [
-        "boolean:integrations.enabled"
       ]
     },
     {

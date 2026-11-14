@@ -22,6 +22,9 @@ export const RELEASE1 = {
   base_monthly: 0,
   crm_monthly: 9900,
   inbox_monthly: 25000,
+  people_monthly: 11900,
+  finance_monthly: 17900,
+  projects_monthly: 11900,
   extra_user_monthly: 2900,
   storage_per_10gb_monthly: 1000,
   onboarding_onboarding: 49900,
@@ -78,7 +81,7 @@ suite('release 1 pricing seeds', () => {
     ])
   })
 
-  it('prices CRM at 99 and customer messages at 250 a month, each annual price ten times the monthly', async () => {
+  it('prices the five sold applications per month, each annual price ten times the monthly', async () => {
     // Bundle prices live on published revisions, which a fresh control database creates from the release
     // composition (default-bundles) using the per-application seed amounts.
     const version = `commercial-${randomUUID()}`
@@ -87,7 +90,7 @@ suite('release 1 pricing seeds', () => {
     const created = await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Release 1 prices' })
     expect(created.status, JSON.stringify(created.body)).toBe(201)
     const release = created.body
-    expect(release.applications.filter((app: any) => app.sellable).map((app: any) => app.id)).toEqual(['crm', 'inbox'])
+    expect(release.applications.filter((app: any) => app.sellable).map((app: any) => app.id)).toEqual(['crm', 'inbox', 'projects', 'people', 'finance'])
     const seeded = await api('POST', `/catalog/releases/${release.id}/default-bundles`, { reason: 'Release 1 prices' })
     expect(seeded.status, JSON.stringify(seeded.body)).toBe(200)
     const bundles = (await pool.query('SELECT selections,prices FROM bundle_revisions WHERE id = ANY($1::uuid[])', [seeded.body.bundles])).rows
@@ -100,6 +103,12 @@ suite('release 1 pricing seeds', () => {
       { cadence: monthly, amount: money(RELEASE1.inbox_monthly) },
       { cadence: YEAR, amount: money(annualOf(RELEASE1.inbox_monthly)) },
     ])
+    for (const [app, monthlyMinor] of [['people', RELEASE1.people_monthly], ['finance', RELEASE1.finance_monthly], ['projects', RELEASE1.projects_monthly]] as const) {
+      expect(priceOf(app), app).toEqual([
+        { cadence: monthly, amount: money(monthlyMinor) },
+        { cadence: YEAR, amount: money(annualOf(monthlyMinor)) },
+      ])
+    }
   })
 
   it('offers only monthly and annual cadences, and every annual price is ten times the monthly one', async () => {
