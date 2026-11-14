@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
+import type { SellerIdentity } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 
 export type BillingSettings = {
@@ -14,6 +15,15 @@ export type BillingSettings = {
   bank_iban: string
   bank_instructions_ar: string
   bank_instructions_en: string
+  /** The seller identity printed on invoices. Empty means not set; there is no tax field (the vendor is not VAT-registered). */
+  seller_legal_name_ar: string
+  seller_legal_name_en: string
+  seller_commercial_registration: string
+  seller_address: string
+  seller_city: string
+  seller_country: string
+  seller_email: string
+  seller_phone: string
 }
 
 const text = (max: number) => z.string().trim().max(max)
@@ -31,11 +41,19 @@ export const billingSettingsInputSchema = z.strictObject({
   bank_iban: z.union([z.literal(''), z.string().trim().regex(/^SA[0-9]{22}$/, 'invalid_iban')]).optional(),
   bank_instructions_ar: text(500).optional(),
   bank_instructions_en: text(500).optional(),
+  seller_legal_name_ar: text(200).optional(),
+  seller_legal_name_en: text(200).optional(),
+  seller_commercial_registration: text(64).optional(),
+  seller_address: text(500).optional(),
+  seller_city: text(100).optional(),
+  seller_country: text(100).optional(),
+  seller_email: z.union([z.literal(''), z.string().trim().max(200).pipe(z.email())]).optional(),
+  seller_phone: text(40).optional(),
   reason: z.string().trim().min(3).max(1000),
 })
 export type BillingSettingsInput = z.infer<typeof billingSettingsInputSchema>
 
-const COLUMNS = 'refund_window_days,onboarding_fee_minor,onboarding_currency,onboarding_exponent,bank_account_name,bank_account_number,bank_iban,bank_instructions_ar,bank_instructions_en' as const
+const COLUMNS = 'refund_window_days,onboarding_fee_minor,onboarding_currency,onboarding_exponent,bank_account_name,bank_account_number,bank_iban,bank_instructions_ar,bank_instructions_en,seller_legal_name_ar,seller_legal_name_en,seller_commercial_registration,seller_address,seller_city,seller_country,seller_email,seller_phone' as const
 function view(row: Record<string, any>): BillingSettings {
   return {
     refund_window_days: Number(row.refund_window_days),
@@ -47,6 +65,14 @@ function view(row: Record<string, any>): BillingSettings {
     bank_iban: row.bank_iban as string,
     bank_instructions_ar: row.bank_instructions_ar as string,
     bank_instructions_en: row.bank_instructions_en as string,
+    seller_legal_name_ar: row.seller_legal_name_ar as string,
+    seller_legal_name_en: row.seller_legal_name_en as string,
+    seller_commercial_registration: row.seller_commercial_registration as string,
+    seller_address: row.seller_address as string,
+    seller_city: row.seller_city as string,
+    seller_country: row.seller_country as string,
+    seller_email: row.seller_email as string,
+    seller_phone: row.seller_phone as string,
   }
 }
 
@@ -63,6 +89,19 @@ export function bankAccountOf(settings: BillingSettings) {
 }
 
 /**
+ * The seller identity an invoice shows, or null while the vendor has not entered a legal name (a name in either language
+ * is enough; the print falls back to the other). It is copied onto each invoice when the invoice is issued.
+ */
+export function sellerIdentityOf(settings: BillingSettings): SellerIdentity | null {
+  if (!settings.seller_legal_name_ar && !settings.seller_legal_name_en) return null
+  return {
+    legal_name_ar: settings.seller_legal_name_ar, legal_name_en: settings.seller_legal_name_en,
+    commercial_registration: settings.seller_commercial_registration, address: settings.seller_address,
+    city: settings.seller_city, country: settings.seller_country, email: settings.seller_email, phone: settings.seller_phone,
+  }
+}
+
+/**
  * Records what the vendor changed. The row is a single current setting, not a revision history: every change is
  * audited with its reason, which is where an earlier value is read from.
  */
@@ -74,9 +113,13 @@ export async function setBillingSettings(pool: Pool, input: BillingSettingsInput
     if (!before) throw new Error('billing_settings_missing')
     const next = { ...view(before), ...Object.fromEntries(Object.entries(parsed).filter(([key, value]) => key !== 'reason' && value !== undefined)) }
     const updated = (await client.query(`UPDATE billing_settings SET refund_window_days=$1,onboarding_fee_minor=$2,onboarding_currency=$3,onboarding_exponent=$4,
-      bank_account_name=$5,bank_account_number=$6,bank_iban=$7,bank_instructions_ar=$8,bank_instructions_en=$9,updated_by=$10,updated_at=now() WHERE singleton RETURNING ${COLUMNS}`,
+      bank_account_name=$5,bank_account_number=$6,bank_iban=$7,bank_instructions_ar=$8,bank_instructions_en=$9,
+      seller_legal_name_ar=$11,seller_legal_name_en=$12,seller_commercial_registration=$13,seller_address=$14,seller_city=$15,seller_country=$16,seller_email=$17,seller_phone=$18,
+      updated_by=$10,updated_at=now() WHERE singleton RETURNING ${COLUMNS}`,
     [next.refund_window_days, next.onboarding_fee_minor, next.onboarding_currency, next.onboarding_exponent,
-      next.bank_account_name, next.bank_account_number, next.bank_iban, next.bank_instructions_ar, next.bank_instructions_en, operator])).rows[0]
+      next.bank_account_name, next.bank_account_number, next.bank_iban, next.bank_instructions_ar, next.bank_instructions_en, operator,
+      next.seller_legal_name_ar, next.seller_legal_name_en, next.seller_commercial_registration, next.seller_address, next.seller_city,
+      next.seller_country, next.seller_email, next.seller_phone])).rows[0]
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), operator, 'billing.settings_updated', 'billing_settings', reason, JSON.stringify({ before: view(before), after: view(updated) })])
     return view(updated)

@@ -3,10 +3,12 @@ import AppDrawer from '@/components/shell/AppDrawer.vue'
 import AppSidebar from '@/components/shell/AppSidebar.vue'
 import AppTabBar from '@/components/shell/AppTabBar.vue'
 import AppTopBar from '@/components/shell/AppTopBar.vue'
+import ShellNoticeBar from '@/components/shell/ShellNoticeBar.vue'
 import SlideOverHost from '@/components/shell/SlideOverHost.vue'
 import { appScopeFor } from '@/utils/appScope'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { useShellModel } from '@/composables/useShellModel'
+import { useShellNotice } from '@/composables/useShellNotice'
 import { usePageHeaderTitle } from '@liwan/ui/app/composables/usePageHeader'
 import { providePageTrail } from '@liwan/ui/app/composables/usePageTrail'
 import { providePageApp } from '@liwan/ui/app/composables/usePageApp'
@@ -14,6 +16,8 @@ const route = useRoute()
 const { t, te } = useI18n()
 const hydrated = useHydrated()
 const { rail, activeModule } = useShellModel()
+// The one subscription notice (payment suspended, seat read-only, overdue, trial, cancellation, lock): the selection is `useShellNotice`.
+const { notice, dismiss } = useShellNotice()
 // The phone drawer opens from the tab bar's last tab and holds the sidebar content.
 const drawerOpen = ref(false)
 const pageTitle = usePageHeaderTitle()
@@ -70,6 +74,7 @@ watch(
     <template #sidebar><AppSidebar /></template>
     <template #topbar><AppTopBar /></template>
     <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="liwan-shell-main focus:outline-none">
+      <ShellNoticeBar v-if="notice" :notice="notice" class="mb-(--liwan-gap-card)" @dismiss="dismiss(notice)" />
       <slot />
     </main>
     <template #bottom><AppTabBar v-model:open="drawerOpen" /></template>

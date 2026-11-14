@@ -162,7 +162,7 @@ const partNavPath = (page: SettingsPage, part: AppSettingsPart) => part.to ?? pa
 
 export function visibleSettingsPages(identity?: AccessIdentity): { page: SettingsPage; parts: AppSettingsPart[] }[] {
   return settingsPages()
-    .map(page => ({ page, parts: page.parts.filter(part => identity === undefined || navAllowed(identity, part.capability, partNavPath(page, part)) || (part.anyCapabilities ?? []).some(key => navAllowed(identity, key, partNavPath(page, part)))) }))
+    .map(page => ({ page, parts: page.parts.filter(part => !(part.rootOnly && identity?.is_root_company === false)).filter(part => identity === undefined || navAllowed(identity, part.capability, partNavPath(page, part)) || (part.anyCapabilities ?? []).some(key => navAllowed(identity, key, partNavPath(page, part)))) }))
     .filter(({ parts }) => parts.length > 0)
 }
 

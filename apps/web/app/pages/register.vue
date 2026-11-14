@@ -8,14 +8,26 @@ import { normalizeMobileInput } from '@/composables/useMe'
 definePageMeta({ layout: false, access: 'public' })
 
 type Step = 'details' | 'sms' | 'email' | 'done'
-type Action = 'start' | 'verify-sms' | 'send-email' | 'verify-email'
+type Action = 'terms' | 'start' | 'verify-sms' | 'send-email' | 'verify-email'
 
 const { t, locale, setLocale } = useI18n()
 const otherLanguage = computed(() => locale.value === 'ar' ? { code: 'en', label: 'English' } as const : { code: 'ar', label: 'العربية' } as const)
 const hydrated = useHydrated()
 const step = ref<Step>('details')
 const heading = ref<HTMLHeadingElement>()
-const details = reactive({ company_name: '', admin_name: '', email: '', mobile: '' })
+const details = reactive({ company_name: '', admin_name: '', email: '', mobile: '', accept_terms: false })
+// The legal pages and terms version the vendor currently sets; the server refuses a start that does not echo this version.
+type SignupConfig = { legal_base_url: string; terms_version: string; human_check?: { site_key: string; script_url: string } }
+const legal = ref<SignupConfig>()
+// The Turnstile token of the last completed check. It is single-use: every start request spends it, success or not.
+const humanToken = ref<string>()
+const widget = ref<{ reset: () => void }>()
+const humanCheck = computed(() => legal.value?.human_check)
+const checkReady = computed(() => !!legal.value && !!humanCheck.value && !!humanToken.value)
+const widgetLanguage = computed(() => locale.value === 'en' ? 'en' : 'ar')
+const legalPrefix = computed(() => locale.value === 'en' ? '/en' : '')
+const termsUrl = computed(() => legal.value ? `${legal.value.legal_base_url}${legalPrefix.value}/terms` : undefined)
+const privacyUrl = computed(() => legal.value ? `${legal.value.legal_base_url}${legalPrefix.value}/privacy` : undefined)
 const verification = reactive({ code: '' })
 const signupId = ref<string>()
 const emailSent = ref(false)
@@ -34,9 +46,13 @@ const errors: Record<string, string> = {
   unavailable: 'signup.errors.unavailable',
   trial_already_used: 'signup.errors.trialAlreadyUsed',
   signup_expired: 'signup.errors.expired',
+  terms_not_accepted: 'signup.errors.termsRequired',
+  terms_changed: 'signup.errors.termsChanged',
+  human_check_failed: 'signup.errors.humanCheckFailed',
+  human_check_unavailable: 'signup.errors.humanCheckUnavailable',
 }
 
-watch(step, () => heading.value?.focus(), { flush: 'post' })
+watch(step, () => { humanToken.value = undefined; heading.value?.focus() }, { flush: 'post' })
 watch(() => details.email, () => { emailErrorKey.value = undefined })
 
 function validateDetails(value: Partial<typeof details>): FormError[] {
@@ -49,6 +65,7 @@ function validateDetails(value: Partial<typeof details>): FormError[] {
   if (!/^\+9665[0-9]{8}$/.test(normalizeMobileInput(value.mobile ?? ''))) {
     problems.push({ name: 'mobile', message: t('signup.errors.mobileInvalid') })
   }
+  if (!value.accept_terms) problems.push({ name: 'accept_terms', message: t('signup.errors.termsRequired') })
   return problems
 }
 
@@ -66,9 +83,19 @@ function editDetails() {
   step.value = 'details'
 }
 
-function request<T>(action: Action, body: Record<string, string>) {
+function request<T>(action: Action, body: Record<string, string | boolean>) {
   return $fetch<T>(`/api/commercial/signup/${action}`, { method: 'POST', body })
 }
+
+async function loadTerms() {
+  try { legal.value = await request<SignupConfig>('terms', {}) } catch { errorKey.value = errors.unavailable }
+}
+
+function spendHumanToken() {
+  humanToken.value = undefined
+  widget.value?.reset()
+}
+onMounted(loadTerms)
 
 async function run(action: Action, execute: () => Promise<void>) {
   if (!hydrated.value || pending.value) return
@@ -83,6 +110,14 @@ async function run(action: Action, execute: () => Promise<void>) {
     if (code === 'rate_limited' && (action === 'start' || action === 'send-email') && step.value !== 'details') {
       resend.start(errorSeconds(error) || resendCooldownSeconds)
     }
+    if (code === 'terms_changed') {
+      // The vendor published new terms while the form was open: show the new links and ask for a fresh acceptance.
+      editDetails()
+      details.accept_terms = false
+      await loadTerms()
+      errorKey.value = errors.terms_changed
+      return
+    }
     if (code === 'business_email_required') {
       emailErrorKey.value = 'signup.errors.businessEmailRequired'
       return
@@ -94,20 +129,29 @@ async function run(action: Action, execute: () => Promise<void>) {
 }
 
 async function startSignup() {
-  if (waitingToResend.value) return
-  await run('start', async () => {
-    const answer = await request<{ signup_id: string }>('start', {
-      company_name: details.company_name.trim(),
-      admin_name: details.admin_name.trim(),
-      email: details.email.trim(),
-      mobile: normalizeMobileInput(details.mobile),
+  const version = legal.value?.terms_version
+  const token = humanToken.value
+  if (waitingToResend.value || !version || !details.accept_terms || !token) return
+  try {
+    await run('start', async () => {
+      const answer = await request<{ signup_id: string }>('start', {
+        company_name: details.company_name.trim(),
+        admin_name: details.admin_name.trim(),
+        email: details.email.trim(),
+        mobile: normalizeMobileInput(details.mobile),
+        accept_terms: true,
+        terms_version: version,
+        human_token: token,
+      })
+      if (!answer.signup_id) throw new Error('Missing signup ID')
+      signupId.value = answer.signup_id
+      verification.code = ''
+      resend.start(resendCooldownSeconds)
+      step.value = 'sms'
     })
-    if (!answer.signup_id) throw new Error('Missing signup ID')
-    signupId.value = answer.signup_id
-    verification.code = ''
-    resend.start(resendCooldownSeconds)
-    step.value = 'sms'
-  })
+  } finally {
+    spendHumanToken()
+  }
 }
 
 async function sendEmail() {
@@ -140,6 +184,7 @@ async function verifyCode() {
       details.admin_name = ''
       details.email = ''
       details.mobile = ''
+      details.accept_terms = false
       step.value = 'done'
     }
   })
@@ -179,7 +224,21 @@ async function verifyCode() {
         <UFormField name="mobile" :label="t('signup.mobile')" required>
           <UInput v-model="details.mobile" type="tel" autocomplete="tel" dir="ltr" class="w-full text-start" :disabled="!!pending" />
         </UFormField>
-        <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated || !!pending" :loading="pending === 'start'" :label="t('signup.sendSms')" />
+        <UFormField name="accept_terms">
+          <UCheckbox v-model="details.accept_terms" :disabled="!!pending || !legal" data-testid="accept-terms">
+            <template #label>
+              <i18n-t keypath="signup.acceptTerms" tag="span">
+                <template #terms><a :href="termsUrl" target="_blank" rel="noopener" class="text-primary underline">{{ t('signup.termsLink') }}</a></template>
+                <template #privacy><a :href="privacyUrl" target="_blank" rel="noopener" class="text-primary underline">{{ t('signup.privacyLink') }}</a></template>
+              </i18n-t>
+            </template>
+          </UCheckbox>
+        </UFormField>
+        <AuthTurnstileWidget
+          v-if="humanCheck" ref="widget" :site-key="humanCheck.site_key" :script-url="humanCheck.script_url" :language="widgetLanguage"
+          :label="t('signup.humanCheck')" @verified="humanToken = $event" @cleared="humanToken = undefined" @failed="errorKey = errors.human_check_unavailable"
+        />
+        <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated || !!pending || !checkReady" :loading="pending === 'start'" :label="t('signup.sendSms')" />
       </UForm>
 
       <template v-else-if="step === 'sms' || step === 'email'">
@@ -204,9 +263,13 @@ async function verifyCode() {
             :label="t('signup.verify')"
           />
         </UForm>
+        <AuthTurnstileWidget
+          v-if="step === 'sms' && humanCheck" ref="widget" :site-key="humanCheck.site_key" :script-url="humanCheck.script_url" :language="widgetLanguage"
+          :label="t('signup.humanCheck')" @verified="humanToken = $event" @cleared="humanToken = undefined" @failed="errorKey = errors.human_check_unavailable"
+        />
         <UButton
           type="button" color="neutral" variant="outline" size="lg" class="w-full justify-center"
-          :disabled="!hydrated || !!pending || waitingToResend" :loading="pending === 'start' || pending === 'send-email'"
+          :disabled="!hydrated || !!pending || waitingToResend || (step === 'sms' && !checkReady)" :loading="pending === 'start' || pending === 'send-email'"
           :label="waitingToResend ? t('signup.resendIn', { seconds: resendSeconds }) : t(step === 'email' && !emailSent ? 'signup.sendEmail' : 'signup.resend')"
           @click="step === 'sms' ? startSignup() : sendEmail()"
         />
@@ -216,7 +279,11 @@ async function verifyCode() {
         />
       </template>
 
-      <UAlert v-else role="status" color="success" variant="subtle" icon="i-lucide-mail-check" :description="t('signup.invitation')" />
+      <UAlert
+        v-else role="status" color="success" variant="subtle" icon="i-lucide-mail-check"
+        :description="`${t('signup.invitation', { email: details.email.trim() })} ${t('signup.invitationLate')}`"
+      />
+      <UButton v-if="step === 'done'" to="/find-workspace" color="neutral" variant="link" class="justify-center" :label="t('signup.findLater')" />
     </div>
   </SharedStandalonePage>
 </template>

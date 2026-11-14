@@ -11,6 +11,8 @@ BASE_PATHS = {
     '/api/v1/me/profile',
     '/api/v1/me/devices',
     '/api/v1/branding',
+    # The tenant's first-run setup record is a foundation capability (settings.company.*), included in every plan.
+    '/api/v1/setup/progress',
 }
 BASE_PATH_PREFIXES = (
     '/api/v1/auth/',

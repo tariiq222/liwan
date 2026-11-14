@@ -50,3 +50,17 @@ export function returnOriginFromEnv(pool: Pool, env: Record<string, string | und
   if (!entries.length) return null
   return env.LIWAN_TENANCY_MODE === 'shared' ? tenantReturnOrigin(pool, entries, env.LIWAN_PAYMENT_PROSPECT_ORIGIN || undefined) : fixedReturnOrigin(entries[0]!)
 }
+
+/**
+ * The origin of the customer's own workspace, for the line every mail to a tenant carries; null when there is none to name:
+ * no resolver is configured or the customer has no usable origin. Every mail that uses it goes to a customer that already has a workspace.
+ */
+export async function workspaceOrigin(returnOrigin: ReturnOrigin | undefined, customerId: string): Promise<string | null> {
+  if (!returnOrigin) return null
+  try { return await returnOrigin(customerId) } catch { return null }
+}
+
+/** The "Your workspace" line in each language, to append to the Arabic and the English part of a mail; empty when the origin is unknown. */
+export function workspaceLines(origin: string | null): { ar: string; en: string } {
+  return origin ? { ar: `\nمساحة عملك: ${origin}`, en: `\nYour workspace: ${origin}` } : { ar: '', en: '' }
+}

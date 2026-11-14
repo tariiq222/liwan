@@ -101,9 +101,18 @@
 			# submits a hidden form to the payment gateway rather than framing it. frame-src
 			# is empty: the app embeds no document. frame-ancestors 'none' is repeated as
 			# X-Frame-Options because older browsers read only the latter.
+			# The one page that mounts the payment provider's card form, /subscription/pay/<order>,
+			# may also call the provider's API: connect-src gets exactly that origin there and
+			# nothing else changes. The expression is case-sensitive; the app redirects any other
+			# spelling of the path to this one. deploy/shared/securityHeaders.mjs carries the same
+			# expression for the shared edge, and deploy/shared/securityHeaders.test.mjs pins them.
+			map {http.request.uri.path} {pay_connect_origin} {
+				~^/subscription/pay/[A-Za-z0-9_-]+/?$ " https://api.moyasar.com"
+				default ""
+			}
 			header {
 				defer
-				Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' wss:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'"
+				Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self'{pay_connect_origin} wss:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'"
 				# '?' keeps a stricter value the app already sent: the pages that carry a
 				# document token in their address (/pay, /book, /join, /reset-password)
 				# set `referrer-policy: no-referrer` themselves.

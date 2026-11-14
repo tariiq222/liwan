@@ -145,3 +145,4 @@ export type CustomerCountryList = z.infer<typeof CustomerCountryListSchema>
 export type CustomerSettings = z.infer<typeof CustomerSettingsSchema>
 export type CustomerSettingsPatch = z.infer<typeof CustomerSettingsPatchSchema>
 export type CustomerFieldRemovalDetails = z.infer<typeof CustomerFieldRemovalDetailsSchema>
+export * from './privacy'

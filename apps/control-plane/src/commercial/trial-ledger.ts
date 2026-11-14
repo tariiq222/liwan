@@ -5,14 +5,16 @@ import { creditedMinorSql } from './refund-credit.js'
 
 export type PaidTrialLine = { key: string; quantity: number; through: string; order_id: string }
 
-export async function paidTrialLines(client: Pick<PoolClient, 'query'>, subscriptionId: string, cutoff: Date): Promise<PaidTrialLine[]> {
+/** `paidAfter` keeps only the lines paid through a later date: what a period end leaves still paid. */
+export async function paidTrialLines(client: Pick<PoolClient, 'query'>, subscriptionId: string, cutoff: Date, paidAfter?: string): Promise<PaidTrialLine[]> {
   return (await client.query(`SELECT left(l.key,-6) AS key,l.quantity::int,l.period_end::text AS through,o.id AS order_id
     FROM orders o JOIN invoices i ON i.order_id=o.id JOIN invoice_lines l ON l.invoice_id=i.id
     WHERE o.subscription_id=$1 AND o.created_at<=$2 AND o.kind IN ('change','branch_add','branch_restore')
       AND o.payment_state='paid' AND o.due_now_minor>0 AND NOT o.cancelled
       AND o.fulfillment_state IN ('queued','applying','applied','needs_intervention','failed')
       AND i.total_minor>${creditedMinorSql('i.id')} AND l.timing='now' AND l.amount_minor>0 AND l.key LIKE '%:delta'
-    ORDER BY l.period_end DESC,l.id`, [subscriptionId, cutoff])).rows
+      AND ($3::date IS NULL OR l.period_end > $3::date)
+    ORDER BY l.period_end DESC,l.id`, [subscriptionId, cutoff, paidAfter ?? null])).rows
 }
 
 export function trialLedger(lines: PaidTrialLine[], applied: QuoteCurrent, plan: PlanRevision, livePaidBranches: number) {

@@ -13,8 +13,10 @@ from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT
 DATABASE = 'liwan_scratch_' + 'a' * 32
 
 
-def request(status='suspended'):
-    return {'action': 'set_tenant_status', 'tenant': {'database': DATABASE, 'host': 'tenant.test'}, 'status': status, 'config': {
+def request(status='suspended', reason='vendor'):
+    if status == 'active':
+        reason = None
+    return {'action': 'set_tenant_status', 'tenant': {'database': DATABASE, 'host': 'tenant.test'}, 'status': status, 'reason': reason, 'config': {
         'schemaVersion': 1, 'projectName': 'liwan-shared-test', 'composeFile': '/private/tmp/compose.yml',
         'envFile': '/private/tmp/runtime.env', 'stateDir': '/private/tmp/state', 'domainSuffix': 'test'}}
 
@@ -37,7 +39,9 @@ class TenantStatusEffectTest(unittest.TestCase):
     def test_validation_precedes_runner(self):
         for mutate, code in [(lambda r: r.update(status='deleted'), 'script_failed'), (lambda r: r.update(status=None), 'script_failed'),
                               (lambda r: r.update(action='other'), 'script_failed'), (lambda r: r['tenant'].update(database='odoo19'), 'database_invalid'),
-                              (lambda r: r['tenant'].update(host='bad host'), 'script_failed')]:
+                              (lambda r: r['tenant'].update(host='bad host'), 'script_failed'),
+                              (lambda r: r.update(reason=None), 'script_failed'), (lambda r: r.update(reason='other'), 'script_failed'),
+                              (lambda r: r.update(status='active'), 'script_failed')]:
             with self.subTest(code=code):
                 payload = request()
                 mutate(payload)
@@ -47,18 +51,18 @@ class TenantStatusEffectTest(unittest.TestCase):
                 self.assertEqual(runner.calls, [])
 
     def test_success_sends_only_database_and_status(self):
-        for status in effect.STATUSES:
-            runner = FakeRunner(output({'status': status}))
-            self.assertEqual(effect.execute(request(status), runner), {'status': status})
-            self.assertEqual(json.loads(runner.calls[0][1]), {'database': DATABASE, 'status': status})
-            self.assertNotIn(status, runner.calls[0][0].replace("('active', 'suspended')", ''))
+        for status, reason in (('active', None), ('suspended', 'non_payment'), ('suspended', 'vendor')):
+            runner = FakeRunner(output({'status': status, 'suspension_reason': reason}))
+            self.assertEqual(effect.execute(request(status, reason), runner), {'status': status, 'suspension_reason': reason})
+            self.assertEqual(json.loads(runner.calls[0][1]), {'database': DATABASE, 'status': status, 'reason': reason})
 
     def test_refusals_and_malformed_output(self):
         for code in ('profile_invalid', 'database_invalid'):
             with self.assertRaisesRegex(EffectError, '^' + code + '$'):
                 effect.execute(request(), FakeRunner(output({'error_code': code})))
-        invalid = ['', output({'status': 'suspended'}) * 2, 'x' * (MAX_OUTPUT + 1), output({'status': 'active'}),
-                   output({'status': 'suspended', 'extra': 1}), output({'error_code': 'unexpected_private_detail'})]
+        invalid = ['', output({'status': 'suspended', 'suspension_reason': 'vendor'}) * 2, 'x' * (MAX_OUTPUT + 1),
+                   output({'status': 'active', 'suspension_reason': None}), output({'status': 'suspended', 'suspension_reason': 'non_payment'}),
+                   output({'status': 'suspended'}), output({'status': 'suspended', 'suspension_reason': 'vendor', 'extra': 1}), output({'error_code': 'unexpected_private_detail'})]
         for index, response in enumerate(invalid):
             with self.subTest(index=index):
                 with self.assertRaisesRegex(EffectError, '^script_failed$'):
@@ -71,20 +75,22 @@ class TenantStatusEffectTest(unittest.TestCase):
         self.assertEqual(json.loads(out.getvalue()), {'error_code': 'script_failed'})
 
     def test_compose_runs_the_static_bootstrap_with_values_on_stdin_only(self):
-        with patch.object(effect.ComposeRunner, 'command', return_value=output({'status': 'suspended'})) as command:
-            self.assertEqual(effect.execute(request(), effect.ComposeRunner(request())), {'status': 'suspended'})
+        with patch.object(effect.ComposeRunner, 'command', return_value=output({'status': 'suspended', 'suspension_reason': 'vendor'})) as command:
+            self.assertEqual(effect.execute(request(), effect.ComposeRunner(request())), {'status': 'suspended', 'suspension_reason': 'vendor'})
         args = command.call_args.args[0]
         self.assertIn('/opt/venv/bin/python', args)
         self.assertIn('--log-level=critical', args)
-        self.assertEqual(json.loads(command.call_args.kwargs['stdin']), {'database': DATABASE, 'status': 'suspended'})
+        self.assertEqual(json.loads(command.call_args.kwargs['stdin']), {'database': DATABASE, 'status': 'suspended', 'reason': 'vendor'})
 
-    def run_script(self, case, status):
+    def run_script(self, case, status, reason='vendor'):
         events = []
         written = []
 
         class Profile:
             commercial_mode, entitlement_source = 'saas', 'control_plane'
             env = None
+
+            suspension_reason = None
 
             def __init__(self, current):
                 self.status = current
@@ -103,7 +109,7 @@ class TenantStatusEffectTest(unittest.TestCase):
 
         profile = Profile('active' if status == 'suspended' else 'suspended')
         if case == 'already':
-            profile.status = status
+            profile.status, profile.suspension_reason = status, reason if status == 'suspended' else None
         if case == 'non_saas':
             profile.commercial_mode = 'non_saas'
 
@@ -127,20 +133,20 @@ class TenantStatusEffectTest(unittest.TestCase):
         captured = io.StringIO()
         module = SimpleNamespace(OPERATOR_CONTEXT='liwan_platform.operator_policy')
         with patch.dict('sys.modules', {'odoo.addons.liwan_platform.models.entitlement_service': module}), contextlib.redirect_stdout(captured):
-            exec(effect.build_script(), {'env': env, 'values': {'database': DATABASE, 'status': status}})
+            exec(effect.build_script(), {'env': env, 'values': {'database': DATABASE, 'status': status, 'reason': reason if status == 'suspended' else None}})
         return captured.getvalue(), events, written
 
-    def test_generated_script_writes_only_the_status_and_signals_the_change(self):
-        for status in effect.STATUSES:
-            with self.subTest(status=status):
-                out, events, written = self.run_script('change', status)
-                self.assertEqual(effect.parse_output(out, status), {'status': status})
-                self.assertEqual(written, [{'status': status}])
+    def test_generated_script_writes_only_the_status_and_reason_and_signals_the_change(self):
+        for status, reason in (('active', None), ('suspended', 'non_payment'), ('suspended', 'vendor')):
+            with self.subTest(status=status, reason=reason):
+                out, events, written = self.run_script('change', status, reason)
+                self.assertEqual(effect.parse_output(out, status, reason), {'status': status, 'suspension_reason': reason})
+                self.assertEqual(written, [{'status': status, 'suspension_reason': reason or False}])
                 self.assertEqual(events, ['flush', 'commit', 'signal'])
 
     def test_generated_script_is_idempotent_when_the_status_already_matches(self):
         out, events, written = self.run_script('already', 'suspended')
-        self.assertEqual(effect.parse_output(out, 'suspended'), {'status': 'suspended'})
+        self.assertEqual(effect.parse_output(out, 'suspended', 'vendor'), {'status': 'suspended', 'suspension_reason': 'vendor'})
         self.assertEqual((events, written), ([], []))
 
     def test_generated_script_refuses_without_writing(self):
@@ -149,7 +155,7 @@ class TenantStatusEffectTest(unittest.TestCase):
             with self.subTest(case=case):
                 out, events, written = self.run_script(case, 'suspended')
                 with self.assertRaisesRegex(EffectError, '^' + code + '$'):
-                    effect.parse_output(out, 'suspended')
+                    effect.parse_output(out, 'suspended', 'vendor')
                 self.assertEqual(written, [])
                 self.assertNotIn('signal', events)
 
@@ -158,7 +164,7 @@ class TenantStatusEffectTest(unittest.TestCase):
         compile(script, '<status-effect>', 'exec')
         compile(effect.build_bootstrap(script), '<status-bootstrap>', 'exec')
         self.assertIn('OPERATOR_CONTEXT', script)
-        self.assertIn("operator.write({'status': values['status']})", script)
+        self.assertIn("operator.write({'status': values['status'], 'suspension_reason': values['reason'] or False})", script)
 
 
 if __name__ == '__main__':

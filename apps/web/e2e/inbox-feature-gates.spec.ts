@@ -31,9 +31,9 @@ test('automation off: its settings pages and entries disappear', async ({ page }
   await expect(page.getByRole('link', { name: 'ساعات العمل' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'قواعد الرد الآلي' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'الرسائل الآلية' })).toHaveCount(0)
-  // The route guard closes the page itself with the plan notice, instead of rendering an editor the server would refuse.
+  // The route guard closes the page itself with the locked-application page, instead of rendering an editor the server would refuse.
   await page.goto('/settings/apps/inbox/working-hours', { waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: 'هذه الصفحة غير متاحة في باقتك' })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('heading', { name: 'هذا التطبيق غير مشمول في باقتك' })).toBeVisible({ timeout: 30_000 })
 })
 
 test('templates off: the channel offers no templates entry or tab', async ({ page }) => {

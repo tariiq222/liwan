@@ -88,6 +88,9 @@ const refundReason = ref('')
 const refundBusy = ref(false)
 const refundFailure = ref<string | undefined>()
 const refundValid = computed(() => validRefundDraft({ reference: refundReference.value, reason: refundReason.value }))
+// The server says whether recording this refund drops the subscription to the free base (the customer's first payment).
+const recordRefundDescription = computed(() => data.value?.refund.locks_subscription
+  ? `${t('vendor.invoices.refund.description')} ${t('vendor.invoices.refund.dropsToFreeBase')}` : t('vendor.invoices.refund.description'))
 // A bank transfer the vendor saw arrive: reference, the exact amount and the day the money reached the account.
 const transferOpen = ref(false)
 const transferReference = ref('')
@@ -103,10 +106,10 @@ const transferAmountError = computed(() => {
 })
 const transferValid = computed(() => transferReference.value.trim().length >= 3 && 'minor' in transferParsed.value && /^\d{4}-\d{2}-\d{2}$/.test(transferDate.value))
 function openTransfer() {
-  transferOpen.value = true; transferFailure.value = undefined; transferReference.value = ''
-  // The invoice total is pre-filled (a transfer that does not match it is refused), on today's date in Riyadh.
-  const start = data.value ? transferFormDefaults(data.value.total) : { amount: '', valueDate: '' }
-  transferAmount.value = start.amount; transferDate.value = start.valueDate
+  transferOpen.value = true; transferFailure.value = undefined
+  // The invoice total and today in Riyadh are pre-filled; the reference stays empty because the vendor types it from the bank statement, never from the customer's claim.
+  const start = data.value ? transferFormDefaults(data.value.total) : { amount: '', valueDate: '', reference: '' }
+  transferAmount.value = start.amount; transferDate.value = start.valueDate; transferReference.value = start.reference
 }
 function closeTransfer() { transferOpen.value = false; transferFailure.value = undefined }
 async function recordTransfer() {
@@ -181,6 +184,9 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
     <!-- Only an issued (unpaid) invoice can still receive a transfer. -->
     <SharedRecordSection v-if="canBilling && data.status === 'issued'" :title="t('vendor.invoices.transfer.title')">
       <p class="text-sm text-muted">{{ t('vendor.invoices.transfer.hint') }}</p>
+      <UAlert v-if="data.bank_transfer_claim" color="info" variant="subtle" icon="i-lucide-landmark" data-testid="bank-transfer-claimed"
+        :title="t('vendor.invoices.transfer.claimed', { date: data.bank_transfer_claim.value_date })"
+        :description="data.bank_transfer_claim.sender_reference ? t('vendor.invoices.transfer.claimedReference', { reference: data.bank_transfer_claim.sender_reference }) : undefined" />
       <SharedInlineConfirm v-if="transferOpen" :title="t('vendor.invoices.transfer.title')" :description="t('vendor.invoices.transfer.confirmHint')"
         :confirm-label="t('vendor.invoices.transfer.confirm')" :pending="transferBusy" :disabled="!hydrated || transferBusy || !transferValid"
         @confirm="recordTransfer" @cancel="closeTransfer">
@@ -224,8 +230,17 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
             <div><dt class="text-muted">{{ t('vendor.invoices.refund.at') }}</dt><dd>{{ note.refunded_at ? attemptTime(note.refunded_at) : '' }}</dd></div>
             <div><dt class="text-muted">{{ t('vendor.invoices.refund.by') }}</dt><dd><bdi dir="ltr">{{ note.refunded_by }}</bdi></dd></div>
           </dl>
-          <template v-if="canBilling && note.kind === 'credit_note' && note.status === 'pending'">
-            <SharedInlineConfirm v-if="refundNoteId === note.id && canRecordRefund" :title="t('vendor.invoices.refund.title')" :description="t('vendor.invoices.refund.description')" :confirm-label="t('vendor.invoices.refund.confirm')" :pending="refundBusy" :disabled="!hydrated || refundBusy || !refundValid" @confirm="recordRefund" @cancel="closeRefund">
+          <UAlert v-if="note.automatic_refund?.state === 'in_progress'" color="info" variant="subtle" icon="i-lucide-loader" data-testid="automatic-refund-in-progress"
+            :title="t('vendor.invoices.refund.automatic.inProgress')" :description="note.automatic_refund.reason ? t('vendor.invoices.refund.automatic.retrying', { reason: note.automatic_refund.reason }) : undefined" />
+          <UAlert v-else-if="note.automatic_refund?.state === 'refunded_recording'" color="success" variant="subtle" icon="i-lucide-circle-check" data-testid="automatic-refund-recording"
+            :title="t('vendor.invoices.refund.automatic.recording')" :description="note.automatic_refund.reason ? t('vendor.invoices.refund.automatic.recordingBlocked', { reason: note.automatic_refund.reason }) : undefined" />
+          <UAlert v-else-if="note.automatic_refund?.state === 'provider_unverified'" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="automatic-refund-unverified"
+            :title="t('vendor.invoices.refund.automatic.unverified')" :description="t('vendor.invoices.refund.automatic.unverifiedHint')" />
+          <UAlert v-else-if="note.automatic_refund?.state === 'failed'" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="automatic-refund-failed"
+            :title="t('vendor.invoices.refund.automatic.failed', { reason: note.automatic_refund.reason ?? '' })" :description="t('vendor.invoices.refund.automatic.failedHint')" />
+          <p v-else-if="note.automatic_refund?.state === 'done'" class="text-sm text-muted" data-testid="automatic-refund-done">{{ t('vendor.invoices.refund.automatic.done') }}</p>
+          <template v-if="canBilling && note.manual_record_allowed">
+            <SharedInlineConfirm v-if="refundNoteId === note.id && canRecordRefund" :title="t('vendor.invoices.refund.title')" :description="recordRefundDescription" :confirm-label="t('vendor.invoices.refund.confirm')" :pending="refundBusy" :disabled="!hydrated || refundBusy || !refundValid" @confirm="recordRefund" @cancel="closeRefund">
               <div class="mt-3 space-y-4">
                 <UFormField :label="t('vendor.invoices.refund.reference')" :help="t('vendor.invoices.refund.referenceHint')" required><UInput v-model="refundReference" :maxlength="200" dir="ltr" :disabled="!hydrated || refundBusy" class="w-full" /></UFormField>
                 <UFormField :label="t('vendor.invoices.refund.reason')" required><UTextarea v-model="refundReason" :maxlength="1000" :disabled="!hydrated || refundBusy" class="w-full" /></UFormField>

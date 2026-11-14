@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
+import { isIP } from 'node:net'
+import { randomUUID } from 'node:crypto'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema } from '@liwan/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, tenantDeletionCodeSchema, paymentAttemptRequestSchema, autoRenewRequestSchema, cardExpired, isAcceptedConsentTextVersion } from '@liwan/commercial-contracts'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
@@ -12,15 +14,22 @@ import { getSubscription } from './subscriptions.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { convertTrial, startTrial } from './trial.js'
 import { acceptQuote, cancelOrder, cancelOrderBodySchema, customerOrderStatusView } from './orders.js'
-import { listInvoices, getInvoice } from './invoices.js'
+import { listInvoices, getCustomerInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
-import { bankTransferInstructions } from './bank-transfer.js'
+import { bankTransferInstructions, claimBankTransfer } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { trialEndPreview } from './trial-preview.js'
-import { retryTrialLapse } from './trial-lapse.js'
+import { retryFreeBaseLock } from './free-base-lock.js'
+import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
+import { confirmDeletion, requestDeletion, withdrawDeletion } from './tenant-deletion.js'
+import { assertCustomerNotRetiring, tenantDeletionOf } from './tenant-deletion-read.js'
 import { getUsage } from './usage.js'
+import { defaultPaymentMethod, listPaymentMethods } from './payment-methods.js'
+import { removePaymentMethod } from './payment-method-removal.js'
+import { disableAutoRenew } from './auto-renew.js'
+import { assertAutoRenewAllowed, isPaymentHint } from './form-payments.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import { aiTopupCatalog } from './ai-billing-settings.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -76,7 +85,7 @@ export async function consumeNonce(client: PoolClient, signed: {issuer: string; 
  * The web server relays a browser or provider payment return. It signs anonymously (no actor, no principal):
  * the return only asks for a provider lookup of one attempt and reveals nothing but the order's state.
  */
-async function paymentReturn(pool: Pool, service: {issuer: string; key: string}, input: CustomerInput, attemptId: string, runtime?: PaymentRuntime) {
+async function paymentReturn(pool: Pool, service: {issuer: string; key: string}, input: CustomerInput, attemptId: string, paymentHint: string | null, runtime?: PaymentRuntime) {
   const tenant=input.headers['x-liwan-tenant']
   if (typeof tenant !== 'string' || !tenant || tenant.length > 128 || /[\r\n]/.test(tenant)) throw new CommercialHttpError('unauthorized',401)
   const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-payment-return:${tenant}\n`,headers:input.headers,key:service.key,anonymous:true})
@@ -85,7 +94,7 @@ async function paymentReturn(pool: Pool, service: {issuer: string; key: string},
   // The LiwanOS public host serves prospects, who have no tenant yet: the attempt id alone names the customer.
   const customer=await transaction(pool,async client=>{await consumeNonce(client,signed);return tenant===PROSPECT_TENANT?customerForAttempt(client,attemptId):customerForTenant(client,tenant)})
   const payment=needPayment(runtime)
-  return {status:200,data:await verifyReturnedAttempt(pool,{attempt_id:attemptId,customer_id:customer.customerId,adapter:payment.adapter})}
+  return {status:200,data:await verifyReturnedAttempt(pool,{attempt_id:attemptId,customer_id:customer.customerId,adapter:payment.adapter,...(paymentHint?{payment_hint:paymentHint}:{})})}
 }
 export async function customerHttp(pool: Pool, config: Config, input: CustomerInput, runtime?: PaymentRuntime) {
   const url = new URL(input.path,'http://localhost')
@@ -95,11 +104,16 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   const returned=/^\/v1\/customer\/payment-returns\/([^/]+)$/.exec(url.pathname)
   if (returned) {
     if (input.method !== 'POST') throw new CommercialHttpError('not_found',404)
-    return paymentReturn(pool,{issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey},input,returned[1]!,runtime)
+    // The provider's payment id the browser came back with: only a hint to fetch, never proof (the callback secret stays at the provider).
+    const hint=url.searchParams.get('payment')
+    return paymentReturn(pool,{issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey},input,returned[1]!,isPaymentHint(hint)?hint:null,runtime)
   }
   const header=input.headers['x-liwan-principal']
   if (typeof header !== 'string') throw new CommercialHttpError('unauthorized',401)
-  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-principal:${header}\n${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
+  // The edge-observed client address (only the deletion routes carry one) is part of what the web server signs, so a header added in transit breaks the signature.
+  const claimedAddress=input.headers['x-liwan-client-ip']
+  if (claimedAddress!==undefined && (typeof claimedAddress!=='string' || !isIP(claimedAddress))) throw new CommercialHttpError('unauthorized',401)
+  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-principal:${header}\n${claimedAddress?`liwan-client:${claimedAddress}\n`:''}${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
   if (!signed || signed.issuer !== config.customerCommercialIssuer) throw new CommercialHttpError('unauthorized',401)
   const unbound=parseCustomerPrincipal(header,'unbound')
   if (unbound.actor_id !== String(signed.actor)) throw new CommercialHttpError('unauthorized',401)
@@ -112,6 +126,33 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(input.raw) { let body:unknown; try{body=JSON.parse(input.raw)}catch{throw new CommercialHttpError('invalid',400,'body')} assertNoCustomerIdentity(body) }
   const path=url.pathname.slice('/v1/customer'.length),m=input.method,customerId=principal.customer_id!
   if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
+  // From `deleting` on nothing the customer does may create or change anything but its own card removal: no order, quote, payment, saved card, branch, plan change, top-up,
+  // auto-renew or resume. One predicate for every route; the database refuses the same creations again for the paths that do not come through here.
+  if (m!=='GET' && !/^\/deletion(?:\/|$)/.test(path) && !/^\/payment-methods\/[^/]+\/remove$/.test(path)) await assertCustomerNotRetiring(pool,customerId)
+  const cancelling=/^\/subscription\/(cancel|resume)$/.exec(path)
+  if (m==='POST' && cancelling) {
+    requireCapability(principal,'subscription.manage')
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().max(1000).optional()}))
+    const act=cancelling[1]==='cancel'?cancelAtPeriodEnd:resumeCancelled
+    return {status:200,data:await act(pool,{customer_id:customerId,by:'customer',actor:principal.actor_id,reason:body.reason||null,now:new Date()})}
+  }
+  // Deleting the workspace: the sole holder of `tenant.delete` (the system administrator) asks, confirms with the emailed code and the company name, or withdraws.
+  const deletion=/^\/deletion(?:\/(request|confirm|withdraw))?$/.exec(path)
+  if (deletion) {
+    const step=deletion[1]
+    if (m==='GET' && !step) {requireCapability(principal,'subscription.read');return {status:200,data:{deletion:await tenantDeletionOf(pool,customerId)}}}
+    if (m!=='POST' || !step) throw new CommercialHttpError('not_found',404)
+    requireCapability(principal,'tenant.delete')
+    const who={actor:principal.actor_id,client_address:claimedAddress ?? null}
+    if (step==='request') {parseBody(input.raw,z.strictObject({}));return {status:200,data:{deletion:await requestDeletion(pool,{...who,customer_id:customerId,secret:config.key})}}}
+    if (step==='confirm') {
+      const body=parseBody(input.raw,z.strictObject({code:tenantDeletionCodeSchema,company_name:z.string().min(1).max(200)}))
+      return {status:200,data:{deletion:await confirmDeletion(pool,{...who,customer_id:customerId,code:body.code,company_name:body.company_name,secret:config.key})}}
+    }
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().max(1000).optional()}))
+    await withdrawDeletion(pool,{...who,customer_id:customerId,by:'customer',reason:body.reason||null})
+    return {status:200,data:{deletion:await tenantDeletionOf(pool,customerId)}}
+  }
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
   if (m==='GET' && path==='/trial/end-preview') {
     requireCapability(principal,'subscription.read')
@@ -120,10 +161,10 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if (m==='POST' && path==='/trial/retry') {
     requireCapability(principal,'subscription.manage')
     parseBody(input.raw,z.strictObject({}))
-    await retryTrialLapse(pool,{customer_id:customerId,now:new Date(),adapter:runtime?.adapter ?? undefined})
+    await retryFreeBaseLock(pool,{customer_id:customerId,now:new Date(),adapter:runtime?.adapter ?? undefined})
     return {status:200,data:await trialEndPreview(pool, customerId)}
   }
-  if (m==='POST' && path==='/trial/convert') {requireCapability(principal,'subscription.manage');const payment=needPayment(runtime);return {status:201,data:await convertTrial(pool,{customer_id:customerId,now:new Date(),adapter:payment.adapter,returnOrigin:payment.returnOrigin})}}
+  if (m==='POST' && path==='/trial/convert') {requireCapability(principal,'subscription.manage');const payment=needPayment(runtime);return {status:201,data:await convertTrial(pool,{customer_id:customerId,now:new Date(),returnOrigin:payment.returnOrigin})}}
   if (m==='POST' && path==='/trial') {requireCapability(principal,'subscription.manage');return {status:201,data:await startTrial(pool,{customer_id:customerId,request:parseBody(input.raw,quoteRequestSchema.omit({subscription_id:true,ai_topup_minor:true})),principal})}}
   if (m==='POST' && path==='/quotes') {requireCapability(principal,'subscription.manage');return {status:201,data:await createQuoteForCustomer(pool,{customer_id:customerId,request:{...parseBody(input.raw,quoteRequestSchema),effective_date:undefined}})}}
   if (m==='POST' && path==='/preview') {
@@ -147,13 +188,15 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(m==='POST'&&payment){
     requireCapability(principal,'subscription.manage')
     if(!z.uuid().safeParse(payment[1]).success || !(await pool.query('SELECT id FROM orders WHERE id=$1 AND customer_id=$2',[payment[1],customerId])).rowCount)throw new CommercialHttpError('not_found',404)
-    parseBody(input.raw,z.strictObject({idempotency_key:z.uuid()}))
-    return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,...needPayment(runtime)})}
+    const request=parseBody(input.raw,paymentAttemptRequestSchema)
+    // The hosted invoice link is only for a customer without a workspace, issued by the vendor; a customer pays through the card form.
+    if(request.method!=='form')throw new CommercialHttpError('invalid',422,'method')
+    return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,actor:principal.actor_id,request:{...request,method:'form'},...needPayment(runtime)})}
   }
   const cancel=/^\/orders\/([^/]+)\/cancel$/.exec(path)
   if(m==='POST'&&cancel){
     requireCapability(principal,'subscription.manage')
-    // Owner decision 2026-10-29: a customer cancels only its own unpaid first order; changes and renewals stay with the vendor.
+    // Owner decision 2026-10-29: a customer cancels only its own unpaid first order here. Cancelling the subscription itself is `/subscription/cancel` (owner decision 2026-11-13).
     const own=z.uuid().safeParse(cancel[1]).success?(await pool.query('SELECT kind FROM orders WHERE id=$1 AND customer_id=$2',[cancel[1],customerId])).rows[0]:undefined
     if(!own)throw new CommercialHttpError('not_found',404)
     if(own.kind!=='new')throw new CommercialHttpError('order_not_cancellable',409)
@@ -162,7 +205,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   }
   if(m==='GET'&&path==='/invoices'){requireCapability(principal,'billing.read');return {status:200,data:await listInvoices(pool,{customer_id:customerId})}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
-  if(m==='GET'&&invoice){requireCapability(principal,'billing.read');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getInvoice(pool,invoice[1]!,{customer_id:customerId});if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
+  if(m==='GET'&&invoice){requireCapability(principal,'billing.read');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getCustomerInvoice(pool,invoice[1]!,{customer_id:customerId});if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   // A customer's own bank-transfer instructions for one of its invoices; 409 while the vendor has no account set.
   const transferGuide=/^\/invoices\/([^/]+)\/bank-transfer$/.exec(path)
   if(m==='GET'&&transferGuide){
@@ -170,17 +213,43 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     if(!z.uuid().safeParse(transferGuide[1]).success)throw new CommercialHttpError('not_found',404)
     return {status:200,data:await bankTransferInstructions(pool,{invoice_id:transferGuide[1]!,customer_id:customerId})}
   }
+  // "I made the transfer": records the customer's claim for the vendor to confirm; it never pays the invoice.
+  const transferClaim=/^\/invoices\/([^/]+)\/bank-transfer-claim$/.exec(path)
+  if(m==='POST'&&transferClaim){
+    requireCapability(principal,'subscription.manage')
+    if(!z.uuid().safeParse(transferClaim[1]).success)throw new CommercialHttpError('not_found',404)
+    return {status:200,data:await claimBankTransfer(pool,{invoice_id:transferClaim[1]!,customer_id:customerId,body:parseBody(input.raw,z.unknown())})}
+  }
   if(m==='GET'&&path==='/branches'){requireCapability(principal,'subscription.read');const view=await getSubscription(pool,customerId);return {status:200,data:await listBranches(pool,view.id)}}
   if(m==='POST'&&path==='/branch-quotes'){requireCapability(principal,'branches.manage');return {status:201,data:await createBranchQuote(pool,customerId,input.raw)}}
   if(m==='GET'&&path==='/usage'){requireCapability(principal,'subscription.read');const view=await getSubscription(pool,customerId);const features=view.applied?.entitlement.features??{};const limits=Object.fromEntries(Object.entries(features).filter(([,v])=>v===null||typeof v==='number')) as Record<string,number|null>;return {status:200,data:await getUsage(pool,{tenant_id:principal.tenant_id!,limits})}}
+  if(m==='GET'&&path==='/payment-methods'){requireCapability(principal,'billing.read');const items=await listPaymentMethods(pool,customerId);return {status:200,data:{items,total:items.length}}}
+  const removal=/^\/payment-methods\/([^/]+)\/remove$/.exec(path)
+  if(m==='POST'&&removal){
+    requireCapability(principal,'subscription.manage')
+    if(!z.uuid().safeParse(removal[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().max(1000).optional()}))
+    await removePaymentMethod(pool,needPayment(runtime).adapter,{by:'customer',actor:principal.actor_id,reason:body.reason||null,customer_id:customerId,payment_method_id:removal[1]!})
+    return {status:200,data:await getSubscription(pool,customerId)}
+  }
   if(m==='POST'&&path==='/auto-renew'){
     requireCapability(principal,'subscription.manage')
-    const body=parseBody(input.raw,z.strictObject({enabled:z.boolean(),consent:z.boolean().optional()}))
+    const body=parseBody(input.raw,autoRenewRequestSchema)
+    if(body.enabled&&!isAcceptedConsentTextVersion(body.consent_text_version))throw new CommercialHttpError('consent_version_unknown',422)
     await transaction(pool,async client=>{
       const r=await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE',[customerId]);if(!r.rowCount)throw new CommercialHttpError('not_found',404)
-      const s=r.rows[0];if(body.enabled&&(!body.consent||!s.provider_token_ref))throw new CommercialHttpError('token_required',409)
-      if(s.auto_renew_enabled===body.enabled)return
-      await client.query('UPDATE subscriptions SET auto_renew_enabled=$1,auto_renew_consent_at=CASE WHEN $1 THEN now() ELSE auto_renew_consent_at END,revision=revision+1 WHERE id=$2',[body.enabled,s.id])
+      const s=r.rows[0]
+      if(!body.enabled){await disableAutoRenew(client,s.id,{actor:principal.actor_id,reason:'The customer turned automatic renewal off'});return}
+      if(s.auto_renew_enabled)return
+      // Switching on needs a card that can be charged now, a plan that allows it, and the customer's consent to the text they saw.
+      const revision=s.applied_revision_id??s.target_revision_id
+      if(!revision)throw new CommercialHttpError('subscription_required',409)
+      await assertAutoRenewAllowed(client,revision)
+      const card=await defaultPaymentMethod(client,customerId)
+      if(!card||cardExpired(card,new Date()))throw new CommercialHttpError('token_required',409)
+      await client.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=now(),revision=revision+1 WHERE id=$1',[s.id])
+      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+        [randomUUID(),principal.actor_id,'auto_renew.enabled',s.id,'The customer turned automatic renewal on',JSON.stringify({payment_method_id:card.id,consent_text_version:body.consent_text_version})])
     })
     return {status:200,data:await getSubscription(pool,customerId)}
   }

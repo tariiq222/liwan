@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { sessionCodec, createGuard } from './guard.mjs'
-import { DOCUMENT_SECURITY_HEADERS, DEFAULT_ONLY_HEADERS, applyDocumentHeaders } from './securityHeaders.mjs'
+import { DOCUMENT_SECURITY_HEADERS, DEFAULT_ONLY_HEADERS, MOYASAR_API_ORIGIN, PAY_PATH, applyDocumentHeaders } from './securityHeaders.mjs'
 
 const targets = Array.from({ length: 3 }, (_, i) => ({ host: `t${i}.example.test`, tenantId: `tenant_${i}`, database: `db_${i}`, filestore: `db_${i}`, enabled: true, registryRevision: 1 }))
 const registry = { schemaVersion: 1, snapshotRevision: 1, targets }
@@ -91,5 +91,58 @@ test('the guard image carries every module guard.mjs imports', () => {
   assert.ok(imports.length > 0)
   for (const name of imports) {
     assert.ok(dockerfile.includes(`deploy/shared/${name}`), `Dockerfile does not copy deploy/shared/${name}`)
+  }
+})
+
+test('only the sign-up and find-workspace pages may load Cloudflare Turnstile, and only from its own origin', () => {
+  const origin = 'https://challenges.cloudflare.com'
+  const other = applyDocumentHeaders({}, '/projects')['content-security-policy']
+  assert.equal(other, DOCUMENT_SECURITY_HEADERS['content-security-policy'])
+  assert.ok(!other.includes('cloudflare'))
+  for (const path of ['/register', '/register/', '/register?next=1', '/find-workspace', '/find-workspace/']) {
+    const policy = applyDocumentHeaders({}, path)['content-security-policy']
+    const directives = Object.fromEntries(policy.split('; ').map(d => [d.split(' ')[0], d.split(' ').slice(1)]))
+    assert.deepEqual(directives['script-src'], ["'self'", origin, "'unsafe-inline'"])
+    assert.deepEqual(directives['frame-src'], [origin])
+    assert.deepEqual(directives['connect-src'], ["'self'", origin, 'wss:'])
+    // Nothing else changed: the register policy is the default one with those three directives swapped.
+    assert.equal(policy.replaceAll(` ${origin}`, '').replace('frame-src;', "frame-src 'none';"), DOCUMENT_SECURITY_HEADERS['content-security-policy'])
+  }
+  for (const path of ['/register-other', '/find-workspace-other', '/login', '/find-workspace/x']) assert.equal(applyDocumentHeaders({}, path)['content-security-policy'], DOCUMENT_SECURITY_HEADERS['content-security-policy'])
+})
+
+test('only the card payment page may call the payment provider API, and only through connect-src', () => {
+  const origin = 'https://api.moyasar.com'
+  const base = DOCUMENT_SECURITY_HEADERS['content-security-policy']
+  assert.ok(!base.includes('moyasar'))
+  for (const path of ['/subscription/pay/6f1c9c52-0a3e-4a43-9d3e-2f6f1f9a0b11', '/subscription/pay/6f1c9c52-0a3e-4a43-9d3e-2f6f1f9a0b11/', '/subscription/pay/abc?x=1']) {
+    const policy = applyDocumentHeaders({}, path)['content-security-policy']
+    const directives = Object.fromEntries(policy.split('; ').map(d => [d.split(' ')[0], d.split(' ').slice(1)]))
+    assert.deepEqual(directives['connect-src'], ["'self'", origin, 'wss:'])
+    assert.deepEqual(directives['frame-src'], ["'none'"])
+    assert.deepEqual(directives['script-src'], ["'self'", "'unsafe-inline'"])
+    assert.ok(!policy.includes('appsignal'))
+    // Nothing else changed: the pay policy is the default one with that one origin added.
+    assert.equal(policy.replace(` ${origin}`, ''), base)
+  }
+  for (const path of ['/subscription', '/subscription/pay', '/subscription/pay/', '/subscription/pay/a/b', '/subscription/status', '/subscription/invoices/x', '/register', '/Subscription/Pay/abc', '/subscription/PAY/abc']) {
+    assert.ok(!applyDocumentHeaders({}, path)['content-security-policy'].includes(origin), path)
+  }
+})
+
+test('the dedicated edge gives the pay path the same exception as the shared edge: same expression, same origin, same single directive', () => {
+  const caddyfile = readFileSync('deploy/Caddyfile', 'utf8')
+  const map = /map \{http\.request\.uri\.path\} \{pay_connect_origin\} \{\s*~(\S+) "([^"]*)"\s*default ""\s*\}/.exec(caddyfile)
+  assert.ok(map, 'deploy/Caddyfile has no pay-path map')
+  // Caddy writes the expression with plain slashes; the shared edge escapes them in a JS literal.
+  assert.equal(map[1], PAY_PATH.source.replaceAll('\\/', '/'))
+  assert.equal(map[2], ` ${MOYASAR_API_ORIGIN}`)
+  const csp = /Content-Security-Policy "([^"]*)"/.exec(caddyfile)[1]
+  assert.equal(csp.replace("connect-src 'self'{pay_connect_origin} wss:", "connect-src 'self' wss:"), DOCUMENT_SECURITY_HEADERS['content-security-policy'])
+  assert.equal(csp.split('{pay_connect_origin}').length, 2, 'the placeholder appears once, in connect-src')
+  // The expression itself is the same on both edges for every path.
+  const caddyPay = new RegExp(map[1])
+  for (const path of ['/subscription/pay/abc', '/subscription/pay/abc/', '/subscription/pay', '/subscription/pay/a/b', '/Subscription/Pay/abc', '/subscription/status']) {
+    assert.equal(caddyPay.test(path), PAY_PATH.test(path), path)
   }
 })

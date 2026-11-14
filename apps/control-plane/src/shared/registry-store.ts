@@ -1,4 +1,5 @@
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
+import { isTenantDeletionActor, requireTenantDeletionAuthority } from './tenant-deletion-authority.js'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { withPublicationLock, beginPublication, completePublication } from './registry-publisher.js'
@@ -11,7 +12,9 @@ export const registryTargetSchema = z.strictObject({
   host: z.string().max(253).regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/),
   tenantId: z.string().regex(/^[a-z][a-z0-9_-]{0,62}$/), database: resource, filestore: resource,
   enabled: z.boolean(), registryRevision: revision.refine(n => n > 0),
-}).refine(t => t.database === t.filestore)
+  /** The workspace is being or has been deleted. Only the tenant deletion authority publishes it; a retired target is never enabled, and a backup capture refuses it. */
+  retired: z.boolean().default(false),
+}).refine(t => t.database === t.filestore).refine(t => !(t.retired && t.enabled))
 export const registryMutationSchema = z.strictObject({ controlTenantId: z.uuid(), expectedSnapshotRevision: revision, target: registryTargetSchema, reason: z.string().trim().min(3).max(1000) })
 export type RegistryActor = { issuer: string; actorUid: number }
 export class RegistryError extends Error {
@@ -22,11 +25,22 @@ export class RegistryError extends Error {
  * must contend on the same key. */
 export const REGISTRY_ADVISORY_LOCK = 1397969234
 const LOCK = REGISTRY_ADVISORY_LOCK
-const fields = 'tenant_id AS "tenantId",host,database_name AS database,filestore,enabled,registry_revision::float8 AS "registryRevision"'
+const fields = 'tenant_id AS "tenantId",host,database_name AS database,filestore,enabled,retired,registry_revision::float8 AS "registryRevision"'
 async function authorize(client: PoolClient, actor: RegistryActor) {
   if(isCommercialEnrollmentActor(actor)){await requireCommercialEnrollmentAuthority(client,actor);return}
   if (!actor.issuer || !Number.isSafeInteger(actor.actorUid) || actor.actorUid < 1) throw new RegistryError('registry_forbidden', 403)
   if (!await actorHolds(client, actor, ['vendor.tenants.manage'], true)) throw new RegistryError('registry_forbidden', 403)
+}
+/** The deletion authority checks its own persisted predicate (it needs the tenant, so it cannot ride `authorize`); every other actor takes the vendor grant. */
+async function authorizeFor(client: PoolClient, actor: RegistryActor, input: { controlTenantId: string; target: { enabled: boolean; retired: boolean } }) {
+  if (!isTenantDeletionActor(actor)) return authorize(client, actor)
+  try { await requireTenantDeletionAuthority(client, actor, input.controlTenantId, input.target) } catch { throw new RegistryError('registry_forbidden', 403) }
+}
+/** A workspace being or already deleted is published only by its deletion authority: nobody else may enable, change or un-retire its target. */
+async function requireNotRetiring(client: PoolClient, actor: RegistryActor, controlTenantId: string, previous: { retired: boolean } | null, target: { retired: boolean }) {
+  if (isTenantDeletionActor(actor)) return
+  const deleting = await client.query(`SELECT 1 FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE c.tenant_id=$1 AND r.state IN ('deleting','deleted') FOR SHARE OF r`, [controlTenantId])
+  if (deleting.rowCount || previous?.retired || target.retired) throw new RegistryError('tenant_retiring')
 }
 /** First activation must retain both the request actor and publishing actor's
  * current grants. All locks live in the publication transaction, including recovery. */
@@ -45,7 +59,8 @@ export async function requireOnboardingPublicationAuthority(client: PoolClient, 
 export async function resolveRegistryBinding(client: PoolClient, controlTenantId: string) {
   const result = await client.query(`SELECT ${fields} FROM shared_registry_bindings WHERE control_tenant_id=$1 FOR SHARE`, [controlTenantId])
   if (!result.rowCount) throw new RegistryError('tenant_binding_unavailable', 404)
-  const { host: _host, ...binding } = registryTargetSchema.parse(result.rows[0])
+  const { host: _host, retired, ...binding } = registryTargetSchema.parse(result.rows[0])
+  if (retired) throw new RegistryError('tenant_retiring')
   return binding
 }
 async function snapshot(client: PoolClient) {
@@ -72,14 +87,14 @@ export async function publishRegistryMutation(pool: Pool, path: string, actor: R
   return withPublicationLock(path, () => locked(pool, async client => {
     // Authorize before external observation/enqueue. This preflight deliberately
     // precedes BEGIN: rejecting publication must not roll back its repair job.
-    await authorize(client, actor)
+    await authorizeFor(client, actor, input)
     if(isCommercialEnrollmentActor(actor))await requireCommercialEnrollmentAuthority(client,actor,input.controlTenantId)
     const commercial = input.target.enabled
       ? await prepareCommercialRestorePublication(pool, client, input.controlTenantId, input.target, options.runner)
       : { ready: true, snapshot: null }
     if (!commercial.ready) throw new RegistryError('commercial_reconciliation_pending')
     await client.query('BEGIN')
-    await authorize(client, actor)
+    await authorizeFor(client, actor, input)
     const state = await client.query('SELECT revision::float8 AS revision FROM shared_registry_state WHERE singleton=true FOR UPDATE')
     if (state.rows[0]?.revision !== input.expectedSnapshotRevision) throw new RegistryError('registry_revision_conflict')
     if (input.expectedSnapshotRevision >= Number.MAX_SAFE_INTEGER - 1) throw new RegistryError('registry_revision_exhausted')
@@ -88,6 +103,7 @@ export async function publishRegistryMutation(pool: Pool, path: string, actor: R
     const old = await client.query(`SELECT ${fields} FROM shared_registry_bindings WHERE control_tenant_id=$1 FOR UPDATE`, [input.controlTenantId])
     const previous = old.rowCount ? registryTargetSchema.parse(old.rows[0]) : null
     const target = input.target
+    await requireNotRetiring(client, actor, input.controlTenantId, previous, target)
     if (target.enabled) await requireOnboardingPublicationAuthority(client, input.controlTenantId, actor)
     if (previous && (previous.tenantId !== target.tenantId || previous.database !== target.database || previous.filestore !== target.filestore)) throw new RegistryError('tenant_binding_immutable')
     if (target.registryRevision !== (previous?.registryRevision ?? 0) + 1) throw new RegistryError('registry_revision_conflict')
@@ -99,9 +115,9 @@ export async function publishRegistryMutation(pool: Pool, path: string, actor: R
     // recovery can tell a registry file that already carries it from one that predates the commit.
     await beginPublication(path, next)
     if (previous) {
-      await client.query('UPDATE shared_registry_bindings SET host=$1,enabled=$2,registry_revision=$3 WHERE control_tenant_id=$4', [target.host,target.enabled,target.registryRevision,input.controlTenantId])
+      await client.query('UPDATE shared_registry_bindings SET host=$1,enabled=$2,registry_revision=$3,retired=$5 WHERE control_tenant_id=$4', [target.host,target.enabled,target.registryRevision,input.controlTenantId,target.retired])
     } else {
-      await client.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$5,$6,$7)', [input.controlTenantId,target.tenantId,target.host,target.database,target.filestore,target.enabled,target.registryRevision])
+      await client.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision,retired) VALUES($1,$2,$3,$4,$5,$6,$7,$8)', [input.controlTenantId,target.tenantId,target.host,target.database,target.filestore,target.enabled,target.registryRevision,target.retired])
     }
     await client.query('INSERT INTO shared_registry_hosts(host,control_tenant_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [target.host,input.controlTenantId])
     await client.query('UPDATE shared_registry_state SET revision=$1 WHERE singleton=true', [next])

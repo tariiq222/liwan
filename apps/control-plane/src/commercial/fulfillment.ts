@@ -1,3 +1,4 @@
+import { disableAutoRenewIfPlanForbids } from './auto-renew.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
@@ -16,6 +17,9 @@ import type { SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { keptAtTrialEnd } from './free-base.js'
 import { hasReachableManager } from './orders.js'
 import { deliveredEntitlement } from './ai-ledger.js'
+import { trialEndsAt } from './renewals.js'
+import { WORKSPACE_DELAY_MS } from './workspace-delay-notice.js'
+import { logText } from '../log-text.js'
 
 /** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
 export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: number): string {
@@ -32,6 +36,22 @@ export async function commercialValidUntil(client: Pool | PoolClient, order: Rec
   if (order.kind === 'change' && new Date(order.trial_ends_at).getTime() <= Date.now()) return null
   const plan = await client.query('SELECT grace_days FROM plan_revisions WHERE id=$1', [order.snapshot.plan_revision_id])
   return commercialExpiryDate(order.trial_ends_at, Number(plan.rows[0]?.grace_days ?? 0))
+}
+
+/**
+ * A trial counts from the day the workspace is delivered. A first activation that waited longer than the delay notice
+ * (provisioning was down) restarts the 14 days when its job is built, in the transaction that builds the job, so the
+ * authority sent to Odoo and the subscription agree. An on-time delivery keeps the date set at sign-up.
+ */
+async function startTrialAtDelivery(client: PoolClient, order: Record<string, any>, now: Date): Promise<Date | null> {
+  const current = order.trial_ends_at ? new Date(order.trial_ends_at) : null
+  const firstTrial = order.kind === 'new' && order.payment_state === 'not_required' && !order.applied_revision_id && order.subscription_state === 'trialing'
+  if (!current || !firstTrial || now.getTime() - new Date(order.created_at).getTime() < WORKSPACE_DELAY_MS) return current
+  const days = Number((await client.query('SELECT trial_days FROM plan_revisions WHERE id=$1', [order.snapshot.plan_revision_id])).rows[0]?.trial_days ?? 0)
+  const restarted = new Date(trialEndsAt(days, now))
+  if (restarted <= current) return current
+  await client.query('UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, restarted])
+  return restarted
 }
 
 export type FulfillmentAuthority = SharedReconfigureJob['authority']
@@ -79,6 +99,8 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
       trial_ends_at=CASE WHEN $3='renewal' THEN NULL ELSE trial_ends_at END,
       renewal_at=CASE WHEN applied_revision_id IS NULL OR $3='renewal' THEN COALESCE((SELECT period_end FROM renewals WHERE order_id=$5),$4::date,renewal_at) ELSE renewal_at END,
       revision=revision+1 WHERE id=$1`, [order.subscription_id, order.target_revision_id, order.kind, order.snapshot.period_end??null, order.id])
+    // A plan that does not allow automatic renewal ends it the moment it is applied; the saved card stays.
+    await disableAutoRenewIfPlanForbids(client, order.subscription_id)
     if(!order.applied_revision_id){
       // The HQ branch is the tenant's root company; a first activation without it is an incomplete observation.
       if(!Number.isSafeInteger(receipt.root_company_id) || receipt.root_company_id!<1)throw Error('observed_mismatch')
@@ -118,7 +140,7 @@ export async function failFulfillmentOn(client: PoolClient, input: { order_id: s
   const type = INTERVENTION_CODES.includes(input.code) ? 'fulfillment_needs_intervention' : 'fulfillment_failed'
   const next = nextOrderState(started, { type })
   await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
-  if (order.payment_state === 'paid' || /^trial-(reopen|bootstrap):/.test(order.idempotency_key))
+  if (order.payment_state === 'paid' || (order.payment_state === 'not_required' && order.kind === 'new') || /^trial-(reopen|bootstrap):/.test(order.idempotency_key))
     await scheduleFulfillmentRecovery(client, order, input.code)
 }
 
@@ -226,7 +248,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         if(!pending.rowCount)return null
         const found=await client.query(`SELECT o.*,s.tenant_id,s.applied_revision_id,s.target_revision_id AS subscription_target,
           s.trial_ends_at,s.state AS subscription_state,s.suspended_from,s.revision,s.commercial_expiry_revision,r.snapshot,
-          (SELECT ended_at FROM trial_lapses WHERE subscription_id=s.id AND state='pending') AS lapsed_at
+          (SELECT trial_ended_at FROM free_base_locks WHERE subscription_id=s.id AND state='pending' AND cause IN ('trial_end','first_invoice_unpaid')) AS trial_lock_cutoff
           FROM orders o JOIN subscriptions s ON s.id=o.subscription_id JOIN subscription_revisions r ON r.id=o.target_revision_id
           WHERE o.id=$1 FOR UPDATE OF o,s`,[row.aggregate_id])
         const order=found.rows[0]
@@ -280,9 +302,10 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const ordered=branches.items.filter(x=>x.order_id===order.id && x.state==='pending')
         const expiryRevision = Number(order.commercial_expiry_revision) + 1
         await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, expiryRevision])
-        const lock = String(order.idempotency_key).startsWith('trial-lapse:')
-        const trialCutoff = order.kind !== 'renewal' && !lock && (order.subscription_state === 'trialing' || order.suspended_from === 'trialing' || order.lapsed_at)
-          ? new Date(order.lapsed_at ?? order.trial_ends_at) : null
+        order.trial_ends_at=await startTrialAtDelivery(client,order,new Date())
+        const lock = String(order.idempotency_key).startsWith('free-base-lock:')
+        const trialCutoff = order.kind !== 'renewal' && !lock && (order.subscription_state === 'trialing' || order.suspended_from === 'trialing' || order.trial_lock_cutoff)
+          ? new Date(order.trial_lock_cutoff ?? order.trial_ends_at) : null
         const trialPolicy = trialCutoff ? await trialAuthority(client, { ...order, id: order.subscription_id }, order.snapshot, trialCutoff)
           : { trial_ends_at: null, ...(lock ? { excess_settle: true as const } : {}) }
         const predecessors = lock ? await recoverableTrialPredecessors(client, order.id) : []
@@ -308,9 +331,9 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         // One bad row must not stop the batch; its lease expires and it is claimed again.
         // The cause is logged and kept on the row so the operator can read it.
         const detail=`${code}; ${handlingError instanceof Error?`${handlingError.name}: ${handlingError.message}`:String(handlingError)}`.slice(0,300)
-        console.error(`[control-plane] fulfillment failure handling failed for outbox ${row.id}: ${detail}`)
+        console.error('[control-plane] fulfillment failure handling failed for outbox %s: %s',row.id,logText(detail))
         await pool.query("UPDATE commercial_outbox SET payload=payload||jsonb_build_object('error',$2::text) WHERE id=$1 AND status='pending'",[row.id,`failure_handling_failed: ${detail}`])
-          .catch(e=>console.error(`[control-plane] could not record failure cause for outbox ${row.id}: ${e instanceof Error?e.message:String(e)}`))
+          .catch(e=>console.error('[control-plane] could not record failure cause for outbox %s: %s',row.id,logText(e)))
         results.push({order_id:row.aggregate_id,reason:'failure_handling_failed'})
       }
     }

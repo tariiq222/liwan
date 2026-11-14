@@ -6,12 +6,23 @@ test.beforeEach(async ({ page }) => { await login(page) })
 
 test('subscription settings keep plan usage branches invoices and explicit auto renew consent', async ({ page }) => {
  await open(page,'/subscription'); await expectNoSecondH1(page)
- await expect(page.locator('[data-slot="record-section"]')).toHaveCount(7)
+ await expect(page.locator('[data-slot="record-section"]')).toHaveCount(8)
  await expect(page.getByTestId('usage-metric')).toHaveCount(2); await expect(page.getByTestId('usage-metric').filter({has:page.locator('[data-known="false"]')})).toHaveCount(0)
  await expect(page.locator('[data-testid="usage-metric"][data-known="false"]')).toHaveCount(1)
  await expect(page.getByTestId('branch-row')).toHaveCount(1); await expect(page.locator('a[href^="/subscription/invoices/inv-"]')).toHaveCount(2)
  const control=page.locator('[data-slot="auto-renew"]'); await expect(control.getByRole('button')).toBeDisabled()
- await control.getByRole('checkbox').check(); await expect(control.getByRole('button')).toBeEnabled()
+ await expect(page.locator('[data-slot="payment-method"] [data-slot="no-card"]')).toBeVisible(); await expect(control.locator('[data-slot="needs-card"]')).toBeVisible()
+})
+test('a saved card shows masked beside the auto-renew control and never prints its id', async ({ page }) => {
+ const { subscription, savedCard } = JSON.parse(readFileSync(new URL('./commercial-fixtures.json', import.meta.url), 'utf8')) as { subscription: SubscriptionView; savedCard: { id: string } }
+ // The page reads the subscription during the server render, which a browser route cannot answer: load another page first, then reach /subscription through the shell link so the browser makes the read.
+ await open(page,'/subscription/branches')
+ await page.route('**/api/commercial/v1/subscription', route => route.fulfill({ json: { ...subscription, auto_renew: { enabled: true, consent_at: '2026-10-01T08:00:00.000Z', payment_method: savedCard } } }))
+ await page.getByTestId('context-link-subscription').click()
+ const panel=page.getByTestId('payment-method')
+ await expect(panel.locator('[data-slot="card-number"]')).toHaveText('•••• 4242'); await expect(panel.locator('[data-slot="card-expiry"]')).toHaveText('03/30')
+ await expect(panel.locator('[data-slot="card-state"]')).toHaveAttribute('data-state','active'); await expect(panel.locator('[data-slot="auto-renew"]')).toBeVisible()
+ expect(await panel.innerText()).not.toContain(savedCard.id)
 })
 test('an order that is no longer pending shows its note and never posts an order', async ({ page }) => {
  const orders:string[]=[]; page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/commercial/v1/orders'))orders.push(r.url())})
@@ -48,7 +59,7 @@ test('a pending trial lock offers retry and refreshes the applied outcome', asyn
   })
   let retries = 0
   await page.route('**/api/commercial/v1/subscription', route => route.fulfill({ json: {
-    ...fixtures.subscription, trial_ends_at: null, trial_outcome: preview.outcome, trial_lapse_pending: preview.status === 'lock_pending',
+    ...fixtures.subscription, trial_ends_at: null, trial_outcome: preview.outcome, pending_free_base_lock: preview.status === 'lock_pending' ? 'trial_end' : null,
   } }))
   await page.route('**/api/commercial/v1/trial/end-preview', route => route.fulfill({ json: preview }))
   await page.route('**/api/commercial/v1/trial/retry', route => {

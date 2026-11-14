@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_tenant_export" model="ir.cron">
+        <field name="name">Build the tenant data export</field>
+        <field name="model_id" ref="model_liwan_tenant_export"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_cron_build()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">2</field>
+        <field name="interval_type">minutes</field>
+    </record>
+    <!-- Expiry is a cron of its own: a build that keeps failing must never keep an archive on the disk. -->
+    <record id="ir_cron_tenant_export_expire" model="ir.cron">
+        <field name="name">Expire tenant data exports</field>
+        <field name="model_id" ref="model_liwan_tenant_export"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_cron_expire()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+    </record>
+</odoo>

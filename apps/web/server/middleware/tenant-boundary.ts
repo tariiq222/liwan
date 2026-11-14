@@ -1,8 +1,8 @@
 import { releaseProbeRequest } from '../utils/releaseReadiness'
 import { tenantRequest } from '../utils/tenantRequest'
 import { installReleaseContext } from '../utils/releaseRequest'
-import { isProspectRequest, isSignupPage } from '../utils/prospectHost'
-import { createError, getHeader, getRequestURL } from 'h3'
+import { isFindWorkspacePage, isProspectLogin, isProspectRequest, isSignupPage } from '../utils/prospectHost'
+import { createError, getHeader, getRequestURL, sendRedirect } from 'h3'
 
 // Applies to SSR as well as BFF routes; direct network access must still be denied.
 export default defineEventHandler((event) => {
@@ -13,9 +13,11 @@ export default defineEventHandler((event) => {
   const pathname = getRequestURL(event).pathname
   if (isProspectRequest({ host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname }, useRuntimeConfig(event))) {
     event.context.tenant = null
+    // The common host has no sign-in of its own: a visitor who lands on /login there is sent to the page that finds their workspace.
+    if (isProspectLogin(pathname)) return sendRedirect(event, '/find-workspace', 302)
     return
   }
-  if (isSignupPage(pathname)) throw createError({ statusCode: 404 })
+  if (isSignupPage(pathname) || isFindWorkspacePage(pathname)) throw createError({ statusCode: 404 })
   event.context.tenant = tenantRequest(event)
   installReleaseContext(event)
 })

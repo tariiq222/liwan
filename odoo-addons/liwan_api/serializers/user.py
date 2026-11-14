@@ -32,6 +32,19 @@ def dump_switchable_companies(user):
     return [{'id': company.id, 'name': company.name} for company in companies.sorted(lambda c: (c.name, c.id))]
 
 
+def is_root_company(user):
+    """Whether the session's company is the tenant's root company (always true on a single-company install).
+
+    Derived from the tenant profile, never stored. Without a readable profile it falls back to "has no parent",
+    the rule the setup wizard enforces.
+    """
+    company = user.env.company
+    try:
+        return company == user.env['liwan.entitlement.service']._liwan_profile().root_company_id
+    except UserError:
+        return not company.parent_id
+
+
 def dump_me(user):
     service = user.env['liwan.access.service']
     identity = service._liwan_identity(user)
@@ -59,6 +72,7 @@ def dump_me(user):
         'capabilities': identity['capabilities'],
         'access_policy_version': identity['version'],
         'company': {'id': user.env.company.id, 'name': user.env.company.name},
+        'is_root_company': is_root_company(user),
         'companies': dump_switchable_companies(user),
         'home_company_id': user.company_id.id,
         'home_capabilities': service._liwan_home_capabilities(user),

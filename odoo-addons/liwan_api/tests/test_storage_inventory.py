@@ -6,7 +6,7 @@ from .common import LiwanApiCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 URL = '/api/v1/settings/storage'
-FIELDS = {'id', 'name', 'size_bytes', 'created_at', 'blocked', 'record'}
+FIELDS = {'id', 'name', 'size_bytes', 'created_at', 'over_limit', 'record'}
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -46,7 +46,7 @@ class TestStorageInventory(LiwanApiCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.assertEqual(self.api('GET', URL).status_code, 403)
         self.authenticate('storage_hq_admin', 'storage_inventory_pass_123')
-        result = self.api('GET', URL + '?blocked=true')
+        result = self.api('GET', URL + '?over_limit=true')
         self.assertEqual(result.status_code, 200, result.text)
         body = result.json()
         self.assertEqual(set(body), {'items', 'total', 'summary'})
@@ -58,10 +58,10 @@ class TestStorageInventory(LiwanApiCase):
         self.assertNotIn('unowned-by-actor.txt', result.text)
         self.assertIsNone(body['items'][0]['record'])
         self.assertEqual(body['summary']['limit_mb'], 0)
-        self.assertGreaterEqual(body['summary']['used_bytes'], body['summary']['blocked_bytes'])
-        page = self.api('GET', URL + '?blocked=true&offset=1&limit=1').json()
+        self.assertGreaterEqual(body['summary']['used_bytes'], body['summary']['over_limit_bytes'])
+        page = self.api('GET', URL + '?over_limit=true&offset=1&limit=1').json()
         self.assertEqual((page['items'][0]['id'], page['total']), (first.id, body['total']))
-        self.assertEqual(self.api('GET', URL + '?blocked=maybe').status_code, 422)
+        self.assertEqual(self.api('GET', URL + '?over_limit=maybe').status_code, 422)
 
         self.authenticate('storage_branch_admin', 'storage_inventory_pass_123')
         result = self.api('GET', URL)

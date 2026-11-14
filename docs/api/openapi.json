@@ -70,6 +70,7 @@
               "user.reset_link_sent",
               "user.password_set",
               "user.employee_linked",
+              "user.employee_unlinked",
               "user.roles_changed",
               "user.disabled",
               "user.reactivated",
@@ -81,6 +82,9 @@
               "user.branch_roles_changed",
               "branch.policy_changed",
               "access.policy_changed",
+              "user.membership_added",
+              "user.membership_roles_changed",
+              "user.membership_removed",
               "company.profile_changed",
               "company.branding_changed",
               "company.vat_registration_changed",
@@ -230,6 +234,7 @@
                     "user.reset_link_sent",
                     "user.password_set",
                     "user.employee_linked",
+                    "user.employee_unlinked",
                     "user.roles_changed",
                     "user.disabled",
                     "user.reactivated",
@@ -241,6 +246,9 @@
                     "user.branch_roles_changed",
                     "branch.policy_changed",
                     "access.policy_changed",
+                    "user.membership_added",
+                    "user.membership_roles_changed",
+                    "user.membership_removed",
                     "company.profile_changed",
                     "company.branding_changed",
                     "company.vat_registration_changed",
@@ -363,6 +371,7 @@
               "user.reset_link_sent",
               "user.password_set",
               "user.employee_linked",
+              "user.employee_unlinked",
               "user.roles_changed",
               "user.disabled",
               "user.reactivated",
@@ -374,6 +383,9 @@
               "user.branch_roles_changed",
               "branch.policy_changed",
               "access.policy_changed",
+              "user.membership_added",
+              "user.membership_roles_changed",
+              "user.membership_removed",
               "company.profile_changed",
               "company.branding_changed",
               "company.vat_registration_changed",
@@ -5887,9 +5899,15 @@
             "maxItems": 64,
             "minItems": 1,
             "type": "array"
+          },
+          "user_company_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
           }
         },
         "required": [
+          "user_company_id",
           "items"
         ],
         "type": "object"
@@ -6409,6 +6427,9 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "create_new": {
+            "type": "boolean"
+          },
           "national_id": {
             "anyOf": [
               {
@@ -6437,7 +6458,7 @@
               "email": {
                 "anyOf": [
                   {
-                    "maxLength": 255,
+                    "maxLength": 254,
                     "type": "string"
                   },
                   {
@@ -6446,7 +6467,7 @@
                 ]
               },
               "name": {
-                "maxLength": 255,
+                "maxLength": 200,
                 "minLength": 1,
                 "type": "string"
               },
@@ -6454,8 +6475,7 @@
                 "anyOf": [
                   {
                     "maxLength": 32,
-                    "minLength": 5,
-                    "pattern": "^\\+?[0-9 ()-]+$",
+                    "minLength": 1,
                     "type": "string"
                   },
                   {
@@ -7792,7 +7812,7 @@
           "email": {
             "anyOf": [
               {
-                "maxLength": 255,
+                "maxLength": 254,
                 "type": "string"
               },
               {
@@ -7801,7 +7821,7 @@
             ]
           },
           "name": {
-            "maxLength": 255,
+            "maxLength": 200,
             "minLength": 1,
             "type": "string"
           },
@@ -7809,8 +7829,7 @@
             "anyOf": [
               {
                 "maxLength": 32,
-                "minLength": 5,
-                "pattern": "^\\+?[0-9 ()-]+$",
+                "minLength": 1,
                 "type": "string"
               },
               {
@@ -8968,6 +8987,7 @@
           "user.reset_link_sent",
           "user.password_set",
           "user.employee_linked",
+          "user.employee_unlinked",
           "user.roles_changed",
           "user.disabled",
           "user.reactivated",
@@ -8979,6 +8999,9 @@
           "user.branch_roles_changed",
           "branch.policy_changed",
           "access.policy_changed",
+          "user.membership_added",
+          "user.membership_roles_changed",
+          "user.membership_removed",
           "company.profile_changed",
           "company.branding_changed",
           "company.vat_registration_changed",
@@ -16623,6 +16646,16 @@
             ],
             "type": "object"
           },
+          "start_stage_mode": {
+            "items": {
+              "enum": [
+                "auto",
+                "stage"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
           "term_gender": {
             "items": {
               "enum": [
@@ -16668,6 +16701,7 @@
           "preset",
           "after_attempts",
           "distribution_mode",
+          "start_stage_mode",
           "visibility",
           "price_above_list",
           "term_gender",
@@ -16812,6 +16846,25 @@
                   },
                   "recycle_enabled": {
                     "type": "boolean"
+                  },
+                  "start_stage_id": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "start_stage_mode": {
+                    "enum": [
+                      "auto",
+                      "stage"
+                    ],
+                    "type": "string"
                   },
                   "terms": {
                     "additionalProperties": false,
@@ -17222,6 +17275,16 @@
                 ],
                 "type": "object"
               },
+              "start_stage_mode": {
+                "items": {
+                  "enum": [
+                    "auto",
+                    "stage"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "term_gender": {
                 "items": {
                   "enum": [
@@ -17267,6 +17330,7 @@
               "preset",
               "after_attempts",
               "distribution_mode",
+              "start_stage_mode",
               "visibility",
               "price_above_list",
               "term_gender",
@@ -17417,6 +17481,25 @@
               },
               "recycle_enabled": {
                 "type": "boolean"
+              },
+              "start_stage_id": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "start_stage_mode": {
+                "enum": [
+                  "auto",
+                  "stage"
+                ],
+                "type": "string"
               },
               "terms": {
                 "additionalProperties": false,
@@ -17628,6 +17711,8 @@
               "recycle_after_days",
               "recycle_cycles",
               "distribution_mode",
+              "start_stage_mode",
+              "start_stage_id",
               "distribution_user_ids",
               "visibility",
               "view_log_enabled",
@@ -17956,6 +18041,25 @@
           "recycle_enabled": {
             "type": "boolean"
           },
+          "start_stage_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_stage_mode": {
+            "enum": [
+              "auto",
+              "stage"
+            ],
+            "type": "string"
+          },
           "terms": {
             "additionalProperties": false,
             "properties": {
@@ -18248,6 +18352,25 @@
           "recycle_enabled": {
             "type": "boolean"
           },
+          "start_stage_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_stage_mode": {
+            "enum": [
+              "auto",
+              "stage"
+            ],
+            "type": "string"
+          },
           "terms": {
             "additionalProperties": false,
             "properties": {
@@ -18458,6 +18581,8 @@
           "recycle_after_days",
           "recycle_cycles",
           "distribution_mode",
+          "start_stage_mode",
+          "start_stage_id",
           "distribution_user_ids",
           "visibility",
           "view_log_enabled",
@@ -18635,6 +18760,14 @@
           "active"
         ],
         "type": "object"
+      },
+      "CrmStartStageModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "auto",
+          "stage"
+        ],
+        "type": "string"
       },
       "CrmTermLanguageSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -19160,6 +19293,1425 @@
           "value"
         ],
         "type": "object"
+      },
+      "CustomerCandidateListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "phone_last4": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "phone_last4"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "CustomerCandidateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "phone_last4": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "phone_last4"
+        ],
+        "type": "object"
+      },
+      "CustomerConflictDetailsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "phone_last4": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "phone_last4"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "candidates"
+        ],
+        "type": "object"
+      },
+      "CustomerCountryListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "maxLength": 2,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "code",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "CustomerCountrySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 2,
+            "minLength": 2,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "type": "object"
+      },
+      "CustomerCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "create_new": {
+            "type": "boolean"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_company": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "properties": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "CustomerEraseIncompleteDetailsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "incomplete": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "reason": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "owner",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "incomplete"
+        ],
+        "type": "object"
+      },
+      "CustomerErasePreviewSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "customer": {
+            "additionalProperties": false,
+            "properties": {
+              "erased": {
+                "type": "boolean"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "erased"
+            ],
+            "type": "object"
+          },
+          "empty_models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "expires_in": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "incomplete": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "reason": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "owner",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "erase",
+                    "retain",
+                    "unhandled"
+                  ],
+                  "type": "string"
+                },
+                "complete": {
+                  "type": "boolean"
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "owner",
+                "action",
+                "count",
+                "complete"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "not_covered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "reach": {
+            "additionalProperties": false,
+            "properties": {
+              "covers_all": {
+                "type": "boolean"
+              },
+              "shared": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "shared",
+              "covers_all"
+            ],
+            "type": "object"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer",
+          "items",
+          "incomplete",
+          "empty_models",
+          "not_covered",
+          "reach",
+          "token",
+          "expires_in"
+        ],
+        "type": "object"
+      },
+      "CustomerEraseResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "erased": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "customer_id",
+          "erased",
+          "request_id",
+          "items"
+        ],
+        "type": "object"
+      },
+      "CustomerEraseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "confirmation",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CustomerFieldRemovalDetailsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "options": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "field_key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "field_label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field_key",
+                "field_label",
+                "key",
+                "label",
+                "count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "fields",
+          "options"
+        ],
+        "type": "object"
+      },
+      "CustomerListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "company": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "is_company": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\+[1-9]\\d{6,14}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "properties": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "options": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "key": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "label": {
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "label"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "type": {
+                        "enum": [
+                          "char",
+                          "text",
+                          "integer",
+                          "float",
+                          "boolean",
+                          "date",
+                          "datetime",
+                          "selection",
+                          "tags"
+                        ],
+                        "type": "string"
+                      },
+                      "value": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "label",
+                      "type",
+                      "value"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "phone",
+                "email",
+                "is_company",
+                "parent",
+                "active",
+                "company",
+                "properties"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "CustomerPartyKindsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "individuals",
+          "companies",
+          "both"
+        ],
+        "type": "string"
+      },
+      "CustomerPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_company": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "properties": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "CustomerPrivacyActionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "erase",
+          "retain",
+          "unhandled"
+        ],
+        "type": "string"
+      },
+      "CustomerPrivacyExportSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CustomerPrivacyIncompleteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "owner",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CustomerPrivacyItemSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "erase",
+              "retain",
+              "unhandled"
+            ],
+            "type": "string"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "key": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "owner",
+          "action",
+          "count",
+          "complete"
+        ],
+        "type": "object"
+      },
+      "CustomerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_company": {
+            "type": "boolean"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{6,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "properties": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "options": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "label"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "type": {
+                  "enum": [
+                    "char",
+                    "text",
+                    "integer",
+                    "float",
+                    "boolean",
+                    "date",
+                    "datetime",
+                    "selection",
+                    "tags"
+                  ],
+                  "type": "string"
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "type",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "email",
+          "is_company",
+          "parent",
+          "active",
+          "company",
+          "properties"
+        ],
+        "type": "object"
+      },
+      "CustomerSettingsPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "confirm_field_removal": {
+            "const": true,
+            "type": "boolean"
+          },
+          "fields": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "options": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "label"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "type": {
+                  "enum": [
+                    "char",
+                    "text",
+                    "integer",
+                    "float",
+                    "boolean",
+                    "date",
+                    "datetime",
+                    "selection",
+                    "tags"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "type"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "party_kinds": {
+            "enum": [
+              "individuals",
+              "companies",
+              "both"
+            ],
+            "type": "string"
+          },
+          "phone_country_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "sharing": {
+            "enum": [
+              "establishment",
+              "branch"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
+      "CustomerSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "can_manage": {
+            "type": "boolean"
+          },
+          "field_limits": {
+            "additionalProperties": false,
+            "properties": {
+              "max_label": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "max_options": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "max_properties": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "max_properties",
+              "max_options",
+              "max_label"
+            ],
+            "type": "object"
+          },
+          "fields": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "options": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "label"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "type": {
+                  "enum": [
+                    "char",
+                    "text",
+                    "integer",
+                    "float",
+                    "boolean",
+                    "date",
+                    "datetime",
+                    "selection",
+                    "tags"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "type"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "party_kinds": {
+            "enum": [
+              "individuals",
+              "companies",
+              "both"
+            ],
+            "type": "string"
+          },
+          "phone_country": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "code",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "sharing": {
+            "enum": [
+              "establishment",
+              "branch"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "sharing",
+          "party_kinds",
+          "phone_country",
+          "fields",
+          "field_limits",
+          "can_manage",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "CustomerSharingSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "establishment",
+          "branch"
+        ],
+        "type": "string"
       },
       "DeadlineNotificationSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -19887,7 +21439,7 @@
                   "type": "object"
                 },
                 "download_url": {
-                  "pattern": "^\\/api\\/v1\\/documents\\/[1-9]\\d*\\/files\\/[1-9]\\d*\\/download$",
+                  "pattern": "^\\/api\\/v1\\/documents\\/(?:employee\\/me\\/)?[1-9]\\d*\\/files\\/[1-9]\\d*\\/download$",
                   "type": "string"
                 },
                 "file_size": {
@@ -19978,7 +21530,7 @@
             "type": "object"
           },
           "download_url": {
-            "pattern": "^\\/api\\/v1\\/documents\\/[1-9]\\d*\\/files\\/[1-9]\\d*\\/download$",
+            "pattern": "^\\/api\\/v1\\/documents\\/(?:employee\\/me\\/)?[1-9]\\d*\\/files\\/[1-9]\\d*\\/download$",
             "type": "string"
           },
           "file_size": {
@@ -20934,6 +22486,68 @@
           "manual"
         ],
         "type": "string"
+      },
+      "ExistingAccountDetailsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "existing_account": {
+            "additionalProperties": false,
+            "properties": {
+              "home_company": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "home_company"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "existing_account"
+        ],
+        "type": "object"
+      },
+      "ExportTooLargeDetailsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "max_rows": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "rows": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "max_rows"
+        ],
+        "type": "object"
       },
       "FinanceAccountCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -30678,7 +32292,7 @@
             "type": "boolean"
           },
           "name": {
-            "maxLength": 255,
+            "maxLength": 200,
             "minLength": 1,
             "type": "string"
           },
@@ -30863,7 +32477,7 @@
             "type": "boolean"
           },
           "name": {
-            "maxLength": 255,
+            "maxLength": 200,
             "minLength": 1,
             "type": "string"
           },
@@ -70811,6 +72425,14 @@
             "minLength": 1,
             "type": "string"
           },
+          "create_new": {
+            "type": "boolean"
+          },
+          "customer_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
           "template_id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -80755,6 +82377,27 @@
             ],
             "type": "object"
           },
+          "companies": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "company": {
             "additionalProperties": false,
             "properties": {
@@ -80802,10 +82445,26 @@
             },
             "type": "object"
           },
+          "home_capabilities": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "home_company_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
           "id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "is_root_company": {
+            "default": true,
+            "type": "boolean"
           },
           "lang": {
             "type": "string"
@@ -80865,6 +82524,7 @@
                 "enum": [
                   "active",
                   "suspended",
+                  "payment_suspended",
                   "expired"
                 ],
                 "type": "string"
@@ -81029,6 +82689,10 @@
           "capabilities",
           "access_policy_version",
           "company",
+          "is_root_company",
+          "companies",
+          "home_company_id",
+          "home_capabilities",
           "read_only",
           "modules",
           "entitlements",
@@ -81703,6 +83367,40 @@
         ],
         "type": "object"
       },
+      "MeCompanyInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "company_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "company_id"
+        ],
+        "type": "object"
+      },
+      "MeCompanySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "MePlatformSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -81729,6 +83427,7 @@
             "enum": [
               "active",
               "suspended",
+              "payment_suspended",
               "expired"
             ],
             "type": "string"
@@ -81895,6 +83594,27 @@
             ],
             "type": "object"
           },
+          "companies": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "company": {
             "additionalProperties": false,
             "properties": {
@@ -81942,10 +83662,26 @@
             },
             "type": "object"
           },
+          "home_capabilities": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "home_company_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
           "id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "is_root_company": {
+            "default": true,
+            "type": "boolean"
           },
           "lang": {
             "type": "string"
@@ -82005,6 +83741,7 @@
                 "enum": [
                   "active",
                   "suspended",
+                  "payment_suspended",
                   "expired"
                 ],
                 "type": "string"
@@ -82166,6 +83903,10 @@
           "capabilities",
           "access_policy_version",
           "company",
+          "is_root_company",
+          "companies",
+          "home_company_id",
+          "home_capabilities",
           "read_only",
           "modules",
           "entitlements",
@@ -86914,6 +88655,605 @@
           "captured_at",
           "actor",
           "snapshot"
+        ],
+        "type": "object"
+      },
+      "MembershipAssignmentListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "role_id": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "scope": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "company",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "role_id",
+            "scope"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "MembershipBranchListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "MembershipBranchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MembershipCompanySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MembershipInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assignments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "role_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "scope": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "kind": {
+                      "const": "company",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "role_id",
+                "scope"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "company_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "employee_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "login": {
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "assignments"
+        ],
+        "type": "object"
+      },
+      "MembershipListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "assignments": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "role": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "anyOf": [
+                              {
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991,
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "key": {
+                            "pattern": "^[a-z][a-z0-9_]*$",
+                            "type": "string"
+                          },
+                          "name": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "ar": {
+                                "type": "string"
+                              },
+                              "en": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "ar",
+                              "en"
+                            ],
+                            "type": "object"
+                          },
+                          "protected": {
+                            "type": "boolean"
+                          },
+                          "type": {
+                            "enum": [
+                              "built_in",
+                              "custom",
+                              "contextual"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "key",
+                          "name",
+                          "type",
+                          "protected"
+                        ],
+                        "type": "object"
+                      },
+                      "scope": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "kind": {
+                            "pattern": "^[a-z][a-z0-9_]*$",
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "role",
+                      "scope"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "company": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "home_company": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "login": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "version": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "login",
+                "home_company",
+                "company",
+                "assignments",
+                "version"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "MembershipQuerySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "company_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MembershipRolesInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assignments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "role_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "scope": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "kind": {
+                      "const": "company",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "role_id",
+                "scope"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "company_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "expected_version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "assignments"
+        ],
+        "type": "object"
+      },
+      "MembershipSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assignments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "role": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "key": {
+                      "pattern": "^[a-z][a-z0-9_]*$",
+                      "type": "string"
+                    },
+                    "name": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "ar": {
+                          "type": "string"
+                        },
+                        "en": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "ar",
+                        "en"
+                      ],
+                      "type": "object"
+                    },
+                    "protected": {
+                      "type": "boolean"
+                    },
+                    "type": {
+                      "enum": [
+                        "built_in",
+                        "custom",
+                        "contextual"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "key",
+                    "name",
+                    "type",
+                    "protected"
+                  ],
+                  "type": "object"
+                },
+                "scope": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "kind": {
+                      "pattern": "^[a-z][a-z0-9_]*$",
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "id",
+                "role",
+                "scope"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "company": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "home_company": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "login": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "login",
+          "home_company",
+          "company",
+          "assignments",
+          "version"
         ],
         "type": "object"
       },
@@ -100982,6 +103322,237 @@
         ],
         "type": "string"
       },
+      "SetupOutcomeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "done",
+          "skipped"
+        ],
+        "type": "string"
+      },
+      "SetupProgressChangeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "outcome": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "done",
+                      "skipped"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "step": {
+                "enum": [
+                  "company",
+                  "sector",
+                  "channels",
+                  "team",
+                  "contacts"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "outcome"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "closed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "closed"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SetupProgressSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "steps": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "enum": [
+                    "company",
+                    "sector",
+                    "channels",
+                    "team",
+                    "contacts"
+                  ],
+                  "type": "string"
+                },
+                "outcome": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "done",
+                        "skipped"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "recorded_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recorded_by": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "outcome",
+                "recorded_by",
+                "recorded_at"
+              ],
+              "type": "object"
+            },
+            "maxItems": 5,
+            "minItems": 5,
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "closed_at",
+          "complete"
+        ],
+        "type": "object"
+      },
+      "SetupStepKeySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "company",
+          "sector",
+          "channels",
+          "team",
+          "contacts"
+        ],
+        "type": "string"
+      },
+      "SetupStepSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "enum": [
+              "company",
+              "sector",
+              "channels",
+              "team",
+              "contacts"
+            ],
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "done",
+                  "skipped"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recorded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recorded_by": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "outcome",
+          "recorded_by",
+          "recorded_at"
+        ],
+        "type": "object"
+      },
       "StageOrderBodySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -101008,9 +103579,6 @@
             "items": {
               "additionalProperties": false,
               "properties": {
-                "blocked": {
-                  "type": "boolean"
-                },
                 "created_at": {
                   "anyOf": [
                     {
@@ -101030,6 +103598,9 @@
                 },
                 "name": {
                   "type": "string"
+                },
+                "over_limit": {
+                  "type": "boolean"
                 },
                 "record": {
                   "anyOf": [
@@ -101068,7 +103639,7 @@
                 "name",
                 "size_bytes",
                 "created_at",
-                "blocked",
+                "over_limit",
                 "record"
               ],
               "type": "object"
@@ -101081,11 +103652,6 @@
               {
                 "additionalProperties": false,
                 "properties": {
-                  "blocked_bytes": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  },
                   "limit_mb": {
                     "anyOf": [
                       {
@@ -101098,6 +103664,11 @@
                       }
                     ]
                   },
+                  "over_limit_bytes": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
                   "used_bytes": {
                     "maximum": 9007199254740991,
                     "minimum": 0,
@@ -101107,7 +103678,7 @@
                 "required": [
                   "limit_mb",
                   "used_bytes",
-                  "blocked_bytes"
+                  "over_limit_bytes"
                 ],
                 "type": "object"
               },
@@ -102831,11 +105402,479 @@
         ],
         "type": "string"
       },
+      "TenantExportCountsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "file_bytes": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "files": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "overflow_cells": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rows": {
+            "additionalProperties": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "rows",
+          "files",
+          "file_bytes",
+          "overflow_cells"
+        ],
+        "type": "object"
+      },
+      "TenantExportFailureSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "insufficient_disk",
+              "build_failed",
+              "timeout",
+              "requester_not_authorized"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "TenantExportListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cooldown_hours": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "counts": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "file_bytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "files": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "overflow_cells": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "rows": {
+                          "additionalProperties": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "files",
+                        "file_bytes",
+                        "overflow_cells"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "downloadable": {
+                  "type": "boolean"
+                },
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "failure": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "insufficient_disk",
+                            "build_failed",
+                            "timeout",
+                            "requester_not_authorized"
+                          ],
+                          "type": "string"
+                        },
+                        "message": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "finished_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "requested_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "size_bytes": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "started_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "requested",
+                    "running",
+                    "done",
+                    "failed",
+                    "expired"
+                  ],
+                  "type": "string"
+                },
+                "steps_done": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "steps_total": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "state",
+                "requested_at",
+                "started_at",
+                "finished_at",
+                "expires_at",
+                "failure",
+                "steps_done",
+                "steps_total",
+                "size_bytes",
+                "counts",
+                "downloadable"
+              ],
+              "type": "object"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "next_request_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retention_days": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "next_request_at",
+          "retention_days",
+          "cooldown_hours"
+        ],
+        "type": "object"
+      },
+      "TenantExportRequestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "TenantExportSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "file_bytes": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "files": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "overflow_cells": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "rows": {
+                    "additionalProperties": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "rows",
+                  "files",
+                  "file_bytes",
+                  "overflow_cells"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "downloadable": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "enum": [
+                      "insufficient_disk",
+                      "build_failed",
+                      "timeout",
+                      "requester_not_authorized"
+                    ],
+                    "type": "string"
+                  },
+                  "message": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size_bytes": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "requested",
+              "running",
+              "done",
+              "failed",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "steps_done": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "steps_total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "requested_at",
+          "started_at",
+          "finished_at",
+          "expires_at",
+          "failure",
+          "steps_done",
+          "steps_total",
+          "size_bytes",
+          "counts",
+          "downloadable"
+        ],
+        "type": "object"
+      },
       "TenantStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "active",
           "suspended",
+          "payment_suspended",
           "expired"
         ],
         "type": "string"
@@ -103275,7 +106314,7 @@
   "info": {
     "description": "Generated surface of every /api/v1 route across the liwan Odoo addons, with contract schemas harvested from @liwan/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
     "title": "liwan /api/v1",
-    "version": "19.0.1.2.0"
+    "version": "19.0.1.3.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -104408,6 +107447,218 @@
         }
       }
     },
+    "/api/v1/admin/memberships": {
+      "get": {
+        "operationId": "liwan_api.AccessMembershipsController.memberships.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "memberships",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessMembershipsController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "memberships",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_api.AccessMembershipsController.add.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "add",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessMembershipsController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "add",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/memberships/branches": {
+      "get": {
+        "operationId": "liwan_api.AccessMembershipsController.branches.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The branches below the root company a root administrator may add members to, members or not.",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessMembershipsController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "branches",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/memberships/{user_id}": {
+      "delete": {
+        "operationId": "liwan_api.AccessMembershipsController.remove.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "remove",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessMembershipsController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "remove",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_api.AccessMembershipsController.change_roles.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "change_roles",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessMembershipsController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "change_roles",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/admin/permissions": {
       "get": {
         "operationId": "liwan_api.AccessAdminRolesController.permissions.get",
@@ -104817,6 +108068,131 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "role_state",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/tenant-export": {
+      "get": {
+        "operationId": "liwan_api.TenantExportController.list_exports.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_exports",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "TenantExportController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "list_exports",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_api.TenantExportController.request_export.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "request_export",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "TenantExportController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "request_export",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/tenant-export/{export_id}/download": {
+      "get": {
+        "operationId": "liwan_api.TenantExportController.download_export.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_export",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "TenantExportController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "download_export",
           "readonly": false,
           "route_type": "json2"
         }
@@ -111581,6 +114957,651 @@
         }
       }
     },
+    "/api/v1/customers": {
+      "get": {
+        "operationId": "liwan_customers.CustomersController.list_customers.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_customers",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "list_customers",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_customers.CustomersController.create_customer.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_customer",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "write",
+          "handler": "create_customer",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/candidates": {
+      "get": {
+        "operationId": "liwan_customers.CustomersController.list_candidates.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The parties with a phone, for a holder of customers.read or of a registered pick capability: their name",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "list_candidates",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/export": {
+      "get": {
+        "operationId": "liwan_customers.CustomersExportController.export_customers.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The parties the caller can see that the list filters (``q``, ``archived``, ``property.<key>``) keep.",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersExportController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "export_customers",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/settings": {
+      "get": {
+        "operationId": "liwan_customers.CustomersSettingsController.read_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The forms need the party kinds and the field definition, so a reader of customers reads the settings too.",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersSettingsController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "read_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_customers.CustomersSettingsController.write_settings.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "write_settings",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersSettingsController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "write",
+          "handler": "write_settings",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/settings/countries": {
+      "get": {
+        "operationId": "liwan_customers.CustomersSettingsController.list_countries.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The countries the phone country can be set to, by name in the session's language. The page that changes the",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersSettingsController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "list_countries",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}": {
+      "get": {
+        "operationId": "liwan_customers.CustomersController.get_customer.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_customer",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "get_customer",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_customers.CustomersController.update_customer.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_customer",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "write",
+          "handler": "update_customer",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}/archive": {
+      "post": {
+        "operationId": "liwan_customers.CustomersController.archive_customer.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "archive_customer",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "write",
+          "handler": "archive_customer",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}/privacy/erase": {
+      "post": {
+        "operationId": "liwan_customers.CustomersPrivacyController.erase_customer.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "erase_customer",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersPrivacyController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "write",
+          "handler": "erase_customer",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}/privacy/erase-preview": {
+      "post": {
+        "operationId": "liwan_customers.CustomersPrivacyController.preview_erase.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "preview_erase",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersPrivacyController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "preview_erase",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}/privacy/export": {
+      "post": {
+        "operationId": "liwan_customers.CustomersPrivacyController.export_subject.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "export_subject",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersPrivacyController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "export_subject",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}/restore": {
+      "post": {
+        "operationId": "liwan_customers.CustomersController.restore_customer.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "restore_customer",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "write",
+          "handler": "restore_customer",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/documents": {
       "get": {
         "operationId": "liwan_documents.Documents.list_documents.get",
@@ -111844,6 +115865,180 @@
           "handler": "get_own_document",
           "readonly": true,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/employee/me/{document_id}/files": {
+      "get": {
+        "operationId": "liwan_documents_hr.EmployeeDocuments.list_own_document_files.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_own_document_files",
+        "tags": [
+          "liwan_documents_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "EmployeeDocuments",
+          "feature_keys": [
+            "documents.enabled",
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_own_document_files",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/employee/me/{document_id}/files/{file_id}/download": {
+      "get": {
+        "operationId": "liwan_documents_hr.EmployeeDocuments.download_own_document_file.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_own_document_file",
+        "tags": [
+          "liwan_documents_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "documents",
+          "controller": "EmployeeDocuments",
+          "feature_keys": [
+            "documents.enabled",
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_own_document_file",
+          "readonly": true,
+          "route_type": "http"
+        }
+      },
+      "head": {
+        "operationId": "liwan_documents_hr.EmployeeDocuments.download_own_document_file.head",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_own_document_file",
+        "tags": [
+          "liwan_documents_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "documents",
+          "controller": "EmployeeDocuments",
+          "feature_keys": [
+            "documents.enabled",
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_own_document_file",
+          "readonly": true,
+          "route_type": "http"
         }
       }
     },
@@ -134112,7 +138307,7 @@
           "feature_keys": [
             "inbox.tiktok"
           ],
-          "feature_operation": null,
+          "feature_operation": "read",
           "handler": "receive",
           "readonly": null,
           "route_type": "http"
@@ -134182,7 +138377,7 @@
           "feature_keys": [
             "inbox.whatsapp"
           ],
-          "feature_operation": null,
+          "feature_operation": "read",
           "handler": "receive",
           "readonly": null,
           "route_type": "http"
@@ -134588,7 +138783,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Create the online order (once) and send its pay link; everything is undone when any step is refused.",
+        "summary": "Create the online order (once) for the contact's customer and send its pay link; everything is undone when",
         "tags": [
           "liwan_inbox_payments"
         ],
@@ -135758,6 +139953,44 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "patch_appearance",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/me/company": {
+      "post": {
+        "operationId": "liwan_api.MeController.switch_company.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Set the company this session works in and answer the new ``me``.",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "MeController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "switch_company",
           "readonly": false,
           "route_type": "json2"
         }
@@ -145076,6 +149309,80 @@
         }
       }
     },
+    "/api/v1/setup/progress": {
+      "get": {
+        "operationId": "liwan_api.SetupController.setup_progress.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "setup_progress",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "SetupController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "setup_progress",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "put": {
+        "operationId": "liwan_api.SetupController.put_setup_progress.put",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "put_setup_progress",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "SetupController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "put_setup_progress",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/tags": {
       "get": {
         "operationId": "liwan_pmo.TagController.list_tags.get",
@@ -146343,6 +150650,7 @@
     "liwan_appointments_payments",
     "liwan_chat",
     "liwan_crm",
+    "liwan_customers",
     "liwan_directory",
     "liwan_documents",
     "liwan_documents_hr",

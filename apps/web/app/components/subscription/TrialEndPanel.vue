@@ -41,7 +41,7 @@ const resourceLinks = computed(() => [
   ...(props.canManageTeam ? [{ value: 'team', label: t('subscription.trialEnd.team'), to: '/settings/team/users' }] : []),
   ...(props.canReadBranches ? [{ value: 'branches', label: t('subscription.branches.title'), to: '/subscription/branches' }] : []),
   { value: 'usage', label: t('subscription.usage.title'), to: '/subscription#storage-usage' },
-  ...(props.canOpenStorage ? [{ value: 'storage', label: t('settings.storage.open'), to: '/settings/system/storage?blocked=true' }] : []),
+  ...(props.canOpenStorage ? [{ value: 'storage', label: t('settings.storage.open'), to: '/settings/system/storage?over_limit=true' }] : []),
   ...(props.canOpenDocuments ? [{ value: 'documents', label: t('subscription.trialEnd.documents'), to: '/documents' }] : []),
 ])
 const totals = computed(() => props.preview.first_invoice ? [{

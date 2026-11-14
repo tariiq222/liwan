@@ -1,7 +1,7 @@
 import type { Pool } from 'pg'
-import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
+import { ATTENTION_LIMIT, attentionItemSchema, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
-import { holdsTrialAfterLapseSql, owesAtRenewalSql } from './free-base.js'
+import { holdsFreeBaseLockSql, owesAtRenewalSql } from './free-base.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
@@ -14,7 +14,7 @@ const businessToday = `(now() AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date`
 const renewalInstant = `(renewal_at::timestamp AT TIME ZONE '${BUSINESS_TIME_ZONE}')`
 // Due soon or already missed: a renewal date that passed without renewing stays here until it is dealt with.
 // A renewal that is deliberately skipped (an unresolved lapse) or owes nothing (the free base) is never due.
-const renewalSkipped = `(${holdsTrialAfterLapseSql('s')} OR NOT ${owesAtRenewalSql(`(SELECT r.snapshot->'pricing' FROM subscription_revisions r WHERE r.id=s.applied_revision_id)`)})`
+const renewalSkipped = `(${holdsFreeBaseLockSql('s')} OR NOT ${owesAtRenewalSql(`(SELECT r.snapshot->'pricing' FROM subscription_revisions r WHERE r.id=s.applied_revision_id)`)})`
 const renewalDue = `state IN ('active','trialing') AND renewal_at <= ${businessToday} + $2::int AND NOT renewal_skipped`
 
 const iso = (column: string) => `to_char(${column} AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"')`
@@ -43,32 +43,55 @@ const subjectsSql = `WITH latest AS (
   SELECT DISTINCT ON (r.aggregate_id) r.aggregate_id, r.processed_at, r.payload->>'error' AS reason, r.invoice_id,
     o.customer_id, COALESCE(c.name, r.aggregate_id) AS name, c.tenant_id
   FROM (
-    SELECT ob.aggregate_id, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id,
+    SELECT ob.aggregate_id, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id, n.status AS note_status,
       a.amount_minor AS paid_minor,
       CASE WHEN a.currency = ob.payload#>>'{refunded,currency}' AND ob.payload#>>'{refunded,minor}' ~ '^[0-9]{1,15}$'
         THEN (ob.payload#>>'{refunded,minor}')::bigint END AS refunded_minor,
       CASE WHEN a.id IS NOT NULL THEN ${creditedMinorSql('a.invoice_id')} END AS credited_minor
     FROM commercial_outbox ob
     LEFT JOIN payment_attempts a ON a.id::text = ob.payload->>'attempt_id'
+    LEFT JOIN invoice_adjustments n ON n.id::text = ob.payload->>'adjustment_id'
     WHERE ob.kind IN ('payment.intervention','reconcile.refund') AND ob.status='failed' AND ob.payload ? 'error'
   ) r
   LEFT JOIN orders o ON o.id::text = r.aggregate_id
   LEFT JOIN customers c ON c.id = o.customer_id
-  WHERE r.attempt_id IS NULL OR NOT (
+  WHERE CASE WHEN r.payload ? 'adjustment_id' THEN r.note_status = 'pending' -- a refund the vendor requested: its own pending note is not the credit that clears it, only recording the refund does
+    ELSE r.attempt_id IS NULL OR NOT (
     COALESCE(r.credited_minor >= CASE WHEN r.refunded_minor > 0 THEN LEAST(r.refunded_minor, r.paid_minor) ELSE 1 END, false)
     OR EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind = 'payment.intervention' AND later.status = 'done'
-      AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at))
+      AND later.payload->>'attempt_id' = r.attempt_id::text AND later.created_at > r.created_at)) END
   ORDER BY r.aggregate_id, r.processed_at DESC
+), unrecorded_refunds AS (
+  -- The provider already returned (or may have returned) this money but the worker has not recorded it for more than a day.
+  -- Refunding again would pay the customer twice, so the vendor looks at why the record is blocked.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, a.invoice_id, ob.created_at, ob.payload->>'error' AS reason
+  FROM commercial_outbox ob JOIN payment_attempts a ON a.id::text = ob.payload->>'attempt_id'
+  JOIN invoices i ON i.id = a.invoice_id JOIN customers c ON c.id = i.customer_id
+  WHERE ob.kind = 'reconcile.refund' AND ob.status = 'pending' AND ob.payload->>'provider_refund' IN ('attempted','returned')
+    AND ob.created_at < now() - interval '24 hours'
+  ORDER BY c.id, ob.created_at
+), claimed_transfers AS (
+  -- The customer says it transferred; the vendor still has to confirm it. It leaves the list when the invoice is paid, voided or cancelled.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, i.id AS invoice_id, k.claimed_at, k.value_date::text AS value_date
+  FROM bank_transfer_claims k JOIN invoices i ON i.id=k.invoice_id JOIN customers c ON c.id=i.customer_id
+  WHERE i.status='issued'
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), lock_blocked AS (
-  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.reason FROM trial_lapses l
+  SELECT c.id AS customer_id, c.name, c.tenant_id, l.armed_at, l.reason FROM free_base_locks l
   JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
   WHERE l.state IN ('pending','ordered') AND l.reason IS NOT NULL
 ), renewal_failures AS (
   -- A renewal that failed for this subscription alone (the others kept renewing): the machine reason of the last failure.
   SELECT c.id AS customer_id, c.name, c.tenant_id, s.renewal_failed_at, s.renewal_failure FROM subscriptions s JOIN customers c ON c.id=s.customer_id
   WHERE s.renewal_failure IS NOT NULL
+), charge_refusals AS (
+  -- A saved-card charge the provider refused as a request (not a decline): it is retried only by the schedule, so the vendor must see it
+  -- until the invoice is paid or its order is cancelled.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, a.created_at AS at, 'card_charge_refused: ' || COALESCE(a.metadata->>'code', '') AS detail
+  FROM audit_events a JOIN orders o ON o.id::text = a.subject JOIN customers c ON c.id = o.customer_id
+  WHERE a.action = 'payment.saved_card_charge_refused' AND o.payment_state = 'awaiting_payment' AND NOT o.cancelled
+  ORDER BY c.id, a.created_at DESC
 ), trial_overdue AS (
   -- A trial whose end date is older than one scheduler interval and whose end has not run: new orders are closed
   -- (trial_ending) until it does, and the paid applications are still writable, so it must not wait unseen.
@@ -113,17 +136,79 @@ const subjectsSql = `WITH latest AS (
       AND NOT EXISTS (SELECT 1 FROM admin_invitations i WHERE i.tenant_id=c.tenant_id AND i.admin_login=c.admin_login)
     ORDER BY c.id, ob.processed_at DESC
   ) latest_issue_failure
+), failed_notices AS (
+  -- A billing or trial notice that gave up (no recipient, or every retry failed). A later notice of the same kind for the
+  -- same subscription that went out clears it: the customer has been reached since.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, ob.processed_at, ob.payload->>'error' AS reason
+  FROM commercial_outbox ob JOIN subscriptions s ON s.id::text=ob.aggregate_id JOIN customers c ON c.id=s.customer_id
+  WHERE ob.kind IN ('billing.notice','trial.notice') AND ob.status='failed'
+    AND NOT EXISTS (SELECT 1 FROM commercial_outbox later WHERE later.kind=ob.kind AND later.aggregate_id=ob.aggregate_id
+      AND later.status='done' AND later.created_at>ob.created_at)
+  ORDER BY c.id, ob.processed_at DESC
+), deletion_due AS (
+  -- A customer's own deletion request whose withdrawal window has ended: it is in its final hold (the workspace still works and the vendor can still
+  -- withdraw it if it is not legitimate); the runner carries the deletion out when the hold ends.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, r.due_at FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE r.state='due'
+), deletion_stuck AS (
+  -- A deletion that is deferred or failed in a step and needs the vendor; detail is step:code, never a secret. A request withdrawn after its access was stopped
+  -- and not yet reinstated (a quarter of an hour on) is listed too: a customer who withdrew in time is never left offline silently.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, r.stuck_at AS at, r.stuck_code AS code FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id
+  WHERE r.stuck_at IS NOT NULL AND r.state IN ('due','deleting','deleted')
+  UNION ALL
+  SELECT c.id, c.name, c.tenant_id, r.withdrawn_at, 'reinstate:' || COALESCE(rs.error_code, 'pending')
+  FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id
+  JOIN tenant_deletion_steps sa ON sa.request_id=r.id AND sa.step='stop_access' AND sa.evidence ? 'prior'
+  LEFT JOIN tenant_deletion_steps rs ON rs.request_id=r.id AND rs.step='reinstate'
+  WHERE r.state='withdrawn' AND r.committed_at IS NULL AND COALESCE(rs.state,'') <> 'done' AND r.withdrawn_at < now() - interval '15 minutes'
+), form_payment_review AS (
+  -- A card form payment the vendor must look up at the provider, for a customer who did something: an attempt used with no payment ever
+  -- reported (while its order is still unpaid and its attempt has no payment), a paid payment that held this attempt's own callback secret but
+  -- could not be settled (money with nothing settled; until that payment is settled or refunded), or a card token the provider would not
+  -- delete (two weeks). One item per customer, dated by the latest.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, e.at, e.detail FROM (
+    SELECT a.created_at AS at, o.customer_id, 'attempt_needs_review' AS detail FROM audit_events a JOIN orders o ON o.id::text = a.subject
+      WHERE a.action = 'payment.form_attempt_needs_review' AND o.payment_state = 'awaiting_payment' AND NOT o.cancelled
+        AND NOT EXISTS (SELECT 1 FROM payment_attempts pa WHERE pa.id::text = a.metadata->>'attempt_id' AND pa.provider_ref IS NOT NULL)
+    UNION ALL
+    SELECT a.created_at, o.customer_id, a.metadata->>'reason' FROM audit_events a JOIN orders o ON o.id::text = a.subject
+      WHERE a.action IN ('payment.form_hint_rejected', 'payment.form_payment_rejected')
+        AND a.metadata->>'reason' IN ('payment_bound_elsewhere', 'attempt_has_other_payment', 'settlement_mismatch')
+        AND NOT EXISTS (SELECT 1 FROM payment_attempts pa WHERE pa.provider_ref = a.metadata->>'payment_id' AND pa.status = 'succeeded')
+        AND NOT EXISTS (SELECT 1 FROM audit_events r WHERE r.action = 'payment.form_payment_refunded' AND r.metadata->>'payment_id' = a.metadata->>'payment_id')
+    UNION ALL
+    SELECT ob.processed_at, (ob.payload->>'customer_id')::uuid, 'token_not_deleted: ' || COALESCE(ob.payload#>>'{card,brand}', 'card') || ' ' || COALESCE(ob.payload#>>'{card,last_four}', '')
+      FROM commercial_outbox ob WHERE ob.kind = 'payment_token.delete' AND ob.status = 'failed' AND ob.processed_at > now() - interval '14 days' AND ob.payload->>'customer_id' IS NOT NULL
+  ) e JOIN customers c ON c.id = e.customer_id
+  ORDER BY c.id, e.at DESC
+), provider_payment_review AS (
+  -- A paid payment the provider reported that no customer is shown to have made: it did not hold any attempt's secret (a plain callback
+  -- mismatch, a wrong amount, an unknown description), so no customer is blamed. One item per payment, until it is settled or refunded.
+  SELECT DISTINCT ON (a.metadata->>'payment_id') a.created_at AS at, a.metadata->>'reason' AS detail
+  FROM audit_events a
+  WHERE a.action = 'payment.form_payment_rejected' AND a.metadata->>'payment_id' IS NOT NULL
+    AND a.metadata->>'reason' NOT IN ('bad_shape', 'payment_not_found', 'rate_limited', 'intent_not_fulfilled', 'payment_bound_elsewhere', 'attempt_has_other_payment', 'settlement_mismatch')
+    AND NOT EXISTS (SELECT 1 FROM payment_attempts pa WHERE pa.provider_ref = a.metadata->>'payment_id' AND pa.status = 'succeeded')
+    AND NOT EXISTS (SELECT 1 FROM audit_events r WHERE r.action = 'payment.form_payment_refunded' AND r.metadata->>'payment_id' = a.metadata->>'payment_id')
+  ORDER BY a.metadata->>'payment_id', a.created_at DESC
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 2,'refund_unrecorded', customer_id, tenant_id, NULL, invoice_id, name, ${iso('created_at')}, reason, created_at FROM unrecorded_refunds WHERE $3::boolean
+  UNION ALL SELECT 2,'bank_transfer_claimed', customer_id, tenant_id, NULL, invoice_id, name, ${iso('claimed_at')}, value_date, claimed_at FROM claimed_transfers WHERE $3::boolean
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
+  UNION ALL SELECT 2,'tenant_deletion_due', customer_id, tenant_id, NULL, NULL, name, ${iso('due_at')}, NULL, due_at FROM deletion_due
+  UNION ALL SELECT 2,'tenant_deletion_stuck', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, code, at FROM deletion_stuck
+  UNION ALL SELECT 2,'form_payment_review', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM form_payment_review
+  UNION ALL SELECT 2,'form_payment_review', NULL::uuid, NULL::uuid, NULL, NULL, 'payment provider', ${iso('at')}, detail, at FROM provider_payment_review
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
-  UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lock_blocked
+  UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('armed_at')}, reason, armed_at FROM lock_blocked
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
+  UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM charge_refusals
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 4,'invitation_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM invitation_failures
+  UNION ALL SELECT 4,'notice_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('processed_at')}, reason, processed_at FROM failed_notices
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
   UNION ALL SELECT 7,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
@@ -153,4 +238,11 @@ export async function attention(pool: Pool, includeBilling: boolean) {
     pool.query(countsSql, params),
   ])
   return attentionSchema.parse({ items: list.rows[0].items, total: list.rows[0].total, counts: counts.rows[0] })
+}
+
+/** Every item `attention` would list without the cap (billing items included), most urgent first: the alert scan must see what the capped list hides. */
+export async function allAttentionItems(pool: Pick<Pool, 'query'>) {
+  const list = await pool.query(`${subjectsSql}
+    SELECT to_jsonb(p)-'rank'-'sort_at' AS item FROM subjects p ORDER BY p.rank,p.sort_at,p.customer_id,p.tenant_id`, [STALLED_HOURS, RENEWAL_WINDOW_DAYS, true])
+  return list.rows.map(row => attentionItemSchema.parse(row.item))
 }

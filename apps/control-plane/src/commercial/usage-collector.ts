@@ -7,11 +7,12 @@ import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { recordUsage } from './usage.js'
 import { sweepAi } from './ai-ledger.js'
 import { tenantStatusSql } from './suspension.js'
+import { logText } from '../log-text.js'
 
 const observedLifecycle = z.object({
   post_trial_supported: z.boolean().optional(), excess_supported: z.boolean().optional(),
   storage_bytes: z.number().int().nonnegative().optional(),
-  blocked_storage_bytes: z.number().int().nonnegative().optional(),
+  over_limit_storage_bytes: z.number().int().nonnegative().optional(),
   excess: z.record(z.string(), z.number().int().nonnegative()).optional(),
   branches: z.array(z.object({ branch_id: z.uuid(), read_only: z.boolean().optional() })).optional(),
 })
@@ -56,7 +57,7 @@ export function acceptObservation(observed: unknown, database: string, now: Date
   if (!gateEntries.every(([, list]) => Array.isArray(list) && list.length <= 64 && list.every(g => typeof g === 'string' && LIMIT_KEY.test(g)))) return null
   const ai = observedAi(value.features)
   if (ai === null) return null
-  const hasLifecycle = 'post_trial_supported' in value || 'excess_supported' in value || 'storage_bytes' in value || 'blocked_storage_bytes' in value
+  const hasLifecycle = 'post_trial_supported' in value || 'excess_supported' in value || 'storage_bytes' in value || 'over_limit_storage_bytes' in value
   const lifecycle = observedLifecycle.safeParse(hasLifecycle ? value : {})
   if (!lifecycle.success) return null
   return {
@@ -65,7 +66,7 @@ export function acceptObservation(observed: unknown, database: string, now: Date
     ...(ai ? { ai } : {}),
     usage: { ...Object.fromEntries(entries) as Record<string, number>,
       ...(lifecycle.data.storage_bytes !== undefined ? { attachment_bytes: lifecycle.data.storage_bytes } : {}),
-      ...(lifecycle.data.blocked_storage_bytes !== undefined ? { blocked_storage_bytes: lifecycle.data.blocked_storage_bytes } : {}) },
+      ...(lifecycle.data.over_limit_storage_bytes !== undefined ? { over_limit_storage_bytes: lifecycle.data.over_limit_storage_bytes } : {}) },
     limit_gates: Object.fromEntries(gateEntries.map(([key, list]) => [key, [...(list as string[])]])),
   }
 }
@@ -138,7 +139,7 @@ async function recordLifecycle(pool: Pool, target: { tenant_id: string; database
 export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; clock?: () => number; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number; signal?: AbortSignal; busy?: () => Promise<boolean> }) {
   const now = input.now ?? (() => new Date())
   const clock = input.clock ?? Date.now
-  const log = input.log ?? ((message: string) => console.error(`[usage-collector] ${message}`))
+  const log = input.log ?? ((message: string) => console.error('[usage-collector] %s', logText(message)))
   const result: { recorded: number; skipped: number; locked: boolean; busy?: boolean } = { recorded: 0, skipped: 0, locked: false }
   if (input.signal?.aborted) return result
   const lock = await pool.connect()
@@ -149,8 +150,8 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
       const targets = (await pool.query(`SELECT x.tenant_id, x.database_name, x.registry_revision, x.capability_only FROM (
           SELECT DISTINCT ON (b.control_tenant_id) s.tenant_id, b.database_name, b.registry_revision, ${tenantStatusSql('s')}='suspended' AS capability_only
           FROM subscriptions s
-          JOIN tenants t ON t.id=s.tenant_id AND t.operations_enabled=true
-          JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
+          JOIN tenants t ON t.id=s.tenant_id AND t.operations_enabled=true AND t.status NOT IN ('deleting','deleted')
+          JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true AND NOT b.retired
           WHERE s.applied_revision_id IS NOT NULL AND (${tenantStatusSql('s')}='active'
             OR (s.suspended_from='trialing' AND s.trial_ends_at IS NOT NULL AND s.target_revision_id IS NULL
               AND (t.post_trial_supported IS NOT TRUE OR t.excess_supported IS NOT TRUE)))

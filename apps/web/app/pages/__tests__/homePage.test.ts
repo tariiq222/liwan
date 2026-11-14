@@ -22,6 +22,7 @@ async function render({ cards = [{ id: 'tasks' }] as Array<{ id: string }>, capa
       '@/components/home/HomeAssistantBanner.vue': { __esModule: true, default: Marker('banner') },
       '@/components/home/HomeIndicators.vue': { __esModule: true, default: Marker('indicators') },
       '@/components/home/HomeFocus.vue': { __esModule: true, default: Marker('focus') },
+      '@/components/setup/SetupHomeCard.vue': { __esModule: true, default: Marker('setup-card') },
       '@/components/home/HomeApps.vue': { __esModule: true, default: Marker('home-apps') },
       '@/composables/useAppCards': { useAppCards: () => ({ cards: Vue.computed(() => cards) }) },
       '@/utils/accessPolicy': { postLoginPath: () => '/login' },

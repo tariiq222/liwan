@@ -7,7 +7,7 @@ import { useCustomerCapabilities } from '@/composables/useSubscription'
 import { firstQuery, parseOffset } from '@/utils/routeQuery'
 
 type StorageRow = StorageInventory['items'][number] & { ownerTo: string | null }
-type Filter = 'all' | 'blocked' | 'available'
+type Filter = 'all' | 'overLimit' | 'withinLimit'
 
 const PAGE_SIZE = 25
 const route = useRoute()
@@ -22,8 +22,8 @@ const hydrated = useHydrated()
 const allowed = computed(() => can('settings.company.manage'))
 const canBuy = computed(() => allowed.value && me.value?.commercial?.mode === 'saas' && canCommercial('subscription.manage'))
 const filter = computed<Filter>(() => {
-  const value = firstQuery(route.query.blocked)
-  return value === 'true' ? 'blocked' : value === 'false' ? 'available' : 'all'
+  const value = firstQuery(route.query.over_limit)
+  return value === 'true' ? 'overLimit' : value === 'false' ? 'withinLimit' : 'all'
 })
 const offset = computed(() => {
   const value = parseOffset(route.query.offset)
@@ -31,12 +31,12 @@ const offset = computed(() => {
 })
 const filters = computed(() => [
   { value: 'all', label: t('settings.storage.filters.all') },
-  { value: 'blocked', label: t('settings.storage.filters.blocked') },
-  { value: 'available', label: t('settings.storage.filters.available') },
+  { value: 'overLimit', label: t('settings.storage.filters.overLimit') },
+  { value: 'withinLimit', label: t('settings.storage.filters.withinLimit') },
 ])
 function setFilter(value: string) {
   if (!hydrated.value || !filters.value.some(item => item.value === value) || filter.value === value) return
-  void router.replace({ query: { ...route.query, blocked: value === 'all' ? undefined : String(value === 'blocked'), offset: undefined } })
+  void router.replace({ query: { ...route.query, over_limit: value === 'all' ? undefined : String(value === 'overLimit'), offset: undefined } })
 }
 function setPage(page: number) {
   if (!hydrated.value || !Number.isSafeInteger(page) || page < 1 || page > pages.value) return
@@ -46,7 +46,7 @@ const query = useQuery({
   queryKey: computed(() => ['settings', 'storage', me.value?.id, me.value?.company.id, filter.value, offset.value]),
   enabled: computed(() => !!me.value && allowed.value),
   queryFn: ({ signal }) => $api('/api/v1/settings/storage', {
-    query: { limit: PAGE_SIZE, offset: offset.value, blocked: filter.value === 'all' ? undefined : filter.value === 'blocked' },
+    query: { limit: PAGE_SIZE, offset: offset.value, over_limit: filter.value === 'all' ? undefined : filter.value === 'overLimit' },
     schema: StorageInventorySchema,
     signal,
   }),
@@ -63,7 +63,7 @@ const columns = computed<TableColumn<StorageRow>[]>(() => [
   { accessorKey: 'name', header: t('settings.storage.name') },
   { accessorKey: 'size_bytes', header: t('settings.storage.size') },
   { accessorKey: 'created_at', header: t('settings.storage.created') },
-  { accessorKey: 'blocked', header: t('settings.storage.state') },
+  { accessorKey: 'over_limit', header: t('settings.storage.state') },
   { accessorKey: 'ownerTo', header: t('settings.storage.owner') },
 ])
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
@@ -74,7 +74,7 @@ function bytes(value: number) {
   return t('settings.storage.bytes', { value: number.format(value) })
 }
 const createdAt = (value: string | null) => formatDateTime(value, me.value?.tz || 'Asia/Riyadh') || t('settings.storage.unknownDate')
-const stateLabel = (blocked: boolean) => t(blocked ? 'settings.storage.blocked' : 'settings.storage.available')
+const stateLabel = (overLimit: boolean) => t(overLimit ? 'settings.storage.overLimit' : 'settings.storage.withinLimit')
 </script>
 
 <template>
@@ -88,7 +88,7 @@ const stateLabel = (blocked: boolean) => t(blocked ? 'settings.storage.blocked' 
         <SharedPropertiesPanel>
           <SharedPropertyRow :label="t('settings.storage.used')" :value="bytes(inventory.summary.used_bytes)" />
           <SharedPropertyRow :label="t('settings.storage.limit')" :value="inventory.summary.limit_mb === null ? t('settings.storage.unlimited') : mib(inventory.summary.limit_mb)" />
-          <SharedPropertyRow :label="t('settings.storage.blockedSize')" :value="bytes(inventory.summary.blocked_bytes)" />
+          <SharedPropertyRow :label="t('settings.storage.overLimitSize')" :value="bytes(inventory.summary.over_limit_bytes)" />
         </SharedPropertiesPanel>
       </SharedRecordSection>
       <p class="text-sm text-muted">{{ t('settings.storage.companyScope') }} {{ t('settings.storage.manageHint') }}</p>
@@ -101,7 +101,7 @@ const stateLabel = (blocked: boolean) => t(blocked ? 'settings.storage.blocked' 
           <template #name-cell="{ row }"><bdi class="break-words font-medium">{{ row.original.name }}</bdi></template>
           <template #size_bytes-cell="{ row }">{{ bytes(row.original.size_bytes) }}</template>
           <template #created_at-cell="{ row }">{{ createdAt(row.original.created_at) }}</template>
-          <template #blocked-cell="{ row }"><SharedStatusBadge :tone="row.original.blocked ? 'warning' : 'neutral'" :label="stateLabel(row.original.blocked)" /></template>
+          <template #over_limit-cell="{ row }"><SharedStatusBadge :tone="row.original.over_limit ? 'warning' : 'neutral'" :label="stateLabel(row.original.over_limit)" /></template>
           <template #ownerTo-cell="{ row }">
             <UButton v-if="row.original.ownerTo" :to="row.original.ownerTo" size="sm" color="neutral" variant="link">{{ t('settings.storage.openOwner') }}</UButton>
             <span v-else class="text-sm text-muted">{{ t('settings.storage.ownerUnavailable') }}</span>
@@ -111,7 +111,7 @@ const stateLabel = (blocked: boolean) => t(blocked ? 'settings.storage.blocked' 
               <bdi class="break-words font-medium">{{ row.name }}</bdi>
               <span class="text-sm text-muted">{{ bytes(row.size_bytes) }} · {{ createdAt(row.created_at) }}</span>
               <div class="flex flex-wrap items-center gap-2">
-                <SharedStatusBadge :tone="row.blocked ? 'warning' : 'neutral'" :label="stateLabel(row.blocked)" />
+                <SharedStatusBadge :tone="row.over_limit ? 'warning' : 'neutral'" :label="stateLabel(row.over_limit)" />
                 <UButton v-if="row.ownerTo" :to="row.ownerTo" size="sm" color="neutral" variant="link">{{ t('settings.storage.openOwner') }}</UButton>
                 <span v-else class="text-sm text-muted">{{ t('settings.storage.ownerUnavailable') }}</span>
               </div>

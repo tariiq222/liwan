@@ -27,7 +27,7 @@ suite('subscription suspension reaches the tenant', () => {
     await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id,state) VALUES($1,$2,$3,$4)', [id, customer, tenant ? tenantId : null, state])
     return { id, customer, tenantId }
   }
-  const row = async (id: string) => (await pool.query('SELECT state,manual_suspension,tenant_status_pushed,tenant_status_failures,tenant_status_next_at,grace_ends_at,revision FROM subscriptions WHERE id=$1', [id])).rows[0]
+  const row = async (id: string) => (await pool.query('SELECT state,manual_suspension,tenant_status_pushed,tenant_suspension_reason_pushed,tenant_status_failures,tenant_status_next_at,grace_ends_at,revision FROM subscriptions WHERE id=$1', [id])).rows[0]
   const call = (path: string, body: unknown, over: Record<string, unknown> = {}) => {
     const pathname = `/v1/commercial${path}`
     return routesB(pool, { method: 'POST', pathname, raw: JSON.stringify(body), issuer: 'test', actor: 7, capabilities: ['vendor.subscriptions.manage'], stepUpFresh: true, ...over } as never, new URL(pathname, 'http://localhost'))
@@ -166,14 +166,64 @@ suite('subscription suspension reaches the tenant', () => {
       expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [], failed: [] })
       await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
       expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [s.id], failed: [] })
-      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'suspended' })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'suspended', suspension_reason: 'vendor' })
       expect((await row(s.id)).tenant_status_pushed).toBe('suspended')
       expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [], failed: [] })
       await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
       await syncTenantStatus(pool, { runner })
-      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'active' })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'active', suspension_reason: null })
       expect((await row(s.id)).tenant_status_pushed).toBe('active')
       expect(runner).toHaveBeenCalledTimes(2)
+    })
+    it('pushes a dunning suspension as non_payment and clears the reason once the paid renewal lifts it', async () => {
+      const s = await subscription('suspended')
+      const runner = vi.fn(async () => ({}))
+      expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [s.id], failed: [] })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'suspended', suspension_reason: 'non_payment' })
+      const order = randomUUID(), revision = randomUUID(), quote = randomUUID()
+      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, s.id, '{}', quote])
+      await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
+        VALUES($1,$2,$3,'renewal',$4,$5,'paid','queued',$6,'fixture',100,'SAR',2)`, [order, s.customer, s.id, quote, revision, randomUUID()])
+      await pool.query("INSERT INTO renewals(id,subscription_id,order_id,period_start,period_end) VALUES($1,$2,$3,'2026-10-01','2026-11-01')", [randomUUID(), s.id, order])
+      const client = await pool.connect()
+      try { await onRenewalPaid(client, order) } finally { client.release() }
+      expect(await row(s.id)).toMatchObject({ state: 'active', manual_suspension: false })
+      expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [s.id], failed: [] })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'active', suspension_reason: null })
+    })
+    it('pushes again when only the reason changed while the status stayed suspended', async () => {
+      const s = await subscription('active')
+      const runner = vi.fn(async () => ({}))
+      await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      await syncTenantStatus(pool, { runner })
+      expect(await row(s.id)).toMatchObject({ tenant_status_pushed: 'suspended', tenant_suspension_reason_pushed: 'vendor' })
+      // The vendor resumes and dunning suspends again before the worker pushed the active state in between.
+      await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      await pool.query("UPDATE subscriptions SET state='suspended',revision=revision+1 WHERE id=$1", [s.id])
+      expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [s.id], failed: [] })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'suspended', suspension_reason: 'non_payment' })
+      expect(await row(s.id)).toMatchObject({ tenant_status_pushed: 'suspended', tenant_suspension_reason_pushed: 'non_payment' })
+      expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [], failed: [] })
+      // The other way: paid up, then the vendor suspends before the active state was pushed.
+      await pool.query("UPDATE subscriptions SET state='past_due',revision=revision+1 WHERE id=$1", [s.id])
+      await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [s.id], failed: [] })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'suspended', suspension_reason: 'vendor' })
+      expect(await row(s.id)).toMatchObject({ tenant_suspension_reason_pushed: 'vendor' })
+    })
+    it('keeps an undelivered reason change pending and clears the reason when the tenant is active again', async () => {
+      const s = await subscription('suspended')
+      const runner = vi.fn(async () => ({}))
+      await syncTenantStatus(pool, { runner })
+      expect(await row(s.id)).toMatchObject({ tenant_suspension_reason_pushed: 'non_payment' })
+      // A vendor cannot suspend a subscription that dunning already suspended.
+      await expect(suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })).rejects.toThrow('subscription_not_suspendable')
+      // Resume lifts a dunning suspension into a fresh grace period, so the tenant is active, with no reason, in Odoo.
+      await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      expect((await row(s.id)).state).not.toBe('suspended')
+      await syncTenantStatus(pool, { runner })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: s.tenantId, status: 'active', suspension_reason: null })
+      expect(await row(s.id)).toMatchObject({ tenant_status_pushed: 'active', tenant_suspension_reason_pushed: null })
     })
     it('keeps a failed push pending for the next run and logs why', async () => {
       const s = await subscription('suspended')
@@ -201,7 +251,7 @@ suite('subscription suspension reaches the tenant', () => {
       await pool.query('UPDATE subscriptions SET tenant_status_pushed=NULL WHERE id=$1', [s.id])
       const runner = vi.fn(async () => ({}))
       expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [s.id], failed: [] })
-      expect(runner).toHaveBeenCalledWith({ tenant_id: s.tenantId, status: 'active' })
+      expect(runner).toHaveBeenCalledWith({ tenant_id: s.tenantId, status: 'active', suspension_reason: null })
       expect(await row(s.id)).toMatchObject({ revision: before, tenant_status_pushed: 'active' })
     })
     it('backs a failing tenant off so it does not starve the others, and skips one with no enabled binding without an error', async () => {

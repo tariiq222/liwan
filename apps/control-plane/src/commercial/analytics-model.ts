@@ -11,6 +11,8 @@ export interface PricingBaseline { base_minor: number, bundle_minor: Record<stri
 export interface AppliedOrder {
   subscription_id: string, applied_at: number, plan_id: string, plan_name: string
   mrr_minor: number, branch_mrr_minor: number, cycle_minor: number, arr_minor: number
+  /** The order that dropped a cancelled subscription to the free base: its lost recurring revenue is churn, not contraction. */
+  churn?: boolean
 }
 
 export type Timelines = Map<string, AppliedOrder[]>
@@ -69,11 +71,11 @@ export function bookAt(timelines: Timelines, at: number): BookAt {
 }
 
 export interface PlanChange { from_plan: string, to_plan: string, direction: 'upgrade' | 'downgrade' | 'lateral', count: number }
-export interface Movement { new_minor: number, expansion_minor: number, contraction_minor: number, new_customers: number, plan_changes: PlanChange[] }
+export interface Movement { new_minor: number, expansion_minor: number, contraction_minor: number, churned_minor: number, new_customers: number, churned_customers: number, plan_changes: PlanChange[] }
 
 /** What the orders applied in [from, to) did to recurring revenue. */
 export function movementIn(timelines: Timelines, from: number, to: number): Movement {
-  const movement: Movement = { new_minor: 0, expansion_minor: 0, contraction_minor: 0, new_customers: 0, plan_changes: [] }
+  const movement: Movement = { new_minor: 0, expansion_minor: 0, contraction_minor: 0, churned_minor: 0, new_customers: 0, churned_customers: 0, plan_changes: [] }
   const changes = new Map<string, PlanChange>()
   for (const timeline of timelines.values()) {
     timeline.forEach((order, index) => {
@@ -86,6 +88,7 @@ export function movementIn(timelines: Timelines, from: number, to: number): Move
       }
       const delta = order.mrr_minor - previous.mrr_minor
       if (delta > 0) movement.expansion_minor += delta
+      else if (order.churn && delta < 0) { movement.churned_minor -= delta; movement.churned_customers += 1 }
       else movement.contraction_minor -= delta
       if (previous.plan_id === order.plan_id) return
       const direction = delta > 0 ? 'upgrade' : delta < 0 ? 'downgrade' : 'lateral'

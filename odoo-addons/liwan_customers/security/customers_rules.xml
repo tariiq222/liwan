@@ -12,4 +12,16 @@
         <field name="groups" eval="[Command.link(ref('base.group_user')), Command.link(ref('group_cap_customers_settings_manage'))]"/>
         <field name="domain_force">[('properties_field_id.model', '=', 'res.partner'), ('properties_field_id.name', '=', 'properties')]</field>
     </record>
+    <!-- The privacy log is read in the companies of the reader's session; creating a row follows the same rule. -->
+    <record id="rule_privacy_request_company" model="ir.rule">
+        <field name="name">liwan.customers.privacy.request: the working companies</field>
+        <field name="model_id" ref="model_liwan_customers_privacy_request"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- An erase token is its caller's own. -->
+    <record id="rule_privacy_token_own" model="ir.rule">
+        <field name="name">liwan.customers.privacy.token: the caller's own</field>
+        <field name="model_id" ref="model_liwan_customers_privacy_token"/>
+        <field name="domain_force">[('user_id', '=', user.id), ('company_id', '=', company_id)]</field>
+    </record>
 </odoo>

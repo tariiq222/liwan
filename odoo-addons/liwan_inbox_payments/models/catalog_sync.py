@@ -17,7 +17,7 @@ class LiwanInboxCatalogSync(models.Model):
     @api.model
     def _liwan_run_sync(self):
         """Sync every catalog: a provider failure is recorded on the catalog and retried by the next run."""
-        if not self._liwan_enabled():
+        if not self._liwan_enabled() or not self.env['liwan.entitlement.service']._liwan_may_act_outward():
             return
         process_each(self.search([]), lambda catalog: catalog._liwan_sync(), self._liwan_unexpected_failure)
 

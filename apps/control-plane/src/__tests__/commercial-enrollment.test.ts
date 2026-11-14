@@ -11,6 +11,8 @@ import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { activateBranches, listBranches } from '../commercial/branches.js'
 import { transaction } from '../db.js'
 import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
+import { recoverPaidFulfillment } from '../commercial/paid-fulfillment-recovery.js'
+import { sendWorkspaceDelayNotices } from '../commercial/workspace-delay-notice.js'
 import { routesB } from '../commercial/routes-b.js'
 import { readKnownSource } from '../shared/catalog-source.js'
 
@@ -121,11 +123,16 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     expect((await pool.query('SELECT count(*)::int AS n FROM invoice_adjustments a JOIN invoices i ON i.id=a.invoice_id WHERE i.order_id=$1', [s.order])).rows[0].n).toBe(0)
     expect((await pool.query('SELECT status FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0].status).toBe('failed')
   })
-  it('a new customer trial without tenant reserves three extras and enrollment links all pending branches', async () => {
+  /** A public 14-day trial plan with one free extra branch, published through the vendor API. */
+  async function publishTrialPlan() {
     const api = client(pool)
     const draft = await api('POST', '/plans', { name: `New branches ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 8, included_users: 3, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 14, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'New branches regression' })
     const plan = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'New branches regression' })).body
+    return plan
+  }
+  it('a new customer trial without tenant reserves three extras and enrollment links all pending branches', async () => {
+    const plan = await publishTrialPlan()
     const customer = randomUUID()
     await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'New branches customer', 'Admin', `${customer}@example.test`])
     const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'] }
@@ -148,6 +155,108 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     expect((await pool.query('SELECT tenant_id,state FROM commercial_branches WHERE subscription_id=$1', [order.subscription_id])).rows).toEqual(Array.from({ length: 3 }, () => ({ tenant_id: tenant, state: 'pending' })))
     await process()
     expect((await pool.query('SELECT tenant_id FROM commercial_branches WHERE subscription_id=$1', [order.subscription_id])).rows).toEqual(Array.from({ length: 3 }, () => ({ tenant_id: tenant })))
+  })
+  it('recovers a first trial whose provisioning failed: one tenant, one invitation, one delay notice, 14 days from delivery', async () => {
+    const plan = await publishTrialPlan()
+    const customer = randomUUID()
+    await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Late workspace', 'Admin', `${customer}@example.test`])
+    const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'] }
+    const { order } = await startTrial(pool, { customer_id: customer, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 0 }, principal: vendor })
+    // The visitor signed up two days ago and provisioning was down since: the 14 days were counted from sign-up.
+    await pool.query("UPDATE orders SET created_at=now()-interval '2 days' WHERE id=$1", [order.id])
+    await pool.query("UPDATE subscriptions SET trial_ends_at=now()+interval '12 days',revision=revision+1 WHERE id=$1", [order.subscription_id])
+    const trialEnd = async () => new Date((await pool.query('SELECT trial_ends_at FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0].trial_ends_at).getTime()
+    const mine = (sql: string, id: string = order.subscription_id) => pool.query(sql, [id]).then(r => r.rows)
+    const mail = { send: vi.fn(async () => ({ accepted: true, provider_message_id: 'delay' })) }
+
+    // Provisioning keeps failing (no shared runtime): the enqueue retries run out and the order ends failed.
+    await pool.query('UPDATE commercial_outbox SET attempts=9 WHERE aggregate_id=$1', [order.id])
+    expect(await processFulfillmentOutbox(pool, { limit: 1000, enrollment: { config: {} as any } })).toContainEqual({ order_id: order.id, reason: 'shared_adapter_unavailable' })
+    expect((await pool.query('SELECT fulfillment_state,cancelled FROM orders WHERE id=$1', [order.id])).rows[0]).toEqual({ fulfillment_state: 'failed', cancelled: false })
+
+    // The visitor hears once that the workspace is late, however often the scheduler runs.
+    // The scratch database is shared with the other cases here, so count this customer's mail only.
+    const notices = () => (mail.send.mock.calls as any[][]).map(call => call[0]).filter(message => message.to === `${customer}@example.test`)
+    await sendWorkspaceDelayNotices(pool, { now: new Date(), mail })
+    await sendWorkspaceDelayNotices(pool, { now: new Date(), mail })
+    expect(notices()).toHaveLength(1)
+    expect(notices()[0]).toMatchObject({ text: expect.stringContaining('LiwanOS') })
+
+    // Recovery retries the same order; nothing was provisioned yet and no invitation is queued.
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 6 * 60_000))
+    expect(await process()).toContainEqual({ order_id: order.id, reason: 'enrollment_pending' })
+    const tenant = (await pool.query('SELECT tenant_id FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0].tenant_id
+    expect(tenant).toEqual(expect.any(String))
+    const provision = (await pool.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='provision'", [tenant])).rows
+    expect(provision).toHaveLength(1)
+    await pool.query("UPDATE tenants SET status='active' WHERE id=$1", [tenant])
+    await pool.query("UPDATE shared_jobs SET state='verified',receipt=jsonb_build_object('status','verified','payloadDigest',payload_digest) WHERE id=$1", [provision[0].id])
+    await pool.query("UPDATE shared_onboardings SET stage='active' WHERE control_tenant_id=$1", [tenant])
+    await pool.query('UPDATE shared_registry_bindings SET enabled=true,registry_revision=registry_revision+1 WHERE control_tenant_id=$1', [tenant])
+    const before = Date.now()
+    await process(); await process()
+    // The trial now runs 14 days from delivery, in the subscription and in the authority sent to the tenant.
+    const ends = await trialEnd()
+    expect(ends).toBeGreaterThanOrEqual(before + 14 * 86_400_000 - 1000)
+    expect(ends).toBeLessThanOrEqual(Date.now() + 14 * 86_400_000 + 1000)
+    const reconfigure = await mine("SELECT payload->'authority'->>'trial_ends_at' AS ends FROM shared_jobs WHERE control_tenant_id=(SELECT tenant_id FROM subscriptions WHERE id=$1) AND payload->>'operation'='reconfigure'")
+    expect(reconfigure).toHaveLength(1)
+    expect(new Date(reconfigure[0].ends).getTime()).toBe(ends)
+
+    const snapshot = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [order.target_revision_id])).rows[0].snapshot
+    const receipt = { order_id: order.id, tenant_id: tenant, target_revision_id: order.target_revision_id, observed_entitlement_digest: snapshot.entitlement.digest, observed_at: new Date().toISOString(), branch_bindings: [], root_company_id: 1 }
+    await applyReceipt(pool, { order_id: order.id, receipt })
+    // Replaying every step creates no second tenant, job or invitation and no second notice.
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 200 * 60_000)); await process(); await applyReceipt(pool, { order_id: order.id, receipt })
+    await sendWorkspaceDelayNotices(pool, { now: new Date(Date.now() + 3600_000), mail })
+    expect(await mine("SELECT count(*)::int AS n FROM commercial_outbox WHERE kind='invitation.issue' AND aggregate_id=$1::text")).toEqual([{ n: 1 }])
+    expect(await mine("SELECT count(*)::int AS n FROM shared_jobs WHERE control_tenant_id=(SELECT tenant_id FROM subscriptions WHERE id=$1) AND payload->>'operation'='provision'")).toEqual([{ n: 1 }])
+    expect(await mine("SELECT count(*)::int AS n FROM shared_onboardings WHERE request_id=(SELECT enrollment_request_id FROM customers WHERE id=$1)", customer)).toEqual([{ n: 1 }])
+    expect(notices()).toHaveLength(1)
+  })
+  it('an on-time first trial keeps the date set at sign-up and sends no delay notice', async () => {
+    const plan = await publishTrialPlan()
+    const customer = randomUUID()
+    await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Prompt workspace', 'Admin', `${customer}@example.test`])
+    const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'] }
+    const { order } = await startTrial(pool, { customer_id: customer, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 0 }, principal: vendor })
+    const mail = { send: vi.fn(async () => ({ accepted: true, provider_message_id: 'x' })) }
+    const signedUp = (await pool.query('SELECT trial_ends_at FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0].trial_ends_at
+    await sendWorkspaceDelayNotices(pool, { now: new Date(), mail })
+    await process()
+    const tenant = (await pool.query('SELECT tenant_id FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0].tenant_id
+    const provision = (await pool.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='provision'", [tenant])).rows[0].id
+    await pool.query("UPDATE tenants SET status='active' WHERE id=$1", [tenant])
+    await pool.query("UPDATE shared_jobs SET state='verified',receipt=jsonb_build_object('status','verified','payloadDigest',payload_digest) WHERE id=$1", [provision])
+    await pool.query("UPDATE shared_onboardings SET stage='active' WHERE control_tenant_id=$1", [tenant])
+    await pool.query('UPDATE shared_registry_bindings SET enabled=true,registry_revision=registry_revision+1 WHERE control_tenant_id=$1', [tenant])
+    await process(); await process()
+    expect((await pool.query('SELECT trial_ends_at FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0].trial_ends_at).toEqual(signedUp)
+    expect((mail.send.mock.calls as any[][]).filter(call => call[0].to === `${customer}@example.test`)).toHaveLength(0)
+  })
+  it('a first trial blocked on a provision job that needs an operator rejoins the retries once the job is repaired', async () => {
+    const s = await seed(true, 'not_required')
+    expect(await process()).toContainEqual({ order_id: s.order, reason: 'enrollment_pending' })
+    const tenant = (await pool.query('SELECT tenant_id FROM subscriptions WHERE id=$1', [s.subscription])).rows[0].tenant_id
+    const job = (await pool.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='provision'", [tenant])).rows[0].id
+    await pool.query("UPDATE shared_jobs SET state='needs_intervention' WHERE id=$1", [job])
+    await pool.query('UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1', [s.order])
+    expect(await process()).toContainEqual({ order_id: s.order, reason: 'provision_needs_intervention' })
+    const state = async () => (await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1', [s.order])).rows[0].fulfillment_state
+    const retries = async () => (await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE aggregate_id=$1 AND dedupe_key LIKE 'retry:%'", [s.order])).rows[0].n
+    // While the job still needs the operator the order is left alone, hour after hour.
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 61 * 60_000)); await recoverPaidFulfillment(pool, new Date(Date.now() + 200 * 60_000))
+    expect(await state()).toBe('needs_intervention'); expect(await retries()).toBe(0)
+    // The operator repairs the job: the next hourly pass re-queues the order, once.
+    await pool.query("UPDATE tenants SET status='active' WHERE id=$1", [tenant])
+    await pool.query("UPDATE shared_jobs SET state='verified',receipt=jsonb_build_object('status','verified','payloadDigest',payload_digest) WHERE id=$1", [job])
+    await pool.query("UPDATE shared_onboardings SET stage='active' WHERE control_tenant_id=$1", [tenant])
+    await pool.query('UPDATE shared_registry_bindings SET enabled=true,registry_revision=registry_revision+1 WHERE control_tenant_id=$1', [tenant])
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 400 * 60_000))
+    expect(await retries()).toBe(1); expect(await state()).not.toBe('needs_intervention')
+    await process(); await process()
+    expect((await pool.query("SELECT count(*)::int AS n FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [tenant])).rows[0].n).toBe(1)
+    expect((await pool.query("SELECT count(*)::int AS n FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='provision'", [tenant])).rows[0].n).toBe(1)
   })
   it('accepts optional enrollment identity and rejects malformed administrator email',async()=>{
     const api=async(_method:string,_path:string,body:unknown)=>{

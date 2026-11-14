@@ -1,6 +1,7 @@
-import { trialEndPreviewSchema, type Branch, type Order, type BranchSummary, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { formPaymentSessionSchema, paymentAttemptRequestSchema, trialEndPreviewSchema, type TenantDeletion, type Branch, type Order, type BankTransferClaim, type BranchSummary, type CustomerInvoice, type FormPaymentSession, type Invoice, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
-import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
+import { autoRenewBody, paymentAttemptBody } from '@/utils/cardPayment'
+import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, sanitizeBody } from '@/utils/subscription'
 
 export type SubscriptionList<T> = { items: T[]; total: number }
 export type CustomerCatalog = { plans: Array<Record<string, any>>; bundles: Array<Record<string, any>>; release?: Record<string, any> | null }
@@ -11,6 +12,7 @@ export type CustomerOrderResult = { order: NonNullable<SubscriptionView['pending
 export type BankTransferInstructions = {
   invoice_id: string; status: string; reference: string; amount_minor: number; currency: string; exponent: number
   bank: { account_name: string; account_number: string; iban: string; instructions_ar: string; instructions_en: string }
+  claim: BankTransferClaim | null
 }
 const CSRF_COOKIE = 'liwan_csrf'
 
@@ -33,9 +35,11 @@ export function useSubscriptionApi() {
     catalog: () => request<CustomerCatalog>('catalog'),
     usage: () => request<UsageSnapshot>('usage'),
     invoices: () => request<SubscriptionList<Invoice>>('invoices'),
-    invoice: (id: string) => request<Invoice>(`invoices/${encodeURIComponent(id)}`),
+    invoice: (id: string) => request<CustomerInvoice>(`invoices/${encodeURIComponent(id)}`),
     /** Where to transfer while an invoice is unpaid; the control plane answers 409 until the vendor sets the account. */
     bankTransfer: (id: string) => request<BankTransferInstructions>(`invoices/${encodeURIComponent(id)}/bank-transfer`),
+    /** "I made the transfer": records the claim for the vendor to confirm; it never pays the invoice. */
+    claimBankTransfer: (id: string, body: { value_date: string; sender_reference?: string }) => request<BankTransferClaim>(`invoices/${encodeURIComponent(id)}/bank-transfer-claim`, { method: 'POST', body }),
     order: (id: string) => request<CustomerOrderStatus>(`orders/${encodeURIComponent(id)}`),
     branches: () => request<BranchSummary>('branches'),
     quote: (body: unknown) => request<Quote>('quotes', { method: 'POST', body }),
@@ -44,17 +48,27 @@ export function useSubscriptionApi() {
     trialEndPreview: async () => trialEndPreviewSchema.parse(await request<unknown>('trial/end-preview')),
     retryTrialEnd: async () => trialEndPreviewSchema.parse(await request<unknown>('trial/retry', { method: 'POST', body: {} })),
     startTrial: (body: unknown) => request<{ order: NonNullable<SubscriptionView['pending_order']>; subscription: SubscriptionView }>('trial', { method: 'POST', body }),
-    convertTrial: () => request<{ order: NonNullable<SubscriptionView['pending_order']> | null; attempt: PaymentAttempt | null; pending: boolean }>('trial/convert', { method: 'POST', body: {} }),
+    convertTrial: () => request<{ order: NonNullable<SubscriptionView['pending_order']> | null; pending: boolean }>('trial/convert', { method: 'POST', body: {} }),
     branchQuote: (body: unknown) => request<Quote & { branches?: Branch[] }>('branch-quotes', { method: 'POST', body }),
     /** Accepting reuses the stored key for `action` until `done()` so refresh/retry cannot create a second order. */
     accept: (action: string, body: { quote_id: string; expected_subscription_revision: number }) =>
       request<CustomerOrderResult>('orders', { method: 'POST', body: { ...body, idempotency_key: idempotencyKey(store(), action) } }),
     cancelOrder: (orderId: string, reason: string) =>
       request<unknown>(`orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST', body: { reason: reason.trim() } }),
-    payment: (orderId: string, action: string) =>
-      request<PaymentAttempt>(`orders/${encodeURIComponent(orderId)}/payment-attempts`, { method: 'POST', body: { idempotency_key: idempotencyKey(store(), `${action}:pay`) } }),
-    done: (action: string) => { forgetIdempotencyKey(store(), action); forgetIdempotencyKey(store(), `${action}:pay`) },
-    setAutoRenew: (enabled: boolean) => request<SubscriptionView>('auto-renew', { method: 'POST', body: { enabled, consent: true } }),
+    /** Opens one card form session for an unpaid order. The body is only the documented request; no card data ever passes through here. */
+    startCardPayment: async (orderId: string, saveCard: boolean): Promise<FormPaymentSession> =>
+      formPaymentSessionSchema.parse(await request<unknown>(`orders/${encodeURIComponent(orderId)}/payment-attempts`, { method: 'POST', body: paymentAttemptRequestSchema.parse(paymentAttemptBody(saveCard)) })),
+    done: (action: string) => forgetIdempotencyKey(store(), action),
+    /** Stops the renewal; the paid period stays and the subscription drops to the free base on its renewal date. */
+    cancelSubscription: (reason?: string) => request<SubscriptionView>('subscription/cancel', { method: 'POST', body: reason ? { reason } : {} }),
+    resumeSubscription: () => request<SubscriptionView>('subscription/resume', { method: 'POST', body: {} }),
+    /** Workspace deletion: ask for the emailed code, confirm with it and the company name, withdraw. Only the system administrator (`tenant.delete`) may, and only from the root company (a branch session loses the capability here). */
+    requestDeletion: () => request<{ deletion: TenantDeletion | null }>('deletion/request', { method: 'POST', body: {} }),
+    confirmDeletion: (input: { code: string; companyName: string }) => request<{ deletion: TenantDeletion | null }>('deletion/confirm', { method: 'POST', body: { code: input.code, company_name: input.companyName } }),
+    withdrawDeletion: () => request<{ deletion: TenantDeletion | null }>('deletion/withdraw', { method: 'POST', body: {} }),
+    setAutoRenew: (enabled: boolean) => request<SubscriptionView>('auto-renew', { method: 'POST', body: autoRenewBody(enabled) }),
+    /** Deletes the saved card at the provider first; a 503 means it was NOT removed. Automatic renewal stops with the default card. */
+    removeCard: (id: string) => request<SubscriptionView>(`payment-methods/${encodeURIComponent(id)}/remove`, { method: 'POST', body: {} }),
   }
 }
 
@@ -64,7 +78,10 @@ export function useCustomerCapabilities() {
   const readOnly = computed(() => me.value?.read_only === true)
   const caps = computed(() => {
     const derived = deriveCustomerCapabilities(me.value?.capabilities)
-    return readOnly.value ? derived.filter(capability => capability !== 'subscription.manage' && capability !== 'branches.manage') : derived
+    const dropped = new Set<string>()
+    if (readOnly.value) ['subscription.manage', 'branches.manage', 'tenant.delete'].forEach(capability => dropped.add(capability))
+    if (me.value?.is_root_company === false) dropped.add('tenant.delete')
+    return derived.filter(capability => !dropped.has(capability))
   })
   return { caps, readOnly, can: (c: string) => (caps.value as string[]).includes(c) }
 }

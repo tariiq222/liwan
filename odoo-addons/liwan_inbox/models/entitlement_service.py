@@ -3,9 +3,16 @@ from odoo import api, models
 
 from .constants import CAMPAIGN_RECIPIENTS_LIMIT, CHANNELS_LIMIT
 
+# Providers' deliveries are facts that already happened: they are recorded whatever the tenant's state.
+INBOUND_HOOK_PATHS = frozenset({'/api/v1/inbox/hooks/whatsapp', '/api/v1/inbox/hooks/tiktok'})
+
 
 class LiwanInboxEntitlementService(models.AbstractModel):
     _inherit = 'liwan.entitlement.service'
+
+    @api.model
+    def _liwan_api_write_allowed(self, path):
+        return path in INBOUND_HOOK_PATHS or super()._liwan_api_write_allowed(path)
 
     @api.model
     def _liwan_count_usage(self, limit_key):

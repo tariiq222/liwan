@@ -55,20 +55,85 @@ export const adjustmentSchema = z.strictObject({
   && (a.status === 'refunded' || (a.refund_reference === null && a.refunded_at === null && a.refunded_by === null)),
 { path: ['status'], message: 'Refund details exactly when refunded' })
 
+/**
+ * Who sells: the vendor's legal identity as the billing settings held it when the invoice was issued. Every field but a
+ * legal name is optional (an empty string is "not set"). There is no tax field: the vendor is not VAT-registered.
+ */
+export const sellerIdentitySchema = z.strictObject({
+  legal_name_ar: z.string(), legal_name_en: z.string(), commercial_registration: z.string(),
+  address: z.string(), city: z.string(), country: z.string(), email: z.string(), phone: z.string(),
+})
+
+/** Why a credit note exists, as a customer may be told: the typed cause, never the operator's free-text reason. */
+export const creditNoteCauseSchema = z.enum(['vendor_refund', 'duplicate_payment', 'provider_refund', 'payment_after_cancellation', 'automatic_refund', 'fulfillment_failure'])
+/** A credit note on a customer's own invoice: no operator names, no free text, only a reference the customer can quote. */
+export const customerCreditNoteSchema = z.strictObject({
+  id: z.string().min(1), amount: moneySchema, cause: creditNoteCauseSchema,
+  status: z.enum(['pending', 'applied', 'refunded']),
+  created_at: z.string(), refunded_at: z.string().nullable(), refund_reference: z.string().nullable(),
+})
+/** What the customer's invoice page and printable document add to the invoice itself. */
+export const customerInvoiceExtrasSchema = z.strictObject({
+  /** The customer's legal name as the control plane holds it. */
+  customer_name: z.string().min(1),
+  seller: sellerIdentitySchema.nullable(),
+  credit_notes: z.array(customerCreditNoteSchema),
+})
+
 /** Vendor-only: record that a pending credit note was refunded outside the system (no automatic refund exists). */
 export const refundCreditNoteRequestSchema = z.strictObject({
   external_reference: z.string().trim().min(3).max(200),
   reason: z.string().trim().min(3).max(1000),
 })
 
+/** A customer's "I made the transfer" for one issued invoice: the day it says it paid, an optional sender name or bank reference, and when it was first said. */
+export const bankTransferClaimSchema = z.strictObject({
+  value_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sender_reference: z.string().nullable(),
+  claimed_at: z.iso.datetime(),
+})
+export const bankTransferClaimRequestSchema = z.strictObject({
+  value_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sender_reference: z.string().trim().max(200).optional(),
+})
+
 export const paymentProviderSchema = z.enum(['moyasar', 'simulator'])
 export const paymentModeSchema = z.enum(['test', 'live', 'simulator'])
 export const paymentAttemptStatusSchema = z.enum(['created', 'redirected', 'pending', 'succeeded', 'failed', 'canceled', 'unknown'])
+/** What the provider reference identifies: a hosted invoice, a payment made through the embedded card form, a charge of a saved card, or the reference of a bank transfer the vendor recorded. */
+export const paymentAttemptKindSchema = z.enum(['hosted_invoice', 'form', 'saved_card', 'bank_transfer'])
 export const paymentAttemptSchema = z.strictObject({
   id: z.string().min(1), order_id: z.string().min(1), invoice_id: z.string().min(1),
-  provider: paymentProviderSchema, mode: paymentModeSchema, provider_ref: z.string().nullable(),
+  provider: paymentProviderSchema, mode: paymentModeSchema, kind: paymentAttemptKindSchema, provider_ref: z.string().nullable(),
   amount: moneySchema, status: paymentAttemptStatusSchema, redirect_url: z.string().nullable(),
   created_at: z.string(), updated_at: z.string(),
+})
+/** How an order is paid: the card form inside the product (what a customer uses), or the provider's hosted invoice page (a vendor-issued link). */
+export const paymentMethodChoiceSchema = z.enum(['hosted_invoice', 'form'])
+const CONSENT_TEXT_VERSION = z.string().min(1).max(64)
+/**
+ * A request to start paying an order. `save_card` asks to keep the card for automatic renewal and needs the form and the version of the
+ * consent text the customer saw; the server records the moment itself and never takes it from the request.
+ */
+export const paymentAttemptRequestSchema = z.strictObject({
+  method: paymentMethodChoiceSchema.default('form'),
+  save_card: z.boolean().default(false),
+  consent_text_version: CONSENT_TEXT_VERSION.optional(),
+}).superRefine((request, ctx) => {
+  if (request.save_card && request.method !== 'form') ctx.addIssue({ code: 'custom', path: ['save_card'], message: 'Only a card form payment can save the card' })
+  if (request.save_card && !request.consent_text_version) ctx.addIssue({ code: 'custom', path: ['consent_text_version'], message: 'Saving the card needs the consent text version' })
+  if (!request.save_card && request.consent_text_version) ctx.addIssue({ code: 'custom', path: ['consent_text_version'], message: 'A consent text version without saving the card' })
+})
+/**
+ * What the browser needs to show the card form: the intent it may fulfil with the publishable key (never the secret key), and the
+ * amount it will be charged, which only the server decides. `expires_at` is when this form stops being usable.
+ */
+export const formPaymentSessionSchema = z.strictObject({
+  attempt_id: z.string().min(1),
+  intent: z.strictObject({ id: z.string().min(1), client_secret: z.string().min(1) }),
+  publishable_key: z.string().min(1),
+  amount: moneySchema,
+  expires_at: z.string(),
 })
 /** Provider event ledger: (provider, provider_event_id) is unique; a verified signature alone never confirms payment. */
 export const paymentEventRecordSchema = z.strictObject({
@@ -82,8 +147,19 @@ export type InvoiceKind = z.infer<typeof invoiceKindSchema>
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>
 export type InvoiceLine = z.infer<typeof invoiceLineSchema>
 export type Invoice = z.infer<typeof invoiceSchema>
+export type BankTransferClaim = z.infer<typeof bankTransferClaimSchema>
+export type BankTransferClaimRequest = z.infer<typeof bankTransferClaimRequestSchema>
+export type SellerIdentity = z.infer<typeof sellerIdentitySchema>
+export type CreditNoteCause = z.infer<typeof creditNoteCauseSchema>
+export type CustomerCreditNote = z.infer<typeof customerCreditNoteSchema>
+/** One invoice as its own customer reads it. */
+export type CustomerInvoice = Invoice & z.infer<typeof customerInvoiceExtrasSchema>
 export type Adjustment = z.infer<typeof adjustmentSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>
+export type PaymentMethodChoice = z.infer<typeof paymentMethodChoiceSchema>
+export type PaymentAttemptRequest = z.infer<typeof paymentAttemptRequestSchema>
+export type FormPaymentSession = z.infer<typeof formPaymentSessionSchema>
+export type PaymentAttemptKind = z.infer<typeof paymentAttemptKindSchema>
 export type PaymentAttemptStatus = z.infer<typeof paymentAttemptStatusSchema>
 export type PaymentEventRecord = z.infer<typeof paymentEventRecordSchema>

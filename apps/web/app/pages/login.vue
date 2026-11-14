@@ -12,6 +12,8 @@ const { branding } = useBranding()
 const productName = computed(() => branding.value?.name ?? t('app.productName'))
 const route = useRoute()
 const { me, refresh } = useMe()
+// A workspace whose first manager never received (or lost) the invitation asks for a new one by email; only where the commercial pages exist.
+const inviteRequestable = String(useRuntimeConfig().public.customerCommercialEnabled) === 'true'
 
 // ?login= only prefills the username (the invitation page links here); it is never trusted beyond that.
 const queryLogin = typeof route.query.login === 'string' ? route.query.login.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 128) : ''
@@ -202,6 +204,7 @@ async function verify(payload: { code: string; remember: boolean }) {
       <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
       <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="$t('auth.signIn')" />
       <UButton to="/forgot-password" color="neutral" variant="link" class="justify-center" :label="$t('auth.forgotPassword')" />
+      <UButton v-if="inviteRequestable" to="/invite/accept" color="neutral" variant="link" class="justify-center" :label="$t('invite.didNotReceive')" />
     </UForm>
     <LoginCodeStep
       v-else-if="channels" :channels="channels" :channel="channel" :sent="sent" :wait="wait" :pending="pending"

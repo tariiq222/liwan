@@ -34,3 +34,6 @@ access_login_code_system,login code system,model_liwan_login_code,base.group_sys
 access_login_device_system,login device system,model_liwan_login_device,base.group_system,1,1,1,1
 access_login_code_quota_system,login code quota system,model_liwan_login_code_quota,base.group_system,1,1,0,0
 access_login_code_alert_system,login code alert system,model_liwan_login_code_alert,base.group_system,1,1,1,1
+access_setup_step_system,setup step system,model_liwan_setup_step,base.group_system,1,1,1,1
+access_setup_step_reader,setup step reader,model_liwan_setup_step,group_cap_settings_company_read,1,0,0,0
+access_setup_step_manager,setup step manager,model_liwan_setup_step,group_cap_settings_company_manage,1,1,1,1

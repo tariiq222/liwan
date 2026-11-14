@@ -133,6 +133,126 @@
           "optionRow": "Option {option} of field {field}: 1 customer | Option {option} of field {field}: {count} customers"
         }
       }
+    },
+    "privacy": {
+      "title": "Privacy and personal data",
+      "open": "Privacy and personal data",
+      "intro": "Data subject requests under the personal data protection law: export what we hold about the customer, or erase their personal data. Every action is logged with its reason.",
+      "forbidden": "This page is for the system administrator only.",
+      "reasonLabel": "Reason for the request",
+      "reasonHint": "For example: written request from the customer on a given date. The reason is kept in the privacy log, up to {max} characters.",
+      "reasonRefused": "The reason was not accepted. Use plain text of at most {max} characters.",
+      "export": {
+        "title": "Export personal data",
+        "description": "An Excel file with everything we hold about this customer and their contacts: details, bank accounts, leads, conversations, invoices and payments. The export is logged.",
+        "action": "Export the file",
+        "exporting": "Exporting",
+        "failed": "Could not export the file. Try again."
+      },
+      "erase": {
+        "title": "Erase personal data",
+        "description": "Removes the name, contact details and everything that identifies the customer from their records. An erase cannot be undone. Review first what will be erased and what stays.",
+        "review": "Review what will be erased",
+        "reviewing": "Reviewing",
+        "reviewAgain": "Review again",
+        "reviewFailed": "Could not load the review. Try again.",
+        "valid": "This review is valid for {minutes} minutes, then it must be repeated.",
+        "willErase": "Will be erased",
+        "willEraseHint": "Their personal data is wiped and cannot be recovered.",
+        "willKeep": "Kept by law",
+        "willKeepHint": "These records stay linked to the customer's record with their numbers and amounts, because accounting and regulatory rules require them.",
+        "keptWhyFallback": "The system must keep them.",
+        "notCovered": "Not changed by the erase",
+        "notCoveredHint": "These places are outside the erase. Review them by hand if needed.",
+        "unhandled": "Applications the erase does not support yet",
+        "nothing": "Nothing is linked to this customer.",
+        "blocked": "The erase cannot run now",
+        "blockedHint": "The erase will not start until the following is resolved, so no customer data is left behind by accident.",
+        "reasons": {
+          "application_has_no_hook": {
+            "title": "An application does not support the erase yet",
+            "action": "It holds records linked to the customer and the erase does not know how to handle them. Tell the LiwanOS team, or move or delete those records first, then review again."
+          },
+          "session_does_not_cover_every_company": {
+            "title": "The session does not cover every branch",
+            "action": "This customer is shared by every branch. Switch to a session that covers the main company and all branches, then review again."
+          },
+          "caller_cannot_reach_all_records": {
+            "title": "You cannot see every record",
+            "action": "Some records of this kind are outside your access. Ask a manager with wider access to run the erase."
+          },
+          "unknown": {
+            "title": "Unknown reason",
+            "action": "The erase cannot run now. Tell the LiwanOS team about the entry listed."
+          }
+        },
+        "confirm": {
+          "title": "Confirm erasing personal data",
+          "description": "What is listed above will be erased for good. The customer no longer shows under their name.",
+          "action": "Erase the data for good",
+          "nameLabel": "Type the customer's name to confirm",
+          "nameHint": "Type \"{name}\" exactly as it is.",
+          "nameWrong": "The name does not match. Type \"{name}\" exactly as it is.",
+          "cancel": "Go back"
+        },
+        "refused": {
+          "token": "The review expired, so a new one was loaded. Check what it shows and confirm again.",
+          "conflict": "The customer changed during the review, so a new one was loaded. Check what it shows and confirm again.",
+          "forbidden": "You do not have the right to erase personal data.",
+          "missing": "This customer was not found or you cannot see it.",
+          "other": "The erase failed and nothing changed. Try again."
+        },
+        "done": {
+          "title": "The customer's personal data was erased",
+          "description": "The customer now shows as erased and cannot be erased a second time. The request was logged with its reason."
+        },
+        "erased": {
+          "title": "This customer is erased",
+          "description": "Their personal data was erased before, and there is nothing left to erase."
+        }
+      },
+      "items": {
+        "customer": "Customer details and contacts",
+        "bank_accounts": "Bank accounts",
+        "attachments": "Attachments",
+        "tags": "Tags",
+        "crm_leads": "CRM leads",
+        "crm_calls": "Calls",
+        "finance_documents": "Finance documents",
+        "finance_entry_lines": "Accounting entry lines",
+        "finance_payments": "Payments",
+        "finance_statement_lines": "Statement lines",
+        "finance_draft_copies": "Finance draft copies",
+        "inbox_contacts": "Customer messages contacts",
+        "inbox_conversations": "Customer messages conversations",
+        "inbox_messages": "Message texts",
+        "inbox_attachments": "Message attachments",
+        "inbox_form_answers": "Form answers",
+        "inbox_consent": "Contact consent record",
+        "inbox_campaign_recipients": "Campaign deliveries",
+        "payment_orders": "Payment orders",
+        "payment_order_lines": "Payment order lines",
+        "payment_transactions": "Payment transactions",
+        "payment_tokens": "Saved payment cards"
+      },
+      "keptWhy": {
+        "finance_documents": "Posted accounting documents must be kept with their numbers and amounts.",
+        "finance_entry_lines": "Entry lines are part of the accounting books.",
+        "finance_payments": "Payments are part of the accounting books.",
+        "finance_statement_lines": "Statement lines are part of the bank reconciliation.",
+        "inbox_conversations": "The conversation stays without its texts to prove how contact went.",
+        "inbox_consent": "Proof of the customer's consent or refusal must be kept.",
+        "payment_orders": "Payment orders feed tax returns and accounting documents.",
+        "payment_order_lines": "Order lines follow their order."
+      },
+      "notCoveredKeys": {
+        "chatter_history": "The history of notes and changes on records",
+        "free_text_notes": "Free-text notes staff wrote",
+        "stored_documents": "Files and documents stored outside the customer record",
+        "backups": "Backups",
+        "accounting_name_copies": "The name copied into accounting documents",
+        "inbox_provider_events": "Messaging provider events kept as received"
+      }
     }
   }
 }

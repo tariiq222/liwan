@@ -126,12 +126,12 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'pmo/projects/ProjectToolsSettings.vue',
     'shared/data/AttachmentList.vue', 'shared/form/CommentComposer.vue', 'shared/data/CommentThread.vue', 'shared/data/Checklist.vue',
     'shared/commerce/PriceBreakdown.vue',
-    'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
+    'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue', 'subscription/PaymentForm.vue',
     'subscription/BranchSummary.vue', 'subscription/TrialEndPanel.vue',
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
     'shared/layout/TimelineFrame.vue', 'shared/layout/TimelineControls.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
-    'settings/SettingsPreviewCard.vue', 'settings/SettingsPreviewList.vue', 'settings/SettingsPreviewRow.vue', 'settings/IntegrationConnections.vue', 'finance/governance/AuditPreview.vue',
+    'settings/SettingsPreviewCard.vue', 'settings/SettingsPreviewList.vue', 'settings/SettingsPreviewRow.vue', 'settings/IntegrationConnections.vue', 'settings/TenantExportPanel.vue', 'finance/governance/AuditPreview.vue',
     'shared/layout/SettingsCard.vue', 'shared/layout/SettingRow.vue', 'shared/layout/SettingsSection.vue', 'shared/form/OptionCards.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue', 'shared/layout/SettingsSaveBar.vue',
     'shared/layout/SubCard.vue', 'shared/layout/KpiStrip.vue', 'shared/data/Progress.vue', 'shared/layout/LinkCard.vue', 'shared/layout/IdentityCard.vue', 'shared/layout/HeaderTags.vue',
 ))
@@ -971,6 +971,9 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
         '@simplewebauthn/browser',
         # Draws the vendor admin TOTP setup QR in the browser: dependency-free, renders no components.
         'qrcode-generator',
+        # The payment provider's own card form (official package, MIT, no dependencies, pinned exactly): the card fields are the
+        # provider's, so card data never touches our code. Only subscription/PaymentForm.vue imports it, in the browser, after mount.
+        'moyasar-payment-form',
     }
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source

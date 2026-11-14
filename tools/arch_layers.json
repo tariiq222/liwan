@@ -39,7 +39,8 @@
     "liwan_pmo_finance": 5,
     "liwan_hr_finance": 5,
     "liwan_appointments_payments": 5,
-    "liwan_inbox_payments": 5
+    "liwan_inbox_payments": 5,
+    "liwan_payments_customers": 5
   },
   "exempt": [],
   "web_apps": {

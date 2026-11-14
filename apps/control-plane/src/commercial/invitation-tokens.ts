@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { workspaceLines } from "./return-origin.js";
 
 /**
  * Invitation tokens. Only sha256(token) (hex) is persisted (column token_hash).
@@ -66,30 +67,33 @@ export function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-export function renderInvitationEmail(input: { companyName: string; url: string }): {
+export function renderInvitationEmail(input: { companyName: string; url: string; origin?: string | null }): {
   subject: string;
   text: string;
   html: string;
 } {
   const { companyName, url } = input;
+  const workspace = workspaceLines(input.origin ?? null);
   const subject = `دعوة للانضمام إلى ${companyName} على ليوان | Invitation to join ${companyName} on LiwanOS`;
   const text = [
     `تمت دعوتك لإدارة ${companyName} على ليوان.`,
     `افتح الرابط التالي لقبول الدعوة:`,
     url,
+    ...(workspace.ar ? [workspace.ar.trimStart()] : []),
     "",
     "---",
     `You have been invited to administer ${companyName} on LiwanOS.`,
     `Open this link to accept the invitation:`,
     url,
+    ...(workspace.en ? [workspace.en.trimStart()] : []),
     "",
   ].join("\r\n");
   const c = escapeHtml(companyName);
   const u = escapeHtml(url);
   const html =
     `<div dir="rtl" lang="ar"><p>تمت دعوتك لإدارة <strong>${c}</strong> على ليوان.</p>` +
-    `<p><a href="${u}">قبول الدعوة</a></p></div><hr>` +
+    `<p><a href="${u}">قبول الدعوة</a></p>${workspace.ar ? `<p>${escapeHtml(workspace.ar.trimStart())}</p>` : ""}</div><hr>` +
     `<div dir="ltr" lang="en"><p>You have been invited to administer <strong>${c}</strong> on LiwanOS.</p>` +
-    `<p><a href="${u}">Accept the invitation</a></p></div>`;
+    `<p><a href="${u}">Accept the invitation</a></p>${workspace.en ? `<p>${escapeHtml(workspace.en.trimStart())}</p>` : ""}</div>`;
   return { subject, text, html };
 }

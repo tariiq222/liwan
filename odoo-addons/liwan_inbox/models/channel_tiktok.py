@@ -250,6 +250,8 @@ class LiwanInboxChannel(models.Model):
     @api.model
     def _liwan_retry_tiktok_bindings(self):
         """The cron step: register every active TikTok account the shared relay does not hold yet."""
+        if not self.env['liwan.entitlement.service']._liwan_may_act_outward():
+            return
         channels = self.search([
             ('kind', '=', 'tiktok'), ('state', 'in', ('connected', 'error')),
             ('tiktok_business_id', '!=', False), ('tiktok_bound', '=', False),

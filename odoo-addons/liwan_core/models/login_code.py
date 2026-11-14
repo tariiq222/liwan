@@ -11,6 +11,8 @@ from odoo.exceptions import LockError
 from odoo.tools import SQL, escape_psql
 from odoo.tools.mail import email_split
 
+from .sms_gateway import SmsDeliveryError
+
 # Every limit of the sign-in code lives here, in one place, so no route repeats a number:
 # six digits, five minutes, five attempts, a 60-second resend cooldown, and three send caps: hourly and
 # daily per user, and a tenant-wide daily ceiling that only guards the messaging bill.
@@ -141,7 +143,15 @@ class LiwanLoginCode(models.Model):
             'expires_at': now + CODE_TTL,
             'cooldown_until': now + RESEND_COOLDOWN,
         })
-        gateway._liwan_send(channel, destination, self._liwan_body(raw, user.lang or 'ar_001'))
+        # SMS carries the bare code, the provider's template supplies the wording; email carries the full message.
+        message = raw if channel == 'sms' else self._liwan_body(raw, user.lang or 'ar_001')
+        try:
+            gateway._liwan_send(channel, destination, message)
+        except SmsDeliveryError:
+            # The row stays so the attempt counts toward every cap, but it is revoked: it must not hold the
+            # resend cooldown, or the user could not switch to email at once.
+            record.revoked_at = now
+            return IssueOutcome(record, channel, '', 0, 'channel_unavailable')
         return IssueOutcome(record, channel, mask_destination(destination), int(RESEND_COOLDOWN.total_seconds()), '')
 
     @api.model

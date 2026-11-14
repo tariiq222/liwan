@@ -1,16 +1,27 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { adjustmentSchema, invoiceSchema, TAX_LABELS, type Adjustment, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
-import { refundEligibilityForInvoices, type Refundability } from './settlements.js'
+import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { dateOnly } from './date-only.js'
+import { billingSettings, sellerIdentityOf } from './billing-settings.js'
+import { refundEligibilityForInvoices, refundLockedInvoices, systemRefunds, type Refundability, type SystemRefund } from './settlements.js'
 
 export type InvoiceView = Invoice
-/** Vendor-console view: the customer-facing invoice plus the customer's name and whether the owner may still refund
- * its payment (never sent to customers). */
-export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: Adjustment[]; refund: Refundability }
+/** Vendor-console view: the customer-facing invoice plus the customer's name, whether the owner may still refund its
+ * payment, and whether recording its pending refund drops the subscription to the free base (never sent to customers). */
+/**
+ * The refund the system makes through the payment provider for a vendor-requested note (with the last failure while it retries):
+ * `in_progress` (nothing returned yet), `refunded_recording` (the provider returned the money and only the record is retried),
+ * `provider_unverified` (a refund call was made and its outcome is not verified yet: the operator checks the provider's
+ * dashboard and the worker keeps checking), `done`, or `failed` (given up, with the reason, and no money returned).
+ */
+export type AutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null }
+/** A credit note as the vendor console sees it: the server also says whether the operator may record its refund by hand (only with no automatic refund, or one that failed with no money returned). */
+export type VendorAdjustment = Adjustment & { automatic_refund: AutomaticRefund | null; manual_record_allowed: boolean }
+export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: Refundability & { locks_subscription: boolean } }
 export type VendorInvoiceSummary = { outstanding: Money[] }
 type Q = Pick<Pool, 'query'>
 
-const d = (v: unknown): string => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10))
+const d = (v: unknown): string => dateOnly(v as Date | string)
 const ts = (v: unknown): string | null => (v == null ? null : v instanceof Date ? v.toISOString() : String(v))
 const num = (v: unknown): number => Number(v)
 
@@ -34,6 +45,10 @@ export function invoiceView(row: any, lines: any[]): InvoiceView {
     tax_label: num(row.tax_minor) === 0 ? null : TAX_LABELS.vat_exclusive, official_tax_invoice: false,
   })
 }
+
+/** The claim as the wire shape: null while nobody has said they transferred. */
+export const claimView = (row: Record<string, any> | undefined): BankTransferClaim | null => row
+  ? { value_date: String(row.value_date).slice(0, 10), sender_reference: row.sender_reference ?? null, claimed_at: new Date(row.claimed_at).toISOString() } : null
 
 const DEFAULT_DUE_DAYS = 7
 /** Days between issuing an invoice and its due date: LIWAN_INVOICE_DUE_DAYS (0-90), default 7 (owner decision 2026-10-29). */
@@ -60,11 +75,14 @@ export async function issueInvoiceFromQuote(
   const periodEnd = now[0]?.period_end ?? quote.next_renewal_at
   const id = randomUUID()
   const { currency, exponent } = quote.due_now
+  const seller = sellerIdentityOf(await billingSettings(client))
   const ins = await client.query(
     `INSERT INTO invoices(id, customer_id, subscription_id, order_id, kind, status, currency, exponent,
-       subtotal_minor, tax_minor, total_minor, period_start, period_end, due_at)
-     VALUES($1,$2,$3,$4,$5,'issued',$6,$7,$8,$9,$10,$11,$12, now() + make_interval(days => $13)) RETURNING *`,
-    [id, order.customer_id, order.subscription_id, order.id, kind, currency, exponent, subtotal, tax, total, periodStart, periodEnd, dueDays],
+       subtotal_minor, tax_minor, total_minor, period_start, period_end, due_at, seller)
+     VALUES($1,$2,$3,$4,$5,'issued',$6,$7,$8,$9,$10,$11,$12, now() + make_interval(days => $13), $14) RETURNING *`,
+    // The seller identity is copied onto the invoice now: the settings row only holds the current one, and an issued invoice never changes.
+    [id, order.customer_id, order.subscription_id, order.id, kind, currency, exponent, subtotal, tax, total, periodStart, periodEnd, dueDays,
+      seller ? JSON.stringify(seller) : null],
   )
   const lines: any[] = []
   for (let i = 0; i < now.length; i++) {
@@ -131,13 +149,48 @@ export async function getInvoice(pool: Q, id: string, { customer_id }: { custome
   return (await hydrate(pool, rows))[0] ?? null
 }
 
+/** A credit note as its own customer sees it: the typed cause stands in for the operator's free-text reason, and no operator name is carried. */
+export function customerCreditNoteView(row: any): CustomerCreditNote {
+  return customerCreditNoteSchema.parse({
+    id: row.id, amount: { currency: row.currency, exponent: num(row.exponent), minor: num(row.amount_minor) }, cause: row.cause, status: row.status,
+    created_at: ts(row.created_at), refunded_at: ts(row.refunded_at), refund_reference: row.refund_reference ?? null,
+  })
+}
+
+/**
+ * One invoice as its own customer reads and prints it (null for another customer's invoice, like getInvoice): the invoice,
+ * the customer's legal name, the seller identity and the non-void credit notes. The seller is the copy taken when the
+ * invoice was issued (`invoices.seller`); an invoice issued before that column existed, or while no legal name was set,
+ * has none and shows the current identity.
+ */
+export async function getCustomerInvoice(pool: Q, id: string, { customer_id }: { customer_id: string }): Promise<CustomerInvoice | null> {
+  const invoice = await getInvoice(pool, id, { customer_id })
+  if (!invoice) return null
+  const row = (await pool.query('SELECT i.seller, c.name AS customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id WHERE i.id = $1', [id])).rows[0]
+  const seller: SellerIdentity | null = row.seller ?? sellerIdentityOf(await billingSettings(pool))
+  const notes = (await pool.query("SELECT * FROM invoice_adjustments WHERE invoice_id = $1 AND kind = 'credit_note' AND status <> 'void' ORDER BY created_at, id", [id])).rows
+  return { ...invoice, customer_name: row.customer_name as string, seller, credit_notes: notes.map(customerCreditNoteView) }
+}
+
+function automaticRefundState({ status, provider_refund }: SystemRefund): AutomaticRefund['state'] {
+  if (status !== 'pending') return status === 'done' ? 'done' : 'failed'
+  return provider_refund === 'returned' ? 'refunded_recording' : provider_refund === 'attempted' ? 'provider_unverified' : 'in_progress'
+}
+function vendorAdjustmentView(row: any, outbox?: SystemRefund): VendorAdjustment {
+  const automatic_refund = outbox ? { state: automaticRefundState(outbox), reason: outbox.error } : null
+  return { ...adjustmentView(row), automatic_refund, manual_record_allowed: row.kind === 'credit_note' && row.status === 'pending' && (!automatic_refund || automatic_refund.state === 'failed') }
+}
+
 async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]> {
   const views = await hydrate(pool, rows)
   const notes = rows.length ? (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id = ANY($1::uuid[]) ORDER BY created_at,id', [rows.map(r => r.id)])).rows : []
   // One batched query for the page rather than three per invoice (B: performance).
   const eligibility = await refundEligibilityForInvoices(pool, rows.map(r => r.id))
-  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, adjustments: notes.filter(n => n.invoice_id === v.id).map(adjustmentView),
-    refund: eligibility.get(rows[i].id) ?? { refundable: false, first_payment: false, until: null, window_days: 0 } }))
+  const locking = await refundLockedInvoices(pool, rows.map(r => r.id), ['refunded', 'pending'])
+  const claims = rows.length ? (await pool.query('SELECT invoice_id,value_date::text AS value_date,sender_reference,claimed_at FROM bank_transfer_claims WHERE invoice_id = ANY($1::uuid[])', [rows.map(r => r.id)])).rows : []
+  const automatic = await systemRefunds(pool, notes.map(n => n.id))
+  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, bank_transfer_claim: claimView(claims.find(c => c.invoice_id === v.id)), adjustments: notes.filter(n => n.invoice_id === v.id).map(n => vendorAdjustmentView(n, automatic.get(n.id))),
+    refund: { ...(eligibility.get(rows[i].id) ?? { refundable: false, first_payment: false, until: null, window_days: 0 }), locks_subscription: locking.has(rows[i].id) } }))
 }
 
 export async function getVendorInvoice(pool: Q, id: string): Promise<VendorInvoiceView | null> {

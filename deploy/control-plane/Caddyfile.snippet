@@ -1,0 +1,51 @@
+# Edge block for the payment provider webhook. Add it next to the other site blocks of deploy/shared/Caddyfile (or import it).
+# The edge joins the control API's network (LIWAN_COMMERCIAL_CONTROL_NETWORK) and forwards EXACTLY ONE route of the control plane
+# to the internet: the Moyasar event. Everything else on this host answers 404, so the API is not public. The web tier and the
+# vendor console reach the API on their own internal networks, not through this host.
+# The event carries its own proof (MOYASAR_WEBHOOK_SECRET, checked by the adapter, then the payment is re-read from Moyasar).
+# Put the full URL https://{$CONTROL_WEBHOOK_DOMAIN}/v1/commercial/payment-events/moyasar in the Moyasar dashboard.
+{$CONTROL_WEBHOOK_DOMAIN} {
+	encode zstd gzip
+
+	# No request logging: the body and the secret token must never reach a log.
+
+	# Webhook bodies are small JSON events.
+	request_body {
+		max_size 64KB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Cache-Control "no-store"
+		-Server
+	}
+
+	@moyasar {
+		method POST
+		path /v1/commercial/payment-events/moyasar
+	}
+
+	route {
+		rate_limit {
+			zone liwan_payment_events {
+				key {remote_host}
+				events 120
+				window 1m
+				ipv6_prefix 64
+			}
+		}
+		reverse_proxy @moyasar control-api:4187 {
+			transport http {
+				tls
+				# The API certificate is signed by the operator's private CA; its SAN must contain control-api.
+				tls_trust_pool file /etc/liwan/control-ca.pem
+				tls_server_name control-api
+			}
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+		}
+		respond 404
+	}
+}

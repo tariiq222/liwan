@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Stock lets an internal user see only the payment tokens of their own partner. A privacy request about a customer
+         reads and clears the customer's tokens, so the two privacy capabilities see every token of the companies of the
+         session (the stock company rule still applies). -->
+    <record id="rule_payment_token_privacy" model="ir.rule">
+        <field name="name">payment.token: the privacy capabilities see every customer token</field>
+        <field name="model_id" ref="payment.model_payment_token"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[Command.link(ref('liwan_customers.group_cap_customers_erase')), Command.link(ref('liwan_customers.group_cap_customers_privacy_export'))]"/>
+    </record>
+</odoo>

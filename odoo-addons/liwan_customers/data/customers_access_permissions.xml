@@ -32,6 +32,22 @@
         <field name="group_xmlid">liwan_customers.group_cap_customers_settings_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_customers_erase" model="liwan.access.permission">
+        <field name="key">customers.erase</field><field name="domain">customers</field>
+        <field name="resource">customers</field><field name="action">erase</field>
+        <field name="name_ar">محو بيانات عميل</field><field name="name_en">Erase a customer's data</field>
+        <field name="description_ar">محو هوية عميل واحد وبياناته الشخصية في كل التطبيقات مع إبقاء المستندات المحاسبية المرحّلة، بطلب موثّق في السجل</field><field name="description_en">Anonymise one customer and the personal data held about them in every application, keeping posted accounting documents, with a logged request</field>
+        <field name="group_xmlid">liwan_customers.group_cap_customers_erase</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_customers_privacy_export" model="liwan.access.permission">
+        <field name="key">customers.privacy.export</field><field name="domain">customers</field>
+        <field name="resource">privacy</field><field name="action">export</field>
+        <field name="name_ar">تصدير كل ما نحتفظ به عن عميل</field><field name="name_en">Export everything held about a customer</field>
+        <field name="description_ar">تنزيل ملف واحد بكل ما تحتفظ به المنصة عن عميل واحد، بطلب موثّق في السجل</field><field name="description_en">Download one file with everything the platform holds about one customer, with a logged request</field>
+        <field name="group_xmlid">liwan_customers.group_cap_customers_privacy_export</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
+    </record>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
          dependencies on install and on every upgrade. -->
     <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>

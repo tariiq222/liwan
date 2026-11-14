@@ -25,6 +25,7 @@ export const BINDINGS_HEADER = 'x-liwan-proxy-token'
 const WEBHOOK_ROUTE = '/tiktok/webhook'
 const OAUTH_ROUTE = '/tiktok/oauth/callback'
 const BINDINGS_ROUTE = '/internal/tiktok/bindings/'
+const TENANT_PURGE_ROUTE = '/internal/tiktok/tenants/'
 const HEALTH_ROUTE = '/healthz'
 const TENANT_WEBHOOK_PATH = '/api/v1/inbox/hooks/tiktok'
 const TENANT_CALLBACK_PATH = '/api/v1/inbox/tiktok/callback'
@@ -36,6 +37,8 @@ const FORWARD_TIMEOUT_MS = 10_000
 const SIGNATURE_PATTERN = /^t=(\d{1,12}),s=([0-9a-f]{64})$/
 const HEX_DIGEST_PATTERN = /^[0-9a-f]{64}$/
 const STATE_PAYLOAD_PATTERN = /^[A-Za-z0-9_-]+$/
+/** The registry's tenant id format (`tenantPattern` in apps/web/server/utils/tenantHostResolver.ts). */
+const TENANT_ID_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/
 const OPEN_ID_PATTERN = /^[A-Za-z0-9._-]{1,256}$/
 const JSON_TYPE = 'application/json; charset=utf-8'
 /** The tenant callback owns the translated error page; this one never echoes the request. */
@@ -188,6 +191,34 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
     send(res, 200, JSON.stringify({ open_id: openId, tenant_id: target.tenantId }), JSON_TYPE)
   }
 
+  /** DELETE /internal/tiktok/tenants/<tenant id>: the control plane's workspace deletion removes every binding of a
+   * tenant that may already be disabled or gone from the registry, which the bindings route refuses. The same relay
+   * token authenticates it, and a tenant still ENABLED in the registry is refused (409), so the shared token cannot wipe an active tenant. Idempotent: no binding is success. Answers counts only. */
+  async function purgeTenantRoute(req, res, tenantPath) {
+    if (!holdsProxyToken(req.headers[BINDINGS_HEADER])) return send(res, 403, 'invalid_proxy_token')
+    if (req.method !== 'DELETE') return send(res, 405, 'method_not_allowed')
+    let tenantId
+    try { tenantId = decodeURIComponent(tenantPath) } catch { return send(res, 400, 'invalid_tenant_id') }
+    if (!TENANT_ID_PATTERN.test(tenantId)) return send(res, 400, 'invalid_tenant_id')
+    // The token is shared with every tenant's Odoo, so the purge refuses a tenant that is still enabled in the registry the relay already reads
+    // (the control plane disables the target in `stop_access` before it calls this). A tenant that is disabled, retired or gone is purged.
+    let registry
+    try { registry = currentRegistry() } catch { return send(res, 500, 'registry_unavailable') }
+    if (activeByTenantId(registry, tenantId) !== null) return send(res, 409, 'tenant_active')
+    let stored
+    try { stored = readBindings(bindingsPath) } catch { return send(res, 500, 'bindings_unavailable') }
+    const remaining = Object.create(null)
+    let removed = 0
+    for (const [openId, owner] of Object.entries(stored)) {
+      if (owner === tenantId) removed++
+      else remaining[openId] = owner
+    }
+    if (removed > 0) {
+      try { writeBindings(bindingsPath, remaining) } catch { return send(res, 500, 'bindings_unavailable') }
+    }
+    send(res, 200, JSON.stringify({ removed }), JSON_TYPE)
+  }
+
   async function webhook(req, res) {
     if (req.method !== 'POST') return send(res, 405, 'method_not_allowed')
     let raw
@@ -252,6 +283,7 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
     if (path === WEBHOOK_ROUTE) route = webhook
     else if (path === OAUTH_ROUTE) route = oauth
     else if (path.startsWith(BINDINGS_ROUTE)) route = (request, response) => bindingsRoute(request, response, path.slice(BINDINGS_ROUTE.length))
+    else if (path.startsWith(TENANT_PURGE_ROUTE)) route = (request, response) => purgeTenantRoute(request, response, path.slice(TENANT_PURGE_ROUTE.length))
     if (!route) return send(res, 404, 'not_found')
     route(req, res).catch(error => {
       console.error(`tiktok_relay_request_failed: ${error.message}`)

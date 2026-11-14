@@ -18,7 +18,7 @@ from odoo.addons.liwan_api.tests.common import (
 # GET /api/v1 record routes served by liwan_api's own controllers, counted
 # from the runtime routing map; re-asserted from discovery on every run.
 # Pillar routes are held accountable by each pillar's own isolation tests.
-EXPECTED_GET_RECORD_ROUTES = 5
+EXPECTED_GET_RECORD_ROUTES = 6
 
 BRANCH_MODES = ('isolated', 'delegated', 'inherited')
 

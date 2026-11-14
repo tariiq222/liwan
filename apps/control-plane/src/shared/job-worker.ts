@@ -288,7 +288,7 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
         const retries = Number((await transaction(pool, client => client.query("SELECT count(*) AS n FROM shared_job_events WHERE job_id=$1 AND evidence->>'retry'='runtime_writer_present'", [id]))).rows[0]?.n ?? 0)
         if (retries >= MAX_WRITER_RETRIES) {
           await append('needs_intervention',fencedRefusal.observation)
-          console.error(`[shared-worker] job ${id} quarantined after ${retries} runtime_writer_present retries`)
+          console.error('[shared-worker] job %s quarantined after %d runtime_writer_present retries', id, retries)
           return { state:'needs_intervention', reason:'runtime_writer_contended' }
         }
         await owned(async (client,row) => {
@@ -297,7 +297,7 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
           const updated = await client.query("UPDATE shared_jobs SET state='queued',journal=$1,lease_until=clock_timestamp()+interval '30 seconds' WHERE id=$2 AND attempt_id=$3 AND fence=$4 AND state='running' AND lease_until>clock_timestamp() RETURNING id", [requeued,id,claim.attemptId,claim.fence])
           if (!updated.rowCount) throw new Error('shared_lease_lost')
         })
-        console.warn(`[shared-worker] job ${id} requeued (${retries + 1}/${MAX_WRITER_RETRIES}): runtime_writer_present`)
+        console.warn('[shared-worker] job %s requeued (%d/%d): runtime_writer_present', id, retries + 1, MAX_WRITER_RETRIES)
         return { state:'contended', reason:'runtime_writer_present' }
       } catch { /* could not requeue: fall through and quarantine */ }
     }

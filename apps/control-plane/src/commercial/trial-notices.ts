@@ -4,6 +4,8 @@ import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, enqueueOutbox, failOutbox, leaseOutboxRow, releaseOutbox } from './outbox.js'
 import { trialEndPreview } from './trial-preview.js'
 import { TRIAL_NOTICE_DAYS } from './notice-timings.js'
+import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
+import { logText } from '../log-text.js'
 
 /**
  * One email per notice threshold and subscription. The in-app banner is always available from
@@ -12,7 +14,7 @@ import { TRIAL_NOTICE_DAYS } from './notice-timings.js'
  * One subscription that fails is logged and skipped, never allowed to stop everyone else's notices, and a row is sent by
  * the one worker that leases it.
  */
-export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
+export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: MailAdapter; returnOrigin?: ReturnOrigin; signal?: AbortSignal }): Promise<number> {
   if (input.signal?.aborted) return 0
   const rows = (await pool.query(`SELECT s.*,p.trial_days,sr.snapshot,c.admin_login
     FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
@@ -23,12 +25,12 @@ export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: Mai
   for (const row of rows) {
     if (input.signal?.aborted) return sent
     try { sent += await noticesOf(pool, row, input) }
-    catch (error) { console.error(`[trial-notices] subscription ${row.id} skipped: ${error instanceof Error ? error.message.slice(0, 200) : 'error'}`) }
+    catch (error) { console.error('[trial-notices] subscription %s skipped: %s', row.id, logText(error instanceof Error ? error : 'error')) }
   }
   return sent
 }
 
-async function noticesOf(pool: Pool, row: Record<string, any>, input: { now: Date; mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
+async function noticesOf(pool: Pool, row: Record<string, any>, input: { now: Date; mail: MailAdapter; returnOrigin?: ReturnOrigin; signal?: AbortSignal }): Promise<number> {
   const daysLeft = daysBetween(riyadhDate(input.now), riyadhDate(new Date(row.trial_ends_at)))
   const trialEnds = riyadhDate(new Date(row.trial_ends_at))
   let sent = 0
@@ -68,7 +70,8 @@ async function noticesOf(pool: Pool, row: Record<string, any>, input: { now: Dat
       const limits = preview.limits
       const ar = `تنتهي تجربتك في ${trialEnds} (${daysLeft} يومًا متبقيًا). تبقى المزايا المضمنة والمشتراة. تُقفل التطبيقات الأخرى للقراءة والتصدير فقط. الحدود التالية: ${limits.users} مستخدم، ${limits.storage_mb} ميبيبايت، ${limits.extra_branches} فرع إضافي. قيمة أول فاتورة: ${bill}. راجع صفحة الاشتراك لمعرفة الاستخدام الزائد وصدّر الملفات التي تحتاجها قبل انتهاء التجربة.`
       const en = `Your trial ends on ${trialEnds} (${daysLeft} days left). Included and purchased features remain. Other trial apps become read and export only. New limits: ${limits.users} users, ${limits.storage_mb} MiB, ${limits.extra_branches} extra branches. First invoice: ${bill}. Check Subscription for excess usage and export files you need before the trial ends.`
-      const text = `${ar}\n${en}`
+      const workspace = workspaceLines(await workspaceOrigin(input.returnOrigin, row.customer_id))
+      const text = `${ar}${workspace.ar}\n${en}${workspace.en}`
       deliveryStarted = true
       await input.mail.send({ to: row.admin_login, subject: 'تجربتك في LiwanOS على وشك الانتهاء', text, message_id: `trial-${row.id}-${dedupe}@liwan` })
       await completeOutbox(pool, existing.id)

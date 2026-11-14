@@ -158,6 +158,11 @@ application's AI agent and tools.
   of catalog-made products, the implementations of the neutral commerce hooks of `liwan_inbox`, and the carts that
   become online orders of `liwan.payments.service` (checkout, pay link, paid and cancelled notes). Feature
   `inbox.catalog`; capabilities `inbox.catalog.manage` and `inbox.orders.manage`.
+- `odoo-addons/liwan_payments_customers` (bridge, rank 5, `auto_install` on the shared services `liwan_payments` and
+  `liwan_customers`, which are both rank 3 and may not depend on each other) owns what online payments hold about a
+  customer in the privacy export and erase: online orders and their lines (kept), payment transactions (the payer's
+  copy of the name, e-mail, phone and address is cleared) and saved payment tokens (archived and neutralised), plus the
+  access rows the two privacy capabilities need on those models.
 - `packages/contracts/src/<namespace>` holds the Zod wire contracts (current namespaces: `access`, `ai`,
   `appointments`, `chat`, `common`, `crm`, `documents`, `finance`, `hr`, `inbox`, `integrations`,
   `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `tasks`); each has a barrel re-exported

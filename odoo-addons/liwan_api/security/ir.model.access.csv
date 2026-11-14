@@ -1,2 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_liwan_api_branding_partner_customer_admin,res.partner.branding.customer_admin,base.model_res_partner,liwan_core.group_customer_admin,0,1,0,0
+access_liwan_tenant_export_admin,liwan.tenant.export admin,model_liwan_tenant_export,group_cap_tenant_export,1,0,1,0
+access_liwan_tenant_export_log_admin,liwan.tenant.export.log admin,model_liwan_tenant_export_log,group_cap_tenant_export,1,0,1,0

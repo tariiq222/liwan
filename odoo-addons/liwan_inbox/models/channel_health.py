@@ -302,6 +302,8 @@ class LiwanInboxChannelHealth(models.Model):
         A run cut short by the cron budget refreshes the never-checked channels first, then the oldest readings; the
         refreshed rows move to the end, so the same tail cannot starve on every run.
         """
+        if not self.env['liwan.entitlement.service']._liwan_may_act_outward():
+            return
         base = [('kind', '=', 'whatsapp'), ('state', 'in', CHECKED_STATES)]
         never = self.search(base + [('health_checked_at', '=', False)], order='id')
         old = self.search(base + [('health_checked_at', '!=', False)], order='health_checked_at asc, id')
@@ -312,12 +314,14 @@ class LiwanInboxChannelHealth(models.Model):
     @api.model
     def _liwan_run_analytics(self):
         """Pull Meta's cost and template analytics of every connected channel (daily)."""
-        self.env['liwan.inbox.meta.analytics']._liwan_run()
+        if self.env['liwan.entitlement.service']._liwan_may_act_outward():
+            self.env['liwan.inbox.meta.analytics']._liwan_run()
 
     @api.model
     def _liwan_run_analytics_requested(self):
         """Pull the analytics of the channels whose manager asked for a sync now."""
-        self.env['liwan.inbox.meta.analytics']._liwan_run_requested()
+        if self.env['liwan.entitlement.service']._liwan_may_act_outward():
+            self.env['liwan.inbox.meta.analytics']._liwan_run_requested()
 
     @api.model
     def _liwan_health_failed(self, channel, error):
