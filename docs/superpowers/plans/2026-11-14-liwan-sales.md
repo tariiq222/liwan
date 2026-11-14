@@ -95,9 +95,9 @@ A transition from a state that is not in the table answers 403 `transition_forbi
 
 Readers and writers of `sale.order` after this pull request: the sales service (staff documents), `liwan_payments` (online orders, elevated), the two payment bridges through `liwan_payments`, the privacy hooks (read), and CRM agents at the ORM level through the stock group they already hold (no route).
 
-## 5. Decisions for the owner
+## 5. Owner decisions
 
-The plan is written on the recommended answer of each. None blocks the recheck of section 6, step 1.
+The owner approved the recommended answer of all four on 2026-11-14, in the coordinating session's conversation, after reading this table. The sales design records them as decisions 8 to 11 of its section 9.
 
 | # | Question | Options | Recommended |
 | --- | --- | --- | --- |
@@ -209,4 +209,4 @@ PR 2 is long and touches authorization, so it belongs in the lane `claude-2`, on
 | Create and confirm queue no e-mail and do not add the customer as a follower | Run, same spike: no `mail.mail` row, the only follower is the agent |
 | A branch agent reading the tax record itself | Not settled: the read passed right after the elevated write, which may have been the cache. D8 does not depend on it |
 | Sections 4 to 8 | Plan; nothing is built |
-| O1 to O4 | Open; the plan assumes the recommended answer of each |
+| O1 to O4 | Approved by the owner on 2026-11-14: the recommended answer of each (section 5) |

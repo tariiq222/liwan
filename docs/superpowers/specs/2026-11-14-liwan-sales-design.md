@@ -40,15 +40,15 @@ The order factory stays in `liwan_payments` and drops its own copy of the tax ru
 
 Stock states are kept: `draft` (quotation), `sent`, `sale` (order), `cancel`, with `locked` and `invoice_status` as stock computes them.
 
-- **Quotation.** Customer, validity date, payment terms, salesperson, team, notes and terms. Lines: a product picked from the product service, quantity, unit, the unit price the price function returns, a discount, the taxes stock picks, and section and note lines. A line keeps the name and price it was created with.
+- **Quotation.** Customer, validity date, payment terms, salesperson, notes and terms. Lines: a product picked from the product service, quantity, unit, the unit price the price function returns, a discount, the taxes stock picks, and section and note lines. A line keeps the name and price it was created with.
 - **Templates.** Stock quotation templates (`sale_management`): a named set of lines, validity and terms that starts a quotation.
 - **Send.** The PDF and an e-mail to the customer with a link.
 - **Customer answer.** The link opens a page under the public namespace, authorized by the order's own access token (`portal.mixin` on `sale.order`): the customer reads the quotation, accepts or declines, and signs when the tenant asks for a signature. The Odoo portal stays closed.
 - **Confirm, cancel, reopen, lock.** By staff, or by the customer's acceptance when the tenant allows it. A quotation past its validity date is marked expired and is not confirmable until staff extend it.
 - **Invoice.** From a confirmed order, through `liwan_sales_finance`: the whole order, or a down payment as a percentage or an amount, with stock's `sale.advance.payment.inv` logic. The order shows what is invoiced and what is paid. Stock copies each order line's product, unit price, discount and taxes onto its invoice line (`addons/sale/models/sale_order_line.py:1513-1544`). Finance neither returns nor accepts a product on an invoice line today, and products PR 6 adds it with its tax rule. The bridge follows that pull request, so finance reads and edits an invoice made from an order with the same product line a hand-written invoice has.
-- **Reports.** Orders and amounts by period, salesperson, team, customer and product, from stock `sale.report`, and an export.
+- **Reports.** Orders and amounts by period, salesperson, customer and product, from stock `sale.report`, and an export.
 
-Out of this design: pricelists (the product service adds them behind the price function), delivery and stock, subscriptions, coupons and loyalty, commissions, margins and the store.
+Out of this design: sales teams (decision 10), pricelists (the product service adds them behind the price function), delivery and stock, subscriptions, coupons and loyalty, commissions, margins and the store.
 
 ## 5. Online orders
 
@@ -61,6 +61,7 @@ An online order and a staff quotation are rows of the same model. Sales lists bo
 | `sales.read` | Quotations and orders within the visibility setting |
 | `sales.quotations.manage` | Create, edit, send and cancel a quotation |
 | `sales.orders.confirm` | Confirm, lock, reopen and cancel an order |
+| `sales.documents.assign` | See every document whatever the visibility setting, and change a document's salesperson. The manager role holds it (decision 9) |
 | `sales.discounts.approve` | A discount above the tenant's limit |
 | `sales.reports.read` | Reports and export |
 | `sales.settings.manage` | The settings of section 7 |
@@ -73,7 +74,7 @@ One record per tenant, changed in the root company by holders of `sales.settings
 
 | Setting | Values | Default | Effect on existing data |
 | --- | --- | --- | --- |
-| Visibility | `own`, `team`, `all` | `own` | Applies to every existing document at once |
+| Visibility | `own`, `all` | `own` | Applies to every existing document at once |
 | Quotation validity | Days | 30 | New quotations only |
 | Customer answer | `none`, `accept`, `accept_and_sign` | `accept` | Quotations sent after the change |
 | Acceptance confirms the order | Yes, no | No | Quotations sent after the change |
@@ -110,7 +111,10 @@ The owner approved each point as written here.
 | 5 | With CRM and sales both installed, does winning an opportunity still take a package and a price, or an order? | An order. The package form stays for a tenant without sales |
 | 6 | Application id, route and names | `sales`, `/sales`, "المبيعات", "Sales" |
 | 7 | Where does the tax rule of an establishment that is not registered sit? | On the stock tax compute of the order line (`sale.order.line._compute_tax_ids`), extended in `liwan_orders`. Stock recomputes a line's taxes when its product or company changes (`addons/sale/models/sale_order_line.py:544-545`), so a rule applied once after the line is created, as payments does today, is lost on a staff edit. Upgrade cost: one stock method name, covered by a test |
-| 8 | Is products PR 4 (the transfer between sharing modes) merged before sales writes orders for a tenant? | Yes. Stock refuses to give a product a company once another company has order lines for it (`addons/sale/models/product_template.py:108-131`), and staff quotations multiply such lines |
+| 8 | Is products PR 4 (the transfer between sharing modes) merged before sales writes orders for a tenant? | Before sales is released to a tenant, yes; before it is built, no. Stock refuses to give a product a company once another company has order lines for it (`addons/sale/models/product_template.py:108-131`), and staff quotations multiply such lines. Nothing is released yet, so the sales pull requests are built before products PR 4 |
+| 9 | Under `own`, who sees every document and who may change a salesperson? | The holder of a seventh capability, `sales.documents.assign`, which the manager role holds, as `crm.leads.assign` does in CRM |
+| 10 | Does the visibility setting have a `team` value? | Not now: `own` and `all`. `team` comes later together with a screen for sales teams |
+| 11 | How is sales sold? | As its own sellable application. Its price, and whether it joins release 1, are decided before launch |
 
 ## 10. Evidence status
 
