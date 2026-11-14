@@ -36,8 +36,8 @@ function toggle(product: ProductPick) {
 
 <template>
   <div class="flex flex-col gap-2" data-testid="product-picker">
-    <UInput v-model="q" class="w-full" icon="i-lucide-search" :placeholder="t('app.productPicker.search')" :aria-label="props.ariaLabel ?? t('app.productPicker.search')" :disabled="off" data-testid="product-picker-search" />
-    <SharedLoadingSkeleton v-if="query.isPending.value" />
+    <UInput v-model="q" class="w-full" icon="i-lucide-search" :placeholder="t('app.productPicker.search')" :aria-label="props.ariaLabel ?? t('app.productPicker.search')" :disabled="off" data-testid="product-picker-search" @keydown.enter.prevent />
+    <SharedLoadingSkeleton v-if="query.isLoading.value" />
     <SharedPageState v-else-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
     <p v-else-if="!items.length" class="text-sm text-muted" data-testid="product-picker-empty">{{ q.trim() ? t('app.noResults') : t('app.productPicker.empty') }}</p>
     <ul v-else class="flex max-h-72 flex-col divide-y divide-default overflow-y-auto rounded-control ring ring-default" :aria-label="t('app.productPicker.listLabel')">

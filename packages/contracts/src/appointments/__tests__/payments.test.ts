@@ -13,6 +13,7 @@ describe('AppointmentTypePaymentSchema', () => {
     }
     expect(AppointmentTypePaymentSchema.parse(payment)).toEqual(payment)
     expect(AppointmentTypePaymentSchema.parse({ ...payment, online_payment: 'none', product_id: null, price: null }).product_id).toBeNull()
+    expect(AppointmentTypePaymentSchema.parse({ ...payment, price: 0 }).price).toBe(0)
     expect(() => AppointmentTypePaymentSchema.parse({ ...payment, deposit_percent: 100 })).toThrow()
     expect(() => AppointmentTypePaymentSchema.parse({ ...payment, product_id: 0 })).toThrow()
     expect(() => AppointmentTypePaymentSchema.parse({ ...payment, product_id: undefined })).toThrow()

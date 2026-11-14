@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
 import type { InboxCatalogItem } from '@liwan/contracts'
-import { REVIEW_TONE, SYNC_STATE_TONE, formatInboxMoney } from '@/composables/inbox/inboxCommerce'
+import { REVIEW_TONE, SYNC_STATE_TONE } from '@/composables/inbox/inboxCommerce'
+import { formatCurrency } from '@/utils/formatCurrency'
 import { usePatchInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'
 
 // The catalog's items: picture, name and price, the sync status and Meta's review status, the error text when a push or
@@ -23,7 +24,7 @@ function toggle(item: InboxCatalogItem, listed: boolean) {
       <InboxProductImage :src="item.image?.url ?? null" class="size-12 shrink-0 rounded-control" />
       <NuxtLink :to="`/settings/apps/inbox/catalog/${item.catalog_id}/items/${item.id}`" class="min-w-0 flex-1 text-start focus-visible:outline-2 focus-visible:outline-primary">
         <span class="block truncate text-sm font-medium text-highlighted" :class="{ 'text-muted': !item.listed }">{{ item.name }}</span>
-        <span class="block truncate text-xs text-muted"><bdi dir="ltr">{{ item.product_retailer_id }}</bdi> · {{ formatInboxMoney(item.price, item.currency, locale) }} · {{ t(`inbox.catalog.availability.${item.availability}`) }}</span>
+        <span class="block truncate text-xs text-muted"><bdi dir="ltr">{{ item.product_retailer_id }}</bdi> · {{ formatCurrency(item.price, item.currency, locale) }} · {{ t(`inbox.catalog.availability.${item.availability}`) }}</span>
         <span class="mt-1 flex flex-wrap gap-1">
           <SharedStatusBadge size="sm" :tone="SYNC_STATE_TONE[item.sync_state]" :label="t(`inbox.catalog.sync.${item.sync_state}`)" data-testid="inbox-item-sync" />
           <SharedStatusBadge size="sm" :tone="REVIEW_TONE[item.review_status]" :label="t(`inbox.catalog.review.${item.review_status}`)" data-testid="inbox-item-review" />

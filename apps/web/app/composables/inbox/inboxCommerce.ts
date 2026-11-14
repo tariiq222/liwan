@@ -150,15 +150,6 @@ export function normalizeCommerceDraft(value: unknown): CommerceDraft | null {
 
 // ---------------------------------------------------------------- money, carts and orders
 
-/** An amount in its currency, in the page locale; a bare number when the currency code is not one the browser knows. */
-export function formatInboxMoney(amount: number, currency: string, locale: string): string {
-  try {
-    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount)
-  } catch {
-    return `${amount} ${currency}`
-  }
-}
-
 /** The sum of quantity times price over the lines whose price is known, and whether any line had none. */
 export function linesTotal(lines: ReadonlyArray<{ quantity: number; price: number | null }>): { total: number; complete: boolean } {
   let total = 0

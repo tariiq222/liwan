@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { InboxMessageCommerce, InboxTemplate } from '@liwan/contracts'
 import {
-  COMMERCE_LIMITS, addDraftSection, customerChoiceBody, customerConflict, buildCommerceContent, cartLineRows, commerceProblem, commerceProductCount, commerceToDraft, emptyCommerceDraft, expiryCountdown, formatInboxMoney,
+  COMMERCE_LIMITS, addDraftSection, customerChoiceBody, customerConflict, buildCommerceContent, cartLineRows, commerceProblem, commerceProductCount, commerceToDraft, emptyCommerceDraft, expiryCountdown,
   isPayLinkTemplate, linesTotal, normalizeCommerceDraft, orderBadge, orderLineRows, pickedIds, removeDraftSection, rowsTotal, toggleDraftProduct,
 } from '../inboxCommerce'
 
@@ -117,11 +117,6 @@ describe('carts and orders', () => {
     expect(expiryCountdown(null, now)).toBeNull()
     expect(expiryCountdown('2026-10-29T10:30:01Z', now)).toEqual({ expired: false, minutes: 31 })
     expect(expiryCountdown('2026-10-29T09:59:59Z', now)).toEqual({ expired: true, minutes: 0 })
-  })
-
-  it('formats money and survives an unknown currency code', () => {
-    expect(formatInboxMoney(115, 'SAR', 'en')).toContain('115')
-    expect(formatInboxMoney(5, 'ZZ', 'en')).toBe('5 ZZ')
   })
 })
 

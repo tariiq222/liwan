@@ -18,7 +18,8 @@ export const AppointmentTypePaymentSchema = z.object({
   online_payment: AppointmentOnlinePaymentSchema,
   deposit_percent: DepositPercentSchema,
   product_id: z.number().int().positive().nullable(),
-  price: z.number().positive().nullable(),
+  // The unit price of the type's product: 0 for a linked product that was created without a price.
+  price: z.number().nonnegative().nullable(),
   currency: z.string().length(3),
   ...RefundRulesSchema.shape,
 }).strict()

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { InboxOrder } from '@liwan/contracts'
-import { formatInboxMoney, orderBadge } from '@/composables/inbox/inboxCommerce'
+import { orderBadge } from '@/composables/inbox/inboxCommerce'
+import { formatCurrency } from '@/utils/formatCurrency'
 
 // The orders list across the conversations the viewer can see: one row per order with its customer, channel, total and
 // status badge; a row opens its conversation.
@@ -18,7 +19,7 @@ const day = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'm
           <span class="block truncate text-xs text-muted">{{ order.channel.name }} · {{ t('inbox.orders.lineCount', { n: order.lines.length }) }} · <time :datetime="order.created_at">{{ day.format(new Date(order.created_at)) }}</time></span>
         </span>
         <span class="flex items-center gap-3">
-          <span class="text-sm font-semibold tabular-nums">{{ formatInboxMoney(order.total, order.currency, locale) }}</span>
+          <span class="text-sm font-semibold tabular-nums">{{ formatCurrency(order.total, order.currency, locale) }}</span>
           <SharedStatusBadge size="sm" :tone="orderBadge({ state: order.state, payment_status: order.payment?.status ?? null }).tone" :label="t(orderBadge({ state: order.state, payment_status: order.payment?.status ?? null }).labelKey)" />
           <UIcon name="i-lucide-chevron-right" class="size-4 text-muted rtl:rotate-180" aria-hidden="true" />
         </span>

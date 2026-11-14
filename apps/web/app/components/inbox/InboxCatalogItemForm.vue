@@ -3,7 +3,7 @@ import {
   InboxCatalogItemCreateSchema, InboxCatalogItemPatchSchema, InboxRetailerIdSchema, INBOX_COMMERCE_LIMITS,
   type InboxCatalogItem,
 } from '@liwan/contracts'
-import { formatInboxMoney } from '@/composables/inbox/inboxCommerce'
+import { formatCurrency } from '@/utils/formatCurrency'
 import { useCreateInboxCatalogItem, usePatchInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'
 
 // Adds a product of the products list to the catalog, or edits how an item is listed. The product's own name, description,
@@ -83,7 +83,7 @@ async function submit() {
         <p class="text-xs text-muted">{{ t('inbox.catalog.itemForm.preview') }}</p>
         <InboxProductImage :src="props.item?.image?.url ?? null" class="aspect-square w-full rounded-control" />
         <p class="font-semibold">{{ props.item?.name }}</p>
-        <p class="text-sm">{{ formatInboxMoney(props.item?.price ?? 0, props.item?.currency ?? 'SAR', locale) }}</p>
+        <p class="text-sm">{{ formatCurrency(props.item?.price ?? 0, props.item?.currency ?? 'SAR', locale) }}</p>
       </SharedSubCard>
       <p class="text-sm text-muted" data-testid="inbox-item-product-managed">{{ t('inbox.catalog.itemForm.productManaged') }}</p>
     </template>
