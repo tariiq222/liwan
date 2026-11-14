@@ -1,9 +1,20 @@
 import { computed, ref, type ComputedRef } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { deriveCustomerCapabilities } from '../utils/customerCapabilities'
 import { dismissNotice, isNoticeDismissed, noticeStorage, selectNotice, type NoticeSubscription, type ShellNotice } from '../utils/shellNotices'
 
 const SUBSCRIPTION_STALE_MS = 5 * 60_000
+const SUBSCRIPTION_KEY = ['shell', 'subscription'] as const
+
+/**
+ * Re-read the subscription the shell notice is derived from. A page that changes the subscription (cancel, resume,
+ * a deletion request) calls it after its own refresh: the layout outlives the page, so its copy would otherwise keep
+ * announcing the old state until it goes stale.
+ */
+export function useRefreshShellNotice(): () => Promise<void> {
+  const client = useQueryClient()
+  return () => client.invalidateQueries({ queryKey: SUBSCRIPTION_KEY })
+}
 
 /**
  * The one subscription notice for the shell, or null. Inputs come from `/me`; the subscription view is read only for a
@@ -21,7 +32,7 @@ export function useShellNotice(): { notice: ComputedRef<ShellNotice | null>, dis
   const canRead = computed(() => capabilities.value.includes('subscription.read'))
   const canManage = computed(() => !me.value?.read_only && capabilities.value.includes('subscription.manage'))
   const subscription = useQuery({
-    queryKey: computed(() => ['shell', 'subscription', me.value?.company.id ?? null, me.value?.id ?? null]),
+    queryKey: computed(() => [...SUBSCRIPTION_KEY, me.value?.company.id ?? null, me.value?.id ?? null]),
     queryFn: async (): Promise<NoticeSubscription | null> => {
       try {
         return await api.subscription()

@@ -27,6 +27,9 @@ const { data, error, pending, refresh } = await useAsyncData('subscription:overv
     : {}
   return { sub, usage, branches, invoices, trial, bundleNames, failed }
 }, { immediate: allowed.value })
+// A change made here (cancel, resume, a deletion request, a removed card) also changes what the shell notice says.
+const refreshShellNotice = useRefreshShellNotice()
+async function reload() { await refresh(); await refreshShellNotice() }
 const display = computed(() => {
   const sub = data.value?.sub
   if (!sub) return null
@@ -50,7 +53,7 @@ async function retryTrial() {
   try {
     const trial = await api.retryTrialEnd()
     if (data.value) data.value = { ...data.value, trial }
-    await refresh()
+    await reload()
   } catch (cause) {
     retryError.value = t(refusalKey(refusalCode(cause)) ?? 'subscription.trialEnd.retryFailed')
   } finally {
@@ -74,7 +77,7 @@ const cancelBusy = ref(false); const cancelError = ref<string | undefined>()
 async function changeCancellation(action: 'cancel' | 'resume', reason?: string) {
   if (!hydrated.value || cancelBusy.value || !can('subscription.manage')) return
   cancelBusy.value = true; cancelError.value = undefined
-  try { await (action === 'cancel' ? api.cancelSubscription(reason) : api.resumeSubscription()); await refresh() }
+  try { await (action === 'cancel' ? api.cancelSubscription(reason) : api.resumeSubscription()); await reload() }
   catch (cause) { cancelError.value = t(refusalKey(refusalCode(cause)) ?? 'subscription.cancel.failed') } finally { cancelBusy.value = false }
 }
 const deletionBusy = ref(false); const deletionError = ref<string | undefined>()
@@ -85,7 +88,7 @@ async function changeDeletion(action: 'request' | 'confirm' | 'withdraw', input?
     if (action === 'request') await api.requestDeletion()
     else if (action === 'confirm' && input) await api.confirmDeletion(input)
     else await api.withdrawDeletion()
-    await refresh()
+    await reload()
   } catch (cause) { deletionError.value = t(deletionErrorKey(refusalCode(cause))) } finally { deletionBusy.value = false }
 }
 const removeBusy = ref(false); const removeFailure = ref<'not_removed' | 'failed' | null>(null)
@@ -94,14 +97,14 @@ async function removeCard() {
   const card = data.value?.sub?.auto_renew.payment_method
   if (!hydrated.value || removeBusy.value || !can('subscription.manage') || !card) return
   removeBusy.value = true; removeFailure.value = null
-  try { await api.removeCard(card.id); await refresh() }
+  try { await api.removeCard(card.id); await reload() }
   catch (cause: any) { removeFailure.value = (cause?.statusCode ?? cause?.status) === 503 || refusalCode(cause) === 'provider_unavailable' ? 'not_removed' : 'failed' } finally { removeBusy.value = false }
 }
 const arBusy = ref(false); const arError = ref<unknown>(null)
 async function setAutoRenew(enabled: boolean) {
   if (!hydrated.value || arBusy.value || !can('subscription.manage')) return
   arBusy.value = true; arError.value = null
-  try { await api.setAutoRenew(enabled); await refresh() } catch (cause) { arError.value = cause } finally { arBusy.value = false }
+  try { await api.setAutoRenew(enabled); await reload() } catch (cause) { arError.value = cause } finally { arBusy.value = false }
 }
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
