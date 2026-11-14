@@ -12,7 +12,9 @@ const ICONS: Record<ShellNoticeSeverity, string> = { error: 'i-lucide-lock', war
 // Params named `date` are ISO calendar days; the rest are plain numbers.
 const message = computed(() => {
   const { date, ...rest } = props.notice.params
-  return t(props.notice.messageKey, date === undefined ? rest : { ...rest, date: formatDate(String(date)) })
+  // A message with plural forms (days left) picks its form from the day count.
+  const named = date === undefined ? rest : { ...rest, date: formatDate(String(date)) }
+  return typeof rest.days === 'number' ? t(props.notice.messageKey, named, rest.days) : t(props.notice.messageKey, named)
 })
 const actions = computed(() => props.notice.action
   ? [{ label: t(props.notice.action.labelKey), to: props.notice.action.to, color: props.notice.severity, variant: 'solid' as const }]

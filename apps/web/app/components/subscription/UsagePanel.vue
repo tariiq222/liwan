@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { UsageSnapshot } from '@liwan/commercial-contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { usageFigure, usageMetricLabel } from '@/utils/subscription'
 const props = defineProps<{ usage: UsageSnapshot }>()
 const { t, te, locale } = useI18n()
@@ -20,7 +21,7 @@ const rows = computed(() => props.usage.metrics.map((m) => {
     <p v-if="usage.freshness === 'unavailable'" role="status" class="text-sm text-muted">{{ t('subscription.usage.unavailableNote') }}</p>
     <p v-else class="flex flex-wrap items-center gap-2 text-xs text-muted">
       <SharedStatusBadge :tone="usage.freshness === 'stale' ? 'warning' : 'success'" variant="subtle" size="sm" :label="t(usage.freshness === 'stale' ? 'subscription.usage.stale' : 'subscription.usage.fresh')" />
-      <span v-if="usage.observed_at">{{ t('subscription.usage.observed') }} <bdi dir="ltr">{{ usage.observed_at }}</bdi></span>
+      <span v-if="usage.observed_at">{{ t('subscription.usage.observed') }} {{ formatDateTime(usage.observed_at, 'Asia/Riyadh') }}</span>
     </p>
     <div class="liwan-auto-grid gap-(--liwan-gap-card)">
       <div v-for="{ m, f, pct, tone: meter } in rows" :key="m.key" data-testid="usage-metric" :data-known="f.known">
