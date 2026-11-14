@@ -1,4 +1,4 @@
-import { dayBefore, trialDaysRemaining } from './subscription'
+import { dayBefore, riyadhDay, trialDaysRemaining } from './subscription'
 
 /**
  * The one subscription notice the shell may show. `selectNotice` is pure: the composable `useShellNotice` gathers
@@ -16,7 +16,7 @@ export interface ShellNotice {
   /** `false` cannot be dismissed; `{ hours }` hides this notice (and band) that long. */
   dismissible: false | { hours: number }
 }
-export type ShellNoticeKey = 'payment_suspended' | 'user_read_only' | 'payment_overdue' | 'trial_ending' | 'cancellation_scheduled' | 'free_base_lock_pending'
+export type ShellNoticeKey = 'payment_suspended' | 'user_read_only' | 'payment_overdue' | 'trial_ending' | 'workspace_deletion' | 'cancellation_scheduled' | 'free_base_lock_pending'
 
 /** Exactly the fields of the subscription view the rules read (declared here so this file imports no commercial contract). */
 export interface NoticeSubscription {
@@ -25,6 +25,8 @@ export interface NoticeSubscription {
   grace_ends_at: string | null
   cancellation?: { effective_on: string } | null
   pending_free_base_lock?: string | null
+  /** The tenant's open workspace-deletion request: `confirmed` runs the withdrawal window, `due` is the final hold; `deleting` has stopped access. */
+  deletion?: { state: string, due_at: string | null, hold_until: string | null } | null
 }
 
 export interface ShellNoticeInputs {
@@ -53,6 +55,7 @@ export const TRIAL_FINAL_DAYS = 1
 
 const PAY = { labelKey: 'subscription.notice.actions.pay', to: '/subscription' }
 const CHOOSE_PLAN = { labelKey: 'subscription.notice.actions.choosePlan', to: '/subscription/change' }
+const REVIEW_DELETION = { labelKey: 'subscription.notice.actions.reviewDeletion', to: '/subscription#delete-workspace' }
 const RESUME = { labelKey: 'subscription.notice.actions.resume', to: '/subscription' }
 const DAILY = { hours: NOTICE_DISMISS_HOURS }
 
@@ -62,7 +65,27 @@ export function noticeId(notice: Pick<ShellNotice, 'key' | 'level'>): string {
 }
 
 /**
- * Candidates in priority order (highest first). Implemented from today's inputs: all six rules. Not produced yet:
+ * A confirmed deletion request shows until it is withdrawn: the dated warning during the window, the undismissable
+ * final-hold warning once the window ended. `deleting` (access already stopped) and an unconfirmed request show nothing.
+ */
+function deletionNotice(deletion: NoticeSubscription['deletion']): ShellNotice | null {
+  if (deletion?.state === 'confirmed' && deletion.due_at) {
+    return {
+      key: 'workspace_deletion', level: 'scheduled', severity: 'warning', action: REVIEW_DELETION, dismissible: DAILY,
+      params: { date: riyadhDay(deletion.due_at) }, messageKey: 'subscription.notice.workspaceDeletion.scheduled',
+    }
+  }
+  if (deletion?.state === 'due' && deletion.hold_until) {
+    return {
+      key: 'workspace_deletion', level: 'hold', severity: 'error', action: REVIEW_DELETION, dismissible: false,
+      params: { date: riyadhDay(deletion.hold_until) }, messageKey: 'subscription.notice.workspaceDeletion.hold',
+    }
+  }
+  return null
+}
+
+/**
+ * Candidates in priority order (highest first). Implemented from today's inputs: every rule. Not produced yet:
  * the trial end for a plain member (waits for `/me` to carry the date) and the overdue grace date for a member
  * (same). A candidate whose input is missing is simply absent.
  */
@@ -89,6 +112,8 @@ function candidates(input: ShellNoticeInputs): ShellNotice[] {
         dismissible: final ? false : DAILY,
       })
     }
+    const deletion = deletionNotice(sub.deletion)
+    if (deletion) list.push(deletion)
     const trial = sub.state === 'trialing' ? trialDaysRemaining(sub.trial_ends_at, now) : null
     if (trial !== null && trial <= TRIAL_NOTICE_DAYS) {
       const final = trial <= TRIAL_FINAL_DAYS

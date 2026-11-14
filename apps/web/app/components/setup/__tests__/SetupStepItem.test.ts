@@ -11,7 +11,7 @@ const messages = {
   'setup.steps.team.title': 'الفريق', 'setup.steps.team.purpose': 'أضف زملاءك', 'setup.steps.team.action': 'افتح المستخدمين',
   'setup.state.todo': 'للإنجاز', 'setup.state.done': 'منجزة', 'setup.state.skipped': 'متخطّاة',
   'setup.actions.done': 'تمت', 'setup.actions.skip': 'تخطَّ', 'setup.actions.reopen': 'أعدها للإنجاز',
-  'setup.notes.feature': 'غير مضمَّن في باقتك', 'setup.notes.none': 'لا توجد صفحة', 'setup.notes.permission': 'لا صلاحية',
+  'setup.notes.feature': 'غير مضمَّن في باقتك', 'setup.notes.none': 'لا توجد صفحة', 'setup.notes.permission': 'لا صلاحية', 'setup.notes.permissionHolder': 'يكملها {holder}', 'setup.steps.team.holder': 'مدير الفريق',
 }
 
 const render = (props: { outcome: 'done' | 'skipped' | null; access: SetupTargetAccess }) => renderShared(file, { stepKey: 'team', busy: false, ...props }, {}, {
@@ -42,5 +42,12 @@ describe('SetupStepItem', () => {
     expect(feature).not.toContain('setup-step-open')
     expect(feature).toContain('setup-step-skip')
     expect(await render({ outcome: null, access: { kind: 'none' } })).toContain('لا توجد صفحة')
+  })
+
+  it('names who can complete a step the viewer lacks the permission for, and keeps it skippable', async () => {
+    const html = await render({ outcome: null, access: { kind: 'permission' } })
+    expect(html).toContain('يكملها مدير الفريق')
+    expect(html).not.toContain('setup-step-open')
+    expect(html).toContain('setup-step-skip')
   })
 })

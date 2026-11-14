@@ -56,7 +56,7 @@ const countsLabel = (counts: TenantExport['counts']) => counts
           <li>{{ t('settings.tenantExport.contents.overflow') }}</li>
         </ul>
         <p>{{ t('settings.tenantExport.never') }}</p>
-        <p class="text-muted">{{ t('settings.tenantExport.takesTime') }}<template v-if="retentionDays"> {{ t('settings.tenantExport.retention', { days: retentionDays }) }}</template></p>
+        <p class="text-muted">{{ [t('settings.tenantExport.takesTime'), retentionDays ? t('settings.tenantExport.retention', { days: retentionDays }) : ''].filter(Boolean).join(' ') }}</p>
         <div class="flex flex-wrap items-center gap-3">
           <UButton icon="i-lucide-archive" :disabled="!hydrated || busy || waiting || requesting" :loading="requesting" data-testid="tenant-export-request" @click="emit('request')">{{ t('settings.tenantExport.request') }}</UButton>
           <p v-if="busy" class="text-muted" data-testid="tenant-export-busy">{{ t('settings.tenantExport.busy') }}</p>

@@ -4,6 +4,7 @@ import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { normalizedPath } from '@/utils/routePath'
 import { ApiError } from '@/composables/useApi'
+import { customerName } from '@/composables/customers/customerName'
 import { useArchiveCustomer, useCustomer, useRestoreCustomer } from '@/composables/customers/useCustomers'
 
 const route = useRoute()
@@ -17,6 +18,7 @@ const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
 const isDetail = computed(() => normalizedPath(route.path) === `/customers/${route.params.id}`)
 const query = useCustomer(computed(() => isDetail.value && validId.value ? id.value : null))
 const customer = computed(() => query.data.value)
+const displayName = computed(() => customer.value ? customerName(customer.value, t) : '')
 // Invalid ids have no record to load and use the same not-found state as an unknown positive id.
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
@@ -73,7 +75,7 @@ const menuActions = computed<RowAction[]>(() => {
   <SharedRecordPage
     v-if="isDetail"
     :keep-content="!!customer"
-    :title="customer?.name || t('customers.recordTitle')"
+    :title="displayName || t('customers.recordTitle')"
     :tags="headerTags"
     :back-to="backTo"
     :loading="query.isLoading.value"
@@ -82,19 +84,19 @@ const menuActions = computed<RowAction[]>(() => {
   >
     <template v-if="customer && (canManage || canPrivacy)" #actions>
       <UButton v-if="canManage" color="primary" icon="i-lucide-pencil" :disabled="!hydrated" :to="recordChildTo(`/customers/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('app.edit')" data-testid="customer-edit" @click="!hydrated && $event.preventDefault()" />
-      <SharedRowActions :actions="menuActions" :label="t('customers.rowActions', { name: customer.name })" :disabled="archivePending" />
+      <SharedRowActions :actions="menuActions" :label="t('customers.rowActions', { name: displayName })" :disabled="archivePending" />
     </template>
     <SharedInlineConfirm
       v-if="customer && confirmArchive"
       :color="customer.active ? 'error' : 'primary'"
-      :title="t(customer.active ? 'customers.archiveConfirm' : 'customers.restoreConfirm', { name: customer.name })"
+      :title="t(customer.active ? 'customers.archiveConfirm' : 'customers.restoreConfirm', { name: displayName })"
       :description="archiveError ? t('errors.generic') : t(customer.active ? 'customers.archiveHint' : 'customers.restoreHint')"
       :confirm-label="customer.active ? t('customers.archive') : t('customers.restore')"
       :pending="archivePending"
       @confirm="toggleArchive"
       @cancel="confirmArchive = false; archiveError = null"
     />
-    <SharedIdentityCard v-if="customer" :id="customer.id" :name="customer.name" :subtitle="t(customer.is_company ? 'customers.kind.company' : 'customers.kind.person')" />
+    <SharedIdentityCard v-if="customer" :id="customer.id" :name="displayName" :subtitle="t(customer.is_company ? 'customers.kind.company' : 'customers.kind.person')" />
     <template v-if="customer" #aside>
       <SharedPropertiesPanel :title="t('customers.record.details')">
         <SharedPropertyRow v-if="customer.phone" :label="t('customers.form.phone')"><bdi dir="ltr" data-testid="customer-phone-value">{{ customer.phone }}</bdi></SharedPropertyRow>

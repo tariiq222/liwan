@@ -31,6 +31,8 @@ describe('TenantExportPanel', () => {
     const html = await render({ exports: [] })
     for (const key of ['contents.workbooks', 'contents.files', 'contents.manifest', 'never', 'takesTime']) expect(html).toContain(messages[`settings.tenantExport.${key}`])
     expect(html).toContain('for 7 days')
+    // The two sentences are one paragraph with a space between them (they once ran together).
+    expect(html).toContain(`${messages['settings.tenantExport.takesTime']} ${messages['settings.tenantExport.retention']?.replace('{days}', '7')}`)
     expect(html).toContain('data-testid="tenant-export-empty"')
     expect(await render({ exports: [], retentionDays: undefined })).not.toContain('days')
   })

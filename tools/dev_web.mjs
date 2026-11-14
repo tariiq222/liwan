@@ -74,7 +74,8 @@ export function createDevLaunch({ root = ROOT, env = process.env, args = [] } = 
   return {
     cwd,
     env: { ...env, ...profile, LIWAN_TENANCY_MODE: 'dedicated' },
-    args: [cli, 'dev', '--dotenv', profilePath, '--port', String(frontendPort), '--strictPort', '--no-takeover'],
+    // An explicit host: left unset, Nuxt resolves it to an empty object and `nuxt dev` fails on `hostname.toLowerCase`.
+    args: [cli, 'dev', '--dotenv', profilePath, '--port', String(frontendPort), '--host', 'localhost', '--strictPort', '--no-takeover'],
     worktree,
   }
 }

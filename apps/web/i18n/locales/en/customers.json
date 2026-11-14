@@ -4,6 +4,7 @@
     "new": "New customer",
     "edit": "Edit customer",
     "recordTitle": "Customer",
+    "erasedName": "Erased customer {id}",
     "search": "Search by name, phone or email",
     "clear": "Clear search",
     "empty": "No customers yet.",
@@ -179,7 +180,7 @@
           },
           "caller_cannot_reach_all_records": {
             "title": "You cannot see every record",
-            "action": "Some records of this kind are outside your access. Ask a manager with wider access to run the erase."
+            "action": "Some records of this kind are outside your access. Someone who also has access to the applications listed below must run the erase."
           },
           "unknown": {
             "title": "Unknown reason",
@@ -209,7 +210,10 @@
         "erased": {
           "title": "This customer is erased",
           "description": "Their personal data was erased before, and there is nothing left to erase."
-        }
+        },
+        "unavailable": "Not available",
+        "unavailableHint": "Your access does not reach every record of this item, so its count is not shown.",
+        "blockedApp": "{app}: {items}"
       },
       "items": {
         "customer": "Customer details and contacts",
@@ -252,6 +256,13 @@
         "backups": "Backups",
         "accounting_name_copies": "The name copied into accounting documents",
         "inbox_provider_events": "Messaging provider events kept as received"
+      },
+      "owners": {
+        "liwan_customers": "Customers",
+        "liwan_crm": "Customer management",
+        "liwan_inbox": "Customer messages",
+        "liwan_finance": "Finance",
+        "liwan_payments_customers": "Payments"
       }
     }
   }

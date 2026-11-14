@@ -19,6 +19,8 @@ export const SCRATCH_DB = 'liwan_scratch_e2e'
 const ODOO_ROOT = process.env.E2E_ODOO_ROOT || '/Users/tariq/code/odoo'
 const ODOO_DIR = join(ROOT, '.e2e', 'odoo')
 const REPORT_FILE = join(ROOT, '.e2e', 'report.json')
+// Remembered-device tokens tools/e2e_seed.py issues per login (git-ignored, mode 0600, never printed).
+export const DEVICE_FILE = join(ROOT, '.e2e', 'devices.json')
 
 // Only the fixed scratch database may be created, dropped or served.
 export function assertScratchDb(name) {
@@ -164,6 +166,12 @@ function tail(file, lines = 30) {
   }
 }
 
+// Nuxt 4.6 resolves an unset `devServer.host` to an empty object, and @nuxt/cli 4.0.1 then fails with
+// `options.hostname.toLowerCase is not a function`. An explicit host (NUXT_HOST, HOST or --host) avoids it.
+export function nuxtDevArgs(port) {
+  return ['nuxt', 'dev', '--port', String(port), '--host', '127.0.0.1']
+}
+
 function start(cmd, args, { cwd, env, logFile }) {
   const fd = openSync(logFile, 'w')
   // detached: own process group, so the whole tree (npx -> nuxt -> workers) can be killed.
@@ -246,7 +254,7 @@ function prepareOdoo({ port, pg, env }) {
   rmSync(classification, { force: true })
   const fixture = spawnSync('python3', ['-B', 'deploy/classification.py', 'fixture', '--database', db, '--mode', 'saas', '--output', classification], { cwd: ROOT, encoding: 'utf8' })
   if (fixture.status !== 0) throw new Error(`classification fixture failed: ${fixture.stderr}`)
-  const odooEnv = { ...env, PYTHONDONTWRITEBYTECODE: '1', LIWAN_COMMERCIAL_CONFIG: classification, PGHOST: pg.host, PGPORT: pg.port, PGUSER: pg.user }
+  const odooEnv = { ...env, PYTHONDONTWRITEBYTECODE: '1', LIWAN_COMMERCIAL_CONFIG: classification, E2E_DEVICE_FILE: DEVICE_FILE, PGHOST: pg.host, PGPORT: pg.port, PGUSER: pg.user }
   const python = join(ODOO_ROOT, '.venv', 'bin', 'python')
   const bin = join(ODOO_ROOT, 'odoo-bin')
   if (!existsSync(bin)) throw new Error(`Odoo checkout not found at ${ODOO_ROOT}`)
@@ -271,8 +279,8 @@ function prepareOdoo({ port, pg, env }) {
     console.error(`e2e_isolated: E2E_ODOO_UPDATE=1, updating ${db}`)
     if (odoo('update', { modules }) !== 0) throw new Error(`module update failed.\n--- ${prepLog} ---\n${tail(prepLog)}`)
     if (odoo('shell') !== 0) throw new Error(`seed failed.\n--- ${prepLog} ---\n${tail(prepLog)}`)
-  } else if (env.E2E_ODOO_SEED === '1') {
-    console.error(`e2e_isolated: E2E_ODOO_SEED=1, re-running the seed on ${db}`)
+  } else if (env.E2E_ODOO_SEED === '1' || !existsSync(DEVICE_FILE)) {
+    console.error(`e2e_isolated: re-running the seed on ${db} (E2E_ODOO_SEED=1 or no ${DEVICE_FILE})`)
     if (odoo('shell') !== 0) throw new Error(`seed failed.\n--- ${prepLog} ---\n${tail(prepLog)}`)
   }
   return { python, bin, conf, odooEnv, logFile, db }
@@ -333,7 +341,7 @@ async function main() {
       await waitFor(`http://127.0.0.1:${ports.mock}/`, mockChild, mockLog, 30_000, 'mock API', true)
       backend = { url: `http://127.0.0.1:${ports.mock}`, db: MOCK_DB, label: `mock :${ports.mock}` }
     }
-    const nuxtChild = start('npx', ['nuxt', 'dev', '--port', String(nuxt)], {
+    const nuxtChild = start('npx', nuxtDevArgs(nuxt), {
       cwd: WEB,
       env: {
         ...baseEnv,

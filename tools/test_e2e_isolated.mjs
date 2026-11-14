@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:net'
-import { PREFERRED, SCRATCH_DB, assertScratchDb, e2eCommand, forwardArgs, freePort, odooArgs, odooConf, parsePort, pgSettings, pickPorts, refusalReason, reportVerdict, stackName } from './e2e_isolated.mjs'
+import { PREFERRED, SCRATCH_DB, assertScratchDb, e2eCommand, forwardArgs, freePort, nuxtDevArgs, odooArgs, odooConf, parsePort, pgSettings, pickPorts, refusalReason, reportVerdict, stackName } from './e2e_isolated.mjs'
 
 test('refuses the daily dev origins', () => {
   assert.match(refusalReason('http://localhost:3000'), /refusing/)
@@ -59,6 +59,10 @@ test('pickPorts for the odoo stack picks odoo and nuxt only', async () => {
   assert.deepEqual(await pickPorts({ E2E_ODOO_PORT: '4701' }, async () => 1, yes, 'odoo'), { odoo: 4701, nuxt: PREFERRED.nuxt })
   assert.throws(() => parsePort('8069', 'E2E_ODOO_PORT'))
   await assert.rejects(pickPorts({ E2E_ODOO_PORT: '4701', E2E_NUXT_PORT: '4701' }, freePort, yes, 'odoo'))
+})
+
+test('nuxt dev gets an explicit loopback host', () => {
+  assert.deepEqual(nuxtDevArgs(43300), ['nuxt', 'dev', '--port', '43300', '--host', '127.0.0.1'])
 })
 
 test('the database guard only accepts liwan_scratch_e2e', () => {

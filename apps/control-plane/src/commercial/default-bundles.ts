@@ -7,9 +7,9 @@ import { CommercialHttpError, type CommercialActor } from './lifecycle.js'
 
 /** The seeded LiwanOS plan family (schema_025.sql): the one sellable platform plan whose applications are optional bundles. */
 const LIWAN_PLAN_ID = '00000000-0000-4000-8000-0000000000b1'
-/** Release 1 application prices per month in SAR minor units (owner decision 2026-11-06). Seed amounts only: the
+/** Release 1 application prices per month in SAR minor units (owner decisions 2026-11-06 and 2026-11-14). Seed amounts only: the
  *  vendor console owns every later change, and the annual price is exactly ten monthly payments. */
-const SEED_MONTHLY_MINOR: Record<string, number> = { crm: 9900, inbox: 25000 }
+const SEED_MONTHLY_MINOR: Record<string, number> = { crm: 9900, inbox: 25000, people: 11900, finance: 17900, projects: 11900 }
 const DEFAULT_SEED_MONTHLY_MINOR = 0
 /** Annual is ten months for twelve: the one ratio every seeded amount follows. */
 const ANNUAL_MONTHS = 10
@@ -57,7 +57,7 @@ export async function seedDefaultBundles(pool: Pool, actor: CommercialActor, inp
   // A plan revision compiles against one catalog release, so it lists only this release's bundles (validation refuses a mix).
   body.optional_bundle_revision_ids = bundleIds
   // The new revision is a clone of the previous one, which may carry limits this release no longer declares (a renamed one):
-  // compiling refuses those (limit_not_supported), so only the keys the release declares are kept. A limit the release adds
+  // compiling refuses those (limit_not_supported), so only the keys the release declares are kept.
   // A limit the release adds is seeded with the catalog's own ceiling for it (the free assistants' budget, 100 a month,
   // which is also what the seeded LiwanOS plan carries) and otherwise as null (unlimited fair use, owner decision
   // 2026-10-25), for the owner to tighten in the vendor console.

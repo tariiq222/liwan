@@ -8,12 +8,14 @@
  */
 import { test } from '@e2e-dev/web';
 import { credentials, expect } from 'e2e';
-import { PERSONA_KEYS } from '../../e2e/personas.ts';
+import { deviceToken } from '../devices.ts';
+import { PERSONA_KEYS } from '../personas.ts';
 
 for (const key of PERSONA_KEYS) {
   test.setup(`sign in as ${key}`, { sessions: [key], timeout: 120_000 }, async ({ app, screen, session, browser }) => {
     const user = credentials.user(key);
     await app.open('/login');
+    await browser.setCookies([{ url: '/', name: 'liwan_device', value: deviceToken(user.username), httpOnly: true, sameSite: 'Lax' }]);
     await screen.getByLabel('اسم المستخدم').fill(user.username);
     await screen.getByLabel('كلمة المرور').fill(user.password);
     await screen.getByRole('button', 'دخول').tap();

@@ -27,3 +27,12 @@ export function distinctReasons(incomplete: CustomerPrivacyIncomplete[]): string
   const present = new Set(incomplete.map(entry => entry.reason))
   return [...PRIVACY_REASONS.filter(reason => present.has(reason)), ...[...present].filter(reason => !knownPrivacyReason(reason))]
 }
+
+/** The blocked items of one reason, grouped by the application (`owner`) that holds them, in the order they came. */
+export function blockedByOwner(incomplete: CustomerPrivacyIncomplete[], reason: string): { owner: string, keys: string[] }[] {
+  const byOwner = new Map<string, string[]>()
+  for (const entry of incomplete.filter(blocker => blocker.reason === reason)) {
+    byOwner.set(entry.owner, [...byOwner.get(entry.owner) ?? [], entry.key])
+  }
+  return [...byOwner].map(([owner, keys]) => ({ owner, keys }))
+}

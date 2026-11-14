@@ -47,3 +47,21 @@ export const PaymentOverdue: Story = {
     },
   },
 }
+export const WorkspaceDeletionScheduled: Story = {
+  name: 'حذف مساحة العمل مجدول',
+  args: {
+    notice: {
+      key: 'workspace_deletion', level: 'scheduled', severity: 'warning', params: { date: '2027-02-12' }, messageKey: 'subscription.notice.workspaceDeletion.scheduled',
+      action: { labelKey: 'subscription.notice.actions.reviewDeletion', to: '/subscription#delete-workspace' }, dismissible: { hours: 24 },
+    },
+  },
+}
+export const WorkspaceDeletionHold: Story = {
+  name: 'المهلة الأخيرة قبل الحذف',
+  args: {
+    notice: {
+      key: 'workspace_deletion', level: 'hold', severity: 'error', params: { date: '2027-02-14' }, messageKey: 'subscription.notice.workspaceDeletion.hold',
+      action: { labelKey: 'subscription.notice.actions.reviewDeletion', to: '/subscription#delete-workspace' }, dismissible: false,
+    },
+  },
+}

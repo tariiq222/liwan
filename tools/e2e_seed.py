@@ -14,6 +14,7 @@ requests) are left to the tests, which create them through the UI.
 Every password below is a test-only credential for the disposable scratch
 database; the defaults are mirrored in e2e.config.ts and can be overridden with E2E_USER_<KEY>_PASSWORD.
 """
+import json
 import os
 
 DB_GUARD = 'liwan_scratch_e2e'
@@ -208,6 +209,20 @@ for department_name, head_key in DEPARTMENT_HEADS.items():
 self_service_user = env['res.users'].search([('login', '=', 'e2e_employee')])  # noqa: F821
 if not env['hr.employee'].with_context(active_test=False).search_count([('user_id', '=', self_service_user.id)]):  # noqa: F821
     env['hr.employee'].create({'name': self_service_user.name, 'user_id': self_service_user.id, 'company_id': company.id})  # noqa: F821
+
+# Sign-in is two-step and the scratch stack has no mail or SMS, so the code cannot be read. Each login gets a
+# remembered device issued through the product's own model (what a successful second step would do); the raw tokens
+# go to the git-ignored file E2E_DEVICE_FILE names, which the persona setup loads as the `liwan_device` cookie.
+device_file = os.environ.get('E2E_DEVICE_FILE')
+if device_file:
+    devices = {}
+    for login in [account[0] for account in ACCOUNTS] + [f'e2e_{key}' for key in employees]:
+        device_user = users.search([('login', '=', login)], limit=1)
+        devices[login] = env['liwan.login.device']._liwan_issue(device_user, 'e2e scratch')[1]  # noqa: F821
+    os.makedirs(os.path.dirname(device_file), exist_ok=True)
+    descriptor = os.open(device_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, 'w') as handle:
+        json.dump(devices, handle)
 
 env.cr.commit()  # noqa: F821
 print('e2e seed done:', [account[0] for account in ACCOUNTS], [f'e2e_{key}' for key in employees])  # noqa: T201

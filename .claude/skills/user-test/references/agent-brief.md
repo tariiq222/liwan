@@ -13,6 +13,11 @@ do NOT fix anything, do not commit, do not push, do not open GitHub issues.
   One browser context per persona, `locale: 'ar'`. Keep at most <MAX_CONTEXTS> contexts open and
   close them when done. First compile of a page can take 60–90 s; retry 429/503 from the proxy.
 - Sign in at /login: «اسم المستخدم», «كلمة المرور», «دخول»; wait until the URL leaves /login.
+  Sign-in has a second step (an emailed code) that the scratch stack cannot deliver. Before filling the form,
+  add the persona's remembered-device cookie to its context: read `<LANE>/.e2e/devices.json` (login to token,
+  git-ignored; if missing or without the login, run the wrapper once with `E2E_ODOO_SEED=1`) and call
+  `context.addCookies([{ name: 'liwan_device', value: token, url: 'http://localhost:43300', httpOnly: true, sameSite: 'Lax' }])`.
+  The login page then finishes the second step by itself. Never print tokens or the file.
   Logins and test-only passwords are in `e2e.config.ts` / `tools/e2e_seed.py`; never print them.
 - Personas and their roles: `e2e/scenarios/README.md`. Branch personas (`jeddah_staff`,
   `dammam_manager`) serve every «another company» row. `custom role (...)` rows map to the closest
