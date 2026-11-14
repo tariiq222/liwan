@@ -370,7 +370,6 @@
       }
     },
     "sections": {
-      "overview": "نظرة عامة",
       "company": {
         "title": "الشركة",
         "profile": "الملف التعريفي",
@@ -396,9 +395,6 @@
         "branches": "الفروع",
         "invoices": "الفواتير"
       }
-    },
-    "overview": {
-      "separator": "، "
     },
     "preview": {
       "latest": "آخر السجلات",

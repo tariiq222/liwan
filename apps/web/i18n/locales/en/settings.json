@@ -370,7 +370,6 @@
       }
     },
     "sections": {
-      "overview": "Overview",
       "company": {
         "title": "Company",
         "profile": "Company profile",
@@ -396,9 +395,6 @@
         "branches": "Branches",
         "invoices": "Invoices"
       }
-    },
-    "overview": {
-      "separator": ", "
     },
     "preview": {
       "latest": "Latest records",

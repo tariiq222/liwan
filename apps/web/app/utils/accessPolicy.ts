@@ -119,10 +119,10 @@ export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const pathname = new URL(target, 'http://liwan.local').pathname
   return canReachPath(identity, pathname) ? target : fallback
 }
-/** The settings overview page; every other settings page lives beneath it, so it matches only itself. */
-export const SETTINGS_OVERVIEW_PATH = '/settings'
+/** The settings entry address: it redirects to the first reachable settings page, and every settings page lives beneath it, so it matches only itself. */
+export const SETTINGS_ENTRY_PATH = '/settings'
 export function isNavPathActive(path: string, target: string): boolean {
-  if (target === SETTINGS_OVERVIEW_PATH) return path === target
+  if (target === SETTINGS_ENTRY_PATH) return path === target
   for (const manifest of activeManifests()) {
     const active = manifest.isNavActive?.(path, target)
     if (active !== undefined) return active
