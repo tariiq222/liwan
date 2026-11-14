@@ -166,9 +166,9 @@ class LiwanInboxTemplate(models.Model):
 
     def _liwan_header_handle(self, credentials):
         """Upload the sample file of a media header to Meta and return its handle."""
-        attachment, app_id = self.header_example_attachment_id, self.channel_id.app_id
+        attachment, app_id = self.header_example_attachment_id, self.channel_id.connection_id.app_id
         if not (attachment and app_id):
-            raise UserError(self.env._('A media header needs a sample file and the Meta app id of the channel.'))
+            raise UserError(self.env._('A media header needs a sample file and the Meta app id of the connection.'))
         return whatsapp.upload_resumable(credentials, app_id, attachment.name, attachment.mimetype, attachment.raw)
 
     def _liwan_apply_answer(self, answer):

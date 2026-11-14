@@ -7,7 +7,7 @@ import unittest
 from deploy import tiktok_webhook as tw
 
 SHARED_REDIRECT = 'https://hooks.liwan.test/tiktok/oauth/callback'
-DIRECT_REDIRECT = 'https://acme.liwan.test/api/v1/inbox/tiktok/callback'
+DIRECT_REDIRECT = 'https://acme.liwan.test/api/v1/integrations/oauth/tiktok/callback'
 CONFIG = {
     'LIWAN_TIKTOK_CLIENT_KEY': 'test-only-client-key',
     'LIWAN_TIKTOK_CLIENT_SECRET': 'test-only-client-secret',

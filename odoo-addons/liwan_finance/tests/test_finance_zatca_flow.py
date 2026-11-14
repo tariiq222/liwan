@@ -40,10 +40,8 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertEqual(result.status_code, 200, result.text)
         return result.json()
 
-    def _connection(self):
-        return self.env['liwan.integration.connection'].search([
-            ('company_id', '=', self.company.id), ('kind', '=', 'zatca'),
-        ])
+    def _integration_status(self):
+        return self.env['liwan.integration.registry']._liwan_external_status('zatca', self.company)
 
     def test_onboarding_runs_the_stock_three_steps_against_the_sandbox_only(self):
         result = self.onboard()
@@ -56,6 +54,15 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         status = self._status()
         self.assertEqual((status['api_mode'], status['private_key_present'], status['onboarded']), ('sandbox', True, True))
         self.assertNoSecrets(self.api('GET', STATUS))
+
+    def test_an_integrations_reader_without_accounting_access_sees_the_true_zatca_state(self):
+        self.user_with('zatca_integrations_reader', ['integrations.read'])
+        self.onboarded_journal()
+        self.login_as('zatca_integrations_reader')
+        items = self.api('GET', '/api/v1/integrations/connections').json()['items']
+        item = next(row for row in items if row['provider'] == 'zatca')
+        self.assertEqual((item['state'], item['status_message']), ('connected', 'ZATCA sandbox: 1 of 1 sales journals onboarded'))
+        self.assertEqual(item['settings_path'], '/settings/apps/finance#zatca')
 
     def test_the_stock_edi_cron_is_active_and_runs_hourly_with_an_immediate_trigger_per_submission(self):
         cron = self.env.ref('account_edi.ir_cron_edi_network')
@@ -121,21 +128,21 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         )
         self.assertNotIn(SANDBOX_OTP, ' '.join(logs.output))
 
-    def test_onboarding_updates_the_integrations_connection(self):
-        self.assertEqual(self._connection().state, 'not_configured')
+    def test_the_integrations_status_follows_the_onboarded_journals(self):
+        self.assertEqual(self._integration_status()['state'], 'not_configured')
         self.onboard()
-        connection = self._connection()
-        self.assertEqual(connection.state, 'connected')
-        self.assertEqual(connection.status_message, 'ZATCA sandbox: 1 of 1 sales journals onboarded')
-        self.assertTrue(connection.last_checked)
+        status = self._integration_status()
+        self.assertEqual(
+            (status['state'], status['status_message']), ('connected', 'ZATCA sandbox: 1 of 1 sales journals onboarded'),
+        )
 
-    def test_one_journal_of_two_leaves_the_connection_pending(self):
+    def test_one_journal_of_two_leaves_the_integration_pending(self):
         self.env['account.journal'].create({
             'name': 'Second sales', 'code': 'SAL2', 'type': 'sale', 'company_id': self.company.id,
         })
         self.onboard()
-        connection = self._connection()
-        self.assertEqual((connection.state, connection.status_message), ('pending', 'ZATCA sandbox: 1 of 2 sales journals onboarded'))
+        status = self._integration_status()
+        self.assertEqual((status['state'], status['status_message']), ('pending', 'ZATCA sandbox: 1 of 2 sales journals onboarded'))
 
     def test_a_company_without_its_address_is_refused_before_zatca_is_asked(self):
         self.company.write({'street': False, 'city': False})
@@ -156,7 +163,7 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertNotIn(SANDBOX_OTP, result.text)
         self.assertNoSecrets(result)
         self.assertFalse(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
-        self.assertEqual(self._connection().state, 'not_configured')
+        self.assertEqual(self._integration_status()['state'], 'not_configured')
 
     def test_zatca_down_is_502_zatca_unavailable(self):
         for name, handler in (
@@ -206,7 +213,7 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.zatca.answers['compliance'] = answer(400, {'errors': [{'code': 'Invalid-OTP', 'message': 'Invalid OTP'}]})
         self.assertRefused(self.onboard(), 422, 'zatca_rejected')
         self.assertTrue(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
-        self.assertEqual(self._connection().state, 'connected')
+        self.assertEqual(self._integration_status()['state'], 'connected')
         self.zatca.answers.clear()
         self.assertEqual(self.onboard().status_code, 200)
 

@@ -25,7 +25,7 @@ ENVIRONMENT_KEYS = ('LIWAN_TIKTOK_CLIENT_KEY', 'LIWAN_TIKTOK_CLIENT_SECRET', 'LI
 # The two deployment shapes of D13: the shared relay host, and a tenant's own server.
 WEBHOOK_PATHS = {
     '/tiktok/oauth/callback': '/tiktok/webhook',
-    '/api/v1/inbox/tiktok/callback': '/api/v1/inbox/hooks/tiktok',
+    '/api/v1/integrations/oauth/tiktok/callback': '/api/v1/inbox/hooks/tiktok',
 }
 COMMANDS = ('register', 'show', 'delete')
 

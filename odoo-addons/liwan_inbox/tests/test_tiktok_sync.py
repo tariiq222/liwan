@@ -1,7 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The TikTok history import: the job its cron advances, its counters, its failures and its routes."""
 import json
-import os
 import time
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -10,13 +9,11 @@ import requests
 
 from odoo import fields
 from odoo.tests import tagged
-from odoo.tests.common import HOST
 
 from . import tiktok_payloads as tt
-from .common import LiwanInboxCase
+from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe_feature
 from odoo.addons.liwan_inbox.adapters import tiktok
-from odoo.addons.liwan_inbox.controllers.tiktok_oauth import encode_state
 from odoo.addons.liwan_inbox.models.constants import (
     AUTOMATION_FEATURE,
     TIKTOK_ECHO_SETTLE,
@@ -26,8 +23,6 @@ from odoo.addons.liwan_inbox.models.constants import (
 ACCESS_TOKEN = 'tiktok-access-token-sync'
 REFRESH_TOKEN = 'tiktok-refresh-token-sync'
 CONNECTED_OPEN_ID = 'business-open-id-connected'
-REDIRECT_URI = 'https://liwan.test/api/v1/inbox/tiktok/callback'
-CALLBACK = '/api/v1/inbox/tiktok/callback'
 SYNC_PATH = '/api/v1/inbox/channels/%d/tiktok/sync'
 # A conversation last updated outside the import window (D11: the last 90 days), in milliseconds like the fixtures.
 OLD = 1_780_000_000_000
@@ -73,15 +68,9 @@ class TestTikTokSync(LiwanInboxCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        now = fields.Datetime.now()
-        cls.tiktok = cls.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': tt.BUSINESS_ID, 'state': 'connected',
-        })
-        cls.tiktok._liwan_tiktok_store(tiktok.TokenGrant(
-            open_id=tt.BUSINESS_ID, scopes=frozenset(tiktok.SCOPES),
-            access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
-            expires_at=now + timedelta(days=1), refresh_expires_at=now + timedelta(days=365),
-        ))
+        cls.tiktok = cls.make_tiktok_channel(
+            authorization=tiktok_grant(access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN),
+        )
 
     def setUp(self):
         super().setUp()
@@ -141,26 +130,11 @@ class TestTikTokSync(LiwanInboxCase):
             *(self.customer(conversation_id, message_id) for conversation_id, message_id in HISTORY),
         ]
 
-    def callback(self, channel=None):
-        """The connect callback of a new channel (or of `channel`), against a stubbed TikTok answer."""
-        config = tiktok.AppConfig(tt.CLIENT_KEY, tt.CLIENT_SECRET, REDIRECT_URI)
-        state = encode_state(config, {
-            'c': self.env.company.id, 'u': self.manager.id, 'ch': channel.id if channel else 0,
-            'n': 'TikTok shop', 'd': 0, 'h': HOST, 'x': int(time.time()) + 600,
-        })
-        now = fields.Datetime.now()
-        grant = tiktok.TokenGrant(
-            open_id=CONNECTED_OPEN_ID, scopes=frozenset(tiktok.SCOPES), access_token=ACCESS_TOKEN,
-            refresh_token=REFRESH_TOKEN, expires_at=now + timedelta(days=1), refresh_expires_at=now + timedelta(days=365),
-        )
-        with patch.dict(os.environ, {
-            'LIWAN_TIKTOK_CLIENT_KEY': tt.CLIENT_KEY,
-            'LIWAN_TIKTOK_CLIENT_SECRET': tt.CLIENT_SECRET,
-            'LIWAN_TIKTOK_REDIRECT_URI': REDIRECT_URI,
-        }), patch.object(tiktok, 'exchange_code', return_value=grant), patch.object(
-            tiktok, 'business_profile', return_value=tiktok.Profile('liwan_shop', 'Liwan Shop'),
-        ):
-            return self.url_open(f'{CALLBACK}?code=code-1&state={state}', method='GET', allow_redirects=False)
+    def create_channel(self):
+        """Create a TikTok channel on a connected account through the API; returns the HTTP answer."""
+        self.login(self.manager)
+        connection = self.make_tiktok_connection(CONNECTED_OPEN_ID)
+        return self.api('POST', '/api/v1/inbox/channels', {'name': 'TikTok shop', 'kind': 'tiktok', 'connection_id': connection.id})
 
     def deliver(self, payload):
         """Deliver one webhook payload and process it on the next cron run, after the echo settle time."""
@@ -184,18 +158,18 @@ class TestTikTokSync(LiwanInboxCase):
         self.assertEqual(job.owner_company_id, self.tiktok.owner_company_id)
         self.assertEqual(self.pending(job), [])
 
-    def test_the_connect_callback_queues_the_first_import(self):
-        self.assertEqual(self.callback().status_code, 302)
-        channel = self.env['liwan.inbox.channel'].search([('tiktok_business_id', '=', CONNECTED_OPEN_ID)])
+    def test_creating_the_channel_queues_the_first_import(self):
+        self.assertEqual(self.create_channel().status_code, 200)
+        channel = self.env['liwan.inbox.channel'].search([('connection_id.external_id', '=', CONNECTED_OPEN_ID)])
         self.assertEqual(len(channel), 1)
         job = self.jobs(channel)
         self.assertEqual(len(job), 1)
         self.assertEqual((job.state, job.phase), ('queued', 'single'))
         self.assertEqual(job.owner_company_id, channel.owner_company_id)
 
-    def test_a_reconnect_of_an_imported_account_queues_nothing(self):
+    def test_queueing_the_first_import_of_an_imported_account_adds_nothing(self):
         self.queue().write({'state': 'done'})
-        self.assertEqual(self.callback(self.tiktok).status_code, 302)
+        self.tiktok._liwan_tiktok_queue_first_sync()
         self.assertEqual(len(self.jobs()), 1)
 
     def test_steps_walk_single_then_stranger_pages_then_messages(self):
@@ -370,13 +344,13 @@ class TestTikTokSync(LiwanInboxCase):
     def test_an_expired_refresh_token_fails_the_job(self):
         job = self.queue()
         expired = fields.Datetime.now() - timedelta(minutes=1)
-        self.tiktok.write({'token_expires_at': expired, 'refresh_expires_at': expired})
+        self.tiktok.connection_id.write({'token_expires_at': expired, 'refresh_expires_at': expired})
         with patch.object(requests, 'request') as request:
             self.step(job)
         self.assertEqual(job.state, 'failed')
-        self.assertIn('Reconnect the TikTok account', job.error)
+        self.assertIn('again', job.error)
         self.assertEqual(request.call_count, 0)
-        self.assertEqual(self.tiktok.state, 'error')
+        self.assertEqual(self.tiktok.connection_id.state, 'error')
 
     # the cron
 
@@ -433,10 +407,7 @@ class TestTikTokSync(LiwanInboxCase):
         set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
         self.assertError(self.api('GET', self.path(self.channel)), 404, 'not_found')
         other = self.env['res.company'].create({'name': 'Other tenant'})
-        channel = self.env['liwan.inbox.channel'].create({
-            'name': 'Other TikTok', 'kind': 'tiktok', 'owner_company_id': other.id,
-            'tiktok_business_id': 'other-business-open-id',
-        })
+        channel = self.make_tiktok_channel('other-business-open-id', owner_company_id=other.id, name='Other TikTok')
         job = self.env['liwan.inbox.tiktok.sync'].create({'channel_id': channel.id, 'owner_company_id': other.id})
         self.assertError(self.api('GET', self.path(channel)), 404, 'not_found')
         self.assertError(self.api('POST', self.path(channel)), 404, 'not_found')

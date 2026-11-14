@@ -4,12 +4,13 @@ import InboxProfilePreview from '@/components/inbox/InboxProfilePreview.vue'
 import {
   PROFILE_LIMITS, PROFILE_VERTICALS, changedProfileFields, draftPatch, mergeDraft, profileErrors, profileToDraft, type ProfileDraft, type ProfileField,
 } from '@/composables/inbox/inboxProfile'
+import { connectionPagePath } from '@/composables/inbox/inboxChannelConnection'
 import { useSaveInboxBusinessProfile, useUploadInboxProfilePicture } from '@/composables/inbox/useInboxChannelHealth'
 
 // The WhatsApp business profile as a form with live counters, a picture upload and a preview. It edits a draft of the
 // profile read from Meta, sends only the changed fields, and is protected against leaving with unsaved changes. The
 // picture is uploaded on its own (it goes to Meta at once) and never disturbs the text being edited.
-const props = defineProps<{ channelId: number; channelName: string; appId: string | null; profile: InboxBusinessProfile }>()
+const props = defineProps<{ channelId: number; channelName: string; connectionId: number; appId: string | null; profile: InboxBusinessProfile }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
@@ -81,7 +82,7 @@ function onPicture(event: Event) {
           <p v-if="pictureError" role="alert" class="text-sm text-error" data-testid="inbox-profile-picture-error">{{ pictureError }}</p>
           <UAlert
             v-if="!appId" color="info" variant="subtle" icon="i-lucide-info" :title="t('inbox.profile.picture.needsAppId')" data-testid="inbox-profile-needs-app-id"
-            :actions="[{ label: t('inbox.profile.picture.appIdLink'), to: `/settings/apps/inbox/channels/${channelId}`, color: 'neutral', variant: 'outline' }]"
+            :actions="[{ label: t('inbox.profile.picture.appIdLink'), to: connectionPagePath(connectionId), color: 'neutral', variant: 'outline' }]"
           />
         </div>
       </SharedRecordSection>

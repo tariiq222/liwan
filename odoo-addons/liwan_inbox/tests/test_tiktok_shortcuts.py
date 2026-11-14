@@ -8,7 +8,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from . import tiktok_payloads as tt
-from .common import LiwanInboxCase
+from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_ECHO_SETTLE, TIKTOK_FEATURE
@@ -32,15 +32,9 @@ class TestTikTokShortcuts(LiwanInboxCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        now = fields.Datetime.now()
-        cls.tiktok = cls.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': tt.BUSINESS_ID, 'state': 'connected',
-        })
-        cls.tiktok._liwan_tiktok_store(tiktok.TokenGrant(
-            open_id=tt.BUSINESS_ID, scopes=frozenset(tiktok.SCOPES),
-            access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
-            expires_at=now + timedelta(days=1), refresh_expires_at=now + timedelta(days=365),
-        ))
+        cls.tiktok = cls.make_tiktok_channel(
+            authorization=tiktok_grant(access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN),
+        )
 
     def setUp(self):
         super().setUp()
@@ -192,10 +186,7 @@ class TestTikTokShortcuts(LiwanInboxCase):
 
     def test_another_companys_channel_is_not_found(self):
         other = self.env['res.company'].create({'name': 'Other tenant'})
-        channel = self.env['liwan.inbox.channel'].create({
-            'name': 'Other TikTok', 'kind': 'tiktok', 'owner_company_id': other.id,
-            'tiktok_business_id': 'other-business-open-id',
-        })
+        channel = self.make_tiktok_channel('other-business-open-id', owner_company_id=other.id, name='Other TikTok')
         shortcut = self.env['liwan.inbox.tiktok.shortcut'].create({
             'channel_id': channel.id, 'kind': 'question', 'question': 'Q?', 'answer': 'A.',
         })

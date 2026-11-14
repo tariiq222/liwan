@@ -4,6 +4,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import type { InboxBusinessProfile } from '@liwan/contracts'
+import { connectionPagePath } from '../../../composables/inbox/inboxChannelConnection'
 import * as profileHelpers from '../../../composables/inbox/inboxProfile'
 
 const filename = new URL('../InboxBusinessProfileForm.vue', import.meta.url).pathname
@@ -24,13 +25,13 @@ function mountForm(props: { appId?: string | null } = {}) {
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, computed: Vue.computed, watch: Vue.watch,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }),
-    ...profileHelpers, InboxProfilePreview: {},
+    ...profileHelpers, connectionPagePath, InboxProfilePreview: {},
     useSaveInboxBusinessProfile: () => ({ mutate: save, isPending: Vue.ref(false) }),
     useUploadInboxProfilePicture: () => ({ mutate: upload, isPending: Vue.ref(false) }),
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
-  const reactiveProps = Vue.reactive({ channelId: 4, channelName: 'واتساب', appId: '123', profile: PROFILE, ...props })
+  const reactiveProps = Vue.reactive({ channelId: 4, channelName: 'واتساب', connectionId: 1, appId: '123', profile: PROFILE, ...props })
   const state = Vue.proxyRefs(Vue.effectScope().run(() => component.setup(reactiveProps, { expose: () => {}, emit: () => {} })))
   state.picker = { reset }
   return { state, props: reactiveProps, save, upload, toast, reset }

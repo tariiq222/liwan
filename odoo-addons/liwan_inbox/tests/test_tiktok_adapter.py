@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The TikTok adapter: the webhook signature, OAuth payloads and every event shape it parses."""
+"""The TikTok adapter: the webhook signature and every event shape it parses."""
 import calendar
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -12,15 +12,6 @@ from . import tiktok_payloads as tt
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 
 CREDENTIALS = tiktok.Credentials(tt.BUSINESS_ID, 'access-token-1')
-CONFIG = tiktok.AppConfig(tt.CLIENT_KEY, tt.CLIENT_SECRET, 'https://liwan.test/api/v1/inbox/tiktok/callback')
-TOKEN_ANSWER = {
-    'open_id': tt.BUSINESS_ID,
-    'scope': 'user.info.basic,message.list.read',
-    'access_token': 'access-1',
-    'refresh_token': 'refresh-1',
-    'expires_in': 86400,
-    'refresh_token_expires_in': 31536000,
-}
 
 
 def response(body=None, status=200, content=b'', headers=None):
@@ -141,38 +132,6 @@ class TestTikTokAdapter(BaseCase):
         self.assertEqual(self.parse(tt.mark_read(by_customer=False)), [])
         self.assertEqual(len(self.parse(tt.mark_read(by_customer=True))), 1)
 
-    def test_exchange_and_refresh_payloads(self):
-        with patch.object(requests, 'request', return_value=response(tt.answer(TOKEN_ANSWER))) as request:
-            grant = tiktok.exchange_code(CONFIG, 'auth-code-1')
-        self.assertEqual(request.call_args.args[0], 'POST')
-        self.assertEqual(request.call_args.args[1], tiktok.API_BASE + '/tt_user/oauth2/token/')
-        self.assertEqual(request.call_args.kwargs['json'], {
-            'client_id': tt.CLIENT_KEY,
-            'client_secret': tt.CLIENT_SECRET,
-            'grant_type': 'authorization_code',
-            'auth_code': 'auth-code-1',
-            'redirect_uri': CONFIG.redirect_uri,
-        })
-        self.assertNotIn('Access-Token', request.call_args.kwargs['headers'])
-        self.assertEqual(grant.open_id, tt.BUSINESS_ID)
-        self.assertEqual(grant.scopes, frozenset({'user.info.basic', 'message.list.read'}))
-        self.assertEqual((grant.access_token, grant.refresh_token), ('access-1', 'refresh-1'))
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        self.assertAlmostEqual((grant.expires_at - now).total_seconds(), 86400, delta=5)
-        self.assertAlmostEqual((grant.refresh_expires_at - now).total_seconds(), 31536000, delta=5)
-
-        with patch.object(requests, 'request', return_value=response(tt.answer(TOKEN_ANSWER))) as request:
-            renewed = tiktok.refresh_tokens(CONFIG, 'refresh-1')
-        self.assertEqual(request.call_args.args[1], tiktok.API_BASE + '/tt_user/oauth2/refresh_token/')
-        self.assertEqual(request.call_args.kwargs['json'], {
-            'client_id': tt.CLIENT_KEY,
-            'client_secret': tt.CLIENT_SECRET,
-            'grant_type': 'refresh_token',
-            'refresh_token': 'refresh-1',
-        })
-        self.assertEqual(renewed.refresh_token, 'refresh-1')
-        self.assertAlmostEqual((renewed.expires_at - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds(), 86400, delta=5)
-
     def test_error_classification(self):
         cases = [
             ('server', response({'code': 50000, 'message': 'internal'}, status=500), True, 50000),
@@ -183,7 +142,7 @@ class TestTikTokAdapter(BaseCase):
         for name, answer, retryable, code in cases:
             with self.subTest(case=name), patch.object(requests, 'request', return_value=answer):
                 with self.assertRaises(errors.ProviderError) as caught:
-                    tiktok.exchange_code(CONFIG, 'auth-code-1')
+                    tiktok.get_auto_messages(CREDENTIALS, 'WELCOME_MESSAGE')
                 self.assertEqual(caught.exception.retryable, retryable)
                 self.assertEqual(caught.exception.code, code)
 
@@ -191,40 +150,14 @@ class TestTikTokAdapter(BaseCase):
         malformed.json.side_effect = ValueError('not json')
         with patch.object(requests, 'request', return_value=malformed):
             with self.assertRaises(errors.ProviderError) as caught:
-                tiktok.exchange_code(CONFIG, 'auth-code-1')
+                tiktok.get_auto_messages(CREDENTIALS, 'WELCOME_MESSAGE')
         self.assertFalse(caught.exception.retryable)
 
         no_data = response({'code': 0, 'message': 'OK'})
         with patch.object(requests, 'request', return_value=no_data):
             with self.assertRaises(errors.ProviderError) as caught:
-                tiktok.exchange_code(CONFIG, 'auth-code-1')
+                tiktok.get_auto_messages(CREDENTIALS, 'WELCOME_MESSAGE')
         self.assertFalse(caught.exception.retryable)
-
-    def test_app_config_requires_all_three(self):
-        environ = {
-            'LIWAN_TIKTOK_CLIENT_KEY': tt.CLIENT_KEY,
-            'LIWAN_TIKTOK_CLIENT_SECRET': tt.CLIENT_SECRET,
-            'LIWAN_TIKTOK_REDIRECT_URI': CONFIG.redirect_uri,
-        }
-        config = tiktok.app_config(environ)
-        self.assertEqual(config, CONFIG)
-        for missing in environ:
-            with self.subTest(missing=missing):
-                self.assertIsNone(tiktok.app_config({key: value for key, value in environ.items() if key != missing}))
-                self.assertIsNone(tiktok.app_config({**environ, missing: '  '}))
-        self.assertIsNone(tiktok.app_config({}))
-
-    def test_business_profile(self):
-        with patch.object(requests, 'request', return_value=response(tt.answer({
-            'username': 'liwan.shop', 'display_name': 'Liwan Shop',
-        }))) as request:
-            profile = tiktok.business_profile(CREDENTIALS)
-        self.assertEqual(profile, tiktok.Profile('liwan.shop', 'Liwan Shop'))
-        self.assertEqual(request.call_args.args[1], tiktok.API_BASE + '/business/get/')
-        self.assertEqual(request.call_args.kwargs['params'], {
-            'business_id': tt.BUSINESS_ID, 'fields': 'username,display_name,profile_image',
-        })
-        self.assertEqual(request.call_args.kwargs['headers']['Access-Token'], 'access-token-1')
 
     def test_send_text_with_quote(self):
         answer = response(tt.answer({'message': {'message_id': 'msg-out-1'}}))
@@ -521,29 +454,3 @@ class TestTikTokAdapter(BaseCase):
         self.assertEqual(calls[4].args[1], tiktok.API_BASE + '/business/message/auto_message/status/update/')
         self.assertEqual(calls[4].kwargs['json']['operation_status'], 'ENABLE')
         self.assertEqual(calls[5].kwargs['json']['operation_status'], 'DISABLE')
-
-    def test_webhook_admin_calls(self):
-        found = response(tt.answer({'callback_url': 'https://liwan.test/api/v1/inbox/hooks/tiktok'}))
-        missing = response(tt.answer({}))
-        empty = response(tt.answer({}))
-        callback = 'https://liwan.test/api/v1/inbox/hooks/tiktok'
-        with patch.object(requests, 'request', side_effect=[found, missing, empty, empty]) as request:
-            self.assertEqual(tiktok.webhook_show(CONFIG), callback)
-            self.assertIsNone(tiktok.webhook_show(CONFIG))
-            tiktok.webhook_register(CONFIG, callback)
-            tiktok.webhook_delete(CONFIG)
-        calls = request.call_args_list
-        self.assertEqual(calls[0].args[:2], ('GET', tiktok.API_BASE + '/business/webhook/list/'))
-        self.assertEqual(calls[0].kwargs['params'], {
-            'app_id': tt.CLIENT_KEY, 'secret': tt.CLIENT_SECRET, 'event_type': 'DIRECT_MESSAGE',
-        })
-        self.assertNotIn('Access-Token', calls[0].kwargs['headers'])
-        self.assertEqual(calls[2].args[1], tiktok.API_BASE + '/business/webhook/update/')
-        self.assertEqual(calls[2].kwargs['json'], {
-            'app_id': tt.CLIENT_KEY, 'secret': tt.CLIENT_SECRET, 'event_type': 'DIRECT_MESSAGE',
-            'callback_url': callback,
-        })
-        self.assertEqual(calls[3].args[1], tiktok.API_BASE + '/business/webhook/delete/')
-        self.assertEqual(calls[3].kwargs['json'], {
-            'app_id': tt.CLIENT_KEY, 'secret': tt.CLIENT_SECRET, 'event_type': 'DIRECT_MESSAGE',
-        })

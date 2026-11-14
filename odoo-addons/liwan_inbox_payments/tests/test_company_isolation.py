@@ -56,10 +56,13 @@ class TestInboxPaymentsCompanyIsolation(CompanyIsolationCase):
         cls.recs = {}
         for i, (tag, company) in enumerate(cls.by_tag.items(), start=1):
             account = f'20000000{i:04d}'
+            connection = cls.env['liwan.integration.connection'].create({
+                'company_id': company.id, 'provider': 'meta', 'external_id': account, 'state': 'connected',
+            })
+            connection._liwan_store_secrets({'access_token': ACCESS_TOKEN, 'app_secret': APP_SECRET})
             channel = Channel.create({
-                'name': f'Channel {tag}', 'phone_number_id': f'90000000{i:04d}', 'business_account_id': account,
+                'name': f'Channel {tag}', 'phone_number_id': f'90000000{i:04d}', 'connection_id': connection.id,
                 'state': 'connected', 'owner_company_id': company.id,
-                **Channel._liwan_secret_values(access_token=ACCESS_TOKEN, app_secret=APP_SECRET),
             })
             catalog = cls.env['liwan.inbox.catalog'].create({
                 'company_id': company.id, 'business_account_id': account, 'meta_catalog_id': CATALOG_ID,

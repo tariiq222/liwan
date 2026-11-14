@@ -1,8 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import timedelta
 
-# The purpose the inbox passes to liwan_core's secret_box: its HKDF info, so existing ciphertexts keep decrypting.
-SECRET_PURPOSE = 'liwan_inbox'
 INBOX_FEATURE = 'inbox.enabled'
 CHANNELS_LIMIT = 'inbox.channels'
 MESSAGES_OUT_LIMIT = 'inbox.messages_out'
@@ -10,14 +8,15 @@ WHATSAPP_FEATURE = 'inbox.whatsapp'
 TIKTOK_FEATURE = 'inbox.tiktok'
 # The sub-feature that gates one channel kind, checked on the channel create and on its routes.
 CHANNEL_FEATURES = {'whatsapp': WHATSAPP_FEATURE, 'tiktok': TIKTOK_FEATURE}
-# TikTok: the OAuth state lives ten minutes, and these scopes are the ones a channel cannot work without.
-TIKTOK_STATE_TTL = timedelta(minutes=10)
-# An access token this close to its deadline is replaced before it is used.
-TIKTOK_TOKEN_MARGIN = timedelta(minutes=5)
+# The public webhook path of each channel kind: the source of the uses' `webhook_path` and of the web proxy's route list.
+HOOK_PATHS = {'whatsapp': '/api/v1/inbox/hooks/whatsapp', 'tiktok': '/api/v1/inbox/hooks/tiktok'}
+# The uses of liwan.integration.registry that a channel of each kind holds (provider `meta` and `tiktok`).
+CHANNEL_USES = {'whatsapp': 'inbox.whatsapp', 'tiktok': 'inbox.tiktok'}
 # A TikTok event this young waits one cron run: the outbox may not have stored its provider message id yet, so
 # its own send would look like a message from another client and be stored twice (D6).
 TIKTOK_ECHO_SETTLE = timedelta(seconds=30)
-TIKTOK_REQUIRED_SCOPES = frozenset({'user.info.basic', 'message.list.read', 'message.list.send'})
+# The scopes a TikTok connection must have granted for a channel to work.
+TIKTOK_REQUIRED_SCOPES = ('message.list.read', 'message.list.send', 'user.info.basic')
 AUTOMATION_FEATURE = 'inbox.automation'
 TEMPLATES_FEATURE = 'inbox.templates'
 FLOWS_FEATURE = 'inbox.flows'

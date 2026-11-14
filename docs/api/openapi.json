@@ -8616,8 +8616,20 @@
           "price": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0,
+                "minimum": 0,
                 "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
               },
               {
                 "type": "null"
@@ -8683,6 +8695,7 @@
         "required": [
           "online_payment",
           "deposit_percent",
+          "product_id",
           "price",
           "currency",
           "refund_policy",
@@ -8711,6 +8724,11 @@
           "price": {
             "exclusiveMinimum": 0,
             "type": "number"
+          },
+          "product_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
           },
           "refund_amounts": {
             "anyOf": [
@@ -16359,28 +16377,18 @@
         ],
         "type": "object"
       },
-      "CrmPackageCreateSchema": {
+      "CrmPackageAddSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "description": {
-            "maxLength": 2000,
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "type": "string"
-          },
-          "price": {
-            "maximum": 999999999,
-            "minimum": 0,
-            "type": "number"
+          "product_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
           }
         },
         "required": [
-          "name",
-          "price"
+          "product_id"
         ],
         "type": "object"
       },
@@ -16407,7 +16415,6 @@
                   "type": "string"
                 },
                 "price": {
-                  "maximum": 999999999,
                   "minimum": 0,
                   "type": "number"
                 }
@@ -16454,7 +16461,6 @@
             "type": "string"
           },
           "price": {
-            "maximum": 999999999,
             "minimum": 0,
             "type": "number"
           }
@@ -20010,6 +20016,9 @@
                     "null"
                   ]
                 },
+                "erased": {
+                  "type": "boolean"
+                },
                 "id": {
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
@@ -20142,6 +20151,7 @@
               "required": [
                 "id",
                 "name",
+                "erased",
                 "phone",
                 "email",
                 "is_company",
@@ -20376,6 +20386,9 @@
               "null"
             ]
           },
+          "erased": {
+            "type": "boolean"
+          },
           "id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -20508,6 +20521,7 @@
         "required": [
           "id",
           "name",
+          "erased",
           "phone",
           "email",
           "is_company",
@@ -45535,7 +45549,10 @@
             "type": "boolean"
           },
           "href": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "process": {
             "anyOf": [
@@ -45638,12 +45655,17 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "href": {
-            "type": "string"
+          "can_review": {
+            "type": "boolean"
           },
           "request_id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
             "type": "integer"
           },
           "state": {
@@ -45722,7 +45744,8 @@
         "required": [
           "request_id",
           "state",
-          "href",
+          "revision",
+          "can_review",
           "steps"
         ],
         "type": "object"
@@ -53524,6 +53547,9 @@
                   ],
                   "type": "string"
                 },
+                "erased": {
+                  "type": "boolean"
+                },
                 "id": {
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
@@ -53565,7 +53591,8 @@
                 "name",
                 "phone",
                 "consent",
-                "tags"
+                "tags",
+                "erased"
               ],
               "type": "object"
             },
@@ -53594,6 +53621,9 @@
               "opted_out"
             ],
             "type": "string"
+          },
+          "erased": {
+            "type": "boolean"
           },
           "id": {
             "exclusiveMinimum": 0,
@@ -53636,7 +53666,8 @@
           "name",
           "phone",
           "consent",
-          "tags"
+          "tags",
+          "erased"
         ],
         "type": "object"
       },
@@ -55247,6 +55278,9 @@
               {
                 "additionalProperties": false,
                 "properties": {
+                  "erased": {
+                    "type": "boolean"
+                  },
                   "id": {
                     "exclusiveMinimum": 0,
                     "maximum": 9007199254740991,
@@ -55258,7 +55292,8 @@
                 },
                 "required": [
                   "id",
-                  "name"
+                  "name",
+                  "erased"
                 ],
                 "type": "object"
               },
@@ -55330,6 +55365,9 @@
                 "contact": {
                   "additionalProperties": false,
                   "properties": {
+                    "erased": {
+                      "type": "boolean"
+                    },
                     "id": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -55348,6 +55386,7 @@
                   "required": [
                     "id",
                     "name",
+                    "erased",
                     "phone"
                   ],
                   "type": "object"
@@ -55510,6 +55549,9 @@
           "contact": {
             "additionalProperties": false,
             "properties": {
+              "erased": {
+                "type": "boolean"
+              },
               "id": {
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
@@ -55528,6 +55570,7 @@
             "required": [
               "id",
               "name",
+              "erased",
               "phone"
             ],
             "type": "object"
@@ -56675,177 +56718,48 @@
         ],
         "type": "object"
       },
-      "InboxCatalogImageUploadSchema": {
+      "InboxCatalogItemCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "data": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "mimetype": {
+          "availability": {
             "enum": [
-              "image/jpeg",
-              "image/png"
+              "in_stock",
+              "out_of_stock"
             ],
             "type": "string"
           },
-          "name": {
-            "maxLength": 255,
+          "link_override": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "listed": {
+            "type": "boolean"
+          },
+          "product_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "product_retailer_id": {
+            "maxLength": 100,
             "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]+$",
             "type": "string"
           }
         },
         "required": [
-          "name",
-          "mimetype",
-          "data"
+          "product_id"
         ],
         "type": "object"
-      },
-      "InboxCatalogItemCreateSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "anyOf": [
-          {
-            "additionalProperties": false,
-            "properties": {
-              "availability": {
-                "enum": [
-                  "in_stock",
-                  "out_of_stock"
-                ],
-                "type": "string"
-              },
-              "link_override": {
-                "anyOf": [
-                  {
-                    "format": "uri",
-                    "maxLength": 2000,
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "listed": {
-                "type": "boolean"
-              },
-              "product_id": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              "product_retailer_id": {
-                "maxLength": 100,
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9._-]+$",
-                "type": "string"
-              }
-            },
-            "required": [
-              "product_id"
-            ],
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "properties": {
-              "availability": {
-                "enum": [
-                  "in_stock",
-                  "out_of_stock"
-                ],
-                "type": "string"
-              },
-              "link_override": {
-                "anyOf": [
-                  {
-                    "format": "uri",
-                    "maxLength": 2000,
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "listed": {
-                "type": "boolean"
-              },
-              "product": {
-                "additionalProperties": false,
-                "properties": {
-                  "description": {
-                    "anyOf": [
-                      {
-                        "maxLength": 5000,
-                        "minLength": 1,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "image": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "data": {
-                        "minLength": 1,
-                        "type": "string"
-                      },
-                      "mimetype": {
-                        "enum": [
-                          "image/jpeg",
-                          "image/png"
-                        ],
-                        "type": "string"
-                      },
-                      "name": {
-                        "maxLength": 255,
-                        "minLength": 1,
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "name",
-                      "mimetype",
-                      "data"
-                    ],
-                    "type": "object"
-                  },
-                  "list_price": {
-                    "minimum": 0,
-                    "type": "number"
-                  },
-                  "name": {
-                    "maxLength": 150,
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "name",
-                  "description",
-                  "list_price",
-                  "image"
-                ],
-                "type": "object"
-              },
-              "product_retailer_id": {
-                "maxLength": 100,
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9._-]+$",
-                "type": "string"
-              }
-            },
-            "required": [
-              "product"
-            ],
-            "type": "object"
-          }
-        ]
       },
       "InboxCatalogItemListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -57072,60 +56986,6 @@
           },
           "listed": {
             "type": "boolean"
-          },
-          "product": {
-            "additionalProperties": false,
-            "properties": {
-              "description": {
-                "anyOf": [
-                  {
-                    "maxLength": 5000,
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "image": {
-                "additionalProperties": false,
-                "properties": {
-                  "data": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "enum": [
-                      "image/jpeg",
-                      "image/png"
-                    ],
-                    "type": "string"
-                  },
-                  "name": {
-                    "maxLength": 255,
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "name",
-                  "mimetype",
-                  "data"
-                ],
-                "type": "object"
-              },
-              "list_price": {
-                "minimum": 0,
-                "type": "number"
-              },
-              "name": {
-                "maxLength": 150,
-                "minLength": 1,
-                "type": "string"
-              }
-            },
-            "type": "object"
           },
           "product_retailer_id": {
             "maxLength": 100,
@@ -57673,214 +57533,6 @@
         ],
         "type": "object"
       },
-      "InboxCatalogProductCreateSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "description": {
-            "anyOf": [
-              {
-                "maxLength": 5000,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "image": {
-            "additionalProperties": false,
-            "properties": {
-              "data": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "mimetype": {
-                "enum": [
-                  "image/jpeg",
-                  "image/png"
-                ],
-                "type": "string"
-              },
-              "name": {
-                "maxLength": 255,
-                "minLength": 1,
-                "type": "string"
-              }
-            },
-            "required": [
-              "name",
-              "mimetype",
-              "data"
-            ],
-            "type": "object"
-          },
-          "list_price": {
-            "minimum": 0,
-            "type": "number"
-          },
-          "name": {
-            "maxLength": 150,
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "description",
-          "list_price",
-          "image"
-        ],
-        "type": "object"
-      },
-      "InboxCatalogProductOptionListSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "currency": {
-                  "pattern": "^[A-Z]{3}$",
-                  "type": "string"
-                },
-                "has_image": {
-                  "type": "boolean"
-                },
-                "id": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "list_price": {
-                  "minimum": 0,
-                  "type": "number"
-                },
-                "listed": {
-                  "type": "boolean"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name",
-                "list_price",
-                "currency",
-                "has_image",
-                "listed"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "total": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "type": "object"
-      },
-      "InboxCatalogProductOptionSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "currency": {
-            "pattern": "^[A-Z]{3}$",
-            "type": "string"
-          },
-          "has_image": {
-            "type": "boolean"
-          },
-          "id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "list_price": {
-            "minimum": 0,
-            "type": "number"
-          },
-          "listed": {
-            "type": "boolean"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "list_price",
-          "currency",
-          "has_image",
-          "listed"
-        ],
-        "type": "object"
-      },
-      "InboxCatalogProductPatchSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "description": {
-            "anyOf": [
-              {
-                "maxLength": 5000,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "image": {
-            "additionalProperties": false,
-            "properties": {
-              "data": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "mimetype": {
-                "enum": [
-                  "image/jpeg",
-                  "image/png"
-                ],
-                "type": "string"
-              },
-              "name": {
-                "maxLength": 255,
-                "minLength": 1,
-                "type": "string"
-              }
-            },
-            "required": [
-              "name",
-              "mimetype",
-              "data"
-            ],
-            "type": "object"
-          },
-          "list_price": {
-            "minimum": 0,
-            "type": "number"
-          },
-          "name": {
-            "maxLength": 150,
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "InboxCatalogSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -58048,6 +57700,76 @@
           "error"
         ],
         "type": "string"
+      },
+      "InboxChannelAccountListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "app_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "external_id": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "provider": {
+                  "enum": [
+                    "meta",
+                    "tiktok"
+                  ],
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "pending",
+                    "connected",
+                    "error",
+                    "disabled"
+                  ],
+                  "type": "string"
+                },
+                "status_message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "provider",
+                "external_id",
+                "label",
+                "app_id",
+                "state",
+                "status_message"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
       },
       "InboxChannelAlertKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -59557,70 +59279,141 @@
         ],
         "type": "object"
       },
-      "InboxChannelCreateSchema": {
+      "InboxChannelConnectionSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "access_token": {
-            "maxLength": 1024,
-            "minLength": 16,
-            "type": "string"
-          },
           "app_id": {
-            "anyOf": [
-              {
-                "pattern": "^\\d{5,32}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
-          "app_secret": {
-            "maxLength": 256,
-            "minLength": 16,
+          "external_id": {
             "type": "string"
           },
-          "business_account_id": {
-            "pattern": "^\\d{5,32}$",
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "label": {
             "type": "string"
           },
-          "department_id": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "kind": {
-            "const": "whatsapp",
+          "provider": {
+            "enum": [
+              "meta",
+              "tiktok"
+            ],
             "type": "string"
           },
-          "name": {
-            "maxLength": 128,
-            "minLength": 1,
+          "state": {
+            "enum": [
+              "pending",
+              "connected",
+              "error",
+              "disabled"
+            ],
             "type": "string"
           },
-          "phone_number_id": {
-            "pattern": "^\\d{5,32}$",
+          "status_message": {
             "type": "string"
           }
         },
         "required": [
-          "name",
-          "kind",
-          "phone_number_id",
-          "business_account_id",
-          "access_token",
-          "app_secret"
+          "id",
+          "provider",
+          "external_id",
+          "label",
+          "app_id",
+          "state",
+          "status_message"
         ],
         "type": "object"
+      },
+      "InboxChannelCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "connection_id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "department_id": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "kind": {
+                "const": "whatsapp",
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "phone_number_id": {
+                "pattern": "^\\d{5,32}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "kind",
+              "connection_id",
+              "phone_number_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "connection_id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "department_id": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "kind": {
+                "const": "tiktok",
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "kind",
+              "connection_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "InboxChannelHealthSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -59800,20 +59593,56 @@
             "items": {
               "additionalProperties": false,
               "properties": {
-                "app_id": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "business_account_id": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "callback_url": {
-                  "type": "string"
+                "connection": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "app_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "external_id": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "enum": [
+                        "meta",
+                        "tiktok"
+                      ],
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "pending",
+                        "connected",
+                        "error",
+                        "disabled"
+                      ],
+                      "type": "string"
+                    },
+                    "status_message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "provider",
+                    "external_id",
+                    "label",
+                    "app_id",
+                    "state",
+                    "status_message"
+                  ],
+                  "type": "object"
                 },
                 "department": {
                   "anyOf": [
@@ -59838,21 +59667,6 @@
                     {
                       "type": "null"
                     }
-                  ]
-                },
-                "has_access_token": {
-                  "type": "boolean"
-                },
-                "has_app_secret": {
-                  "type": [
-                    "boolean",
-                    "null"
-                  ]
-                },
-                "has_verify_token": {
-                  "type": [
-                    "boolean",
-                    "null"
                   ]
                 },
                 "health": {
@@ -60075,13 +59889,6 @@
                   "default": false,
                   "type": "boolean"
                 },
-                "tiktok_username": {
-                  "default": null,
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
                 "tiktok_welcome_audit": {
                   "anyOf": [
                     {
@@ -60090,18 +59897,6 @@
                         "approved",
                         "rejected"
                       ],
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "default": null
-                },
-                "token_expires_at": {
-                  "anyOf": [
-                    {
-                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
                       "type": "string"
                     },
                     {
@@ -60118,17 +59913,10 @@
                 "state",
                 "department",
                 "phone_number_id",
-                "business_account_id",
-                "has_access_token",
-                "has_app_secret",
-                "app_id",
-                "has_verify_token",
-                "callback_url",
+                "connection",
                 "last_error",
                 "last_event_at",
                 "health",
-                "tiktok_username",
-                "token_expires_at",
                 "needs_reconnect",
                 "tiktok_welcome_audit",
                 "tiktok_questions_enabled",
@@ -60154,27 +59942,6 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "access_token": {
-            "maxLength": 1024,
-            "minLength": 16,
-            "type": "string"
-          },
-          "app_id": {
-            "anyOf": [
-              {
-                "pattern": "^\\d{5,32}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "app_secret": {
-            "maxLength": 256,
-            "minLength": 16,
-            "type": "string"
-          },
           "department_id": {
             "anyOf": [
               {
@@ -60203,20 +59970,56 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "app_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "business_account_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "callback_url": {
-            "type": "string"
+          "connection": {
+            "additionalProperties": false,
+            "properties": {
+              "app_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "external_id": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "label": {
+                "type": "string"
+              },
+              "provider": {
+                "enum": [
+                  "meta",
+                  "tiktok"
+                ],
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "pending",
+                  "connected",
+                  "error",
+                  "disabled"
+                ],
+                "type": "string"
+              },
+              "status_message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "provider",
+              "external_id",
+              "label",
+              "app_id",
+              "state",
+              "status_message"
+            ],
+            "type": "object"
           },
           "department": {
             "anyOf": [
@@ -60241,21 +60044,6 @@
               {
                 "type": "null"
               }
-            ]
-          },
-          "has_access_token": {
-            "type": "boolean"
-          },
-          "has_app_secret": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "has_verify_token": {
-            "type": [
-              "boolean",
-              "null"
             ]
           },
           "health": {
@@ -60478,13 +60266,6 @@
             "default": false,
             "type": "boolean"
           },
-          "tiktok_username": {
-            "default": null,
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "tiktok_welcome_audit": {
             "anyOf": [
               {
@@ -60493,18 +60274,6 @@
                   "approved",
                   "rejected"
                 ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          },
-          "token_expires_at": {
-            "anyOf": [
-              {
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
                 "type": "string"
               },
               {
@@ -60521,17 +60290,10 @@
           "state",
           "department",
           "phone_number_id",
-          "business_account_id",
-          "has_access_token",
-          "has_app_secret",
-          "app_id",
-          "has_verify_token",
-          "callback_url",
+          "connection",
           "last_error",
           "last_event_at",
           "health",
-          "tiktok_username",
-          "token_expires_at",
           "needs_reconnect",
           "tiktok_welcome_audit",
           "tiktok_questions_enabled",
@@ -61410,6 +61172,29 @@
         },
         "type": "object"
       },
+      "InboxContactRefSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "erased": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "erased"
+        ],
+        "type": "object"
+      },
       "InboxContactSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -61419,6 +61204,9 @@
               "string",
               "null"
             ]
+          },
+          "erased": {
+            "type": "boolean"
           },
           "id": {
             "exclusiveMinimum": 0,
@@ -61439,7 +61227,8 @@
           "id",
           "name",
           "phone",
-          "email"
+          "email",
+          "erased"
         ],
         "type": "object"
       },
@@ -61513,6 +61302,9 @@
                   "null"
                 ]
               },
+              "erased": {
+                "type": "boolean"
+              },
               "id": {
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
@@ -61532,7 +61324,8 @@
               "id",
               "name",
               "phone",
-              "email"
+              "email",
+              "erased"
             ],
             "type": "object"
           },
@@ -61810,6 +61603,9 @@
                         "null"
                       ]
                     },
+                    "erased": {
+                      "type": "boolean"
+                    },
                     "id": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -61829,7 +61625,8 @@
                     "id",
                     "name",
                     "phone",
-                    "email"
+                    "email",
+                    "erased"
                   ],
                   "type": "object"
                 },
@@ -62180,6 +61977,9 @@
                   "null"
                 ]
               },
+              "erased": {
+                "type": "boolean"
+              },
               "id": {
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
@@ -62199,7 +61999,8 @@
               "id",
               "name",
               "phone",
-              "email"
+              "email",
+              "erased"
             ],
             "type": "object"
           },
@@ -67183,6 +66984,9 @@
                 "contact": {
                   "additionalProperties": false,
                   "properties": {
+                    "erased": {
+                      "type": "boolean"
+                    },
                     "id": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -67194,7 +66998,8 @@
                   },
                   "required": [
                     "id",
-                    "name"
+                    "name",
+                    "erased"
                   ],
                   "type": "object"
                 },
@@ -67420,6 +67225,9 @@
           "contact": {
             "additionalProperties": false,
             "properties": {
+              "erased": {
+                "type": "boolean"
+              },
               "id": {
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
@@ -67431,7 +67239,8 @@
             },
             "required": [
               "id",
-              "name"
+              "name",
+              "erased"
             ],
             "type": "object"
           },
@@ -70016,6 +69825,9 @@
                         "contact": {
                           "additionalProperties": false,
                           "properties": {
+                            "erased": {
+                              "type": "boolean"
+                            },
                             "id": {
                               "exclusiveMinimum": 0,
                               "maximum": 9007199254740991,
@@ -70027,7 +69839,8 @@
                           },
                           "required": [
                             "id",
-                            "name"
+                            "name",
+                            "erased"
                           ],
                           "type": "object"
                         },
@@ -71457,6 +71270,9 @@
                   "contact": {
                     "additionalProperties": false,
                     "properties": {
+                      "erased": {
+                        "type": "boolean"
+                      },
                       "id": {
                         "exclusiveMinimum": 0,
                         "maximum": 9007199254740991,
@@ -71468,7 +71284,8 @@
                     },
                     "required": [
                       "id",
-                      "name"
+                      "name",
+                      "erased"
                     ],
                     "type": "object"
                   },
@@ -72184,6 +72001,9 @@
               "contact": {
                 "additionalProperties": false,
                 "properties": {
+                  "erased": {
+                    "type": "boolean"
+                  },
                   "id": {
                     "exclusiveMinimum": 0,
                     "maximum": 9007199254740991,
@@ -72195,7 +72015,8 @@
                 },
                 "required": [
                   "id",
-                  "name"
+                  "name",
+                  "erased"
                 ],
                 "type": "object"
               },
@@ -72671,6 +72492,9 @@
                 "contact": {
                   "additionalProperties": false,
                   "properties": {
+                    "erased": {
+                      "type": "boolean"
+                    },
                     "id": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -72682,7 +72506,8 @@
                   },
                   "required": [
                     "id",
-                    "name"
+                    "name",
+                    "erased"
                   ],
                   "type": "object"
                 },
@@ -73135,6 +72960,9 @@
           "contact": {
             "additionalProperties": false,
             "properties": {
+              "erased": {
+                "type": "boolean"
+              },
               "id": {
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
@@ -73146,7 +72974,8 @@
             },
             "required": [
               "id",
-              "name"
+              "name",
+              "erased"
             ],
             "type": "object"
           },
@@ -80494,50 +80323,6 @@
         ],
         "type": "string"
       },
-      "InboxTikTokConnectResponseSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "authorize_url": {
-            "format": "uri",
-            "maxLength": 4000,
-            "type": "string"
-          }
-        },
-        "required": [
-          "authorize_url"
-        ],
-        "type": "object"
-      },
-      "InboxTikTokConnectSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "channel_id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "department_id": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "name": {
-            "maxLength": 128,
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "InboxTikTokShortcutCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "oneOf": [
@@ -81180,19 +80965,6 @@
         ],
         "type": "object"
       },
-      "InboxVerifyTokenSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "verify_token": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "verify_token"
-        ],
-        "type": "object"
-      },
       "InboxVisibilityPolicySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -81275,6 +81047,57 @@
         ],
         "type": "object"
       },
+      "IntegrationAuthSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "keys",
+          "oauth",
+          "external"
+        ],
+        "type": "string"
+      },
+      "IntegrationConnectionCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "external_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "provider": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "maxLength": 1024,
+              "minLength": 8,
+              "type": "string"
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "provider",
+          "external_id",
+          "secrets"
+        ],
+        "type": "object"
+      },
       "IntegrationConnectionListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -81283,16 +81106,49 @@
             "items": {
               "additionalProperties": false,
               "properties": {
-                "id": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
+                "app_id": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
-                "kind": {
+                "auth": {
                   "enum": [
-                    "zatca",
-                    "bank"
+                    "keys",
+                    "oauth",
+                    "external"
                   ],
+                  "type": "string"
+                },
+                "external_id": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "label": {
                   "type": "string"
                 },
                 "last_checked": {
@@ -81305,26 +81161,106 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "ref": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "secrets": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "present": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "present"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "settings_path": {
+                  "anyOf": [
+                    {
+                      "format": "starts_with",
+                      "pattern": "^\\/.*",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "state": {
                   "enum": [
                     "not_configured",
                     "pending",
                     "connected",
-                    "error"
+                    "error",
+                    "disabled"
                   ],
                   "type": "string"
                 },
                 "status_message": {
                   "type": "string"
+                },
+                "token_expires_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "used_by": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "webhooks": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "url": {
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      "use": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "use",
+                      "url"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
                 }
               },
               "required": [
+                "ref",
                 "id",
-                "kind",
                 "provider",
+                "auth",
+                "external_id",
+                "label",
+                "app_id",
                 "state",
+                "status_message",
                 "last_checked",
-                "status_message"
+                "token_expires_at",
+                "secrets",
+                "used_by",
+                "webhooks",
+                "settings_path"
               ],
               "type": "object"
             },
@@ -81346,16 +81282,49 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
+          "app_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "kind": {
+          "auth": {
             "enum": [
-              "zatca",
-              "bank"
+              "keys",
+              "oauth",
+              "external"
             ],
+            "type": "string"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
             "type": "string"
           },
           "last_checked": {
@@ -81368,36 +81337,394 @@
             "minLength": 1,
             "type": "string"
           },
+          "ref": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "secrets": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "present": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "present"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "settings_path": {
+            "anyOf": [
+              {
+                "format": "starts_with",
+                "pattern": "^\\/.*",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "state": {
             "enum": [
               "not_configured",
               "pending",
               "connected",
-              "error"
+              "error",
+              "disabled"
             ],
             "type": "string"
           },
           "status_message": {
             "type": "string"
+          },
+          "token_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "used_by": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "webhooks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "format": "uri",
+                  "type": "string"
+                },
+                "use": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "use",
+                "url"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           }
         },
         "required": [
+          "ref",
           "id",
-          "kind",
           "provider",
+          "auth",
+          "external_id",
+          "label",
+          "app_id",
           "state",
+          "status_message",
           "last_checked",
-          "status_message"
+          "token_expires_at",
+          "secrets",
+          "used_by",
+          "webhooks",
+          "settings_path"
         ],
         "type": "object"
       },
-      "IntegrationKindSchema": {
+      "IntegrationConnectionUpdateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "enum": [
-          "zatca",
-          "bank"
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "maxLength": 1024,
+              "minLength": 8,
+              "type": "string"
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "IntegrationOAuthStartResponseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "authorize_url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "authorize_url"
         ],
-        "type": "string"
+        "type": "object"
+      },
+      "IntegrationOAuthStartSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "uses": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "uses"
+        ],
+        "type": "object"
+      },
+      "IntegrationProviderListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "attributes": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "auth": {
+                  "enum": [
+                    "keys",
+                    "oauth",
+                    "external"
+                  ],
+                  "type": "string"
+                },
+                "code": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "generated_secrets": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "secrets": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "settings_path": {
+                  "anyOf": [
+                    {
+                      "format": "starts_with",
+                      "pattern": "^\\/.*",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "uses": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "owner": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "owner"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "code",
+                "auth",
+                "secrets",
+                "generated_secrets",
+                "attributes",
+                "uses",
+                "settings_path"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "IntegrationProviderSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "auth": {
+            "enum": [
+              "keys",
+              "oauth",
+              "external"
+            ],
+            "type": "string"
+          },
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "generated_secrets": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "secrets": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "settings_path": {
+            "anyOf": [
+              {
+                "format": "starts_with",
+                "pattern": "^\\/.*",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "uses": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "owner": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "owner"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "auth",
+          "secrets",
+          "generated_secrets",
+          "attributes",
+          "uses",
+          "settings_path"
+        ],
+        "type": "object"
+      },
+      "IntegrationSecretRotationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "value": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object"
+      },
+      "IntegrationSecretSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "present": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "present"
+        ],
+        "type": "object"
       },
       "IntegrationStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -81405,9 +81732,48 @@
           "not_configured",
           "pending",
           "connected",
-          "error"
+          "error",
+          "disabled"
         ],
         "type": "string"
+      },
+      "IntegrationUseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "owner": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "owner"
+        ],
+        "type": "object"
+      },
+      "IntegrationWebhookSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "use": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "use",
+          "url"
+        ],
+        "type": "object"
       },
       "InvitationAcceptedSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -91393,6 +91759,9 @@
           "created_at": {
             "type": "string"
           },
+          "href": {
+            "type": "string"
+          },
           "id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -94481,6 +94850,920 @@
           "open",
           "done",
           "cancelled"
+        ],
+        "type": "string"
+      },
+      "ProductCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image": {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "maxLength": 6990508,
+                "minLength": 1,
+                "type": "string"
+              },
+              "mimetype": {
+                "enum": [
+                  "image/jpeg",
+                  "image/png"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "mimetype",
+              "data"
+            ],
+            "type": "object"
+          },
+          "list_price": {
+            "maximum": 1000000000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taxes": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "goods",
+              "service"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "type": "object"
+      },
+      "ProductCurrencySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "symbol"
+        ],
+        "type": "object"
+      },
+      "ProductImageMimetypeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "image/jpeg",
+          "image/png"
+        ],
+        "type": "string"
+      },
+      "ProductImageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "maxLength": 6990508,
+            "minLength": 1,
+            "type": "string"
+          },
+          "mimetype": {
+            "enum": [
+              "image/jpeg",
+              "image/png"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "mimetype",
+          "data"
+        ],
+        "type": "object"
+      },
+      "ProductListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "company": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "has_image": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "list_price": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "price": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "amount_tax": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "amount_total": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "amount_untaxed": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "currency": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "symbol"
+                      ],
+                      "type": "object"
+                    },
+                    "unit_price": {
+                      "minimum": 0,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "unit_price",
+                    "amount_untaxed",
+                    "amount_tax",
+                    "amount_total",
+                    "currency"
+                  ],
+                  "type": "object"
+                },
+                "taxes": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amount": {
+                        "type": "number"
+                      },
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "amount"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "type": {
+                  "enum": [
+                    "goods",
+                    "service"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "type",
+                "description",
+                "has_image",
+                "list_price",
+                "price",
+                "company",
+                "active"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "ProductPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "maxLength": 6990508,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "enum": [
+                      "image/jpeg",
+                      "image/png"
+                    ],
+                    "type": "string"
+                  },
+                  "name": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "mimetype",
+                  "data"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "list_price": {
+            "maximum": 1000000000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taxes": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "goods",
+              "service"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProductPickListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount_tax": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "amount_total": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "amount_untaxed": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "currency": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "symbol": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "symbol"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "goods",
+                    "service"
+                  ],
+                  "type": "string"
+                },
+                "unit_price": {
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "type",
+                "unit_price",
+                "amount_untaxed",
+                "amount_tax",
+                "amount_total",
+                "currency"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "ProductPickSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_tax": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "amount_total": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "amount_untaxed": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "currency": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "symbol"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "goods",
+              "service"
+            ],
+            "type": "string"
+          },
+          "unit_price": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "unit_price",
+          "amount_untaxed",
+          "amount_tax",
+          "amount_total",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "ProductPriceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_tax": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "amount_total": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "amount_untaxed": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "currency": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "symbol"
+            ],
+            "type": "object"
+          },
+          "unit_price": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "unit_price",
+          "amount_untaxed",
+          "amount_tax",
+          "amount_total",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "ProductSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "has_image": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "list_price": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "price": {
+            "additionalProperties": false,
+            "properties": {
+              "amount_tax": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "amount_total": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "amount_untaxed": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "currency": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "symbol": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "symbol"
+                ],
+                "type": "object"
+              },
+              "unit_price": {
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "unit_price",
+              "amount_untaxed",
+              "amount_tax",
+              "amount_total",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "taxes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "amount"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "goods",
+              "service"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "description",
+          "has_image",
+          "list_price",
+          "price",
+          "company",
+          "active"
+        ],
+        "type": "object"
+      },
+      "ProductSettingsPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "sharing": {
+            "enum": [
+              "establishment",
+              "branch"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "sharing",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "ProductSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "can_manage": {
+            "type": "boolean"
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "sharing": {
+            "enum": [
+              "establishment",
+              "branch"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "sharing",
+          "can_manage",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "ProductSharingSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "establishment",
+          "branch"
+        ],
+        "type": "string"
+      },
+      "ProductTaxChoiceListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "amount",
+                "active"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "ProductTaxChoiceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "amount",
+          "active"
+        ],
+        "type": "object"
+      },
+      "ProductTaxSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "ProductTypeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "goods",
+          "service"
         ],
         "type": "string"
       },
@@ -114397,7 +115680,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_crm.CrmListsController.create_package.post",
+        "operationId": "liwan_crm.CrmListsController.add_package.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -114414,7 +115697,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "create_package",
+        "summary": "add_package",
         "tags": [
           "liwan_crm"
         ],
@@ -114429,7 +115712,7 @@
             "crm.enabled"
           ],
           "feature_operation": "write",
-          "handler": "create_package",
+          "handler": "add_package",
           "readonly": false,
           "route_type": "json2"
         }
@@ -114437,7 +115720,7 @@
     },
     "/api/v1/crm/packages/{package_id}": {
       "delete": {
-        "operationId": "liwan_crm.CrmListsController.archive_package.delete",
+        "operationId": "liwan_crm.CrmListsController.remove_package.delete",
         "parameters": [
           {
             "in": "path",
@@ -114467,7 +115750,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "archive_package",
+        "summary": "remove_package",
         "tags": [
           "liwan_crm"
         ],
@@ -114482,58 +115765,7 @@
             "crm.enabled"
           ],
           "feature_operation": "write",
-          "handler": "archive_package",
-          "readonly": false,
-          "route_type": "json2"
-        }
-      },
-      "patch": {
-        "operationId": "liwan_crm.CrmListsController.patch_package.patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "package_id",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "patch_package",
-        "tags": [
-          "liwan_crm"
-        ],
-        "x-liwan": {
-          "addon": "liwan_crm",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "crm",
-          "controller": "CrmListsController",
-          "feature_keys": [
-            "crm.enabled"
-          ],
-          "feature_operation": "write",
-          "handler": "patch_package",
+          "handler": "remove_package",
           "readonly": false,
           "route_type": "json2"
         }
@@ -115706,6 +116938,976 @@
         }
       }
     },
+    "/api/v1/document-contexts/employee/{subject_id}/{document_id}/employee-access": {
+      "post": {
+        "operationId": "liwan_documents_hr.EmployeeContextAccess.share_context_document.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "share_context_document",
+        "tags": [
+          "liwan_documents_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "EmployeeContextAccess",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "share_context_document",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/document-contexts/{kind}/{subject_id}": {
+      "get": {
+        "operationId": "liwan_document_service.ContextDocuments.context_documents.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "context_documents",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": "read",
+          "handler": "context_documents",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_document_service.ContextDocuments.create_context_document.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_context_document",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": null,
+          "handler": "create_context_document",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/document-contexts/{kind}/{subject_id}/{document_id}": {
+      "get": {
+        "operationId": "liwan_document_service.ContextDocuments.context_document.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "context_document",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": "read",
+          "handler": "context_document",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_document_service.ContextDocuments.update_context_document.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_context_document",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": null,
+          "handler": "update_context_document",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/document-contexts/{kind}/{subject_id}/{document_id}/access": {
+      "get": {
+        "operationId": "liwan_document_service.ContextDocuments.context_access.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "context_access",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": "read",
+          "handler": "context_access",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "put": {
+        "operationId": "liwan_document_service.ContextDocuments.set_context_access.put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "set_context_access",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": null,
+          "handler": "set_context_access",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/document-contexts/{kind}/{subject_id}/{document_id}/access/people": {
+      "get": {
+        "operationId": "liwan_document_service.ContextDocuments.context_access_people.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "context_access_people",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": "read",
+          "handler": "context_access_people",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files": {
+      "get": {
+        "operationId": "liwan_document_service.ContextDocuments.context_document_files.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "context_document_files",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": "read",
+          "handler": "context_document_files",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_document_service.ContextDocuments.upload_context_file.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "upload_context_file",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": null,
+          "handler": "upload_context_file",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files/{file_id}/download": {
+      "get": {
+        "operationId": "liwan_document_service.ContextDocuments.context_document_download.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "context_document_download",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": "read",
+          "handler": "context_document_download",
+          "readonly": true,
+          "route_type": "http"
+        }
+      },
+      "head": {
+        "operationId": "liwan_document_service.ContextDocuments.context_document_download.head",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "context_document_download",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": "read",
+          "handler": "context_document_download",
+          "readonly": true,
+          "route_type": "http"
+        }
+      }
+    },
+    "/api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files/{file_id}/{action}": {
+      "post": {
+        "operationId": "liwan_document_service.ContextDocuments.context_file_action.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "context_file_action",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": null,
+          "handler": "context_file_action",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/document-contexts/{kind}/{subject_id}/{document_id}/{action}": {
+      "post": {
+        "operationId": "liwan_document_service.ContextDocuments.change_document_state.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "change_document_state",
+        "tags": [
+          "liwan_document_service"
+        ],
+        "x-liwan": {
+          "addon": "liwan_document_service",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ContextDocuments",
+          "feature_keys": [
+            "registry:liwan.document.links"
+          ],
+          "feature_operation": null,
+          "handler": "change_document_state",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/documents": {
       "get": {
         "operationId": "liwan_documents.Documents.list_documents.get",
@@ -115736,9 +117938,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Documents",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "list_documents",
           "readonly": true,
@@ -115774,9 +117974,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Documents",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "create_document",
           "readonly": false,
@@ -115814,9 +118012,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Contexts",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "contexts",
           "readonly": true,
@@ -115867,9 +118063,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Contexts",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "options",
           "readonly": true,
@@ -115908,7 +118102,6 @@
           "contract_namespace": "documents",
           "controller": "EmployeeDocuments",
           "feature_keys": [
-            "documents.enabled",
             "hr.enabled"
           ],
           "feature_operation": "read",
@@ -115962,7 +118155,6 @@
           "contract_namespace": "documents",
           "controller": "EmployeeDocuments",
           "feature_keys": [
-            "documents.enabled",
             "hr.enabled"
           ],
           "feature_operation": "read",
@@ -116016,7 +118208,6 @@
           "contract_namespace": "documents",
           "controller": "EmployeeDocuments",
           "feature_keys": [
-            "documents.enabled",
             "hr.enabled"
           ],
           "feature_operation": "read",
@@ -116077,7 +118268,6 @@
           "contract_namespace": "documents",
           "controller": "EmployeeDocuments",
           "feature_keys": [
-            "documents.enabled",
             "hr.enabled"
           ],
           "feature_operation": "read",
@@ -116136,7 +118326,6 @@
           "contract_namespace": "documents",
           "controller": "EmployeeDocuments",
           "feature_keys": [
-            "documents.enabled",
             "hr.enabled"
           ],
           "feature_operation": "read",
@@ -116176,9 +118365,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Tags",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "tags",
           "readonly": true,
@@ -116214,9 +118401,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Tags",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "create_tag",
           "readonly": false,
@@ -116267,9 +118452,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Documents",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "get_document",
           "readonly": true,
@@ -116318,9 +118501,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Documents",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "patch_document",
           "readonly": false,
@@ -116371,9 +118552,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Access",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "get_access",
           "readonly": true,
@@ -116422,9 +118601,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Access",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "set_access",
           "readonly": false,
@@ -116475,9 +118652,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Documents",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "set_document_active",
           "readonly": false,
@@ -116529,7 +118704,6 @@
           "contract_namespace": "documents",
           "controller": "EmployeeDocumentAccess",
           "feature_keys": [
-            "documents.enabled",
             "hr.enabled"
           ],
           "feature_operation": "write",
@@ -116582,9 +118756,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Files",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "list_files",
           "readonly": true,
@@ -116633,9 +118805,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Files",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "upload_file",
           "readonly": false,
@@ -116694,9 +118864,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Files",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "file_action",
           "readonly": false,
@@ -116754,9 +118922,7 @@
           "auth": "user",
           "contract_namespace": "documents",
           "controller": "DocumentDownload",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "download",
           "readonly": true,
@@ -116812,9 +118978,7 @@
           "auth": "user",
           "contract_namespace": "documents",
           "controller": "DocumentDownload",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "download",
           "readonly": true,
@@ -116873,9 +119037,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Files",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "file_action",
           "readonly": false,
@@ -116934,9 +119096,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Files",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "file_action",
           "readonly": false,
@@ -116995,9 +119155,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Files",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "file_action",
           "readonly": false,
@@ -117048,9 +119206,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "documents",
           "controller": "Documents",
-          "feature_keys": [
-            "documents.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "set_document_active",
           "readonly": false,
@@ -126426,6 +128582,44 @@
       }
     },
     "/api/v1/hr/leave/approval-process": {
+      "delete": {
+        "operationId": "liwan_hr_operations.HrLeaveApprovalController.archive_process.delete",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "archive_process",
+        "tags": [
+          "liwan_hr_operations"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveApprovalController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "archive_process",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
       "get": {
         "operationId": "liwan_hr_operations.HrLeaveApprovalController.get_approval_process.get",
         "responses": {
@@ -126456,8 +128650,7 @@
           "contract_namespace": "hr",
           "controller": "HrLeaveApprovalController",
           "feature_keys": [
-            "hr.enabled",
-            "operations.enabled"
+            "hr.enabled"
           ],
           "feature_operation": "read",
           "handler": "get_approval_process",
@@ -126497,12 +128690,129 @@
           "contract_namespace": "hr",
           "controller": "HrLeaveApprovalController",
           "feature_keys": [
-            "hr.enabled",
-            "operations.enabled"
+            "hr.enabled"
           ],
           "feature_operation": null,
           "handler": "create_default_process",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/leave/approval-process/editor": {
+      "get": {
+        "operationId": "liwan_hr_operations.HrLeaveApprovalController.approval_editor.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "approval_editor",
+        "tags": [
+          "liwan_hr_operations"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveApprovalController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "approval_editor",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_hr_operations.HrLeaveApprovalController.save_approval_editor.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "save_approval_editor",
+        "tags": [
+          "liwan_hr_operations"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveApprovalController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "save_approval_editor",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/leave/approval-process/editor/resolvers": {
+      "get": {
+        "operationId": "liwan_hr_operations.HrLeaveApprovalController.approval_edit_resolvers.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "approval_edit_resolvers",
+        "tags": [
+          "liwan_hr_operations"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveApprovalController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "approval_edit_resolvers",
+          "readonly": true,
           "route_type": "json2"
         }
       }
@@ -126775,12 +129085,62 @@
           "contract_namespace": "hr",
           "controller": "HrLeaveApprovalController",
           "feature_keys": [
-            "hr.enabled",
-            "operations.enabled"
+            "hr.enabled"
           ],
           "feature_operation": "read",
           "handler": "get_approval",
           "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_hr_operations.HrLeaveApprovalController.decide_approval.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "leave_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "decide_approval",
+        "tags": [
+          "liwan_hr_operations"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveApprovalController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "decide_approval",
+          "readonly": false,
           "route_type": "json2"
         }
       }
@@ -134405,60 +136765,6 @@
         }
       }
     },
-    "/api/v1/inbox/catalogs/{catalog_id}/products": {
-      "get": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.list_products.get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "catalog_id",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "The saleable products of the catalog's company that can be listed, with whether each has an image and is listed.",
-        "tags": [
-          "liwan_inbox_payments"
-        ],
-        "x-liwan": {
-          "addon": "liwan_inbox_payments",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "inbox",
-          "controller": "CatalogItemController",
-          "feature_keys": [
-            "inbox.enabled",
-            "inbox.catalog"
-          ],
-          "feature_operation": "read",
-          "handler": "list_products",
-          "readonly": true,
-          "route_type": "json2"
-        }
-      }
-    },
     "/api/v1/inbox/catalogs/{catalog_id}/sync": {
       "post": {
         "operationId": "liwan_inbox_payments.CatalogController.sync_catalog.post",
@@ -134591,9 +136897,9 @@
         }
       }
     },
-    "/api/v1/inbox/channels/tiktok/connect": {
-      "post": {
-        "operationId": "liwan_inbox.TikTokOAuthController.connect.post",
+    "/api/v1/inbox/channels/accounts": {
+      "get": {
+        "operationId": "liwan_inbox.ChannelController.list_accounts.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -134610,7 +136916,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "The signed TikTok authorization URL of a new channel or of a channel being reconnected.",
+        "summary": "The provider accounts of the current company a new channel of `kind` may serve (no integrations capability needed).",
         "tags": [
           "liwan_inbox"
         ],
@@ -134620,13 +136926,13 @@
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
-          "controller": "TikTokOAuthController",
+          "controller": "ChannelController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
-          "feature_operation": null,
-          "handler": "connect",
-          "readonly": false,
+          "feature_operation": "read",
+          "handler": "list_accounts",
+          "readonly": true,
           "route_type": "json2"
         }
       }
@@ -136591,59 +138897,6 @@
           ],
           "feature_operation": "write",
           "handler": "set_pin",
-          "readonly": false,
-          "route_type": "json2"
-        }
-      }
-    },
-    "/api/v1/inbox/channels/{channel_id}/verify-token": {
-      "post": {
-        "operationId": "liwan_inbox.ChannelController.rotate_verify_token.post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "channel_id",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "A fresh handshake token for the Meta app; the only response that carries it, and only once.",
-        "tags": [
-          "liwan_inbox"
-        ],
-        "x-liwan": {
-          "addon": "liwan_inbox",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "inbox",
-          "controller": "ChannelController",
-          "feature_keys": [
-            "inbox.enabled"
-          ],
-          "feature_operation": "write",
-          "handler": "rotate_verify_token",
           "readonly": false,
           "route_type": "json2"
         }
@@ -139827,45 +142080,6 @@
         }
       }
     },
-    "/api/v1/inbox/tiktok/callback": {
-      "get": {
-        "operationId": "liwan_inbox.TikTokOAuthController.callback.get",
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "Exchange the authorization code and connect (or reconnect) the channel of the state.",
-        "tags": [
-          "liwan_inbox"
-        ],
-        "x-liwan": {
-          "addon": "liwan_inbox",
-          "api_handler": true,
-          "auth": "user",
-          "contract_namespace": "inbox",
-          "controller": "TikTokOAuthController",
-          "feature_keys": [
-            "inbox.tiktok"
-          ],
-          "feature_operation": null,
-          "handler": "callback",
-          "readonly": null,
-          "route_type": "http"
-        }
-      }
-    },
     "/api/v1/inbox/working-hours": {
       "get": {
         "operationId": "liwan_inbox.AutomationController.get_working_hours.get",
@@ -139965,7 +142179,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "list_connections",
+        "summary": "The stored connections of the current company, then the derived status of each external provider.",
         "tags": [
           "liwan_integrations_sa"
         ],
@@ -139981,6 +142195,458 @@
           ],
           "feature_operation": "read",
           "handler": "list_connections",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationConnectionController.create_connection.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Connect a keys provider: store the typed secrets, create the generated ones and probe the provider.",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationConnectionController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_connection",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/connections/{connection_id}": {
+      "delete": {
+        "operationId": "liwan_integrations_sa.IntegrationConnectionController.delete_connection.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_connection",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationConnectionController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_connection",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationConnectionController.read_connection.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_connection",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationConnectionController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_connection",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_integrations_sa.IntegrationConnectionController.patch_connection.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_connection",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationConnectionController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_connection",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/connections/{connection_id}/secrets/{name}/rotate": {
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationConnectionController.rotate_secret.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A fresh generated secret; the only answer that carries a secret value, and only once.",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationConnectionController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "rotate_secret",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/connections/{connection_id}/test": {
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationConnectionController.test_connection.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "test_connection",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationConnectionController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "test_connection",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/oauth/{provider}/callback": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationOAuthController.callback.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Exchange the authorization code and connect the account the administrator chose.",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": null,
+          "controller": "IntegrationOAuthController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "callback",
+          "readonly": null,
+          "route_type": "http"
+        }
+      }
+    },
+    "/api/v1/integrations/oauth/{provider}/start": {
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationOAuthController.start.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The signed authorization URL that connects an account (a new one, or one connected again).",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationOAuthController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "start",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/providers": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationConnectionController.list_providers.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_providers",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationConnectionController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_providers",
           "readonly": true,
           "route_type": "json2"
         }
@@ -143097,9 +145763,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "execution_kinds",
           "readonly": true,
@@ -143137,9 +145801,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "list_processes",
           "readonly": true,
@@ -143175,9 +145837,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": null,
           "handler": "create_process",
           "readonly": false,
@@ -143215,9 +145875,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "reviewer_resolvers",
           "readonly": true,
@@ -143268,9 +145926,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "get_process",
           "readonly": true,
@@ -143319,9 +145975,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": null,
           "handler": "update_process",
           "readonly": false,
@@ -143372,9 +146026,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "process_targets",
           "readonly": true,
@@ -143433,9 +146085,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": null,
           "handler": "transition_process",
           "readonly": false,
@@ -143473,9 +146123,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "list_requests",
           "readonly": true,
@@ -143511,9 +146159,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": null,
           "handler": "create_request",
           "readonly": false,
@@ -143564,9 +146210,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "get_own_employee_request",
           "readonly": true,
@@ -143617,9 +146261,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "get_request",
           "readonly": true,
@@ -143668,9 +146310,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": null,
           "handler": "update_request",
           "readonly": false,
@@ -143721,9 +146361,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": null,
           "handler": "upload_attachment",
           "readonly": false,
@@ -143782,9 +146420,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": null,
           "handler": "delete_attachment",
           "readonly": false,
@@ -143842,9 +146478,7 @@
           "auth": "user",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "download_attachment",
           "readonly": true,
@@ -143903,9 +146537,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "operations",
           "controller": "OperationsController",
-          "feature_keys": [
-            "operations.enabled"
-          ],
+          "feature_keys": [],
           "feature_operation": null,
           "handler": "transition_request",
           "readonly": false,
@@ -144492,6 +147124,452 @@
           ],
           "feature_operation": "write",
           "handler": "patch_change_category",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "liwan_products.ProductsController.list_products.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_products",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "read",
+          "handler": "list_products",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_products.ProductsController.create_product.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_product",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "write",
+          "handler": "create_product",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/products/pick": {
+      "get": {
+        "operationId": "liwan_products.ProductsController.pick_products.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The active products, for a holder of products.read or of a registered pick capability: id, name, type and",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "read",
+          "handler": "pick_products",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/products/settings": {
+      "get": {
+        "operationId": "liwan_products.ProductsSettingsController.read_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_settings",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsSettingsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "read",
+          "handler": "read_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_products.ProductsSettingsController.write_settings.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "write_settings",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsSettingsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "write",
+          "handler": "write_settings",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/products/taxes": {
+      "get": {
+        "operationId": "liwan_products_account.ProductTaxesController.list_tax_choices.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The sale taxes a new product of this session may carry (the zero-rated and exempt ones are how \"no tax\"",
+        "tags": [
+          "liwan_products_account"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products_account",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductTaxesController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "read",
+          "handler": "list_tax_choices",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/products/{product_id}": {
+      "get": {
+        "operationId": "liwan_products.ProductsController.get_product.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_product",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "read",
+          "handler": "get_product",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_products.ProductsController.update_product.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_product",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "write",
+          "handler": "update_product",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/products/{product_id}/archive": {
+      "post": {
+        "operationId": "liwan_products.ProductsController.archive_product.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "archive_product",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "write",
+          "handler": "archive_product",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/products/{product_id}/restore": {
+      "post": {
+        "operationId": "liwan_products.ProductsController.restore_product.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "restore_product",
+        "tags": [
+          "liwan_products"
+        ],
+        "x-liwan": {
+          "addon": "liwan_products",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "ProductsController",
+          "feature_keys": [
+            "registry:liwan.products.service"
+          ],
+          "feature_operation": "write",
+          "handler": "restore_product",
           "readonly": false,
           "route_type": "json2"
         }
@@ -150757,6 +153835,7 @@
     "liwan_crm",
     "liwan_customers",
     "liwan_directory",
+    "liwan_document_service",
     "liwan_documents",
     "liwan_documents_hr",
     "liwan_finance",
@@ -150772,6 +153851,8 @@
     "liwan_operations",
     "liwan_payments",
     "liwan_pmo",
+    "liwan_products",
+    "liwan_products_account",
     "liwan_tasks",
     "liwan_tasks_pmo"
   ]

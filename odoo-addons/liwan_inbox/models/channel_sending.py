@@ -12,7 +12,8 @@ from .campaign_constants import (
 from .constants import ROLLING_DAY
 from odoo.addons.liwan_inbox.adapters import whatsapp
 
-# Unique customers messaged outside a service window, over every channel of one business account.
+# Unique customers messaged outside a service window, over every channel of one business account: Meta keeps the
+# limit per account, so the channels of every company that connected it count together.
 USED_ADDRESSES_SQL = """
     SELECT DISTINCT identity.address
       FROM liwan_inbox_message message
@@ -20,7 +21,7 @@ USED_ADDRESSES_SQL = """
       JOIN liwan_inbox_channel channel ON channel.id = conversation.channel_id
       JOIN liwan_inbox_contact_identity identity ON identity.id = conversation.identity_id
      WHERE message.direction = 'out' AND message.business_initiated AND message.delivery_state != 'failed'
-       AND message.date >= %s AND channel.business_account_id = %s
+       AND message.date >= %s AND channel.connection_id = ANY(%s)
 """
 
 
@@ -46,7 +47,7 @@ class LiwanInboxChannelSending(models.Model):
         """The WhatsApp ids messaged outside a service window in the last 24 hours over the channel's business account."""
         self.ensure_one()
         self.env.flush_all()
-        self.env.cr.execute(USED_ADDRESSES_SQL, [fields.Datetime.now() - ROLLING_DAY, self.business_account_id])
+        self.env.cr.execute(USED_ADDRESSES_SQL, [fields.Datetime.now() - ROLLING_DAY, self.connection_id._liwan_account_connection_ids()])
         return {row[0] for row in self.env.cr.fetchall()}
 
     def _liwan_remaining_24h(self, used=None):

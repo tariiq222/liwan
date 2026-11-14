@@ -13,7 +13,6 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.liwan_inbox.adapters import errors, whatsapp
-from odoo.addons.liwan_inbox.controllers.channels import dump
 from odoo.addons.liwan_inbox.controllers.conversation_files import parse_upload
 from odoo.addons.liwan_inbox.controllers.helpers import (
     check_fields,
@@ -27,6 +26,7 @@ from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
 from odoo.addons.liwan_inbox.models.constants import TEMPLATES_FEATURE, WHATSAPP_FEATURE
 from odoo.addons.liwan_inbox.models.health_constants import ACTION_COOLDOWN
 from odoo.addons.liwan_inbox.serializers.channel_health import dump_alert
+from odoo.addons.liwan_inbox.serializers.settings import dump_channel
 
 PIN = re.compile(r'^\d{6}$')
 EMAIL = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
@@ -144,10 +144,11 @@ class ChannelHealthController(http.Controller):
         name, raw, mimetype = parse_upload(payload)
         if mimetype not in PICTURE_MIMETYPES:
             reject('the profile picture must be a JPEG or PNG image', 'data')
-        if not channel.app_id:
-            reject('the channel needs the Meta app id to upload a picture', 'app_id')
+        app_id = channel.connection_id.app_id
+        if not app_id:
+            reject('the connection needs the Meta app id to upload a picture', 'app_id')
         credentials = channel._liwan_credentials()
-        handle = provider_call(whatsapp.upload_resumable, credentials, channel.app_id, name, mimetype, raw)
+        handle = provider_call(whatsapp.upload_resumable, credentials, app_id, name, mimetype, raw)
         provider_call(whatsapp.update_business_profile, credentials, {}, picture_handle=handle)
         return profile_of(channel)
 
@@ -163,7 +164,7 @@ class ChannelHealthController(http.Controller):
         provider_call(whatsapp.request_display_name, channel._liwan_credentials(), name)
         channel.write({'name_status': 'pending_review', 'requested_name': name, 'name_rejection_reason': False})
         channel._liwan_alert('name_pending', 'info', requested_name=name)
-        return dump(channel)
+        return dump_channel(channel)
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>/two-step-pin', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -188,7 +189,7 @@ class ChannelHealthController(http.Controller):
         claim_action(channel, 'register_attempted_at')
         provider_call(whatsapp.register, channel._liwan_credentials(), pin)
         channel._liwan_refresh_health()
-        return dump(channel)
+        return dump_channel(channel)
 
     @http.route(
         '/api/v1/inbox/channels/<int:channel_id>/template-insights', type='json2', auth='user', methods=['POST'], readonly=False,
@@ -202,7 +203,7 @@ class ChannelHealthController(http.Controller):
         if payload:
             reject('no fields are accepted')
         provider_call(request.env['liwan.inbox.meta.analytics']._liwan_enable_template_insights, channel)
-        return dump(channel)
+        return dump_channel(channel)
 
     @http.route(
         '/api/v1/inbox/channels/<int:channel_id>/analytics/sync', type='json2', auth='user', methods=['POST'], readonly=False,
@@ -217,4 +218,4 @@ class ChannelHealthController(http.Controller):
             reject('no fields are accepted')
         if not request.env['liwan.inbox.meta.analytics']._liwan_request(channel):
             reject_rate_limited('the analytics were requested a moment ago; try again in a few minutes')
-        return dump(channel)
+        return dump_channel(channel)

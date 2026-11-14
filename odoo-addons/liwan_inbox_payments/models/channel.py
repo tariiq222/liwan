@@ -2,17 +2,12 @@
 from odoo import fields, models
 
 from .constants import PAID_NOTICE_TEXT, SETTINGS_REFRESH
-from odoo.addons.liwan_inbox.models.channel import SECRET_GROUPS
 from odoo.addons.liwan_inbox_payments.adapters import meta_catalog
-
-CATALOG_GROUP = 'liwan_inbox_payments.group_cap_inbox_catalog_manage'
 
 
 class LiwanInboxChannel(models.Model):
     _inherit = 'liwan.inbox.channel'
 
-    # The catalog manager calls Meta with the channel's token, like the template manager.
-    access_token_enc = fields.Char(groups=f'{SECRET_GROUPS},{CATALOG_GROUP}')
     # Meta's commerce settings of the phone number (a mirror, read at most every SETTINGS_REFRESH) and its number
     # as customers see it (the click-to-chat link of catalog items).
     commerce_cart_enabled = fields.Boolean()
@@ -27,7 +22,7 @@ class LiwanInboxChannel(models.Model):
         """The catalog of this channel's WhatsApp account (empty when none is connected)."""
         self.ensure_one()
         return self.env['liwan.inbox.catalog'].search([
-            ('business_account_id', '=', self.business_account_id), ('company_id', '=', self.owner_company_id.id),
+            ('business_account_id', '=', self.connection_id.external_id), ('company_id', '=', self.owner_company_id.id),
         ], limit=1)
 
     def _liwan_catalog_id(self):

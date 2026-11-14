@@ -12,6 +12,7 @@ describe('integrationStateBadge', () => {
     expect(integrationStateBadge('error').tone).toBe('destructive')
     expect(integrationStateBadge('pending').tone).toBe('warning')
     expect(integrationStateBadge('not_configured').tone).toBe('neutral')
+    expect(integrationStateBadge('disabled').tone).toBe('neutral')
   })
 
   it('reads neutral with no key for a state a newer server adds', () => {

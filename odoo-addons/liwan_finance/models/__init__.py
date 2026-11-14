@@ -13,6 +13,7 @@ from . import (
     edi_document,
     feature_registry,
     idempotency,
+    integration_registry,
     mis_report,
     privacy_hooks,
     res_company,

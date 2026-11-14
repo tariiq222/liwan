@@ -1,19 +1,140 @@
 {
   "integrations": {
-    "title": "Government and bank links",
-    "nav": "Integrations",
-    "empty": "No links yet",
-    "kind": {
-      "zatca": "E-invoicing (ZATCA)",
-      "bank": "Bank connection"
+    "title": "Integrations",
+    "separator": ", ",
+    "provider": {
+      "meta": "WhatsApp Business (Meta)",
+      "tiktok": "TikTok",
+      "paymob": "Paymob",
+      "zatca": "ZATCA (Zakat, Tax and Customs Authority)"
+    },
+    "use": {
+      "inbox": {
+        "whatsapp": "Customer messages: WhatsApp",
+        "tiktok": "Customer messages: TikTok"
+      },
+      "finance": {
+        "zatca": "Finance: e-invoicing"
+      },
+      "payments": {
+        "gateway": {
+          "paymob": "Payment gateway"
+        }
+      }
+    },
+    "auth": {
+      "keys": "You enter the account keys yourself",
+      "oauth": "You sign in at the provider and approve the link",
+      "external": "Managed in the app's own settings"
     },
     "state": {
-      "not_configured": "Not configured",
-      "pending": "Pending setup",
+      "not_configured": "Not set up",
+      "pending": "Being set up",
       "connected": "Connected",
-      "error": "Error"
+      "error": "Has a problem",
+      "disabled": "Switched off"
     },
-    "lastChecked": "Last checked: {at}",
-    "neverChecked": "Not checked yet"
+    "connections": {
+      "title": "Connected accounts",
+      "hint": "Every connected account, its state and the apps that use it.",
+      "empty": "No account is connected yet",
+      "emptyHint": "Pick a provider below to connect your first account.",
+      "usedBy": "Used by: {uses}",
+      "unused": "No app uses it right now",
+      "lastChecked": "Last checked: {at}",
+      "neverChecked": "Not checked yet",
+      "manage": "Manage"
+    },
+    "providers": {
+      "title": "Connect a new account",
+      "hint": "The providers available to your company.",
+      "empty": "No provider is available for your plan right now",
+      "connect": "Connect",
+      "connectLabel": "Connect {provider}",
+      "usesFor": "Serves: {uses}"
+    },
+    "oauth": {
+      "connected": "The account is connected.",
+      "failedTitle": "The account could not be connected",
+      "startFailed": "The provider's page could not be opened. Try again.",
+      "errors": {
+        "denied": "You did not approve the link at the provider.",
+        "invalid_state": "The connection session expired. Start again.",
+        "not_configured": "Connecting this provider is not switched on for this system yet.",
+        "rejected": "The provider refused the link.",
+        "scopes_missing": "Not every requested permission was granted. Connect again and approve them all.",
+        "account_taken": "This account is connected to another company.",
+        "other": "The connection could not be completed. Try again."
+      }
+    },
+    "new": {
+      "title": "Connect {provider}",
+      "details": "Account details",
+      "keys": "Keys",
+      "keysHint": "They are stored encrypted and never shown after saving.",
+      "submit": "Connect account",
+      "unknownProvider": "This provider cannot be connected here.",
+      "required": "This field is required",
+      "secretLength": "A key must be {min} to {max} characters long"
+    },
+    "field": {
+      "externalId": "Account ID",
+      "externalIdHint": "The ID shown in the provider's dashboard.",
+      "label": "Name",
+      "labelHint": "A name that helps you tell accounts apart. Optional.",
+      "appIdHint": "Optional if you have your own app at the provider."
+    },
+    "attribute": {
+      "app_id": "App ID"
+    },
+    "secret": {
+      "access_token": "Access token",
+      "app_secret": "App secret",
+      "verify_token": "Webhook verify token"
+    },
+    "record": {
+      "back": "Integrations",
+      "status": "Status",
+      "identity": "Account details",
+      "identityHint": "Change the name or the app ID.",
+      "provider": "Provider",
+      "accountId": "Account ID",
+      "tokenExpires": "Token expires",
+      "saveIdentity": "Save",
+      "identitySaved": "Details saved.",
+      "secrets": "Keys",
+      "secretsHint": "We never show a key's value. Type a new value only to replace it.",
+      "secretPresent": "Saved",
+      "secretAbsent": "Not saved",
+      "secretKeep": "Leave empty to keep the saved one",
+      "saveSecrets": "Replace keys",
+      "secretsSaved": "Keys replaced.",
+      "rotate": "Rotate",
+      "rotatedTitle": "New value for {name}",
+      "rotatedHint": "Copy it now. It will not be shown again.",
+      "copy": "Copy",
+      "copied": "Copied.",
+      "webhooks": "Receiving addresses",
+      "webhooksHint": "Put each address in the provider's settings so it can send us events.",
+      "test": "Test connection",
+      "tested": "Connection tested.",
+      "disable": "Switch off",
+      "enable": "Switch on",
+      "stateChanged": "State changed.",
+      "reconnect": "Reconnect",
+      "disconnect": "Disconnect",
+      "confirmDisconnectTitle": "Disconnect this account?",
+      "confirmDisconnectDescription": "The account's keys are deleted from LiwanOS. You can connect it again any time.",
+      "confirmDisconnect": "Yes, disconnect",
+      "notFound": "There is no account with this number."
+    },
+    "errors": {
+      "forbidden": "You do not have permission to manage integrations.",
+      "notFound": "We could not find this account.",
+      "inUse": "The account cannot be disconnected because an app uses it. Remove its use first.",
+      "invalid": "Check the details you entered.",
+      "notConfigured": "Connecting this provider is not switched on for this system yet.",
+      "rejected": "The provider refused the keys. Check them and try again."
+    }
   }
 }

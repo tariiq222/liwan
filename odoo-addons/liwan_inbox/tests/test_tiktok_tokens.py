@@ -1,26 +1,22 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""TikTok access tokens: one refresh near expiry, a locked channel row, and the reconnect error."""
+"""A TikTok channel reads its token through its connection; the refresh itself is the integrations service's."""
 import os
 from datetime import timedelta
 from unittest.mock import patch
 
-from odoo import fields
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 
 from . import tiktok_payloads as tt
-from .common import LiwanInboxCase
+from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_core.models import secret_box
-from odoo.addons.liwan_inbox.adapters import errors, tiktok
-from odoo.addons.liwan_inbox.models.constants import SECRET_PURPOSE, TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.adapters import errors
+from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_integrations_sa.providers import errors as integration_errors
+from odoo.addons.liwan_integrations_sa.providers import tiktok as integration_tiktok
 
 BUSINESS_ID = 'business-open-id-tokens'
-REDIRECT_URI = 'https://liwan.test/api/v1/inbox/tiktok/callback'
-OLD_ACCESS = 'old-access-token-1'
-OLD_REFRESH = 'old-refresh-token-1'
 NEW_ACCESS = 'new-access-token-1'
-NEW_REFRESH = 'new-refresh-token-1'
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -32,7 +28,7 @@ class TestTikTokTokens(LiwanInboxCase):
         env_patch = patch.dict(os.environ, {
             'LIWAN_TIKTOK_CLIENT_KEY': tt.CLIENT_KEY,
             'LIWAN_TIKTOK_CLIENT_SECRET': tt.CLIENT_SECRET,
-            'LIWAN_TIKTOK_REDIRECT_URI': REDIRECT_URI,
+            'LIWAN_TIKTOK_REDIRECT_URI': 'https://liwan.test/api/v1/integrations/oauth/tiktok/callback',
         })
         env_patch.start()
         cls.addClassCleanup(env_patch.stop)
@@ -41,138 +37,46 @@ class TestTikTokTokens(LiwanInboxCase):
         super().setUp()
         set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
 
-    def make_tiktok(self, access_expires_in=timedelta(days=1), refresh_expires_in=timedelta(days=30)):
-        now = fields.Datetime.now()
-        return self.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': BUSINESS_ID, 'state': 'connected',
-            'access_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, OLD_ACCESS),
-            'refresh_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, OLD_REFRESH),
-            'token_expires_at': now + access_expires_in,
-            'refresh_expires_at': now + refresh_expires_in,
-        })
-
-    def refreshed(self):
-        now = fields.Datetime.now()
-        return tiktok.TokenGrant(
-            open_id=BUSINESS_ID, scopes=frozenset(tiktok.SCOPES), access_token=NEW_ACCESS,
-            refresh_token=NEW_REFRESH, expires_at=now + timedelta(days=1),
-            refresh_expires_at=now + timedelta(days=30),
-        )
-
-    def test_a_token_far_from_its_margin_is_reused(self):
-        channel = self.make_tiktok()
-        with patch.object(tiktok, 'refresh_tokens') as refresh:
+    def test_the_credentials_are_the_connections_account_and_token(self):
+        channel = self.make_tiktok_channel(BUSINESS_ID)
+        with patch.object(integration_tiktok, 'refresh_tokens') as refresh:
             credentials = channel._liwan_credentials()
         self.assertEqual(refresh.call_count, 0)
-        self.assertEqual((credentials.business_id, credentials.access_token), (BUSINESS_ID, OLD_ACCESS))
+        self.assertEqual((credentials.business_id, credentials.access_token), (BUSINESS_ID, 'tiktok-access-token-1'))
 
-    def test_a_token_near_its_margin_is_refreshed_once(self):
-        channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
-        grant = self.refreshed()
-        with patch.object(tiktok, 'refresh_tokens', return_value=grant) as refresh:
+    def test_a_token_near_its_deadline_is_refreshed_by_the_service(self):
+        channel = self.make_tiktok_channel(BUSINESS_ID, tiktok_grant(open_id=BUSINESS_ID, expires_in=timedelta(minutes=1)))
+        grant = tiktok_grant(open_id=BUSINESS_ID, access_token=NEW_ACCESS)
+        with patch.object(integration_tiktok, 'refresh_tokens', return_value=grant) as refresh:
             credentials = channel._liwan_credentials()
         self.assertEqual(refresh.call_count, 1)
-        config, refresh_token = refresh.call_args.args
-        self.assertEqual((config.client_key, refresh_token), (tt.CLIENT_KEY, OLD_REFRESH))
         self.assertEqual(credentials.access_token, NEW_ACCESS)
-        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.access_token_enc), NEW_ACCESS)
-        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.refresh_token_enc), NEW_REFRESH)
-        self.assertEqual(channel.token_expires_at, grant.expires_at)
-        self.assertEqual(channel.refresh_expires_at, grant.refresh_expires_at)
-        self.assertEqual((channel.state, channel.last_error), ('connected', False))
 
-    def test_a_refresh_keeps_a_disabled_channel_disabled(self):
-        # The import cron refreshes the token of a channel an administrator disabled meanwhile; storing
-        # the refreshed grant must not silently reconnect it and resume its traffic.
-        channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
-        channel.write({'state': 'disabled'})
-        grant = self.refreshed()
-        with patch.object(tiktok, 'refresh_tokens', return_value=grant):
-            credentials = channel._liwan_credentials()
-        self.assertEqual(credentials.access_token, NEW_ACCESS)
-        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.access_token_enc), NEW_ACCESS)
-        channel.invalidate_recordset(['state'])
-        self.assertEqual(channel.state, 'disabled')
+    def test_a_refused_authorization_asks_for_a_reconnect(self):
+        channel = self.make_tiktok_channel(BUSINESS_ID, tiktok_grant(open_id=BUSINESS_ID, expires_in=timedelta(minutes=1)))
+        refused = integration_errors.ProviderError('invalid refresh token', retryable=False)
+        message = None
+        with patch.object(integration_tiktok, 'refresh_tokens', side_effect=refused):
+            try:
+                channel._liwan_credentials()
+            except UserError as error:
+                # Odoo's assertRaises would roll back the state the call wrote.
+                message = str(error)
+        self.assertIn('again', (message or '').lower())
+        self.assertEqual(channel.connection_id.state, 'error')
 
-    def test_two_callers_refresh_once(self):
-        channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
-        self.assertTrue(channel.token_expires_at)  # a caller that read the channel caches the old deadline
-        grant = self.refreshed()
-        with patch.object(tiktok, 'refresh_tokens', return_value=grant) as refresh:
-            first = channel._liwan_credentials()
-            second = channel._liwan_credentials()
-        self.assertEqual(refresh.call_count, 1)
-        self.assertEqual((first.access_token, second.access_token), (NEW_ACCESS, NEW_ACCESS))
-
-    def test_the_channel_row_is_locked_before_the_refresh(self):
-        channel = self.make_tiktok()
-        statements = []
-        execute = self.env.cr.execute
-
-        def spy(query, params=None, **kwargs):
-            statements.append(str(query))
-            return execute(query, params, **kwargs)
-
-        with patch.object(self.env.cr, 'execute', side_effect=spy):
+    def test_a_transient_failure_reaches_the_caller_as_a_retryable_inbox_error(self):
+        channel = self.make_tiktok_channel(BUSINESS_ID, tiktok_grant(open_id=BUSINESS_ID, expires_in=timedelta(minutes=1)))
+        transient = integration_errors.ProviderError('rate limited', retryable=True, code=429)
+        with patch.object(integration_tiktok, 'refresh_tokens', side_effect=transient), \
+                self.assertRaises(errors.ProviderError) as raised:
             channel._liwan_credentials()
-        self.assertTrue(any('FOR UPDATE' in statement.upper() for statement in statements))
+        self.assertEqual((raised.exception.retryable, raised.exception.code, str(raised.exception)), (True, 429, 'rate limited'))
+        self.assertEqual(channel.connection_id.state, 'connected')
 
-    def test_an_expired_refresh_token_asks_for_a_reconnect(self):
-        channel = self.make_tiktok(access_expires_in=timedelta(minutes=1), refresh_expires_in=timedelta(minutes=-1))
-        with patch.object(tiktok, 'refresh_tokens') as refresh:
-            message = self.reconnect_error(channel)
-        self.assertEqual(refresh.call_count, 0)
-        self.assertEqual(channel.state, 'error')
-        self.assertIn('reconnect', channel.last_error.lower())
-        self.assertIn('reconnect', message.lower())
-
-    def test_a_refused_refresh_marks_the_channel_and_is_not_retried(self):
-        channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
-        refused = errors.ProviderError('invalid refresh token', retryable=False)
-        with patch.object(tiktok, 'refresh_tokens', side_effect=refused) as refresh:
-            self.reconnect_error(channel)
-        self.assertEqual(refresh.call_count, 1)
-        self.assertEqual(channel.state, 'error')
-        self.assertIn('reconnect', channel.last_error.lower())
-        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.refresh_token_enc), OLD_REFRESH)
-
-    def test_a_transient_refresh_failure_keeps_the_channel_connected(self):
-        channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
-        transient = errors.ProviderError('rate limited', retryable=True)
-        with patch.object(tiktok, 'refresh_tokens', side_effect=transient) as refresh:
-            raised = self.raised_by(channel)
-        self.assertEqual(refresh.call_count, 1)
-        self.assertIs(raised, transient)
-        self.assertEqual(channel.state, 'connected')
-        self.assertFalse(channel.last_error)
-        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.refresh_token_enc), OLD_REFRESH)
-        self.assertEqual(secret_box.decrypt(self.env, SECRET_PURPOSE, channel.access_token_enc), OLD_ACCESS)
-
-    def test_a_channel_without_tokens_asks_for_a_reconnect(self):
-        channel = self.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': 'business-open-id-empty',
-        })
-        message = self.reconnect_error(channel)
-        self.assertEqual(channel.state, 'error')
-        self.assertIn('reconnect', message.lower())
-
-    def raised_by(self, channel):
-        """Call the credentials of `channel` and return the error it raised, without rolling the transaction back.
-
-        Odoo's assertRaises rolls the block back, which would hide the state the call wrote.
-        """
-        try:
+    def test_a_disabled_connection_gives_no_credentials(self):
+        channel = self.make_tiktok_channel(BUSINESS_ID)
+        channel.connection_id.state = 'disabled'
+        with self.assertRaises(UserError):
             channel._liwan_credentials()
-        except errors.ProviderError as error:
-            return error
-        message = 'the credentials did not raise a provider error'
-        raise AssertionError(message)
-
-    def reconnect_error(self, channel):
-        """Call the credentials of `channel` and return the UserError message asking for a reconnect."""
-        try:
-            channel._liwan_credentials()
-        except UserError as error:
-            return str(error)
-        message = 'the channel did not ask for a reconnect'
-        raise AssertionError(message)
+        self.assertFalse(channel._liwan_can_send())

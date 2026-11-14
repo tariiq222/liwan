@@ -10,14 +10,16 @@ const part = (pageId: string, partId: string) => page(pageId).parts.find(candida
 
 describe('settings pages', () => {
   it('are the foundation pages around one page per application, in a fixed order', () => {
-    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'meetings', 'chat', 'hr', 'finance', 'ai', 'operations', 'appointments', 'crm', 'sales', 'customers', 'products', 'inbox', 'payments', 'system', 'billing'])
-    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined])
+    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'meetings', 'chat', 'hr', 'finance', 'ai', 'operations', 'appointments', 'crm', 'sales', 'customers', 'products', 'inbox', 'payments', 'integrations', 'system', 'billing'])
+    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined, undefined])
   })
   it('hold the cards of company and system as parts of one page', () => {
     expect(page('company').to).toBe('/settings/company')
     expect(page('company').parts.map(part => part.id)).toEqual(['profile', 'address', 'contact', 'tax', 'branding'])
     expect(page('system').to).toBe('/settings/system')
-    expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance', 'storage', 'export'])
+    expect(page('system').parts.map(part => part.id)).toEqual(['maintenance', 'storage', 'export'])
+    expect(page('integrations').to).toBe('/settings/integrations')
+    expect(page('integrations').parts.map(part => [part.id, part.capability])).toEqual([['connections', 'integrations.read'], ['providers', 'integrations.manage']])
     expect(page('company').parts.every(part => part.to === undefined)).toBe(true)
     expect(page('team').to).toBe('/settings/team')
     expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/branches', undefined, '/settings/team/access-log'])
@@ -26,9 +28,9 @@ describe('settings pages', () => {
     const path = '/settings/system/storage'
     expect(settingsPageForPath(path)?.id).toBe('system')
     expect(settingsPartPath(page('system'), part('system', 'storage'))).toBe(path)
-    const integrationReader = { capabilities: ['integrations.read'] }
-    expect(canReachPath(integrationReader, '/settings/system')).toBe(true)
-    expect(canReachPath(integrationReader, path)).toBe(false)
+    const maintenanceManager = { capabilities: ['settings.maintenance.manage'] }
+    expect(canReachPath(maintenanceManager, '/settings/system')).toBe(true)
+    expect(canReachPath(maintenanceManager, path)).toBe(false)
     expect(canReachPath({ capabilities: ['settings.company.read'] }, path)).toBe(false)
     expect(canReachPath({ capabilities: ['settings.company.manage'] }, path)).toBe(true)
   })

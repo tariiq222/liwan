@@ -6,6 +6,7 @@ const INTEGRATION_STATE_BADGES: Readonly<Record<IntegrationState, StatusBadgeEnt
   pending: { tone: 'warning', labelKey: 'integrations.state.pending' },
   connected: { tone: 'success', labelKey: 'integrations.state.connected' },
   error: { tone: 'destructive', labelKey: 'integrations.state.error' },
+  disabled: { tone: 'neutral', labelKey: 'integrations.state.disabled' },
 }
 
 /** A connection's state as a status badge; a state a newer server adds reads neutral with its raw value. */

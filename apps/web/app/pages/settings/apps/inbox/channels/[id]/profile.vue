@@ -4,7 +4,8 @@ import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { useInboxBusinessProfile } from '@/composables/inbox/useInboxChannelHealth'
 import { useInboxChannel } from '@/composables/inbox/useInboxSettings'
 
-// The WhatsApp business profile of one channel, read from Meta each time the page opens (LiwanOS keeps no copy).
+// The WhatsApp business profile of one channel, read from Meta each time the page opens (LiwanOS keeps no copy). The Meta
+// app id a picture upload needs belongs to the connected account and comes with the channel's connection.
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -31,7 +32,7 @@ const backTo = '/settings/apps/inbox#channels'
       <InboxChannelTabs :channel-id="id" :kind="channel.kind" />
       <SharedLoadingSkeleton v-if="!hydrated || profile.isPending.value" />
       <SharedErrorState v-else-if="profile.error.value" :error="profile.error.value" :title="profile.error.value instanceof Error && profile.error.value.message ? profile.error.value.message : t('inbox.profile.loadError')" data-testid="inbox-profile-error" @retry="profile.refetch()" />
-      <InboxBusinessProfileForm v-else-if="profile.data.value" :channel-id="id" :channel-name="channel.name" :app-id="channel.app_id" :profile="profile.data.value" />
+      <InboxBusinessProfileForm v-else-if="profile.data.value" :channel-id="id" :channel-name="channel.name" :connection-id="channel.connection.id" :app-id="channel.connection.app_id" :profile="profile.data.value" />
     </template>
   </SharedRecordPage>
 </template>

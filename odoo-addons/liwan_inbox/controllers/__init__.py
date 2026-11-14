@@ -16,6 +16,5 @@ from . import (
     settings,
     templates,
     tiktok_hooks,
-    tiktok_oauth,
     tiktok_settings,
 )

@@ -14,7 +14,8 @@
     # its record rules; base_vat validates partner VAT numbers and the company VAT number
     # (the Saudi 15-digit ZATCA TIN rule); l10n_sa supplies the Saudi chart and taxes; l10n_sa_edi is the
     # ZATCA e-invoicing (Fatoora phase 2) engine that the onboarding and submission routes drive;
-    # liwan_integrations_sa (rank 3) holds the connection status that onboarding keeps current.
+    # liwan_integrations_sa (rank 3) lists ZATCA as an external provider: finance registers it there and
+    # derives its status from the sales journals (models/integration_registry.py).
     # The pinned OCA modules (deploy/oca-addons.json, docs/oca-addons.md) are used unmodified through
     # their public models: account_financial_report (trial balance, general ledger, aged partner
     # balance), partner_statement, account_asset_management (fixed assets), account_reconcile_oca

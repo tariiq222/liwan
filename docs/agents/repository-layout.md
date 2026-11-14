@@ -94,8 +94,17 @@ application's AI agent and tools.
   feature key. The online order factory of `liwan_payments` relies on it and holds no copy of the rule. A database
   that already has `liwan_api` and `sale` gets it only when `-i` names it. Its contract is
   `odoo-addons/liwan_orders/README.md`. Plan: `docs/superpowers/plans/2026-11-14-liwan-orders.md`.
-- `odoo-addons/liwan_integrations_sa` (shared service, rank 3) owns the status of the Saudi live links
-  (ZATCA, banks) at `/api/v1/integrations` and the `integrations.enabled` feature. It depends on `liwan_api` only.
+- `odoo-addons/liwan_integrations_sa` (shared service, rank 3) owns every connection to an outside provider: the
+  provider and use registry (`liwan.integration.registry`), the stored connections with their encrypted secrets
+  (`liwan.integration.connection`, `liwan.integration.secret`), the OAuth start, callback and token refresh, the
+  webhook accessors, `/api/v1/integrations` and the `integrations.enabled` feature. It defines the providers `meta`
+  and `tiktok`; an application registers what it does with a provider (a use) and reads the credentials through the
+  connection, never from another application. An `external` provider (`zatca` from `liwan_finance`, the payment
+  gateways from `liwan_integrations_payments`) stores nothing here: its owner derives the status at read time. It
+  depends on `liwan_api` only. The customer page is `/settings/integrations`.
+- `odoo-addons/liwan_integrations_payments` (bridge, rank 5, `auto_install` on the shared services
+  `liwan_integrations_sa` and `liwan_payments`) lists each gateway of the payments registry as an external provider and
+  derives its status from the company's `payment.provider` row (one elevated read, `tools/arch_documented_sudo.json`).
 - `odoo-addons/liwan_pmo` owns projects, tasks, timelines, project settings,
   attachments, dependencies, archive/restore, its task and digest notification
   kinds, producers and `/api/v1/notification-digests`, and the `pmo.*`

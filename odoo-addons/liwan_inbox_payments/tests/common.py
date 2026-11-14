@@ -103,7 +103,7 @@ class LiwanCatalogCase(LiwanOrderCase, LiwanInboxCase):
     @classmethod
     def make_catalog(cls, **values):
         return cls.env['liwan.inbox.catalog'].create({
-            'business_account_id': cls.channel.business_account_id, 'meta_catalog_id': CATALOG_ID, 'name': 'Shop',
+            'business_account_id': cls.channel.connection_id.external_id, 'meta_catalog_id': CATALOG_ID, 'name': 'Shop',
             'brand': 'Acme', **values,
         })
 
