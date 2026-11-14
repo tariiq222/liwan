@@ -371,6 +371,7 @@
       "email": "Email",
       "channel": "Channel",
       "saveContact": "Save customer details",
+      "contactErased": "This customer's data was erased and cannot be edited.",
       "assignee": "Assignee",
       "assignToMe": "Assign to me",
       "unassign": "Unassign",
