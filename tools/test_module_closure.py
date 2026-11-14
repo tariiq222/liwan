@@ -42,13 +42,20 @@ BASE_TIER = (BASE, {'liwan_core', 'liwan_platform', 'liwan_api'})
 
 class RealManifestClosureTest(unittest.TestCase):
     def test_tier_closures_match_the_closures_read_by_hand_from_the_manifests(self):
-        # Expected values written out from the manifests, not computed: liwan_hr depends on liwan_api and liwan_notify, and
-        # the auto_install bridge liwan_access_hr joins once liwan_api and liwan_hr are in; liwan_appointments depends on
+        # Expected values written out from the manifests, not computed. The release base installs liwan_documents and
+        # liwan_operations in every tier: they bring the shared services liwan_document_service and
+        # liwan_approval_service plus liwan_directory and liwan_notify. liwan_hr depends on liwan_api and liwan_notify,
+        # and three auto_install bridges join once it is in: liwan_access_hr (with liwan_api), liwan_documents_hr (with
+        # liwan_document_service) and liwan_hr_operations (with liwan_approval_service). liwan_appointments depends on
         # liwan_api and the shared service liwan_customers (plus Odoo's resource_booking) and has no bridge with the
         # base modules.
+        base = {
+            'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_directory', 'liwan_notify',
+            'liwan_document_service', 'liwan_documents', 'liwan_approval_service', 'liwan_operations',
+        }
         expected = {
-            'people': {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_notify', 'liwan_hr', 'liwan_access_hr'},
-            'appointments': {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_customers', 'liwan_appointments'},
+            'people': base | {'liwan_hr', 'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_operations'},
+            'appointments': base | {'liwan_customers', 'liwan_appointments'},
         }
         tiers = _release_tiers()
         for tier, modules in expected.items():
