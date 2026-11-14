@@ -2,7 +2,7 @@
 import type { TenantDeletion } from '@liwan/commercial-contracts'
 import { TENANT_DELETION_WINDOW_DAYS, daysBetween, riyadhDate } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-const props = defineProps<{ deletion: TenantDeletion | null; pending?: boolean; hydrated?: boolean; error?: string }>()
+const props = defineProps<{ deletion: TenantDeletion | null; pending?: boolean; hydrated?: boolean; error?: string; canExport?: boolean }>()
 const emit = defineEmits<{ request: []; confirm: [input: { code: string; companyName: string }]; withdraw: [] }>()
 const { t } = useI18n()
 const code = ref('')
@@ -22,6 +22,10 @@ function submitConfirm() {
 </script>
 <template>
   <div class="space-y-4" data-slot="delete-workspace-panel" :data-state="deletion?.state ?? 'none'">
+    <p v-if="canExport && (!deletion || deletion.state === 'requested')" class="text-sm" data-testid="export-first">
+      {{ t('subscription.deletion.exportFirst') }}
+      <UButton to="/settings/system/export" color="neutral" variant="link" class="p-0">{{ t('subscription.deletion.exportLink') }}</UButton>
+    </p>
     <template v-if="!deletion || deletion.state === 'requested'">
       <p class="text-sm">{{ t('subscription.deletion.intro') }}</p>
       <ul class="list-disc space-y-1 ps-5 text-sm">

@@ -9,6 +9,7 @@ import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSu
 const { t, te, locale } = useI18n(); const api = useSubscriptionApi(); const { can, readOnly } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
 const { can: canAccess } = useAccess()
+const { me } = useMe()
 const isMissing = (cause: any) => (cause?.statusCode ?? cause?.status ?? cause?.response?.status) === 404
 const { data, error, pending, refresh } = await useAsyncData('subscription:overview', async () => {
   // A secondary section that fails is reported as failed, never shown as empty.
@@ -178,7 +179,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           </SubscriptionPaymentMethodPanel>
         </SharedRecordSection>
         <SharedRecordSection v-if="can('tenant.delete')" id="delete-workspace" variant="panel" :title="t('subscription.deletion.title')" class="border-error/40" data-testid="delete-workspace">
-          <SubscriptionDeleteWorkspacePanel :deletion="data.sub.deletion ?? null" :pending="deletionBusy" :hydrated="hydrated" :error="deletionError" @request="changeDeletion('request')" @confirm="changeDeletion('confirm', $event)" @withdraw="changeDeletion('withdraw')" />
+          <SubscriptionDeleteWorkspacePanel :deletion="data.sub.deletion ?? null" :pending="deletionBusy" :hydrated="hydrated" :error="deletionError" :can-export="canAccess('tenant.export') && me?.is_root_company !== false" @request="changeDeletion('request')" @confirm="changeDeletion('confirm', $event)" @withdraw="changeDeletion('withdraw')" />
         </SharedRecordSection>
       </div>
     </SharedPageState>

@@ -65,4 +65,12 @@ describe('deletion copy', () => {
     expect(deletionErrorKey('anything_else')).toBe('subscription.deletion.failed')
     expect(deletionErrorKey(null)).toBe('subscription.deletion.failed')
   })
+  it('points to the data export only when the user can use it', async () => {
+    const withLink = await render({ deletion: null, canExport: true })
+    expect(withLink).toContain('data-testid="export-first"')
+    expect(withLink).toContain('/settings/system/export')
+    expect(await render({ deletion: null })).not.toContain('data-testid="export-first"')
+    expect(await render({ deletion: requested, canExport: true })).toContain('data-testid="export-first"')
+    expect(await render({ deletion: confirmed, canExport: true })).not.toContain('data-testid="export-first"')
+  })
 })

@@ -371,6 +371,63 @@
       "allRoles": "All roles",
       "allAccessLog": "Full log",
       "allAudit": "Full audit log"
+    },
+    "tenantExport": {
+      "title": "Export your data",
+      "description": "Get a complete copy of your organization's data in one file.",
+      "open": "Open the export page",
+      "forbidden": "This page is for the system administrator only",
+      "contents": {
+        "title": "What the file contains",
+        "workbooks": "One Excel workbook per application with its records.",
+        "files": "Every uploaded file and attachment.",
+        "manifest": "A manifest that lists what is not included in the copy.",
+        "overflow": "Very long texts are saved in an overflow folder inside the archive."
+      },
+      "never": "Payroll data and passwords are never included.",
+      "takesTime": "Building the file takes some time. You get a notification when it is ready.",
+      "retention": "The file stays available to download for {days} days, then it is deleted.",
+      "request": "Request an export",
+      "busy": "An export is being prepared. Wait for it to finish before requesting another.",
+      "history": "Past exports",
+      "empty": "You have not requested an export yet.",
+      "noDate": "—",
+      "columns": {
+        "state": "State",
+        "requested": "Requested",
+        "finished": "Finished",
+        "contents": "Contents",
+        "actions": "Action"
+      },
+      "states": {
+        "requested": "Queued",
+        "running": "Preparing",
+        "done": "Ready",
+        "failed": "Failed",
+        "expired": "Expired or replaced by a newer export"
+      },
+      "counts": "{rows} records, {files} files",
+      "download": "Download",
+      "branch": {
+        "title": "The export belongs to the main company",
+        "description": "Request the data copy from a main company session. Switch to it to use this page."
+      },
+      "errors": {
+        "inProgress": "An export is already being prepared.",
+        "forbidden": "Only the system administrator of the main company can do this.",
+        "failed": "The request could not be completed. Try again.",
+        "download": "The file could not be downloaded. {reason}",
+        "cooldown": "A new export is not possible yet. See the next export time on the page."
+      },
+      "nextAt": "The next export can be requested after {time}. One export is allowed every {hours} hours after a successful one.",
+      "progress": "Build progress",
+      "failures": {
+        "diskSpace": "There was not enough disk space to build the file. Try again later.",
+        "timeout": "Building the file took longer than allowed. You can request a new export.",
+        "buildFailed": "The file could not be built. You can request a new export.",
+        "notAuthorized": "The requester no longer holds the export permission. Request the export again.",
+        "generic": "The file could not be built. You can request a new export."
+      }
     }
   }
 }
