@@ -6,5 +6,5 @@ class OperationsDirectory(models.AbstractModel):
     _inherit = 'liwan.directory'
 
     @api.model
-    def _liwan_directory_feature_keys(self):
-        return (*super()._liwan_directory_feature_keys(), 'operations.enabled')
+    def _liwan_directory_has_base_consumer(self):
+        return True

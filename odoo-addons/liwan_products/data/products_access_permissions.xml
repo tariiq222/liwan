@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_products_read" model="liwan.access.permission">
+        <field name="key">products.read</field><field name="domain">products</field>
+        <field name="resource">products</field><field name="action">read</field>
+        <field name="name_ar">عرض المنتجات</field><field name="name_en">Read products</field>
+        <field name="description_ar">عرض المنتجات والخدمات وأسعارها وقراءة إعدادات المنتجات</field><field name="description_en">Read the products and services, their prices and the product settings</field>
+        <field name="group_xmlid">liwan_products.group_cap_products_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_products_manage" model="liwan.access.permission">
+        <field name="key">products.manage</field><field name="domain">products</field>
+        <field name="resource">products</field><field name="action">manage</field>
+        <field name="name_ar">إدارة المنتجات</field><field name="name_en">Manage products</field>
+        <field name="description_ar">إضافة المنتجات والخدمات وتعديل أسمائها ونوعها ووصفها وضرائبها وأرشفتها واستعادتها، دون تغيير أسعارها</field><field name="description_en">Add products and services, edit their name, type, description and taxes, archive and restore them, without changing their prices</field>
+        <field name="group_xmlid">liwan_products.group_cap_products_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_products_prices_manage" model="liwan.access.permission">
+        <field name="key">products.prices.manage</field><field name="domain">products</field>
+        <field name="resource">prices</field><field name="action">manage</field>
+        <field name="name_ar">تعديل أسعار المنتجات</field><field name="name_en">Manage product prices</field>
+        <field name="description_ar">تحديد سعر المنتج أو الخدمة كما يُكتب، عند الإضافة وعند التعديل</field><field name="description_en">Set the price of a product or service as typed, when it is added and when it is edited</field>
+        <field name="group_xmlid">liwan_products.group_cap_products_prices_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_products_settings_manage" model="liwan.access.permission">
+        <field name="key">products.settings.manage</field><field name="domain">products</field>
+        <field name="resource">settings</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعدادات المنتجات</field><field name="name_en">Manage product settings</field>
+        <field name="description_ar">تغيير مشاركة المنتجات بين الفروع</field><field name="description_en">Change how products are shared between branches</field>
+        <field name="group_xmlid">liwan_products.group_cap_products_settings_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

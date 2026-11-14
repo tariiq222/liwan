@@ -2,7 +2,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { DocumentAccess, DocumentAccessUpdate } from '@liwan/contracts'
 import { documentAccessPayload } from '@/lib/documentAccess'
-const props = defineProps<{ access: DocumentAccess; pending?: boolean; error?: string; conflict?: boolean; backTo?: RouteLocationRaw }>()
+const props = defineProps<{ access: DocumentAccess; pending?: boolean; error?: string; conflict?: boolean; backTo?: RouteLocationRaw; peopleEndpoint?: string; restrictVisibility?: boolean }>()
 const emit = defineEmits<{ save: [body: DocumentAccessUpdate]; reload: [] }>()
 const { t } = useI18n(); const hydrated = useHydrated()
 const visibility = ref(props.access.visibility); const grants = ref<DocumentAccess['grants']>(props.access.grants.map(grant => ({ user: { ...grant.user }, access: grant.access })))
@@ -30,9 +30,9 @@ function submit() {
     <UAlert v-if="conflict" color="warning" :title="t('documents.conflict')" :description="t('documents.conflictHelp')"><template #actions><UButton type="button" color="neutral" :label="t('documents.reload')" :disabled="pending" @click="emit('reload')" /></template></UAlert>
     <SharedFormSection panel :title="t('documents.access')">
       <div class="grid gap-(--liwan-gap-card)">
-        <UFormField :label="t('documents.visibility')" name="document-visibility"><USelect id="document-visibility" v-model="visibility" :items="[{ value: 'restricted', label: t('documents.visibilityOptions.restricted') }, { value: 'company', label: t('documents.visibilityOptions.company') }]" class="w-full" :disabled="!hydrated || pending || conflict" /></UFormField>
+        <UFormField :label="t('documents.visibility')" name="document-visibility"><USelect id="document-visibility" v-model="visibility" :items="[{ value: 'restricted', label: t('documents.visibilityOptions.restricted') }, ...(!restrictVisibility ? [{ value: 'company', label: t('documents.visibilityOptions.company') }] : [])]" class="w-full" :disabled="!hydrated || pending || conflict" /></UFormField>
         <p class="text-sm text-muted">{{ t(`documents.visibilityHelp.${visibility}`) }}</p>
-        <UFormField :label="t('documents.addPerson')" name="document-grant-person"><SharedPersonPicker v-model="selected" value-key="user_id" :exclude="grants.map(grant => grant.user.id)" :disabled="!hydrated || pending || conflict" @resolve="resolvePeople" /></UFormField>
+        <UFormField :label="t('documents.addPerson')" name="document-grant-person"><SharedPersonPicker v-model="selected" :endpoint="peopleEndpoint" value-key="user_id" :exclude="grants.map(grant => grant.user.id)" :disabled="!hydrated || pending || conflict" @resolve="resolvePeople" /></UFormField>
         <ul class="grid gap-(--liwan-gap-card)">
           <li v-for="grant in grants" :key="grant.user.id" class="flex flex-wrap items-center gap-2">
             <span class="min-w-0 flex-1 break-words">{{ grant.user.name }}</span>

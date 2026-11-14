@@ -255,12 +255,12 @@ Regression evidence: `test_grant_capability_creates_a_contact_only_inside_the_ac
 
 ## Managed document engine boundaries
 
-`liwan_documents` uses pinned, unmodified OCA DMS in attachment mode. Its business
+`liwan_document_service` uses pinned, unmodified OCA DMS in attachment mode. Its business
 policy lives on `liwan.document`; native groups do not grant a second document ACL.
 Only the actual Odoo operator identity passes bootstrap/migration guards. An elevated
 environment retaining a customer uid and `base.group_system` are insufficient.
 
-The scoped `odoo-addons/liwan_documents/models/ir_binary.py` override of `ir.binary._record_to_stream` is the
+The scoped `odoo-addons/liwan_document_service/models/ir_binary.py` override of `ir.binary._record_to_stream` is the
 required R9 exception: Odoo's `_find_record` accepts a limited-field token and elevates
 before ordinary ACL checks ([Odoo 19 binary source](/Users/tariq/code/odoo/odoo/addons/base/models/ir_binary.py:23)). The source calls
 this an extensible hook. The adapter checks the original actor, canonical attachment,

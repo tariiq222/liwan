@@ -327,7 +327,6 @@ const inboxEventCases: InboxEventCase[] = [
   { name: 'catalog', key: inboxCatalogKeys.catalog(6), conversation: 0, template: 0 },
   { name: 'catalog items', key: inboxCatalogKeys.items(6, {}), conversation: 0, template: 0 },
   { name: 'catalog item', key: inboxCatalogKeys.item(20), conversation: 0, template: 0 },
-  { name: 'catalog products', key: inboxCatalogKeys.products(6, ''), conversation: 0, template: 0 },
   { name: 'channel commerce', key: inboxCatalogKeys.commerce(5), conversation: 0, template: 0 },
   { name: 'catalog picker', key: inboxCatalogKeys.pick({ conversationId: 3 }, ''), conversation: 0, template: 0 },
   { name: 'external live Meta profile', key: inboxHealthKeys.profile(5), conversation: 0, template: 0 },

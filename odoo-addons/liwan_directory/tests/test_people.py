@@ -16,6 +16,7 @@ class TestPeopleDirectory(LiwanApiCase):
     def setUp(self):
         super().setUp()
         self.patch(type(self.env['liwan.directory']), '_liwan_directory_feature_keys', lambda model: (PROBE_FEATURE,))
+        self.patch(type(self.env['liwan.directory']), '_liwan_directory_has_base_consumer', lambda model: False)
         register_probe_feature(self)
         set_probe_feature(self)
 
@@ -84,6 +85,12 @@ class TestPeopleDirectory(LiwanApiCase):
         response = self.api('GET', '/api/v1/people')
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': PROBE_FEATURE})
+
+    def test_a_base_consumer_opens_the_route_without_the_feature(self):
+        self.patch(type(self.env['liwan.directory']), '_liwan_directory_has_base_consumer', lambda model: True)
+        set_probe_feature(self, enabled=False)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', '/api/v1/people').status_code, 200)
 
     def test_the_reported_key_does_not_follow_registration_order(self):
         second = 'zz_probe.enabled'

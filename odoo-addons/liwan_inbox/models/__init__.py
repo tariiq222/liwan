@@ -44,6 +44,7 @@ from . import (
     meta_analytics,
     notification_types,
     privacy_hooks,
+    products_service,
     report_build,
     report_day,
     report_hooks,

@@ -16,7 +16,7 @@ from odoo.addons.liwan_core.models.secret_box import KEY_ENV
 from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET
 from odoo.addons.liwan_inbox_payments.tests.common import CATALOG_ID, image_bytes
 
-EXPECTED_GET_RECORD_ROUTES = 9
+EXPECTED_GET_RECORD_ROUTES = 8
 PASSWORD = 'iso_inbox_pay_nocap_pass_123'
 # Visible and hidden company tags per session company. iso_user holds the inbox manager role in the parent
 # and both branches, so a parent session reads its branches; a branch session never reads the parent or a
@@ -94,7 +94,6 @@ class TestInboxPaymentsCompanyIsolation(CompanyIsolationCase):
         return {
             'catalog': f'/api/v1/inbox/catalogs/{rec["catalog"].id}',
             'items': f'/api/v1/inbox/catalogs/{rec["catalog"].id}/items',
-            'products': f'/api/v1/inbox/catalogs/{rec["catalog"].id}/products',
             'item': f'/api/v1/inbox/catalog-items/{rec["item"].id}',
             'pick': f'/api/v1/inbox/conversations/{rec["conversation"].id}/catalog-items',
             'commerce': f'/api/v1/inbox/channels/{rec["channel"].id}/commerce',
@@ -138,7 +137,6 @@ class TestInboxPaymentsCompanyIsolation(CompanyIsolationCase):
 cover_isolation_routes((
     '/api/v1/inbox/catalogs/<int:catalog_id>',
     '/api/v1/inbox/catalogs/<int:catalog_id>/items',
-    '/api/v1/inbox/catalogs/<int:catalog_id>/products',
     '/api/v1/inbox/catalog-items/<int:item_id>',
     '/api/v1/inbox/conversations/<int:conversation_id>/catalog-items',
     '/api/v1/inbox/channels/<int:channel_id>/commerce',

@@ -1,2 +1,2 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import employee_access, employee_documents
+from . import context_documents, employee_access, employee_documents

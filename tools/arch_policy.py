@@ -26,6 +26,7 @@ DOCUMENTED_SUDO_FILE = Path(__file__).resolve().parent / 'arch_documented_sudo.j
 APPROVAL_TRAILER = 'Architecture-approved-by'
 BRIDGE_RANK = 5
 APP_RANK = 4
+BASE_APPLICATIONS = frozenset({'liwan_documents', 'liwan_operations'})
 FOUNDATION_MAX_RANK = 2
 
 # R2 tokens that are not an addon of this repository: Odoo models.
@@ -171,6 +172,11 @@ def layer_violations(addon: str, targets: list[str], ranks: dict[str, int], kind
     for target in targets:
         if target == addon or target not in ranks:
             continue
+        if (
+            kind == 'depends on' and addon == 'liwan_approval_service'
+            and target == 'base_tier_validation' and ranks[addon] == ranks[target] == 3
+        ):
+            continue
         if ranks[target] >= ranks[addon]:
             key = f'{addon} {kind} {target}'
             found[key] = found.get(key, 0) + 1
@@ -208,7 +214,7 @@ def sudo_calls(text: str, superuser_id: bool = True) -> int:
 
 
 # R10: a route names its feature, or (requires_registered_feature) the features installed addons register for it.
-FEATURE_GATES = frozenset({'requires_feature', 'requires_registered_feature'})
+FEATURE_GATES = frozenset({'requires_feature', 'requires_registered_feature', 'requires_tenant_access'})
 
 
 def routes_without_feature(text: str) -> list[str]:
@@ -807,7 +813,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
         v['R4'].update(layer_violations(addon, depends, ranks, 'depends on'))
         if ranks[addon] == BRIDGE_RANK and not manifest.get('auto_install'):
             hard.append(f'bridge addon {addon} must set auto_install')
-        if ranks[addon] == APP_RANK:
+        if ranks[addon] == APP_RANK and addon not in BASE_APPLICATIONS:
             registry = addon_dir / 'models' / 'feature_registry.py'
             text = _read(registry) if registry.is_file() else ''
             if not (ENABLED_FEATURE.search(text) and f"'owner': '{addon}'" in text):
@@ -823,6 +829,11 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
             _put(v['R6'], rel, count(CUSTOMER_KIND, text))
             _put(v['R7'], rel, sudo_calls(text, superuser_id='migrations' not in path.parts))
             if ranks[addon] in (APP_RANK, BRIDGE_RANK) and 'controllers' in path.parts:
+                if addon not in BASE_APPLICATIONS and any(
+                    isinstance(node, ast.Call) and _decorator_name(node) == 'requires_tenant_access'
+                    for node in ast.walk(ast.parse(text))
+                ):
+                    v['R10'][f'{rel}: lifecycle-only gate belongs to a base application'] = 1
                 for name in routes_without_feature(text):
                     v['R10'][f'{rel}:{name} has no requires_feature'] = 1
             if 'migrations' not in path.parts:

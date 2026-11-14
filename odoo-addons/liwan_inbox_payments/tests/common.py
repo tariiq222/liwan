@@ -18,6 +18,7 @@ from odoo.addons.liwan_payments.tests.common import (
 
 BASE_URL = 'https://tenant.example.test'
 CATALOG_ID = '300000000001'
+SAUDI_VAT = '300000000000003'
 
 
 def image_bytes(size=(600, 600), fmt='PNG'):
@@ -92,7 +93,7 @@ class LiwanCatalogCase(LiwanOrderCase, LiwanInboxCase):
     def image_product(cls, name, price, **values):
         product = cls.env['product.product'].create({
             'name': name, 'type': 'consu', 'list_price': price, 'taxes_id': [Command.clear()],
-            'image_1920': base64.b64encode(image_bytes()), **values,
+            'image_1920': base64.b64encode(image_bytes()), 'liwan_product': True, **values,
         })
         cls.customer.property_product_pricelist.item_ids = [Command.create({
             'applied_on': '0_product_variant', 'product_id': product.id, 'compute_price': 'fixed', 'fixed_price': price,
@@ -146,3 +147,56 @@ class LiwanCatalogCase(LiwanOrderCase, LiwanInboxCase):
 
     def login_user(self, user):
         self.authenticate(user.login, PASSWORD)
+
+
+class TaxModeCase(LiwanCatalogCase):
+    """A fresh Saudi company (no journal item, so stock lets its price mode change) with a 15% sale tax at 115."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.tax_company = cls.catalog_company('Price mode company', price_mode=TAX_INCLUDED)
+        cls.tax_company.write({'vat': SAUDI_VAT, 'liwan_vat_registered': True})
+        cls.tax_group = cls.env['account.tax.group'].create({
+            'name': 'Price mode taxes', 'company_id': cls.tax_company.id,
+        })
+        cls.tax = cls.env['account.tax'].with_company(cls.tax_company).create({
+            'name': 'VAT 15', 'amount': 15, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.tax_company.id, 'tax_group_id': cls.tax_group.id,
+        })
+        cls.business_account = '200000000076'
+        cls.make_channel(phone_id='100000000009', business_account_id=cls.business_account,
+                         owner_company_id=cls.tax_company.id)
+        cls.catalog = cls.env['liwan.inbox.catalog'].create({
+            'company_id': cls.tax_company.id, 'business_account_id': cls.business_account,
+            'meta_catalog_id': CATALOG_ID, 'name': 'Prices', 'brand': 'Acme',
+            'default_link': 'https://shop.example.test',
+        })
+
+    @classmethod
+    def taxed_product(cls, name='Taxed', price=115.0, company=None):
+        return cls.env['product.product'].create({
+            'name': name, 'type': 'consu', 'list_price': price, 'company_id': (company or cls.tax_company).id,
+            'taxes_id': [Command.set(cls.tax.ids)], 'image_1920': base64.b64encode(image_bytes()), 'liwan_product': True,
+        })
+
+    def set_mode(self, mode):
+        """Change the company's price mode; a test states both the mode it starts from and the one it moves to."""
+        self.set_price_mode(self.tax_company, mode)
+
+    def pushed_price(self, meta):
+        return meta.bodies('items_batch')[0]['requests'][0]['data']['price'].split()[0]
+
+    def pushed_prices(self, meta):
+        """The price of every item request one run sent to Meta, across its batches."""
+        return [
+            request['data']['price'].split()[0]
+            for batch in meta.bodies('items_batch') for request in batch['requests']
+        ]
+
+    def run_sync(self, company=None):
+        """The cron's work for one catalog company: `search([])` only reaches the companies in the session."""
+        meta = FakeMeta()
+        with meta.patch():
+            self.env['liwan.inbox.catalog'].with_company(company or self.tax_company)._liwan_run_sync()
+        return meta

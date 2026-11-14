@@ -36,7 +36,11 @@ class TestAppointmentsAccessComposition(TransactionCase):
         role = self.env.ref('liwan_appointments.role_appointments_manager')
         self.assertEqual((role.key, role.type, role.protected), ('appointments_manager', 'built_in', True))
         self.assertEqual(self.env['liwan.access.role'].search_count([('key', '=', 'appointments_manager')]), 1)
-        self.assertEqual(self._keys('liwan_appointments.role_appointments_manager'), set(PERMISSIONS))
+        # The manager also prices and links the product that sells a booking type (products.read, products.manage and prices).
+        self.assertEqual(
+            self._keys('liwan_appointments.role_appointments_manager'),
+            set(PERMISSIONS) | {'products.read', 'products.manage', 'products.prices.manage'},
+        )
         self.assertTrue(self._keys('liwan_core.role_employee') >= EMPLOYEE_PERMISSIONS)
         self.assertTrue(self._keys('liwan_core.role_vendor_support') >= PERMISSIONS)
 

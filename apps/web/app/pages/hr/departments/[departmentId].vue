@@ -2,7 +2,7 @@
 import { hrDepartmentBack, hrDepartmentContext } from '@/utils/hrReturnTo'
 import { useHrDepartment } from '@/composables/useHrDepartments'
 const route = useRoute()
-const sourcePaths = useRecordListPaths(['/hr/departments']); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated()
+const sourcePaths = useRecordListPaths(['/hr/departments']); const { t } = useI18n(); const { can } = useAccess(); const { me } = useMe(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.departmentId))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
 const isDetail = computed(() => route.path === `/hr/departments/${route.params.departmentId}`)
@@ -29,8 +29,8 @@ const editTo = computed(() => ({ path: `/hr/departments/${id.value}/edit`, query
         <SharedStatusBadge size="sm" tone="neutral" :label="t('hr.depts.employeeReason', { count: department.employee_count }, department.employee_count)" />
       </template>
     </SharedIdentityCard>
-    <SharedRecordSection v-if="department && can('documents.items.read')" :title="t('hr.depts.viewDocuments')">
-      <UButton color="neutral" variant="outline" icon="i-lucide-files" :disabled="!hydrated" :to="{ path: '/documents', query: { context_kind: 'hr.department', context_id: String(id) } }" :label="t('hr.depts.viewDocuments')" />
+    <SharedRecordSection v-if="department && me?.capabilities?.includes('documents.items.read')" :title="t('hr.depts.viewDocuments')">
+      <UButton color="neutral" variant="outline" icon="i-lucide-files" :disabled="!hydrated" :to="`/hr/documents/department-${id}`" :label="t('hr.depts.viewDocuments')" />
     </SharedRecordSection>
     <template v-if="department" #aside>
       <SharedPropertiesPanel>

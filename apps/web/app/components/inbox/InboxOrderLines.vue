@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { formatInboxMoney, rowPrice, rowPriceChanged, rowsTotal, type OrderLineRow } from '@/composables/inbox/inboxCommerce'
+import { rowPrice, rowPriceChanged, rowsTotal, type OrderLineRow } from '@/composables/inbox/inboxCommerce'
+import { formatCurrency } from '@/utils/formatCurrency'
 
 // The lines of a cart or an order with today's prices, the total, and a warning beside a line whose product is not in the
 // catalog (the order cannot be placed until it is removed), is out of stock, or costs something else than the cart said.
 const props = defineProps<{ rows: OrderLineRow[]; currency: string }>()
 const { t, locale } = useI18n()
 const total = computed(() => rowsTotal(props.rows))
-const money = (amount: number | null) => (amount === null ? '—' : formatInboxMoney(amount, props.currency, locale.value))
+const money = (amount: number | null) => (amount === null ? '—' : formatCurrency(amount, props.currency, locale.value))
 </script>
 
 <template>

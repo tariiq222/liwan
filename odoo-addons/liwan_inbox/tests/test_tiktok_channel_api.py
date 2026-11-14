@@ -128,7 +128,7 @@ class TestTikTokChannelApi(LiwanInboxCase):
             routes += [
                 ('POST', f'{API}/catalogs'),
                 ('GET', catalog), ('PATCH', catalog), ('DELETE', catalog), ('POST', f'{catalog}/sync'),
-                ('GET', f'{catalog}/items'), ('POST', f'{catalog}/items'), ('GET', f'{catalog}/products'),
+                ('GET', f'{catalog}/items'), ('POST', f'{catalog}/items'),
                 ('GET', item), ('PATCH', item), ('DELETE', item),
                 ('GET', f'{conversation}/catalog-items'),
                 ('GET', f'{channel}/commerce'), ('PATCH', f'{channel}/commerce'),

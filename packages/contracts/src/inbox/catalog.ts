@@ -32,11 +32,7 @@ export const INBOX_COMMERCE_LIMITS = {
   cartQuantity: 99,
   orderLines: 100,
   retailerId: 100,
-  productName: 150,
-  productDescription: 5000,
   brand: 100,
-  imageMinSide: 500,
-  imageBytes: 5 * 1024 * 1024,
 } as const
 const L = INBOX_COMMERCE_LIMITS
 
@@ -236,12 +232,13 @@ export const InboxCatalogImageSchema = z.object({
 export const InboxCatalogItemSchema = z.object({
   id: Id,
   catalog_id: Id,
+  // `product.id` is the product's template id (an id of the products pick list).
   product: Ref,
   product_retailer_id: RetailerId,
   name: z.string(),
   description: z.string(),
-  // The price typed on the product (`list_price`), and the total the customer pays (`price`): the establishment's tax setting
-  // decides whether the typed price already carries the tax or has it added, and an unregistered one charges none.
+  // The unit price typed on the product (`list_price`), and the total the customer pays (`price`): taxes are the
+  // product's own, and an establishment not registered for VAT charges none.
   list_price: Amount,
   price: Amount,
   currency: Currency,
@@ -258,30 +255,6 @@ export const InboxCatalogItemSchema = z.object({
 }).strict()
 export const InboxCatalogItemListSchema = list(InboxCatalogItemSchema)
 
-// A product image uploaded as base64 JSON like every LiwanOS attachment: JPEG or PNG, at least 500×500, at most 5 MB.
-export const InboxCatalogImageUploadSchema = z.object({
-  name: z.string().min(1).max(255),
-  mimetype: z.enum(['image/jpeg', 'image/png']),
-  data: z.string().min(1),
-}).strict()
-
-const ProductFields = {
-  name: z.string().trim().min(1).max(L.productName),
-  description: z.string().trim().min(1).max(L.productDescription).nullable(),
-  list_price: Amount,
-}
-
-// A new product made for the catalog: it needs an image (Meta requires one).
-export const InboxCatalogProductCreateSchema = z.object({
-  ...ProductFields,
-  image: InboxCatalogImageUploadSchema,
-}).strict()
-
-export const InboxCatalogProductPatchSchema = z.object({
-  ...ProductFields,
-  image: InboxCatalogImageUploadSchema,
-}).partial().strict().refine(body => Object.keys(body).length > 0, { message: 'send at least one field' })
-
 const ItemFields = {
   // Defaults to the product's internal reference or `wv-<product id>`; fixed once the item was synced.
   product_retailer_id: RetailerId.optional(),
@@ -290,30 +263,12 @@ const ItemFields = {
   link_override: HttpsUrl.nullable().optional(),
 }
 
-// List an existing product (it must have an image), or make a new one.
-export const InboxCatalogItemCreateSchema = z.union([
-  z.object({ product_id: Id, ...ItemFields }).strict(),
-  z.object({ product: InboxCatalogProductCreateSchema, ...ItemFields }).strict(),
-])
+// List a product of the products service: `product_id` is the id of its pick list (`GET /api/v1/products/pick`) and it
+// must have an image. The product itself is made and edited in the products service, never here.
+export const InboxCatalogItemCreateSchema = z.object({ product_id: Id, ...ItemFields }).strict()
 
-// `product` edits only a product made by the catalog editor (422 otherwise).
-export const InboxCatalogItemPatchSchema = z.object({
-  ...ItemFields,
-  product: InboxCatalogProductPatchSchema.optional(),
-}).strict().refine(body => Object.keys(body).length > 0, { message: 'send at least one field' })
-
-// An existing product of the catalog's company that may be listed: the "existing product" picker of the item form.
-export const InboxCatalogProductOptionSchema = z.object({
-  id: Id,
-  name: z.string(),
-  list_price: Amount,
-  currency: Currency,
-  // Meta needs an image; a product without one cannot be listed until it gets one.
-  has_image: z.boolean(),
-  // Already an item of this catalog.
-  listed: z.boolean(),
-}).strict()
-export const InboxCatalogProductOptionListSchema = list(InboxCatalogProductOptionSchema)
+export const InboxCatalogItemPatchSchema = z.object(ItemFields).strict()
+  .refine(body => Object.keys(body).length > 0, { message: 'send at least one field' })
 
 // What the composer's product picker lists: listed, synced, not rejected items of the conversation's catalog.
 export const InboxCatalogPickItemSchema = z.object({
@@ -434,12 +389,8 @@ export type InboxCatalogItemReview = z.infer<typeof InboxCatalogItemReviewSchema
 export type InboxCatalogImage = z.infer<typeof InboxCatalogImageSchema>
 export type InboxCatalogItem = z.infer<typeof InboxCatalogItemSchema>
 export type InboxCatalogItemList = z.infer<typeof InboxCatalogItemListSchema>
-export type InboxCatalogImageUpload = z.infer<typeof InboxCatalogImageUploadSchema>
-export type InboxCatalogProductCreate = z.infer<typeof InboxCatalogProductCreateSchema>
-export type InboxCatalogProductPatch = z.infer<typeof InboxCatalogProductPatchSchema>
 export type InboxCatalogItemCreate = z.infer<typeof InboxCatalogItemCreateSchema>
 export type InboxCatalogItemPatch = z.infer<typeof InboxCatalogItemPatchSchema>
-export type InboxCatalogProductOption = z.infer<typeof InboxCatalogProductOptionSchema>
 export type InboxCatalogPickItem = z.infer<typeof InboxCatalogPickItemSchema>
 export type InboxCatalogPickItemList = z.infer<typeof InboxCatalogPickItemListSchema>
 export type InboxOrderPayment = z.infer<typeof InboxOrderPaymentSchema>

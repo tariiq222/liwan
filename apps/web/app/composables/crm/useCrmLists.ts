@@ -21,7 +21,8 @@ const LIST_LIMIT = 200
 
 interface ListShape<Row> { items: Row[]; total: number }
 
-// The five lists share one route shape: GET all, POST one, PATCH by id. A write refetches its list.
+// The five lists share one route shape: GET all, POST one, PATCH by id (a package has no PATCH: it is a product the
+// company adds with POST and drops with DELETE). A write refetches its list.
 // `settings` is the manager's view (archived rows too, crm.settings.read); `choices` is what a record form offers
 // (active rows only, any crm.leads.read holder: the server lets both capabilities read the lists).
 type ListScope = 'settings' | 'choices'
@@ -38,10 +39,11 @@ function useCrmList<Row>(name: CrmListName, schema: ZodType<ListShape<Row>>, ena
 }
 
 /**
- * Writes to one list. A row is archived and restored with `active` on a change, never deleted. `busy` holds the ids
- * with a write in flight (0 is the add form) and `message` the last refusal, in the user's words.
+ * Writes to one list. A row is archived and restored with `active` on a change; only a package is removed (`remove`,
+ * from the company's packages, never archived). `busy` holds the ids with a write in flight (0 is the add form) and
+ * `message` the last refusal, in the user's words.
  */
-export function useCrmListEditor<Row, Create extends object, Patch extends object>(name: CrmListName, rowSchema: ZodType<Row>) {
+export function useCrmListEditor<Row, Create extends object, Patch extends object = never>(name: CrmListName, rowSchema: ZodType<Row>) {
   const { $api } = useApi()
   const qc = useQueryClient()
   const { t } = useI18n()
@@ -67,6 +69,7 @@ export function useCrmListEditor<Row, Create extends object, Patch extends objec
     message,
     add: (body: Create) => write(0, () => $api(`/api/v1/crm/${name}`, { method: 'POST', body, schema: rowSchema })),
     change: (id: number, body: Patch) => write(id, () => $api(`/api/v1/crm/${name}/${id}`, { method: 'PATCH', body, schema: rowSchema })),
+    remove: (id: number) => write(id, () => $api(`/api/v1/crm/${name}/${id}`, { method: 'DELETE', schema: rowSchema })),
   }
 }
 

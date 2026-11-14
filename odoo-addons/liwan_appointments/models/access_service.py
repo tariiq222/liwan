@@ -2,7 +2,11 @@
 from odoo import api, models
 
 BOOKINGS_WRITE = 'appointments.bookings.write'
-PERMISSIONS = frozenset({'appointments.bookings.read', BOOKINGS_WRITE, 'appointments.bookings.manage'})
+BOOKINGS_MANAGE = 'appointments.bookings.manage'
+PERMISSIONS = frozenset({'appointments.bookings.read', BOOKINGS_WRITE, BOOKINGS_MANAGE})
+# The manager prices and links the product that sells a booking type through liwan.products.service (plan D4, option A).
+# A built-in role grant does not complete dependencies, so the read capability the other two require is listed too.
+MANAGER_PRODUCT_PERMISSIONS = frozenset({'products.read', 'products.manage', 'products.prices.manage'})
 EMPLOYEE_PERMISSIONS = frozenset({'appointments.bookings.read'})
 PERMISSION_DEPENDENCIES = {
     'appointments.bookings.manage': {'appointments.bookings.write'},
@@ -30,7 +34,7 @@ class LiwanAppointmentsAccessService(models.AbstractModel):
     def _liwan_builtin_role_grants(self):
         grants = super()._liwan_builtin_role_grants()
         for role_xmlid, keys in (
-            ('liwan_appointments.role_appointments_manager', PERMISSIONS),
+            ('liwan_appointments.role_appointments_manager', PERMISSIONS | MANAGER_PRODUCT_PERMISSIONS),
             ('liwan_core.role_employee', EMPLOYEE_PERMISSIONS),
             ('liwan_core.role_vendor_support', PERMISSIONS),
         ):

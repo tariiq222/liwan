@@ -1,21 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""What Meta accepts as a catalog image: JPEG or PNG, at least MIN_IMAGE_SIDE on both sides."""
+"""The image Meta fetches: a JPEG or PNG as it is, any other format as a PNG. The inspection of an image is the
+products service's (``liwan_products`` ``inspect_image``)."""
 import io
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 
 PUBLIC_FORMATS = {'JPEG': 'image/jpeg', 'PNG': 'image/png'}
-# A decompression bomb is refused instead of decoded.
-Image.MAX_IMAGE_PIXELS = 64_000_000
-
-
-def inspect_image(raw):
-    """(format word, width, height) of an image, or None when `raw` is not a readable image."""
-    try:
-        with Image.open(io.BytesIO(raw)) as image:
-            return image.format, image.width, image.height
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, ValueError):
-        return None
 
 
 def public_image(raw):

@@ -2,7 +2,8 @@
 import type { InboxCommerceProduct, InboxMessage } from '@liwan/contracts'
 import InboxOrderActions from '@/components/inbox/InboxOrderActions.vue'
 import InboxOrderLines from '@/components/inbox/InboxOrderLines.vue'
-import { cartLineRows, formatInboxMoney, orderBadge } from '@/composables/inbox/inboxCommerce'
+import { cartLineRows, orderBadge } from '@/composables/inbox/inboxCommerce'
+import { formatCurrency } from '@/utils/formatCurrency'
 
 // The commerce block of a thread message: a product card, a product list (header, count, sections collapsed), the
 // catalog card, the chip above a customer's product inquiry, and the customer's cart as a card with its order status and
@@ -17,7 +18,7 @@ const cartRows = computed(() => (cart.value ? cartLineRows(cart.value) : []))
 const cartCurrency = computed(() => cart.value?.lines[0]?.currency ?? 'SAR')
 const badge = computed(() => (cart.value?.order ? orderBadge({ state: cart.value.order.state, payment_status: cart.value.order.payment_status }) : null))
 const productOf = (id: string) => sent.value?.products.find(item => item.product_retailer_id === id)?.product ?? null
-const price = (product: InboxCommerceProduct) => formatInboxMoney(product.price, product.currency, locale.value)
+const price = (product: InboxCommerceProduct) => formatCurrency(product.price, product.currency, locale.value)
 const content = computed(() => sent.value?.content)
 const single = computed(() => (content.value?.type === 'product' ? productOf(content.value.product_retailer_id) : null))
 const thumbnail = computed(() => (content.value?.type === 'catalog_message' && content.value.thumbnail_product_retailer_id ? productOf(content.value.thumbnail_product_retailer_id) : null))

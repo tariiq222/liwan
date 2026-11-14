@@ -12,7 +12,7 @@ from odoo.addons.liwan_appointments_payments.serializers.booking_payment import 
 )
 
 TYPE_PAYMENT_KEYS = {
-    'online_payment', 'deposit_percent', 'price', 'currency', 'refund_policy', 'refund_amounts', 'refund_tiers',
+    'online_payment', 'deposit_percent', 'product_id', 'price', 'currency', 'refund_policy', 'refund_amounts', 'refund_tiers',
 }
 BOOKING_PAYMENT_KEYS = {
     'status', 'needs_attention', 'currency', 'amount_total', 'amount_due', 'amount_received', 'amount_to_refund', 'expires_at',
@@ -58,7 +58,8 @@ class TestBookingPaymentRoutes(LiwanPaidBookingCase):
             ({'price': 0}, 'price'),
             ({'price': '10'}, 'price'),
             ({'price': 1_000_001}, 'price'),
-            ({'product_id': 1}, 'product_id'),
+            ({'product_id': '1'}, 'product_id'),
+            ({'product_id': 0}, 'product_id'),
             ({}, 'online_payment'),
         ):
             with self.subTest(field=field):
@@ -67,9 +68,16 @@ class TestBookingPaymentRoutes(LiwanPaidBookingCase):
 
     def test_a_price_that_is_not_a_real_amount_is_refused(self):
         # An HTTP client cannot even send these (JSON has no NaN or Infinity), but Python's JSON reader accepts them.
-        for price in (float('nan'), float('inf')):
+        for price in (float('nan'), float('inf'), 1e308, 10**400, -(10**400)):
             with self.subTest(price=price), self.assertRaises(ApiError):
                 parse_type_payment({'price': price})
+
+    def test_a_huge_price_is_refused_by_the_route_not_a_server_error(self):
+        self.authenticate('appointments_manager', 'appointments_manager_pass_123')
+        for price in (1e308, 10**400, -(10**400)):
+            with self.subTest(price=price):
+                response = self.api('PATCH', self.type_url(), json={'price': price})
+                self.assertEqual((response.status_code, response.json()['field']), (422, 'price'))
 
     def test_only_a_manager_changes_how_a_type_is_paid(self):
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')

@@ -6,7 +6,7 @@ from odoo import Command, http
 from odoo.tests import tagged
 from odoo.tools.misc import limited_field_access_token
 
-from .common import DocumentHttpCase
+from odoo.addons.liwan_document_service.tests.common import DocumentHttpCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 
@@ -153,36 +153,15 @@ class TestDocumentDownloads(DocumentHttpCase):
         self.assertIn('filename="download.txt"', disposition)
         self.assertIn("filename*=UTF-8''%D9%85", disposition)
 
-    def test_retained_and_expired_readers_keep_private_file_bytes(self):
+    def test_base_and_expired_readers_keep_private_file_bytes(self):
         self.authenticate('docs_manager', 'docs_manager')
         profile = self.env.ref('liwan_platform.tenant_profile')
         path = f'/api/v1/documents/{self.document.id}/files/{self.file.id}/download'
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**profile.features, 'documents.enabled': False},
-            'retained_read_features': [key for key in profile.retained_read_features if key != 'documents.enabled'],
-        })
-        # Warm the native attachment query while all document reads are closed.
-        response = self.url_open(
-            '/web/dataset/call_kw/ir.attachment/search_read',
-            data=json.dumps({'jsonrpc': '2.0', 'method': 'call', 'id': 1,
-                'params': {'model': 'ir.attachment', 'method': 'search_read',
-                           'args': [[['id', '=', self.attachment.id]]],
-                           'kwargs': {'fields': ['name']}}}),
-            headers={'Content-Type': 'application/json'},
-        )
-        error = response.json().get('error', {}).get('data', {})
-        self.assertEqual(error.get('name'), 'werkzeug.exceptions.NotFound', response.text)
-        self.assertNotIn(b'private download bytes', response.content)
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**profile.features, 'documents.enabled': False},
-            'retained_read_features': [*(profile.retained_read_features or []), 'documents.enabled'],
-        })
         response = self.url_open(path)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.content, b'private download bytes')
         if profile.commercial_mode == 'saas':
             profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-                'features': {**profile.features, 'documents.enabled': True},
                 'valid_until': '2000-01-01',
             })
             response = self.url_open(path)

@@ -150,15 +150,6 @@ export function normalizeCommerceDraft(value: unknown): CommerceDraft | null {
 
 // ---------------------------------------------------------------- money, carts and orders
 
-/** An amount in its currency, in the page locale; a bare number when the currency code is not one the browser knows. */
-export function formatInboxMoney(amount: number, currency: string, locale: string): string {
-  try {
-    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount)
-  } catch {
-    return `${amount} ${currency}`
-  }
-}
-
 /** The sum of quantity times price over the lines whose price is known, and whether any line had none. */
 export function linesTotal(lines: ReadonlyArray<{ quantity: number; price: number | null }>): { total: number; complete: boolean } {
   let total = 0
@@ -257,29 +248,3 @@ export const SYNC_STATE_TONE: Record<InboxCatalogItemSyncState, StatusTone> = {
   pending: 'warning', syncing: 'info', synced: 'success', error: 'destructive', removing: 'neutral',
 }
 export const REVIEW_TONE: Record<InboxCatalogItemReview, StatusTone> = { pending: 'warning', approved: 'success', rejected: 'destructive', unknown: 'neutral' }
-
-// ---------------------------------------------------------------- product images
-
-const IMAGE_TYPES = ['image/jpeg', 'image/png'] as const
-export const CATALOG_IMAGE_ACCEPT = IMAGE_TYPES.join(',')
-
-export type ImageProblem = 'type' | 'tooLarge' | 'tooSmall'
-
-/** Why a product image would be refused (Meta needs a JPEG or PNG of at least 500 by 500, and LiwanOS caps the size); null when it is fine. */
-export function imageProblem(file: { type: string; size: number }, dimensions: { width: number; height: number } | null): ImageProblem | null {
-  if (!IMAGE_TYPES.includes(file.type as typeof IMAGE_TYPES[number])) return 'type'
-  if (file.size > COMMERCE_LIMITS.imageBytes) return 'tooLarge'
-  if (dimensions && (dimensions.width < COMMERCE_LIMITS.imageMinSide || dimensions.height < COMMERCE_LIMITS.imageMinSide)) return 'tooSmall'
-  return null
-}
-
-/** The pixel size of an image file, read in the browser; null when the file is not a readable image. */
-export function measureImage(file: Blob): Promise<{ width: number; height: number } | null> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file)
-    const image = new Image()
-    image.onload = () => { URL.revokeObjectURL(url); resolve({ width: image.naturalWidth, height: image.naturalHeight }) }
-    image.onerror = () => { URL.revokeObjectURL(url); resolve(null) }
-    image.src = url
-  })
-}

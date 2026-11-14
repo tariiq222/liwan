@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import Command
 from odoo.tests import new_test_user
 
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
@@ -89,8 +90,19 @@ class LiwanCrmCase(LiwanApiCase):
         cls.set_settings(company, visibility=mode, **extra)
 
     @classmethod
-    def make_package(cls, price=1000.0, name='Package'):
-        return cls.env['product.template'].create({'name': name, 'list_price': price, 'liwan_crm_package': True})
+    def make_package(cls, price=1000.0, name='Package', company=None):
+        """A shared service product the company (default: the CRM company) offers as a package."""
+        product = cls.env['product.template'].create({'name': name, 'list_price': price, 'liwan_product': True})
+        cls.offer(product, company)
+        return product
+
+    @classmethod
+    def offer(cls, product, company=None):
+        """Add ``product`` to the packages of ``company`` (default: the CRM company), made as the superuser."""
+        company = company or cls.company
+        Settings = cls.env['liwan.crm.settings']
+        row = Settings.search([('company_id', '=', company.id)]) or Settings.create({'company_id': company.id})
+        row.package_ids = [Command.link(product.id)]
 
     def bell_rows(self, user, lead, kind):
         """The bell messages of ``kind`` about ``lead`` addressed to ``user``."""

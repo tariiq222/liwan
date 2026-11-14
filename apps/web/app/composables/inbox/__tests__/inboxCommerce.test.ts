@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { InboxMessageCommerce, InboxTemplate } from '@liwan/contracts'
 import {
-  COMMERCE_LIMITS, addDraftSection, customerChoiceBody, customerConflict, buildCommerceContent, cartLineRows, commerceProblem, commerceProductCount, commerceToDraft, emptyCommerceDraft, expiryCountdown, formatInboxMoney,
-  imageProblem, isPayLinkTemplate, linesTotal, normalizeCommerceDraft, orderBadge, orderLineRows, pickedIds, removeDraftSection, rowsTotal, toggleDraftProduct,
+  COMMERCE_LIMITS, addDraftSection, customerChoiceBody, customerConflict, buildCommerceContent, cartLineRows, commerceProblem, commerceProductCount, commerceToDraft, emptyCommerceDraft, expiryCountdown,
+  isPayLinkTemplate, linesTotal, normalizeCommerceDraft, orderBadge, orderLineRows, pickedIds, removeDraftSection, rowsTotal, toggleDraftProduct,
 } from '../inboxCommerce'
 
 const ids = (count: number, from = 1) => Array.from({ length: count }, (_, index) => `wv-${from + index}`)
@@ -117,20 +117,6 @@ describe('carts and orders', () => {
     expect(expiryCountdown(null, now)).toBeNull()
     expect(expiryCountdown('2026-10-29T10:30:01Z', now)).toEqual({ expired: false, minutes: 31 })
     expect(expiryCountdown('2026-10-29T09:59:59Z', now)).toEqual({ expired: true, minutes: 0 })
-  })
-
-  it('formats money and survives an unknown currency code', () => {
-    expect(formatInboxMoney(115, 'SAR', 'en')).toContain('115')
-    expect(formatInboxMoney(5, 'ZZ', 'en')).toBe('5 ZZ')
-  })
-})
-
-describe('product images', () => {
-  it('accepts JPEG and PNG of at least 500 by 500 and 5 MB at most', () => {
-    expect(imageProblem({ type: 'image/png', size: 1000 }, { width: 500, height: 500 })).toBeNull()
-    expect(imageProblem({ type: 'image/gif', size: 1000 }, null)).toBe('type')
-    expect(imageProblem({ type: 'image/jpeg', size: 5 * 1024 * 1024 + 1 }, null)).toBe('tooLarge')
-    expect(imageProblem({ type: 'image/jpeg', size: 1000 }, { width: 499, height: 800 })).toBe('tooSmall')
   })
 })
 

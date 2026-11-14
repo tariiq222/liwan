@@ -15,7 +15,6 @@ from odoo.addons.liwan_api.controllers.common import (
 from odoo.addons.liwan_crm.serializers.lists import (
     NAME_FIELDS,
     OUTCOME_FIELDS,
-    PACKAGE_FIELDS,
     STAGE_FIELDS,
     dump_lost_reason,
     dump_outcome,
@@ -25,6 +24,7 @@ from odoo.addons.liwan_crm.serializers.lists import (
     parse_active_filter,
     parse_body,
     parse_order,
+    parse_package_body,
 )
 
 SEQUENCE_STEP = 10
@@ -75,20 +75,6 @@ def _check_lost_reason_exists(vals):
     reason_id = vals.get('lost_reason_id')
     if reason_id and not request.env['crm.lost.reason'].with_context(active_test=False).browse(reason_id).exists():
         raise ApiError(422, 'invalid', 'lost reason does not exist', field='lost_reason_id')
-
-
-def _package_domain():
-    return [
-        ('liwan_crm_package', '=', True),
-        '|', ('company_id', '=', False), ('company_id', '=', request.env.company.id),
-    ]
-
-
-def _get_package(package_id):
-    package = get_record('product.template', package_id)
-    if not package.filtered_domain(_package_domain()):
-        raise ApiError(404, 'not_found', 'Record does not exist')
-    return package
 
 
 def is_protected_reason(reason):
@@ -298,44 +284,39 @@ class CrmListsController(http.Controller):
         except UniqueViolation as error:
             raise ApiError(409, 'conflict', SOURCE_EXISTS, field='name') from error
 
-    # Packages
+    # Packages: the products the company offers, picked from the shared products service (plan D13)
 
     @http.route('/api/v1/crm/packages', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('crm.enabled', operation='read')
     @requires_capability(*READ, match='any')
     def list_packages(self, **_):
-        return _list(request.env['product.template'], _package_domain(), dump_package)
+        packages = request.env['liwan.crm.settings']._liwan_packages(archived=True)
+        return _list(request.env['product.template'], [('id', 'in', packages.ids)], dump_package)
 
     @http.route('/api/v1/crm/packages', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
-    def create_package(self, **payload):
-        vals = parse_body(payload, PACKAGE_FIELDS, creating=True)
-        Template = request.env['product.template']
-        # A package is not taxed here; naming the taxes keeps accounting (when installed) from reading the company's
-        # default taxes, which a branch manager has no right to read.
-        untaxed = {name: [Command.clear()] for name in ('taxes_id', 'supplier_taxes_id') if name in Template._fields}
-        package = Template.create({
-            **vals, 'liwan_crm_package': True, 'company_id': request.env.company.id, 'purchase_ok': False, **untaxed,
-        })
-        return dump_package(package)
-
-    @http.route('/api/v1/crm/packages/<int:package_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
-    @api_handler
-    @requires_feature('crm.enabled', operation='write')
-    @requires_capability('crm.settings.manage')
-    def patch_package(self, package_id, **payload):
-        package = _get_package(package_id)
-        package.write(parse_body(payload, PACKAGE_FIELDS, creating=False))
-        return dump_package(package)
+    def add_package(self, **payload):
+        product = request.env['liwan.products.service']._liwan_pick_product(parse_package_body(payload))
+        if product.company_id and product.company_id != request.env.company:
+            raise ApiError(422, 'invalid', 'this product belongs to another company', field='product_id')
+        try:
+            with request.env.cr.savepoint():
+                request.env['liwan.crm.settings']._liwan_current_or_create().package_ids = [Command.link(product.id)]
+        except UniqueViolation as error:
+            raise ApiError(409, 'conflict', 'CRM settings changed; try again') from error
+        return dump_package(product)
 
     @http.route('/api/v1/crm/packages/<int:package_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
-    def archive_package(self, package_id, **_):
-        package = _get_package(package_id)
-        package.active = False
+    def remove_package(self, package_id, **_):
+        settings = request.env['liwan.crm.settings']
+        package = settings._liwan_packages(archived=True).filtered(lambda product: product.id == package_id)
+        if not package:
+            raise ApiError(404, 'not_found', 'Record does not exist')
+        settings._liwan_current().with_context(active_test=False).package_ids = [Command.unlink(package.id)]
         return dump_package(package)

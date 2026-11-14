@@ -8,8 +8,8 @@ from odoo import SUPERUSER_ID, api
 from odoo.tests import TransactionCase, tagged
 from odoo.tools import mute_logger
 
-from .common import CommittedDocumentFixtures
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_document_service.tests.common import CommittedDocumentFixtures
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 

@@ -21,7 +21,7 @@ BASE = '/api/v1/crm/opportunities/<int:lead_id>'
 
 
 def find_package(package_id):
-    package = request.env['product.template'].search([('id', '=', package_id), ('liwan_crm_package', '=', True)], limit=1)
+    package = request.env['liwan.crm.settings']._liwan_packages().filtered(lambda product: product.id == package_id)
     if not package:
         raise ApiError(422, 'invalid', 'package does not exist', field='package_id')
     return package

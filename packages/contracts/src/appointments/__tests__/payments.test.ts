@@ -8,19 +8,23 @@ import {
 describe('AppointmentTypePaymentSchema', () => {
   it('names the mode, the deposit share and the price of the type', () => {
     const payment = {
-      online_payment: 'deposit', deposit_percent: 30, price: 115, currency: 'SAR',
+      online_payment: 'deposit', deposit_percent: 30, product_id: 4, price: 115, currency: 'SAR',
       refund_policy: 'notice', refund_amounts: 'company', refund_tiers: [{ notice_hours: 24, percent: 50 }],
     }
     expect(AppointmentTypePaymentSchema.parse(payment)).toEqual(payment)
-    expect(AppointmentTypePaymentSchema.parse({ ...payment, online_payment: 'none', price: null }).price).toBeNull()
+    expect(AppointmentTypePaymentSchema.parse({ ...payment, online_payment: 'none', product_id: null, price: null }).product_id).toBeNull()
+    expect(AppointmentTypePaymentSchema.parse({ ...payment, price: 0 }).price).toBe(0)
     expect(() => AppointmentTypePaymentSchema.parse({ ...payment, deposit_percent: 100 })).toThrow()
-    expect(() => AppointmentTypePaymentSchema.parse({ ...payment, product_id: 4 })).toThrow()
+    expect(() => AppointmentTypePaymentSchema.parse({ ...payment, product_id: 0 })).toThrow()
+    expect(() => AppointmentTypePaymentSchema.parse({ ...payment, product_id: undefined })).toThrow()
     expect(() => AppointmentTypePaymentSchema.parse({ ...payment, refund_policy: 'later' })).toThrow()
     expect(() => AppointmentTypePaymentSchema.parse({ ...payment, refund_tiers: [{ notice_hours: 24, percent: 101 }] })).toThrow()
   })
 
   it('accepts a partial change and refuses an empty one', () => {
     expect(AppointmentTypePaymentUpdateSchema.parse({ price: 200 })).toEqual({ price: 200 })
+    expect(AppointmentTypePaymentUpdateSchema.parse({ product_id: 4, price: 200 })).toEqual({ product_id: 4, price: 200 })
+    expect(() => AppointmentTypePaymentUpdateSchema.parse({ product_id: 0 })).toThrow()
     expect(() => AppointmentTypePaymentUpdateSchema.parse({})).toThrow()
     expect(() => AppointmentTypePaymentUpdateSchema.parse({ online_payment: 'later' })).toThrow()
     expect(() => AppointmentTypePaymentUpdateSchema.parse({ price: 0 })).toThrow()

@@ -1,11 +1,8 @@
 import { z } from 'zod'
 
 const NAME_MAX = 200
-// The server's PRICE_MAX (liwan_crm serializers/lists.py).
-const PRICE_MAX = 999_999_999
 
 const NameSchema = z.string().trim().min(1).max(NAME_MAX)
-const PriceSchema = z.number().min(0).max(PRICE_MAX)
 
 export const CrmOutcomeEffectSchema = z.enum(['follow_up', 'won', 'lost', 'none'])
 
@@ -38,10 +35,12 @@ export const CrmSourceSchema = z.strictObject({
   active: z.boolean(),
 })
 
+// A package is a service product (`product.template` id) the company offers; `price` is its unit price as typed on the
+// product, `active` false while the product is archived.
 export const CrmPackageSchema = z.strictObject({
   id: z.number().int(),
   name: z.string(),
-  price: PriceSchema,
+  price: z.number().min(0),
   description: z.string(),
   active: z.boolean(),
 })
@@ -66,10 +65,9 @@ export const CrmOutcomeCreateSchema = z.strictObject({
   lost_reason_id: z.number().int().positive().nullable().optional(),
 })
 
-export const CrmPackageCreateSchema = z.strictObject({
-  name: NameSchema,
-  price: PriceSchema,
-  description: z.string().max(2000).optional(),
+// POST /api/v1/crm/packages adds an existing product (an id of GET /api/v1/products/pick) to the company's packages.
+export const CrmPackageAddSchema = z.strictObject({
+  product_id: z.number().int().positive(),
 })
 
 export type CrmStage = z.infer<typeof CrmStageSchema>
