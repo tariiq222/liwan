@@ -1,6 +1,6 @@
 # Sales application design
 
-> Status: draft written on 2026-11-14 at the owner's request ("build sales completely, on the Odoo module"). The owner decided two things in that request: the application is built now, and it stands on stock Odoo `sale`. The points of section 9 are open and each carries a recommended default. Nothing here is built. Facts were read on `origin/main` at `65cb936d0`, after products PR 1 merged, and in the Odoo 19 checkout; none was run (section 10). The owner moved the draft from the Codex session to a Claude session the same day; this file supersedes the copy on `codex/sales-build` (`f3e819604`).
+> Status: design written on 2026-11-14 at the owner's request ("build sales completely, on the Odoo module"). The owner decided two things in that request: the application is built now, and it stands on stock Odoo `sale`. The owner approved the eight points of section 9 the same day, each as recommended. Nothing here is built. Facts were read on `origin/main` at `65cb936d0`, after products PR 1 merged, and in the Odoo 19 checkout; none was run (section 10). The owner moved the draft from the Codex session to a Claude session the same day; this file supersedes the copy on `codex/sales-build` (`f3e819604`).
 
 ## 1. Problem
 
@@ -32,7 +32,7 @@ LiwanOS has no sales application. A tenant can win a CRM opportunity with a pack
 
 `liwan_payments` does not depend on `liwan_orders`. Both are rank 3, and a layered addon reaches a strictly lower rank only (`tools/arch_policy.py:168-177`). The two meet in their callers. The factory has two callers today, both rank-5 bridges (`liwan_inbox_payments/models/order.py:187-189`, `liwan_appointments_payments/models/resource_booking.py:70-71`). After PR 1 each bridge depends on both services: it makes the order and its lines through `liwan_orders`, then hands the order to `liwan_payments`, which marks it as an online order (payment required, the deposit share and the deadline) and keeps the pay state, the expiry and the refunds on stock `sale.order` as it does now.
 
-The tax rule of decision 4 sits on the line's stock tax compute, extended in `liwan_orders` (open point 7). A line of an establishment that is not registered then carries no tax when it is created and after every edit, whether an online channel or a member of staff wrote it. Every addon that creates an order depends on `liwan_orders`, so the rule is installed wherever an order can exist.
+The tax rule of decision 4 sits on the line's stock tax compute, extended in `liwan_orders` (point 7 of section 9). A line of an establishment that is not registered then carries no tax when it is created and after every edit, whether an online channel or a member of staff wrote it. Every addon that creates an order depends on `liwan_orders`, so the rule is installed wherever an order can exist.
 
 ## 4. What the application does
 
@@ -95,9 +95,11 @@ Sales changes authorization and money documents, so each pull request takes the 
 
 Each pull request proves its lines in `saas` and `non_saas`, with a branch session and a root session, and with each value of the visibility setting.
 
-## 9. Open points
+## 9. Owner decisions of 2026-11-14
 
-| # | Question | Recommended default |
+The owner approved each point as written here.
+
+| # | Question | Decision |
 | --- | --- | --- |
 | 1 | Start before the product service exists, with sales reading stock products itself? | No. It would be a fourth product writer and reader that the products plan then removes. Wait for products PR 2; PR 1 is merged |
 | 2 | Bring `liwan_orders` forward (section 3)? | Yes |
