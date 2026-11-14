@@ -98,7 +98,7 @@ d('find my workspace', () => {
         await pool.query(`DELETE FROM audit_events WHERE action=$1`, [WORKSPACE_LOOKUP_ACTION])
         const email = `${state}@x.test`
         const w = await workspace({ admin: email })
-        await pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,due_marked_at,renewal_outcome) VALUES($1,$2,$3,now(),'t',now(),'t',now(),CASE WHEN $3='due' THEN now() END,'cancelled')`, [randomUUID(), w.customer, state])
+        await pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,due_marked_at,hold_until,renewal_outcome) VALUES($1,$2,$3,now(),'t',now(),'t',now(),CASE WHEN $3='due' THEN now() END,CASE WHEN $3='due' THEN now() + interval '72 hours' END,'cancelled')`, [randomUUID(), w.customer, state])
         await ask(email); await run()
         expect(sent.map(m => m.to)).toEqual([email])
         expect(sent[0]!.text).toContain(w.host)

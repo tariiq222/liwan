@@ -39,6 +39,7 @@ function fixture() {
       if (sql.includes('FROM vendor_account_roles')) return result(flags.operationsCapability ? [{ role: 'customer_success' }, { role: 'operations' }] : [{ role: 'customer_success' }])
       if (sql.includes('FROM shared_registry_state')) return result([{ revision: state.revision }])
       if (sql.startsWith('SELECT id FROM shared_restore_approvals WHERE control_tenant_id=$1')) return result()
+      if (sql.includes('FROM tenant_deletion_requests')) return result()
       if (sql.includes('FROM tenants')) return result(sql.includes('operations_enabled=true') && !flags.operationsEnabled ? [] : [{ id: values[0] }])
       if (sql.includes('FROM shared_registry_hosts')) return result(flags.reservedHost ? [{ control_tenant_id: 'different-owner' }] : [])
       if (sql.includes('FROM shared_registry_bindings')) return result(state.targets)
@@ -55,7 +56,7 @@ function fixture() {
 }
 const publicationPath = async () => join(await mkdtemp(join(tmpdir(), 'liwan-registry-store-')), 'registry.json')
 
-const input = { controlTenantId: 'ad03d956-efef-4f80-baf3-9c23ea46e945', expectedSnapshotRevision: 0, target: { host: 'a.invalid', tenantId: 'a', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1 }, reason: 'Enroll test tenant' }
+const input = { controlTenantId: 'ad03d956-efef-4f80-baf3-9c23ea46e945', expectedSnapshotRevision: 0, target: { host: 'a.invalid', tenantId: 'a', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1, retired: false }, reason: 'Enroll test tenant' }
 it('publishes through signed HTTP and real store/filesystem with trusted audit identity', async () => {
   const f=fixture(), path=await publicationPath()
   const key='registry-publication-integration-synthetic-key-'.repeat(2)

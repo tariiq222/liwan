@@ -1,6 +1,6 @@
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { TENANT_DELETION_WINDOW_DAYS, type TenantDeletion } from '@liwan/commercial-contracts'
+import { TENANT_DELETION_HOLD_HOURS, TENANT_DELETION_WINDOW_DAYS, type TenantDeletion } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { cancelRefusal } from './cancellation-rules.js'
@@ -18,15 +18,15 @@ export const DELETION_CODE_COOLDOWN_SECONDS = 60
 export const DELETION_CODE_HOURLY_LIMIT = 5
 export const DELETION_SYSTEM_ACTOR = 'system:tenant-deletion'
 
-export type DeletionNoticeType = 'requested' | 'confirmed' | 'reminder' | 'withdrawn' | 'due'
+export type DeletionNoticeType = 'requested' | 'confirmed' | 'reminder' | 'withdrawn' | 'due' | 'last_call' | 'deleting' | 'deleted'
 export type DeletionNoticePayload = { type: DeletionNoticeType; request_id: string; seq?: number; days?: number; code?: string }
 type Row = Record<string, any> & { id: string; customer_id: string; state: string }
-type Who = { actor: string; client_address: string | null }
+export type Who = { actor: string; client_address: string | null }
 
 /** One lock per customer serializes every request, confirmation, withdrawal and the due pass, so two managers cannot race. Held to commit. */
-const lockCustomerDeletion = (client: PoolClient, customerId: string) => client.query(`SELECT pg_advisory_xact_lock(hashtextextended('tenant-deletion:' || $1::text, 0))`, [customerId])
+export const lockCustomerDeletion = (client: PoolClient, customerId: string) => client.query(`SELECT pg_advisory_xact_lock(hashtextextended('tenant-deletion:' || $1::text, 0))`, [customerId])
 
-async function audited(client: PoolClient, who: Who, action: string, customerId: string, reason: string, metadata: Record<string, unknown>) {
+export async function audited(client: PoolClient, who: Who, action: string, customerId: string, reason: string, metadata: Record<string, unknown>) {
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
     [randomUUID(), who.actor, action, customerId, reason, JSON.stringify({ ...metadata, client_address: who.client_address })])
 }
@@ -56,6 +56,7 @@ export async function requestDeletion(pool: Pool, input: Who & { customer_id: st
     const customer = (await client.query('SELECT admin_login,tenant_id FROM customers WHERE id=$1', [input.customer_id])).rows[0]
     if (!customer) throw new CommercialHttpError('not_found', 404)
     if (!customer.tenant_id) throw new CommercialHttpError('no_workspace', 409)
+    if ((await client.query(`SELECT 1 FROM tenants t LEFT JOIN shared_registry_bindings b ON b.control_tenant_id=t.id WHERE t.id=$1 AND (t.status IN ('deleting','deleted') OR b.retired)`, [customer.tenant_id])).rowCount) throw new CommercialHttpError('tenant_retired', 409)
     if (!customer.admin_login) throw new CommercialHttpError('no_manager_address', 409)
     const open = await openRequest(client, input.customer_id)
     if (open && open.state !== 'requested') throw new CommercialHttpError('deletion_pending', 409)
@@ -139,15 +140,20 @@ async function stopRenewal(client: PoolClient, input: Who & { customer_id: strin
 }
 
 /**
- * Withdraws the open request, by a holder of `tenant.delete` or the vendor, any time before it is `due`. No code is needed: withdrawing is
- * the safe direction. It never resumes a renewal the deletion stopped. Asking again with no open request changes nothing; a due request is refused.
+ * Withdraws the open request, by a holder of `tenant.delete` or the vendor: any time while it is requested, confirmed or `due` (the final hold
+ * included), and, by the vendor alone, once `deleting` has stopped access and until the point of no return (`committed_at`). After that the answer is
+ * 409 `deletion_in_progress`. No code is needed: withdrawing is the safe direction. It never resumes a renewal the deletion stopped. A request
+ * withdrawn after access was stopped is reinstated by the runner (`reinstateWithdrawn`). Asking again with no open request changes nothing.
  */
 export async function withdrawDeletion(pool: Pool, input: Who & { customer_id: string; by: 'customer' | 'vendor'; reason: string | null }): Promise<void> {
   await transaction(pool, async client => {
     await lockCustomerDeletion(client, input.customer_id)
     const open = await openRequest(client, input.customer_id)
-    if (!open) return
-    if (open.state === 'due') throw new CommercialHttpError('deletion_due', 409)
+    if (!open) {
+      if ((await client.query("SELECT 1 FROM tenant_deletion_requests WHERE customer_id=$1 AND state='deleted'", [input.customer_id])).rowCount) throw new CommercialHttpError('deletion_in_progress', 409)
+      return
+    }
+    if (open.state === 'deleting' && (open.committed_at || input.by !== 'vendor')) throw new CommercialHttpError('deletion_in_progress', 409)
     await client.query(`UPDATE tenant_deletion_requests SET state='withdrawn',code_hash=NULL,code_expires_at=NULL,withdrawn_at=now(),withdrawn_by=$2,withdrawn_actor=$3,withdrawn_from=$4,withdraw_reason=$5,revision=revision+1 WHERE id=$1`,
       [open.id, input.by, input.actor, input.client_address, input.reason])
     await audited(client, input, 'tenant_deletion.withdrawn', input.customer_id, input.reason ?? '', { request_id: open.id, by: input.by, was: open.state })
@@ -157,8 +163,9 @@ export async function withdrawDeletion(pool: Pool, input: Who & { customer_id: s
 }
 
 /**
- * Moves every confirmed request whose window has ended (by the database clock) to `due`, once each. It stops there: nothing is dropped and the
- * tenant is untouched; the vendor sees the request in the attention list until a later stage carries the deletion out. Returns the number moved.
+ * Moves every confirmed request whose window has ended (by the database clock) to `due`, once each, and starts its final hold: `hold_until` is
+ * TENANT_DELETION_HOLD_HOURS later. The workspace still works and the request can still be withdrawn; the runner (`tenant-deletion-run.ts`) takes it
+ * from there when the hold ends. Returns the number moved.
  */
 export async function markDueDeletions(pool: Pool): Promise<number> {
   const ids = (await pool.query(`SELECT customer_id FROM tenant_deletion_requests WHERE state='confirmed' AND due_at <= now() ORDER BY due_at,id LIMIT 100`)).rows as { customer_id: string }[]
@@ -166,7 +173,7 @@ export async function markDueDeletions(pool: Pool): Promise<number> {
   for (const { customer_id } of ids) {
     moved += await transaction(pool, async client => {
       await lockCustomerDeletion(client, customer_id)
-      const row = (await client.query(`UPDATE tenant_deletion_requests SET state='due',due_marked_at=now(),revision=revision+1 WHERE customer_id=$1 AND state='confirmed' AND due_at <= now() RETURNING id,due_at`, [customer_id])).rows[0]
+      const row = (await client.query(`UPDATE tenant_deletion_requests SET state='due',due_marked_at=now(),hold_until=now() + make_interval(hours => $2),revision=revision+1 WHERE customer_id=$1 AND state='confirmed' AND due_at <= now() RETURNING id,due_at`, [customer_id, TENANT_DELETION_HOLD_HOURS])).rows[0]
       if (!row) return 0
       await audited(client, { actor: DELETION_SYSTEM_ACTOR, client_address: null }, 'tenant_deletion.due', customer_id, '', { request_id: row.id, due_at: row.due_at.toISOString() })
       await enqueueOutbox(client, { kind: TENANT_DELETION_NOTICE_KIND, aggregate_id: row.id, dedupe_key: `due:${row.id}`, payload: { type: 'due', request_id: row.id } satisfies DeletionNoticePayload })

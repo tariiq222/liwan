@@ -1,3 +1,4 @@
+import { tenantRetiringSql } from './tenant-deletion-read.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { riyadhDate } from '@liwan/commercial-contracts'
@@ -81,7 +82,7 @@ export async function armRefundLock(client: PoolClient, input: { subscription_id
 export async function armCancellationLocks(pool: Pool, input: { now: Date; subscription_id?: string }) {
   const today = riyadhDate(input.now)
   const due = (await pool.query(`SELECT s.id FROM subscriptions s WHERE s.cancel_requested_at IS NOT NULL AND s.state IN ('active','past_due')
-    AND NOT s.manual_suspension AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND NOT ${holdsFreeBaseLockSql('s')}
+    AND NOT s.manual_suspension AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND NOT ${holdsFreeBaseLockSql('s')} AND NOT ${tenantRetiringSql('s.customer_id')}
     AND ($2::uuid IS NULL OR s.id=$2) ORDER BY s.id`, [today, input.subscription_id ?? null])).rows
   for (const { id } of due) await transaction(pool, async client => {
     const sub = (await client.query('SELECT *,renewal_at::text AS renewal_on FROM subscriptions WHERE id=$1 FOR UPDATE', [id])).rows[0]

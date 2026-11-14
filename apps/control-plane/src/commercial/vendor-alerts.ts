@@ -47,7 +47,8 @@ const EVENTS = {
   deletion_requested: { title: 'عميل طلب حذف مساحته وينتظر رمز التأكيد', plural: 'طلبات حذف مساحة', need: 'maybe', collapsible: false, todo: 'إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل.' },
   deletion_confirmed: { title: 'عميل أكّد حذف مساحته', plural: 'تأكيدات حذف مساحة', need: 'maybe', collapsible: false, todo: `بدأت مهلة ${TENANT_DELETION_WINDOW_DAYS} يومًا ولم يُحذف شيء. إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل.` },
   deletion_withdrawn: { title: 'سُحب طلب حذف مساحة عميل', plural: 'طلبات حذف مسحوبة', need: 'none', collapsible: false, todo: 'لا إجراء مطلوب.' },
-  deletion_due: { title: 'انتهت مهلة حذف مساحة عميل', plural: 'حذف مساحات مستحق', need: 'yes', collapsible: false, todo: 'لا شيء ينفّذ الحذف تلقائيًا بعد. افتح صفحة العميل وتحقق من الطلب قبل تنفيذه.' },
+  deletion_due: { title: 'بدأت المهلة الأخيرة لحذف مساحة عميل', plural: 'مهل حذف أخيرة', need: 'maybe', collapsible: false, todo: 'المساحة ما زالت تعمل ويمكن سحب الطلب. إن لم يكن الطلب مشروعًا فاسحبه من صفحة العميل قبل نهاية المهلة، وإلا ينفّذ النظام الحذف تلقائيًا.' },
+  deletion_stuck: { title: 'تعثّر حذف مساحة عميل', plural: 'حذف مساحات متعثر', need: 'yes', collapsible: false, todo: 'افتح صفحة العميل وراجع الخطوة التي تعثرت وسببها. لا يُنفَّذ شيء غير قابل للتراجع قبل أن تنجح الخطوات السابقة.' },
   webhook_verification: { title: 'مزود الدفع أرسل رمز تسجيل الـwebhook', plural: 'رموز تسجيل webhook', need: 'yes', collapsible: false, todo: 'أدخل الرمز في لوحة مزود الدفع خلال 30 دقيقة. بعد خمس محاولات خاطئة يُقفل التسجيل.' },
   form_rejection_suppressed: { title: 'سجل رفض دفعات البطاقة توقف لطلب واحد', plural: 'طلبات توقف سجل رفض دفعاتها', need: 'yes', collapsible: false, todo: 'تجاوز طلب واحد حدّ السجل في الساعة فلم تُكتب بقية الرفضات له. افتح صفحة العميل وراجع دفعاته عند مزود الدفع، فقد يكون أحدهم يرسل دفعات بالمفتاح العام.' },
   attention: { title: 'يحتاج انتباهك', plural: 'بنود تحتاج انتباهك', need: 'yes', collapsible: true, todo: 'افتح قائمة الانتباه في لوحة التحكم.' },
@@ -55,9 +56,9 @@ const EVENTS = {
 export type AlertEvent = keyof typeof EVENTS
 
 /** Attention kinds with no alert of their own here: `past_due` is the overdue-invoice alert, `renewal_soon` needs nothing from the owner. */
-const ATTENTION_ALERT_EVENT: Partial<Record<AttentionKind, AlertEvent>> = { bank_transfer_claimed: 'bank_transfer_claimed', refund_rejected: 'refund_rejected', refund_unrecorded: 'refund_unrecorded', tenant_deletion_due: 'deletion_due' }
+const ATTENTION_ALERT_EVENT: Partial<Record<AttentionKind, AlertEvent>> = { bank_transfer_claimed: 'bank_transfer_claimed', refund_rejected: 'refund_rejected', refund_unrecorded: 'refund_unrecorded', tenant_deletion_due: 'deletion_due', tenant_deletion_stuck: 'deletion_stuck' }
 const ATTENTION_SKIPPED: readonly AttentionKind[] = ['past_due', 'renewal_soon']
-const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 'refund_rejected' | 'refund_unrecorded' | 'tenant_deletion_due' | 'past_due' | 'renewal_soon'>, string> = {
+const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 'refund_rejected' | 'refund_unrecorded' | 'tenant_deletion_due' | 'tenant_deletion_stuck' | 'past_due' | 'renewal_soon'>, string> = {
   billing_blocked: 'الفوترة موقوفة لهذا العميل',
   free_base_blocked: 'تعذّر رجوع العميل إلى الباقة المجانية',
   renewal_failed: 'فشل تجديد الاشتراك',

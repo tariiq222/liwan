@@ -56,7 +56,7 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
     const pv = await api('POST', `/plans/${p.body.id}/validate`, { edit_revision: 1, reason })
     plan = (await api('POST', `/plans/${p.body.id}/publish`, { edit_revision: pv.body.edit_revision, reason })).body
   })
-  beforeEach(async () => { await pool.query('TRUNCATE commercial_outbox'); await pool.query('TRUNCATE tenant_deletion_requests') })
+  beforeEach(async () => { await pool.query('TRUNCATE commercial_outbox'); await pool.query('TRUNCATE tenant_deletion_steps, tenant_deletion_requests') })
   afterAll(async () => { await pool.end() })
 
   const request = () => ({ kind: 'new' as const, plan_revision_id: plan.id, bundle_revision_ids: [bundle.id], cadence: monthly,
@@ -368,9 +368,8 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
     expect((await getSubscription(pool, f.customer)).deletion).toMatchObject({ state: 'due', due_at: dueRow.due_at.toISOString() })
     expect(JSON.stringify((await pool.query('SELECT * FROM tenants WHERE id=$1', [f.tenant])).rows)).toBe(tenantBefore)
     expect((await pool.query('SELECT count(*)::int AS n FROM operations WHERE tenant_id=$1', [f.tenant])).rows[0].n).toBe(operationsBefore)
-    // Too late to withdraw, for the customer and for the vendor.
-    expect(await refused(withdrawDeletion(pool, { ...who, customer_id: f.customer, by: 'customer', reason: null }))).toEqual({ code: 'deletion_due', status: 409 })
-    expect(await vendorCall('POST', `/customers/${f.customer}/deletion/withdraw`, { reason: 'Too late' })).toMatchObject({ status: 409, data: { code: 'deletion_due' } })
+    // The final hold starts: 72 hours on the database clock, the workspace keeps working and the request can still be withdrawn (see the run suite).
+    expect((await pool.query("SELECT (hold_until = due_marked_at + interval '72 hours') AS ok FROM tenant_deletion_requests WHERE customer_id=$1", [f.customer])).rows[0].ok).toBe(true)
     expect(await refused(ask(f))).toEqual({ code: 'deletion_pending', status: 409 })
     // It waits in the vendor's attention list until handled.
     const item = (await attention(pool, true)).items.find(i => i.kind === 'tenant_deletion_due' && i.customer_id === f.customer)
@@ -417,7 +416,7 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
     expect(mailsTo(f)[1]!.subject).toBe('جدولنا حذف مساحة العمل في LiwanOS')
     expect(confirmedText).toContain('لم يُحذف شيء حتى الآن')
     expect(confirmedText).toContain('Nothing has been deleted yet')
-    expect(confirmedText).toContain('scheduled for deletion')
+    expect(confirmedText).toContain('withdrawal window')
     expect(confirmedText.indexOf('يحذف فريق ليوان')).toBeLessThan(confirmedText.indexOf('the LiwanOS team deletes'))
     expect(confirmedText).toContain('invoices and payment records')
     expect(confirmedText).toContain('Subscription in LiwanOS (Delete workspace)')
@@ -434,18 +433,18 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
       sentSoFar++
       expect(mailsTo(f)).toHaveLength(sentSoFar)
       expect(texts()[sentSoFar - 1]).toContain(threshold === 1 ? '1 day' : `${threshold} days`)
-      expect(texts()[sentSoFar - 1]).toContain('scheduled for deletion')
+      expect(texts()[sentSoFar - 1]).toContain('withdrawal window')
     }
     // The due moment says the window ended, withdrawal is over and the team will carry it out and confirm; it never says it is done or under way.
     await dueIn(f, -1); await markDueDeletions(pool)
     await send(); await send()
     expect(mailsTo(f)).toHaveLength(sentSoFar + 1)
     const dueText = texts()[sentSoFar]!
-    expect(mailsTo(f)[sentSoFar]!.subject).toBe('انتهت مهلة حذف مساحة العمل في LiwanOS')
-    expect(dueText).toContain('لم يعد سحب الطلب ممكنًا')
-    expect(dueText).toContain('سينفّذ فريق ليوان الحذف، وسنرسل لك تأكيدًا عند اكتماله')
-    expect(dueText).toContain('can no longer be withdrawn')
-    expect(dueText).toContain('will carry out the deletion and we will send you a confirmation when it is complete')
+    expect(mailsTo(f)[sentSoFar]!.subject).toBe('بدأت المهلة الأخيرة لحذف مساحة العمل في LiwanOS')
+    expect(dueText).toContain('مدتها 72 ساعة')
+    expect(dueText).toContain('ولا يزال بإمكانك سحب الطلب حتى')
+    expect(dueText).toContain('final hold of 72 hours')
+    expect(dueText).toContain('you can still withdraw the request until')
     expect(dueText).not.toContain('being carried out')
 
     // A worker that was down: only the nearest reminder still ahead goes out, never the missed ones in a batch.
@@ -499,9 +498,9 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
     await dueIn(f, -1)
     await markDueDeletions(pool)
     await run(); await run()
-    const dueAlerts = alertsFor('انتهت مهلة حذف')
+    const dueAlerts = alertsFor('بدأت المهلة الأخيرة لحذف')
     expect(dueAlerts).toHaveLength(1)
-    expect(dueAlerts[0]).toContain('[يتطلب إجراء]')
+    expect(dueAlerts[0]).toContain('[قد يتطلب إجراء]')
   })
 
   it('shows the vendor every request, lets only a reader see it, and never lets the vendor create, confirm or shorten one', async () => {
@@ -577,6 +576,8 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
     const check = (await pool.query("SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname='tenant_deletion_requests_state_check'")).rows[0]
     expect(check.def).toContain("'requested'")
     expect(check.def).toContain("'due'")
+    expect(check.def).toContain("'deleting'")
+    expect(check.def).toContain("'deleted'")
     expect((await pool.query("SELECT 1 FROM schema_migrations WHERE version=57")).rowCount).toBe(1)
   })
 })

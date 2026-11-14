@@ -1,3 +1,4 @@
+import { tenantRetiringSql } from './tenant-deletion-read.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { transaction } from '../db.js'
@@ -107,8 +108,8 @@ const BACKOFF_SQL = "now() + LEAST(power(2, tenant_status_failures), 60) * inter
 export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatusRunner; limit?: number; budgetMs?: number; busy?: () => Promise<boolean>; log?: (message: string, error?: unknown) => void }) {
   const started = Date.now(), budget = input.budgetMs ?? 90_000
   const due = (await pool.query(`SELECT s.id,s.tenant_id,${tenantStatusSql('s')} AS wanted FROM subscriptions s
-    JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
-    WHERE ${tenantStatusUndelivered('s')}
+    JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true AND NOT b.retired
+    WHERE ${tenantStatusUndelivered('s')} AND NOT ${tenantRetiringSql('s.customer_id')}
       AND (s.tenant_status_next_at IS NULL OR s.tenant_status_next_at <= now())
     ORDER BY s.tenant_status_next_at NULLS FIRST, s.id LIMIT $1`, [input.limit ?? 5])).rows as { id: string; tenant_id: string; wanted: TenantStatus }[]
   const pushed: string[] = [], failed: string[] = []

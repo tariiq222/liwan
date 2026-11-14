@@ -600,8 +600,12 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         requireCapability(auth, 'vendor.tenants.manage')
         const input = parseJson(raw, operationsGrantSchema)
         const result = await transaction(pool, async (client) => {
-          const row = await client.query(`UPDATE tenants SET operations_enabled=$1 WHERE id=$2 RETURNING ${TENANT_FIELDS}`, [input.enabled, grantMatch[1]])
-          if (!row.rowCount) throw new ApiError(404, 'not_found', 'Installation not found')
+          const row = await client.query(`UPDATE tenants SET operations_enabled=$1 WHERE id=$2 AND status NOT IN ('deleting','deleted') RETURNING ${TENANT_FIELDS}`, [input.enabled, grantMatch[1]])
+          if (!row.rowCount) {
+            // A workspace that is being or has been deleted never gets its operations back through this route.
+            if ((await client.query('SELECT 1 FROM tenants WHERE id=$1', [grantMatch[1]])).rowCount) throw new ApiError(409, 'tenant_retiring', 'The workspace is being deleted')
+            throw new ApiError(404, 'not_found', 'Installation not found')
+          }
           await audit(client, auth.actor, input.enabled ? 'tenant.operations.enabled' : 'tenant.operations.disabled', grantMatch[1], input.reason)
           return row.rows[0]
         })

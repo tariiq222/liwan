@@ -56,6 +56,7 @@ The shared worker's `vendor-alerts` job tells the owner about commercial events 
 | --- | --- |
 | `LIWAN_VENDOR_ALERT_EMAIL_TO` | The one owner address. Email also needs the `LIWAN_MAIL_*` adapter. |
 | `LIWAN_ALERT_TELEGRAM_BOT_TOKEN`, `LIWAN_ALERT_TELEGRAM_CHAT_ID` | The same names `deploy/alerts.py` reads: one bot serves infrastructure and commercial alerts. Set both or neither; one alone is logged as an unavailable channel. |
+| `LIWAN_TENANT_DELETION_ENABLED` | Kill switch of the final workspace deletion (shared worker). Default off; only the exact value `true` turns it on. Off: the runner records the plan and "would do" lines (dry-run effects) once an hour and deletes nothing. |
 | `LIWAN_VENDOR_ALERT_EMAIL`, `LIWAN_VENDOR_ALERT_TELEGRAM` | `off`, `0`, `false` or `no` turns that channel off. Unset means on when configured. |
 | `ADMIN_ORIGIN` | Existing; the messages link to `<origin>/customers/<id>` or `<origin>/overview`. Without it there is no link. |
 

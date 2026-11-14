@@ -22,7 +22,8 @@ import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-
 import { endTrial, extendTrial, startTrial } from './trial.js'
 import { resumeSubscription, suspendSubscription } from './suspension.js'
 import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
-import { latestTenantDeletionRequest, listTenantDeletionRequests } from './tenant-deletion-read.js'
+import { latestTenantDeletionRequest, listTenantDeletionRequests, tenantDeletionRunOf } from './tenant-deletion-read.js'
+import { tenantDeletionEnabled } from './tenant-deletion-run.js'
 import { withdrawDeletion } from './tenant-deletion.js'
 import { adminLoginChangeSchema, changeAdminLogin, previewAdminLogin } from './admin-login.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
@@ -78,6 +79,13 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     const state=url.searchParams.get('state')
     if(state!==null&&!tenantDeletionStateSchema.safeParse(state).success)throw new CommercialHttpError('invalid',422,'state')
     return {status:200,data:await listTenantDeletionRequests(pool,state)}
+  }
+  // The run of a deletion (frozen plan, pre-checks, step ledger) is read-only: the vendor's only act on it is the withdrawal below, and only before the point of no return.
+  const deletionRun=/^\/customers\/([^/]+)\/deletion\/run$/.exec(path)
+  if(deletionRun&&m==='GET'){
+    need(input,'vendor.read')
+    if(!z.uuid().safeParse(deletionRun[1]).success||!(await pool.query('SELECT 1 FROM customers WHERE id=$1',[deletionRun[1]])).rowCount)throw new CommercialHttpError('not_found',404)
+    return {status:200,data:{run:await tenantDeletionRunOf(pool,deletionRun[1]!,tenantDeletionEnabled(process.env))}}
   }
   const deletion=/^\/customers\/([^/]+)\/deletion(\/withdraw)?$/.exec(path)
   if(deletion&&((!deletion[2]&&m==='GET')||(deletion[2]&&m==='POST'))){

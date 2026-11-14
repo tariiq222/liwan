@@ -149,8 +149,8 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
       const targets = (await pool.query(`SELECT x.tenant_id, x.database_name, x.registry_revision, x.capability_only FROM (
           SELECT DISTINCT ON (b.control_tenant_id) s.tenant_id, b.database_name, b.registry_revision, ${tenantStatusSql('s')}='suspended' AS capability_only
           FROM subscriptions s
-          JOIN tenants t ON t.id=s.tenant_id AND t.operations_enabled=true
-          JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
+          JOIN tenants t ON t.id=s.tenant_id AND t.operations_enabled=true AND t.status NOT IN ('deleting','deleted')
+          JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true AND NOT b.retired
           WHERE s.applied_revision_id IS NOT NULL AND (${tenantStatusSql('s')}='active'
             OR (s.suspended_from='trialing' AND s.trial_ends_at IS NOT NULL AND s.target_revision_id IS NULL
               AND (t.post_trial_supported IS NOT TRUE OR t.excess_supported IS NOT TRUE)))

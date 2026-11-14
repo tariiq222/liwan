@@ -1,3 +1,4 @@
+import { tenantRetiringSql } from './tenant-deletion-read.js'
 import type { Pool, PoolClient } from 'pg'
 import { riyadhDate } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
@@ -12,7 +13,7 @@ import type { PaymentAdapter } from './payment-adapter.js'
 export async function expireTrials(pool: Pool, input: { now: Date; adapter?: PaymentAdapter; returnOrigin?: ReturnOrigin; subscription_id?: string }) {
   const lapsed: string[] = [], deferred: string[] = [], failures: unknown[] = []
   const due = (await pool.query(`SELECT id FROM subscriptions
-    WHERE state='trialing' AND NOT manual_suspension AND applied_revision_id IS NOT NULL AND trial_ends_at <= $1
+    WHERE state='trialing' AND NOT manual_suspension AND applied_revision_id IS NOT NULL AND trial_ends_at <= $1 AND NOT ${tenantRetiringSql('customer_id')}
       AND ($2::uuid IS NULL OR id=$2) ORDER BY id`, [input.now, input.subscription_id ?? null])).rows
   for (const { id } of due) {
     try {

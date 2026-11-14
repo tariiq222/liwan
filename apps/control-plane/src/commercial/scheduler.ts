@@ -19,6 +19,8 @@ import { sendBillingNotices } from './billing-notices.js'
 import { sendCancellationNotices } from './cancellation-notices.js'
 import { expireDeletionCodes, markDueDeletions } from './tenant-deletion.js'
 import { sendTenantDeletionNotices } from './tenant-deletion-notices.js'
+import { queueLastCalls, runTenantDeletions, tenantDeletionEnabled } from './tenant-deletion-run.js'
+import type { DeletionEffects } from './tenant-deletion-effects.js'
 import { sendAdminLoginNotices } from './admin-login.js'
 import { processRefundOutbox } from './settlements.js'
 import { processTokenDeletions } from './form-payments.js'
@@ -42,6 +44,8 @@ export type CommercialSchedulerOptions = {
   usageRunner?: UsageObserveRunner
   /** Pushes a tenant's suspended or active status to Odoo; without it a suspension changes the control plane only. */
   tenantStatusRunner?: TenantStatusRunner
+  /** Carries out the final deletion of a workspace (needs the shared runtime and the registry); without it a request waits at the end of its hold. The kill switch is `LIWAN_TENANT_DELETION_ENABLED=true`. */
+  tenantDeletionEffects?: DeletionEffects
   /** Worker shutdown: stops the background usage run before its next target, and starts no further job or mail in a tick. */
   signal?: AbortSignal
   log?: (message: string, err?: unknown) => void
@@ -119,7 +123,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         }
       })
       await job('invitation.reissue', () => processReissueRequests(pool, { signal: o.signal, log }))
-      await job('tenant-deletion-due', async () => { await expireDeletionCodes(pool); await markDueDeletions(pool) })
+      await job('tenant-deletion-due', async () => { await expireDeletionCodes(pool); await markDueDeletions(pool); await queueLastCalls(pool) })
       if (o.mailAdapter) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
@@ -131,6 +135,10 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('tenant-deletion-notices', () => sendTenantDeletionNotices(pool, { mail, returnOrigin, signal: o.signal }))
         await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, returnOrigin, signal: o.signal }))
         await job('admin-login-notices', () => sendAdminLoginNotices(pool, { mail, returnOrigin, signal: o.signal }))
+      }
+      if (o.tenantDeletionEffects && config.tenantRegistryPath) {
+        const effects = o.tenantDeletionEffects, registryPath = config.tenantRegistryPath
+        await job('tenant-deletion-run', () => runTenantDeletions({ pool, config, effects, registryPath, enabled: tenantDeletionEnabled(env), paymentAdapter: o.paymentAdapter, signal: o.signal, log }))
       }
       await job('vendor-alerts', () => sendVendorAlerts(pool, { now: new Date(clock()), env, mail: o.mailAdapter, telegram, consoleOrigin: config.admin?.origin, signal: o.signal, log }))
       if (ticks % reconcileEvery === 0) {

@@ -15,6 +15,7 @@ import { createMaintenanceRunner,type MaintenanceStep } from './shared/job-loop.
 import { processJobRecoveries } from './shared/job-recovery.js'
 import { processJobAbandonments } from './shared/job-abandon.js'
 import { onShutdownSignal } from './shutdown.js'
+import { createDeletionEffects } from './shared/tenant-deletion-effects-runner.js'
 const config=getConfig()
 if(!await sharedOnboardingEnabled(config))throw Error('shared_adapter_unavailable')
 const pool=new Pool({connectionString:config.databaseUrl,max:8})
@@ -43,7 +44,7 @@ try{
         }},controller.signal)
     }
   }catch{console.error('internal_effect_unavailable','start_failed')}
-  scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,signal:controller.signal})
+  scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,tenantDeletionEffects:createDeletionEffects(config,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),controller.signal),signal:controller.signal})
   const log=(message:string,error?:unknown)=>console.error(message,error instanceof Error?error.stack??error.message:error)
   const isStopping=()=>controller.signal.aborted
   const maintenance:MaintenanceStep[]=[

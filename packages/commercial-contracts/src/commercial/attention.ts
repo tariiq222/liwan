@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 /** The vendor "today" list: concrete things that need the vendor's action, most urgent first. */
 export const ATTENTION_LIMIT = 20
-export const attentionKinds = ['past_due', 'refund_rejected', 'refund_unrecorded', 'bank_transfer_claimed', 'billing_blocked', 'free_base_blocked', 'renewal_failed', 'trial_end_overdue', 'suspension_undelivered', 'stalled_activation', 'invitation_failed', 'notice_failed', 'operation_failed', 'setup_required', 'renewal_missed', 'renewal_soon', 'tenant_deletion_due', 'form_payment_review'] as const
+export const attentionKinds = ['past_due', 'refund_rejected', 'refund_unrecorded', 'bank_transfer_claimed', 'billing_blocked', 'free_base_blocked', 'renewal_failed', 'trial_end_overdue', 'suspension_undelivered', 'stalled_activation', 'invitation_failed', 'notice_failed', 'operation_failed', 'setup_required', 'renewal_missed', 'renewal_soon', 'tenant_deletion_due', 'tenant_deletion_stuck', 'form_payment_review'] as const
 export const attentionKindSchema = z.enum(attentionKinds)
 
 /** `detail` is the machine reason (or number of failed suspension deliveries); `since` starts the condition. */
