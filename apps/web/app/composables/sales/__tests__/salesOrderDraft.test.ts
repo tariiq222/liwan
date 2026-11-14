@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProductPick, SalesOrder } from '@liwan/contracts'
 import {
   emptySalesDraft, hasSalesDraftErrors, moveSalesLine, newSalesLine, salesCreateBody, salesDraftFromOrder, salesDraftSnapshot,
-  salesLinePreview, salesPatchBody, validateSalesDraft, withPickedProduct,
+  salesLineAmount, salesPatchBody, validateSalesDraft, withPickedProduct,
 } from '../salesOrderDraft'
 
 const currency = { id: 2, name: 'SAR', symbol: 'ر.س' }
@@ -51,13 +51,13 @@ describe('sales order draft', () => {
     expect(hasSalesDraftErrors(validateSalesDraft({ ...emptySalesDraft(), customerId: 1, lines: [withPickedProduct(newSalesLine(), PICK)] }))).toBe(false)
   })
 
-  it('moves lines within the list and previews a product line before tax', () => {
+  it('moves lines within the list and amounts a product line at the product price', () => {
     const [a, b, c] = [newSalesLine(), newSalesLine('section'), newSalesLine('note')]
     expect(moveSalesLine([a, b, c], 2, -1)).toEqual([a, c, b])
     expect(moveSalesLine([a, b, c], 0, -1)).toEqual([a, b, c])
-    expect(salesLinePreview({ kind: 'product', unitPrice: 100, quantity: '3', discount: '10' })).toBe(270)
-    expect(salesLinePreview({ kind: 'product', unitPrice: null, quantity: '3', discount: '0' })).toBe(0)
-    expect(salesLinePreview({ kind: 'note', unitPrice: 100, quantity: '1', discount: '0' })).toBe(0)
+    expect(salesLineAmount({ kind: 'product', unitPrice: 100, quantity: '3', discount: '10' })).toBe(270)
+    expect(salesLineAmount({ kind: 'product', unitPrice: null, quantity: '3', discount: '0' })).toBe(0)
+    expect(salesLineAmount({ kind: 'note', unitPrice: 100, quantity: '1', discount: '0' })).toBe(0)
     expect(withPickedProduct(newSalesLine(), PICK)).toMatchObject({ productId: 11, productName: 'Oil', unitPrice: 50, currency: 'SAR' })
   })
 

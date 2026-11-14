@@ -256,6 +256,18 @@ class TestSalesLines(SalesWriteCase):
         self.assertEqual(replaced['lines'][1]['kind'], 'section')
         self.assertFalse(self.env['sale.order.line'].browse(note['id']).exists())
 
+    def test_an_unchanged_past_validity_date_is_kept_and_a_changed_one_is_validated(self):
+        body = self.post(self.agent, self.body(self.product_line(self.plain)))
+        order = self.env['sale.order'].browse(body['id'])
+        order.validity_date = '2001-01-01'
+        kept = self.patch_order(self.agent, order.id, {'validity_date': '2001-01-01', 'terms': 'New terms'})
+        self.assertEqual((kept['validity_date'], kept['terms']), ('2001-01-01', 'New terms'))
+        other = self.api_as(self.agent, 'PATCH', f'{ORDERS}/{order.id}', {'validity_date': '2002-02-02'})
+        self.refused(other, 422, 'invalid', 'validity_date')
+        self.assertEqual(order.validity_date, fields.Date.to_date('2001-01-01'))
+        self.assertEqual(self.patch_order(self.agent, order.id, {'validity_date': '2099-01-31'})['validity_date'], '2099-01-31')
+        self.assertIsNone(self.patch_order(self.agent, order.id, {'validity_date': None})['validity_date'])
+
     def test_a_foreign_line_id_and_a_changed_kind_are_refused(self):
         body = self.post(self.agent, self.body(self.product_line(self.plain), {'kind': 'note', 'name': 'N'}))
         other = self.post(self.agent, self.body())

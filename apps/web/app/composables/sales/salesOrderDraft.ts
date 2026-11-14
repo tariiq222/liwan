@@ -134,8 +134,8 @@ export function salesPatchBody(order: SalesOrder, draft: SalesOrderDraft, canAss
   }
 }
 
-/** The preview of a product line before tax, as the user types; zero until the price and the numbers are known. */
-export function salesLinePreview(line: Pick<SalesLineDraft, 'kind' | 'unitPrice' | 'quantity' | 'discount'>): number {
+/** The amount of a product line at the product's price, as the user types; zero until the price and the numbers are known. The tax is the server's, on save. */
+export function salesLineAmount(line: Pick<SalesLineDraft, 'kind' | 'unitPrice' | 'quantity' | 'discount'>): number {
   if (line.kind !== 'product' || line.unitPrice === null) return 0
   const quantity = decimal(line.quantity)
   const discount = decimal(line.discount)

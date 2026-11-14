@@ -2,11 +2,11 @@
 import type { ProductPick, SalesLineKind } from '@liwan/contracts'
 import { SALES_LIMITS } from '@liwan/contracts'
 import type { SalesLineField } from '@/composables/sales/salesErrors'
-import { moveSalesLine, newSalesLine, salesLinePreview, withPickedProduct, type SalesDraftErrors, type SalesLineDraft } from '@/composables/sales/salesOrderDraft'
+import { moveSalesLine, newSalesLine, salesLineAmount, withPickedProduct, type SalesDraftErrors, type SalesLineDraft } from '@/composables/sales/salesOrderDraft'
 import { formatCurrency } from '@/utils/formatCurrency'
 
 // The lines of a quotation, one card per line in order. A product line picks a product of the products service, shows
-// its unit price read-only and the line's preview before tax, and takes a quantity and a discount; the server prices
+// its unit price read-only and the line's amount at that price, and takes a quantity and a discount; the server prices
 // the line on save. Section and note lines take a text. Lines are added, removed and moved with buttons.
 const props = defineProps<{
   modelValue: SalesLineDraft[]
@@ -65,8 +65,8 @@ function errorAt(index: number, problem: 'product' | 'quantity' | 'discount' | '
             <UFormField :label="t('sales.lines.unitPrice')" :help="t('sales.lines.unitPriceHint')">
               <p class="py-1.5 text-sm text-highlighted"><bdi dir="ltr">{{ line.unitPrice === null ? '—' : money(line.unitPrice, line.currency) }}</bdi></p>
             </UFormField>
-            <UFormField :label="t('sales.lines.preview')">
-              <p class="py-1.5 text-sm font-semibold text-highlighted" :data-testid="`sales-line-preview-${index}`"><bdi dir="ltr">{{ money(salesLinePreview(line), line.currency) }}</bdi></p>
+            <UFormField :label="t('sales.lines.amount')">
+              <p class="py-1.5 text-sm font-semibold text-highlighted" :data-testid="`sales-line-amount-${index}`"><bdi dir="ltr">{{ money(salesLineAmount(line), line.currency) }}</bdi></p>
             </UFormField>
           </div>
         </div>

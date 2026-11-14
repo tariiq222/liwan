@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { SalesOrderListSchema, SalesOrderSchema, SalesSalespeopleSchema, type SalesOrder, type SalesOrderCreate, type SalesOrderPatch } from '@liwan/contracts'
+import { SalesOrderListSchema, SalesOrderSchema, SalesSalespeopleSchema, type SalesOrder, type SalesSalespeople, type SalesOrderCreate, type SalesOrderPatch } from '@liwan/contracts'
 import { salesKeys } from './salesKeys'
 import { salesApiQuery, type SalesListState } from './salesListParams'
 
@@ -26,7 +26,7 @@ export function useSalesOrder(id: MaybeRefOrGetter<number | null>) {
   })
 }
 
-/** The server's largest page, so a tenant with many salespeople gets them all in one read. */
+/** The server's largest page; the salespeople are read page by page until all of them are collected. */
 const SALESPEOPLE_PAGE = 200
 
 /** The people a holder of `sales.documents.assign` may make a document's salesperson. */
@@ -36,7 +36,17 @@ export function useSalesSalespeople(enabled: MaybeRefOrGetter<boolean>) {
     queryKey: salesKeys.salespeople(),
     enabled: computed(() => toValue(enabled)),
     retry: false,
-    queryFn: () => $api('/api/v1/sales/salespeople', { query: { limit: SALESPEOPLE_PAGE }, schema: SalesSalespeopleSchema }),
+    queryFn: async () => {
+      const items: SalesSalespeople['items'] = []
+      let total = 0
+      do {
+        const page = await $api('/api/v1/sales/salespeople', { query: { limit: SALESPEOPLE_PAGE, offset: items.length }, schema: SalesSalespeopleSchema })
+        total = page.total
+        if (page.items.length === 0) break
+        items.push(...page.items)
+      } while (items.length < total)
+      return { items, total }
+    },
   })
 }
 

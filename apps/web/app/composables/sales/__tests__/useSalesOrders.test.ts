@@ -40,14 +40,37 @@ describe('sales reads', () => {
     await order.queryFn()
     expect($api).toHaveBeenCalledWith('/api/v1/sales/orders/7', { schema: SalesOrderSchema })
     expect(as(useSalesOrder(null)).enabled?.value).toBe(false)
-    const people = as(useSalesSalespeople(() => false))
-    await people.queryFn()
-    expect($api).toHaveBeenCalledWith('/api/v1/sales/salespeople', { query: { limit: 200 }, schema: SalesSalespeopleSchema })
-    expect(people.enabled?.value).toBe(false)
+    expect(as(useSalesSalespeople(() => false)).enabled?.value).toBe(false)
     const settings = as(useSalesSettings())
     await settings.queryFn()
     expect($api).toHaveBeenCalledWith('/api/v1/sales/settings', { schema: SalesSettingsSchema })
     expect((settings.queryKey as { value: unknown[] }).value).toEqual(['sales', 'settings', { companyId: 4 }])
+  })
+})
+
+describe('sales salespeople', () => {
+  const person = (id: number) => ({ id, name: `P${id}`, user_id: id })
+  const page = (from: number, count: number, total: number) => ({ items: Array.from({ length: count }, (_, i) => person(from + i)), total })
+
+  it('reads every page until the total is collected', async () => {
+    $api.mockResolvedValueOnce(page(1, 200, 250)).mockResolvedValueOnce(page(201, 50, 250))
+    const result = await as(useSalesSalespeople(() => true)).queryFn() as { items: { id: number }[]; total: number }
+    expect($api).toHaveBeenCalledTimes(2)
+    expect($api).toHaveBeenNthCalledWith(1, '/api/v1/sales/salespeople', { query: { limit: 200, offset: 0 }, schema: SalesSalespeopleSchema })
+    expect($api).toHaveBeenNthCalledWith(2, '/api/v1/sales/salespeople', { query: { limit: 200, offset: 200 }, schema: SalesSalespeopleSchema })
+    expect(result.total).toBe(250)
+    expect(result.items.map(item => item.id)).toEqual(Array.from({ length: 250 }, (_, i) => i + 1))
+  })
+
+  it('makes one call when there are none, and stops on an empty page', async () => {
+    $api.mockResolvedValueOnce({ items: [], total: 0 })
+    expect(await as(useSalesSalespeople(() => true)).queryFn()).toEqual({ items: [], total: 0 })
+    expect($api).toHaveBeenCalledTimes(1)
+    $api.mockReset()
+    $api.mockResolvedValueOnce(page(1, 200, 500)).mockResolvedValueOnce({ items: [], total: 500 })
+    const short = await as(useSalesSalespeople(() => true)).queryFn() as { items: unknown[] }
+    expect($api).toHaveBeenCalledTimes(2)
+    expect(short.items).toHaveLength(200)
   })
 })
 

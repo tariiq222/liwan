@@ -108,7 +108,8 @@ class LiwanSalesService(models.AbstractModel):
             customer = self._liwan_customer(values['customer_id'], order.company_id)
             header['partner_id'] = customer.id
         retax = customer != order.partner_id
-        if 'validity_date' in values:
+        # An edit that leaves the stored date as it is saves even after the date has passed; only a changed date is checked.
+        if 'validity_date' in values and (values['validity_date'] or False) != (order.validity_date or False):
             header['validity_date'] = self._liwan_validity(values['validity_date'])
         if 'terms' in values:
             header['note'] = self._liwan_note(values['terms'])
