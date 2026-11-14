@@ -6,6 +6,7 @@ import { bankTransferClaimRequestSchema, riyadhDate, type BankTransferClaim, typ
 import { CommercialHttpError } from './lifecycle.js'
 import { closeOtherAttempts, settleAttemptIn } from './payments.js'
 import { enqueueOutbox } from './outbox.js'
+import { cancelIntentQuietly, closeFormAttemptIn } from './form-payments.js'
 import { claimView } from './invoices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { isPaidFirstOrder, requireReachableManager } from './orders.js'
@@ -87,6 +88,7 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
 
   // A3: one lock decides who settles this invoice — the order row — and the invoice is read inside the transaction,
   // after it, so its status cannot change between the check and the write.
+  const closedForms: Record<string, any>[] = []
   const settled = await transaction(pool, async client => {
     // This function is the operator's recording (a vendor route): it alone sets the flag the retiring trigger lets a bank-transfer attempt through with, so money that reached the bank can still be recorded for a customer being deleted.
     await client.query("SELECT set_config('liwan.bank_transfer_recording','on',true)")
@@ -123,6 +125,10 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
     // leaves a `created`/`redirected` row behind. The transfer is reserved `pending`, so those stale attempts are closed
     // first — in this transaction, so a failure below puts them back.
     await client.query("UPDATE payment_attempts SET status='failed', updated_at=now() WHERE order_id=$1 AND status IN ('created','redirected','unknown')", [order.id])
+    // An embedded card form the customer opened is `pending` and also holds `payment_attempts_one_live`. The money is already in the bank, so
+    // the form is retired like any sibling of a paid order (no refusal): a card payment that still arrives on it is settled later as a duplicate charge.
+    const forms = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND kind='form' AND status='pending' FOR UPDATE", [order.id])).rows
+    for (const form of forms) if (await closeFormAttemptIn(client, form, 'order_paid', false)) closedForms.push(form)
     // The attempt is reserved NOT settled: apply (below) is what flips it to succeeded and pays the order.
     // succeeded_at is the value date: the day the money reached the account, not the day it was recorded. apply()
     // keeps the first value it finds, so this survives the settlement that follows.
@@ -139,6 +145,7 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
   })
   // After the commit: an open Moyasar attempt on the same order must not stay payable and later become an
   // unrefundable duplicate. This needs the provider, so it cannot live inside the transaction.
+  if (input.adapter) for (const form of closedForms) await cancelIntentQuietly(input.adapter, form.provider_intent_ref)
   if (!settled.replay && input.adapter && settled.attempt.status === 'succeeded') {
     try { await closeOtherAttempts(pool, input.adapter, transferEvent(settled.attempt, { id: settled.order_id })) } catch { /* the reconciler retries a closing it could not make */ }
   }

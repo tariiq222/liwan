@@ -8,7 +8,7 @@ import type { FormPaymentSession } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { PaymentError, type PaymentAdapter, type PaymentIntent, type PaymentRecord, type ProviderEvent, type TokenInfo } from './payment-adapter.js'
-import { claimOutbox, deferOutbox, enqueueOutbox, releaseOutbox } from './outbox.js'
+import { claimOutbox, deferOutbox, enqueueOutbox } from './outbox.js'
 import { FORM_PAYMENT_HOLD_HOURS } from './notice-timings.js'
 import { holdsFreeBaseLockSql } from './free-base.js'
 import { deletionClockRunningSql } from './tenant-deletion-read.js'
@@ -460,16 +460,22 @@ export async function closeUnpaidFormAttempt(pool: Pool, adapter: PaymentAdapter
   }
   const review = reason === 'expired' && intentMayHoldPayment(current, intent)
   if (!review) await cancelIntentQuietly(adapter, row.provider_intent_ref)
-  await transaction(pool, async client => {
-    // A closed attempt whose intent may hold a payment keeps the saved card from being charged for the same invoice while that payment may still arrive.
-    const closed = await client.query(`UPDATE payment_attempts SET status='canceled',updated_at=now(),
-        payment_hold_until=CASE WHEN $3 THEN now() + make_interval(hours => $4) END WHERE id=$1 AND provider_ref IS NULL AND status = ANY($2::text[]) RETURNING order_id`,
-    [row.id, LIVE_ATTEMPT_STATUSES, review, FORM_PAYMENT_HOLD_HOURS])
-    if (!closed.rowCount) return
-    await writeAudit(client, 'payment.form_attempt_closed', row.order_id, `Unpaid card form attempt closed: ${reason}`, { attempt_id: row.id, reason })
-    if (review) await writeAudit(client, 'payment.form_attempt_needs_review', row.order_id, 'The card form was used but no payment was reported: look the payment up at the provider',
-      { attempt_id: row.id, intent_status: intent?.status ?? null })
-  })
+  await transaction(pool, client => closeFormAttemptIn(client, row, reason, review, intent))
+}
+
+/**
+ * The local closing of a form attempt, inside the caller's transaction. A closed attempt whose intent may hold a payment (`review`) keeps the
+ * saved card from being charged for the same invoice while that payment may still arrive. Returns whether this call closed it.
+ */
+export async function closeFormAttemptIn(client: PoolClient, row: Row, reason: 'expired' | 'method_changed' | 'order_paid', review: boolean, intent: PaymentIntent | null = null): Promise<boolean> {
+  const closed = await client.query(`UPDATE payment_attempts SET status='canceled',updated_at=now(),
+      payment_hold_until=CASE WHEN $3 THEN now() + make_interval(hours => $4) END WHERE id=$1 AND provider_ref IS NULL AND status = ANY($2::text[]) RETURNING order_id`,
+  [row.id, LIVE_ATTEMPT_STATUSES, review, FORM_PAYMENT_HOLD_HOURS])
+  if (!closed.rowCount) return false
+  await writeAudit(client, 'payment.form_attempt_closed', row.order_id, `Unpaid card form attempt closed: ${reason}`, { attempt_id: row.id, reason })
+  if (review) await writeAudit(client, 'payment.form_attempt_needs_review', row.order_id, 'The card form was used but no payment was reported: look the payment up at the provider',
+    { attempt_id: row.id, intent_status: intent?.status ?? null })
+  return true
 }
 
 /**
@@ -494,9 +500,10 @@ export async function retireLiveFormAttempt(pool: Pool, adapter: PaymentAdapter,
  */
 export async function processTokenDeletions(pool: Pool, adapter: PaymentAdapter | undefined, limit = 20): Promise<number> {
   let deleted = 0
-  for (const row of await claimOutbox(pool, [TOKEN_DELETE_KIND], limit)) {
+  if (!adapter) return deleted
+  // Only the rows of this adapter's provider and mode are claimed: foreign rows ahead of them in creation order must not fill the batch.
+  for (const row of await claimOutbox(pool, [TOKEN_DELETE_KIND], limit, { payload: { provider: adapter.provider, mode: adapter.mode } })) {
     const payload = row.payload as { provider: string; mode: string; token: string; payment_method_id?: string }
-    if (!adapter || adapter.provider !== payload.provider || adapter.mode !== payload.mode) { await releaseOutbox(pool, row.id); continue }
     const forgetToken = (db: Queryable) => payload.payment_method_id
       ? db.query("UPDATE payment_methods SET provider_token=NULL WHERE id=$1 AND status='removed'", [payload.payment_method_id]) : Promise.resolve()
     try {

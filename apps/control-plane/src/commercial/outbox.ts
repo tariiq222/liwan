@@ -19,15 +19,19 @@ export async function enqueueOutbox(
   return (r.rowCount ?? 0) > 0
 }
 
-/** Takes a five minute lease on due pending rows (creation order); the caller completes, defers, releases or fails them. */
-export async function claimOutbox(pool: Pool, kinds: string[], limit: number, filter?: { automatic: true }): Promise<OutboxRow[]> {
+/**
+ * Takes a five minute lease on due pending rows (creation order); the caller completes, defers, releases or fails them.
+ * `filter.payload` keeps only rows whose payload contains those top-level values, applied before the limit so rows the caller cannot
+ * handle never fill the batch.
+ */
+export async function claimOutbox(pool: Pool, kinds: string[], limit: number, filter?: { automatic?: true; payload?: Record<string, string> }): Promise<OutboxRow[]> {
   const r = await pool.query(
     `WITH due AS (
        SELECT id FROM commercial_outbox WHERE status='pending' AND kind = ANY($1::text[]) AND next_attempt_at <= now()
-       AND (NOT $3::boolean OR payload->>'automatic'='true')
+       AND (NOT $3::boolean OR payload->>'automatic'='true') AND payload @> $4::jsonb
        ORDER BY created_at, id LIMIT $2 FOR UPDATE SKIP LOCKED)
      UPDATE commercial_outbox o SET next_attempt_at = now() + interval '5 minutes' FROM due WHERE o.id = due.id RETURNING o.*`,
-    [kinds, limit, filter?.automatic ?? false],
+    [kinds, limit, filter?.automatic ?? false, JSON.stringify(filter?.payload ?? {})],
   )
   return r.rows.sort((a: OutboxRow, b: OutboxRow) => a.created_at.getTime() - b.created_at.getTime() || a.id.localeCompare(b.id))
 }

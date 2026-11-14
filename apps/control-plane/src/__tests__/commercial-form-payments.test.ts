@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { CURRENT_CONSENT_TEXT_VERSION, paymentAttemptRequestSchema, type FormPaymentSession, type PaymentAttemptRequest } from '@liwan/commercial-contracts'
+import { CURRENT_CONSENT_TEXT_VERSION, paymentAttemptRequestSchema, riyadhDate, type FormPaymentSession, type PaymentAttemptRequest } from '@liwan/commercial-contracts'
 import { client, money, monthly, seedPaymentMethod, setup, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
@@ -18,6 +18,7 @@ import { allAttentionItems } from '../commercial/attention.js'
 import { sendVendorAlerts } from '../commercial/vendor-alerts.js'
 import { attention } from '../commercial/attention.js'
 import { processRefundOutbox } from '../commercial/settlements.js'
+import { confirmBankTransfer } from '../commercial/bank-transfer.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
 if (url && new URL(url).pathname !== '/liwan_control_scratch_payfinal') throw new Error('payment tests require own scratch DB')
@@ -599,6 +600,21 @@ suite('card form payments on PostgreSQL', () => {
       await processTokenDeletions(pool, f.adapter)
       expect((await pool.query("SELECT status,payload FROM commercial_outbox WHERE kind='payment_token.delete'")).rows[0]).toMatchObject({ status: 'failed', payload: { error: 'timeout' } })
     })
+    it('a token deletion of this provider and mode runs even when more than one batch of older rows belongs to another provider or mode', async () => {
+      const f = await order()
+      f.adapter.addToken('sim_mine')
+      const deleteToken = vi.spyOn(f.adapter, 'deleteToken')
+      const owner = f.customer
+      for (let i = 0; i < 25; i++)
+        await pool.query(`INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,created_at) VALUES($1,'payment_token.delete',$2,$3,$4,now()-interval '1 hour')`,
+          [randomUUID(), owner, `foreign:${i}`, JSON.stringify({ provider: i % 2 ? 'moyasar' : f.adapter.provider, mode: i % 2 ? f.adapter.mode : 'other_mode', token: `foreign_${i}` })])
+      await pool.query(`INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload) VALUES($1,'payment_token.delete',$2,'mine',$3)`,
+        [randomUUID(), owner, JSON.stringify({ provider: f.adapter.provider, mode: f.adapter.mode, token: 'sim_mine' })])
+      expect(await processTokenDeletions(pool, f.adapter)).toBe(1)
+      expect(deleteToken).toHaveBeenCalledTimes(1)
+      expect(deleteToken).toHaveBeenCalledWith('sim_mine')
+      expect((await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE kind='payment_token.delete' AND status='pending'")).rows[0].n).toBe(25)
+    })
   })
 
   describe('closing, switching, reconciling and late payments', () => {
@@ -670,6 +686,27 @@ suite('card form payments on PostgreSQL', () => {
       expect(hosted.kind).toBe('hosted_invoice')
       expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'canceled' })
       expect((await f.adapter.getIntent(s.intent.id)).status).toBe('canceled')
+    })
+    const transfer = async (f: F, adapter?: SimulatorAdapter) => confirmBankTransfer(pool, { invoice_id: f.invoice, operator: 'vendor:7', reference: `TRF-${randomUUID()}`,
+      amount: Number((await pool.query('SELECT total_minor FROM invoices WHERE id=$1', [f.invoice])).rows[0].total_minor), value_date: riyadhDate(new Date()), adapter })
+    it('a bank transfer is recorded while the customer has an open card form: the form is closed, its intent cancelled, the order paid by the transfer', async () => {
+      const f = await order()
+      const s = await form(f)
+      expect(await transfer(f, f.adapter)).toMatchObject({ replay: false, attempt: { status: 'succeeded' } })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'canceled', payment_hold_until: null })
+      expect(await orderRow(f)).toMatchObject({ payment_state: 'paid' })
+      expect((await f.adapter.getIntent(s.intent.id)).status).toBe('canceled')
+    })
+    it('a card payment that still arrives on a form closed by a bank transfer is a duplicate charge with a credit note', async () => {
+      const f = await order()
+      const s = await form(f)
+      await transfer(f)
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'canceled' })
+      expect(await webhook(f, fulfil(f, s).payment_id)).toEqual({ status: 200, outcome: 'accepted' })
+      expect(await audits('payment.duplicate_charge', f.order_id)).toHaveLength(1)
+      expect(await fulfilments(f)).toBe(1)
+      await processRefundOutbox(pool, f.adapter)
+      expect((await pool.query('SELECT kind,status,amount_minor::int AS minor FROM invoice_adjustments WHERE invoice_id=$1', [f.invoice])).rows).toEqual([{ kind: 'credit_note', status: 'pending', minor: s.amount.minor }])
     })
     it('an open card form whose intent was fulfilled is never closed for a hosted invoice: a payment may exist', async () => {
       const f = await order()
