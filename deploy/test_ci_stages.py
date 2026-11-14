@@ -46,12 +46,13 @@ if args[0] == '-': os.execv(sys.executable, [sys.executable, *args])
 if 'tools/catalog_check.py' in args: print('liwan_tasks')
 if 'tools/oca_addons.py' in args: print('/oca/repo')
 if 'tools/app_isolation.py' in args and 'install' in args:
- print({'liwan_tasks_pmo': 'liwan_pmo,liwan_tasks', 'liwan_api_account': 'account,liwan_api'}.get(args[-1], args[-1]))
+ print({'liwan_tasks_pmo': 'liwan_pmo,liwan_tasks', 'liwan_api_account': 'account,liwan_api',
+        'liwan_products_account': 'account,liwan_products'}.get(args[-1], args[-1]))
 if 'tools/app_isolation.py' in args and 'tags' in args: print('/' + args[-1])
 if 'tools/app_isolation.py' in args and 'foundation' in args: print('liwan_api')
 if 'tools/app_isolation.py' in args and 'rank' in args:
  if args[-1] == 'account': sys.exit(1)  # The stock side of liwan_api_account has no LiwanOS rank.
- print({'liwan_api': 2}.get(args[-1], 4))
+ print({'liwan_api': 2, 'liwan_products': 3}.get(args[-1], 4))
 if 'tools/contract_fixtures.py' in args and '--addons' in args: print('liwan_tasks,liwan_pmo')
 if 'deploy/classification.py' in args:
  output=Path(args[args.index('--output')+1]); output.parent.mkdir(parents=True, exist_ok=True); output.write_text('{}')
@@ -135,6 +136,17 @@ elif "SELECT state" in ' '.join(args): print('installed')
         # off. liwan_api is the foundation (rank 2) and owns no entitlement either, so the run keeps one probe.
         self.assertIn('account is a stock Odoo module: no rank and no LiwanOS entitlement', process.stdout)
         self.assertIn('liwan_api is not a rank-4 application and owns no entitlement of its own', process.stdout)
+        self.assertEqual(len([x for x in calls if x[0] == 'odoo-python' and 'shell' in x]), 1)
+
+    def test_a_bridge_of_a_shared_service_and_a_stock_side_need_not_answer(self):
+        self.calls.write_text('')
+        process = self.execute('odoo-bridge', 'liwan_products_account')
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        # liwan_products gates its routes on keys the applications register, and no application is installed here:
+        # the one probe only requires that the service and the bridge do not fail.
+        self.assertIn('liwan_products_account: shared services only, no application', process.stdout)
+        self.assertNotIn('with both sides on', process.stdout)
+        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
         self.assertEqual(len([x for x in calls if x[0] == 'odoo-python' and 'shell' in x]), 1)
 
     def test_missing_odoo_test_verdict_is_a_failed_stage(self):
