@@ -13,18 +13,20 @@ from odoo.addons.liwan_payments.serializers.refund_rules import (
 )
 
 ONLINE_PAYMENT_OPTIONS = tuple(value for value, _label in ONLINE_PAYMENTS)
-TYPE_PAYMENT_FIELDS = {'online_payment', 'deposit_percent', 'price'} | REFUND_RULE_FIELDS
+TYPE_PAYMENT_FIELDS = {'online_payment', 'deposit_percent', 'price', 'product_id'} | REFUND_RULE_FIELDS
 # The highest price a booking type takes, in the company currency: a bound against a mistyped amount.
 MAX_PRICE = 1_000_000
 
 
 def dump_type_payment(booking_type):
-    """How a booking type is paid online and refunded. ``price`` is its product's list price (before taxes),
-    null while it has none; the refund rules are its product's (the defaults while it has none)."""
+    """How a booking type is paid online and refunded. ``product_id`` is the service product (a ``product.template``)
+    that sells it and ``price`` that product's unit price as typed on it (the amount a taxed establishment adds tax
+    to), both null while the type has no product; the refund rules are its product's (the defaults while it has none)."""
     product = booking_type._liwan_product()
     return {
         'online_payment': booking_type.liwan_online_payment,
         'deposit_percent': booking_type.liwan_deposit_percent,
+        'product_id': product.product_tmpl_id.id or None,
         'price': product.list_price if product else None,
         'currency': booking_type.company_id.currency_id.name,
         **booking_type.env['liwan.payments.service']._liwan_refund_rules(product),
@@ -32,7 +34,8 @@ def dump_type_payment(booking_type):
 
 
 def parse_type_payment(payload):
-    """A PATCH body as keyword arguments of ``resource.booking.type._liwan_set_payment``."""
+    """A PATCH body as keyword arguments of ``resource.booking.type._liwan_set_payment``. ``price`` is the unit price
+    as typed on the product, not an amount before taxes."""
     unknown = sorted(set(payload) - TYPE_PAYMENT_FIELDS)
     if unknown:
         raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
@@ -48,6 +51,11 @@ def parse_type_payment(payload):
         if type(percent) is not int or not DEPOSIT_RANGE[0] <= percent <= DEPOSIT_RANGE[1]:
             raise ApiError(422, 'invalid', 'must be a whole number from %d to %d' % DEPOSIT_RANGE, field='deposit_percent')
         values['deposit_percent'] = percent
+    if 'product_id' in payload:
+        product_id = payload['product_id']
+        if type(product_id) is not int or product_id < 1:
+            raise ApiError(422, 'invalid', 'must be the id of a service product', field='product_id')
+        values['product_id'] = product_id
     if 'price' in payload:
         price = payload['price']
         if type(price) not in (int, float) or not math.isfinite(price) or not 0 < price <= MAX_PRICE:

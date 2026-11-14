@@ -18,12 +18,15 @@ class TestPaidBooking(LiwanPaidBookingCase):
         product = self.paid_type._liwan_product()
         self.assertEqual(
             (product.name, product.type, product.list_price, product.company_id, product.resource_booking_type_id),
-            ('Paid consultation', 'service', 115.0, self.env.company, self.paid_type),
+            ('Paid consultation', 'service', 115.0, self.env['res.company'], self.paid_type),
         )
+        # A service product of liwan_products, shared by the establishment (the sharing default).
+        self.assertTrue(product.product_tmpl_id.liwan_product)
         self.paid_type.with_user(self.manager)._liwan_set_payment(online_payment='deposit', deposit_percent=40, price=150.0)
         self.paid_type.with_user(self.manager).name = 'Long consultation'
         self.assertEqual(self.paid_type._liwan_product(), product)
-        self.assertEqual((product.name, product.list_price), ('Long consultation', 150.0))
+        # The product's name is edited in the products screen: renaming the type leaves it alone.
+        self.assertEqual((product.name, product.list_price), ('Paid consultation', 150.0))
         self.assertEqual(self.paid_type._liwan_prepayment_percent(), 0.4)
         with self.assertRaises(AccessError):
             self.paid_type.with_user(self.booker)._liwan_set_payment(online_payment='none')
