@@ -41,14 +41,14 @@ are `open`, `done`, `cancelled`; priorities `normal` and `high`.
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| TSK-83 | Comment reaches only readers | staff1 → staff2 | A removed assignee is not mailed the comment | `POST /api/v1/my-tasks/<id>/comments` | planned | only read access checked: after removal as assignee staff2 gets 404 on the task; mail delivery cannot be observed (crons off, no mail sink) |
+| TSK-83 | Comment reaches only readers | staff1 → staff2 | A removed assignee is not mailed the comment | `POST /api/v1/my-tasks/<id>/comments` | dropped | owner dropped it 2026-11-14: nothing of it shows in the customer UI or in any API route; the Odoo layer proves it (`test_removed_assignee_is_not_notified_of_a_comment` in liwan_tasks); earlier note; only read access checked: after removal as assignee staff2 gets 404 on the task; mail delivery cannot be observed (crons off, no mail sink) |
 
 ## Conversion to a project task
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | TSK-94 | Convert without PMO rights | custom role (tasks only) | 403 `forbidden`; convert action hidden and targets answer 403 | `POST /api/v1/my-tasks/<id>/convert`, `GET /api/v1/my-tasks/convert-targets` | planned | #217 closed 2026-10-31 and the convert route refuses before it reads the project (`test_a_tasks_only_role_is_refused_with_403_before_the_project_is_checked` in liwan_tasks_pmo); the e2e re-run waits for a seeded persona that holds the tasks capabilities without `pmo.projects.read`, none exists in `tools/e2e_seed.py`; failure before the fix; #217; Role with tasks.tasks.* but no pmo: convert-targets 403 (text "forbidden") but POST convert answers 422 "project_id must be an active project of this company" instead of 403 (findings2/projects.md) |
-| TSK-98 | A sub-task the user cannot change blocks the convert | staff1 | 422 «a sub-task of this task cannot be changed by you; convert after it is removed» | `POST /api/v1/my-tasks/<id>/convert` | planned | could not reproduce: a sub-task created by staff2 under staff1's parent was still changeable and convertible by staff1 (PATCH 200, convert 200) |
+| TSK-98 | A sub-task the user cannot change blocks the convert | staff1 | 422 «a sub-task of this task cannot be changed by you; convert after it is removed» | `POST /api/v1/my-tasks/<id>/convert` | dropped | owner dropped it 2026-11-14: the refusal cannot be reached under the record rules, because whoever may convert a parent task may write its sub-tasks (`rule_personal_task_creator_write`) and the convert moves a colleague's sub-task with it (`test_convert_rehomes_a_subtask_of_another_assignee_and_archived_ones` in liwan_tasks_pmo); earlier note; could not reproduce: a sub-task created by staff2 under staff1's parent was still changeable and convertible by staff1 (PATCH 200, convert 200) |
 
 ## Capabilities, features and bell
 
