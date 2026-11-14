@@ -1,6 +1,14 @@
 {
   "app": {
     "selectPerson": "اختر شخصًا",
+    "customerPicker": {
+      "search": "ابحث في العملاء",
+      "listLabel": "العملاء",
+      "empty": "لا يوجد عملاء بعد. يُضاف العملاء من قائمة العملاء.",
+      "create": "أضف عميلًا",
+      "selected": "العميل المختار: {name}",
+      "phoneEnding": "جوال ينتهي بـ"
+    },
     "productPicker": {
       "search": "ابحث في المنتجات",
       "listLabel": "المنتجات",

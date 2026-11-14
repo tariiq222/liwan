@@ -120,7 +120,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
     'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
     'shared/form/RichText.vue', 'shared/data/Pagination.vue', 'shared/data/MetricTile.vue', 'shared/form/InlineConfirm.vue',
-    'shared/data/RowActions.vue', 'shared/form/PersonPicker.vue', 'shared/data/FilterChip.vue', 'shared/data/FilterChoice.vue',
+    'shared/data/RowActions.vue', 'shared/form/PersonPicker.vue', 'shared/form/CustomerPicker.vue', 'shared/data/FilterChip.vue', 'shared/data/FilterChoice.vue',
     'shared/data/FilterField.vue', 'pmo/projects/ProjectCharterForm.vue',
     'pmo/projects/ProjectBasicsFields.vue', 'pmo/projects/ProjectCreateForm.vue',
     'pmo/projects/ProjectToolsSettings.vue',

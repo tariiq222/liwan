@@ -53,6 +53,19 @@ export const CustomerCandidateListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
+/** What a holder of a pick capability sees of a customer to choose it (`GET /api/v1/customers/pick`). */
+export const CustomerPickSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().min(1),
+  is_company: z.boolean(),
+  phone_last4: z.string().regex(/^\d{4}$/).nullable(),
+}).strict()
+
+export const CustomerPickListSchema = z.object({
+  items: z.array(CustomerPickSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
 /** `details` of the 409 `conflict` a create answers while customers share the phone and `create_new` is not set. */
 export const CustomerConflictDetailsSchema = z.object({
   candidates: z.array(CustomerCandidateSchema).min(1),
@@ -142,6 +155,8 @@ export type Customer = z.infer<typeof CustomerSchema>
 export type CustomerList = z.infer<typeof CustomerListSchema>
 export type CustomerCandidate = z.infer<typeof CustomerCandidateSchema>
 export type CustomerCandidateList = z.infer<typeof CustomerCandidateListSchema>
+export type CustomerPick = z.infer<typeof CustomerPickSchema>
+export type CustomerPickList = z.infer<typeof CustomerPickListSchema>
 export type CustomerConflictDetails = z.infer<typeof CustomerConflictDetailsSchema>
 export type CustomerCreate = z.infer<typeof CustomerCreateSchema>
 export type CustomerPatch = z.infer<typeof CustomerPatchSchema>
