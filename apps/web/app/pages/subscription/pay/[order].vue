@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CARD_CONSENT_KEY, type CardFormSession, clearPaymentStarted, markPaymentStarted, payRefusal, paymentWasStarted } from '@/utils/cardPayment'
+import { canonicalPayRedirect, CARD_CONSENT_KEY, type CardFormSession, clearPaymentStarted, markPaymentStarted, payRefusal, paymentWasStarted } from '@/utils/cardPayment'
 import { formatSubscriptionMoney, orderOutcome } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
@@ -33,22 +33,27 @@ const lastAttemptOpened = ref(false)
 function startedBefore() { return import.meta.client && paymentWasStarted(window.sessionStorage, orderId.value) }
 onMounted(() => { lastAttemptOpened.value = startedBefore() })
 
-async function start(allowSaving = saveCard.value) {
-  if (!hydrated.value || !canPay.value || !payable.value || phase.value === 'starting') return
+// One function opens the form for a given choice. The entry point guards against a second click; the retry after
+// `auto_renew_not_allowed` calls this function directly with `saving = false`, so it is never stopped by that guard.
+async function openForm(saving: boolean): Promise<void> {
   phase.value = 'starting'; failed.value = false; forbidden.value = false
   try {
-    session.value = await api.startCardPayment(orderId.value, allowSaving)
-    sessionSavesCard.value = allowSaving
+    session.value = await api.startCardPayment(orderId.value, saving)
+    sessionSavesCard.value = saving
     markPaymentStarted(window.sessionStorage, orderId.value)
     phase.value = 'form'
   } catch (cause) {
     const refusal = payRefusal(cause)
-    if (refusal === 'auto_renew_not_allowed') { autoRenewDenied.value = true; saveCard.value = false; return await start(false) }
+    if (refusal === 'auto_renew_not_allowed' && saving) { autoRenewDenied.value = true; saveCard.value = false; return await openForm(false) }
     if (refusal === 'in_progress') { phase.value = 'checking'; beginChecking(); return }
     if (refusal === 'not_awaiting') { await refresh(); phase.value = 'choose'; return }
     if (refusal === 'form_unavailable') { phase.value = 'unavailable'; return }
     forbidden.value = refusal === 'forbidden'; failed.value = refusal !== 'forbidden'; phase.value = 'choose'
   }
+}
+async function start() {
+  if (!hydrated.value || !canPay.value || !payable.value || phase.value === 'starting') return
+  await openForm(saveCard.value)
 }
 
 // A payment may be in flight: look at the order calmly, never offer a second form, and leave once it is settled.
@@ -68,7 +73,9 @@ function beginChecking() {
 onBeforeUnmount(stopChecking)
 function chooseAgain() { stopChecking(); session.value = null; phase.value = 'choose'; failed.value = false; forbidden.value = false }
 watch(outcome, value => { if (value && value !== 'awaiting_payment') { stopChecking(); clearPaymentStarted(window.sessionStorage, orderId.value) } })
-definePageMeta({ middleware: 'customer-commercial' })
+// The edge's pay-page exception matches this path with its exact spelling; Vue Router would also match another case, so any
+// other spelling is sent to the canonical path (and gets the exception).
+definePageMeta({ middleware: ['customer-commercial', (to) => { const canonical = canonicalPayRedirect(to.path); if (canonical) return navigateTo(canonical, { replace: true }) }] })
 </script>
 <template>
   <SharedSettingsPage>
@@ -98,7 +105,6 @@ definePageMeta({ middleware: 'customer-commercial' })
           <UAlert v-if="lastAttemptOpened && phase === 'choose'" color="warning" variant="subtle" role="status" data-testid="pay-not-completed" :title="t('subscription.status.notCompleted.title')" :description="t('subscription.status.notCompleted.description')" />
           <UAlert v-if="forbidden" color="error" variant="subtle" role="alert" :title="t('subscription.pay.forbidden')" />
           <UAlert v-if="failed" color="error" variant="subtle" role="alert" data-testid="pay-failed" :title="t('subscription.pay.failed')" />
-          <UAlert v-if="autoRenewDenied && phase !== 'unavailable'" color="info" variant="subtle" role="status" data-testid="pay-auto-renew-denied" :title="t('subscription.pay.autoRenewNotAllowed')" />
 
           <SharedRecordSection variant="panel" :title="t('subscription.pay.card.title')" data-testid="pay-by-card">
             <div v-if="phase === 'checking'" class="space-y-3" role="status" data-testid="pay-checking">
@@ -114,14 +120,16 @@ definePageMeta({ middleware: 'customer-commercial' })
               <UButton :disabled="!hydrated" @click="chooseAgain">{{ t('subscription.pay.expired.again') }}</UButton>
             </div>
             <div v-else-if="phase === 'form' && session" class="space-y-3" data-testid="pay-form">
+              <UAlert v-if="autoRenewDenied" color="info" variant="subtle" role="status" data-testid="pay-auto-renew-denied" :title="t('subscription.pay.autoRenewNotAllowed')" />
               <p class="text-sm text-muted" data-testid="pay-choice-fixed">{{ t(sessionSavesCard ? 'subscription.pay.card.willSave' : 'subscription.pay.card.willNotSave') }}</p>
               <SubscriptionPaymentForm :key="session.attempt_id" :session="session" :save-card="sessionSavesCard" @expired="phase = 'expired'" />
               <UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" data-testid="pay-change-choice" @click="chooseAgain">{{ t('subscription.pay.card.change') }}</UButton>
             </div>
             <div v-else class="space-y-4" data-testid="pay-choose">
+              <UAlert v-if="autoRenewDenied" color="info" variant="subtle" role="status" :title="t('subscription.pay.autoRenewNotAllowed')" />
               <p class="text-sm text-muted">{{ t('subscription.pay.card.hint') }}</p>
               <UCheckbox v-if="!autoRenewDenied" v-model="saveCard" data-testid="pay-save-card" :label="t(CARD_CONSENT_KEY)" :disabled="!hydrated || phase === 'starting'" />
-              <UButton :disabled="!hydrated || phase === 'starting'" :loading="phase === 'starting'" data-testid="pay-continue" @click="start()">{{ t('subscription.pay.card.continue') }}</UButton>
+              <UButton :disabled="!hydrated || phase === 'starting'" :loading="phase === 'starting'" data-testid="pay-continue" @click="start">{{ t('subscription.pay.card.continue') }}</UButton>
             </div>
           </SharedRecordSection>
 

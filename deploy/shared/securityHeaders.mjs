@@ -37,8 +37,10 @@ const registerPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
  * for `connect-src`: the provider's API, where the form fulfils the payment intent with the publishable key. Its error reporter
  * would call a second origin (`appsignal-endpoint.net`); that stays blocked on purpose. The 3-D Secure pages open by navigating
  * the whole window, which no directive here governs. */
-const MOYASAR_API_ORIGIN = 'https://api.moyasar.com'
-const PAY_PATH = /^\/subscription\/pay\/[A-Za-z0-9_-]{1,128}\/?$/
+export const MOYASAR_API_ORIGIN = 'https://api.moyasar.com'
+// Case-sensitive on purpose: the app redirects any other spelling of the path to this one. `deploy/Caddyfile` carries the same
+// expression in its `map` and `deploy/shared/securityHeaders.test.mjs` pins the two together.
+export const PAY_PATH = /^\/subscription\/pay\/[A-Za-z0-9_-]+\/?$/
 const payPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
   .replace("connect-src 'self'", `connect-src 'self' ${MOYASAR_API_ORIGIN}`)
 

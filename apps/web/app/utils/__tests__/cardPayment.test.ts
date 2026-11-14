@@ -86,20 +86,43 @@ describe('the provider form options', () => {
   })
 })
 
+/** Every selector (each member of each list, also inside @media and similar) that does not name the form's own element. Keyframe steps are not selectors. */
+function unscopedSelectors(css: string): string[] {
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const outside: string[] = []
+  const members = (list: string) => list.split(',').map(part => part.trim()).filter(Boolean)
+  const walk = (text: string, inKeyframes: boolean) => {
+    let depth = 0; let head = ''; let body = ''
+    for (const ch of text) {
+      if (ch === '{') { if (depth === 0) body = ''; else body += ch; depth++ } else if (ch === '}') {
+        depth--
+        if (depth === 0) {
+          const name = head.trim()
+          if (/^@(?:-\w+-)?keyframes/.test(name)) walk(body, true)
+          else if (name.startsWith('@')) { if (/\{/.test(body)) walk(body, false) }
+          else if (!inKeyframes) for (const member of members(name)) if (!member.includes('#mysr')) outside.push(member)
+          head = ''
+        } else body += ch
+      } else if (depth === 0) head += ch
+      else body += ch
+    }
+  }
+  walk(clean, false)
+  return outside
+}
+
 describe('the provider package stylesheet', () => {
   const css = readFileSync(resolve(root, '../../node_modules/moyasar-payment-form/dist/moyasar.css'), 'utf8')
-  it('is scoped to the form: no rule outside its own element survives', () => {
-    const scoped = scopedFormCss(css)
-    const noComments = scoped.replace(/\/\*[\s\S]*?\*\//g, '')
-    expect(noComments).not.toMatch(/(^|\})\s*(html|body)\s*[,{]/)
-    expect(noComments).toContain('div#mysr :host{')
-    expect(noComments.length).toBeGreaterThan(css.length / 2)
-    // Every top-level rule that is not an at-rule names the form's element.
-    let depth = 0; let selector = ''; const outside: string[] = []
-    for (const ch of noComments) {
-      if (ch === '{') { depth++; if (depth === 1 && !selector.trim().startsWith('@') && !selector.includes('#mysr')) outside.push(selector.trim()); if (depth === 1) selector = '' } else if (ch === '}') { depth--; selector = '' } else if (depth === 0) selector += ch
-    }
-    expect(outside).toEqual([])
+  it('the checker catches one unscoped member of a selector list, also inside @media, and ignores keyframe steps', () => {
+    expect(unscopedSelectors('div#mysr a,html{x:1}')).toEqual(['html'])
+    expect(unscopedSelectors('@media (min-width:1px){div#mysr a,body p{x:1}}')).toEqual(['body p'])
+    expect(unscopedSelectors('@keyframes spin{from{x:1}50%,to{x:2}}div#mysr b{x:1}')).toEqual([])
+    expect(unscopedSelectors('html,div#mysr :host{x:1}body{margin:0}')).toEqual(['html', 'body'])
+  })
+  it('the package file has unscoped rules, and after scoping none survives: every list member names the form element', () => {
+    expect(unscopedSelectors(css)).toEqual(['html', 'body'])
+    expect(unscopedSelectors(scopedFormCss(css))).toEqual([])
+    expect(scopedFormCss(css).length).toBeGreaterThan(css.length / 2)
   })
 })
 

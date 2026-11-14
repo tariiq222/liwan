@@ -26,6 +26,18 @@ export type CardFormSession = {
   expires_at: string
 }
 
+/**
+ * The pay page's canonical path for any spelling of it, or null when `path` is already canonical (or is not a pay path). The
+ * edge's content-security exception for the provider form matches `/subscription/pay/<order>` case-sensitively, and the router
+ * does not, so a differently cased address must be redirected rather than rendered.
+ */
+export function canonicalPayRedirect(path: string): string | null {
+  const match = /^\/subscription\/pay\/([^/]+)(\/?)$/i.exec(path)
+  if (!match) return null
+  const canonical = `/subscription/pay/${match[1]}${match[2]}`
+  return canonical === path ? null : canonical
+}
+
 /** The only body a payment attempt carries: how to pay, whether to keep the card, and the consent wording seen. Nothing about the card. */
 export function paymentAttemptBody(saveCard: boolean): { method: 'form'; save_card: boolean; consent_text_version?: string } {
   return saveCard

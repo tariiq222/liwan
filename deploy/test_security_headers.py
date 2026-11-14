@@ -27,6 +27,13 @@ HEADER_VALUES = {
     'Permissions-Policy': 'camera=(), microphone=(), display-capture=(), geolocation=(self), fullscreen=(self)',
 }
 
+# The card payment page may call the provider's API, and nothing else changes there (and no other path gets it).
+PAY_ORIGIN = 'https://api.moyasar.com'
+PAY_CSP = HEADER_VALUES['Content-Security-Policy'].replace("connect-src 'self' wss:", f"connect-src 'self' {PAY_ORIGIN} wss:")
+PAY_PATHS = ('/subscription/pay/6f1c9c52-0a3e-4a43-9d3e-2f6f1f9a0b11', '/subscription/pay/abc/', '/subscription/pay/abc?x=1')
+NOT_PAY_PATHS = ('/subscription', '/subscription/pay', '/subscription/pay/', '/subscription/pay/a/b', '/Subscription/Pay/abc',
+                 '/subscription/status', '/subscription/invoices/abc', '/register')
+
 # The two-step sign-in of this release: password, channel list, code send, verify,
 # remembered device and sign-out, on both the BFF and the Odoo API prefix.
 AUTH_PATHS = (
@@ -144,8 +151,10 @@ class TestWebSecurityHeaders(unittest.TestCase):
         web = _proxy_routes(adapted, [WEB_DIAL])
         self.assertEqual(len(web), 1, 'expected one reverse_proxy to the Nuxt upstream')
         sent = _response_headers(web[0])
+        # The policy is the default one with the pay page's connect-src origin as a placeholder that is empty everywhere else.
+        template = HEADER_VALUES['Content-Security-Policy'].replace("connect-src 'self' wss:", "connect-src 'self'{pay_connect_origin} wss:")
         self.assertEqual({name: (value, mode) for name, (value, mode, _) in sent.items()},
-                         {name: (value, 'default' if name == 'Referrer-Policy' else 'set')
+                         {name: (template if name == 'Content-Security-Policy' else value, 'default' if name == 'Referrer-Policy' else 'set')
                           for name, value in HEADER_VALUES.items()})
         # Every fixed header must be deferred: an upstream value may not survive it.
         for name, (_, mode, deferred) in sent.items():
@@ -174,6 +183,14 @@ class TestWebSecurityHeaders(unittest.TestCase):
         for name in HEADER_VALUES:
             with self.subTest(header=name):
                 self.assertNotIn(name.lower(), odoo, 'Odoo answers carry no browser document headers')
+
+    def test_only_the_card_payment_page_may_call_the_provider(self):
+        """Behavioral: the real edge gives the pay path the default policy plus one connect-src origin, and no other path."""
+        paths = list(PAY_PATHS + NOT_PAY_PATHS)
+        for path, (status, headers) in zip(paths, _edge_headers(paths)):
+            with self.subTest(path=path):
+                self.assertEqual(status, 200)
+                self.assertEqual(headers['content-security-policy'], PAY_CSP if path in PAY_PATHS else HEADER_VALUES['Content-Security-Policy'])
 
     def test_every_two_step_endpoint_shares_the_login_budget(self):
         """Behavioral: the real matchers decide, so a missing path fails here."""

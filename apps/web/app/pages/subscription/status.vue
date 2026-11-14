@@ -96,7 +96,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           <UAlert v-if="cancelError" color="error" variant="subtle" role="alert" :title="cancelError" />
           <div class="flex flex-wrap gap-2">
             <UButton v-if="canCancel && !cancelOpen" color="error" variant="outline" :disabled="!hydrated" @click="cancelOpen = true">{{ t('subscription.status.cancel.action') }}</UButton>
-            <UButton v-if="canRetry && order" :to="payPath(order.id)" data-testid="pay-order">{{ t(cameBackUnpaid ? 'subscription.status.tryAnotherCard' : 'subscription.status.retryPayment') }}</UButton>
+            <UButton v-if="canRetry && order" :to="payPath(order.id)" data-testid="pay-order">{{ t('subscription.status.retryPayment') }}</UButton>
             <UButton v-if="!order || outcome === 'applied' || outcome === 'cancelled' || outcome === 'activation_failed' || outcome === 'refund'" to="/subscription" color="neutral" variant="outline">{{ t('subscription.status.viewSubscription') }}</UButton>
             <UButton color="neutral" variant="outline" :disabled="!hydrated" @click="refresh()">{{ t('subscription.status.refresh') }}</UButton>
           </div>
