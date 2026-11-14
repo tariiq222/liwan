@@ -10,6 +10,7 @@
         'security/operations_capability_groups.xml', 'data/operations_access_permissions.xml',
         'security/ir.model.access.csv', 'security/operations_rules.xml',
     ],
+    'pre_init_hook': 'pre_init_hook',
     'installable': True,
     'application': False,
 }
