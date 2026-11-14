@@ -49,7 +49,7 @@ Verified on `main` @ `6e355dce` unless stated. These are the gaps this design mu
 
 | Subject | Current state | Consequence |
 | --- | --- | --- |
-| App pricing | `bundle_revisions.prices` is `[]` for all six published bundles | Nothing is sellable; the catalog has no prices |
+| App pricing | Seeded per month: CRM 99, Customer messages 250, HR and payroll 119, Finance 179, Projects 119 SAR; annual is ten months. Saudi integrations are in the free base; Appointments is installed and locked | The five sold applications carry seed prices; the vendor console owns later changes |
 | App completeness | Bundle `People (HR)` selects only `hr.enabled`; the other six HR keys are never granted | Buying "HR complete" today would not grant payroll |
 | Internal caps | `projects.max_projects` is a plan limit; two PMO bundles differ only by it (`20` vs `null`) | Contradicts §2.2 |
 | Users / storage | Stored as plan `platform_limits`; enforced by `require_within_limit`; **not priced** | The engine bills base + bundle + branch only (`computeQuote`) |
@@ -59,6 +59,8 @@ Verified on `main` @ `6e355dce` unless stated. These are the gaps this design mu
 | Refund | `processRefundOutbox` writes `credit_note` rows with status `pending`; no route, no button | Refunds are invisible to the operator |
 | Two revisions on sale | Publishing v2 leaves v1 `published AND available`; the customer query lists every such row | A plan shows twice at two prices (observed 2026-10-24) |
 | Admin pricing surface | Plans/bundles forms exist; prices are editable only on a **draft** revision | Published prices need the revision flow, by design |
+
+Owner decision 2026-11-14: HR and payroll, Finance and Projects join CRM and Customer messages as sold applications at the prices above, and Saudi integrations become part of the free base. ZATCA production is still not approved (see `2026-10-20-zatca-production-policy.md`), so Finance is sold with the e-invoicing link in sandbox only.
 
 ## 4. The model
 
