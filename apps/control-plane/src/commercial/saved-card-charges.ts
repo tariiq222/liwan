@@ -46,14 +46,14 @@ async function planCharge(client: PoolClient, input: { order_id: string; subscri
   if (!order || order.payment_state !== 'awaiting_payment' || order.cancelled || !renewal || !['invoiced', 'charging', 'past_due'].includes(renewal.status)) return { kind: 'skip' }
   const invoice = (await client.query("SELECT * FROM invoices WHERE id=$1 AND status='issued'", [renewal.invoice_id])).rows[0]
   if (!invoice || Number(invoice.total_minor) <= 0) return { kind: 'skip' }
-  const attempts = (await client.query('SELECT *,COALESCE(charge_sent_at,created_at) < now() - make_interval(mins => $2) AS stale FROM payment_attempts WHERE order_id=$1 ORDER BY created_at,id',
+  const attempts = (await client.query('SELECT *,COALESCE(charge_sent_at,created_at) < now() - make_interval(mins => $2) AS stale,payment_hold_until > now() AS held FROM payment_attempts WHERE order_id=$1 ORDER BY created_at,id',
     [order.id, SAVED_CARD_REDRIVE_MINUTES])).rows as Row[]
   const live = attempts.filter(a => (LIVE_ATTEMPT_STATUSES as readonly string[]).includes(a.status))
   const made = attempts.filter(a => a.kind === 'saved_card').length
   // A customer in the middle of paying by form, or a hosted link a vendor issued, is never charged on top of.
   if (live.some(a => a.kind !== 'saved_card')) return { kind: 'skip' }
   // A card form attempt closed while its payment may still arrive holds the invoice until that payment is settled or declined, the hold runs out, or the order is paid or cancelled.
-  if (attempts.some(a => a.kind === 'form' && a.payment_hold_until && new Date(a.payment_hold_until) > now && !a.provider_ref && !a.declined_payment_ref)) return { kind: 'skip' }
+  if (attempts.some(a => a.kind === 'form' && a.held && !a.provider_ref && !a.declined_payment_ref)) return { kind: 'skip' }
   const plan = (await client.query(`SELECT p.auto_renew_allowed FROM subscription_revisions r JOIN plan_revisions p ON p.id::text = r.snapshot->>'plan_revision_id' WHERE r.id=$1`, [sub.applied_revision_id])).rows[0]
   if (!plan?.auto_renew_allowed) { await noteSkip(client, sub.id, invoice.id, made, 'plan_not_allowed'); return { kind: 'skip' } }
   const amount: Money = { minor: Number(invoice.total_minor), currency: invoice.currency, exponent: invoice.exponent }
