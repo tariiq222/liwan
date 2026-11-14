@@ -1,6 +1,6 @@
 # Sales application design
 
-> Status: design written on 2026-11-14 at the owner's request ("build sales completely, on the Odoo module"). The owner decided two things in that request: the application is built now, and it stands on stock Odoo `sale`. The owner approved the eight points of section 9 the same day, each as recommended. PR 1 (`liwan_orders`) is built on the branch `api-liwan-orders`; nothing else here is built. Facts were read on `origin/main` at `65cb936d0`, after products PR 1 merged, and in the Odoo 19 checkout; none was run (section 10). The owner moved the draft from the Codex session to a Claude session the same day; this file supersedes the copy on `codex/sales-build` (`f3e819604`).
+> Status: design written on 2026-11-14 at the owner's request ("build sales completely, on the Odoo module"). The owner decided two things in that request: the application is built now, and it stands on stock Odoo `sale`. The owner approved the eight points of section 9 the same day, each as recommended. PR 1 (`liwan_orders`) is merged as #725, and PR 2 (`liwan_sales`) is built on the branch `codex/sales-app` and not pushed; nothing else here is built. Facts were read on `origin/main` at `65cb936d0`, after products PR 1 merged, and in the Odoo 19 checkout; none was run (section 10). The owner moved the draft from the Codex session to a Claude session the same day; this file supersedes the copy on `codex/sales-build` (`f3e819604`).
 
 ## 1. Problem
 
@@ -132,4 +132,4 @@ The owner approved each point as written here.
 | Products PR 1 is merged (#711, `65cb936d0`); PR 2 is merged (#722, `aa678e8ce`); PR 3 to PR 6 are not started | Read from Git on 2026-11-14 |
 | A role may imply the stock sales groups without opening stock routes | Inferred from CRM; the first test of PR 2 |
 | The public page can authorize by the order's access token alone | Inferred from the public namespace rule; the first test of PR 3 |
-| Everything in sections 3 to 8 | Design. PR 1 is built on `api-liwan-orders` and checked locally on the tree merged with `origin/main`; PR 2 to PR 6 are not built |
+| Everything in sections 3 to 8 | Design. PR 1 is merged (#725, `3d9af4333`). PR 2 is built on `codex/sales-app` in local commits and checked locally ([plan](../plans/2026-11-14-liwan-sales.md), section 11); it is not pushed. PR 3 to PR 6 are not built |
