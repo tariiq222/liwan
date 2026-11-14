@@ -22,7 +22,8 @@
       "channels": {
         "title": "Contact channels",
         "purpose": "Connect a WhatsApp number or another channel so customers can reach your team.",
-        "action": "Open channels"
+        "action": "Open channels",
+        "holder": "A Customer Messages manager"
       },
       "team": {
         "title": "Team",
@@ -38,7 +39,8 @@
     "notes": {
       "none": "This step has no page yet. Mark it done or skip it.",
       "feature": "This app is not included in your plan. You can skip the step.",
-      "permission": "You do not have permission to open this page. You can skip the step."
+      "permission": "You do not have permission to open this page. You can skip the step.",
+      "permissionHolder": "{holder} completes this step. You can skip it."
     },
     "actions": {
       "done": "Mark done",

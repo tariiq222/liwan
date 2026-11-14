@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CustomerErasePreview, CustomerPrivacyIncomplete, CustomerPrivacyItem } from '@liwan/contracts'
-import { distinctReasons, groupPrivacyItems, knownPrivacyReason } from '@/composables/customers/customerPrivacyView'
+import { blockedByOwner, distinctReasons, groupPrivacyItems, knownPrivacyReason } from '@/composables/customers/customerPrivacyView'
 
 // What an erase would do to one customer, in plain words: what is erased with counts, what the law keeps, what the
 // erase cannot change, and, when something blocks it, exactly what and what to do. A key this build does not know is
@@ -17,10 +17,13 @@ const keptWhy = (item: CustomerPrivacyItem) => te(`customers.privacy.keptWhy.${i
 function reasonCopy(reason: string) {
   return knownPrivacyReason(reason) ?? 'unknown'
 }
-function blockedLabels(reason: string) {
-  const names = blockers.value.filter((entry: CustomerPrivacyIncomplete) => entry.reason === reason).map(entry => label(entry.key))
-  return new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(names)
-}
+const ownerLabel = (owner: string) => te(`customers.privacy.owners.${owner}`) ? t(`customers.privacy.owners.${owner}`) : owner
+const listed = (names: string[]) => new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(names)
+/** One line per application that owns a blocked item of this reason: the application and what it holds. */
+const blockedByApp = (reason: string) => blockedByOwner(blockers.value, reason).map(({ owner, keys }) => ({
+  owner,
+  text: t('customers.privacy.erase.blockedApp', { app: ownerLabel(owner), items: listed(keys.map(label)) }),
+}))
 </script>
 
 <template>
@@ -32,7 +35,9 @@ function blockedLabels(reason: string) {
           <li v-for="reason in distinctReasons(blockers)" :key="reason" :data-testid="`customer-erase-blocker-${reason}`">
             <p class="font-medium">{{ t(`customers.privacy.erase.reasons.${reasonCopy(reason)}.title`) }}</p>
             <p>{{ t(`customers.privacy.erase.reasons.${reasonCopy(reason)}.action`) }}</p>
-            <p class="text-sm opacity-80">{{ blockedLabels(reason) }}</p>
+            <ul class="mt-1 list-disc ps-5 text-sm opacity-80">
+              <li v-for="line in blockedByApp(reason)" :key="line.owner" :data-testid="`customer-erase-blocked-app-${line.owner}`">{{ line.text }}</li>
+            </ul>
           </li>
         </ul>
       </template>
@@ -44,7 +49,8 @@ function blockedLabels(reason: string) {
       <ul class="mt-2 divide-y divide-default rounded-lg border border-default">
         <li v-for="item in groups.erase" :key="item.key" class="flex items-center justify-between gap-3 px-3 py-2" :data-testid="`customer-erase-item-${item.key}`">
           <span>{{ label(item.key) }}</span>
-          <span class="tabular-nums">{{ item.count }}</span>
+          <span v-if="item.complete" class="tabular-nums">{{ item.count }}</span>
+          <span v-else class="text-muted" :title="t('customers.privacy.erase.unavailableHint')" data-testid="customer-erase-count-unavailable">{{ t('customers.privacy.erase.unavailable') }}</span>
         </li>
       </ul>
     </section>
@@ -56,7 +62,8 @@ function blockedLabels(reason: string) {
         <li v-for="item in groups.retain" :key="item.key" class="px-3 py-2" :data-testid="`customer-erase-item-${item.key}`">
           <div class="flex items-center justify-between gap-3">
             <span>{{ label(item.key) }}</span>
-            <span class="tabular-nums">{{ item.count }}</span>
+            <span v-if="item.complete" class="tabular-nums">{{ item.count }}</span>
+            <span v-else class="text-muted" :title="t('customers.privacy.erase.unavailableHint')" data-testid="customer-erase-count-unavailable">{{ t('customers.privacy.erase.unavailable') }}</span>
           </div>
           <p class="text-sm text-muted">{{ keptWhy(item) }}</p>
         </li>
@@ -68,7 +75,8 @@ function blockedLabels(reason: string) {
       <ul class="mt-2 divide-y divide-default rounded-lg border border-default">
         <li v-for="item in groups.unhandled" :key="item.key" class="flex items-center justify-between gap-3 px-3 py-2" :data-testid="`customer-erase-item-${item.key}`">
           <bdi dir="ltr">{{ label(item.key) }}</bdi>
-          <span class="tabular-nums">{{ item.count }}</span>
+          <span v-if="item.complete" class="tabular-nums">{{ item.count }}</span>
+          <span v-else class="text-muted" :title="t('customers.privacy.erase.unavailableHint')" data-testid="customer-erase-count-unavailable">{{ t('customers.privacy.erase.unavailable') }}</span>
         </li>
       </ul>
     </section>

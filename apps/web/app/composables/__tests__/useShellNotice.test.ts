@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { createSSRApp, effectScope, ref, type EffectScope } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { useShellNotice } from '../useShellNotice'
+import { useRefreshShellNotice, useShellNotice } from '../useShellNotice'
 
 const scopes: EffectScope[] = [], clients: QueryClient[] = []
 afterEach(() => { scopes.splice(0).forEach(scope => scope.stop()); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals() })
@@ -14,7 +14,7 @@ async function mount(meOver: Record<string, unknown>, subscription = vi.fn(async
   vi.stubGlobal('useSubscriptionApi', () => ({ subscription }))
   const qc = new QueryClient(), scope = effectScope(), app = createSSRApp({ render: () => null })
   clients.push(qc); scopes.push(scope); app.use(VueQueryPlugin, { queryClient: qc })
-  const api = app.runWithContext(() => scope.run(() => useShellNotice())!)
+  const api = app.runWithContext(() => scope.run(() => ({ ...useShellNotice(), refresh: useRefreshShellNotice() }))!)
   await new Promise(resolve => setTimeout(resolve, 20))
   return { subscription, ...api }
 }
@@ -47,4 +47,17 @@ it('reads the subscription once for a manager and shows the trial notice', async
 it('treats a missing subscription (404) as no notice', async () => {
   const run = await mount({ capabilities: ['settings.branding.manage'] }, vi.fn(async () => { throw { statusCode: 404 } }))
   expect(run.notice.value).toBeNull()
+})
+
+it('re-reads the subscription when a page reports a change, so a confirmed and a withdrawn deletion show at once', async () => {
+  const due = new Date(Date.now() + 90 * 86_400_000).toISOString()
+  const states = [view({ state: 'active' }), view({ state: 'active', deletion: { state: 'confirmed', due_at: due, hold_until: null } }), view({ state: 'active' })]
+  const subscription = vi.fn(async () => states[Math.min(subscription.mock.calls.length - 1, states.length - 1)]!)
+  const run = await mount({ capabilities: ['settings.branding.manage'] }, subscription)
+  expect(run.notice.value).toBeNull()
+  await run.refresh()
+  expect(run.notice.value).toMatchObject({ key: 'workspace_deletion', level: 'scheduled' })
+  await run.refresh()
+  expect(run.notice.value).toBeNull()
+  expect(subscription).toHaveBeenCalledTimes(3)
 })

@@ -26,6 +26,17 @@ function declarations(body: string): Map<string, string> {
   return found
 }
 
+describe('error text', () => {
+  it('reads at least 4.5:1 on every light surface, and white on the solid error fill too', () => {
+    const light = declarations(ruleBodies(sheet('tokens.css'), ':root'))
+    const error = light.get('--ui-error')!
+    for (const surface of ['--ui-bg', '--ui-bg-muted', '--ui-bg-elevated', '--ui-bg-accented']) {
+      expect(contrastRatio(error, light.get(surface)!)).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(contrastRatio(error, '#ffffff')).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
 describe('the sidebar is a fixed column on the sidebar tone', () => {
   it('paints with the sidebar and rail tokens and nothing tenant-derived', () => {
     const rail = ruleBodies(sheet('shell.css'), '.liwan-sidebar')

@@ -21,6 +21,7 @@ from odoo.addons.liwan_customers.tests.common import (
     PHONE_LOCAL,
     CustomersCase,
 )
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 CUSTOMERS = '/api/v1/customers'
 # The administrator of the whole tenant (root session): a customer shared across branches needs one.
@@ -243,6 +244,8 @@ class TestCustomersPrivacy(CustomersCase):
         self.assertEqual((listing['name'], listing['phone'], listing['email'], listing['active']),
                          (privacy_hooks.ERASED_NAME % customer_id, None, None, False))
         self.assertNotIn('gold', json.dumps(listing))
+        self.assertIs(listing['erased'], True)
+        self.assertIs(self.api('GET', f'{CUSTOMERS}/{child_id}').json()['erased'], True)
 
     def test_the_log_row_holds_ids_counts_and_the_reason_and_no_personal_data(self):
         customer_id, _child, _bank, _key = self.make_customer()
@@ -666,3 +669,39 @@ class TestCustomersPrivacy(CustomersCase):
         self.assertEqual(
             {name for name in left_uncovered if name.startswith(privacy_hooks.NO_CUSTOMER_DATA_PREFIXES)}, set(),
         )
+
+    # ---- suspension: the subject export (a read) stays open under non-payment; the erase and its preview do not ----
+
+    def suspend(self, reason):
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'status': 'suspended', 'suspension_reason': reason})
+
+    def test_non_payment_allows_the_export_and_logs_it_but_refuses_the_preview_and_the_erase(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        token = self.preview(customer_id).json()['token']
+        self.suspend('non_payment')
+        response = self.export(customer_id)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.log(customer_id).mapped('kind'), ['export'])
+        self.assertEqual(self.code(self.api('POST', url(customer_id, 'erase-preview'))), (403, 'tenant_read_only'))
+        self.assertEqual(self.code(self.erase(customer_id, token, 'Acme Trading')), (403, 'tenant_read_only'))
+        self.assertEqual(self.log(customer_id).mapped('kind'), ['export'])
+
+    def test_non_payment_still_requires_the_capability(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        self.suspend('non_payment')
+        self.assertEqual(self.code(self.export(customer_id, login='cu_a_staff')), (403, 'forbidden'))
+        self.assertFalse(self.log(customer_id))
+
+    def test_a_vendor_suspension_refuses_everything(self):
+        customer_id, _child, _bank, _key = self.make_customer()
+        profile = self.env.ref('liwan_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True})
+        for tail in ('export', 'erase-preview'):
+            with self.subTest(tail=tail):
+                # The refusal ends the session, so each route is tried on a fresh sign-in made before the suspension.
+                profile.write({'status': 'active'})
+                self.sign_in(ADMIN)
+                self.suspend('vendor')
+                body = {'reason': 'r'} if tail == 'export' else {}
+                self.assertEqual(self.code(self.api('POST', url(customer_id, tail), body)), (403, 'tenant_suspended'))
+        self.assertFalse(self.log(customer_id))

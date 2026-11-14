@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Customer } from '@liwan/contracts'
 import { customerCreateBody, customerPatchBody, type CustomerDraft } from '../customerPayload'
 
-const customer: Customer = { id: 4, name: 'منى العتيبي', phone: '+966500000001', email: 'mona@example.com', is_company: false, parent: null, active: true, company: null, properties: [] }
+const customer: Customer = { id: 4, name: 'منى العتيبي', erased: false, phone: '+966500000001', email: 'mona@example.com', is_company: false, parent: null, active: true, company: null, properties: [] }
 const draft: CustomerDraft = { name: customer.name, phone: customer.phone!, email: customer.email!, isCompany: false, canChoosePartyKind: false, parentId: null, changedFields: {} }
 
 describe('customerCreateBody', () => {

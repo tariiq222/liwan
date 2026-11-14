@@ -13,7 +13,7 @@ import {
 } from '../index'
 
 const CUSTOMER = {
-  id: 7, name: 'Mother', phone: '+966501234567', email: null, is_company: false,
+  id: 7, name: 'Mother', erased: false, phone: '+966501234567', email: null, is_company: false,
   parent: { id: 3, name: 'Trading house' }, active: true, company: null,
   properties: [{ key: 'tier', label: 'Tier', type: 'selection', options: [{ key: 'gold', label: 'Gold' }], value: 'gold' }],
 }
@@ -23,10 +23,16 @@ describe('CustomerSchema', () => {
   it('accepts exactly the serializer fields', () => {
     expect(CustomerSchema.parse(CUSTOMER)).toEqual(CUSTOMER)
     expect(Object.keys(CustomerSchema.shape).sort()).toEqual(
-      ['active', 'company', 'email', 'id', 'is_company', 'name', 'parent', 'phone', 'properties'],
+      ['active', 'company', 'email', 'erased', 'id', 'is_company', 'name', 'parent', 'phone', 'properties'],
     )
     expect(() => CustomerSchema.parse({ ...CUSTOMER, properties: [{ key: 'tier', label: 'Tier', type: 'selection', value: 'gold' }] })).toThrow()
     expect(() => CustomerSchema.parse({ ...CUSTOMER, vat: '1' })).toThrow()
+  })
+
+  it('marks an erased customer with a boolean and requires it', () => {
+    expect(CustomerSchema.parse({ ...CUSTOMER, erased: true }).erased).toBe(true)
+    const { erased: _erased, ...withoutFlag } = CUSTOMER
+    expect(() => CustomerSchema.parse(withoutFlag)).toThrow()
   })
 
   it('takes a branch company, no phone, and refuses a phone that is not E.164', () => {

@@ -86,7 +86,7 @@ function emptyValue(type) {
 
 function dump(customer) {
   const { values, ...rest } = customer
-  return { ...rest, properties: settings.fields.map(field => ({ ...field, value: field.key in values ? values[field.key] : emptyValue(field.type) })) }
+  return { ...rest, erased: isErased(customer), properties: settings.fields.map(field => ({ ...field, value: field.key in values ? values[field.key] : emptyValue(field.type) })) }
 }
 
 function matches(customer, url) {
