@@ -21,18 +21,20 @@ LiwanOS has no sales application. A tenant can win a CRM opportunity with a pack
 
 | Addon | Rank | Depends on | Owns |
 | --- | --- | --- | --- |
-| `liwan_orders` | 3 | `liwan_api`, `sale` | The order factory, the tax rule of decision 4 and the read of an order's totals. It takes a partner and a product from its caller and knows neither `liwan_customers` nor `liwan_products` |
+| `liwan_orders` | 3 | `liwan_api`, `sale`; installs itself with the two | The tax rule of decision 4 on the order line. The order factory joins it when the store starts ([foundation design, section 5](2026-11-11-customers-and-products-foundation-design.md#5-orders)) |
 | `liwan_sales` | 4 | `liwan_orders`, `liwan_customers`, `liwan_products`, `sale_management` | Quotations and orders written by staff, their settings, capabilities, routes under `/api/v1/sales` and the pages under `/sales` |
 | `liwan_sales_finance` | 5 | `liwan_sales`, `liwan_finance` | Invoices made from an order, and the links between the two |
 | `liwan_sales_crm` | 5 | `liwan_sales`, `liwan_crm` | A quotation from an opportunity, and the opportunity won when its order is confirmed |
 | `liwan_sales_payments` | 5 | `liwan_sales`, `liwan_payments` | The pay link of a quotation and its confirmation by payment |
 | `liwan_sales_ai` | 5 | `liwan_sales`, `liwan_ai` | The agent and its read tool, as `tools/new_app.py` scaffolds them |
 
-`liwan_orders` is step 4 of the foundation design, brought forward. Without it the tax rule would live twice, in payments and in sales, or sales would depend on the payment gateway to price a line.
+`liwan_orders` is step 4 of the foundation design, brought forward for the tax rule. Without it the rule would live twice, in payments and in sales, or sales would depend on the payment gateway to tax a line.
 
-`liwan_payments` does not depend on `liwan_orders`. Both are rank 3, and a layered addon reaches a strictly lower rank only (`tools/arch_policy.py:168-177`). The two meet in their callers. The factory has two callers today, both rank-5 bridges (`liwan_inbox_payments/models/order.py:187-189`, `liwan_appointments_payments/models/resource_booking.py:70-71`). After PR 1 each bridge depends on both services: it makes the order and its lines through `liwan_orders`, then hands the order to `liwan_payments`, which marks it as an online order (payment required, the deposit share and the deadline) and keeps the pay state, the expiry and the refunds on stock `sale.order` as it does now.
+The tax rule of decision 4 sits on the line's stock tax compute, extended in `liwan_orders` (point 7 of section 9). A line of an establishment that is not registered then carries no tax when it is created and after every edit, whether an online channel or a member of staff wrote it. When the establishment's registration changes later, a document keeps what it was issued with, as online orders do today (`liwan_payments/tests/test_vat_registered.py`).
 
-The tax rule of decision 4 sits on the line's stock tax compute, extended in `liwan_orders` (point 7 of section 9). A line of an establishment that is not registered then carries no tax when it is created and after every edit, whether an online channel or a member of staff wrote it. Every addon that creates an order depends on `liwan_orders`, so the rule is installed wherever an order can exist.
+`liwan_orders` installs itself wherever `liwan_api` and stock `sale` are installed, as `liwan_api_account` does with stock `account`, so the rule holds without a caller naming the addon. `liwan_payments` cannot name it: both are rank 3, and a layered addon reaches a strictly lower rank only (`tools/arch_policy.py:168-177`). The two payment bridges cannot either: the bridge job accepts a bridge with exactly two sides (`tools/app_isolation.py`, `deploy/ci/odoo-bridge.sh`). `liwan_sales` depends on it by name.
+
+The order factory stays in `liwan_payments` and drops its own copy of the tax rule. It moves to `liwan_orders` when the store starts, as the foundation design says, and the store design decides how its callers reach both services.
 
 ## 4. What the application does
 
@@ -86,7 +88,7 @@ Sales changes authorization and money documents, so each pull request takes the 
 
 | PR | Work | Starts after |
 | --- | --- | --- |
-| 1 | `liwan_orders`: the factory and the tax rule leave `liwan_payments`. The two payment bridges make their orders through it and hand them to payments, which gains no dependency on it | Products PR 2 is merged; it edits the same two payment bridges. Products PR 1, which rewrote the same functions of `order_service.py`, is merged |
+| 1 | `liwan_orders`: the tax rule on the order line, installed with stock `sale`. `liwan_payments` drops its copy of the rule and keeps the factory ([plan](../plans/2026-11-14-liwan-orders.md)) | Products PR 2 is merged; it edits the same lists of installed addons and the VAT tests of the customer messages payments bridge. Products PR 1 is merged |
 | 2 | `liwan_sales`: scaffold, capabilities, settings, quotations and orders with their lines and states, the list and record pages | Products PR 2 is merged; it brings the pick list and the price function |
 | 3 | Send, the public page, acceptance, signature and expiry | PR 2 |
 | 4 | `liwan_sales_finance`: invoices and down payments | PR 2 and products PR 6 (a product on finance invoice lines) |
@@ -116,6 +118,8 @@ The owner approved each point as written here.
 | --- | --- |
 | The order factory, its elevation, its two callers and the payments dependency on `sale` | Read on `origin/main` at `65cb936d0`; not run |
 | A rank-3 addon cannot depend on a rank-3 addon, and `liwan_payments` is rank 3 | Read in `tools/arch_policy.py:168-177` and `tools/arch_layers.json`; the policy was not run on a `liwan_orders` manifest |
+| The bridge job accepts a bridge with exactly two sides, so a payment bridge cannot name a third LiwanOS module | Read in `tools/app_isolation.py` and `deploy/ci/odoo-bridge.sh` on `origin/claude/products-service-pr2` at `366053b67`; not run |
+| A rank-3 service that installs itself passes the isolation checks and the module closure | Inferred: no rank-3 addon installs itself today. The first check of PR 1 |
 | The tax rule on the stock compute holds through a staff edit and for an online order | Inferred from the compute's dependencies; the first test of PR 1 |
 | Stock puts the order line's product on the invoice line, and no file of `liwan_finance` outside its tests names a product | Read in Odoo 19 source and on `origin/main` at `65cb936d0`; not run |
 | Stock refuses a company on a product that another company has sold | Read in Odoo 19 source; not run |
