@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
 import secrets
 
 from odoo import api, fields, models
@@ -56,6 +57,14 @@ class LiwanIntegrationConnection(models.Model):
             definition = providers_by_code.get(connection.provider)
             if not definition or definition['auth'] == AUTH_EXTERNAL:
                 raise ValidationError(self.env._('%(provider)s is not a provider with stored connections.', provider=connection.provider))
+
+    @api.constrains('provider', 'external_id')
+    def _check_external_id_format(self):
+        definitions = self.env['liwan.integration.registry']._liwan_provider_map()
+        for connection in self:
+            pattern = definitions.get(connection.provider, {}).get('external_id_pattern')
+            if pattern and not re.fullmatch(pattern, connection.external_id or ''):
+                raise ValidationError(self.env._('The account id %(id)s is not valid for %(provider)s.', id=connection.external_id, provider=connection.provider))
 
     @api.constrains('provider', 'external_id', 'company_id')
     def _check_exclusive_account(self):
@@ -157,16 +166,19 @@ class LiwanIntegrationConnection(models.Model):
         """Probe the provider with the stored credentials and record the outcome.
 
         A passing probe connects the account; a failing one marks it ``error`` with a short message. A disabled
-        connection that fails stays disabled, so a failed activation never resumes its traffic.
+        connection stays disabled whatever the probe says (the label and the check time still update): only a
+        patch to ``pending`` or an OAuth reconnect re-enables it. Returns whether the probe passed.
         """
         self.ensure_one()
+        disabled = self.state == 'disabled'
         try:
             with self.env.cr.savepoint():
                 label = self._liwan_probe()
         except (errors.ProviderError, ReconnectRequired) as error:
-            self._liwan_record_state('disabled' if self.state == 'disabled' else 'error', str(error))
-        else:
-            self._liwan_record_state('connected', False, label)
+            self._liwan_record_state('disabled' if disabled else 'error', str(error))
+            return False
+        self._liwan_record_state('disabled' if disabled else 'connected', False, label)
+        return True
 
     def _liwan_probe(self):
         """The account's display name as the provider's probe reads it with the current credentials."""

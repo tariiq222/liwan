@@ -96,11 +96,7 @@ class TestIntegrationOAuth(LiwanIntegrationsCase):
         )
         self.assertGreater(values['x'], int(time.time()))
 
-    def test_start_validates_the_provider_the_uses_and_the_connection(self):
-        other = self.env['res.company'].create({'name': 'Integrations company G'})
-        foreign = self.make_tiktok(grant(open_id='foreign-open-id'), company=other)
-        mine = self.make_tiktok()
-        meta_connection = self.make_meta()
+    def test_start_validates_the_provider_and_the_uses(self):
         for path, body, status, code in (
             ('/api/v1/integrations/oauth/nobody/start', {'uses': ['test.tiktok']}, 404, 'not_found'),
             ('/api/v1/integrations/oauth/meta/start', {'uses': ['test.meta']}, 404, 'not_found'),
@@ -109,12 +105,10 @@ class TestIntegrationOAuth(LiwanIntegrationsCase):
             (START, {'uses': ['test.meta']}, 422, 'invalid'),
             (START, {'uses': ['test.unknown']}, 422, 'invalid'),
             (START, {'uses': ['test.tiktok'], 'extra': 1}, 422, 'invalid'),
-            (START, {'uses': ['test.tiktok'], 'connection_id': foreign.id}, 404, 'not_found'),
-            (START, {'uses': ['test.tiktok'], 'connection_id': meta_connection.id}, 422, 'invalid'),
+            (START, {'uses': ['test.tiktok'], 'connection_id': 1}, 422, 'invalid'),
         ):
             with self.subTest(path=path, body=body):
                 self.assertError(self.api('POST', path, body), status, code)
-        self.assertEqual(self.api('POST', START, {'uses': ['test.tiktok'], 'connection_id': mine.id}).status_code, 200)
 
     def test_start_without_the_app_configuration_is_422_not_configured(self):
         with patch.dict(os.environ, {'LIWAN_TIKTOK_CLIENT_KEY': ''}):

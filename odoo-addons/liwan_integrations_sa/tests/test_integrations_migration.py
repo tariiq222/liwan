@@ -30,7 +30,7 @@ class TestConnectionShapeMigration(TransactionCase):
 
     def old_layout(self):
         """The table as 19.0.1.0.0 left it: a `kind` column and one status-only row per company."""
-        connection = self.env['liwan.integration.connection'].create({'provider': 'meta', 'external_id': '1'})
+        connection = self.env['liwan.integration.connection'].create({'provider': 'meta', 'external_id': '10000'})
         self.env.flush_all()
         self.env.cr.execute(f'ALTER TABLE {TABLE} ADD COLUMN kind varchar')
         self.env.cr.execute(f"UPDATE {TABLE} SET kind = 'zatca' WHERE id = %s", [connection.id])
@@ -53,7 +53,7 @@ class TestConnectionShapeMigration(TransactionCase):
         self.old_layout()
         migration = load('pre-connection-shape')
         migration.migrate(self.env.cr, PREVIOUS)
-        kept = self.env['liwan.integration.connection'].create({'provider': 'meta', 'external_id': '2'})
+        kept = self.env['liwan.integration.connection'].create({'provider': 'meta', 'external_id': '20000'})
         self.env.flush_all()
         migration.migrate(self.env.cr, PREVIOUS)
         self.assertTrue(kept.exists())

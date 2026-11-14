@@ -26,7 +26,6 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_integrations_sa import providers
 from odoo.addons.liwan_integrations_sa.controllers.helpers import (
     check_fields,
-    find_connection,
     holds_manage,
     offered_providers,
     reject,
@@ -122,17 +121,13 @@ class IntegrationOAuthController(http.Controller):
     @requires_feature(FEATURE, operation='write')
     @requires_capability(MANAGE)
     def start(self, provider, **payload):
-        """The signed authorization URL of a new connection, or of one being connected again."""
+        """The signed authorization URL that connects an account (a new one, or one connected again)."""
         module = _oauth_provider(provider)
-        check_fields(payload, {'uses', 'connection_id'}, required=('uses',))
+        check_fields(payload, {'uses'}, required=('uses',))
         uses = payload['uses']
         if not isinstance(uses, list) or not uses or not all(isinstance(use, str) for use in uses):
             reject('uses must be a list of use keys', 'uses')
         _use_scopes(provider, uses)
-        if payload.get('connection_id') is not None:
-            connection = find_connection(payload['connection_id'])
-            if connection.provider != provider:
-                reject('connection_id must name a connection of this provider', 'connection_id')
         config = request.env['liwan.integration.connection']._liwan_oauth_config_of(provider)
         state = encode_state(config, {
             'c': request.env.company.id,

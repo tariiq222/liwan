@@ -103,7 +103,7 @@ const disconnect = () => run(async () => {
 })
 const reconnect = () => run(async () => {
   const uses = props.connection.used_by.length ? props.connection.used_by : (props.provider?.uses ?? []).map(use => use.key)
-  const { authorize_url } = await start.mutateAsync({ provider: props.connection.provider, body: { uses, connection_id: id.value } })
+  const { authorize_url } = await start.mutateAsync({ provider: props.connection.provider, body: { uses } })
   window.location.assign(authorize_url)
 })
 async function copy(value: string) {

@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo import api, models
 from odoo.exceptions import ValidationError
 
@@ -29,12 +31,14 @@ class LiwanIntegrationRegistry(models.AbstractModel):
                 'code': 'meta', 'owner': OWNER, 'auth': AUTH_KEYS,
                 'secrets': ('access_token', 'app_secret'), 'generated_secrets': ('verify_token',),
                 'attributes': ('app_id',), 'settings_path': None, 'exclusive': False,
+                'external_id_pattern': r'\d{5,32}',
             },
             {
                 'code': 'tiktok', 'owner': OWNER, 'auth': AUTH_OAUTH,
                 'secrets': (), 'generated_secrets': (), 'attributes': (), 'settings_path': None,
                 # The webhook is routed by the account id alone, so one database holds an account once.
                 'exclusive': True,
+                'external_id_pattern': r'[A-Za-z0-9_-]{1,128}',
             },
         )
 
@@ -61,9 +65,24 @@ class LiwanIntegrationRegistry(models.AbstractModel):
                     ))
             if not isinstance(item.get('exclusive'), bool):
                 raise ValidationError(self.env._('liwan_integrations: provider %(code)s needs a boolean exclusive', code=code))
+            self._liwan_check_external_id_pattern(item)
             self._liwan_check_provider_shape(item)
             providers[code] = item
         return providers
+
+    @api.model
+    def _liwan_check_external_id_pattern(self, item):
+        """A stored provider names the regex its account ids fully match; an external one has none."""
+        pattern = item.get('external_id_pattern')
+        if item['auth'] == AUTH_EXTERNAL:
+            valid = pattern is None
+        else:
+            try:
+                valid = _is_text(pattern) and bool(re.compile(pattern))
+            except re.error:
+                valid = False
+        if not valid:
+            raise ValidationError(self.env._('liwan_integrations: provider %(code)s has an invalid account id pattern', code=item['code']))
 
     @api.model
     def _liwan_check_provider_shape(self, item):

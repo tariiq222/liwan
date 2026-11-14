@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo import http
 from odoo.http import request
 
@@ -49,9 +51,9 @@ def _dump(connection):
     return dump_connection(connection, public_base)
 
 
-def _require_connected(connection):
+def _require_passed(connection, passed):
     """Roll the request back when the provider refused the credentials: nothing half-connected is kept."""
-    if connection.state != 'connected':
+    if not passed:
         code = 'integration_rejected'
         message = request.env._('The provider refused the connection: %(reason)s', reason=connection.status_message)
         raise LiwanAccessRule(code, message, details={'reason': code})
@@ -108,7 +110,10 @@ class IntegrationConnectionController(http.Controller):
         secrets = parse_secrets(payload, provider)
         if set(secrets) != set(provider['secrets']):
             reject(f'secrets must give {", ".join(provider["secrets"])}', 'secrets')
-        values = {'provider': provider['code'], 'external_id': parse_text(payload, 'external_id', EXTERNAL_ID_MAX)}
+        external_id = parse_text(payload, 'external_id', EXTERNAL_ID_MAX)
+        if not re.fullmatch(provider['external_id_pattern'], external_id):
+            reject(f'external_id is not a valid {provider["code"]} account id', 'external_id')
+        values = {'provider': provider['code'], 'external_id': external_id}
         for key in ('label', 'app_id'):
             if key in payload:
                 values[key] = _attribute(provider, key, payload)
@@ -119,8 +124,7 @@ class IntegrationConnectionController(http.Controller):
         connection = Connection.create(values)
         connection._liwan_store_secrets(secrets)
         connection._liwan_generate_secrets()
-        connection._liwan_test()
-        _require_connected(connection)
+        _require_passed(connection, connection._liwan_test())
         return request.make_json_response(_dump(connection), status=201)
 
     @http.route('/api/v1/integrations/connections/<int:connection_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -145,8 +149,7 @@ class IntegrationConnectionController(http.Controller):
         elif state == 'pending' or 'secrets' in payload:
             if state == 'pending':
                 connection.write({'state': 'pending'})
-            connection._liwan_test()
-            _require_connected(connection)
+            _require_passed(connection, connection._liwan_test())
         return _dump(connection)
 
     @http.route('/api/v1/integrations/connections/<int:connection_id>/test', type='json2', auth='user',

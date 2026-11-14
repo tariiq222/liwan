@@ -72,10 +72,10 @@ describe('IntegrationConnectionSchema', () => {
 })
 
 describe('IntegrationConnectionCreateSchema', () => {
-  const body = { provider: 'meta', external_id: ' 1029384756 ', secrets: { access_token: ' tok ' } }
+  const body = { provider: 'meta', external_id: ' 1029384756 ', secrets: { access_token: ' token-1234 ' } }
 
   it('trims what the customer typed and keeps the optional fields optional', () => {
-    expect(IntegrationConnectionCreateSchema.parse(body)).toEqual({ provider: 'meta', external_id: '1029384756', secrets: { access_token: 'tok' } })
+    expect(IntegrationConnectionCreateSchema.parse(body)).toEqual({ provider: 'meta', external_id: '1029384756', secrets: { access_token: 'token-1234' } })
     expect(IntegrationConnectionCreateSchema.parse({ ...body, label: 'x', app_id: '5' }).app_id).toBe('5')
   })
 
@@ -83,6 +83,8 @@ describe('IntegrationConnectionCreateSchema', () => {
     expect(() => IntegrationConnectionCreateSchema.parse({ ...body, external_id: ' ' })).toThrow()
     expect(() => IntegrationConnectionCreateSchema.parse({ ...body, secrets: {} })).toThrow()
     expect(() => IntegrationConnectionCreateSchema.parse({ ...body, secrets: { access_token: ' ' } })).toThrow()
+    expect(() => IntegrationConnectionCreateSchema.parse({ ...body, secrets: { access_token: 'short' } })).toThrow()
+    expect(() => IntegrationConnectionCreateSchema.parse({ ...body, external_id: '1'.repeat(65) })).toThrow()
     expect(() => IntegrationConnectionCreateSchema.parse({ ...body, state: 'connected' })).toThrow()
   })
 })
@@ -91,7 +93,7 @@ describe('IntegrationConnectionUpdateSchema', () => {
   it('accepts a label, secrets or the two allowed states', () => {
     expect(IntegrationConnectionUpdateSchema.parse({ state: 'disabled' }).state).toBe('disabled')
     expect(IntegrationConnectionUpdateSchema.parse({ state: 'pending' }).state).toBe('pending')
-    expect(IntegrationConnectionUpdateSchema.parse({ secrets: { app_secret: 'x' } }).secrets).toEqual({ app_secret: 'x' })
+    expect(IntegrationConnectionUpdateSchema.parse({ secrets: { app_secret: 'secret-12' } }).secrets).toEqual({ app_secret: 'secret-12' })
   })
 
   it('refuses an empty body, a state the customer cannot set and unknown keys', () => {
@@ -102,10 +104,10 @@ describe('IntegrationConnectionUpdateSchema', () => {
 })
 
 describe('OAuth and rotation', () => {
-  it('starts with at least one use and an optional connection to re-authorize', () => {
-    expect(IntegrationOAuthStartSchema.parse({ uses: ['inbox.tiktok'], connection_id: 4 }).connection_id).toBe(4)
+  it('starts with at least one use and nothing else', () => {
+    expect(IntegrationOAuthStartSchema.parse({ uses: ['inbox.tiktok'] }).uses).toEqual(['inbox.tiktok'])
     expect(() => IntegrationOAuthStartSchema.parse({ uses: [] })).toThrow()
-    expect(() => IntegrationOAuthStartSchema.parse({ uses: ['inbox.tiktok'], connection_id: 0 })).toThrow()
+    expect(() => IntegrationOAuthStartSchema.parse({ uses: ['inbox.tiktok'], connection_id: 4 })).toThrow()
   })
 
   it('answers with an https authorize address only', () => {

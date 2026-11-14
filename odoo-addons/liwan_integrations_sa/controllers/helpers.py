@@ -54,7 +54,10 @@ def parse_secrets(payload, provider):
     unknown = sorted(set(value) - set(provider['secrets']))
     if unknown:
         reject(f'secret {unknown[0]!r} is not accepted by this provider', 'secrets')
-    return {name: parse_text(value, name, SECRET_MAX, SECRET_MIN) for name in value}
+    for name, secret in value.items():
+        if not isinstance(secret, str) or not SECRET_MIN <= len(secret.strip()) <= SECRET_MAX:
+            reject(f'{name} must be a string of {SECRET_MIN} to {SECRET_MAX} characters', 'secrets')
+    return {name: secret.strip() for name, secret in value.items()}
 
 
 def public_base():

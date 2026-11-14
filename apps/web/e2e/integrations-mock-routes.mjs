@@ -196,7 +196,6 @@ function startOAuth(provider, body, origin) {
   if (!provider || provider.auth !== 'oauth') return notFound()
   const useKeys = provider.uses.map(use => use.key)
   if (!Array.isArray(body.uses) || !body.uses.length || body.uses.some(use => !useKeys.includes(use))) return refusal(422, 'invalid', 'uses must name uses of the provider', 'uses')
-  if (body.connection_id !== undefined && !findConnection(body.connection_id)) return notFound()
   const redirect = encodeURIComponent(`${origin}${PREFIX}/oauth/${provider.code}/callback`)
   return { status: 200, body: { authorize_url: `https://mock-oauth.example.com/${provider.code}/authorize?redirect_uri=${redirect}&code=ok` } }
 }

@@ -7,7 +7,7 @@ from odoo.addons.liwan_api.tests.common import PROBE_FEATURE, set_probe_feature
 BASE = '/api/v1/integrations'
 EXTERNAL = {
     'code': 'test_external', 'owner': 'liwan_integrations_sa', 'auth': 'external', 'secrets': (),
-    'generated_secrets': (), 'attributes': (), 'settings_path': '/settings/apps/test', 'exclusive': False,
+    'generated_secrets': (), 'attributes': (), 'settings_path': '/settings/apps/test', 'exclusive': False, 'external_id_pattern': None,
 }
 EXTERNAL_USE = {
     'key': 'test.external', 'provider': 'test_external', 'owner': 'liwan_integrations_sa', 'feature_key': PROBE_FEATURE,

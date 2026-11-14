@@ -89,7 +89,12 @@ class TestIntegrationKeysApi(LiwanIntegrationsCase):
             ({'external_id': ''}, 'external_id'),
             ({'secrets': {'access_token': ACCESS_TOKEN}}, 'secrets'),
             ({'secrets': {**META_BODY['secrets'], 'other': 'x' * 12}}, 'secrets'),
-            ({'secrets': {'access_token': 'short', 'app_secret': APP_SECRET}}, 'access_token'),
+            ({'secrets': {'access_token': 'short', 'app_secret': APP_SECRET}}, 'secrets'),
+            ({'secrets': {'access_token': 'x' * 1025, 'app_secret': APP_SECRET}}, 'secrets'),
+            ({'external_id': 'x' * 65}, 'external_id'),
+            ({'external_id': '../me'}, 'external_id'),
+            ({'external_id': '123?fields=x'}, 'external_id'),
+            ({'external_id': '1234'}, 'external_id'),
             ({'secrets': ['x']}, 'secrets'),
         )
         for override, field in cases:
@@ -134,6 +139,14 @@ class TestIntegrationKeysApi(LiwanIntegrationsCase):
         with GOOD_PROBE:
             enabled = self.api('PATCH', f'{BASE}/connections/{connection.id}', {'state': 'pending'})
         self.assertEqual((enabled.status_code, enabled.json()['state']), (200, 'connected'))
+
+    def test_a_passing_test_or_new_secrets_leave_a_disabled_connection_disabled(self):
+        connection = self.make_meta(state='disabled')
+        with GOOD_PROBE:
+            tested = self.api('POST', f'{BASE}/connections/{connection.id}/test')
+            patched = self.api('PATCH', f'{BASE}/connections/{connection.id}', {'secrets': {'access_token': 'EAAB-new-token-9876543210'}})
+        self.assertEqual((tested.status_code, tested.json()['state'], tested.json()['label']), (200, 'disabled', 'Acme Business'))
+        self.assertEqual((patched.status_code, patched.json()['state']), (200, 'disabled'))
 
     def test_patch_refuses_other_states_unknown_fields_and_attributes_the_provider_lacks(self):
         connection = self.make_meta()

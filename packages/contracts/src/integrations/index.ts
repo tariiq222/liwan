@@ -68,13 +68,13 @@ export const IntegrationConnectionListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
-const SecretValuesSchema = z.record(z.string().min(1), z.string().trim().min(1).max(4096))
+const SecretValuesSchema = z.record(z.string().min(1), z.string().trim().min(8).max(1024))
   .refine(values => Object.keys(values).length > 0, { message: 'enter at least one secret' })
 
 /** POST body: connect an account of a `keys` provider. Secrets are write-only. */
 export const IntegrationConnectionCreateSchema = z.object({
   provider: z.string().min(1),
-  external_id: z.string().trim().min(1).max(128),
+  external_id: z.string().trim().min(1).max(64),
   label: z.string().trim().max(128).optional(),
   app_id: z.string().trim().min(1).max(128).optional(),
   secrets: SecretValuesSchema,
@@ -90,10 +90,9 @@ export const IntegrationConnectionUpdateSchema = z.object({
   message: 'label, app_id, secrets or state is required',
 })
 
-/** POST body of the OAuth start: the uses to authorize, and the connection when re-authorizing one. */
+/** POST body of the OAuth start: the uses to authorize. Authorizing a connected account again refreshes its grant. */
 export const IntegrationOAuthStartSchema = z.object({
   uses: z.array(z.string().min(1)).min(1),
-  connection_id: z.number().int().positive().optional(),
 }).strict()
 
 export const IntegrationOAuthStartResponseSchema = z.object({

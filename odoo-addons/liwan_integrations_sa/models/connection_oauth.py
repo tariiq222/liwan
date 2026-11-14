@@ -36,7 +36,11 @@ class LiwanIntegrationConnectionOAuth(models.Model):
         }
 
     def _liwan_oauth_store(self, grant, label=None):
-        """Store one authorization (tokens encrypted) and mark the account connected."""
+        """Store one authorization (tokens encrypted) and mark the account connected.
+
+        This re-enables a disabled connection on purpose: the administrator who connects the account again
+        through the callback has chosen to resume it.
+        """
         self.ensure_one()
         self._liwan_store_secrets({'access_token': grant.access_token, 'refresh_token': grant.refresh_token})
         self.write(self._liwan_oauth_values(grant))
@@ -83,7 +87,11 @@ class LiwanIntegrationConnectionOAuth(models.Model):
         stored.write({'token_expires_at': grant.expires_at, 'refresh_expires_at': grant.refresh_expires_at})
 
     def _liwan_reconnect_required(self):
-        """Mark the connection so the administrator sees it must be connected again; the caller gets a clear error."""
+        """Mark the connection so the administrator sees it must be connected again; the caller gets a clear error.
+
+        The marker is written in the caller's transaction: a request that then fails rolls it back with everything
+        else, as the inbox code this replaces did.
+        """
         message = self.env._('Connect the %(provider)s account again: its authorization is no longer valid.', provider=self.provider)
         # Elevated for the same reason as the refresh: the caller only reads the connection.
         self.sudo()._liwan_record_state('error', message)

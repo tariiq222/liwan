@@ -7,7 +7,7 @@ from odoo.addons.liwan_api.tests.common import set_probe_feature
 
 EXTERNAL = {
     'code': 'test_external', 'owner': 'liwan_integrations_sa', 'auth': 'external', 'secrets': (),
-    'generated_secrets': (), 'attributes': (), 'settings_path': '/settings/apps/test', 'exclusive': False,
+    'generated_secrets': (), 'attributes': (), 'settings_path': '/settings/apps/test', 'exclusive': False, 'external_id_pattern': None,
 }
 
 
@@ -61,6 +61,15 @@ class TestIntegrationRegistry(LiwanIntegrationsCase):
         self.assertEqual((providers['tiktok']['exclusive'], providers['meta']['exclusive']), (True, False))
         self.assert_invalid_provider({k: v for k, v in EXTERNAL.items() if k != 'exclusive'})
         self.assert_invalid_provider({**EXTERNAL, 'exclusive': 'yes'})
+
+    def test_the_account_id_pattern_is_required_for_stored_providers_and_absent_for_external_ones(self):
+        providers = self.integration_registry._liwan_provider_map()
+        self.assertEqual((providers['meta']['external_id_pattern'], providers['tiktok']['external_id_pattern']),
+                         (r'\d{5,32}', r'[A-Za-z0-9_-]{1,128}'))
+        stored = {**EXTERNAL, 'auth': 'keys', 'settings_path': None, 'secrets': ('access_token',)}
+        self.assert_invalid_provider({**stored, 'code': 'test_stored', 'external_id_pattern': None})
+        self.assert_invalid_provider({**stored, 'code': 'test_stored', 'external_id_pattern': '('})
+        self.assert_invalid_provider({**EXTERNAL, 'external_id_pattern': r'\d+'})
 
     def test_an_oauth_provider_has_no_typed_secrets(self):
         self.assert_invalid_provider({**EXTERNAL, 'auth': 'oauth', 'settings_path': None, 'secrets': ('access_token',)})

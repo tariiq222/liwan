@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Meta (WhatsApp Business account): the connection-level probe. Pure functions over `requests`, no ORM."""
+from urllib.parse import quote
+
 import requests
 
 from . import errors
@@ -17,7 +19,7 @@ def probe(external_id, access_token):
     """
     try:
         response = requests.get(
-            f'{GRAPH_BASE}/{GRAPH_API_VERSION}/{external_id}', params={'fields': 'name'},
+            f'{GRAPH_BASE}/{GRAPH_API_VERSION}/{quote(external_id, safe="")}', params={'fields': 'name'},
             headers={'Authorization': f'Bearer {access_token}'}, timeout=TIMEOUT_SECONDS,
         )
     except requests.RequestException as error:

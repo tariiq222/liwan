@@ -99,6 +99,25 @@ class TestIntegrationAccess(LiwanIntegrationsCase):
             connection._liwan_test()
         self.assertEqual(connection.state, 'disabled')
 
+    def test_a_passing_test_keeps_a_disabled_connection_disabled_but_updates_the_label(self):
+        connection = self.make_meta(state='disabled')
+        with patch.object(meta, 'probe', return_value='Acme Business'):
+            self.assertTrue(connection._liwan_test())
+        self.assertEqual((connection.state, connection.label), ('disabled', 'Acme Business'))
+        self.assertTrue(connection.last_checked)
+
+    def test_a_malformed_account_id_is_refused_by_the_model(self):
+        for external_id in ('../me', '123?fields=x', '1234', 'abcdef'):
+            with self.subTest(external_id=external_id), self.assertRaises(ValidationError):
+                self.make_meta(external_id=external_id)
+
+    def test_the_graph_url_quotes_the_account_id(self):
+        with patch('requests.get') as get:
+            get.return_value.status_code = 200
+            get.return_value.json.return_value = {'name': 'x'}
+            meta.probe('a/b?c', 'token-0123456789')
+        self.assertIn('/a%2Fb%3Fc', get.call_args.args[0])
+
     def test_rotating_replaces_a_generated_secret_only(self):
         connection = self.make_meta()
         before = connection._liwan_secret('verify_token')
