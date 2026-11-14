@@ -15,9 +15,10 @@ class TestOwnDocumentsFollowTheHomeCompany(WorkingCompanyCase):
     def setUpClass(cls):
         super().setUpClass()
         profile = cls.env.ref('liwan_platform.tenant_profile')
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write(
-            {'features': {**(profile.features or {}), 'documents.enabled': True, 'hr.enabled': True}},
-        )
+        features = {**(profile.features or {}), 'hr.enabled': True}
+        if 'documents.enabled' in features:
+            features['documents.enabled'] = True
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': features})
         cls.worker = cls._member(
             'wc_doc_worker', cls.branch_a, [cls.branch_a, cls.branch_b],
             {cls.branch_a: cls.employee_role, cls.branch_b: cls.employee_role},
@@ -74,6 +75,8 @@ class TestOwnDocumentsFollowTheHomeCompany(WorkingCompanyCase):
         return self.url_open(f'/api/v1/documents/employee/me/{document.id}/files/{file.id}/download')
 
     def test_the_library_routes_judge_the_home_document_in_the_working_company(self):
+        if not self.env.ref('liwan_documents.group_documents_manager', raise_if_not_found=False):
+            self.skipTest('The central library is not installed')
         """The library's own routes stay in the company the session works in: they do not find the home document there."""
         self.sign_in('wc_doc_worker')
         self.assertEqual(self.switch(self.branch_b).status_code, 200)
@@ -127,7 +130,8 @@ class TestOwnDocumentsFollowTheHomeCompany(WorkingCompanyCase):
                     self.assertNotIn(b'bytes', refused.content)
         # The colleague's document stays readable in the library through its grant: only the personal routes refuse it.
         self.assertEqual(self.switch(self.branch_a).status_code, 200)
-        self.assertEqual(self.api('GET', f'/api/v1/documents/{self.shared.id}/files').status_code, 200)
+        if self.env.ref('liwan_documents.group_documents_manager', raise_if_not_found=False):
+            self.assertEqual(self.api('GET', f'/api/v1/documents/{self.shared.id}/files').status_code, 200)
 
     def test_the_own_file_routes_need_an_employee_record(self):
         """A person with no employee record in the home company has no own document to read files of."""

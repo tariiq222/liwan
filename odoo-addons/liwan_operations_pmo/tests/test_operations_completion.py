@@ -3,7 +3,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_operations.models.operation_request import (
+from odoo.addons.liwan_approval_service.models.operation_request import (
     OperationExecutionError,
 )
 from odoo.addons.liwan_pmo.tests.common import LiwanPmoCase

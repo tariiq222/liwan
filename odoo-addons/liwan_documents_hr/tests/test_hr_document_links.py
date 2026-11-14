@@ -5,7 +5,7 @@ from odoo import fields
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.liwan_documents.tests.common import DocumentCase
+from odoo.addons.liwan_document_service.tests.common import DocumentCase
 from odoo.addons.liwan_hr.rules import LiwanHrRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 

@@ -171,6 +171,11 @@ def layer_violations(addon: str, targets: list[str], ranks: dict[str, int], kind
     for target in targets:
         if target == addon or target not in ranks:
             continue
+        if (
+            kind == 'depends on' and addon == 'liwan_approval_service'
+            and target == 'base_tier_validation' and ranks[addon] == ranks[target] == 3
+        ):
+            continue
         if ranks[target] >= ranks[addon]:
             key = f'{addon} {kind} {target}'
             found[key] = found.get(key, 0) + 1

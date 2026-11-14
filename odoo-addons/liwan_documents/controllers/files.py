@@ -2,13 +2,17 @@
 from odoo import http
 from odoo.http import request
 
-from .common import current_document, files_page, require
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     requires_feature,
 )
-from odoo.addons.liwan_documents.serializers.document import (
+from odoo.addons.liwan_document_service.controllers.common import (
+    current_document,
+    files_page,
+    require,
+)
+from odoo.addons.liwan_document_service.serializers.document import (
     dump_detail,
     parse_revision,
     strict,

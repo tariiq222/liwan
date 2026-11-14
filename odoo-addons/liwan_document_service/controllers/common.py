@@ -12,7 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_nonneg_int,
     parse_positive_int,
 )
-from odoo.addons.liwan_documents.serializers.document import dump_files
+from odoo.addons.liwan_document_service.serializers.document import dump_files
 
 
 def require(capability):

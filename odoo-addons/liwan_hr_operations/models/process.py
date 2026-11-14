@@ -9,10 +9,24 @@ class HrOperationsProcess(models.Model):
     _inherit = 'liwan.operation.process'
 
     @api.model
+    def _operations_feature(self, execution_kind):
+        if execution_kind == KIND:
+            return 'hr.enabled'
+        return super()._operations_feature(execution_kind)
+
+    @api.model
+    def _operations_manage_capability(self, execution_kind):
+        if execution_kind == KIND:
+            access = self.env['liwan.access.service']
+            if access._liwan_has_capability(self.env.user, 'hr.leave.config'):
+                return 'hr.leave.config'
+        return super()._operations_manage_capability(execution_kind)
+
+    @api.model
     def _operations_execution_kinds(self):
         kinds = super()._operations_execution_kinds()
         service = self.env['liwan.entitlement.service']
-        if service._liwan_feature_write('hr.enabled') and service._liwan_feature_write('operations.enabled'):
+        if service._liwan_feature_write('hr.enabled'):
             return (*kinds, {'key': KIND, 'label': self.env._('Leave request')})
         return kinds
 

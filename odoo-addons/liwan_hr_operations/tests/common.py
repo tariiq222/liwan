@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date, timedelta
+from unittest import SkipTest
 
 from odoo.tests import new_test_user
 
@@ -21,6 +22,9 @@ class LeaveApprovalCase(LiwanHrCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        if not cls.env.ref('liwan_operations.role_operations_manager', raise_if_not_found=False):
+            msg = 'This fixture exercises the central operations application'
+            raise SkipTest(msg)
         set_hr_feature(cls, 'operations.enabled', True)
         company = cls.env.company
         company.country_id = cls.env.ref('base.sa')

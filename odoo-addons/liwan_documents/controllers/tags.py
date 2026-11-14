@@ -2,9 +2,9 @@
 from odoo import http
 from odoo.http import request
 
-from .common import page_args, require
 from odoo.addons.liwan_api.controllers.common import api_handler, requires_feature
-from odoo.addons.liwan_documents.serializers.document import (
+from odoo.addons.liwan_document_service.controllers.common import page_args, require
+from odoo.addons.liwan_document_service.serializers.document import (
     dump_tag,
     parse_name,
     strict,

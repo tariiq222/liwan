@@ -6,7 +6,7 @@ from odoo import Command, http
 from odoo.tests import tagged
 from odoo.tools.misc import limited_field_access_token
 
-from .common import DocumentHttpCase
+from odoo.addons.liwan_document_service.tests.common import DocumentHttpCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 

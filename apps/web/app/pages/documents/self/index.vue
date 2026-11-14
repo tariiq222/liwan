@@ -3,7 +3,7 @@ import { useEmployeeDocuments, useEmployeeDocumentLink } from '@/composables/use
 import DocumentList from '@/components/documents/DocumentList.vue'
 definePageMeta({ path: '/account/documents' })
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated(); const { canPersonal } = useAccess()
-const allowed = computed(() => canPersonal('documents.items.read') && canPersonal('hr.employees.read'))
+const allowed = computed(() => canPersonal('documents.items.read', route.path) && canPersonal('hr.employees.read'))
 const employee = useEmployeeDocumentLink(allowed)
 const hasEmployee = computed(() => !!employee.data.value && !employee.error.value)
 const noEmployee = computed(() => employee.data.value === null && !employee.error.value)

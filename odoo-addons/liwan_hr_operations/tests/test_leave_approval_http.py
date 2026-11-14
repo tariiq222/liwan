@@ -2,8 +2,9 @@
 from odoo.tests import tagged
 
 from .common import LEAVES, PROCESS, LeaveApprovalCase
+from odoo.addons.liwan_hr.tests.common import set_hr_feature
 
-APPROVAL_KEYS = {'request_id', 'state', 'href', 'steps'}
+APPROVAL_KEYS = {'request_id', 'revision', 'can_review', 'state', 'steps'}
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -54,15 +55,16 @@ class TestLeaveApprovalRoutes(LeaveApprovalCase):
         self.assertEqual([step['resolver'] for step in body['process']['steps']], ['hr_leave_approver', 'hr_leave_officers'])
         self.assertTrue(all(step['resolver_label'] for step in body['process']['steps']))
         self.login_as(self.officer)
-        self.assertFalse(self.api('GET', PROCESS).json()['can_manage'])
+        self.assertTrue(self.api('GET', PROCESS).json()['can_manage'])
         self.login_as(self.employee)
         self.assertEqual(self.api('GET', PROCESS).status_code, 403)
 
     def test_default_process_route_creates_it_once_for_process_managers(self):
         self.archive_process()
-        self.login_as(self.officer)
+        self.login_as(self.employee)
         self.assertEqual(self.api('POST', f'{PROCESS}/default', json={}).status_code, 403)
-        self.login_as(self.ops_admin)
+        self.login_as(self.officer)
+        set_hr_feature(self, 'operations.enabled', False)
         self.assertEqual(self.api('POST', f'{PROCESS}/default', json={'name': 'x'}).status_code, 422)
         response = self.api('POST', f'{PROCESS}/default', json={})
         self.assertEqual(response.status_code, 201, response.text)

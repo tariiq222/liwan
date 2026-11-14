@@ -3,7 +3,7 @@ from odoo import Command
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
-from .common import DocumentCase
+from odoo.addons.liwan_document_service.tests.common import DocumentCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 
@@ -169,7 +169,7 @@ class TestDocumentAccess(DocumentCase):
         direct_reader = new_test_user(
             self.env,
             login='docs_raw_reader',
-            groups='liwan_documents.group_cap_documents_items_read',
+            groups='liwan_document_service.group_cap_documents_items_read',
         )
         with self.assertRaises(AccessError):
             self.env['liwan.document.grant'].with_user(direct_reader).browse(
@@ -202,7 +202,7 @@ class TestDocumentAccess(DocumentCase):
         creator = new_test_user(
             self.env,
             login='docs_creator',
-            groups='liwan_documents.group_cap_documents_items_manage',
+            groups='liwan_document_service.group_cap_documents_items_manage',
         )
         document = self.model(creator).create({'name': 'Creator only'})
         self.assertTrue(document._liwan_can('write'))
@@ -215,7 +215,7 @@ class TestDocumentAccess(DocumentCase):
         librarian = new_test_user(
             self.env,
             login='docs_librarian',
-            groups='liwan_documents.group_cap_documents_library_manage',
+            groups='liwan_document_service.group_cap_documents_library_manage',
         )
         document = self.create_document()
         self.assertNotIn(document.id, self.model(librarian).search([]).ids)
@@ -271,9 +271,13 @@ class TestDocumentAccess(DocumentCase):
         other_company = self.env['res.company'].create({'name': 'Batch foreign'})
         foreign = self.env['liwan.document'].create({'name': 'Foreign batch', 'company_id': other_company.id, 'visibility': 'company'})
         records = self.env['liwan.document'].browse([company.id, secret.id, archived.id, foreign.id])
-        self.assertTrue(callable(getattr(records, '_liwan_permissions', None)), 'a bounded policy batch must be available')
-        for user in (self.manager, self.reader, self.other):
-            actor = records.with_user(user)
-            expected = {document.id: {operation: document._liwan_can(operation)
-                for operation in ('read', 'write', 'archive', 'access')} for document in actor}
-            self.assertEqual(actor._liwan_permissions(), expected)
+        full = {'read': True, 'write': True, 'archive': True, 'access': True}
+        read_only = {'read': True, 'write': False, 'archive': False, 'access': False}
+        denied = dict.fromkeys(full, False)
+        for user, access in (
+            (self.manager, (full, full, {**full, 'write': False}, denied)),
+            (self.reader, (read_only, read_only, denied, denied)),
+            (self.other, (full, denied, denied, denied)),
+        ):
+            with self.subTest(user=user.login):
+                self.assertEqual(records.with_user(user)._liwan_permissions(), dict(zip(records.ids, access)))

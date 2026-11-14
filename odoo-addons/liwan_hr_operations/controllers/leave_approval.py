@@ -5,9 +5,13 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    error_response,
     requires_capability,
     requires_feature,
     serves_own_data,
+)
+from odoo.addons.liwan_approval_service.models.operation_request import (
+    OperationExecutionError,
 )
 from odoo.addons.liwan_hr.controllers.common import asks_for_own_data
 from odoo.addons.liwan_hr.controllers.hr_leave import _current_leave
@@ -17,7 +21,7 @@ from odoo.addons.liwan_hr_operations.serializers.leave_approval import (
     dump_approval_process,
 )
 
-FEATURES = ('hr.enabled', 'operations.enabled')
+FEATURES = ('hr.enabled',)
 
 
 def _governing_process():
@@ -37,6 +41,25 @@ class HrLeaveApprovalController(http.Controller):
             raise ApiError(404, 'not_found', 'this leave request has no approval workflow')
         return dump_approval(record)
 
+    @http.route('/api/v1/hr/leave/requests/<int:leave_id>/approval', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature(*FEATURES)
+    @requires_capability("operations.requests.read", "operations.requests.review", "hr.leave.approve", match="any")
+    def decide_approval(self, leave_id, action=None, revision=None, comment='', **payload):
+        if payload or action not in ('approve', 'reject'):
+            raise ApiError(422, 'invalid', 'Choose approve or reject.', field='action')
+        record = _current_leave(leave_id).liwan_approval_request_ids.filtered(
+            lambda approval: approval.state == 'pending',
+        )[:1]
+        if not record:
+            raise ApiError(404, 'not_found', 'this leave request has no pending approval')
+        transition = record.action_approve if action == 'approve' else record.action_reject
+        try:
+            transition(revision, comment)
+        except OperationExecutionError:
+            return error_response(422, 'execution_failed', request.env._('The request could not be completed; the last approval was not saved.'))
+        return dump_approval(record)
+
     @http.route('/api/v1/hr/leave/approval-process', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature(*FEATURES, operation='read')
@@ -47,7 +70,7 @@ class HrLeaveApprovalController(http.Controller):
     @http.route('/api/v1/hr/leave/approval-process/default', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(*FEATURES)
-    @requires_capability('operations.processes.manage')
+    @requires_capability('hr.leave.config')
     def create_default_process(self, **payload):
         if payload:
             field = sorted(payload)[0]
@@ -56,7 +79,20 @@ class HrLeaveApprovalController(http.Controller):
         if _governing_process():
             raise ApiError(409, 'conflict', 'the company already has a leave approval process')
         values, steps = processes._hr_leave_default_process()
-        process = processes.create({'name': values['name']})
+        process = processes.create({'name': values['name'], 'execution_kind': KIND})
         process.action_configure(0, values['name'], values['description'], KIND, steps, purpose=values['purpose'])
         process.action_publish(process.revision)
         return request.make_json_response(dump_approval_process(process, request.env), status=201)
+
+    @http.route('/api/v1/hr/leave/approval-process', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    @requires_feature(*FEATURES)
+    @requires_capability('hr.leave.config')
+    def archive_process(self, revision=None, **payload):
+        if payload:
+            raise ApiError(422, 'invalid', 'Only the revision is accepted.', field='revision')
+        process = _governing_process()
+        if not process:
+            raise ApiError(404, 'not_found', 'the company has no active leave approval process')
+        process.action_archive(revision)
+        return dump_approval_process(process.browse(), request.env)

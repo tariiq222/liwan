@@ -5,7 +5,7 @@ from datetime import timedelta
 from odoo import fields
 from odoo.tests import tagged
 
-from .common import DocumentHttpCase
+from odoo.addons.liwan_document_service.tests.common import DocumentHttpCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 SUMMARY_KEYS = {

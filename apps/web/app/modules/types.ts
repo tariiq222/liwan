@@ -349,7 +349,7 @@ export interface AppManifest {
   /** The configuration page this application adds to Settings > Applications. */
   settings?: AppSettingsPage
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
-  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string; anyCapabilities?: string[]; requiredCapabilities?: string[] }>
+  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string; capabilityFeature?: string; anyCapabilities?: string[]; requiredCapabilities?: string[] }>
   /**
    * Dynamic list sources this application owns. A recognized pathname may return a record
    * to that list, after both its normal route access and this additional capability pass.

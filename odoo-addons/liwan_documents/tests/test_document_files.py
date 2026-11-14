@@ -4,10 +4,10 @@ import base64
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
-from .common import DocumentCase
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.attachment import MAX_ATTACHMENT_BYTES
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_document_service.tests.common import DocumentCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 

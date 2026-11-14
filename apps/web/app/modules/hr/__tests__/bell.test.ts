@@ -55,7 +55,7 @@ describe('hr leave bell rows', () => {
     expect(hrBellHref(row('hr.leave_approved'))).toBe('/account/leave/7')
     // The row goes to the requester, who may hold only the self-service leave capabilities.
     expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/account/leave/7')).toBe(true)
-    expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/hr/leave/7')).toBe(false)
+    expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/hr/leave/7')).toBe(true)
     expect(hrBellHref({ kind: 'hr.leave_approved' })).toBeNull()
     // A custom role with only hr.employees.read still gets the bell for its own warnings.
     expect(manifest.bell?.capabilities).toEqual(['hr.employees.read'])

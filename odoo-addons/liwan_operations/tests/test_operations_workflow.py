@@ -3,14 +3,14 @@ from odoo.exceptions import AccessError, LockError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_api.tests.common import LiwanApiCase, set_probe_feature
-from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-from odoo.addons.liwan_operations.models.operation_request import (
+from odoo.addons.liwan_approval_service.models.operation_request import (
     OperationExecutionError,
 )
-from odoo.addons.liwan_operations.serializers.operations import (
+from odoo.addons.liwan_approval_service.serializers.operations import (
     dump_process,
     dump_request,
 )
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 
 @tagged('post_install', '-at_install', 'liwan')

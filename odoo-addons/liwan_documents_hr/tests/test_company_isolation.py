@@ -22,9 +22,10 @@ class DocumentsHrCompanyIsolationCase(CompanyIsolationCase):
     def setUpClass(cls):
         super().setUpClass()
         profile = cls.env.ref('liwan_platform.tenant_profile')
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write(
-            {'features': {**(profile.features or {}), 'documents.enabled': True, 'hr.enabled': True}},
-        )
+        features = {**(profile.features or {}), 'hr.enabled': True}
+        if 'documents.enabled' in features:
+            features['documents.enabled'] = True
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': features})
         cls.all_companies = (cls.company_p, cls.company_p1, cls.company_p2, cls.company_c)
         cls.documents = {}
         cls.files = {}

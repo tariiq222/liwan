@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest import SkipTest
 from uuid import uuid4
 
 from odoo import SUPERUSER_ID, api
@@ -12,6 +13,9 @@ class DocumentFixtures:
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        if not cls.env.ref('liwan_documents.group_documents_manager', raise_if_not_found=False):
+            msg = 'This fixture exercises the installed central library'
+            raise SkipTest(msg)
         cls.service = cls.env['liwan.access.service']
         profile = cls.env.ref('liwan_platform.tenant_profile')
         profile._liwan_initialize_legacy_policy(

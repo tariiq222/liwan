@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import DocumentHttpCase
+from odoo.addons.liwan_document_service.tests.common import DocumentHttpCase
 
 
 @tagged('post_install', '-at_install', 'liwan')

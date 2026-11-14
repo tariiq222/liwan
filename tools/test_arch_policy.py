@@ -56,6 +56,13 @@ class TestPureRules(unittest.TestCase):
             {'liwan_core depends on project': 1, 'liwan_core depends on hr': 1},
         )
 
+    def test_approval_service_depends_only_on_its_pinned_peer_engine(self):
+        ranks = {'liwan_approval_service': 3, 'base_tier_validation': 3, 'liwan_notify': 3}
+        self.assertEqual(layer_violations('liwan_approval_service', ['base_tier_validation'], ranks, 'depends on'), {})
+        self.assertTrue(layer_violations('liwan_approval_service', ['base_tier_validation'], ranks, 'imports'))
+        self.assertTrue(layer_violations('base_tier_validation', ['liwan_approval_service'], ranks, 'depends on'))
+        self.assertTrue(layer_violations('liwan_approval_service', ['liwan_notify'], ranks, 'depends on'))
+
     def test_dependencies_must_point_strictly_down(self):
         self.assertEqual(layer_violations('liwan_pmo', ['liwan_api', 'project', 'liwan_pmo'], RANKS, 'depends on'), {})
         self.assertEqual(

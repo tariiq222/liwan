@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
+from odoo.tools import SQL
 
 
 class Document(models.Model):
@@ -11,6 +12,23 @@ class Document(models.Model):
     employee_id = fields.Many2one(
         'hr.employee', index=True, ondelete='restrict', check_company=True,
     )
+
+    @api.model
+    def _liwan_scope_predicate(self, operation):
+        scope = super()._liwan_scope_predicate(operation)
+        if scope is not None or operation != 'read':
+            return scope
+        entitlement = self.env['liwan.entitlement.service']
+        service = self.env['liwan.access.service']
+        if not entitlement._liwan_feature_read('hr.enabled') or not service._liwan_has_capability(
+            self.env.user, 'hr.employees.read',
+        ):
+            return None
+        employees = self.env['hr.employee.public']._search([
+            ('user_id', '=', self.env.uid),
+            ('company_id', '=', self.env.company.id),
+        ])
+        return SQL('d.employee_id IN (%s)', employees.select())
 
     @api.model
     def _liwan_context_fields(self):

@@ -18,10 +18,21 @@ test "${#SIDES[@]}" -eq 2 || { echo "$BRIDGE is not a rank-5 bridge with two sid
 isolation_setup "$BRIDGE"
 isolation_install_and_test "${SIDES[0]},${SIDES[1]}" "/$BRIDGE"
 isolation_check "$BRIDGE"
-if [ "$(python3 -B tools/app_isolation.py rank "${SIDES[0]}")" != 4 ] && [ "$(python3 -B tools/app_isolation.py rank "${SIDES[1]}")" != 4 ]; then
+applications=()
+services=()
+for module in "${SIDES[@]}"; do
+  if [ "$(python3 -B tools/app_isolation.py rank "$module")" = 4 ]; then
+    applications+=("$module")
+  else
+    services+=("$module")
+  fi
+done
+if [ "${#applications[@]}" -eq 0 ]; then
   LIWAN_PROBE_CALM="${SIDES[0]},${SIDES[1]},$BRIDGE" isolation_probe "$BRIDGE: two shared services, no application"
 else
-  LIWAN_PROBE_ANSWER="${SIDES[0]},${SIDES[1]}" LIWAN_PROBE_ALSO_ANSWER="$BRIDGE" \
+  LIWAN_PROBE_ANSWER="$(IFS=,; echo "${applications[*]}")" \
+    LIWAN_PROBE_ALSO_ANSWER="$BRIDGE" \
+    LIWAN_PROBE_CALM="$(IFS=,; echo "${services[*]}")" \
     isolation_probe "$BRIDGE with both sides on"
 fi
 for side in 0 1; do

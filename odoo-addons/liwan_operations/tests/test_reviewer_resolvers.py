@@ -4,11 +4,11 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
-from odoo.addons.liwan_operations.models.common import EXTERNAL_CLOSE, TOKEN
-from odoo.addons.liwan_operations.models.operation_request import (
+from odoo.addons.liwan_approval_service.models.common import EXTERNAL_CLOSE, TOKEN
+from odoo.addons.liwan_approval_service.models.operation_request import (
     OperationExecutionError,
 )
-from odoo.addons.liwan_operations.serializers.operations import (
+from odoo.addons.liwan_approval_service.serializers.operations import (
     dump_process,
     dump_request,
 )

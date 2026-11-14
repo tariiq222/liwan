@@ -439,6 +439,8 @@
       "defaultHint": "The default has two stages: the employee's direct manager, then HR leave officers.",
       "confirm": "Create",
       "cancel": "Cancel",
+      "disable": "Disable the approval process",
+      "disableHint": "Open requests continue on their current stages. New requests are decided in HR directly.",
       "edit": "Edit stages",
       "saveError": "Unable to create the process",
       "stage": "Stage {number}"

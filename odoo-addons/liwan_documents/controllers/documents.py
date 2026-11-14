@@ -2,20 +2,20 @@
 from odoo import http
 from odoo.http import request
 
-from .common import (
-    archived_arg,
-    current_document,
-    list_filter_domain,
-    page_args,
-    require,
-)
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     parse_positive_int,
     requires_feature,
 )
-from odoo.addons.liwan_documents.serializers.document import (
+from odoo.addons.liwan_document_service.controllers.common import (
+    archived_arg,
+    current_document,
+    list_filter_domain,
+    page_args,
+    require,
+)
+from odoo.addons.liwan_document_service.serializers.document import (
     dump_detail,
     dump_summaries,
     parse_revision,

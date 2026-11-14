@@ -2,12 +2,12 @@
 from odoo import http
 from odoo.http import request
 
-from .common import page_args, require
 from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     parse_positive_int,
     requires_feature,
 )
+from odoo.addons.liwan_document_service.controllers.common import page_args, require
 
 
 class Contexts(http.Controller):

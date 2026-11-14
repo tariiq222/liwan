@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.liwan_documents.tests.common import DocumentHttpCase
+from odoo.addons.liwan_document_service.tests.common import DocumentHttpCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 
@@ -193,14 +194,46 @@ class TestEmployeeDocuments(DocumentHttpCase):
         self.assertEqual(self.api('GET', '/api/v1/documents/employee/me').status_code, 403)
         self.authenticate('docs_reader', 'docs_reader')
         profile = self.env.ref('liwan_platform.tenant_profile')
-        for feature in ('hr.enabled', 'documents.enabled'):
-            original = dict(profile.features)
-            profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-                'features': {**original, feature: False},
-                'retained_read_features': [key for key in profile.retained_read_features if key != feature],
-            })
-            self.assertEqual(self.api('GET', '/api/v1/documents/employee/me').status_code, 403)
-            profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': original})
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'hr.enabled': False},
+            'retained_read_features': [
+                key for key in profile.retained_read_features if key != 'hr.enabled'
+            ],
+        })
+        self.assertEqual(self.api('GET', '/api/v1/documents/employee/me').status_code, 403)
+
+    def test_own_document_and_download_remain_available_when_library_is_disabled(self):
+        document = self.linked(self.own_employee, grant=True)
+        payload = {'name': 'employment-letter.txt', 'data': 'ZW1wbG95bWVudCBsZXR0ZXI='}
+        file = self.env['liwan.document.files'].with_user(self.linker)._liwan_upload(
+            document, payload, document.revision,
+        )
+        other = self.linked(self.other_employee, grant=True)
+        hidden = self.linked(self.own_employee)
+        archived = self.linked(self.own_employee, grant=True)
+        archived._liwan_set_active(False, archived.revision)
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'documents.enabled': False},
+            'retained_read_features': [
+                key for key in profile.retained_read_features if key != 'documents.enabled'
+            ],
+        })
+
+        self.authenticate('docs_reader', 'docs_reader')
+        path = '/api/v1/documents/employee/me'
+        listing = self.api('GET', path)
+        self.assertEqual(listing.status_code, 200, listing.text)
+        self.assertEqual(listing.json()['total'], 1)
+        self.assertEqual([item['id'] for item in listing.json()['items']], [document.id])
+        self.assertEqual(self.api('GET', f'{path}/{document.id}').status_code, 200)
+        response = self.api('GET', f'{path}/{document.id}/files/{file.id}/download')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b'employment letter')
+        for excluded in (other, hidden):
+            self.assertEqual(self.api('GET', f'{path}/{excluded.id}').status_code, 404)
+            self.assertFalse(excluded.with_user(self.reader)._liwan_can('read'))
+        self.assertEqual(self.api('GET', f'/api/v1/documents/{document.id}').status_code, 403)
 
     def test_employee_provider_options_require_hr_management(self):
         self.assertIn('employee_id', self.env['liwan.document']._fields)

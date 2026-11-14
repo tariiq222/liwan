@@ -4,13 +4,13 @@ from datetime import date
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import new_test_user, tagged
 
-from .common import LEAVES, LeaveApprovalCase, next_monday
+from .common import LEAVES, PROCESS, LeaveApprovalCase, next_monday
+from odoo.addons.liwan_approval_service.models.operation_request import (
+    OperationExecutionError,
+)
 from odoo.addons.liwan_hr.tests.common import set_hr_feature
 from odoo.addons.liwan_hr_operations.hooks import post_init_hook
 from odoo.addons.liwan_hr_operations.models.common import APPROVER, OFFICERS
-from odoo.addons.liwan_operations.models.operation_request import (
-    OperationExecutionError,
-)
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -139,21 +139,37 @@ class TestLeaveApproval(LeaveApprovalCase):
         leave.invalidate_recordset()
         self.assertEqual(leave.state, 'validate')
 
-    def test_with_operations_off_the_hr_path_applies_and_closes_the_open_request(self):
-        approved = self.file_leave()
-        refused = self.file_leave(weeks=2)
+    def test_hr_decides_open_and_new_requests_with_the_operations_app_off(self):
+        pending = self.file_leave()
         set_hr_feature(self, 'operations.enabled', False)
+        new = self.file_leave(weeks=2)
+        self.assertEqual(self.approval_request(new).state, 'pending')
         self.login_as(self.officer)
-        self.assertEqual(self.api('POST', f'{LEAVES}/{approved.id}/approve', json={}).status_code, 200)
-        self.assertEqual(self.api('POST', f'{LEAVES}/{refused.id}/refuse', json={'reason': 'No cover'}).status_code, 200)
-        set_hr_feature(self, 'operations.enabled', True)
-        for leave, state in ((approved, 'validate'), (refused, 'refuse')):
-            leave.invalidate_recordset()
-            record = self.approval_request(leave)
-            self.assertEqual((leave.state, record.state), (state, 'withdrawn'))
-            self.assertIn('closed_externally', record.event_ids.mapped('kind'))
-        pending = self.env['liwan.operation.request'].with_user(self.manager_user).search([('state', '=', 'pending')])
-        self.assertFalse(pending)
+        self.assertEqual(self.api('POST', f'{LEAVES}/{pending.id}/approve', json={}).status_code, 409)
+        record = self.approval_request(pending)
+        self.login_as(self.officer)
+        archived = self.api('DELETE', PROCESS, json={'revision': self.process.revision})
+        self.assertEqual(archived.status_code, 200, archived.text)
+        without_policy = self.file_leave(weeks=4)
+        self.assertFalse(self.approval_request(without_policy))
+        path = f'{LEAVES}/{pending.id}/approval'
+        self.login_as(self.bystander)
+        self.assertEqual(self.api('POST', path, json={'action': 'approve', 'revision': record.revision}).status_code, 404)
+        self.login_as(self.manager_user)
+        queue = self.api('GET', f'{LEAVES}?state=confirm')
+        self.assertEqual(queue.status_code, 200, queue.text)
+        self.assertIn(pending.id, [item['id'] for item in queue.json()['items']])
+        summary = self.api('GET', path)
+        self.assertEqual(summary.status_code, 200, summary.text)
+        self.assertTrue(summary.json()['can_review'])
+        result = self.api('POST', path, json={'action': 'approve', 'revision': record.revision})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.login_as(self.officer)
+        result = self.api('POST', path, json={'action': 'approve', 'revision': result.json()['revision']})
+        self.assertEqual(result.status_code, 200, result.text)
+        pending.invalidate_recordset()
+        record.invalidate_recordset()
+        self.assertEqual((pending.state, record.state, record.execution_count), ('validate', 'done', 1))
 
     def test_withdrawing_from_hr_withdraws_the_request(self):
         leave = self.file_leave()

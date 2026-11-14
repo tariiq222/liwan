@@ -6,7 +6,7 @@ from odoo import Command
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
-from .common import DocumentCase
+from odoo.addons.liwan_document_service.tests.common import DocumentCase
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -137,7 +137,7 @@ class TestDmsBoundaries(DocumentCase):
         configurator = new_test_user(
             self.env,
             login='docs_config',
-            groups='dms.group_dms_manager,liwan_documents.group_cap_documents_library_manage',
+            groups='dms.group_dms_manager,liwan_document_service.group_cap_documents_library_manage',
         )
         storage = self.document.directory_id.storage_id.with_user(configurator)
         for values in (
@@ -180,7 +180,7 @@ class TestDmsBoundaries(DocumentCase):
         reader = new_test_user(
             self.env,
             login='docs_metadata_reader',
-            groups='liwan_documents.group_cap_documents_items_read',
+            groups='liwan_document_service.group_cap_documents_items_read',
         )
         with self.assertRaises(AccessError):
             self.env['dms.tag'].with_user(reader).create({'name': 'Not allowed'})

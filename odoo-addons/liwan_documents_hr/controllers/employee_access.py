@@ -8,9 +8,9 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_documents.controllers.common import current_document
-from odoo.addons.liwan_documents.serializers.document import parse_revision
-from odoo.addons.liwan_documents.serializers.document_access import dump_access
+from odoo.addons.liwan_document_service.controllers.common import current_document
+from odoo.addons.liwan_document_service.serializers.document import parse_revision
+from odoo.addons.liwan_document_service.serializers.document_access import dump_access
 
 
 class EmployeeDocumentAccess(http.Controller):

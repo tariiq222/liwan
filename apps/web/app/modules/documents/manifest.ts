@@ -24,7 +24,7 @@ const manifest: AppManifest = {
     },
   }],
   routeCapabilities: [
-    { pattern: /^\/account\/documents(?:\/|$)/, capability: 'documents.items.read', feature: 'hr.enabled', requiredCapabilities: ['hr.employees.read'] },
+    { pattern: /^\/account\/documents(?:\/|$)/, capability: 'documents.items.read', capabilityFeature: 'hr.enabled', requiredCapabilities: ['hr.employees.read'] },
     { pattern: /^\/documents\/new$/, capability: 'documents.items.manage' },
     { pattern: /^\/documents\/[^/]+\/edit$/, capability: 'documents.items.manage' },
     { pattern: /^\/documents\/[^/]+\/access$/, capability: 'documents.access.manage' },
