@@ -104,7 +104,7 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
       if (children.length) {
         row.children = children.map(child => rowOf(child, currentChildren.some(current => current.id === child.id && current.active)))
         if (!row.children.some(child => targetKey(child.to) === targetKey(row.to))) {
-          row.children.unshift({ id: `${row.id}-overview`, label: t('nav.overview'), icon: row.icon, to: row.to, active: row.active && !row.children.some(selected), testId: `${row.testId}-overview` })
+          row.children.unshift({ id: `${row.id}-page`, label: t('nav.branchPage'), icon: row.icon, to: row.to, active: row.active && !row.children.some(selected), testId: `${row.testId}-page` })
         }
       }
       return row
@@ -155,12 +155,12 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
       if (!views.length && !actions.length) return
       const selectedPreset = [...views, ...actions].some(child => child.active)
       const view = currentList && typeof route.query.view === 'string' ? route.query.view : undefined
-      const retainOverview = normalizedPath(target) !== path || hasHash(row.to)
-      const overviewActive = !!row.active && retainOverview && currentPath !== path && !currentPath.startsWith(`${path}/`)
+      const retainSummary = normalizedPath(target) !== path || hasHash(row.to)
+      const summaryActive = !!row.active && retainSummary && currentPath !== path && !currentPath.startsWith(`${path}/`)
       if (row.label === t('nav.viewAll')) row.label = t('nav.listOf', { name: item.label })
       row.children = [
-        ...(retainOverview ? [{ id: `${row.id}-overview`, label: t('nav.overview'), icon: row.icon, to: row.to, active: overviewActive, testId: `${row.testId}-overview` }] : []),
-        { id: `${row.id}-all`, label: t('nav.viewAll'), icon: row.icon, to: landingTarget({ path, query: { view } }, path), active: row.active && !selectedPreset && !overviewActive, testId: `${row.testId}-all` },
+        ...(retainSummary ? [{ id: `${row.id}-summary`, label: t('nav.branchSummary'), icon: row.icon, to: row.to, active: summaryActive, testId: `${row.testId}-summary` }] : []),
+        { id: `${row.id}-all`, label: t('nav.viewAll'), icon: row.icon, to: landingTarget({ path, query: { view } }, path), active: row.active && !selectedPreset && !summaryActive, testId: `${row.testId}-all` },
         ...views.map(child => ({ ...child, testId: `quick-view-${child.id}` })),
         ...actions.map(child => ({ ...child, testId: `quick-action-${child.id}` })),
       ]
