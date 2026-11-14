@@ -16,6 +16,7 @@ DESCRIPTION_MAX = 4000
 # integer, 1e308, NaN and Infinity are all refused by the comparison and no exception escapes.
 MAX_PRICE = 1_000_000_000
 MAX_QUANTITY = 1_000_000
+QUANTITY_BOUNDS = f'quantity must be a number greater than zero, at most {MAX_QUANTITY}'
 ORDER = 'name, id'
 # The largest offset a list may ask: PostgreSQL refuses one beyond a bigint, and nobody pages that far.
 MAX_OFFSET = 2**31 - 1
@@ -46,9 +47,14 @@ def _keys_of(values):
     return set(values)
 
 
-def _is_number(value):
+def is_number(value):
     """A JSON number (never a boolean)."""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def valid_quantity(value):
+    """Whether ``value`` is a quantity: a number above zero and at most ``MAX_QUANTITY``."""
+    return is_number(value) and 0 < value <= MAX_QUANTITY
 
 
 class LiwanProductsService(models.AbstractModel):
@@ -284,7 +290,7 @@ class LiwanProductsService(models.AbstractModel):
             vals['type'] = WIRE_TYPES[values['type']]
         if 'list_price' in values:
             price = values['list_price']
-            if not _is_number(price) or not 0 <= price <= MAX_PRICE:
+            if not is_number(price) or not 0 <= price <= MAX_PRICE:
                 _refuse_invalid('list_price', f'list_price must be a number from 0 to {MAX_PRICE}')
             vals['list_price'] = float(price)
         elif required:
@@ -320,8 +326,8 @@ class LiwanProductsService(models.AbstractModel):
         its session (403 otherwise). ``quantity`` is a number above zero and at most ``MAX_QUANTITY`` (422 otherwise).
         ``unit_price`` is rounded to the currency; the amounts come from the unrounded unit price.
         """
-        if not _is_number(quantity) or not 0 < quantity <= MAX_QUANTITY:
-            _refuse_invalid('quantity', f'quantity must be a number greater than zero, at most {MAX_QUANTITY}')
+        if not valid_quantity(quantity):
+            _refuse_invalid('quantity', QUANTITY_BOUNDS)
         company = company or self.env.company
         if not self.env.su:
             self._liwan_require_price()
