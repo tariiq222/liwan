@@ -104,7 +104,11 @@ describe('access policy navigation', () => {
     expect(isNavPathActive('/settings', '/settings')).toBe(true)
   })
   it('opens a settings page to anyone who may see one of its cards, and gates its full pages separately', () => {
-    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/system')).toBe(true)
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/system')).toBe(false)
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/integrations')).toBe(true)
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/integrations/connections/4')).toBe(true)
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/integrations/new')).toBe(false)
+    expect(canReachPath({ capabilities: ['integrations.manage'] }, '/settings/integrations/new')).toBe(true)
     expect(canReachPath({ capabilities: ['settings.maintenance.manage'] }, '/settings/system')).toBe(true)
     expect(canReachPath({ capabilities: ['access.users.read'] }, '/settings/system')).toBe(false)
     expect(canReachPath({ capabilities: ['pmo.settings.manage'] }, '/settings/apps/projects')).toBe(true)
@@ -113,7 +117,9 @@ describe('access policy navigation', () => {
     expect(canReachPath({ capabilities: ['finance.invoices.read'] }, '/settings/apps/finance')).toBe(false)
     expect(canReachPath({ capabilities: ['access.roles.read'] }, '/settings/team')).toBe(true)
     expect(canReachPath({ capabilities: ['access.roles.read'] }, '/settings/team/users')).toBe(false)
-    expect(requiredCapabilityForPath('/settings/system')).toBe('integrations.read')
+    expect(requiredCapabilityForPath('/settings/system')).toBe('settings.maintenance.manage')
+    expect(requiredCapabilityForPath('/settings/integrations')).toBe('integrations.read')
+    expect(requiredCapabilityForPath('/settings/integrations/new')).toBe('integrations.manage')
     expect(firstAllowedPath({ capabilities: ['settings.maintenance.manage'] })).toBe('/settings/system')
   })
   it('keeps /chat for internal LiwanOS identities and rejects portal or role-only objects', () => {

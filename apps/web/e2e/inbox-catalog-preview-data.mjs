@@ -34,7 +34,7 @@ function makeItem(id, retailerId, name, listPrice, rest = {}) {
 export function seedCatalog() {
   return {
     catalogs: [{
-      id: 1, business_account_id: '203456789012345', meta_catalog_id: '9988776655443', name: 'كتالوج المتجر', state: 'connected', last_error: null, brand: 'متجر الأمل',
+      id: 1, business_account_id: '1029384756', meta_catalog_id: '9988776655443', name: 'كتالوج المتجر', state: 'connected', last_error: null, brand: 'متجر الأمل',
       default_link: null, currency: 'SAR', last_sync_at: ago(0.5), created_at: ago(72),
     }],
     items: [
@@ -165,9 +165,9 @@ function createCatalog(state, body) {
   if (!String(body.brand ?? '').trim()) return fail(422, 'invalid', 'العلامة التجارية مطلوبة', 'brand')
   if (body.meta_catalog_id.endsWith('000')) return fail(422, 'invalid', 'هذا الكتالوج ليس من نوع التجارة (commerce)', 'meta_catalog_id')
   if (body.meta_catalog_id.endsWith('999')) return fail(422, 'provider_permission', 'امنح الصلاحية catalog_management وأسند الكتالوج للمستخدم النظامي في ميتا')
-  if (state.catalog.catalogs.some(item => item.business_account_id === channel.business_account_id)) return fail(409, 'conflict', 'يوجد كتالوج لهذا الحساب')
+  if (state.catalog.catalogs.some(item => item.business_account_id === channel.connection.external_id)) return fail(409, 'conflict', 'يوجد كتالوج لهذا الحساب')
   const catalog = {
-    id: state.catalog.ids.catalog++, business_account_id: channel.business_account_id, meta_catalog_id: body.meta_catalog_id, name: `كتالوج ${body.meta_catalog_id}`, state: 'connected',
+    id: state.catalog.ids.catalog++, business_account_id: channel.connection.external_id, meta_catalog_id: body.meta_catalog_id, name: `كتالوج ${body.meta_catalog_id}`, state: 'connected',
     last_error: null, brand: body.brand.trim(), default_link: body.default_link ?? null, currency: 'SAR', last_sync_at: null, created_at: iso(Date.now()),
   }
   state.catalog.catalogs.push(catalog)
@@ -224,7 +224,7 @@ function itemRoute(state, method, parts, body) {
 function channelCommerce(state, method, channelId, body) {
   const channel = state.channels.find(item => item.id === channelId)
   if (!channel) return fail(404, 'not_found', 'not found')
-  const catalog = state.catalog.catalogs.find(item => item.business_account_id === channel.business_account_id)
+  const catalog = state.catalog.catalogs.find(item => item.business_account_id === channel.connection.external_id)
   if (method === 'PATCH') {
     if (!catalog) return fail(409, 'no_catalog', 'لا يوجد كتالوج مرتبط')
     if (!Object.keys(body).length) return fail(422, 'invalid', 'send at least one field')

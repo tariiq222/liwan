@@ -70,10 +70,13 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
         Channel = cls.env['liwan.inbox.channel']
         cls.recs = {}
         for i, (tag, company) in enumerate(cls.by_tag.items(), start=1):
+            connection = cls.env['liwan.integration.connection'].create({
+                'company_id': company.id, 'provider': 'meta', 'external_id': '200000000001', 'state': 'connected',
+            })
+            connection._liwan_store_secrets({'access_token': ACCESS_TOKEN, 'app_secret': APP_SECRET})
             channel = Channel.create({
-                'name': f'Channel {tag}', 'phone_number_id': f'90000000{i:04d}', 'business_account_id': '200000000001',
+                'name': f'Channel {tag}', 'phone_number_id': f'90000000{i:04d}', 'connection_id': connection.id,
                 'state': 'connected', 'owner_company_id': company.id,
-                **Channel._liwan_secret_values(access_token=ACCESS_TOKEN, app_secret=APP_SECRET),
             })
             contact = cls.env['liwan.inbox.contact'].create({
                 'name': f'Customer {tag.upper()}', 'phone': f'+96650000{i:04d}', 'company_id': company.id,
@@ -263,7 +266,7 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
         assert_isolation_discovery(self, 'liwan_inbox', EXPECTED_GET_RECORD_ROUTES)
 
 
-# The TikTok app configuration read by the webhook and the connect route; its secret also signs the deliveries.
+# The TikTok app configuration read by the webhook; its secret signs the deliveries.
 TIKTOK_APP_ENV = {
     'LIWAN_TIKTOK_CLIENT_KEY': tt.CLIENT_KEY,
     'LIWAN_TIKTOK_CLIENT_SECRET': tt.CLIENT_SECRET,
@@ -330,8 +333,11 @@ class TestTikTokCompanyIsolation(CompanyIsolationCase):
     def _tiktok_records(cls, company, business_id):
         """One connected TikTok account of `company` with the records the isolation covers."""
         env = cls.env
+        connection = env['liwan.integration.connection'].create({
+            'company_id': company.id, 'provider': 'tiktok', 'external_id': business_id, 'state': 'connected',
+        })
         channel = env['liwan.inbox.channel'].create({
-            'name': f'TikTok {company.name}', 'kind': 'tiktok', 'tiktok_business_id': business_id,
+            'name': f'TikTok {company.name}', 'kind': 'tiktok', 'connection_id': connection.id,
             'state': 'connected', 'owner_company_id': company.id,
         })
         contact = env['liwan.inbox.contact'].create({'name': f'Customer {company.name}', 'company_id': company.id})
@@ -409,10 +415,11 @@ class TestTikTokCompanyIsolation(CompanyIsolationCase):
                 response = self.api(method, path, body)
                 self.assertEqual(response.status_code, 404, response.text[:300])
                 self.assertEqual(response.json().get('code'), 'not_found', response.text[:300])
-        self.assertEqual(
-            self.api('POST', '/api/v1/inbox/channels/tiktok/connect', {'channel_id': own['channel'].id}).status_code,
-            200, "the A manager must still be able to (re)connect its own TikTok channel",
-        )
+        self.assertEqual(self.accounts(), [own['channel'].connection_id.id], "the A manager lists only its own TikTok account")
+        stolen = self.api('POST', '/api/v1/inbox/channels', {
+            'name': 'Stolen', 'kind': 'tiktok', 'connection_id': hidden['channel'].connection_id.id,
+        })
+        self.assertEqual((stolen.status_code, stolen.json().get('field')), (422, 'connection_id'))
         # Control: the same manager reads B's records on the same routes once B is its current company, so the
         # 404s above are the request pin and not a missing capability or an absent record.
         self.iso_user.company_id = self.company_c.id
@@ -420,10 +427,12 @@ class TestTikTokCompanyIsolation(CompanyIsolationCase):
         for name, path in self._get_paths(hidden).items():
             with self.subTest(route=name, channel='B current'):
                 self.assertVisible(path)
-        self.assertEqual(
-            self.api('POST', '/api/v1/inbox/channels/tiktok/connect', {'channel_id': hidden['channel'].id}).status_code,
-            200, "the manager must be able to reconnect B's channel when B is its current company",
-        )
+        self.assertEqual(self.accounts(), [hidden['channel'].connection_id.id], "B's account is listed once B is the current company")
+
+    def accounts(self):
+        response = self.api('GET', '/api/v1/inbox/channels/accounts?kind=tiktok')
+        self.assertEqual(response.status_code, 200, response.text)
+        return [item['id'] for item in response.json()['items']]
 
     def _get_paths(self, record):
         """The GET routes that serve one TikTok account's channel, conversation and settings."""
@@ -446,7 +455,6 @@ class TestTikTokCompanyIsolation(CompanyIsolationCase):
             ('DELETE', shortcut, None),
             ('POST', f'{base}/shortcuts/enable', {'kind': 'question', 'enabled': True}),
             ('POST', f'{base}/sync', None),
-            ('POST', '/api/v1/inbox/channels/tiktok/connect', {'channel_id': record['channel'].id, 'name': 'Stolen'}),
         )
 
     def assert_webhook_lands_on_b_only(self):

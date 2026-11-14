@@ -1,9 +1,8 @@
 import { z } from 'zod'
 
-// Wire shapes of a TikTok channel's own routes: the OAuth connect, the suggested questions and chat prompts and
-// the history import. Every schema mirrors one serializer in odoo-addons/liwan_inbox/serializers/tiktok.py or one
-// body of controllers/tiktok_oauth.py and controllers/tiktok_settings.py exactly (strict objects). Limits are
-// TikTok's.
+// Wire shapes of a TikTok channel's own routes: the suggested questions and chat prompts and the history import.
+// Every schema mirrors one serializer in odoo-addons/liwan_inbox/serializers/tiktok.py or one body of
+// controllers/tiktok_settings.py exactly (strict objects). Limits are TikTok's.
 
 const Id = z.number().int().positive()
 const UtcDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
@@ -25,23 +24,6 @@ export const INBOX_TIKTOK_LIMITS = {
 
 export const InboxTikTokShortcutKindSchema = z.enum(['question', 'prompt'])
 export const InboxTikTokAuditSchema = z.enum(['draft', 'reviewing', 'approved', 'rejected'])
-
-// ---------------------------------------------------------------- connect
-
-// A new channel names itself; reconnecting one names its id and keeps the stored name unless a new one is given.
-export const InboxTikTokConnectSchema = z.object({
-  channel_id: Id.optional(),
-  name: z.string().min(1).max(128).optional(),
-  department_id: Id.nullable().optional(),
-}).strict().refine(
-  value => value.channel_id !== undefined || value.name !== undefined,
-  { message: 'name is required to connect a new TikTok channel', path: ['name'] },
-)
-
-// The account page the browser is sent to; the callback creates the channel.
-export const InboxTikTokConnectResponseSchema = z.object({
-  authorize_url: z.url({ protocol: /^https$/ }).max(4000),
-}).strict()
 
 // ---------------------------------------------------------------- suggested questions and chat prompts
 
@@ -121,8 +103,6 @@ export const InboxTikTokSyncAnswerSchema = z.object({ job: InboxTikTokSyncSchema
 
 export type InboxTikTokShortcutKind = z.infer<typeof InboxTikTokShortcutKindSchema>
 export type InboxTikTokAudit = z.infer<typeof InboxTikTokAuditSchema>
-export type InboxTikTokConnect = z.infer<typeof InboxTikTokConnectSchema>
-export type InboxTikTokConnectResponse = z.infer<typeof InboxTikTokConnectResponseSchema>
 export type InboxTikTokShortcut = z.infer<typeof InboxTikTokShortcutSchema>
 export type InboxTikTokShortcutList = z.infer<typeof InboxTikTokShortcutListSchema>
 export type InboxTikTokShortcutCreate = z.infer<typeof InboxTikTokShortcutCreateSchema>

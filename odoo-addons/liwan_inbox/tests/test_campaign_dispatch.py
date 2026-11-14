@@ -125,10 +125,25 @@ class TestCampaignDispatch(CampaignCase):
             template = self.make_template(channel=sibling, category='marketing', body='Hi {{1}}')
             second = self.launched(channel=sibling, template=template, audience=second_audience)
             self.run_campaigns()
-            self.assertEqual(sibling.business_account_id, BUSINESS_ACCOUNT_ID)
+            self.assertEqual(sibling.connection_id.external_id, BUSINESS_ACCOUNT_ID)
             self.assertEqual(len(first.recipient_ids.filtered(lambda row: row.state == 'queued')), 2)
             self.assertEqual(len(second.recipient_ids.filtered(lambda row: row.state == 'queued')), 0)
             self.assertEqual((first.waiting, second.waiting), (False, 'messaging_limit'))
+
+    def test_the_budget_counts_the_account_over_every_company_that_connected_it(self):
+        other = self.env['res.company'].create({'name': 'Second company on the account'})
+        theirs = self.make_channel(phone_id='100000000088', owner_company_id=other.id)
+        self.assertNotEqual(theirs.connection_id, self.channel.connection_id)
+        self.assertEqual(theirs.connection_id.external_id, self.channel.connection_id.external_id)
+        for _ in range(2):
+            self.make_contact(tags=[self.tag])
+        audience = self.env['liwan.inbox.audience'].create({'name': 'First', 'tag_ids': [(6, 0, self.tag.ids)]})
+        self.launched(audience=audience)
+        self.run_campaigns()
+        used = self.channel._liwan_used_addresses()
+        self.assertEqual(len(used), 2)
+        # Meta keeps the limit per account: the other company's channel sees what this one already spent.
+        self.assertEqual(theirs._liwan_used_addresses(), used)
 
     def test_an_address_already_messaged_today_costs_no_new_budget(self):
         known = self.make_contact()

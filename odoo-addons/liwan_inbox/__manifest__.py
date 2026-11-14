@@ -2,7 +2,7 @@
 {
     'name': 'liwan Customer Messages',
     'summary': 'liwan platform: the Customer Messages application — WhatsApp conversations, /api/v1/inbox',
-    'version': '19.0.1.22.0',
+    'version': '19.0.1.23.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -14,8 +14,11 @@
     # contact is linked to, resolved and created only through liwan.customers.service. liwan_products (shared service): the
     # catalog item of the payments bridge picks, prices and (for the manager role) creates its products only through
     # liwan.products.service; the bridge cannot name a third LiwanOS module, so it reaches the service through here.
+    # liwan_integrations_sa (shared service): the provider account of a channel (id, tokens, webhook secrets, refresh) lives
+    # on its connection; the inbox registers its uses and reads the credentials through the service.
     'depends': [
-        'liwan_core', 'liwan_api', 'liwan_platform', 'liwan_notify', 'liwan_customers', 'liwan_products', 'mail', 'bus',
+        'liwan_core', 'liwan_api', 'liwan_platform', 'liwan_notify', 'liwan_customers', 'liwan_products',
+        'liwan_integrations_sa', 'mail', 'bus',
     ],
     'data': [
         'security/inbox_capability_groups.xml',

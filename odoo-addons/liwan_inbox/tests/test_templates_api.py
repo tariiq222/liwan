@@ -148,7 +148,7 @@ class TestTemplatesApi(LiwanInboxCase):
         self.assertEqual(set(body), TEMPLATE_KEYS)
         self.assertEqual((body['status'], body['category'], body['buttons'], body['body_examples']), ('pending', 'marketing', buttons, ['Sara']))
         credentials, sent = create.call_args.args
-        self.assertEqual(credentials.business_account_id, self.channel.business_account_id)
+        self.assertEqual(credentials.business_account_id, self.channel.connection_id.external_id)
         self.assertEqual(sent, {
             'name': 'order_ready', 'language': 'ar', 'category': 'MARKETING', 'allow_category_change': True,
             'components': [
@@ -197,7 +197,7 @@ class TestTemplatesApi(LiwanInboxCase):
         self.assertEqual((upload.status_code, set(upload.json())), (201, {'id', 'name', 'mimetype', 'size'}))
         header['example_attachment_id'] = upload.json()['id']
         self.assertEqual(self.create(header=header).json()['field'], 'app_id')
-        self.channel.app_id = '123456789'
+        self.channel.connection_id.app_id = '123456789'
         calls = [response(200, {'id': 'upload:abc'}), response(200, {'h': 'HANDLE-1'}), response(200, {'id': '555000003'})]
         with patch.object(requests, 'request', MagicMock(side_effect=calls)) as mocked:
             result = self.create(name='with_image', header=header)
@@ -360,7 +360,7 @@ class TestTemplatesApi(LiwanInboxCase):
             result = self.api('DELETE', f'{BASE}/templates/{template.id}')
         self.assertEqual(result.status_code, 204)
         method, url = mocked.call_args.args
-        self.assertEqual((method, url.endswith(f'/{self.channel.business_account_id}/message_templates'), mocked.call_args.kwargs['params']),
+        self.assertEqual((method, url.endswith(f'/{self.channel.connection_id.external_id}/message_templates'), mocked.call_args.kwargs['params']),
                          ('DELETE', True, {'hsm_id': provider_id, 'name': 'gone'}))
         self.assertFalse(template.exists())
         self.run_outbox_offline()
@@ -487,7 +487,7 @@ class TestTemplatesApi(LiwanInboxCase):
     # samples
 
     def test_a_replaced_or_dropped_header_sample_is_deleted(self):
-        self.channel.app_id = '123456789'
+        self.channel.connection_id.app_id = '123456789'
         template = self.make_template(name='order_ready', header_type='image')
         calls = lambda: MagicMock(side_effect=[response(200, {'id': 'upload:a'}), response(200, {'h': 'H'}), response(200, {})])  # noqa: E731
         first = self.upload().json()['id']
@@ -521,7 +521,7 @@ class TestTemplatesApi(LiwanInboxCase):
         self.assertFalse(sample.exists())
 
     def test_an_unused_sample_of_another_user_cannot_be_claimed(self):
-        self.channel.app_id = '123456789'
+        self.channel.connection_id.app_id = '123456789'
         other = self.env['ir.attachment'].create({
             'name': 'x.png', 'raw': PNG, 'mimetype': 'image/png', 'res_model': 'liwan.inbox.template', 'res_id': 0,
         })
@@ -654,7 +654,7 @@ class TestTemplatesOnlyRole(LiwanInboxCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.channel.app_id = '123456789'
+        cls.channel.connection_id.app_id = '123456789'
         cls.read_only = cls._capability_user('inbox_conversations_read_only', 'inbox.conversations.read')
 
     def test_the_whole_life_cycle_works(self):

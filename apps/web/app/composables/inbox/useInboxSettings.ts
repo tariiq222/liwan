@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   InboxCannedReplyListSchema,
   InboxCannedReplySchema,
+  InboxChannelAccountListSchema,
   InboxChannelListSchema,
   InboxChannelSchema,
   InboxChannelWorkListSchema,
@@ -17,9 +18,9 @@ import {
   InboxTagSchema,
   InboxTemplateListSchema,
   InboxTemplateSchema,
-  InboxVerifyTokenSchema,
   type InboxCannedReplyWrite,
   type InboxChannelCreate,
+  type InboxChannelKind,
   type InboxChannelPatch,
   type InboxDepartmentWrite,
   type InboxPresetKey,
@@ -37,6 +38,7 @@ export const inboxSettingsKeys = {
   channels: ['inbox', 'channels'] as const,
   workChannels: ['inbox', 'channels', 'work'] as const,
   channel: (id: number) => ['inbox', 'channel', id] as const,
+  channelAccounts: (kind: InboxChannelKind) => ['inbox', 'channel-accounts', kind] as const,
   channelRef: (id: number) => ['inbox', 'channel-ref', id] as const,
   channelEvents: (id: number) => ['inbox', 'channel-events', id] as const,
 }
@@ -179,6 +181,17 @@ export function useInboxChannelWork(enabled: MaybeRefOrGetter<boolean> = true) {
   })
 }
 
+/** The company's accounts a channel of this kind may run on (not disabled); readable with the channels capability alone. */
+export function useInboxChannelAccounts(kind: MaybeRefOrGetter<InboxChannelKind>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => inboxSettingsKeys.channelAccounts(toValue(kind))),
+    enabled,
+    retry: false,
+    queryFn: () => $api('/api/v1/inbox/channels/accounts', { query: { kind: toValue(kind) }, schema: InboxChannelAccountListSchema }),
+  })
+}
+
 export function useInboxChannel(id: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
   return useQuery({
@@ -238,16 +251,6 @@ export function useTestInboxChannel(id: MaybeRefOrGetter<number>) {
   })
 }
 export const useSyncInboxTemplates = (id: MaybeRefOrGetter<number>) => useChannelAction(id, 'templates/sync')
-
-/** A fresh webhook handshake token: the only response that carries it, shown once for the Meta app settings. */
-export function useRotateInboxVerifyToken(id: MaybeRefOrGetter<number>) {
-  const { $api } = useApi()
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: () => $api(`/api/v1/inbox/channels/${toValue(id)}/verify-token`, { method: 'POST', schema: InboxVerifyTokenSchema }),
-    onSettled: () => qc.invalidateQueries({ queryKey: inboxKeys.all }),
-  })
-}
 
 // ---------------------------------------------------------------- templates (settings)
 /** A channel's id and name, readable by whoever manages its templates without administering the channel. */

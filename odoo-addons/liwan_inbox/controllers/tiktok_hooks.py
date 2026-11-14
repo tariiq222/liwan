@@ -2,7 +2,8 @@
 """The public TikTok webhook (machine to machine, no session).
 
 Like the WhatsApp hook it runs as the inactive hook identity (`models/ir_http.py`): its only
-authority is the group's ACL rows (read channels, create raw events), never a `sudo()`. A delivery
+authority is the group's ACL rows (read channels, create raw events); the account a delivery names
+is matched through the webhook accessor of the integrations service. A delivery
 is accepted only when the app secret signs its raw body and it names a connected business account,
 so an unknown account, a bad signature and a missing app secret answer the same 403 and reveal
 nothing about which accounts exist. The events are processed by the inbox cron, not here.
@@ -21,6 +22,7 @@ from odoo.addons.liwan_inbox.controllers.hooks import (
     reject_webhook,
 )
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_integrations_sa.providers import tiktok as integration_tiktok
 from odoo.addons.liwan_platform.models.read_only_guard import (
     INBOUND_EVENT_CONTEXT,
     INBOUND_EVENT_TOKEN,
@@ -37,7 +39,7 @@ class TikTokHookController(http.Controller):
     def receive(self, **_):
         raw = read_body()
         payload = parse_payload(raw)
-        config = tiktok.app_config(os.environ)
+        config = integration_tiktok.app_config(os.environ)
         business_id = tiktok.event_business_id(payload)
         signed = (
             bool(config) and bool(business_id)
@@ -48,10 +50,7 @@ class TikTokHookController(http.Controller):
         )
         channel = request.env['liwan.inbox.channel']
         if signed:
-            channel = channel.search([
-                ('kind', '=', 'tiktok'), ('state', '!=', 'disabled'),
-                ('tiktok_business_id', '=', business_id),
-            ], limit=1)
+            channel = channel._liwan_hook_channels('tiktok', [business_id])[:1]
         if not channel:
             reject_webhook()
         request.env['liwan.inbox.event'].with_context(**{INBOUND_EVENT_CONTEXT: INBOUND_EVENT_TOKEN})._liwan_store(

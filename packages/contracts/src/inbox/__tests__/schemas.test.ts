@@ -94,7 +94,8 @@ describe('InboxChannelSchema', () => {
     const keys = Object.keys(InboxChannelSchema.shape)
     expect(keys).not.toContain('access_token')
     expect(keys).not.toContain('app_secret')
-    expect(keys).toContain('has_access_token')
+    expect(keys).not.toContain('has_access_token')
+    expect(keys).toContain('connection')
   })
 })
 

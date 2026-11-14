@@ -304,7 +304,7 @@ class LiwanInboxChannelHealth(models.Model):
         """
         if not self.env['liwan.entitlement.service']._liwan_may_act_outward():
             return
-        base = [('kind', '=', 'whatsapp'), ('state', 'in', CHECKED_STATES)]
+        base = [('kind', '=', 'whatsapp'), ('state', 'in', CHECKED_STATES), ('connection_id.state', '!=', 'disabled')]
         never = self.search(base + [('health_checked_at', '=', False)], order='id')
         old = self.search(base + [('health_checked_at', '!=', False)], order='health_checked_at asc, id')
         for channels in (never, old):

@@ -15,7 +15,7 @@ D2 to D6 until before the first production server deployment, so production invo
 | Standard (clearance) and simplified (reporting) invoices, with their credit and debit notes | stock `l10n_sa_edi`, `mode` in the submission | `tests/test_finance_zatca.py` |
 | Backlog counts and the **work list of stuck documents** | `GET /zatca/status` (`backlog`), `GET /zatca/documents?state=` | `TestFinanceZatcaWorkList` |
 | Keys, CSR, CSIDs and raw responses never leave the service | `secret_keys` assertions on every response and on the logs | `tests/test_finance_zatca*.py` |
-| Connection status per company | `liwan_integrations_sa` | onboarding updates it |
+| Connection status per company | `liwan_finance` registers `zatca` as an external provider of `liwan_integrations_sa` | derived from the sales journals at read time, nothing stored |
 
 Secrets are per company already: the private key and the CSIDs live on the company and its journals in stock models, one
 database per tenant.

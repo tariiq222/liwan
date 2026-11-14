@@ -6,110 +6,127 @@ import requests
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 
-from .common import ACCESS_TOKEN, APP_SECRET, CHANNEL_KEYS, LiwanInboxCase
+from .common import (
+    ACCESS_TOKEN,
+    APP_SECRET,
+    BUSINESS_ACCOUNT_ID,
+    CHANNEL_KEYS,
+    CONNECTION_KEYS,
+    LiwanInboxCase,
+)
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
-NEW_CHANNEL = {
-    'name': 'Branch line', 'kind': 'whatsapp', 'phone_number_id': '300000000001',
-    'business_account_id': '400000000001', 'access_token': 'x' * 20, 'app_secret': 'y' * 20,
-}
+NEW_CHANNEL = {'name': 'Branch line', 'kind': 'whatsapp', 'phone_number_id': '300000000001'}
+CHANNELS = '/api/v1/inbox/channels'
 
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestChannelsApi(LiwanInboxCase):
 
-    def test_the_handshake_token_is_never_read_and_rotates_once(self):
-        self.login(self.manager)
-        before = self.channel._liwan_verify_token()
-        self.assertTrue(before)
-        read = self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}')
-        self.assertNotIn(before, read.text)
-        self.assertTrue(read.json()['has_verify_token'])
-        rotated = self.api('POST', f'/api/v1/inbox/channels/{self.channel.id}/verify-token')
-        self.assertEqual(rotated.status_code, 200, rotated.text)
-        token = rotated.json()['verify_token']
-        self.assertNotEqual(token, before)
-        self.assertEqual(self.channel._liwan_verify_token(), token)
-        # The old token no longer completes the handshake.
-        self.assertError(self.verify_token_query(before), 403, 'forbidden')
-        self.assertEqual(self.verify_token_query(token).status_code, 200)
+    def body(self, connection=None, **values):
+        return {**NEW_CHANNEL, 'connection_id': (connection or self.channel.connection_id).id, **values}
 
-    def verify_token_query(self, token):
-        return self.get(f'/api/v1/inbox/hooks/whatsapp?hub.mode=subscribe&hub.verify_token={token}&hub.challenge=9')
-
-    def test_the_callback_url_follows_the_pinned_public_origin_not_the_request_host(self):
-        # Provisioning pins `web.base.url` to the tenant's public https host.
-        self.env['ir.config_parameter'].sudo().set_param('web.base.url', 'https://acme.liwan.example/')
+    def test_a_channel_reports_its_connection_and_no_secret(self):
         self.login(self.manager)
-        self.assertEqual(
-            self.get(f'/api/v1/inbox/channels/{self.channel.id}').json()['callback_url'],
-            'https://acme.liwan.example/api/v1/inbox/hooks/whatsapp',
-        )
-        self.env['ir.config_parameter'].sudo().set_param('web.base.url', 'http://plain.example.test')
-        self.assertEqual(
-            self.get(f'/api/v1/inbox/channels/{self.channel.id}').json()['callback_url'],
-            'https://plain.example.test/api/v1/inbox/hooks/whatsapp',
-            'an http origin is offered as https, the way the previous build did',
-        )
+        read = self.get(f'{CHANNELS}/{self.channel.id}')
+        self.assertEqual(read.status_code, 200, read.text)
+        body = read.json()
+        self.assertEqual(set(body), CHANNEL_KEYS)
+        connection = self.channel.connection_id
+        self.assertEqual(body['connection'], {
+            'id': connection.id, 'provider': 'meta', 'external_id': BUSINESS_ACCOUNT_ID, 'label': '',
+            'app_id': None, 'state': 'connected', 'status_message': '',
+        })
+        self.assertEqual(set(body['connection']), CONNECTION_KEYS)
+        self.assertFalse(body['needs_reconnect'])
+        for secret in (ACCESS_TOKEN, APP_SECRET, connection._liwan_secret('verify_token')):
+            self.assertNotIn(secret, read.text)
 
-    def test_a_missing_public_origin_is_a_stated_422_not_a_relative_hook_url(self):
-        # Provisioning pins `web.base.url`; a request served before it is set must say so, not hand the
-        # administrator a bare `/api/v1/...` path that no provider can call.
+    def test_create_returns_the_shape_of_a_channel_on_its_connection(self):
         self.login(self.manager)
-        params = self.env['ir.config_parameter'].sudo()
-        params.set_param('web.base.url', '')
-        response = self.get(f'/api/v1/inbox/channels/{self.channel.id}')
-        self.assertError(response, 422, 'invalid')
-        body = response.json()
-        self.assertEqual(body['details']['reason'], 'inbox_public_base_missing')
-        self.assertNotIn('/api/v1/inbox/hooks', response.text)
-
-    def test_create_returns_the_shape_without_secrets_and_stores_ciphertext(self):
-        self.login(self.manager)
-        result = self.api('POST', '/api/v1/inbox/channels', {**NEW_CHANNEL, 'department_id': self.department.id})
+        result = self.api('POST', CHANNELS, self.body(department_id=self.department.id))
         self.assertEqual(result.status_code, 200, result.text)
         body = result.json()
         self.assertEqual(set(body), CHANNEL_KEYS)
-        self.assertEqual((body['state'], body['has_access_token'], body['has_app_secret']), ('draft', True, True))
-        # The hook URL is the public origin provisioning pinned, never this request's own Host: a shared
-        # tenant's request Host is its database name and a dedicated install may answer on localhost.
-        self.assertEqual(body['callback_url'], 'https://liwan.test/api/v1/inbox/hooks/whatsapp')
-        self.assertFalse(body['has_verify_token'])
-        self.assertNotIn('x' * 20, result.text)
-        self.env.cr.execute('SELECT access_token_enc, app_secret_enc FROM liwan_inbox_channel WHERE id = %s', [body['id']])
-        stored = self.env.cr.fetchone()
-        self.assertTrue(all(value and 'x' * 20 not in value and 'y' * 20 not in value for value in stored))
+        self.assertEqual(
+            (body['state'], body['phone_number_id'], body['connection']['id'], body['department']['id']),
+            ('draft', '300000000001', self.channel.connection_id.id, self.department.id),
+        )
         channel = self.env['liwan.inbox.channel'].browse(body['id'])
-        self.assertEqual(channel._liwan_credentials().access_token, 'x' * 20)
-        self.assertEqual(channel._liwan_app_secret(), 'y' * 20)
+        self.assertEqual(channel._liwan_credentials().access_token, ACCESS_TOKEN)
+        self.assertEqual(channel._liwan_credentials().business_account_id, BUSINESS_ACCOUNT_ID)
 
-    def test_missing_master_key_is_422_and_nothing_is_stored(self):
+    def test_a_channel_cannot_name_a_connection_that_does_not_fit(self):
+        tiktok = self.make_tiktok_connection('business-open-id-create')
+        other = self.env['res.company'].create({'name': 'Other company'})
+        foreign = self.make_connection('400000000009', other)
+        disabled = self.make_connection('400000000008')
+        disabled.state = 'disabled'
+        failing = self.make_connection('400000000007')
+        failing.state = 'error'
         self.login(self.manager)
-        before = self.env['liwan.inbox.channel'].search_count([])
-        with patch.dict('os.environ', {'LIWAN_INBOX_SECRET_KEY': ''}):
-            result = self.api('POST', '/api/v1/inbox/channels', NEW_CHANNEL)
-        self.assertError(result, 422, 'invalid')
-        self.assertIn('not configured', result.json()['message'])
-        self.assertEqual(self.env['liwan.inbox.channel'].search_count([]), before)
+        for connection_id in (tiktok.id, foreign.id, disabled.id, failing.id, 999999999, 'x', None):
+            result = self.api('POST', CHANNELS, {**self.body(), 'connection_id': connection_id})
+            self.assertError(result, 422, 'invalid')
+            self.assertEqual(result.json()['field'], 'connection_id', connection_id)
+        self.assertFalse(self.env['liwan.inbox.channel'].search([('phone_number_id', '=', NEW_CHANNEL['phone_number_id'])]))
+
+    def test_accounts_lists_the_open_connections_of_the_kind_in_the_current_company(self):
+        tiktok = self.make_tiktok_connection('business-open-id-accounts')
+        other = self.env['res.company'].create({'name': 'Accounts company'})
+        self.make_connection('400000000006', other)
+        disabled = self.make_connection('400000000005')
+        disabled.state = 'disabled'
+        self.channel.connection_id.app_id = '123456789'
+        self.login(self.manager)
+        result = self.get(f'{CHANNELS}/accounts?kind=whatsapp')
+        self.assertEqual(result.status_code, 200, result.text)
+        body = result.json()
+        self.assertEqual((body['total'], [item['id'] for item in body['items']]), (1, [self.channel.connection_id.id]))
+        self.assertEqual(set(body['items'][0]), CONNECTION_KEYS)
+        self.assertEqual(body['items'][0]['app_id'], '123456789')
+        self.assertNotIn(ACCESS_TOKEN, result.text)
+        accounts = self.get(f'{CHANNELS}/accounts?kind=tiktok').json()
+        self.assertEqual([item['id'] for item in accounts['items']], [tiktok.id])
+
+    def test_accounts_needs_a_kind_the_capability_and_the_kind_feature(self):
+        self.login(self.manager)
+        for query in ('', '?kind=telegram'):
+            result = self.get(f'{CHANNELS}/accounts{query}')
+            self.assertError(result, 422, 'invalid')
+            self.assertEqual(result.json()['field'], 'kind')
+        set_probe_feature(self, key='inbox.tiktok', enabled=False)
+        self.assertEqual(self.get(f'{CHANNELS}/accounts?kind=tiktok').status_code, 403)
+        self.assertEqual(self.get(f'{CHANNELS}/accounts?kind=whatsapp').status_code, 200)
+        for user in (self.agent, self.outsider):
+            self.login(user)
+            self.assertError(self.get(f'{CHANNELS}/accounts?kind=whatsapp'), 403, 'forbidden')
 
     def test_validation_errors(self):
         self.login(self.manager)
         for change in (
-            {'phone_number_id': 'abc'}, {'access_token': 'short'}, {'kind': 'telegram'}, {'bogus': 1},
-            {'name': ''}, {'department_id': 999999},
+            {'phone_number_id': 'abc'}, {'kind': 'telegram'}, {'bogus': 1}, {'name': ''}, {'department_id': 999999},
+            {'access_token': 'x' * 20}, {'business_account_id': '400000000001'},
         ):
-            self.assertError(self.api('POST', '/api/v1/inbox/channels', {**NEW_CHANNEL, **change}), 422, 'invalid')
-        missing = {key: value for key, value in NEW_CHANNEL.items() if key != 'app_secret'}
-        self.assertError(self.api('POST', '/api/v1/inbox/channels', missing), 422, 'invalid')
-        self.assertError(self.api('POST', '/api/v1/inbox/channels', {**NEW_CHANNEL, 'phone_number_id': self.channel.phone_number_id}), 422, 'invalid')
+            self.assertError(self.api('POST', CHANNELS, {**self.body(), **change}), 422, 'invalid')
+        for key in ('name', 'kind', 'connection_id', 'phone_number_id'):
+            self.assertError(self.api('POST', CHANNELS, {k: v for k, v in self.body().items() if k != key}), 422, 'invalid')
+
+    def test_the_connect_callback_and_verify_token_routes_are_gone(self):
+        self.login(self.manager)
+        for method, path in (
+            ('POST', f'{CHANNELS}/tiktok/connect'), ('GET', '/api/v1/inbox/tiktok/callback'),
+            ('POST', f'{CHANNELS}/{self.channel.id}/verify-token'),
+        ):
+            self.assertEqual(self.api(method, path, {} if method == 'POST' else None).status_code, 404, path)
 
     def test_only_channel_managers_manage_channels(self):
         for user in (self.agent, self.supervisor, self.outsider):
             self.login(user)
             self.assertError(self.get('/api/v1/inbox/channels'), 403, 'forbidden')
-            self.assertError(self.api('POST', '/api/v1/inbox/channels', NEW_CHANNEL), 403, 'forbidden')
+            self.assertError(self.api('POST', CHANNELS, self.body()), 403, 'forbidden')
 
     def test_list_get_patch_delete(self):
         self.login(self.manager)
@@ -117,9 +134,10 @@ class TestChannelsApi(LiwanInboxCase):
         self.assertIn(self.channel.id, [c['id'] for c in listed['items']])
         self.assertEqual(self.get(f'/api/v1/inbox/channels/{self.channel.id}').json()['phone_number_id'], self.channel.phone_number_id)
         path = f'/api/v1/inbox/channels/{self.channel.id}'
-        patched = self.api('PATCH', path, {'name': 'Renamed', 'state': 'disabled', 'access_token': 'z' * 20})
+        patched = self.api('PATCH', path, {'name': 'Renamed', 'state': 'disabled'})
         self.assertEqual((patched.status_code, patched.json()['name'], patched.json()['state']), (200, 'Renamed', 'disabled'))
-        self.assertEqual(self.reload(self.channel)._liwan_credentials().access_token, 'z' * 20)
+        for refused in ({'access_token': 'z' * 20}, {'connection_id': self.channel.connection_id.id}, {'phone_number_id': '300000000002'}):
+            self.assertError(self.api('PATCH', path, refused), 422, 'invalid')
         self.assertError(self.api('PATCH', path, {'state': 'error'}), 422, 'invalid')
         self.assertError(self.api('PATCH', path, {'state': 'connected'}), 422, 'invalid')
         self.assertError(self.get('/api/v1/inbox/channels/999999999'), 404, 'not_found')
@@ -146,7 +164,7 @@ class TestChannelsApi(LiwanInboxCase):
 
     def test_a_duplicate_phone_number_id_names_its_reason(self):
         self.login(self.manager)
-        result = self.api('POST', '/api/v1/inbox/channels', {**NEW_CHANNEL, 'phone_number_id': self.channel.phone_number_id})
+        result = self.api('POST', CHANNELS, self.body(phone_number_id=self.channel.phone_number_id))
         self.assertEqual(result.json()['details'], {'reason': 'inbox_phone_number_taken'})
         empty = self.make_channel(phone_id='500000000001')
         self.assertEqual(self.api('DELETE', f'/api/v1/inbox/channels/{empty.id}').status_code, 204)
@@ -157,12 +175,12 @@ class TestChannelsApi(LiwanInboxCase):
         used = self.env['liwan.entitlement.service']._liwan_count_channels()
         profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.channels': used}})
         self.login(self.manager)
-        result = self.api('POST', '/api/v1/inbox/channels', NEW_CHANNEL)
+        result = self.api('POST', CHANNELS, self.body())
         self.assertEqual(result.status_code, 403, result.text)
         self.assertEqual(result.json()['code'], 'feature_not_included')
         self.assertEqual(result.json()['details'], {'reason': 'limit', 'limit_key': 'inbox.channels'})
         profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.channels': used + 1}})
-        self.assertEqual(self.api('POST', '/api/v1/inbox/channels', NEW_CHANNEL).status_code, 200)
+        self.assertEqual(self.api('POST', CHANNELS, self.body()).status_code, 200)
 
     def test_connection_test_sets_connected_or_error(self):
         self.login(self.manager)
@@ -200,13 +218,10 @@ class TestChannelsApi(LiwanInboxCase):
     def test_the_whatsapp_sub_feature_gates_channel_creation(self):
         set_probe_feature(self, key='inbox.whatsapp', enabled=False)
         self.login(self.manager)
-        self.assertEqual(self.api('POST', '/api/v1/inbox/channels', NEW_CHANNEL).status_code, 403)
+        self.assertEqual(self.api('POST', CHANNELS, self.body()).status_code, 403)
 
-    def test_encryption_round_trip_and_key_binding(self):
-        secret_values = self.env['liwan.inbox.channel']._liwan_secret_values(access_token=APP_SECRET)
-        self.assertNotIn(APP_SECRET, secret_values['access_token_enc'])
+    def test_a_secret_stored_under_another_key_cannot_be_read(self):
         with patch.dict('os.environ', {'LIWAN_INBOX_SECRET_KEY': 'A' * 43 + '='}):
-            self.channel.access_token_enc = secret_values['access_token_enc']
             with self.assertRaisesRegex(UserError, 'cannot be decrypted'):
                 self.channel._liwan_credentials()
 

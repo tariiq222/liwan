@@ -18,9 +18,10 @@ BUSINESS_ID = 'business-open-id-0001'
 @tagged('post_install', '-at_install', 'liwan')
 class TestTikTokChannel(LiwanInboxCase):
 
-    def make_tiktok(self, business_id=BUSINESS_ID, **values):
+    def make_tiktok(self, business_id=BUSINESS_ID, connection=None, **values):
+        connection = connection or self.make_tiktok_connection(business_id)
         return self.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': business_id, **values,
+            'name': 'TikTok shop', 'kind': 'tiktok', 'connection_id': connection.id, **values,
         })
 
     def set_channel_limit(self, limit):
@@ -29,24 +30,28 @@ class TestTikTokChannel(LiwanInboxCase):
             'features': {**(profile.features or {}), CHANNELS_LIMIT: limit},
         })
 
-    def test_whatsapp_still_needs_both_provider_ids(self):
+    def test_whatsapp_needs_a_phone_number_id_and_a_meta_connection_of_its_company(self):
         base = {
-            'name': 'WhatsApp', 'kind': 'whatsapp',
-            'phone_number_id': '100000000011', 'business_account_id': BUSINESS_ACCOUNT_ID,
+            'name': 'WhatsApp', 'kind': 'whatsapp', 'phone_number_id': '100000000011',
+            'connection_id': self.make_connection(BUSINESS_ACCOUNT_ID).id,
         }
-        for change in ({'phone_number_id': False}, {'business_account_id': False}, {'phone_number_id': 'not-a-number'}):
+        other = self.env['res.company'].create({'name': 'Other channel company'})
+        for change in (
+            {'phone_number_id': False}, {'phone_number_id': 'not-a-number'},
+            {'connection_id': self.make_tiktok_connection(BUSINESS_ID).id},
+            {'connection_id': self.make_connection('400000000004', other).id},
+        ):
             with self.assertRaises(ValidationError), self.env.cr.savepoint():
                 self.env['liwan.inbox.channel'].create({**base, **change})
 
-    def test_a_tiktok_channel_needs_only_its_business_id(self):
+    def test_a_tiktok_channel_needs_only_its_connection(self):
         channel = self.make_tiktok()
         self.assertEqual(
-            (channel.kind, channel.tiktok_business_id, channel.phone_number_id, channel.business_account_id,
-             channel.state),
-            ('tiktok', BUSINESS_ID, False, False, 'draft'),
+            (channel.kind, channel.connection_id.external_id, channel.phone_number_id, channel.state),
+            ('tiktok', BUSINESS_ID, False, 'draft'),
         )
-        with self.assertRaises(ValidationError):
-            self.make_tiktok(business_id=False)
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            self.make_tiktok(connection=self.make_connection('400000000003'))
 
     def test_creating_a_tiktok_channel_needs_the_tiktok_feature(self):
         set_probe_feature(self, key=TIKTOK_FEATURE, enabled=False)
@@ -56,11 +61,13 @@ class TestTikTokChannel(LiwanInboxCase):
         # The WhatsApp channel keeps its own feature: TikTok being off does not close it.
         self.make_channel(phone_id='100000000009')
 
-    def test_the_business_id_is_unique(self):
-        self.make_tiktok()
+    def test_a_tiktok_account_has_one_channel(self):
+        channel = self.make_tiktok()
         with mute_logger('odoo.sql_db'), self.assertRaises(UniqueViolation), self.env.cr.savepoint():
-            self.make_tiktok()
+            self.make_tiktok(connection=channel.connection_id)
             self.env.flush_all()
+        self.make_channel(phone_id='100000000012')
+        self.make_channel(phone_id='100000000013')
 
     def test_tiktok_channels_count_against_the_channel_limit(self):
         service = self.env['liwan.entitlement.service']

@@ -103,7 +103,7 @@
       "feature_keys": [
         "crm.enabled"
       ],
-      "handler": "archive_package",
+      "handler": "remove_package",
       "no_capability_reason": null
     },
     "DELETE /api/v1/crm/sources/{source_id}": {
@@ -230,6 +230,20 @@
         "hr.enabled"
       ],
       "handler": "delete_department",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/hr/leave/approval-process": {
+      "addon": "liwan_hr_operations",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "archive_process",
       "no_capability_reason": null
     },
     "DELETE /api/v1/hr/payroll/bank-profiles/{profile_id}": {
@@ -467,6 +481,20 @@
       "handler": "delete_template",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/integrations/connections/{connection_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "delete_connection",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/me/devices": {
       "addon": "liwan_api",
       "auth": "user",
@@ -528,9 +556,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "delete_attachment",
       "no_capability_reason": null
     },
@@ -1633,6 +1659,90 @@
       "handler": "get_customer",
       "no_capability_reason": null
     },
+    "GET /api/v1/document-contexts/{kind}/{subject_id}": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "context_documents",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/document-contexts/{kind}/{subject_id}/{document_id}": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "context_document",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/access": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.access.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "context_access",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/access/people": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.access.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "context_access_people",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "context_document_files",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files/{file_id}/download": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "context_document_download",
+      "no_capability_reason": null
+    },
     "GET /api/v1/documents": {
       "addon": "liwan_documents",
       "auth": "user",
@@ -1641,9 +1751,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "list_documents",
       "no_capability_reason": null
     },
@@ -1655,9 +1763,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "contexts",
       "no_capability_reason": null
     },
@@ -1669,9 +1775,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "options",
       "no_capability_reason": null
     },
@@ -1685,7 +1789,6 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "documents.enabled",
         "hr.enabled"
       ],
       "handler": "list_own_documents",
@@ -1701,7 +1804,6 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "documents.enabled",
         "hr.enabled"
       ],
       "handler": "get_own_document",
@@ -1717,7 +1819,6 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "documents.enabled",
         "hr.enabled"
       ],
       "handler": "list_own_document_files",
@@ -1733,7 +1834,6 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "documents.enabled",
         "hr.enabled"
       ],
       "handler": "download_own_document_file",
@@ -1747,9 +1847,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "tags",
       "no_capability_reason": null
     },
@@ -1761,9 +1859,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "get_document",
       "no_capability_reason": null
     },
@@ -1775,9 +1871,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "get_access",
       "no_capability_reason": null
     },
@@ -1789,9 +1883,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "list_files",
       "no_capability_reason": null
     },
@@ -1803,9 +1895,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "download",
       "no_capability_reason": null
     },
@@ -2981,10 +3071,37 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "hr.enabled",
-        "operations.enabled"
+        "hr.enabled"
       ],
       "handler": "get_approval_process",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/approval-process/editor": {
+      "addon": "liwan_hr_operations",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "approval_editor",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/approval-process/editor/resolvers": {
+      "addon": "liwan_hr_operations",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "approval_edit_resolvers",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/leave/balances": {
@@ -3052,8 +3169,7 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "hr.enabled",
-        "operations.enabled"
+        "hr.enabled"
       ],
       "handler": "get_approval",
       "no_capability_reason": null
@@ -4123,21 +4239,6 @@
       "handler": "list_items",
       "no_capability_reason": null
     },
-    "GET /api/v1/inbox/catalogs/{catalog_id}/products": {
-      "addon": "liwan_inbox_payments",
-      "auth": "user",
-      "capability_keys": [
-        "inbox.catalog.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "decorator",
-      "feature_keys": [
-        "inbox.enabled",
-        "inbox.catalog"
-      ],
-      "handler": "list_products",
-      "no_capability_reason": null
-    },
     "GET /api/v1/inbox/channels": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -4150,6 +4251,20 @@
         "inbox.enabled"
       ],
       "handler": "list_channels",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/accounts": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.channels.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_accounts",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/channels/work": {
@@ -4774,20 +4889,6 @@
       "handler": "read_template",
       "no_capability_reason": null
     },
-    "GET /api/v1/inbox/tiktok/callback": {
-      "addon": "liwan_inbox",
-      "auth": "user",
-      "capability_keys": [
-        "inbox.channels.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "decorator",
-      "feature_keys": [
-        "inbox.tiktok"
-      ],
-      "handler": "callback",
-      "no_capability_reason": null
-    },
     "GET /api/v1/inbox/working-hours": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -4815,6 +4916,48 @@
         "integrations.enabled"
       ],
       "handler": "list_connections",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/connections/{connection_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "read_connection",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/oauth/{provider}/callback": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "callback",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/providers": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "list_providers",
       "no_capability_reason": null
     },
     "GET /api/v1/me": {
@@ -5178,9 +5321,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "execution_kinds",
       "no_capability_reason": null
     },
@@ -5192,9 +5333,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "list_processes",
       "no_capability_reason": null
     },
@@ -5206,9 +5345,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "reviewer_resolvers",
       "no_capability_reason": null
     },
@@ -5221,9 +5358,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "get_process",
       "no_capability_reason": null
     },
@@ -5236,9 +5371,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "process_targets",
       "no_capability_reason": null
     },
@@ -5248,9 +5381,7 @@
       "capability_keys": [],
       "capability_match": "any",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "list_requests",
       "no_capability_reason": null
     },
@@ -5263,9 +5394,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "get_own_employee_request",
       "no_capability_reason": null
     },
@@ -5275,9 +5404,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "get_request",
       "no_capability_reason": null
     },
@@ -5290,9 +5417,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "download_attachment",
       "no_capability_reason": null
     },
@@ -5378,6 +5503,75 @@
         "pmo.change_control"
       ],
       "handler": "list_change_categories",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/products": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [
+        "products.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "list_products",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/products/pick": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "pick_products",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/products/settings": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [
+        "products.read",
+        "products.settings.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "read_settings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/products/taxes": {
+      "addon": "liwan_products_account",
+      "auth": "user",
+      "capability_keys": [
+        "products.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "list_tax_choices",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/products/{product_id}": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [
+        "products.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "get_product",
       "no_capability_reason": null
     },
     "GET /api/v1/project-charter/catalogs/{resource}": {
@@ -6033,6 +6227,20 @@
       "handler": "timeline",
       "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_liwan_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
+    "HEAD /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files/{file_id}/download": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "context_document_download",
+      "no_capability_reason": null
+    },
     "HEAD /api/v1/documents/employee/me/{document_id}/files/{file_id}/download": {
       "addon": "liwan_documents_hr",
       "auth": "user",
@@ -6043,7 +6251,6 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "documents.enabled",
         "hr.enabled"
       ],
       "handler": "download_own_document_file",
@@ -6057,9 +6264,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "download",
       "no_capability_reason": null
     },
@@ -6450,20 +6655,6 @@
       "handler": "patch_outcome",
       "no_capability_reason": null
     },
-    "PATCH /api/v1/crm/packages/{package_id}": {
-      "addon": "liwan_crm",
-      "auth": "user",
-      "capability_keys": [
-        "crm.settings.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "decorator",
-      "feature_keys": [
-        "crm.enabled"
-      ],
-      "handler": "patch_package",
-      "no_capability_reason": null
-    },
     "PATCH /api/v1/crm/settings": {
       "addon": "liwan_crm",
       "auth": "user",
@@ -6534,6 +6725,20 @@
       "handler": "update_customer",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/document-contexts/{kind}/{subject_id}/{document_id}": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "update_context_document",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/documents/{document_id}": {
       "addon": "liwan_documents",
       "auth": "user",
@@ -6542,9 +6747,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "patch_document",
       "no_capability_reason": null
     },
@@ -6944,6 +7147,20 @@
         "hr.enabled"
       ],
       "handler": "update_allocation",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/leave/approval-process/editor": {
+      "addon": "liwan_hr_operations",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "save_approval_editor",
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/leave/settings": {
@@ -7496,6 +7713,20 @@
       "handler": "edit_template",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/integrations/connections/{connection_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "patch_connection",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/me/appearance": {
       "addon": "liwan_api",
       "auth": "user",
@@ -7605,9 +7836,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "update_process",
       "no_capability_reason": null
     },
@@ -7620,9 +7849,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "update_request",
       "no_capability_reason": null
     },
@@ -7667,6 +7894,35 @@
         "pmo.change_control"
       ],
       "handler": "patch_change_category",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/products/settings": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [
+        "products.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "write_settings",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/products/{product_id}": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [
+        "products.manage",
+        "products.prices.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "update_product",
       "no_capability_reason": null
     },
     "PATCH /api/v1/project-charter/catalogs/{resource}/{item_id}": {
@@ -8812,7 +9068,7 @@
       "feature_keys": [
         "crm.enabled"
       ],
-      "handler": "create_package",
+      "handler": "add_package",
       "no_capability_reason": null
     },
     "POST /api/v1/crm/sources": {
@@ -8941,6 +9197,77 @@
       "handler": "restore_customer",
       "no_capability_reason": null
     },
+    "POST /api/v1/document-contexts/employee/{subject_id}/{document_id}/employee-access": {
+      "addon": "liwan_documents_hr",
+      "auth": "user",
+      "capability_keys": [
+        "documents.access.manage",
+        "hr.employees.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "share_context_document",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/document-contexts/{kind}/{subject_id}": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "create_context_document",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "upload_context_file",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files/{file_id}/{action}": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "context_file_action",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/{action}": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.archive"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "change_document_state",
+      "no_capability_reason": null
+    },
     "POST /api/v1/documents": {
       "addon": "liwan_documents",
       "auth": "user",
@@ -8949,9 +9276,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "create_document",
       "no_capability_reason": null
     },
@@ -8963,9 +9288,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "create_tag",
       "no_capability_reason": null
     },
@@ -8977,9 +9300,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "set_document_active",
       "no_capability_reason": null
     },
@@ -8993,7 +9314,6 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "documents.enabled",
         "hr.enabled"
       ],
       "handler": "share_with_employee",
@@ -9007,9 +9327,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "upload_file",
       "no_capability_reason": null
     },
@@ -9019,9 +9337,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "file_action",
       "no_capability_reason": null
     },
@@ -9031,9 +9347,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "file_action",
       "no_capability_reason": null
     },
@@ -9043,9 +9357,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "file_action",
       "no_capability_reason": null
     },
@@ -9055,9 +9367,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "file_action",
       "no_capability_reason": null
     },
@@ -9069,9 +9379,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "set_document_active",
       "no_capability_reason": null
     },
@@ -10253,13 +10561,12 @@
       "addon": "liwan_hr_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.processes.manage"
+        "hr.leave.config"
       ],
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "hr.enabled",
-        "operations.enabled"
+        "hr.enabled"
       ],
       "handler": "create_default_process",
       "no_capability_reason": null
@@ -10276,6 +10583,22 @@
         "hr.enabled"
       ],
       "handler": "create_request",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/requests/{leave_id}/approval": {
+      "addon": "liwan_hr_operations",
+      "auth": "user",
+      "capability_keys": [
+        "operations.requests.read",
+        "operations.requests.review",
+        "hr.leave.approve"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "decide_approval",
       "no_capability_reason": null
     },
     "POST /api/v1/hr/leave/requests/{leave_id}/approve": {
@@ -11113,20 +11436,6 @@
       "handler": "create_channel",
       "no_capability_reason": null
     },
-    "POST /api/v1/inbox/channels/tiktok/connect": {
-      "addon": "liwan_inbox",
-      "auth": "user",
-      "capability_keys": [
-        "inbox.channels.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "decorator",
-      "feature_keys": [
-        "inbox.tiktok"
-      ],
-      "handler": "connect",
-      "no_capability_reason": null
-    },
     "POST /api/v1/inbox/channels/{channel_id}/analytics/sync": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -11349,20 +11658,6 @@
         "inbox.whatsapp"
       ],
       "handler": "set_pin",
-      "no_capability_reason": null
-    },
-    "POST /api/v1/inbox/channels/{channel_id}/verify-token": {
-      "addon": "liwan_inbox",
-      "auth": "user",
-      "capability_keys": [
-        "inbox.channels.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "decorator",
-      "feature_keys": [
-        "inbox.enabled"
-      ],
-      "handler": "rotate_verify_token",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/contacts/import": {
@@ -11678,6 +11973,62 @@
         "inbox.enabled"
       ],
       "handler": "create_tag",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/integrations/connections": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "create_connection",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/integrations/connections/{connection_id}/secrets/{name}/rotate": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "rotate_secret",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/integrations/connections/{connection_id}/test": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "test_connection",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/integrations/oauth/{provider}/start": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "start",
       "no_capability_reason": null
     },
     "POST /api/v1/me/company": {
@@ -12024,9 +12375,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "create_process",
       "no_capability_reason": null
     },
@@ -12039,9 +12388,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "transition_process",
       "no_capability_reason": null
     },
@@ -12053,9 +12400,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "create_request",
       "no_capability_reason": null
     },
@@ -12068,9 +12413,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "upload_attachment",
       "no_capability_reason": null
     },
@@ -12080,9 +12423,7 @@
       "capability_keys": [],
       "capability_match": "any",
       "capability_source": "body",
-      "feature_keys": [
-        "operations.enabled"
-      ],
+      "feature_keys": [],
       "handler": "transition_request",
       "no_capability_reason": null
     },
@@ -12141,6 +12482,48 @@
         "pmo.change_control"
       ],
       "handler": "create_change_category",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/products": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [
+        "products.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "create_product",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/products/{product_id}/archive": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [
+        "products.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "archive_product",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/products/{product_id}/restore": {
+      "addon": "liwan_products",
+      "auth": "user",
+      "capability_keys": [
+        "products.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.products.service"
+      ],
+      "handler": "restore_product",
       "no_capability_reason": null
     },
     "POST /api/v1/project-charter/catalogs/{resource}": {
@@ -12756,6 +13139,20 @@
       "handler": "unarchive_task",
       "no_capability_reason": "Task restore: task._liwan_can_archive() answers 404 (MissingError, not 403) unless the caller may archive the task, then write access is checked; the analysis only credits a 403 or AccessError refusal."
     },
+    "PUT /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/access": {
+      "addon": "liwan_document_service",
+      "auth": "user",
+      "capability_keys": [
+        "documents.access.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:liwan.document.links"
+      ],
+      "handler": "set_context_access",
+      "no_capability_reason": null
+    },
     "PUT /api/v1/documents/{document_id}/access": {
       "addon": "liwan_documents",
       "auth": "user",
@@ -12764,9 +13161,7 @@
       ],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "documents.enabled"
-      ],
+      "feature_keys": [],
       "handler": "set_access",
       "no_capability_reason": null
     },

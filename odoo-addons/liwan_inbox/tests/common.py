@@ -12,12 +12,27 @@ from odoo.tests import new_test_user
 
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.secret_box import KEY_ENV
+from odoo.addons.liwan_integrations_sa.providers import tiktok as integration_tiktok
 
 PASSWORD = 'inbox_pass_123'
 PHONE_ID = '100000000001'
 BUSINESS_ACCOUNT_ID = '200000000001'
 ACCESS_TOKEN = 'EAAB-access-token-0123456789'
 APP_SECRET = 'app-secret-0123456789abcdef'
+TIKTOK_BUSINESS_ID = 'business-open-id-1'
+TIKTOK_ACCESS_TOKEN = 'tiktok-access-token-1'
+TIKTOK_REFRESH_TOKEN = 'tiktok-refresh-token-1'
+
+
+def tiktok_grant(open_id=TIKTOK_BUSINESS_ID, access_token=TIKTOK_ACCESS_TOKEN, refresh_token=TIKTOK_REFRESH_TOKEN,
+                 expires_in=timedelta(days=1), refresh_in=timedelta(days=365), scopes=None):
+    """A TikTok authorization as the service's provider module returns it, expiring `expires_in` from now."""
+    now = fields.Datetime.now()
+    return integration_tiktok.TokenGrant(
+        open_id=open_id, scopes=frozenset(integration_tiktok.SCOPES if scopes is None else scopes),
+        access_token=access_token, refresh_token=refresh_token,
+        expires_at=now + expires_in, refresh_expires_at=now + refresh_in,
+    )
 
 
 def store_event(env, channel, payload):
@@ -42,11 +57,11 @@ MESSAGE_KEYS = {
 
 # Every key of InboxChannelSchema (packages/contracts/src/inbox/index.ts).
 CHANNEL_KEYS = {
-    'id', 'name', 'kind', 'state', 'department', 'phone_number_id', 'business_account_id', 'has_access_token',
-    'has_app_secret', 'app_id', 'has_verify_token', 'callback_url', 'last_error', 'last_event_at', 'health',
-    'tiktok_username', 'token_expires_at', 'needs_reconnect', 'tiktok_welcome_audit', 'tiktok_questions_enabled',
-    'tiktok_prompts_enabled',
+    'id', 'name', 'kind', 'state', 'department', 'connection', 'phone_number_id', 'last_error', 'last_event_at', 'health',
+    'needs_reconnect', 'tiktok_welcome_audit', 'tiktok_questions_enabled', 'tiktok_prompts_enabled',
 }
+# Every key of the `connection` object of a channel.
+CONNECTION_KEYS = {'id', 'provider', 'external_id', 'label', 'app_id', 'state', 'status_message'}
 
 # Every key of InboxTemplateSchema.
 TEMPLATE_KEYS = {
@@ -111,15 +126,55 @@ class LiwanInboxCase(LiwanApiCase):
         return user
 
     @classmethod
-    def make_channel(cls, phone_id=PHONE_ID, **values):
-        Channel = cls.env['liwan.inbox.channel']
-        channel = Channel.create({
-            'name': 'Main WhatsApp', 'phone_number_id': phone_id, 'business_account_id': BUSINESS_ACCOUNT_ID,
-            'state': 'connected',
-            **Channel._liwan_secret_values(access_token=ACCESS_TOKEN, app_secret=APP_SECRET), **values,
+    def make_connection(cls, external_id=BUSINESS_ACCOUNT_ID, company=None, **values):
+        """The connected Meta connection of `external_id` in `company` (the current one), made once: its secrets are the fixtures."""
+        company = company or cls.env.company
+        Connection = cls.env['liwan.integration.connection']
+        connection = Connection.search([
+            ('company_id', '=', company.id), ('provider', '=', 'meta'), ('external_id', '=', external_id),
+        ])
+        if connection:
+            return connection
+        connection = Connection.create({
+            'company_id': company.id, 'provider': 'meta', 'external_id': external_id, 'state': 'connected', **values,
         })
-        channel._liwan_rotate_verify_token()
-        return channel
+        connection._liwan_store_secrets({'access_token': ACCESS_TOKEN, 'app_secret': APP_SECRET})
+        connection._liwan_generate_secrets()
+        return connection
+
+    @classmethod
+    def make_tiktok_connection(cls, business_id=TIKTOK_BUSINESS_ID, authorization=None, company=None):
+        """A connected TikTok connection that holds `authorization` (a fresh one of `business_id` by default)."""
+        company = company or cls.env.company
+        authorization = authorization or tiktok_grant(open_id=business_id)
+        connection = cls.env['liwan.integration.connection'].create({
+            'company_id': company.id, 'provider': 'tiktok', 'external_id': authorization.open_id,
+        })
+        connection._liwan_oauth_store(authorization, 'liwan_shop')
+        return connection
+
+    @classmethod
+    def make_channel(cls, phone_id=PHONE_ID, business_account_id=BUSINESS_ACCOUNT_ID, **values):
+        """A connected WhatsApp channel on the Meta account `business_account_id` of its owner company."""
+        company = cls.env['res.company'].browse(values['owner_company_id']) if values.get('owner_company_id') else cls.env.company
+        return cls.env['liwan.inbox.channel'].create({
+            'name': 'Main WhatsApp', 'phone_number_id': phone_id, 'state': 'connected',
+            'connection_id': cls.make_connection(business_account_id, company).id, **values,
+        })
+
+    @classmethod
+    def make_tiktok_channel(cls, business_id=TIKTOK_BUSINESS_ID, authorization=None, **values):
+        """A connected TikTok channel on a connected TikTok connection."""
+        company = cls.env['res.company'].browse(values['owner_company_id']) if values.get('owner_company_id') else cls.env.company
+        connection = cls.make_tiktok_connection(business_id, authorization, company)
+        return cls.env['liwan.inbox.channel'].create({
+            'name': 'TikTok shop', 'kind': 'tiktok', 'state': 'connected', 'connection_id': connection.id, **values,
+        })
+
+    @classmethod
+    def verify_token(cls, channel):
+        """The webhook handshake token of the channel's connection."""
+        return channel.connection_id._liwan_secret('verify_token')
 
     @classmethod
     def store_event(cls, channel, payload):

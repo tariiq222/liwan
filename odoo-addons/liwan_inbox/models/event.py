@@ -131,11 +131,13 @@ class LiwanInboxEvent(models.Model):
         if channel.kind == 'tiktok':
             # An echo is applied after the customer messages of its delivery: it names no customer of its own.
             items = sorted(
-                tiktok.parse_event(payload, channel.tiktok_business_id), key=lambda item: getattr(item, 'echo', False),
+                tiktok.parse_event(payload, channel.connection_id.external_id), key=lambda item: getattr(item, 'echo', False),
             )
             ingest = inbound._liwan_ingest_tiktok
         else:
-            items = whatsapp.parse_events(payload, channel.phone_number_id, channel.business_account_id, channel.display_phone_number)
+            items = whatsapp.parse_events(
+                payload, channel.phone_number_id, channel.connection_id.external_id, channel.display_phone_number,
+            )
             ingest = inbound._liwan_ingest
         applied = []
         failures = []

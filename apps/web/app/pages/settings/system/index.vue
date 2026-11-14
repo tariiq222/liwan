@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import IntegrationConnections from '@/components/settings/IntegrationConnections.vue'
 import MaintenanceSettings from '@/components/settings/MaintenanceSettings.vue'
 import { useMaintenance, useMaintenanceActions } from '@/composables/useMaintenance'
 
-// The system settings: integrations (read-only) and maintenance, each a card hidden from a user who lacks its capability.
+// The system settings: storage and maintenance, each a card hidden from a user who lacks its capability.
 const { t } = useI18n()
 const { parts, shows } = useSettingsPage('system')
 const { data, isLoading, error, refetch } = useMaintenance(() => shows('maintenance'))
@@ -20,7 +19,6 @@ async function reloadSnapshot() {
     <SharedPageHeader :title="t('settings.sections.system.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('settings.forbidden')" />
     <template v-else>
-      <IntegrationConnections v-if="shows('integrations')" />
       <SharedRecordSection v-if="shows('storage')" id="storage" variant="panel" :title="t('settings.storage.title')" :description="t('settings.storage.description')">
         <UButton to="/settings/system/storage" color="neutral" variant="outline">{{ t('settings.storage.open') }}</UButton>
       </SharedRecordSection>

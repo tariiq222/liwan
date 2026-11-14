@@ -107,7 +107,7 @@ class TestBusinessProfileApi(LiwanInboxCase):
         self.assertIn('Invalid parameter', response.json()['message'])
 
     def test_a_picture_goes_to_meta_through_the_resumable_upload(self):
-        self.channel.app_id = '300000000001'
+        self.channel.connection_id.app_id = '300000000001'
         body = {'name': 'logo.png', 'mimetype': 'image/png', 'data': base64.b64encode(PNG).decode()}
         response, mocked = self.call('PUT', '/profile/picture', body, responses=[
             meta({'id': 'upload:abc'}), meta({'h': 'handle-1'}), meta({'success': True}), meta(PROFILE),
@@ -124,7 +124,7 @@ class TestBusinessProfileApi(LiwanInboxCase):
         body = {'name': 'logo.png', 'mimetype': 'image/png', 'data': base64.b64encode(PNG).decode()}
         response, mocked = self.call('PUT', '/profile/picture', body)
         self.assertEqual((response.status_code, response.json().get('field')), (422, 'app_id'))
-        self.channel.app_id = '300000000001'
+        self.channel.connection_id.app_id = '300000000001'
         for bad in ({**body, 'data': base64.b64encode(PDF).decode(), 'mimetype': 'application/pdf'}, {**body, 'data': '!!'}):
             response, mocked = self.call('PUT', '/profile/picture', bad)
             self.assertEqual((response.status_code, response.json().get('field')), (422, 'data'))
@@ -151,7 +151,7 @@ class TestBusinessProfileApi(LiwanInboxCase):
         failing, _ = self.call('POST', '/two-step-pin', {'pin': PIN}, responses=[meta_error('Request failed')])
         self.assertNotIn(PIN, failing.text)
         self.assertFalse([line for line in capture.lines if PIN in line])
-        self.env.cr.execute('SELECT count(*) FROM liwan_inbox_channel WHERE access_token_enc LIKE %s OR last_error LIKE %s', [f'%{PIN}%'] * 2)
+        self.env.cr.execute('SELECT count(*) FROM liwan_inbox_channel WHERE last_error LIKE %s OR name LIKE %s', [f'%{PIN}%'] * 2)
         self.assertEqual(self.env.cr.fetchone()[0], 0)
 
     def test_register_refreshes_the_health_and_surfaces_meta_errors(self):

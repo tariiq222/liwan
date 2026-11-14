@@ -10,7 +10,7 @@ from odoo.tests import tagged
 
 from . import tiktok_payloads as tt
 from .automation_common import RULE_BODY
-from .common import LiwanInboxCase
+from .common import LiwanInboxCase, tiktok_grant
 from .media_samples import PDF, PNG
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
@@ -35,15 +35,9 @@ class TikTokCase(LiwanInboxCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.settings.visibility_policy = 'all'
-        now = fields.Datetime.now()
-        cls.tiktok = cls.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': tt.BUSINESS_ID, 'state': 'connected',
-        })
-        cls.tiktok._liwan_tiktok_store(tiktok.TokenGrant(
-            open_id=tt.BUSINESS_ID, scopes=frozenset(tiktok.SCOPES),
-            access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
-            expires_at=now + timedelta(days=1), refresh_expires_at=now + timedelta(days=365),
-        ))
+        cls.tiktok = cls.make_tiktok_channel(
+            authorization=tiktok_grant(access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN),
+        )
         cls.conversation = cls.make_tiktok_conversation()
 
     @classmethod
@@ -220,15 +214,16 @@ class TestTikTokSend(TikTokCase):
 
     def test_a_reconnect_needed_failure_is_not_retried(self):
         message = self.queued(self.reply({'body': 'Hello'}).json()['id'])
-        self.tiktok.write({
+        self.tiktok.connection_id.write({
             'token_expires_at': fields.Datetime.now() - timedelta(minutes=1),
             'refresh_expires_at': fields.Datetime.now() - timedelta(minutes=1),
         })
         with patch.object(tiktok, 'send_text') as send_text:
             self.run_outbox()
         self.assertEqual((send_text.call_count, message.delivery_state, message.attempts), (0, 'failed', 1))
-        self.assertIn('reconnect', message.error.lower())
-        self.assertEqual(self.tiktok.state, 'error')
+        self.assertIn('again', message.error.lower())
+        self.assertEqual(self.tiktok.connection_id.state, 'error')
+        self.assertTrue(self.tiktok.connection_id.status_message)
 
     # button cards, typing and read receipts
 
