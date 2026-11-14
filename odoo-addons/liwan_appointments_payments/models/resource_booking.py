@@ -62,7 +62,7 @@ class ResourceBooking(models.Model):
         for booking in self:
             booking_type = booking.type_id
             product = booking_type._liwan_product()
-            if not product:
+            if not booking_type._liwan_is_priced(product):
                 raise UserError(self.env._("A booking of a paying type needs a priced type."))
             # The engine schedules a booking only with a requester, so a scheduled one has its first partner.
             requester = booking.partner_ids[:1]

@@ -15,6 +15,7 @@ import { baselineGateCheck, handleBaselines } from './pmo-baseline-mock-routes.m
 import { handleChanges } from './pmo-change-mock-routes.mjs'
 import { handleEvm } from './pmo-evm-mock-routes.mjs'
 import { CUSTOMERS_CAPABILITIES, handleCustomers } from './customers-mock-routes.mjs'
+import { handleProducts, PRODUCTS_CAPABILITIES } from './products-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import { handleSsrFixtures, hasFixtureSession } from './ssr-fixture-sessions.mjs'
 import crypto from 'node:crypto'
@@ -41,6 +42,7 @@ const CAPABILITIES = [
   'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'settings.company.vat.manage', 'ai.use', PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE,
   ...INBOX_CAPABILITIES,
   ...CUSTOMERS_CAPABILITIES,
+  ...PRODUCTS_CAPABILITIES,
 ]
 
 // The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding, assets and warnings pages on top of their capabilities.
@@ -54,15 +56,15 @@ const ME = {
   company: { id: 1, name: 'LiwanOS' }, companies: [{ id: 1, name: 'LiwanOS' }], home_company_id: 1,
   modules: ['liwan_chat', 'liwan_hr', 'liwan_documents', 'liwan_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'pmo.baselines': true, 'pmo.evm': true, 'pmo.change_control': true, 'meetings.enabled': true, 'tasks.enabled': true, 'customers.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
+    'pmo.enabled': true, 'pmo.baselines': true, 'pmo.evm': true, 'pmo.change_control': true, 'meetings.enabled': true, 'tasks.enabled': true, 'customers.enabled': true, 'products.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
     ...Object.fromEntries(INBOX_FEATURES.map(feature => [feature, true])),
     ...Object.fromEntries(HR_AREA_FEATURES.map(feature => [feature, true])),
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'products.enabled', 'tasks.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'products.enabled', 'tasks.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -495,6 +497,7 @@ async function handle(req, res) {
   if (method === 'GET' && EXPORT_PATHS.has(path) && /(?:^|;\s*)mock_export=too_large(?:;|$)/.test(req.headers.cookie ?? '')) return json(res, 422, EXPORT_TOO_LARGE)
   if (await handlePayments(req, res, path, { json, readBody })) return
   if (await handleCustomers(req, res, path, url, { json, readBody })) return
+  if (await handleProducts(req, res, path, url, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleChanges(req, res, path, url, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleBaselines(req, res, path, url, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleEvm(req, res, path, url, { json, readBody })) return
@@ -675,7 +678,7 @@ async function handle(req, res) {
       const closedPlatform = platform && off.length
         ? { ...platform, readable_features: without(platform.readable_features), writable_features: without(platform.writable_features) }
         : platform
-      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform: closedPlatform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, ...INBOX_CAPABILITIES, ...CUSTOMERS_CAPABILITIES]), AI_USE, 'ai.settings.manage'] })
+      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform: closedPlatform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, ...INBOX_CAPABILITIES, ...CUSTOMERS_CAPABILITIES, ...PRODUCTS_CAPABILITIES]), AI_USE, 'ai.settings.manage'] })
     }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)

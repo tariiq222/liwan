@@ -5,65 +5,11 @@ from odoo import Command
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
-from .common import CATALOG_ID, FakeMeta, LiwanCatalogCase, image_bytes
+from .common import CATALOG_ID, SAUDI_VAT, TaxModeCase, image_bytes
 from odoo.addons.liwan_inbox_payments.serializers.catalog import dump_catalog
 from odoo.addons.liwan_payments.tests.common import TAX_EXCLUDED, TAX_INCLUDED
 
-SAUDI_VAT = '300000000000003'
 PASSWORD = 'inbox_pay_pass_123'
-
-
-class TaxModeCase(LiwanCatalogCase):
-    """A fresh Saudi company (no journal item, so stock lets its price mode change) with a 15% sale tax at 115."""
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.tax_company = cls.catalog_company('Price mode company', price_mode=TAX_INCLUDED)
-        cls.tax_company.write({'vat': SAUDI_VAT, 'liwan_vat_registered': True})
-        cls.tax_group = cls.env['account.tax.group'].create({
-            'name': 'Price mode taxes', 'company_id': cls.tax_company.id,
-        })
-        cls.tax = cls.env['account.tax'].with_company(cls.tax_company).create({
-            'name': 'VAT 15', 'amount': 15, 'amount_type': 'percent', 'type_tax_use': 'sale',
-            'company_id': cls.tax_company.id, 'tax_group_id': cls.tax_group.id,
-        })
-        cls.business_account = '200000000076'
-        cls.make_channel(phone_id='100000000009', business_account_id=cls.business_account,
-                         owner_company_id=cls.tax_company.id)
-        cls.catalog = cls.env['liwan.inbox.catalog'].create({
-            'company_id': cls.tax_company.id, 'business_account_id': cls.business_account,
-            'meta_catalog_id': CATALOG_ID, 'name': 'Prices', 'brand': 'Acme',
-            'default_link': 'https://shop.example.test',
-        })
-
-    @classmethod
-    def taxed_product(cls, name='Taxed', price=115.0, company=None):
-        return cls.env['product.product'].create({
-            'name': name, 'type': 'consu', 'list_price': price, 'company_id': (company or cls.tax_company).id,
-            'taxes_id': [Command.set(cls.tax.ids)], 'image_1920': base64.b64encode(image_bytes()),
-        })
-
-    def set_mode(self, mode):
-        """Change the company's price mode; a test states both the mode it starts from and the one it moves to."""
-        self.set_price_mode(self.tax_company, mode)
-
-    def pushed_price(self, meta):
-        return meta.bodies('items_batch')[0]['requests'][0]['data']['price'].split()[0]
-
-    def pushed_prices(self, meta):
-        """The price of every item request one run sent to Meta, across its batches."""
-        return [
-            request['data']['price'].split()[0]
-            for batch in meta.bodies('items_batch') for request in batch['requests']
-        ]
-
-    def run_sync(self, company=None):
-        """The cron's work for one catalog company: `search([])` only reaches the companies in the session."""
-        meta = FakeMeta()
-        with meta.patch():
-            self.env['liwan.inbox.catalog'].with_company(company or self.tax_company)._liwan_run_sync()
-        return meta
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -75,7 +21,7 @@ class TestCatalogPriceIsTheCustomerTotal(TaxModeCase):
             with self.subTest(mode=mode):
                 self.set_mode(mode)
                 item = self.make_item(self.catalog, self.taxed_product(f'Taxed {mode}'))
-                self.assertEqual((item.price, item._liwan_price()), (expected, expected))
+                self.assertEqual(item.price, expected)
                 self.assertEqual(self.pushed_price(self.run_sync()), f'{expected:.2f}')
 
     def test_an_unregistered_company_shows_the_typed_price_under_both_modes(self):
@@ -84,7 +30,7 @@ class TestCatalogPriceIsTheCustomerTotal(TaxModeCase):
             with self.subTest(mode=mode):
                 self.set_mode(mode)
                 item = self.make_item(self.catalog, self.taxed_product(f'Untaxed {mode}'))
-                self.assertEqual((item.price, item._liwan_price()), (115.0, 115.0))
+                self.assertEqual(item.price, 115.0)
                 self.assertEqual(self.pushed_price(self.run_sync()), '115.00')
 
     def test_the_catalog_answer_carries_no_tax_choice_of_the_establishment(self):
@@ -127,7 +73,7 @@ class TestCatalogBranchUsesTheRootTax(TaxModeCase):
                 self.set_mode(mode)
                 item = self.make_item(self.branch_catalog, product, retailer_id=f'own-{mode}')
                 self.assertEqual(item.product_id.taxes_id._filter_taxes_by_company(self.branch), self.branch_owned_tax)
-                self.assertEqual(item._liwan_price(), expected)
+                self.assertEqual(item.price, expected)
                 self.assertEqual(self.pushed_price(self.run_sync(self.branch)), f'{expected:.2f}')
                 item.unlink()
 
@@ -139,7 +85,7 @@ class TestCatalogBranchUsesTheRootTax(TaxModeCase):
                 item = self.make_item(
                     self.branch_catalog, self.taxed_product(f'Branch untaxed {mode}', company=self.branch),
                 )
-                self.assertEqual(item._liwan_price(), 115.0)
+                self.assertEqual(item.price, 115.0)
                 self.assertEqual(self.pushed_price(self.run_sync(self.branch)), '115.00')
 
     def test_a_branch_catalog_shows_the_root_tax_under_both_modes(self):
@@ -148,21 +94,17 @@ class TestCatalogBranchUsesTheRootTax(TaxModeCase):
                 self.set_mode(mode)
                 item = self.make_item(self.branch_catalog, self.taxed_product(f'Branch taxed {mode}', company=self.branch))
                 self.assertEqual(item.catalog_id.company_id, self.branch)
-                self.assertEqual(item._liwan_price(), expected)
+                self.assertEqual(item.price, expected)
                 self.assertEqual(self.pushed_price(self.run_sync(self.branch)), f'{expected:.2f}')
 
-    def test_known_gap_d24_a_branch_only_session_prices_a_root_owned_tax_untaxed(self):
-        """A KNOWN GAP, fixed in PR 2 (plan decision D24); this records today's behavior, it is not the desired one.
+    def test_a_branch_only_session_shows_the_root_owned_tax_it_cannot_read_and_the_preview_equals_the_push(self):
+        """Plan decision D24: the price function reads the establishment's tax elevated, after the capability check.
 
-        The LiwanOS fence hides a root-owned tax from a branch-only session. The item is priced 132.25 in the
-        environment the sync runs in (the root tax is an ancestor's, so the fence admits it there) and 115.00 through
-        the branch manager's own session, so the API shows the branch manager a different number from the one pushed
-        to Meta. PR 2's products price function reads the establishment's tax elevated after its capability check
-        (D24); these assertions change with it.
+        The fence hides a root-owned tax from a branch-only session, yet the branch manager sees the same total the sync
+        pushes to Meta, on the item read route and the item list alike.
         """
         self.set_mode(TAX_EXCLUDED)
-        item = self.make_item(self.branch_catalog, self.taxed_product('Branch session', company=self.branch))
-        self.assertEqual(item._liwan_price(), 132.25)
+        item = self.synced(self.make_item(self.branch_catalog, self.taxed_product('Branch session', company=self.branch)))
         user = new_test_user(
             self.env, login='branch_catalog_manager', password=PASSWORD, name='Branch catalog manager',
             groups='liwan_core.group_employee', company_id=self.branch.id,
@@ -172,15 +114,17 @@ class TestCatalogBranchUsesTheRootTax(TaxModeCase):
             'user_id': user.id, 'role_id': self.env.ref('liwan_inbox.role_inbox_manager').id,
             'company_id': self.branch.id,
         })
+        item.invalidate_recordset(['price', 'unit_price', 'currency'])
+        self.assertEqual(item.with_user(user).price, 132.25)
         self.authenticate(user.login, PASSWORD)
-        response = self.api('GET', f'/api/v1/inbox/catalog-items/{item.id}')
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()['price'], 115.0)
-        self.assertEqual(item.with_user(user).price, 115.0)
-        # The cause, not a coincidence: the fence hides the root-owned tax from that branch-only session, so its read
-        # of the product's taxes is empty while the tax exists.
-        self.assertFalse(item.with_user(user).product_id.taxes_id)
-        self.assertTrue(self.env['account.tax'].browse(self.tax.id).exists())
+        shown = self.api('GET', f'/api/v1/inbox/catalog-items/{item.id}')
+        self.assertEqual(shown.status_code, 200, shown.text)
+        listed = self.api('GET', f'/api/v1/inbox/catalogs/{self.branch_catalog.id}/items')
+        self.assertEqual([row['price'] for row in listed.json()['items']], [132.25])
+        item.write({'sync_state': 'pending'})
+        pushed = self.pushed_price(self.run_sync(self.branch))
+        self.assertEqual(f"{shown.json()['price']:.2f}", pushed)
+        self.assertEqual(pushed, '132.25')
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -402,3 +346,56 @@ class TestCatalogResyncOnVatRegistration(TaxModeCase):
         })
         self.assertEqual(self.item.sync_state, 'pending')
         self.assertEqual(self.pushed_price(self.run_sync()), '132.25')
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestPriceFunctionMatchesTheSaleLine(TaxModeCase):
+    """The price function and a stock sale order line (which a catalog order becomes) agree for a foreign customer,
+    from the root's session and from a branch's, on a price-included tax that only the root owns."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.branch = cls.catalog_company('Parity branch', parent=cls.tax_company)
+        abroad = cls.env['account.fiscal.position'].create({
+            'name': 'Parity abroad', 'company_id': cls.tax_company.id, 'auto_apply': True, 'sequence': -100,
+            'country_id': cls.env.ref('base.ae').id,
+        })
+        export = cls.env['account.tax'].with_company(cls.tax_company).create({
+            'name': 'Parity export 0', 'amount': 0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.tax_company.id, 'tax_group_id': cls.tax_group.id,
+            'fiscal_position_ids': [Command.set(abroad.ids)], 'original_tax_ids': [Command.set(cls.tax.ids)],
+        })
+        reduced = cls.env['account.tax'].with_company(cls.tax_company).create({
+            'name': 'Parity reduced 5', 'amount': 5, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.tax_company.id, 'tax_group_id': cls.tax_group.id,
+        })
+        egypt = cls.env['account.fiscal.position'].create({
+            'name': 'Parity Egypt', 'company_id': cls.tax_company.id, 'auto_apply': True, 'sequence': -99,
+            'country_id': cls.env.ref('base.eg').id,
+        })
+        reduced.write({'fiscal_position_ids': [Command.set(egypt.ids)], 'original_tax_ids': [Command.set(cls.tax.ids)]})
+        cls.exports = export | reduced
+        cls.uae = cls.env['res.partner'].create({'name': 'Parity UAE', 'country_id': cls.env.ref('base.ae').id})
+        cls.egypt_customer = cls.env['res.partner'].create({'name': 'Parity Egypt', 'country_id': cls.env.ref('base.eg').id})
+        cls.shared_product = cls.env['product.product'].with_company(cls.tax_company).create({
+            'name': 'Parity product', 'type': 'consu', 'list_price': 115.0, 'company_id': False,
+            'taxes_id': [Command.set(cls.tax.ids)], 'liwan_product': True,
+        })
+
+    def test_the_price_function_equals_the_sale_order_line(self):
+        service = self.env['liwan.products.service'].sudo()
+        for company in (self.tax_company, self.branch):
+            for customer, expected in ((self.uae, (100.0, 0.0, 100.0)), (self.egypt_customer, (100.0, 5.0, 105.0))):
+                with self.subTest(company=company.name, customer=customer.name):
+                    price = service._liwan_price(self.shared_product.product_tmpl_id, company=company, customer=customer)
+                    order = self.env['sale.order'].with_company(company).create({
+                        'partner_id': customer.id, 'company_id': company.id,
+                        'order_line': [Command.create({'product_id': self.shared_product.id, 'product_uom_qty': 1})],
+                    })
+                    line = order.order_line
+                    self.assertEqual(
+                        (price['amount_untaxed'], price['amount_tax'], price['amount_total']),
+                        (line.price_subtotal, line.price_total - line.price_subtotal, line.price_total),
+                    )
+                    self.assertEqual((price['amount_untaxed'], price['amount_tax'], price['amount_total']), expected)

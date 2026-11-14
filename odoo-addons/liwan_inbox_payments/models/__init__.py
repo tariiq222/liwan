@@ -12,6 +12,7 @@ from . import (
     order,
     order_line,
     product,
+    products_service,
     sale_order,
     tenant_export,
 )

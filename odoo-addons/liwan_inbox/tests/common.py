@@ -175,6 +175,16 @@ class LiwanInboxCase(LiwanApiCase):
     def login(self, user):
         self.authenticate(user.login, PASSWORD)
 
+    def set_mode(self, mode):
+        """Fixture-only conversion of the tenant between the two commercial modes."""
+        source = {'saas': 'control_plane', 'non_saas': 'local_policy'}[mode]
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        self.env.cr.execute(
+            'UPDATE liwan_tenant_profile SET commercial_mode=%s, entitlement_source=%s, valid_until=NULL WHERE id=%s',
+            [mode, source, profile.id],
+        )
+        profile.invalidate_recordset()
+
     def get(self, path):
         return self.api('GET', path)
 

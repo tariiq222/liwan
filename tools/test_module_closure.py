@@ -47,15 +47,15 @@ class RealManifestClosureTest(unittest.TestCase):
         # liwan_approval_service plus liwan_directory and liwan_notify. liwan_hr depends on liwan_api and liwan_notify,
         # and three auto_install bridges join once it is in: liwan_access_hr (with liwan_api), liwan_documents_hr (with
         # liwan_document_service) and liwan_hr_operations (with liwan_approval_service). liwan_appointments depends on
-        # liwan_api and the shared service liwan_customers (plus Odoo's resource_booking) and has no bridge with the
-        # base modules.
+        # liwan_api and the shared services liwan_customers and liwan_products (plus Odoo's resource_booking) and has
+        # no bridge with the base modules.
         base = {
             'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_directory', 'liwan_notify',
             'liwan_document_service', 'liwan_documents', 'liwan_approval_service', 'liwan_operations',
         }
         expected = {
             'people': base | {'liwan_hr', 'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_operations'},
-            'appointments': base | {'liwan_customers', 'liwan_appointments'},
+            'appointments': base | {'liwan_customers', 'liwan_products', 'liwan_appointments'},
         }
         tiers = _release_tiers()
         for tier, modules in expected.items():

@@ -2,7 +2,7 @@
 {
     'name': 'liwan CRM',
     'summary': 'liwan platform: the CRM application — /api/v1/crm opportunities, calls and follow-up',
-    'version': '19.0.1.6.0',
+    'version': '19.0.1.7.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -10,8 +10,9 @@
     # follow-up reminders. crm and product are stock Odoo; crm_phonecall is the pinned OCA/crm
     # module (deploy/oca-addons.json). An application depends on no other application (spec R3);
     # it owns its capabilities, groups, roles and record rules (spec R2).
-    'depends': ['liwan_api', 'liwan_customers', 'liwan_notify', 'crm', 'product', 'crm_phonecall'],
-    # liwan_customers: the one phone normaliser (E.164 in the tenant's phone country).
+    'depends': ['liwan_api', 'liwan_customers', 'liwan_products', 'liwan_notify', 'crm', 'product', 'crm_phonecall'],
+    # liwan_customers: the one phone normaliser (E.164 in the tenant's phone country). liwan_products: the one writer
+    # and price function of a product; CRM only picks the products it offers as packages.
     'external_dependencies': {'python': ['openpyxl']},
     'data': [
         'security/crm_capability_groups.xml',

@@ -10,7 +10,6 @@ MAX_BRAND = 100
 MAX_PRODUCT_NAME = 150
 MAX_PRODUCT_DESCRIPTION = 5000
 MIN_IMAGE_SIDE = 500
-MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_CART_QUANTITY = 99
 IMAGE_PATH = '/api/v1/public/inbox/catalog/images'
 # Meta's commerce settings of a phone number are re-read at most this often.

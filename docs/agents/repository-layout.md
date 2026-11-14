@@ -76,6 +76,18 @@ application's AI agent and tools.
   register; it tells the web client so with the derived key `customers.enabled`. The directory is `/customers` in
   `apps/web` (`modules/customers`), its settings `/settings/apps/customers`. Appointments, finance, customer messages and CRM call it;
   `liwan.inbox.contact.partner_id` lives in `liwan_inbox`. Plan: `docs/superpowers/plans/2026-11-12-liwan-customers.md`.
+- `odoo-addons/liwan_products` (shared service, rank 3) is the only writer of a product's definition on
+  `product.template` (`liwan_product`): name, type (goods or service), price, description, archive. It owns the
+  product sharing setting (establishment or branch), the rule that a shared product is managed in the root company,
+  the one price function (`_liwan_price`: the unit price as typed, then before tax, tax and total) and
+  `/api/v1/products`, opened by the feature keys its consumers register; it tells the web client so with the derived
+  key `products.enabled`. CRM (packages), customer messages (Meta catalog items) and appointments (a booking type's
+  product) pick and price products through it and hold no product write of their own. Its contract is
+  `odoo-addons/liwan_products/README.md`. Plan: `docs/superpowers/plans/2026-11-13-liwan-products.md`.
+- `odoo-addons/liwan_products_account` (bridge, rank 5, `auto_install` on `liwan_products` and stock `account`)
+  adds a product's sale taxes (`taxes`, `/api/v1/products/taxes`) and the tax part of the price function, following
+  the establishment's tax choice of `liwan_api_account`. It holds the one elevated read of the establishment's taxes
+  for a branch session (`tools/arch_documented_sudo.json`).
 - `odoo-addons/liwan_integrations_sa` (shared service, rank 3) owns the status of the Saudi live links
   (ZATCA, banks) at `/api/v1/integrations` and the `integrations.enabled` feature. It depends on `liwan_api` only.
 - `odoo-addons/liwan_pmo` owns projects, tasks, timelines, project settings,

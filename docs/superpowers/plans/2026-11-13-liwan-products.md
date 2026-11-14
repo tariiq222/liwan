@@ -153,7 +153,7 @@ Server, consumers (one implementer per addon, after the service API is committed
 - [ ] Customer messages (`odoo-addons/liwan_inbox/**` for the manifest, the registration on the service and the role grant; `odoo-addons/liwan_inbox_payments/**` for the rest): the catalog editor's product create and edit go, an item is created from an existing service product, and the pick list is the service's; `liwan_inbox_catalog`, the two ACL rows and the two record rules go; the write override that resyncs Meta stays; version bumps and the migration of D17.
 - [ ] Appointments (`odoo-addons/liwan_appointments/**` for the manifest, the registration on the service and the role grant; `odoo-addons/liwan_appointments_payments/**` for the rest): `_liwan_price_product` and the name sync call the service or go, under D14; the payment answer returns the unit price as typed and stops calling it before taxes, with its contract; the documented `sudo()` case is removed; version bumps and the migration of D17.
 
-Contracts and web (one implementer, after the contracts are committed): `packages/contracts/src/products/**`, the CRM package card and sale form, the inbox catalog item form and its product picker, the mocks and e2e fixtures of the changed routes, locale keys in both languages. The products screen itself is PR 3; until then a product is created through the API and the three application forms pick from the service.
+Contracts and web (one implementer, after the contracts are committed): `packages/contracts/src/products/**`, the CRM package card and sale form, the inbox catalog item form and its product picker, the mocks and e2e fixtures of the changed routes, locale keys in both languages. The products screen: the manifest, the list with search and the archived filter, the record page, the create and edit pages under [DESIGN.md](../../../DESIGN.md) section 5, and the settings page with the sharing card; a branch session sees the settings read-only with the reason. Stories for each new state.
 
 PR 2 proves:
 
@@ -180,7 +180,7 @@ PR 2 proves:
 Goal: staff with `products.read` see and manage the tenant's products, and the tenant shapes the service.
 
 - [ ] Server: categories under D8, the field definition per category and its values under D9, variants under D11 with the rights of D3, the list filters by type, category and a tenant field.
-- [ ] Web: the manifest, the list with search and the archived filter, the record page, the create and edit pages under [DESIGN.md](../../../DESIGN.md) section 5, the settings page with one card per setting, on the shared custom-field editor customers use. Stories for each new state. A branch session sees the settings read-only with the reason.
+- [ ] Web: the category, tenant field and variant screens, and one settings card per setting beyond sharing, on the shared custom-field editor customers use. Stories for each new state.
 
 Proves: a product at 100 with a variant extra of 20 shows 120 in the products API and on the order line; moving a product to another category shows the fields it loses before saving and clears them once confirmed; removing a category moves its products and children to the parent; a tenant-defined field is saved, returned and filtered on; a top-level category is removed only when empty; a holder of `products.manage` alone cannot write a category; a settings change is refused for a holder of the capability in a branch only; each line in `saas` and `non_saas`.
 

@@ -43,7 +43,7 @@ class TestCrmSale(LiwanCrmCase):
 
     def test_won_validates_the_body(self):
         lead = self.make_lead(self.agent)
-        other = self.env['product.template'].create({'name': 'Not a package', 'list_price': 5})
+        other = self.env['product.template'].create({'name': 'Not a package', 'list_price': 5, 'liwan_product': True})
         bad = (
             {'package_id': None}, {'package_id': 'x'}, {'package_id': other.id}, {'package_id': 999999},
             {'final_price': -1}, {'final_price': 'x'}, {'final_price': None}, {'discount_percent': 101},

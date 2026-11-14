@@ -5,7 +5,7 @@ import {
   CrmOpportunitySchema,
   CrmOutcomeCreateSchema,
   CrmOutcomeSchema,
-  CrmPackageCreateSchema,
+  CrmPackageAddSchema,
   CrmPackageSchema,
   CrmStagePatchSchema,
   CrmStageSchema,
@@ -214,15 +214,16 @@ describe('CRM configurable lists', () => {
 
   it('rejects an unknown effect, a negative price and an empty patch', () => {
     expect(() => CrmOutcomeCreateSchema.parse({ name: 'x', effect: 'sold' })).toThrow()
-    expect(() => CrmPackageCreateSchema.parse({ name: 'x', price: -1 })).toThrow()
+    expect(() => CrmPackageSchema.parse({ id: 3, name: 'x', price: -1, description: '', active: true })).toThrow()
     expect(() => CrmStagePatchSchema.parse({})).toThrow()
     expect(() => CrmStagePatchSchema.parse({ sequence: 3 })).toThrow()
   })
 
-  it('caps a package price at the server maximum', () => {
-    expect(CrmPackageCreateSchema.parse({ name: 'x', price: 999_999_999 }).price).toBe(999_999_999)
-    expect(() => CrmPackageCreateSchema.parse({ name: 'x', price: 1_000_000_000 })).toThrow()
-    expect(() => CrmPackageSchema.parse({ id: 3, name: 'x', price: 1_000_000_000, description: '', active: true })).toThrow()
+  it('adds a package by the id of an existing product and nothing else', () => {
+    expect(CrmPackageAddSchema.parse({ product_id: 9 })).toEqual({ product_id: 9 })
+    expect(() => CrmPackageAddSchema.parse({})).toThrow()
+    expect(() => CrmPackageAddSchema.parse({ product_id: 0 })).toThrow()
+    expect(() => CrmPackageAddSchema.parse({ product_id: 9, name: 'x', price: 1 })).toThrow()
   })
 
   it('rejects an unknown key on every list row and envelope', () => {

@@ -4,7 +4,7 @@ from datetime import timedelta
 from odoo import Command, fields
 from odoo.tests import tagged
 
-from .common import CATALOG_ID, FakeMeta, LiwanCatalogCase, meta_response
+from .common import CATALOG_ID, FakeMeta, LiwanCatalogCase, meta_response, upload
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -31,6 +31,61 @@ class TestCatalogSync(LiwanCatalogCase):
         with meta.patch():
             self.sync()
         return meta
+
+    def products_service(self):
+        return self.env['liwan.products.service'].with_user(self.manager)
+
+    def test_an_edit_through_the_service_queues_the_item_for_resync(self):
+        product = self.products_service()._liwan_create({
+            'name': 'Edited', 'type': 'service', 'list_price': 40, 'image': upload(), 'taxes': [self.tax.id],
+        })
+        item = self.synced(self.make_item(self.catalog, product.product_variant_id))
+        reduced = self.env['account.tax'].create({
+            'name': 'VAT 5', 'amount': 5, 'amount_type': 'percent', 'type_tax_use': 'sale',
+        })
+        for values in ({'name': 'Renamed'}, {'list_price': 41}, {'taxes': [reduced.id]}, {'description': 'Words'}):
+            with self.subTest(values=values):
+                item.sync_state = 'synced'
+                self.products_service()._liwan_update(product, values)
+                item.invalidate_recordset(['sync_state'])
+                self.assertEqual(item.sync_state, 'pending')
+
+    def test_an_archived_product_is_withdrawn_from_meta_and_is_not_orderable_until_restored(self):
+        product = self.products_service()._liwan_create({'name': 'Withdrawn', 'type': 'service', 'list_price': 40, 'image': upload()})
+        item = self.make_item(self.catalog, product.product_variant_id)
+        self.run_sync()
+        item.review_status = 'approved'
+        self.assertEqual((item.sync_state, bool(item.synced_hash), item._liwan_orderable()), ('synced', True, True))
+        self.products_service()._liwan_archive(product)
+        item.invalidate_recordset()
+        self.assertEqual((item.sync_state, item._liwan_orderable()), ('removing', False))
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'], [{'method': 'DELETE', 'data': {'id': item.retailer_id}}])
+        self.assertEqual((item.sync_state, item.synced_hash), ('synced', False))
+        self.assertEqual(self.run_sync().bodies('items_batch'), [])
+        # An edit of the withdrawn item does not put it back.
+        item.availability = 'out_of_stock'
+        self.assertEqual(item.sync_state, 'synced')
+        self.products_service()._liwan_restore(product)
+        item.invalidate_recordset()
+        self.assertEqual(item.sync_state, 'pending')
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'][0]['method'], 'CREATE')
+        item.review_status = 'approved'
+        self.assertTrue(item._liwan_orderable())
+
+    def test_restoring_a_product_before_its_withdrawal_was_sent_keeps_the_item_at_meta(self):
+        product = self.products_service()._liwan_create({'name': 'Blip', 'type': 'service', 'list_price': 40, 'image': upload()})
+        item = self.make_item(self.catalog, product.product_variant_id)
+        self.run_sync()
+        self.products_service()._liwan_archive(product)
+        item.invalidate_recordset()
+        self.assertEqual(item.sync_state, 'removing')
+        self.products_service()._liwan_restore(product)
+        item.invalidate_recordset()
+        self.assertEqual(item.sync_state, 'pending')
+        self.assertEqual(self.run_sync().bodies('items_batch'), [])
+        self.assertEqual(item.sync_state, 'synced')
 
     def test_the_item_payload_is_exact(self):
         item = self.make_item(self.catalog, self.taxed)
