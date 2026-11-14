@@ -10,7 +10,7 @@ const RefSchema = z.object({ id: Id, name: z.string() }).strict()
 const Amount = z.number()
 const IsoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
-export const SALES_LIMITS = { terms: 10_000, lineName: 2000, validityDays: 3650, discountPercent: 100 } as const
+export const SALES_LIMITS = { terms: 10_000, lineName: 2000, validityDays: 3650, discountPercent: 100, quantity: 1_000_000 } as const
 
 export const SalesOrderStateSchema = z.enum(['draft', 'sent', 'confirmed', 'cancelled'])
 /** `staff` is a document of the sales service; `online` was made by another channel and is read-only in sales. */
@@ -83,7 +83,7 @@ export const SalesOrderLineInputSchema = z.object({
   kind: SalesLineKindSchema,
   product_id: Id.optional(),
   name: z.string().max(SALES_LIMITS.lineName).optional(),
-  quantity: z.number().positive().optional(),
+  quantity: z.number().positive().max(SALES_LIMITS.quantity).optional(),
   discount_percent: z.number().min(0).max(SALES_LIMITS.discountPercent).optional(),
 }).strict().superRefine((line, ctx) => {
   if (line.kind === 'product') {

@@ -44,6 +44,8 @@ describe('sales order draft', () => {
   it('validates the customer, each product line and each text line', () => {
     const errors = validateSalesDraft({ ...emptySalesDraft(), lines: [newSalesLine(), { ...newSalesLine('note'), name: ' ' }, { ...withPickedProduct(newSalesLine(), PICK), quantity: '0', discount: '120' }] })
     expect(errors).toEqual({ customer: true, noLines: false, lines: [{ product: true }, { name: true }, { quantity: true, discount: true }] })
+    expect(validateSalesDraft({ ...emptySalesDraft(), lines: [{ ...withPickedProduct(newSalesLine(), PICK), quantity: '1000001' }] }).lines).toEqual([{ quantity: true }])
+    expect(validateSalesDraft({ ...emptySalesDraft(), lines: [{ ...withPickedProduct(newSalesLine(), PICK), quantity: '1000000', name: '' }] }).lines).toEqual([{}])
     expect(hasSalesDraftErrors(errors)).toBe(true)
     expect(validateSalesDraft({ ...emptySalesDraft(), customerId: 1, lines: [] }).noLines).toBe(true)
     expect(hasSalesDraftErrors(validateSalesDraft({ ...emptySalesDraft(), customerId: 1, lines: [withPickedProduct(newSalesLine(), PICK)] }))).toBe(false)

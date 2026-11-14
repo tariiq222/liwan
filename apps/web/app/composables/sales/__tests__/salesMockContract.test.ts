@@ -83,6 +83,11 @@ describe('sales mock', () => {
   it('lists the salespeople to an assign holder only', async () => {
     expect(SalesSalespeopleSchema.parse((await call('GET', '/api/v1/sales/salespeople')).body).total).toBe(3)
     expect((await call('GET', '/api/v1/sales/salespeople', undefined, 'mock_sales=agent')).status).toBe(403)
+    const found = SalesSalespeopleSchema.parse((await call('GET', '/api/v1/sales/salespeople?q=مها')).body)
+    expect(found.items.map(person => person.id)).toEqual([7])
+    const page = SalesSalespeopleSchema.parse((await call('GET', '/api/v1/sales/salespeople?limit=1&offset=1')).body)
+    expect(page.items.map(person => person.id)).toEqual([7])
+    expect(page.total).toBe(3)
   })
 
   it('keeps the settings revision and refuses a stale one or a branch manager', async () => {
@@ -90,6 +95,9 @@ describe('sales mock', () => {
     expect(SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings', undefined, 'mock_sales=branch')).body).can_manage).toBe(false)
     expect((await call('PATCH', '/api/v1/sales/settings', { visibility: 'all', revision: 9 })).body).toMatchObject({ code: 'conflict' })
     expect((await call('PATCH', '/api/v1/sales/settings', { discount_limit_percent: 12.5, revision: 1 })).body).toMatchObject({ field: 'discount_limit_percent' })
+    const tooLong = await call('PATCH', '/api/v1/sales/settings', { validity_days: 3651, revision: 1 })
+    expect(tooLong.status).toBe(422)
+    expect(tooLong.body).toMatchObject({ field: 'validity_days' })
     expect(SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { visibility: 'all', revision: 1 })).body).revision).toBe(2)
     expect((await call('PATCH', '/api/v1/sales/settings', { visibility: 'own', revision: 2 }, 'mock_sales=branch')).status).toBe(403)
   })

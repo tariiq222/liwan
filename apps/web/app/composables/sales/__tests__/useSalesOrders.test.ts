@@ -15,7 +15,7 @@ const $api = vi.fn()
 const { useSalesOrders, useSalesOrder, useSalesSalespeople, useCreateSalesOrder, useUpdateSalesOrder, useSalesTransition, useAssignSalesOrder, useDuplicateSalesOrder } = await import('../useSalesOrders')
 const { useSalesSettings, useSaveSalesSettings } = await import('../useSalesSettings')
 
-type Options = { queryFn: () => Promise<unknown>; queryKey: { value: readonly unknown[] } | readonly unknown[]; enabled?: { value: boolean }; mutationFn: (args: unknown) => Promise<unknown>; onSuccess: (saved: { id: number }) => Promise<void> }
+type Options = { queryFn: () => Promise<unknown>; queryKey: { value: readonly unknown[] } | readonly unknown[]; enabled?: { value: boolean }; mutationFn: (args: unknown) => Promise<unknown>; onSuccess: (saved: { id: number }) => Promise<void>; onError: (failure: unknown, args: unknown) => Promise<void> }
 const as = (value: unknown) => value as Options
 
 beforeEach(() => {
@@ -42,7 +42,7 @@ describe('sales reads', () => {
     expect(as(useSalesOrder(null)).enabled?.value).toBe(false)
     const people = as(useSalesSalespeople(() => false))
     await people.queryFn()
-    expect($api).toHaveBeenCalledWith('/api/v1/sales/salespeople', { schema: SalesSalespeopleSchema })
+    expect($api).toHaveBeenCalledWith('/api/v1/sales/salespeople', { query: { limit: 200 }, schema: SalesSalespeopleSchema })
     expect(people.enabled?.value).toBe(false)
     const settings = as(useSalesSettings())
     await settings.queryFn()
@@ -73,6 +73,17 @@ describe('sales writes', () => {
     expect(predicate({ queryKey: ['sales', 'list', {}] })).toBe(true)
     expect(predicate({ queryKey: ['sales', 'order', 7] })).toBe(false)
     expect(predicate({ queryKey: ['sales', 'settings', {}] })).toBe(false)
+  })
+
+  it('refetches the record after a refused write on it, so its actions follow the server', async () => {
+    const refused = new Error('transition_forbidden')
+    await as(useSalesTransition()).onError(refused, { id: 7, transition: 'confirm' })
+    await as(useUpdateSalesOrder()).onError(refused, { id: 8, patch: {} })
+    await as(useAssignSalesOrder()).onError(refused, { id: 9, salespersonId: 2 })
+    await as(useDuplicateSalesOrder()).onError(refused, 10)
+    expect(invalidateQueries.mock.calls.map(call => call[0])).toEqual([7, 8, 9, 10].map(id => ({ queryKey: ['sales', 'order', id] })))
+    await as(useCreateSalesOrder()).onError(refused, { customer_id: 5 })
+    expect(invalidateQueries).toHaveBeenCalledTimes(4)
   })
 
   it('saves the settings with the revision and replaces the cached ones', async () => {

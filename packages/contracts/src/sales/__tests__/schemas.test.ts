@@ -55,6 +55,8 @@ describe('SalesOrderLineInputSchema', () => {
     expect(SalesOrderLineInputSchema.parse({ id: 4, kind: 'note', name: 'Thanks' })).toEqual({ id: 4, kind: 'note', name: 'Thanks' })
     expect(() => SalesOrderLineInputSchema.parse({ kind: 'product', quantity: 1 })).toThrow()
     expect(() => SalesOrderLineInputSchema.parse({ kind: 'product', product_id: 9, quantity: 0 })).toThrow()
+    expect(SalesOrderLineInputSchema.parse({ kind: 'product', product_id: 9, quantity: 1_000_000 }).quantity).toBe(1_000_000)
+    expect(() => SalesOrderLineInputSchema.parse({ kind: 'product', product_id: 9, quantity: 1_000_001 })).toThrow()
     expect(() => SalesOrderLineInputSchema.parse({ kind: 'section', name: ' ' })).toThrow()
     expect(() => SalesOrderLineInputSchema.parse({ kind: 'product', product_id: 9, quantity: 1, discount_percent: 101 })).toThrow()
   })

@@ -9,7 +9,7 @@ const lines = salesDraftFromOrder(draftOrder).lines
 const meta = {
   title: 'Sales/SalesLinesEditor',
   component: SalesLinesEditor,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/components/sales/SalesOrderForm.vue:98', 'بنود عرض السعر: منتج من قائمة المنتجات بسعره للعرض فقط، وأقسام وملاحظات، مع الإضافة والحذف والترتيب.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/components/sales/SalesOrderForm.vue:100', 'بنود عرض السعر: منتج من قائمة المنتجات بسعره للعرض فقط، وأقسام وملاحظات، مع الإضافة والحذف والترتيب.') },
   args: { modelValue: lines, errors: [] },
   render: args => ({ components: { SalesLinesEditor }, setup: () => ({ args, value: ref(args.modelValue) }), template: '<SalesLinesEditor v-bind="args" v-model="value" />' }),
 } satisfies Meta<typeof SalesLinesEditor>

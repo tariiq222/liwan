@@ -220,7 +220,7 @@ function updateSettings(body, manage) {
   if (body.revision !== settings.revision) return refusal(409, 'conflict', 'Sales settings changed; reload before saving')
   const next = { ...settings }
   if ('visibility' in body) { if (!['own', 'all'].includes(body.visibility)) return invalid('visibility'); next.visibility = body.visibility }
-  if ('validity_days' in body) { if (!Number.isInteger(body.validity_days) || body.validity_days < 0) return invalid('validity_days'); next.validity_days = body.validity_days }
+  if ('validity_days' in body) { if (!Number.isInteger(body.validity_days) || body.validity_days < 0 || body.validity_days > 3650) return invalid('validity_days'); next.validity_days = body.validity_days }
   if ('discount_limit_percent' in body) { const value = body.discount_limit_percent; if (!Number.isInteger(value) || value < 0 || value > 100) return invalid('discount_limit_percent'); next.discount_limit_percent = value }
   if ('default_terms' in body) { if (typeof body.default_terms !== 'string') return invalid('default_terms'); next.default_terms = body.default_terms }
   settings = { ...next, revision: settings.revision + 1 }
@@ -252,7 +252,13 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
   }
 
   if (path === SALESPEOPLE_PATH && req.method === 'GET') {
-    if (need('sales.documents.assign')) json(res, 200, { items: PEOPLE, total: PEOPLE.length })
+    if (need('sales.documents.assign')) {
+      const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+      const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
+      const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? 50) || 50))
+      const matches = PEOPLE.filter(person => !q || person.name.toLowerCase().includes(q))
+      json(res, 200, { items: matches.slice(offset, offset + limit), total: matches.length })
+    }
     return true
   }
   if (path === SETTINGS_PATH) {

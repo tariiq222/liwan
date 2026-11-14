@@ -26,22 +26,26 @@ export function useSalesOrder(id: MaybeRefOrGetter<number | null>) {
   })
 }
 
+/** The server's largest page, so a tenant with many salespeople gets them all in one read. */
+const SALESPEOPLE_PAGE = 200
+
 /** The people a holder of `sales.documents.assign` may make a document's salesperson. */
 export function useSalesSalespeople(enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
   return useQuery({
-    queryKey: salesKeys.salespeople(''),
+    queryKey: salesKeys.salespeople(),
     enabled: computed(() => toValue(enabled)),
     retry: false,
-    queryFn: () => $api('/api/v1/sales/salespeople', { schema: SalesSalespeopleSchema }),
+    queryFn: () => $api('/api/v1/sales/salespeople', { query: { limit: SALESPEOPLE_PAGE }, schema: SalesSalespeopleSchema }),
   })
 }
 
 /**
  * Every write answers the document as saved: it replaces the record's cache entry, and the lists refetch. The mutation
- * stays pending until the server answers, so a transition button cannot be pressed twice.
+ * stays pending until the server answers, so a transition button cannot be pressed twice. A refused write on an existing
+ * document refetches it, so its actions show what the server now allows.
  */
-function useSalesWrite<Args>(send: (api: ReturnType<typeof useApi>['$api'], args: Args) => Promise<SalesOrder>) {
+function useSalesWrite<Args>(send: (api: ReturnType<typeof useApi>['$api'], args: Args) => Promise<SalesOrder>, target?: (args: Args) => number) {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
@@ -49,6 +53,9 @@ function useSalesWrite<Args>(send: (api: ReturnType<typeof useApi>['$api'], args
     onSuccess: async (saved) => {
       qc.setQueryData(salesKeys.detail(saved.id), saved)
       await qc.invalidateQueries({ queryKey: salesKeys.all, predicate: query => query.queryKey[1] === 'list' })
+    },
+    onError: async (_failure, args) => {
+      if (target) await qc.invalidateQueries({ queryKey: salesKeys.detail(target(args)) })
     },
   })
 }
@@ -59,18 +66,22 @@ export const useCreateSalesOrder = () => useSalesWrite<SalesOrderCreate>(
 
 export const useUpdateSalesOrder = () => useSalesWrite<{ id: number; patch: SalesOrderPatch }>(
   (api, { id, patch }) => api(`/api/v1/sales/orders/${id}`, { method: 'PATCH', body: patch, schema: SalesOrderSchema }),
+  ({ id }) => id,
 )
 
 export const useSalesTransition = () => useSalesWrite<{ id: number; transition: SalesTransition }>(
   (api, { id, transition }) => api(`/api/v1/sales/orders/${id}/${transition}`, { method: 'POST', schema: SalesOrderSchema }),
+  ({ id }) => id,
 )
 
 /** A new salesperson for a staff document, in any state (`sales.documents.assign`). */
 export const useAssignSalesOrder = () => useSalesWrite<{ id: number; salespersonId: number }>(
   (api, { id, salespersonId }) => api(`/api/v1/sales/orders/${id}/assign`, { method: 'POST', body: { salesperson_id: salespersonId }, schema: SalesOrderSchema }),
+  ({ id }) => id,
 )
 
 /** The copy is a new draft of the caller; its own record entry is filled from the answer. */
 export const useDuplicateSalesOrder = () => useSalesWrite<number>(
   (api, id) => api(`/api/v1/sales/orders/${id}/duplicate`, { method: 'POST', schema: SalesOrderSchema }),
+  id => id,
 )

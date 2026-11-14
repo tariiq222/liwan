@@ -20,8 +20,8 @@ const money = (amount: number) => formatCurrency(amount, props.order.currency.na
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-highlighted">{{ line.product?.name ?? line.name }}</p>
             <p class="text-xs text-muted">
-              <bdi dir="ltr">{{ n(line.quantity) }}</bdi> {{ line.unit ?? '' }} × <bdi dir="ltr">{{ money(line.unit_price) }}</bdi>
-              <template v-if="line.discount_percent"> · {{ t('sales.record.discount', { percent: n(line.discount_percent) }) }}</template>
+              <bdi dir="ltr">{{ n(line.quantity) }}</bdi> <bdi>{{ line.unit ?? '' }}</bdi> × <bdi dir="ltr">{{ money(line.unit_price) }}</bdi>
+              <template v-if="line.discount_percent"> · <bdi>{{ t('sales.record.discount', { percent: n(line.discount_percent) }) }}</bdi></template>
             </p>
           </div>
           <div class="text-end text-sm">

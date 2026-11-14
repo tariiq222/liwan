@@ -78,20 +78,22 @@ async function submit() {
   <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="alertVisible" role="alert" color="error" variant="subtle" :title="t('sales.form.saveError')" :description="refusalMessage" data-testid="sales-form-error" />
     <SharedFormSection panel :title="t('sales.form.header')" :description="t('sales.form.headerHint')">
-      <UFormField :label="t('sales.form.customer')" name="sales-customer" required :error="errors.customer ? t('sales.form.customerRequired') : headerError('customer_id')">
-        <SharedCustomerPicker v-model="draft.customerId" :selected="draft.customerId ? { id: draft.customerId, name: draft.customerName } : null" :disabled="off" :aria-label="t('sales.form.customer')" @resolve="customerChosen" />
-      </UFormField>
-      <div class="liwan-auto-grid [--liwan-auto-grid-min:16rem]">
-        <UFormField v-if="canAssign" :label="t('sales.form.salesperson')" name="sales-salesperson" :help="t('sales.form.salespersonHint')" :error="headerError('salesperson_id')">
-          <USelect :model-value="draft.salespersonId ?? undefined" :items="salespersonItems" class="w-full" :placeholder="t('sales.form.salespersonPlaceholder')" :loading="salespeople.isLoading.value" :disabled="off" data-testid="sales-salesperson" @update:model-value="value => { draft.salespersonId = value ?? null }" />
+      <div class="liwan-auto-grid liwan-field-grid">
+        <UFormField class="liwan-span-full" :label="t('sales.form.customer')" name="sales-customer" required :error="errors.customer ? t('sales.form.customerRequired') : headerError('customer_id')">
+          <SharedCustomerPicker v-model="draft.customerId" :selected="draft.customerId ? { id: draft.customerId, name: draft.customerName } : null" :disabled="off" :aria-label="t('sales.form.customer')" @resolve="customerChosen" />
         </UFormField>
-        <UFormField :label="t('sales.form.validity')" name="sales-validity" :help="props.order ? undefined : t('sales.form.validityHint')" :error="headerError('validity_date')">
-          <SharedDateField v-model="draft.validityDate" :disabled="off" data-testid="sales-validity" />
+        <div class="liwan-auto-grid [--liwan-auto-grid-min:16rem]">
+          <UFormField v-if="canAssign" :label="t('sales.form.salesperson')" name="sales-salesperson" :help="t('sales.form.salespersonHint')" :error="headerError('salesperson_id')">
+            <USelect :model-value="draft.salespersonId ?? undefined" :items="salespersonItems" class="w-full" :placeholder="t('sales.form.salespersonPlaceholder')" :loading="salespeople.isLoading.value" :disabled="off" data-testid="sales-salesperson" @update:model-value="value => { draft.salespersonId = value ?? null }" />
+          </UFormField>
+          <UFormField :label="t('sales.form.validity')" name="sales-validity" :help="props.order ? undefined : t('sales.form.validityHint')" :error="headerError('validity_date')">
+            <SharedDateField v-model="draft.validityDate" :disabled="off" data-testid="sales-validity" />
+          </UFormField>
+        </div>
+        <UFormField :label="t('sales.form.terms')" name="sales-terms" :help="props.order ? undefined : t('sales.form.termsHint')" :error="headerError('terms')">
+          <UTextarea v-model="draft.terms" class="w-full" :rows="3" autoresize :maxlength="SALES_LIMITS.terms" :disabled="off" data-testid="sales-terms" />
         </UFormField>
       </div>
-      <UFormField :label="t('sales.form.terms')" name="sales-terms" :help="props.order ? undefined : t('sales.form.termsHint')" :error="headerError('terms')">
-        <UTextarea v-model="draft.terms" class="w-full" :rows="3" autoresize :maxlength="SALES_LIMITS.terms" :disabled="off" data-testid="sales-terms" />
-      </UFormField>
     </SharedFormSection>
     <SharedFormSection panel :title="t('sales.form.lines')" :description="t('sales.form.linesHint')">
       <p v-if="errors.noLines" role="alert" class="text-sm text-error">{{ t('sales.lines.errors.none') }}</p>

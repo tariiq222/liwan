@@ -47,26 +47,28 @@ function errorAt(index: number, problem: 'product' | 'quantity' | 'discount' | '
         </div>
       </div>
       <template v-if="line.kind === 'product'">
-        <UFormField :label="t('sales.lines.product')" :error="errorAt(index, 'product', 'product_id')" required>
-          <div v-if="line.productId" class="flex flex-wrap items-center justify-between gap-2">
-            <span class="min-w-0 truncate text-sm font-medium text-highlighted">{{ line.productName }}</span>
-            <UButton color="neutral" variant="outline" size="sm" :label="t('sales.lines.changeProduct')" :disabled="off" @click="pick(index, null)" />
+        <div class="liwan-auto-grid liwan-field-grid">
+          <UFormField class="liwan-span-full" :label="t('sales.lines.product')" :error="errorAt(index, 'product', 'product_id')" required>
+            <div v-if="line.productId" class="flex flex-wrap items-center justify-between gap-2">
+              <span class="min-w-0 truncate text-sm font-medium text-highlighted">{{ line.productName }}</span>
+              <UButton color="neutral" variant="outline" size="sm" :label="t('sales.lines.changeProduct')" :disabled="off" @click="pick(index, null)" />
+            </div>
+            <SharedProductPicker v-else :model-value="null" :disabled="props.disabled" :aria-label="t('sales.lines.product')" @resolve="product => pick(index, product)" />
+          </UFormField>
+          <div class="liwan-auto-grid [--liwan-auto-grid-min:10rem]">
+            <UFormField :label="t('sales.lines.quantity')" :error="errorAt(index, 'quantity', 'quantity')" required>
+              <UInput :model-value="line.quantity" type="number" inputmode="decimal" min="0" step="any" dir="ltr" class="w-full" :disabled="off" :data-testid="`sales-line-quantity-${index}`" @update:model-value="value => patch(index, { quantity: String(value) })" />
+            </UFormField>
+            <UFormField :label="t('sales.lines.discount')" :error="errorAt(index, 'discount', 'discount_percent')">
+              <UInput :model-value="line.discount" type="number" inputmode="decimal" min="0" max="100" step="any" dir="ltr" class="w-full" :disabled="off" :data-testid="`sales-line-discount-${index}`" @update:model-value="value => patch(index, { discount: String(value) })" />
+            </UFormField>
+            <UFormField :label="t('sales.lines.unitPrice')" :help="t('sales.lines.unitPriceHint')">
+              <p class="py-1.5 text-sm text-highlighted"><bdi dir="ltr">{{ line.unitPrice === null ? '—' : money(line.unitPrice, line.currency) }}</bdi></p>
+            </UFormField>
+            <UFormField :label="t('sales.lines.preview')">
+              <p class="py-1.5 text-sm font-semibold text-highlighted" :data-testid="`sales-line-preview-${index}`"><bdi dir="ltr">{{ money(salesLinePreview(line), line.currency) }}</bdi></p>
+            </UFormField>
           </div>
-          <SharedProductPicker v-else :model-value="null" :disabled="props.disabled" :aria-label="t('sales.lines.product')" @resolve="product => pick(index, product)" />
-        </UFormField>
-        <div class="liwan-auto-grid [--liwan-auto-grid-min:10rem]">
-          <UFormField :label="t('sales.lines.quantity')" :error="errorAt(index, 'quantity', 'quantity')" required>
-            <UInput :model-value="line.quantity" type="number" inputmode="decimal" min="0" step="any" dir="ltr" class="w-full" :disabled="off" :data-testid="`sales-line-quantity-${index}`" @update:model-value="value => patch(index, { quantity: String(value) })" />
-          </UFormField>
-          <UFormField :label="t('sales.lines.discount')" :error="errorAt(index, 'discount', 'discount_percent')">
-            <UInput :model-value="line.discount" type="number" inputmode="decimal" min="0" max="100" step="any" dir="ltr" class="w-full" :disabled="off" :data-testid="`sales-line-discount-${index}`" @update:model-value="value => patch(index, { discount: String(value) })" />
-          </UFormField>
-          <UFormField :label="t('sales.lines.unitPrice')" :help="t('sales.lines.unitPriceHint')">
-            <p class="py-1.5 text-sm text-highlighted"><bdi dir="ltr">{{ line.unitPrice === null ? '—' : money(line.unitPrice, line.currency) }}</bdi></p>
-          </UFormField>
-          <UFormField :label="t('sales.lines.preview')">
-            <p class="py-1.5 text-sm font-semibold text-highlighted" :data-testid="`sales-line-preview-${index}`"><bdi dir="ltr">{{ money(salesLinePreview(line), line.currency) }}</bdi></p>
-          </UFormField>
         </div>
       </template>
       <UFormField v-else :label="t(`sales.lines.text.${line.kind}`)" :error="errorAt(index, 'name', 'name')" required>

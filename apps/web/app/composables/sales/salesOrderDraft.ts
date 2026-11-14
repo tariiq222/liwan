@@ -1,4 +1,5 @@
 import type { ProductPick, SalesLineKind, SalesOrder, SalesOrderCreate, SalesOrderLineInput, SalesOrderPatch } from '@liwan/contracts'
+import { SALES_LIMITS } from '@liwan/contracts'
 
 /**
  * One line of the editor. Numbers stay strings until they are validated. `unitPrice` is only a preview: the saved price
@@ -88,7 +89,7 @@ function lineProblems(line: SalesLineDraft): Partial<Record<SalesLineProblem, tr
   const discount = decimal(line.discount)
   return {
     ...(line.productId ? {} : { product: true as const }),
-    ...(Number.isFinite(quantity) && quantity > 0 ? {} : { quantity: true as const }),
+    ...(Number.isFinite(quantity) && quantity > 0 && quantity <= SALES_LIMITS.quantity ? {} : { quantity: true as const }),
     ...(Number.isFinite(discount) && discount >= 0 && discount <= 100 ? {} : { discount: true as const }),
   }
 }

@@ -65,6 +65,8 @@
       "actionError": "The action failed",
       "cancelConfirm": "Cancel {number}?",
       "cancelHint": "You can reopen it later as a draft.",
+      "cancelConfirmAction": "Cancel document",
+      "cancelKeep": "Keep it",
       "notEditable": "This document cannot be edited now. A quotation is edited only while it is a draft."
     },
     "form": {
@@ -110,7 +112,7 @@
       },
       "errors": {
         "product": "Choose the product",
-        "quantity": "Enter a quantity above zero",
+        "quantity": "Enter a quantity above zero and up to 1,000,000",
         "discount": "Enter a discount from 0 to 100",
         "name": "Enter the text",
         "none": "Add at least one line"
@@ -143,7 +145,9 @@
         "discountLimit": "Discount limit without approval %",
         "discountLimitHint": "Zero means no limit. Applies to new and edited lines.",
         "defaultTerms": "Default terms",
-        "defaultTermsHint": "Added to new quotations only."
+        "defaultTermsHint": "Added to new quotations only.",
+        "numberRequired": "Enter a number.",
+        "numberInvalid": "This value was refused. Enter a whole number within the allowed range."
       }
     }
   }
