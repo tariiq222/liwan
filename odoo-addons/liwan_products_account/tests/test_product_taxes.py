@@ -185,6 +185,24 @@ class TestProductTaxes(ProductTaxesCase):
             )
         self.assertFalse(self.archived_by_accountant.active)
 
+    def test_a_chart_tax_that_documents_used_and_was_archived_is_refused(self):
+        """A chart tax is switched on by a product only while no journal item ever carried it."""
+        self.zero_inactive.active = True
+        customer = self.env['res.partner'].create({'name': 'Products chart tax customer'})
+        self.env['account.move'].with_company(self.root_company).create({
+            'move_type': 'out_invoice', 'partner_id': customer.id,
+            'invoice_line_ids': [Command.create({
+                'name': 'used', 'quantity': 1, 'price_unit': 10, 'tax_ids': [Command.set(self.zero_inactive.ids)],
+            })],
+        })
+        self.zero_inactive.active = False
+        product = self.product()
+        service = self.service_as(self.root_staff, self.root_company)
+        self.assertNotIn(self.zero_inactive.id, {choice['id'] for choice in service._liwan_sale_tax_choices()})
+        with self.assertRaisesRegex(LiwanAccessRule, 'invalid'):
+            service._liwan_update(product, {'taxes': [self.zero_inactive.id]})
+        self.assertFalse(self.zero_inactive.active)
+
     def test_the_capability_is_checked_before_the_taxes_are_read(self):
         """A caller without the right gets 403 for a taxes write, valid or not, never a 422 that reveals the choices."""
         product = self.product()

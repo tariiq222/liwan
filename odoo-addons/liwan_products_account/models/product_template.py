@@ -57,22 +57,33 @@ class ProductTemplate(models.Model):
     def _liwan_elevated_tax_choices(self, company):
         """Private to this addon: the sale taxes a product owned by ``company`` may carry, as elevated records (a
         branch session cannot read its root's taxes through the company fence). Those of its company and of every
-        ancestor: the active ones, and the inactive ones a chart loaded (an accountant's archived tax stays out),
-        less the ones that need a Saudi-national buyer."""
+        ancestor: the active ones, and the inactive ones a chart loaded that no journal item ever carried (a tax an
+        accountant made or used and then archived stays out), less the ones that need a Saudi-national buyer."""
         elevated = elevated_env(self.env)
         owner = elevated['res.company'].browse(self._liwan_tax_owner(company).id)
         taxes = elevated['account.tax'].with_context(active_test=False).search([
             ('type_tax_use', '=', 'sale'), ('company_id', 'in', owner.parent_ids.ids),
         ], order='sequence, id')
-        from_chart = set(elevated['ir.model.data'].search([
-            ('model', '=', 'account.tax'), ('module', '=', CHART_MODULE), ('res_id', 'in', taxes.ids),
-        ]).mapped('res_id'))
+        dormant = self._liwan_dormant_chart_tax_ids(taxes.filtered(lambda tax: not tax.active))
         charts = elevated['account.chart.template']
         excluded = elevated['account.tax'].union(*(
             charts.with_company(ancestor).ref(xmlid, raise_if_not_found=False) or elevated['account.tax']
             for ancestor in owner.parent_ids for xmlid in NATIONAL_BUYER_TAXES
         ))
-        return taxes.filtered(lambda tax: tax.active or tax.id in from_chart) - excluded
+        return taxes.filtered(lambda tax: tax.active or tax.id in dormant) - excluded
+
+    @api.model
+    def _liwan_dormant_chart_tax_ids(self, inactive_taxes):
+        """The ids of the elevated ``inactive_taxes`` a chart loaded and no journal item ever carried: the ones a
+        product manager may switch on by picking them. A tax that documents used was archived on purpose."""
+        env = inactive_taxes.env
+        from_chart = env['ir.model.data'].search([
+            ('model', '=', 'account.tax'), ('module', '=', CHART_MODULE), ('res_id', 'in', inactive_taxes.ids),
+        ]).mapped('res_id')
+        lines = env['account.move.line'].search([
+            '|', ('tax_ids', 'in', from_chart), ('tax_line_id', 'in', from_chart),
+        ])
+        return set(from_chart) - set((lines.tax_ids | lines.tax_line_id).ids)
 
     @api.model
     def _liwan_default_sale_tax_ids(self, company):
@@ -96,7 +107,7 @@ class ProductTemplate(models.Model):
 
     def _liwan_store_sale_taxes(self, tax_ids):
         """Store the taxes ``tax_ids`` (from the choices or the default) on this product, activating a chart tax that
-        is still inactive (the choices hold no other inactive tax). Elevated: a branch session may not write taxes it
+        was never used (the choices hold no other inactive tax). Elevated: a branch session may not write taxes it
         cannot read. Returns nothing."""
         self.ensure_one()
         taxes = elevated_env(self.env)['account.tax'].with_context(active_test=False).browse(tax_ids)
