@@ -31,7 +31,7 @@ from tools.shared_saas_lifecycle.odoo_effect import (
     EffectError, MAX_OUTPUT, TENANT_DB_ROLE, TENANT_MARKER_PARAMETER, no_symlink, permit, validate_host,
 )
 
-STAGES = ('verify', 'drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_side_files')
+STAGES = ('verify', 'stamp_marker', 'drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_side_files')
 MUTATING_STAGES = frozenset(STAGES) - {'verify'}
 
 DATABASE_IDENTIFIER = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
@@ -57,7 +57,8 @@ ERROR_CODES = frozenset({
     'database_is_control_plane', 'host_invalid',
     'identity_query_failed', 'identity_base_url_mismatch', 'identity_base_url_not_frozen', 'identity_profile_count',
     'identity_profile_mode', 'identity_company_mismatch', 'identity_marker_missing', 'identity_marker_mismatch',
-    'restore_target_invalid', 'backup_id_invalid',
+    'restore_target_invalid', 'backup_id_invalid', 'database_missing', 'database_fence_unproven',
+    'restore_copy_unreadable', 'restore_copy_marker_missing', 'restore_copy_marker_mismatch',
     'database_command_failed', 'database_fence_failed', 'database_drop_failed', 'database_still_present',
     'files_command_failed', 'files_still_present',
     'path_invalid', 'path_symlink', 'name_invalid', 'filestore_ambiguous', 'remove_failed',
@@ -146,26 +147,44 @@ IDENTITY_SQL = (
 )
 
 
-def check_identity(snapshot, plan):
-    """Compare the read-back snapshot with the plan; the first mismatch is a hard refusal with its own code."""
+def evaluate_identity(snapshot, plan):
+    """Facts read back from the tenant database, and the first refusal code they imply (or None).
+
+    The marker is the strong identity. The company name is a reported fact: it only decides when the marker is
+    absent and a marker is being stamped (`require_company`, see `stamp_marker`); a company renamed inside the
+    tenant, or a commercial name that differs from the provisioning name, never blocks a deletion whose marker matches.
+    """
     params = snapshot['params']
-    if params.get('web.base.url') != 'https://' + plan['host']:
-        raise EffectError('identity_base_url_mismatch')
-    if params.get('web.base.url.freeze') != 'True':
-        raise EffectError('identity_base_url_not_frozen')
-    if snapshot['profileCount'] != 1 or len(snapshot['profiles']) != 1:
-        raise EffectError('identity_profile_count')
-    profile = snapshot['profiles'][0]
-    if profile['mode'] != 'saas' or profile['source'] != 'control_plane':
-        raise EffectError('identity_profile_mode')
-    if not isinstance(profile['company'], str) or nfc(profile['company']) != nfc(plan['customerName']):
-        raise EffectError('identity_company_mismatch')
+    profiles = snapshot['profiles']
+    single = snapshot['profileCount'] == 1 and len(profiles) == 1
+    profile = profiles[0] if single else None
     marker = params.get(TENANT_MARKER_PARAMETER)
-    if marker is None:
-        raise EffectError('identity_marker_missing')
-    if marker != plan['controlTenantId']:
-        raise EffectError('identity_marker_mismatch')
-    return {'baseUrl': True, 'baseUrlFrozen': True, 'profiles': 1, 'commercialMode': True, 'company': True, 'marker': True}
+    checks = {
+        'baseUrl': params.get('web.base.url') == 'https://' + plan['host'],
+        'baseUrlFrozen': params.get('web.base.url.freeze') == 'True',
+        'profileCount': snapshot['profileCount'],
+        'profile': bool(profile and profile['mode'] == 'saas' and profile['source'] == 'control_plane'),
+        'company': bool(profile and isinstance(profile['company'], str) and nfc(profile['company']) == nfc(plan['customerName'])),
+        'marker': 'missing' if marker is None else 'match' if marker == plan['controlTenantId'] else 'mismatch',
+    }
+    if not checks['baseUrl']:
+        code = 'identity_base_url_mismatch'
+    elif not checks['baseUrlFrozen']:
+        code = 'identity_base_url_not_frozen'
+    elif not single:
+        code = 'identity_profile_count'
+    elif not checks['profile']:
+        code = 'identity_profile_mode'
+    elif checks['marker'] == 'missing':
+        code = 'identity_marker_missing'
+    elif checks['marker'] == 'mismatch':
+        code = 'identity_marker_mismatch'
+    else:
+        code = None
+    return code, checks
+
+
+MARKER_SQL = 'SELECT value FROM ir_config_parameter WHERE key = ' + "'" + TENANT_MARKER_PARAMETER + "'"
 
 
 class Backend:
@@ -177,6 +196,10 @@ class Backend:
     """
 
     def psql(self, service, database, sql):
+        raise NotImplementedError
+
+    def data_dir(self, service):
+        """The Odoo data directory the file operation of this service runs in."""
         raise NotImplementedError
 
     def filestore(self, service, payload):
@@ -212,13 +235,17 @@ def _parse_files_output(output):
 class ComposeBackend(Backend):
     """The shared Compose project: `docker compose exec` into db/restore-db and odoo/restore-odoo."""
 
-    def __init__(self, config):
+    def __init__(self, config, data_dir=files.CONTAINER_DATA_DIR):
+        self._data_dir = data_dir
         self.base = ['docker', 'compose', '--project-name', config['projectName'], '--env-file', config['envFile'],
                      '--file', config['composeFile'], '--profile', 'restore']
 
     def psql(self, service, database, sql):
         args = self.base + ['exec', '-T', '-e', 'PGCLIENTENCODING=UTF8', service, 'psql', '-U', TENANT_DB_ROLE, '-d', database] + PSQL_FLAGS
         return _run(args, sql, 180, 'database_command_failed')
+
+    def data_dir(self, service):
+        return self._data_dir
 
     def filestore(self, service, payload):
         source = Path(files.__file__).read_text(encoding='utf-8')
@@ -235,9 +262,11 @@ class LocalBackend(Backend):
     def psql(self, service, database, sql):
         return _run(list(self.psql_argv[service]) + ['-d', database] + PSQL_FLAGS, "SET client_encoding TO 'UTF8';\n" + sql, 180, 'database_command_failed')
 
+    def data_dir(self, service):
+        return str(self.data_dirs[service])
+
     def filestore(self, service, payload):
-        refused = files.run({**payload, 'dataDir': str(self.data_dirs[service])})
-        return _parse_files_output(json.dumps(refused))
+        return _parse_files_output(json.dumps(files.run(payload)))
 
 
 def quote_literal(value):
@@ -276,12 +305,25 @@ class TenantDrop:
             self.permit(stage)
             self._permitted.add(stage)
 
-    def _exists(self, service, database):
-        sql = 'SELECT count(*) FROM pg_database WHERE datname = ' + quote_literal(database)
-        value = self.backend.psql(service, 'postgres', sql).strip()
-        if value not in ('0', '1'):
+    def _database_state(self, service, database):
+        """None when absent, else `{allow, stamp}` read from the maintenance database (works while fenced)."""
+        sql = ("SELECT datallowconn::text || '|' || COALESCE(shobj_description(oid, 'pg_database'), '') "
+               'FROM pg_database WHERE datname = ' + quote_literal(database))
+        value = self.backend.psql(service, 'postgres', sql).strip('\n')
+        if not value:
+            return None
+        allow, _, stamp = value.partition('|')
+        if allow not in ('true', 'false'):
             raise EffectError('database_command_failed')
-        return value == '1'
+        return {'allow': allow == 'true', 'stamp': stamp}
+
+    def _exists(self, service, database):
+        return self._database_state(service, database) is not None
+
+    @property
+    def stamp(self):
+        """Readable from outside the database: this request and this exact plan."""
+        return f"liwan-drop {self.plan['requestId']} {self.request['planDigest']}"
 
     def _sessions(self, service, database):
         sql = 'SELECT count(*) FROM pg_stat_activity WHERE datname = ' + quote_literal(database) + ' AND pid <> pg_backend_pid()'
@@ -305,18 +347,15 @@ class TenantDrop:
             raise EffectError('identity_query_failed') from None
         return snapshot
 
-    def _drop_database(self, service, database, fence):
-        """Observe, fence, drop with FORCE, observe again. Returns the evidence of one database."""
+    def _drop_database(self, service, database):
+        """Observe, drop with FORCE, observe again. Returns the evidence of one database."""
         if not self._exists(service, database):
             return {'state': 'absent', 'sessionsTerminated': 0}
         sessions = self._sessions(service, database)
         if self.dry_run:
             return {'state': 'would_drop', 'sessionsTerminated': sessions}
-        quoted = quote_identifier(database)
-        if fence:
-            self._fence(service, database, quoted)
         try:
-            self.backend.psql(service, 'postgres', f'DROP DATABASE {quoted} WITH (FORCE)')
+            self.backend.psql(service, 'postgres', f'DROP DATABASE {quote_identifier(database)} WITH (FORCE)')
         except EffectError:
             raise EffectError('database_drop_failed') from None
         if self._exists(service, database):
@@ -342,7 +381,7 @@ class TenantDrop:
             self.sleep(0.2)
 
     def _files(self, service, name, dry_run):
-        payload = {'op': 'remove_filestore', 'name': name, 'requestId': self.plan['requestId'], 'dryRun': dry_run}
+        payload = files.filestore_payload(self.backend.data_dir(service), name, self.plan['requestId'], dry_run)
         return self.backend.filestore(service, payload)
 
     def _remove_filestore(self, service, name, stage):
@@ -400,25 +439,105 @@ class TenantDrop:
 
     # ---- stages ---------------------------------------------------------------------------------------
 
+    def _identity(self, database):
+        """The first refusal code and the facts of a database that accepts connections."""
+        return evaluate_identity(self._read_identity(database), self.plan)
+
+    def _prove_identity(self, database):
+        """What is known about the tenant database, or a refusal. Used by `verify` and twice by the drop.
+
+        Returns None when absent, `{'fenced': True}` when a previous run of THIS request and plan fenced it (the
+        stamp is readable from the maintenance database, so identity was proven before the fence), else the facts.
+        A stamp on a database that still accepts connections never bypasses the identity read.
+        """
+        state = self._database_state('db', database)
+        if state is None:
+            return None
+        if not state['allow']:
+            if state['stamp'] != self.stamp:
+                raise EffectError('database_fence_unproven')
+            return {'fenced': True}
+        code, checks = self._identity(database)
+        if code:
+            raise EffectError(code)
+        return {'fenced': False, 'checks': checks}
+
     def verify(self):
-        """Read-only identity of the tenant database; an absent database is reported, not refused."""
+        """Cheap and read-only: one verdict (`ok`, `refused` or `absent`) with the facts that decided it.
+
+        `ok` means a drop would pass its identity gate now. A refusal is returned, not raised, so a caller can log
+        every fact; name and plan errors still raise because nothing can be said about a database then.
+        """
         database = validate_tenant_database(self.plan)
-        if not self._exists('db', database):
-            return {'database': database, 'state': 'absent'}
-        checks = check_identity(self._read_identity(database), self.plan)
-        return {'database': database, 'state': 'present', 'checks': checks}
+        state = self._database_state('db', database)
+        if state is None:
+            return {'database': database, 'verdict': 'absent'}
+        if not state['allow']:
+            if state['stamp'] == self.stamp:
+                return {'database': database, 'verdict': 'ok', 'fenced': True}
+            return {'database': database, 'verdict': 'refused', 'code': 'database_fence_unproven', 'fenced': True}
+        code, checks = self._identity(database)
+        if code:
+            return {'database': database, 'verdict': 'refused', 'code': code, 'fenced': False, 'checks': checks}
+        return {'database': database, 'verdict': 'ok', 'fenced': False, 'checks': checks}
+
+    def stamp_marker(self):
+        """Backfill the control-tenant marker of an existing tenant that has none. Never overwrites a value.
+
+        The other identity checks must pass first, and here the company name must match too: with no marker it is
+        the only link between the database and the customer.
+        """
+        database = validate_tenant_database(self.plan)
+        state = self._database_state('db', database)
+        if state is None:
+            raise EffectError('database_missing')
+        if not state['allow']:
+            raise EffectError('database_fence_unproven')
+        code, checks = self._identity(database)
+        if code not in (None, 'identity_marker_missing'):
+            raise EffectError(code)
+        if checks['marker'] == 'match':
+            return {'database': database, 'state': 'present', 'checks': checks}
+        if not checks['company']:
+            raise EffectError('identity_company_mismatch')
+        if self.dry_run:
+            return {'database': database, 'state': 'would_stamp', 'checks': checks}
+        self._permit('stamp-marker')
+        insert = ('INSERT INTO ir_config_parameter (key, value) VALUES (' + quote_literal(TENANT_MARKER_PARAMETER) + ', '
+                  + quote_literal(self.plan['controlTenantId']) + ') ON CONFLICT (key) DO NOTHING')
+        self.backend.psql('db', database, insert)
+        again_code, again = self._identity(database)
+        if again_code or again['marker'] != 'match':
+            raise EffectError('identity_marker_mismatch' if again['marker'] == 'mismatch' else again_code or 'identity_query_failed')
+        return {'database': database, 'state': 'stamped', 'checks': again}
 
     def drop_database(self):
         database = validate_tenant_database(self.plan)
-        if self.verify()['state'] == 'absent':
+        proven = self._prove_identity(database)
+        if proven is None:
             return {'database': database, 'state': 'absent', 'sessionsTerminated': 0}
         if self.dry_run:
-            return {'database': database, **self._drop_database('db', database, fence=True)}
+            return {'database': database, **self._drop_database('db', database)}
         self._permit('drop-database')
-        # The identity is read again after the permit: authority and database content are both current.
-        if self.verify()['state'] == 'absent':
+        # Authority and database content are both current: prove again after the permit.
+        proven = self._prove_identity(database)
+        if proven is None:
             return {'database': database, 'state': 'absent', 'sessionsTerminated': 0}
-        return {'database': database, **self._drop_database('db', database, fence=True)}
+        sessions = self._sessions('db', database)
+        if not proven['fenced']:
+            self._stamp_database(database)
+            self._fence('db', database, quote_identifier(database))
+        result = self._drop_database('db', database)
+        if result['state'] == 'dropped':
+            result['sessionsTerminated'] = max(result['sessionsTerminated'], sessions)
+        return {'database': database, **result}
+
+    def _stamp_database(self, database):
+        """Written only after a full successful identity check: a fenced database can be resumed without a connection."""
+        try:
+            self.backend.psql('db', 'postgres', f'COMMENT ON DATABASE {quote_identifier(database)} IS {quote_literal(self.stamp)}')
+        except EffectError:
+            raise EffectError('database_fence_failed') from None
 
     def remove_filestore(self):
         database = validate_tenant_database(self.plan)
@@ -428,16 +547,38 @@ class TenantDrop:
             raise EffectError('database_still_present')
         return {'name': database, **self._remove_filestore('odoo', database, 'remove-filestore')}
 
+    def _prove_restore_copy(self, name):
+        """A copy is dropped only when the marker inside it names THIS tenant (a restore carries the source's marker)."""
+        state = self._database_state('restore-db', name)
+        if state is None:
+            return False
+        if not state['allow']:
+            raise EffectError('restore_copy_unreadable')
+        try:
+            marker = self.backend.psql('restore-db', name, MARKER_SQL).strip('\n')
+        except EffectError:
+            raise EffectError('restore_copy_unreadable') from None
+        if not marker:
+            raise EffectError('restore_copy_marker_missing')
+        if marker != self.plan['controlTenantId']:
+            raise EffectError('restore_copy_marker_mismatch')
+        return True
+
     def remove_restore_copies(self):
-        """Only the copies the plan lists, each matching the restore-copy name rule; never a pattern search."""
+        """Only the copies the plan lists, each matching the name rule AND carrying this tenant's marker.
+
+        A copy whose database is already gone is finished by name (its files and side files), since there is nothing
+        left to read the marker from.
+        """
         copies = []
         for name in self.plan['restoreCopies']:
             validate_restore_copy(name)
-            if not self.dry_run and self._exists('restore-db', name):
+            present = self._prove_restore_copy(name)
+            if present and not self.dry_run:
                 self._permit('remove-restore-copies')
             copies.append({
                 'name': name,
-                'database': self._drop_database('restore-db', name, fence=False),
+                'database': self._drop_database('restore-db', name),
                 'filestore': self._remove_filestore('restore-odoo', name, 'remove-restore-copies'),
                 'restoreEffect': self._remove_file(self.state_dir / 'restore-effects', name + '.json', 'remove-restore-copies'),
                 'classification': self._remove_file(self.state_dir / 'classifications', name + '.json', 'remove-restore-copies'),

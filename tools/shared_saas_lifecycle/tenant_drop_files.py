@@ -23,6 +23,13 @@ DATABASE_NAME = re.compile(r'[a-z][a-z0-9_]{0,62}')
 UUID_NAME = re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}')
 FILE_NAME = re.compile(r'[a-z][a-z0-9_]{0,62}\.(?:json|hosts)')
 EXPORT_DIRECTORY = 'tenant_exports'
+# The Odoo data directory inside the `odoo` and `restore-odoo` containers. Source: `deploy/shared/validate_odoo_config.py`
+# refuses any shared or restore Odoo config whose `data_dir` is not exactly this value, and the other lifecycle effects
+# (`odoo_effect.py`, `odoo_backup.py`) address the filestore as `/var/lib/odoo/filestore/<database>`. Nothing is guessed:
+# a container that does not have this directory refuses (`path_invalid`) instead of looking elsewhere.
+CONTAINER_DATA_DIR = '/var/lib/odoo'
+# The one payload both sides agree on. The effect builds it with `filestore_payload`; `run` refuses anything else.
+PAYLOAD_KEYS = frozenset({'op', 'dataDir', 'name', 'requestId', 'dryRun'})
 MAX_STDIN = 65536
 
 
@@ -153,10 +160,16 @@ def _operation_remove_filestore(payload):
     return remove_tree(store, payload['name'], DATABASE_NAME, payload['requestId'], payload['dryRun'])
 
 
+def filestore_payload(data_dir, name, request_id, dry_run):
+    """The single place the payload of a filestore removal is built."""
+    return {'op': 'remove_filestore', 'dataDir': str(data_dir), 'name': name, 'requestId': request_id, 'dryRun': dry_run}
+
+
 def run(payload):
     """Dispatch one operation of the container protocol; returns evidence or `{'refused': code}`."""
     try:
-        if not isinstance(payload, dict) or payload.get('op') != 'remove_filestore' or type(payload.get('dryRun')) is not bool:
+        if (not isinstance(payload, dict) or set(payload) != PAYLOAD_KEYS or payload['op'] != 'remove_filestore'
+                or type(payload['dryRun']) is not bool):
             raise FileRefused('operation_unavailable')
         return _operation_remove_filestore(payload)
     except FileRefused as refusal:

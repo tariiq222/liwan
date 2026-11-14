@@ -185,7 +185,7 @@ class GuardTests(unittest.TestCase):
         self.assertIn('--profile', args)
         self.assertEqual(args[args.index('exec'):args.index('psql')], ['exec', '-T', '-e', 'PGCLIENTENCODING=UTF8', 'restore-db'])
         self.assertEqual(stdin, 'SELECT 1')
-        payload = {'op': 'remove_filestore', 'name': 'x', 'requestId': 'r', 'dryRun': True}
+        payload = files.filestore_payload(backend.data_dir('restore-odoo'), 'x', 'r', True)
         with mock.patch.object(effect, '_run', return_value=json.dumps({'state': 'absent'})) as run:
             self.assertEqual(backend.filestore('restore-odoo', payload), {'state': 'absent'})
         args = run.call_args.args[0]
@@ -196,6 +196,52 @@ class GuardTests(unittest.TestCase):
         with mock.patch.object(effect, '_run', return_value=json.dumps({'refused': 'path_symlink'})), \
                 self.assertRaisesRegex(EffectError, '^path_symlink$'):
             backend.filestore('odoo', payload)
+
+    def test_the_container_data_directory_is_the_one_the_shared_odoo_config_enforces(self):
+        config = make_request(self.root, 'verify', make_plan())['config']
+        self.assertEqual(files.CONTAINER_DATA_DIR, '/var/lib/odoo')
+        for service in ('odoo', 'restore-odoo'):
+            self.assertEqual(effect.ComposeBackend(config).data_dir(service), '/var/lib/odoo')
+        validator = (Path(__file__).resolve().parents[2] / 'deploy' / 'shared' / 'validate_odoo_config.py').read_text(encoding='utf-8')
+        self.assertIn('"data_dir": "' + files.CONTAINER_DATA_DIR + '"', validator)
+
+    def test_the_compose_path_ships_a_payload_the_files_module_accepts_and_both_sides_share_one_key_set(self):
+        """Run the files module on exactly what the Compose backend sends: a mocked transport that executes it."""
+        data = self.root / 'odoo-data'
+        store = data / 'filestore' / 'liwan_drop_test_ab12cd34'
+        (store / 'ab').mkdir(parents=True)
+        (store / 'ab' / ('e' * 40)).write_bytes(b'x')
+        plan = make_plan()
+        request = make_request(self.root, 'remove_filestore', plan)
+        shipped = []
+
+        def container(args, stdin, timeout, error_code):
+            if 'psql' in args:
+                return ''  # the database is already absent
+            payload = json.loads(stdin)
+            shipped.append(payload)
+            return json.dumps(files.run(payload))
+
+        config = request['config']
+        for dry in (True, False):
+            request['dryRun'] = dry
+            with mock.patch.object(effect, '_run', side_effect=container):
+                result = effect.execute(request, effect.ComposeBackend(config, data_dir=str(data)), lambda stage: None)
+            self.assertEqual(result['state'], 'would_remove' if dry else 'removed')
+        self.assertTrue(shipped and all(set(payload) == files.PAYLOAD_KEYS for payload in shipped))
+        self.assertTrue(all(payload['dataDir'] == str(data) for payload in shipped))
+        self.assertFalse(store.exists())
+        local = effect.LocalBackend({}, {'odoo': data})
+        self.assertEqual(set(files.filestore_payload(local.data_dir('odoo'), 'n', 'r', True)), files.PAYLOAD_KEYS)
+
+    def test_a_compose_dry_run_resolves_the_path_inside_the_container_and_refuses_a_missing_data_directory(self):
+        request = make_request(self.root, 'remove_filestore', make_plan(), dry_run=True)
+
+        def container(args, stdin, timeout, error_code):
+            return '' if 'psql' in args else json.dumps(files.run(json.loads(stdin)))
+
+        with mock.patch.object(effect, '_run', side_effect=container), self.assertRaisesRegex(EffectError, '^path_invalid$'):
+            effect.execute(request, effect.ComposeBackend(request['config'], data_dir=str(self.root / 'missing')), lambda stage: None)
 
 
 class FilesModuleTests(unittest.TestCase):
@@ -216,7 +262,7 @@ class FilesModuleTests(unittest.TestCase):
         return store
 
     def operation(self, name, dry_run=False, data=None):
-        return files.run({'op': 'remove_filestore', 'dataDir': str(data or self.data), 'name': name, 'requestId': self.REQUEST, 'dryRun': dry_run})
+        return files.run(files.filestore_payload(data or self.data, name, self.REQUEST, dry_run))
 
     def test_removes_a_filestore_and_counts_what_it_held(self):
         store = self.populate('liwan_drop_test_a')
@@ -285,15 +331,19 @@ class FilesModuleTests(unittest.TestCase):
         self.assertTrue((outside / 'keep').exists())
 
     def test_a_relative_data_directory_and_a_bad_request_id_are_refused(self):
-        self.assertEqual(files.run({'op': 'remove_filestore', 'dataDir': 'data', 'name': 'a', 'requestId': self.REQUEST, 'dryRun': False}), {'refused': 'path_invalid'})
-        self.assertEqual(files.run({'op': 'remove_filestore', 'dataDir': str(self.data), 'name': 'a', 'requestId': '../x', 'dryRun': False}), {'refused': 'name_invalid'})
+        self.assertEqual(files.run(files.filestore_payload('data', 'a', self.REQUEST, False)), {'refused': 'path_invalid'})
+        self.assertEqual(files.run(files.filestore_payload(self.data, 'a', '../x', False)), {'refused': 'name_invalid'})
+        good = files.filestore_payload(self.data, 'a', self.REQUEST, False)
+        for key in files.PAYLOAD_KEYS - {'op'}:
+            self.assertEqual(files.run({k: v for k, v in good.items() if k != key}), {'refused': 'operation_unavailable'})
+        self.assertEqual(files.run({**good, 'extra': 1}), {'refused': 'operation_unavailable'})
         self.assertEqual(files.run({'op': 'other'}), {'refused': 'operation_unavailable'})
         self.assertEqual(files.run('not a dict'), {'refused': 'operation_unavailable'})
 
     def test_the_module_is_self_contained_for_the_container(self):
         self.populate('liwan_drop_test_a')
         source = Path(files.__file__).read_text(encoding='utf-8')
-        payload = {'op': 'remove_filestore', 'dataDir': str(self.data), 'name': 'liwan_drop_test_a', 'requestId': self.REQUEST, 'dryRun': False}
+        payload = files.filestore_payload(self.data, 'liwan_drop_test_a', self.REQUEST, False)
         done = subprocess.run([sys.executable, '-I', '-c', source], input=json.dumps(payload).encode(), capture_output=True, check=True, cwd=self.root)
         self.assertEqual(json.loads(done.stdout)['state'], 'removed')
 
@@ -410,6 +460,12 @@ class RealDropTests(unittest.TestCase):
         self.cluster.sql('postgres', f'CREATE DATABASE "{self.database}"')
         self.cluster.sql(self.database, tenant_schema_sql(self.plan, **change))
 
+    def create_copy(self, name, marker=CONTROL_TENANT):
+        """A restore copy: a database that carries the marker of the tenant it was restored from."""
+        self.cluster.sql('postgres', f'CREATE DATABASE "{name}"')
+        self.cluster.sql(name, 'CREATE TABLE ir_config_parameter (key text PRIMARY KEY, value text)'
+                         + ('' if marker is None else f"; INSERT INTO ir_config_parameter VALUES ('liwan.control.tenant_id', '{marker}')"))
+
     def create_filestore(self, root='data', name=None):
         store = self.root / root / 'filestore' / (name or self.database)
         (store / 'ab').mkdir(parents=True)
@@ -440,18 +496,25 @@ class RealDropTests(unittest.TestCase):
     def test_verify_accepts_the_matching_database_and_reports_checks_only(self):
         self.create_tenant()
         result = self.run_stage('verify')
-        self.assertEqual(result['state'], 'present')
-        self.assertEqual(result['checks'], {'baseUrl': True, 'baseUrlFrozen': True, 'profiles': 1, 'commercialMode': True, 'company': True, 'marker': True})
+        self.assertEqual((result['verdict'], result['fenced']), ('ok', False))
+        self.assertEqual(result['checks'], {'baseUrl': True, 'baseUrlFrozen': True, 'profileCount': 1, 'profile': True, 'company': True, 'marker': 'match'})
         self.assertNotIn(CUSTOMER, json.dumps(result, ensure_ascii=False))
         self.assertEqual(self.permits, [])
 
     def test_verify_of_an_absent_database_is_absent_not_an_error(self):
-        self.assertEqual(self.run_stage('verify'), {'stage': 'verify', 'dryRun': False, 'database': self.database, 'state': 'absent'})
+        self.assertEqual(self.run_stage('verify'), {'stage': 'verify', 'dryRun': False, 'database': self.database, 'verdict': 'absent'})
 
     def test_the_company_name_is_compared_after_unicode_normalisation(self):
         self.create_tenant(company='Áhmed Co')
         plan = {**self.plan, 'customerName': 'Áhmed Co'}
-        self.assertEqual(self.run_stage('verify', plan=plan)['state'], 'present')
+        result = self.run_stage('verify', plan=plan)
+        self.assertEqual((result['verdict'], result['checks']['company']), ('ok', True))
+
+    def test_a_renamed_company_is_reported_but_does_not_block_a_matching_marker(self):
+        self.create_tenant(company='Renamed inside the tenant')
+        result = self.run_stage('verify')
+        self.assertEqual((result['verdict'], result['checks']['company'], result['checks']['marker']), ('ok', False, 'match'))
+        self.assertEqual(self.run_stage('drop_database')['state'], 'dropped')
 
     def test_every_identity_mismatch_refuses_and_changes_nothing(self):
         cases = [
@@ -464,8 +527,6 @@ class RealDropTests(unittest.TestCase):
             ({'profiles': 0}, 'identity_profile_count'),
             ({'mode': 'non_saas'}, 'identity_profile_mode'),
             ({'source': 'local_policy'}, 'identity_profile_mode'),
-            ({'company': 'Another customer'}, 'identity_company_mismatch'),
-            ({'company': CUSTOMER + ' '}, 'identity_company_mismatch'),
             ({'marker': None}, 'identity_marker_missing'),
             ({'marker': '00000000-0000-4000-8000-000000000000'}, 'identity_marker_mismatch'),
             ({'marker': ''}, 'identity_marker_mismatch'),
@@ -475,10 +536,12 @@ class RealDropTests(unittest.TestCase):
                 self.create_tenant(**change)
                 store = self.create_filestore()
                 side = self.create_side_files()
-                for stage in ('verify', 'drop_database'):
-                    for dry_run in (False, True):
-                        with self.assertRaisesRegex(EffectError, '^' + code + '$'):
-                            self.run_stage(stage, dry_run=dry_run)
+                for dry_run in (False, True):
+                    verdict = self.run_stage('verify', dry_run=dry_run)
+                    self.assertEqual((verdict['verdict'], verdict['code']), ('refused', code))
+                    self.assertIn('checks', verdict)
+                    with self.assertRaisesRegex(EffectError, '^' + code + '$'):
+                        self.run_stage('drop_database', dry_run=dry_run)
                 self.assertTrue(self.cluster.exists(self.database))
                 self.assertTrue(store.is_dir())
                 self.assertTrue(all(path.exists() for path in side.values()))
@@ -499,7 +562,7 @@ class RealDropTests(unittest.TestCase):
         backup_id = str(uuid.uuid4())
         plan = {**self.plan, 'restoreCopies': [copy], 'backupIds': [backup_id]}
         self.create_tenant()
-        self.cluster.sql('postgres', f'CREATE DATABASE "{copy}"')
+        self.create_copy(copy)
         store = self.create_filestore()
         copy_store = self.create_filestore('restore-data', copy)
         side = self.create_side_files()
@@ -636,7 +699,7 @@ class RealDropTests(unittest.TestCase):
     def test_restore_copies_outside_the_plan_are_untouched(self):
         listed, unlisted = 'liwan_scratch_' + 'a' * 32, 'liwan_scratch_' + 'b' * 32
         for name in (listed, unlisted):
-            self.cluster.sql('postgres', f'CREATE DATABASE "{name}"')
+            self.create_copy(name)
             self.create_filestore('restore-data', name)
             (self.state / 'restore-effects' / (name + '.json')).write_text('{}')
             (self.state / 'classifications' / (name + '.json')).write_text('{}')
@@ -654,12 +717,148 @@ class RealDropTests(unittest.TestCase):
         self.assertTrue((self.state / 'classifications' / (unlisted + '.json')).exists())
         self.assertEqual(self.permits, ['remove-restore-copies'])
 
+    # ---- resume after the fence ---------------------------------------------------------------------------
+
+    def fail_the_drop_once(self):
+        """A backend whose first DROP DATABASE dies, as a kill between the fence and the drop would."""
+        real, state = self.backend.psql, {'failed': False}
+
+        def psql(service, database, sql):
+            if sql.startswith('DROP DATABASE') and not state['failed']:
+                state['failed'] = True
+                raise EffectError('database_command_failed')
+            return real(service, database, sql)
+
+        flaky = effect.LocalBackend(self.backend.psql_argv, self.backend.data_dirs)
+        flaky.psql = psql
+        return flaky
+
+    def fenced_state(self):
+        return self.cluster.sql('postgres', f"SELECT datallowconn::text || '|' || COALESCE(shobj_description(oid, 'pg_database'), '') FROM pg_database WHERE datname = '{self.database}'")
+
+    def test_a_drop_that_dies_after_the_fence_resumes_without_connecting_to_the_database(self):
+        self.create_tenant()
+        request = make_request(self.root, 'drop_database', self.plan)
+        with self.assertRaisesRegex(EffectError, '^database_drop_failed$'):
+            effect.execute(request, self.fail_the_drop_once(), self.permits.append)
+        allow, _, stamp = self.fenced_state().partition('|')
+        self.assertEqual(allow, 'false')
+        self.assertEqual(stamp, f"liwan-drop {self.plan['requestId']} {request['planDigest']}")
+        self.assertTrue(self.cluster.exists(self.database))
+        # The fence refuses every connection, so the verify of a fresh run could not read the identity: it relies on the stamp.
+        verdict = effect.execute({**request, 'action': 'verify'}, self.backend, self.permits.append)
+        self.assertEqual((verdict['verdict'], verdict['fenced']), ('ok', True))
+        self.assertEqual(effect.execute({**request, 'dryRun': True}, self.backend, self.permits.append)['state'], 'would_drop')
+        self.assertTrue(self.cluster.exists(self.database))
+        result = effect.execute(request, self.backend, self.permits.append)
+        self.assertEqual(result['state'], 'dropped')
+        self.assertFalse(self.cluster.exists(self.database))
+
+    def test_a_fenced_database_with_a_missing_or_different_stamp_is_refused(self):
+        self.create_tenant()
+        self.cluster.sql('postgres', f'ALTER DATABASE "{self.database}" WITH ALLOW_CONNECTIONS false')
+        for comment in (None, 'liwan-drop ' + str(uuid.uuid4()) + ' ' + '0' * 64, 'something else'):
+            with self.subTest(comment=comment):
+                self.cluster.sql('postgres', f'COMMENT ON DATABASE "{self.database}" IS ' + ('NULL' if comment is None else f"'{comment}'"))
+                verdict = self.run_stage('verify')
+                self.assertEqual((verdict['verdict'], verdict['code']), ('refused', 'database_fence_unproven'))
+                for dry_run in (False, True):
+                    with self.assertRaisesRegex(EffectError, '^database_fence_unproven$'):
+                        self.run_stage('drop_database', dry_run=dry_run)
+                self.assertTrue(self.cluster.exists(self.database))
+        self.assertEqual(self.permits, [])
+
+    def test_a_stamp_on_a_database_that_is_not_fenced_does_not_bypass_the_identity_check(self):
+        self.create_tenant(marker='00000000-0000-4000-8000-000000000000')
+        request = make_request(self.root, 'drop_database', self.plan)
+        self.cluster.sql('postgres', f"COMMENT ON DATABASE \"{self.database}\" IS 'liwan-drop {self.plan['requestId']} {request['planDigest']}'")
+        with self.assertRaisesRegex(EffectError, '^identity_marker_mismatch$'):
+            effect.execute(request, self.backend, self.permits.append)
+        self.assertTrue(self.cluster.exists(self.database))
+
+    def test_the_stamp_is_written_only_after_a_successful_identity_check(self):
+        self.create_tenant(marker=None)
+        with self.assertRaisesRegex(EffectError, '^identity_marker_missing$'):
+            self.run_stage('drop_database')
+        self.assertEqual(self.fenced_state(), 'true|')
+
+    # ---- the marker of a tenant provisioned before markers existed --------------------------------------------
+
+    def test_stamp_marker_backfills_once_after_the_other_checks_and_never_overwrites(self):
+        self.create_tenant(marker=None)
+        verdict = self.run_stage('verify')
+        self.assertEqual((verdict['verdict'], verdict['code'], verdict['checks']['marker']), ('refused', 'identity_marker_missing', 'missing'))
+        self.assertEqual(self.run_stage('stamp_marker', dry_run=True)['state'], 'would_stamp')
+        self.assertEqual(self.cluster.sql(self.database, "SELECT count(*) FROM ir_config_parameter WHERE key = 'liwan.control.tenant_id'"), '0')
+        self.assertEqual(self.permits, [])
+        stamped = self.run_stage('stamp_marker')
+        self.assertEqual((stamped['state'], stamped['checks']['marker']), ('stamped', 'match'))
+        self.assertEqual(self.permits, ['stamp-marker'])
+        again = self.run_stage('stamp_marker')
+        self.assertEqual(again['state'], 'present')
+        self.assertEqual(self.permits, ['stamp-marker'])
+        self.assertEqual(self.run_stage('verify')['verdict'], 'ok')
+
+    def test_stamp_marker_refuses_a_different_marker_and_every_other_identity_failure(self):
+        cases = [({'marker': '00000000-0000-4000-8000-000000000000'}, 'identity_marker_mismatch'),
+                 ({'marker': None, 'company': 'Another customer'}, 'identity_company_mismatch'),
+                 ({'marker': None, 'url': 'https://other.example.test'}, 'identity_base_url_mismatch'),
+                 ({'marker': None, 'frozen': None}, 'identity_base_url_not_frozen'),
+                 ({'marker': None, 'profiles': 2}, 'identity_profile_count'),
+                 ({'marker': None, 'mode': 'non_saas'}, 'identity_profile_mode'),
+                 ({'marker': None, 'source': 'local_policy'}, 'identity_profile_mode')]
+        for change, code in cases:
+            with self.subTest(code=code, change=change):
+                self.create_tenant(**change)
+                for dry_run in (True, False):
+                    with self.assertRaisesRegex(EffectError, '^' + code + '$'):
+                        self.run_stage('stamp_marker', dry_run=dry_run)
+                self.assertNotEqual(self.cluster.sql(self.database, "SELECT coalesce(max(value), '') FROM ir_config_parameter WHERE key = 'liwan.control.tenant_id'"), CONTROL_TENANT)
+                self.cluster.sql('postgres', f'DROP DATABASE "{self.database}"')
+        self.assertEqual(self.permits, [])
+
+    def test_stamp_marker_needs_an_existing_unfenced_database(self):
+        with self.assertRaisesRegex(EffectError, '^database_missing$'):
+            self.run_stage('stamp_marker')
+        self.create_tenant(marker=None)
+        self.cluster.sql('postgres', f'ALTER DATABASE "{self.database}" WITH ALLOW_CONNECTIONS false')
+        with self.assertRaisesRegex(EffectError, '^database_fence_unproven$'):
+            self.run_stage('stamp_marker')
+
+    # ---- restore copies prove they belong to this tenant ----------------------------------------------------
+
+    def test_a_restore_copy_with_the_tenant_marker_is_dropped_one_of_another_tenant_or_without_a_marker_is_refused(self):
+        other, bare, mine = ('liwan_scratch_' + c * 32 for c in 'abc')
+        self.create_copy(other, marker='00000000-0000-4000-8000-000000000000')
+        self.create_copy(bare, marker=None)
+        self.create_copy(mine)
+        for name, code in ((other, 'restore_copy_marker_mismatch'), (bare, 'restore_copy_marker_missing')):
+            store = self.create_filestore('restore-data', name)
+            for dry_run in (True, False):
+                with self.subTest(name=name, dry_run=dry_run), self.assertRaisesRegex(EffectError, '^' + code + '$'):
+                    self.run_stage('remove_restore_copies', dry_run=dry_run, plan={**self.plan, 'restoreCopies': [name]})
+            self.assertTrue(self.cluster.exists(name) and store.is_dir())
+        self.assertEqual(self.permits, [])
+        self.assertEqual(self.run_stage('remove_restore_copies', plan={**self.plan, 'restoreCopies': [mine]})['copies'][0]['database']['state'], 'dropped')
+        self.assertTrue(self.cluster.exists(other) and self.cluster.exists(bare))
+
+    def test_a_restore_copy_that_does_not_accept_connections_or_has_no_table_is_unreadable(self):
+        fenced, empty = 'liwan_scratch_' + 'd' * 32, 'liwan_scratch_' + 'e' * 32
+        self.create_copy(fenced)
+        self.cluster.sql('postgres', f'ALTER DATABASE "{fenced}" WITH ALLOW_CONNECTIONS false')
+        self.cluster.sql('postgres', f'CREATE DATABASE "{empty}"')
+        for name in (fenced, empty):
+            with self.subTest(name=name), self.assertRaisesRegex(EffectError, '^restore_copy_unreadable$'):
+                self.run_stage('remove_restore_copies', plan={**self.plan, 'restoreCopies': [name]})
+            self.assertTrue(self.cluster.exists(name))
+
     # ---- idempotence -------------------------------------------------------------------------------------
 
     def test_every_stage_treats_an_absent_target_as_done_without_a_permit(self):
         plan = {**self.plan, 'restoreCopies': ['liwan_scratch_' + 'd' * 32], 'backupIds': [str(uuid.uuid4())]}
-        results = {stage: self.run_stage(stage, plan=plan) for stage in effect.STAGES}
-        self.assertEqual(results['verify']['state'], 'absent')
+        # `stamp_marker` is the one stage that needs the database: its absence is `database_missing`, tested apart.
+        results = {stage: self.run_stage(stage, plan=plan) for stage in effect.STAGES if stage != 'stamp_marker'}
+        self.assertEqual(results['verify']['verdict'], 'absent')
         self.assertEqual(results['drop_database']['state'], 'absent')
         self.assertEqual(results['remove_filestore']['state'], 'absent')
         copy = results['remove_restore_copies']['copies'][0]
@@ -673,7 +872,7 @@ class RealDropTests(unittest.TestCase):
         backup_id = str(uuid.uuid4())
         plan = {**self.plan, 'restoreCopies': [copy], 'backupIds': [backup_id]}
         self.create_tenant()
-        self.cluster.sql('postgres', f'CREATE DATABASE "{copy}"')
+        self.create_copy(copy)
         self.create_filestore()
         self.create_filestore('restore-data', copy)
         side = self.create_side_files()
@@ -681,12 +880,12 @@ class RealDropTests(unittest.TestCase):
         order = ('verify', 'drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_side_files')
         first = [self.run_stage(stage, plan=plan) for stage in order]
         self.assertEqual(self.permits, ['drop-database', 'remove-filestore', 'remove-restore-copies', 'purge-local-backups', 'remove-side-files'])
-        self.assertEqual(first[0]['state'], 'present')
+        self.assertEqual(first[0]['verdict'], 'ok')
         self.assertEqual([self.cluster.exists(self.database), self.cluster.exists(copy)], [False, False])
         self.permits.clear()
         second = [self.run_stage(stage, plan=plan) for stage in order]
         self.assertEqual(self.permits, [])
-        self.assertEqual(second[0]['state'], 'absent')
+        self.assertEqual(second[0]['verdict'], 'absent')
         self.assertEqual(second[1]['state'], 'absent')
         self.assertEqual(second[2]['state'], 'absent')
         self.assertTrue(side['reservation'].exists() and side['complete'].exists())
