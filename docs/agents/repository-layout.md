@@ -202,9 +202,9 @@ application's AI agent and tools.
   copy of the name, e-mail, phone and address is cleared) and saved payment tokens (archived and neutralised), plus the
   access rows the two privacy capabilities need on those models.
 - `packages/contracts/src/<namespace>` holds the Zod wire contracts (current namespaces: `access`, `ai`,
-  `appointments`, `chat`, `common`, `crm`, `documents`, `finance`, `hr`, `inbox`, `integrations`,
-  `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `tasks`); each has a barrel re-exported
-  from `src/index.ts`.
+  `appointments`, `auth`, `chat`, `common`, `crm`, `customers`, `documents`, `finance`, `hr`, `inbox`,
+  `integrations`, `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `products`, `storage`, `tasks`,
+  `tenant-export`); each has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
   PMO components live in `app/components/pmo/{projects,tasks}`, personal-task
