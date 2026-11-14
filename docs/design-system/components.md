@@ -194,6 +194,7 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | --- | --- | --- |
 | `packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue` | `apps/web/stories/shared/CommercePriceBreakdown.stories.ts` | `UAlert`, `UButton` |
 | `apps/web/app/components/subscription/AutoRenewControl.vue` | `apps/web/stories/subscription/AutoRenewControl.stories.ts` | `UBadge`, `UButton`, `UCheckbox` |
+| `apps/web/app/components/subscription/PaymentMethodPanel.vue` | `apps/web/stories/subscription/PaymentMethodPanel.stories.ts` | `SharedStatusBadge`; بطاقة محفوظة للقراءة فقط، والأرقام والانتهاء داخل `bdi dir="ltr"`، وفتحة افتراضية لعنصر التجديد التلقائي |
 | `apps/web/app/components/subscription/CancelPanel.vue` | `apps/web/stories/subscription/CancelPanel.stories.ts` | `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/web/app/components/subscription/DeleteWorkspacePanel.vue` | `apps/web/stories/subscription/DeleteWorkspacePanel.stories.ts` | `UAlert`, `UButton`, `UFormField`, `UInput` |
 | `apps/web/app/components/subscription/BranchSummary.vue` | `apps/web/stories/subscription/BranchSummary.stories.ts` | `UBadge` |

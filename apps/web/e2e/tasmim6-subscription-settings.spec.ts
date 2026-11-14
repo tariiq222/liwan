@@ -11,7 +11,16 @@ test('subscription settings keep plan usage branches invoices and explicit auto 
  await expect(page.locator('[data-testid="usage-metric"][data-known="false"]')).toHaveCount(1)
  await expect(page.getByTestId('branch-row')).toHaveCount(1); await expect(page.locator('a[href^="/subscription/invoices/inv-"]')).toHaveCount(2)
  const control=page.locator('[data-slot="auto-renew"]'); await expect(control.getByRole('button')).toBeDisabled()
- await control.getByRole('checkbox').check(); await expect(control.getByRole('button')).toBeEnabled()
+ await expect(page.locator('[data-slot="payment-method"] [data-slot="no-card"]')).toBeVisible(); await expect(control.locator('[data-slot="needs-card"]')).toBeVisible()
+})
+test('a saved card shows masked beside the auto-renew control and never prints its id', async ({ page }) => {
+ const { subscription, savedCard } = JSON.parse(readFileSync(new URL('./commercial-fixtures.json', import.meta.url), 'utf8')) as { subscription: SubscriptionView; savedCard: { id: string } }
+ await page.route('**/api/commercial/v1/subscription', route => route.fulfill({ json: { ...subscription, auto_renew: { enabled: true, consent_at: '2026-10-01T08:00:00.000Z', payment_method: savedCard } } }))
+ await open(page,'/subscription')
+ const panel=page.getByTestId('payment-method')
+ await expect(panel.locator('[data-slot="card-number"]')).toHaveText('•••• 4242'); await expect(panel.locator('[data-slot="card-expiry"]')).toHaveText('03/30')
+ await expect(panel.locator('[data-slot="card-state"]')).toHaveAttribute('data-state','active'); await expect(panel.locator('[data-slot="auto-renew"]')).toBeVisible()
+ expect(await panel.innerText()).not.toContain(savedCard.id)
 })
 test('an order that is no longer pending shows its note and never posts an order', async ({ page }) => {
  const orders:string[]=[]; page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/commercial/v1/orders'))orders.push(r.url())})

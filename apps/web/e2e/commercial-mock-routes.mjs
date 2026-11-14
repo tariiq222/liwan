@@ -4,13 +4,17 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const fixtures = JSON.parse(readFileSync(resolve(import.meta.dirname, 'commercial-fixtures.json'), 'utf8'))
+// LIWAN_MOCK_SAVED_CARD=1 serves every subscription with the saved card and auto-renew on, to see that state; unset, no card is saved.
+const withSavedCard = subscription => (subscription && process.env.LIWAN_MOCK_SAVED_CARD === '1'
+  ? { ...subscription, auto_renew: { enabled: true, consent_at: '2026-10-01T08:00:00.000Z', payment_method: fixtures.savedCard } }
+  : subscription)
 const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
 const notFound = res => json(res, 404, { code: 'not_found', message: 'Not found' })
 const byId = (collection, id) => collection.items.find(item => item.id === id)
 
 function customer(res, path) {
   const rest = path.replace('/v1/customer/', '')
-  if (rest === 'subscription') return json(res, 200, fixtures.subscription)
+  if (rest === 'subscription') return json(res, 200, withSavedCard(fixtures.subscription))
   if (rest === 'catalog') return json(res, 200, fixtures.catalog)
   if (rest === 'usage') return json(res, 200, fixtures.usage)
   if (rest === 'branches') return json(res, 200, fixtures.branches)

@@ -171,9 +171,11 @@ definePageMeta({ middleware: 'customer-commercial' })
           <SubscriptionCancelPanel :cancellation="data.sub.cancellation ?? null" :cancellable="data.sub.cancellable ?? false" :renewal-on="data.sub.renewal_at" :can-manage="can('subscription.manage')"
             :pending="cancelBusy" :hydrated="hydrated" :error="cancelError" @cancel="changeCancellation('cancel', $event)" @resume="changeCancellation('resume')" />
         </SharedRecordSection>
-        <SharedRecordSection variant="panel" :title="t('subscription.autoRenew.title')">
-          <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
-          <UAlert v-if="arError" class="mt-3" color="error" variant="subtle" :title="t('errors.generic')" />
+        <SharedRecordSection variant="panel" :title="t('subscription.paymentMethod.title')" data-testid="payment-method">
+          <SubscriptionPaymentMethodPanel :card="data.sub.auto_renew.payment_method" :auto-renew="data.sub.auto_renew.enabled">
+            <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :needs-card="!data.sub.auto_renew.payment_method" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
+            <UAlert v-if="arError" color="error" variant="subtle" :title="t('errors.generic')" />
+          </SubscriptionPaymentMethodPanel>
         </SharedRecordSection>
         <SharedRecordSection v-if="can('tenant.delete')" id="delete-workspace" variant="panel" :title="t('subscription.deletion.title')" class="border-error/40" data-testid="delete-workspace">
           <SubscriptionDeleteWorkspacePanel :deletion="data.sub.deletion ?? null" :pending="deletionBusy" :hydrated="hydrated" :error="deletionError" @request="changeDeletion('request')" @confirm="changeDeletion('confirm', $event)" @withdraw="changeDeletion('withdraw')" />

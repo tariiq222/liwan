@@ -1000,6 +1000,10 @@
       "sub": {
         "period": "Current period",
         "autoRenew": "Auto-renew",
+        "card": "Payment card",
+        "cardNone": "No card saved",
+        "cardExpiry": "Card expiry",
+        "cardState": { "active": "Active", "inactive": "Inactive", "expired": "Expired" },
         "trialEnds": "Trial ends",
         "graceEnds": "Grace ends",
         "pendingOrder": "Order in progress",

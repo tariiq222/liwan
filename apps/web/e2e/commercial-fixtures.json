@@ -1,4 +1,13 @@
 {
+  "savedCard": {
+    "id": "pm-card-1",
+    "brand": "visa",
+    "last_four": "4242",
+    "exp_month": 3,
+    "exp_year": 2030,
+    "status": "active",
+    "is_default": true
+  },
   "subscription": {
     "id": "sub-alpha",
     "customer_id": "cust-alpha",

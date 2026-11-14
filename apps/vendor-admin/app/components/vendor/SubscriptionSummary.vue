@@ -3,6 +3,7 @@ import { customerDisplayBadge } from '@/utils/vendorBadges'
 import { orderFulfillmentBadge, orderPaymentBadge } from '@/utils/vendorSubscriptions'
 import type { SubscriptionView } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
+import { cardExpiryLabel, maskedCardNumber, savedCardState } from '@liwan/commercial-ui/app/utils/paymentMethod'
 import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { subscriptionDisplayState, targetStatus } from '@/utils/vendorSubscriptions'
 const props = defineProps<{ subscription: SubscriptionView; planName?: string }>()
@@ -10,6 +11,9 @@ const { t, locale } = useI18n()
 const display = computed(() => subscriptionDisplayState(props.subscription))
 const status = computed(() => targetStatus(props.subscription))
 const date = (value: string | null | undefined) => (value ? formatLiwanDate(value) : null)
+const card = computed(() => props.subscription.auto_renew.payment_method)
+const cardState = computed(() => (card.value ? savedCardState(card.value, new Date()) : null))
+const CARD_TONE = { active: 'success', inactive: 'warning', expired: 'destructive' } as const
 const order = computed(() => props.subscription.pending_order)
 </script>
 <template>
@@ -21,6 +25,13 @@ const order = computed(() => props.subscription.pending_order)
       <SharedPropertyRow :label="t('vendor.customers.sub.period')" :value="subscription.applied ? t('vendor.customers.sub.periodRange', { from: date(subscription.applied.period_start), to: date(subscription.applied.period_end) }) : null" />
       <SharedPropertyRow :label="t('vendor.customers.renewal')" :value="date(subscription.renewal_at)" />
       <SharedPropertyRow :label="t('vendor.customers.sub.autoRenew')" :value="subscription.auto_renew.enabled ? t('vendor.common.yes') : t('vendor.common.no')" />
+      <SharedPropertyRow :label="t('vendor.customers.sub.card')" data-slot="saved-card">
+        <template v-if="card && cardState">
+          <span class="inline-flex flex-wrap items-center gap-2"><span class="capitalize">{{ card.brand }}</span> <bdi dir="ltr" class="tabular-nums">{{ maskedCardNumber(card) }}</bdi><SharedStatusBadge :tone="CARD_TONE[cardState]" :label="t(`vendor.customers.sub.cardState.${cardState}`)" /></span>
+        </template>
+        <template v-else>{{ t('vendor.customers.sub.cardNone') }}</template>
+      </SharedPropertyRow>
+      <SharedPropertyRow v-if="card" :label="t('vendor.customers.sub.cardExpiry')"><bdi dir="ltr" class="tabular-nums">{{ cardExpiryLabel(card) }}</bdi></SharedPropertyRow>
       <SharedPropertyRow v-if="subscription.trial_ends_at" :label="t('vendor.customers.sub.trialEnds')" :value="date(subscription.trial_ends_at)" />
       <SharedPropertyRow v-if="subscription.grace_ends_at" :label="t('vendor.customers.sub.graceEnds')" :value="date(subscription.grace_ends_at)" />
       <slot />

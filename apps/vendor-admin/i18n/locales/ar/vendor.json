@@ -1000,6 +1000,10 @@
       "sub": {
         "period": "الفترة الحالية",
         "autoRenew": "التجديد التلقائي",
+        "card": "بطاقة الدفع",
+        "cardNone": "لا توجد بطاقة محفوظة",
+        "cardExpiry": "انتهاء البطاقة",
+        "cardState": { "active": "مفعّلة", "inactive": "غير مفعّلة", "expired": "منتهية" },
         "trialEnds": "نهاية التجربة",
         "graceEnds": "نهاية فترة السماح",
         "pendingOrder": "طلب قيد المعالجة",
