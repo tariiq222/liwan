@@ -42,7 +42,6 @@ COLUMNS = {
         'description',
         'execution_count',
         'execution_kind',
-        'hr_leave_id',
         'name',
         'participant_ids',
         'process_id',

@@ -9,6 +9,7 @@ from odoo.addons.liwan_api.models.tenant_export_hooks import (
 
 APP = 'inbox'
 # Channels and settings are explicit allowlists: a new field is not exported until someone decides it belongs in the export.
+# An addon that extends the model adds its own fields through the two hook methods below.
 # The provider's free-text error fields (last_error, analytics_error) are left out on purpose.
 CHANNEL_FIELDS = (
     'id',
@@ -39,11 +40,6 @@ CHANNEL_FIELDS = (
     'csat_good',
     'csat_neutral',
     'csat_bad',
-    'paid_notice_enabled',
-    'paid_notice_text',
-    'commerce_cart_enabled',
-    'commerce_catalog_visible',
-    'commerce_phone',
     'currency_code',
     'tiktok_bound',
     'tiktok_business_id',
@@ -99,11 +95,25 @@ class LiwanInboxTenantExport(models.AbstractModel):
     _inherit = 'liwan.tenant.export.hooks'
 
     @api.model
+    def _liwan_inbox_channel_export_fields(self):
+        """The channel columns of the export; an addon that adds a stored channel field extends this through ``super()``."""
+        return list(CHANNEL_FIELDS)
+
+    @api.model
+    def _liwan_inbox_settings_export_fields(self):
+        """The settings columns of the export; an addon that adds a stored settings field extends this through ``super()``."""
+        return list(SETTINGS_FIELDS)
+
+    @api.model
     def _liwan_export_datasets(self):
         return [
             *super()._liwan_export_datasets(),
-            model_dataset(self.env, APP, 'inbox_channels', 'Channels', 'liwan.inbox.channel', fields=CHANNEL_FIELDS),
-            model_dataset(self.env, APP, 'inbox_settings', 'Settings', 'liwan.inbox.settings', fields=SETTINGS_FIELDS),
+            model_dataset(
+                self.env, APP, 'inbox_channels', 'Channels', 'liwan.inbox.channel', fields=self._liwan_inbox_channel_export_fields(),
+            ),
+            model_dataset(
+                self.env, APP, 'inbox_settings', 'Settings', 'liwan.inbox.settings', fields=self._liwan_inbox_settings_export_fields(),
+            ),
             *(
                 model_dataset(self.env, APP, key, title, model, attachments=files)
                 for key, title, model, files in DATASETS

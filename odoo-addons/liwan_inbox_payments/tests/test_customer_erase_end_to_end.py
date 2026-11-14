@@ -2,7 +2,8 @@
 """A customer with a lead, a posted invoice, an online order, a transaction and a conversation is erased in one request.
 
 This is the proof that no installed application leaves the erase refused: CRM, Finance, Customer Messages and the
-payments bridge each contribute their part, and the preview lists nothing as incomplete.
+payments bridge each contribute their part, and the preview lists nothing as incomplete. The bridge installs with its
+two sides only, so the CRM and Finance records are made, and counted, only when those applications are installed.
 """
 from odoo import Command
 from odoo.tests import new_test_user, tagged
@@ -28,23 +29,26 @@ class TestCustomerEraseEndToEnd(LiwanCatalogCase):
             cls.env, login='erase_e2e_admin', password='erase_e2e_admin_pass_123', name='Erase admin',
             groups='liwan_core.group_employee',
         )
+        installed = set(cls.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
+        cls.has_crm = 'liwan_crm' in installed
+        cls.has_finance = 'liwan_finance' in installed
+        roles = ['liwan_core.role_system_admin', 'liwan_inbox.role_inbox_manager']
+        roles += ['liwan_crm.role_crm_manager'] * cls.has_crm + ['liwan_finance.role_finance_manager'] * cls.has_finance
         cls.env['liwan.access.service']._liwan_replace_assignments(cls.erase_admin, [
-            {'role_id': cls.env.ref(role).id, 'company_id': company.id}
-            for role in (
-                'liwan_core.role_system_admin', 'liwan_crm.role_crm_manager', 'liwan_finance.role_finance_manager',
-                'liwan_inbox.role_inbox_manager',
-            )
+            {'role_id': cls.env.ref(role).id, 'company_id': company.id} for role in roles
         ])
-        cls.lead = cls.env['crm.lead'].with_context(mail_auto_subscribe_no_notify=True).create({
-            'name': 'Maha', 'type': 'opportunity', 'company_id': company.id, 'partner_id': cls.person.id,
-            'contact_name': NAME, 'email_from': EMAIL, 'phone': PHONE,
-        })
-        cls.invoice = cls.env['account.move'].create({
-            'move_type': 'out_invoice', 'partner_id': cls.person.id, 'currency_id': cls.env.ref('base.SAR').id,
-            'invoice_date': '2026-10-28', 'invoice_date_due': '2026-11-27',
-            'invoice_line_ids': [Command.create({'name': 'Service', 'quantity': 1, 'price_unit': 115.0, 'tax_ids': []})],
-        })
-        cls.invoice.action_post()
+        if cls.has_crm:
+            cls.lead = cls.env['crm.lead'].with_context(mail_auto_subscribe_no_notify=True).create({
+                'name': 'Maha', 'type': 'opportunity', 'company_id': company.id, 'partner_id': cls.person.id,
+                'contact_name': NAME, 'email_from': EMAIL, 'phone': PHONE,
+            })
+        if cls.has_finance:
+            cls.invoice = cls.env['account.move'].create({
+                'move_type': 'out_invoice', 'partner_id': cls.person.id, 'currency_id': cls.env.ref('base.SAR').id,
+                'invoice_date': '2026-10-28', 'invoice_date_due': '2026-11-27',
+                'invoice_line_ids': [Command.create({'name': 'Service', 'quantity': 1, 'price_unit': 115.0, 'tax_ids': []})],
+            })
+            cls.invoice.action_post()
         service = cls.env['liwan.payments.service']
         order = service._liwan_new_order(company, cls.person, 1.0)
         service._liwan_add_line(order, cls.service)
@@ -63,14 +67,18 @@ class TestCustomerEraseEndToEnd(LiwanCatalogCase):
         preview = service._liwan_erase_preview(self.person.id)
         self.assertEqual(preview['incomplete'], [])
         counts = {item['key']: item['count'] for item in preview['items']}
-        for key in ('crm_leads', 'finance_documents', 'payment_orders', 'payment_transactions', 'inbox_contacts', 'inbox_messages'):
+        keys = ['payment_orders', 'payment_transactions', 'inbox_contacts', 'inbox_messages']
+        keys += ['crm_leads'] * self.has_crm + ['finance_documents'] * self.has_finance
+        for key in keys:
             self.assertGreaterEqual(counts[key], 1, key)
         logged, erased = service._liwan_erase(self.person.id, preview['token'], NAME, 'Request')
         self.assertEqual(logged.counts, erased)
         self.env.invalidate_all()
         self.assertEqual(self.person.with_context(active_test=False).name, privacy_hooks.ERASED_NAME % self.person.id)
-        self.assertFalse(self.lead.with_context(active_test=False).email_from)
-        self.assertEqual((self.invoice.state, self.invoice.amount_total, self.invoice.partner_id), ('posted', 115.0, self.person))
+        if self.has_crm:
+            self.assertFalse(self.lead.with_context(active_test=False).email_from)
+        if self.has_finance:
+            self.assertEqual((self.invoice.state, self.invoice.amount_total, self.invoice.partner_id), ('posted', 115.0, self.person))
         self.assertEqual(self.sale_order.partner_id, self.person)
         self.assertFalse(self.paid.partner_email)
         self.assertEqual(self.paid.reference, 'E2E-TX-1')
