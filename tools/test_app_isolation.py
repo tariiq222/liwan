@@ -9,10 +9,15 @@ from pathlib import Path
 import app_isolation
 
 RANKS = {'liwan_core': 0, 'liwan_platform': 1, 'liwan_api': 2, 'liwan_directory': 3, 'liwan_ai': 3,
-         'app_a': 4, 'app_b': 4, 'app_c': 4, 'a_b': 5, 'b_ai': 5, 'api_c': 5, 'dir_ai': 5}
+         'app_a': 4, 'app_b': 4, 'app_c': 4, 'a_b': 5, 'b_ai': 5, 'api_c': 5, 'dir_ai': 5, 'api_stock': 5,
+         'a_b_sale': 5, 'b_stock': 5}
 DEPENDS = {'liwan_api': ['liwan_platform'], 'app_a': ['liwan_api', 'project'], 'app_b': ['liwan_api', 'liwan_directory'], 'app_c': ['liwan_api'],
            'a_b': ['app_a', 'app_b'], 'b_ai': ['app_b', 'liwan_ai', 'mail'], 'api_c': ['liwan_api', 'app_c'],
-           'dir_ai': ['liwan_directory', 'liwan_ai']}
+           'dir_ai': ['liwan_directory', 'liwan_ai'], 'api_stock': ['liwan_api', 'account'],
+           'a_b_sale': ['app_a', 'app_b', 'sale'], 'b_stock': ['app_b', 'project']}
+# A one-LiwanOS-side bridge names its stock side in `auto_install`; the two-LiwanOS-side one names both sides.
+AUTO_INSTALL = {'api_stock': ['liwan_api', 'account'], 'a_b_sale': ['app_a', 'app_b'],
+                'b_stock': ['app_b', 'project']}
 
 
 class Fixture(unittest.TestCase):
@@ -25,7 +30,10 @@ class Fixture(unittest.TestCase):
         self.addons = root / 'addons'
         for module, depends in DEPENDS.items():
             (self.addons / module).mkdir(parents=True)
-            (self.addons / module / '__manifest__.py').write_text(repr({'name': module, 'depends': depends}))
+            manifest = {'name': module, 'depends': depends}
+            if module in AUTO_INSTALL:
+                manifest['auto_install'] = AUTO_INSTALL[module]
+            (self.addons / module / '__manifest__.py').write_text(repr(manifest))
 
     def install(self, module):
         return app_isolation.install_list(module, self.layers, self.addons)
@@ -60,10 +68,56 @@ class InstallListTest(Fixture):
             with self.subTest(module=module), self.assertRaises(app_isolation.IsolationError):
                 self.install(module)
 
-    def test_a_bridge_without_exactly_two_sides_is_refused(self):
-        (self.addons / 'a_b' / '__manifest__.py').write_text(repr({'depends': ['app_a', 'app_b', 'app_c']}))
-        with self.assertRaises(app_isolation.IsolationError):
-            self.install('a_b')
+    def test_a_bridge_installs_one_liwan_side_and_its_stock_side(self):
+        self.assertEqual(self.install('api_stock'), ['account', 'liwan_api'])
+        self.assertEqual(app_isolation.test_tags('api_stock', self.layers, self.addons), '/api_stock')
+
+    def test_a_two_liwan_side_bridge_that_also_needs_stock_is_unchanged(self):
+        self.assertEqual(self.install('a_b_sale'), ['app_a', 'app_b'])
+        self.assertEqual(self.install('a_b'), ['app_a', 'app_b'])
+        self.assertEqual(self.install('b_ai'), ['app_b', 'liwan_ai'])
+        self.check('a_b_sale', ['app_a', 'app_b', 'a_b_sale'])
+        with self.assertRaisesRegex(app_isolation.IsolationError, 'app_c'):
+            self.check('a_b_sale', ['app_a', 'app_b', 'a_b_sale', 'app_c'])
+
+    def test_a_one_liwan_side_bridge_may_also_depend_on_other_stock_modules(self):
+        # Like liwan_inbox_payments depending on stock sale: the stock SIDE is the one auto_install names, and any
+        # other stock module is a plain dependency that Odoo installs with it.
+        (self.addons / 'api_stock' / '__manifest__.py').write_text(
+            repr({'depends': ['liwan_api', 'account', 'sale'], 'auto_install': ['liwan_api', 'account']}))
+        self.assertEqual(self.install('api_stock'), ['account', 'liwan_api'])
+
+    def test_a_malformed_bridge_is_refused_naming_what_was_found(self):
+        cases = {
+            'a_b': ({'depends': ['app_a', 'app_b', 'app_c']}, 'LiwanOS modules app_a, app_b, app_c'),
+            'api_stock': ({'depends': ['liwan_api']}, 'stock dependencies none'),
+            'api_c': ({'depends': ['account', 'sale'], 'auto_install': ['account', 'sale']},
+                      'LiwanOS modules none'),
+        }
+        for module, (manifest, found) in cases.items():
+            with self.subTest(module=module), self.assertRaisesRegex(app_isolation.IsolationError, found):
+                (self.addons / module / '__manifest__.py').write_text(repr(manifest))
+                self.install(module)
+
+    def test_a_one_liwan_side_bridge_must_auto_install_on_exactly_its_two_sides(self):
+        for auto_install in (True, ['liwan_api'], ['liwan_api', 'account', 'sale'], ['liwan_api', 'project']):
+            with self.subTest(auto_install=auto_install), \
+                    self.assertRaisesRegex(app_isolation.IsolationError, 'auto_install'):
+                (self.addons / 'api_stock' / '__manifest__.py').write_text(
+                    repr({'depends': ['liwan_api', 'account'], 'auto_install': auto_install}))
+                self.install('api_stock')
+
+    def test_a_one_liwan_side_bridge_must_depend_on_the_stock_module_its_auto_install_names(self):
+        (self.addons / 'api_stock' / '__manifest__.py').write_text(
+            repr({'depends': ['liwan_api', 'sale'], 'auto_install': ['liwan_api', 'account']}))
+        with self.assertRaisesRegex(app_isolation.IsolationError, 'stock dependencies sale'):
+            self.install('api_stock')
+
+    def test_a_one_liwan_side_bridge_that_auto_installs_on_two_stock_modules_is_refused(self):
+        (self.addons / 'api_stock' / '__manifest__.py').write_text(
+            repr({'depends': ['liwan_api', 'account', 'sale'], 'auto_install': ['liwan_api', 'account', 'sale']}))
+        with self.assertRaisesRegex(app_isolation.IsolationError, 'stock dependencies account, sale'):
+            self.install('api_stock')
 
 
 class AffectedTest(Fixture):
@@ -73,14 +127,18 @@ class AffectedTest(Fixture):
         return app_isolation.affected(set(changed), [m for m in self.MODULES if m in DEPENDS], self.addons)
 
     def test_a_change_reaches_its_dependents_transitively(self):
-        self.assertEqual(self.affected('liwan_api'), ['a_b', 'api_c', 'app_a', 'app_b', 'app_c', 'b_ai', 'liwan_api'])
-        self.assertEqual(self.affected('app_a'), ['a_b', 'app_a'])
+        self.assertEqual(self.affected('liwan_api'),
+                         ['a_b', 'a_b_sale', 'api_c', 'api_stock', 'app_a', 'app_b', 'app_c', 'b_ai', 'b_stock',
+                          'liwan_api'])
+        self.assertEqual(self.affected('app_a'), ['a_b', 'a_b_sale', 'app_a'])
+        # A bridge with a stock side is affected through its LiwanOS side, which is the only side a change can name.
+        self.assertEqual(self.affected('app_b'), ['a_b', 'a_b_sale', 'app_b', 'b_ai', 'b_stock'])
 
     def test_a_leaf_change_reaches_only_itself(self):
         self.assertEqual(self.affected('a_b'), ['a_b'])
 
     def test_a_changed_name_outside_the_modules_is_dropped_but_still_reaches_dependents(self):
-        self.assertEqual(self.affected('project'), ['a_b', 'app_a'])
+        self.assertEqual(self.affected('project'), ['a_b', 'a_b_sale', 'app_a', 'b_stock'])
         self.assertEqual(self.affected('not_released'), [])
 
     def test_the_matrix_keeps_only_the_affected_modules(self):
@@ -96,7 +154,8 @@ class AffectedTest(Fixture):
 
     def test_no_filter_keeps_every_module(self):
         groups = app_isolation.matrix('bridges', self.layers, self.addons)
-        self.assertEqual(sorted(' '.join(groups).split()), ['a_b', 'api_c', 'b_ai', 'dir_ai'])
+        self.assertEqual(sorted(' '.join(groups).split()),
+                         ['a_b', 'a_b_sale', 'api_c', 'api_stock', 'b_ai', 'b_stock', 'dir_ai'])
 
 
 class CheckTest(Fixture):
@@ -131,6 +190,24 @@ class CheckTest(Fixture):
         with self.assertRaisesRegex(app_isolation.IsolationError, 'did not install a_b'):
             self.check('a_b', ['app_a', 'app_b'])
 
+    def test_a_one_liwan_side_bridge_run_requires_the_bridge_and_its_liwan_side(self):
+        # The stock side is an Odoo dependency of the run, never a LiwanOS module of the installed list.
+        self.check('api_stock', ['liwan_core', 'liwan_platform', 'liwan_api', 'api_stock'])
+        with self.assertRaisesRegex(app_isolation.IsolationError, 'did not install api_stock'):
+            self.check('api_stock', ['liwan_core', 'liwan_platform', 'liwan_api'])
+
+    def test_a_one_liwan_side_bridge_belongs_to_the_run_of_its_liwan_side(self):
+        # It auto-installs with its LiwanOS side; its stock side is an Odoo dependency the installed LiwanOS list
+        # cannot show. An application run that does not install its LiwanOS side refuses it like any other bridge.
+        self.check('app_b', ['liwan_core', 'liwan_api', 'liwan_directory', 'app_b', 'b_stock'])
+        with self.assertRaisesRegex(app_isolation.IsolationError, 'b_stock'):
+            self.check('app_a', ['liwan_core', 'liwan_api', 'app_a', 'b_stock'])
+
+    def test_a_foundation_bridge_with_a_stock_side_is_allowed_in_any_run_that_has_the_foundation(self):
+        # Odoo installs it only together with its stock side, which the LiwanOS list cannot show, so its only
+        # visible trigger is the foundation that every run has. A stock-account run (finance) gets it legitimately.
+        self.check('app_a', ['liwan_core', 'liwan_api', 'app_a', 'api_stock'])
+
     def test_a_bridge_run_refuses_a_third_application(self):
         with self.assertRaisesRegex(app_isolation.IsolationError, 'app_c'):
             self.check('a_b', ['app_a', 'app_b', 'a_b', 'app_c'])
@@ -159,9 +236,14 @@ class RepositoryTest(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(app_isolation.main(['matrix', 'apps', '--modules', '']), 1)
 
-    def test_every_registered_bridge_links_exactly_two_liwan_modules(self):
-        for bridge in app_isolation.modules_of_rank(app_isolation.BRIDGE_RANK):
+    def test_every_registered_bridge_links_two_sides(self):
+        # A rank registered before its addon directory exists is a tools/arch_policy.py failure, not this tool's.
+        bridges = [bridge for bridge in app_isolation.modules_of_rank(app_isolation.BRIDGE_RANK)
+                   if (app_isolation.ADDONS / bridge / '__manifest__.py').is_file()]
+        self.assertTrue(bridges, 'no registered bridge has a manifest: the test would prove nothing')
+        for bridge in bridges:
             with self.subTest(bridge=bridge):
+                self.assertEqual(len(app_isolation.sides(bridge)), 2)
                 self.assertEqual(len(self.output('install', bridge).split(',')), 2)
 
     def test_the_foundation_top_is_liwan_api(self):

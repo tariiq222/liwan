@@ -44,10 +44,16 @@ export function profileToForm(profile: CompanyProfile): CompanyForm {
 // A cleared text becomes null; a boolean (the VAT registration switch) is sent as it is.
 const blank = (value: FormValue | undefined): FormValue => (typeof value === 'string' ? value.trim() || null : value ?? null)
 
-/** The PATCH body of the fields of `section` the user changed: a cleared text becomes null. */
-export function companyPatch(section: CompanySection, extensions: CompanyProfileExtension[], saved: CompanyForm, draft: CompanyForm): CompanyProfilePatch {
+/**
+ * The PATCH body of the fields of `section` the user changed: a cleared text becomes null. `omit` names the fields of the
+ * section another card owns on this page (`vat_registered` while the establishment tax card is on screen), so a change it
+ * saves never reaches this card's body or its draft comparison.
+ */
+export function companyPatch(
+  section: CompanySection, extensions: CompanyProfileExtension[], saved: CompanyForm, draft: CompanyForm, omit: readonly string[] = [],
+): CompanyProfilePatch {
   const patch: CompanyProfilePatch = {}
-  const shown = [...SECTION_FIELDS[section], ...extensions.map(extension => extension.name)]
+  const shown = [...SECTION_FIELDS[section], ...extensions.map(extension => extension.name)].filter(field => !omit.includes(field))
   for (const field of shown) {
     const value = blank(draft[field])
     if (value === blank(saved[field])) continue

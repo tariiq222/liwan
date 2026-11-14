@@ -28,7 +28,7 @@ from odoo.addons.liwan_inbox_payments.models.constants import (
 AVAILABILITY = ('in_stock', 'out_of_stock')
 MAX_ORDER_LINES = 100
 IMAGE_FORMATS = {'image/jpeg': 'JPEG', 'image/png': 'PNG'}
-CATALOG_FIELDS = {'brand', 'default_link', 'prices_include_tax'}
+CATALOG_FIELDS = {'brand', 'default_link'}
 
 
 def provider_failure(error):
@@ -54,7 +54,7 @@ def parse_meta_id(value, key):
 
 
 def parse_catalog_fields(payload):
-    """The brand, link and tax mode given in `payload` as catalog values."""
+    """The brand and link given in `payload` as catalog values."""
     values = {}
     if 'brand' in payload:
         values['brand'] = parse_string(payload['brand'], 'brand', MAX_BRAND)
@@ -62,8 +62,6 @@ def parse_catalog_fields(payload):
         values['default_link'] = (
             parse_https_url(payload['default_link'], 'default_link', MAX_CTA_URL) if payload['default_link'] is not None else False
         )
-    if 'prices_include_tax' in payload:
-        values['prices_include_tax'] = parse_bool(payload['prices_include_tax'], 'prices_include_tax')
     return values
 
 

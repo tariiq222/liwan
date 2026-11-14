@@ -39,6 +39,10 @@ class LiwanInboxCatalogItem(models.Model):
 
     catalog_id = fields.Many2one('liwan.inbox.catalog', required=True, index=True, ondelete='cascade')
     company_id = fields.Many2one(related='catalog_id.company_id', store=True, index=True)
+    # The root company of the catalog's company: the establishment whose VAT registration and price mode decide the price.
+    # Stored so a change of either resends every item of the establishment, branch-owned ones included, by one indexed
+    # filter on this table (`_liwan_establishment_price_changed`), without reading a company record.
+    establishment_id = fields.Many2one(related='catalog_id.company_id.root_id', store=True, index=True)
     active = fields.Boolean(default=True)
     product_id = fields.Many2one('product.product', required=True, index=True, ondelete='restrict')
     # Meta's `retailer_id` ("Content ID"): the product's internal reference when it fits, else `wv-<product id>`.
@@ -151,17 +155,21 @@ class LiwanInboxCatalogItem(models.Model):
         self.browse(ids).catalog_id._liwan_request_sync()
 
     @api.model
-    def _liwan_vat_registration_changed(self, company_ids):
-        """Resend the synced items of companies whose VAT registration changed: it decides whether their price carries tax.
+    def _liwan_establishment_price_changed(self, establishment_ids):
+        """Resend the synced items of establishments whose VAT registration or price mode changed.
 
-        Plain SQL on this model's own table, as for a changed product: the company's writer holds no right on items.
-        Items already pending, syncing, in error or being removed keep their state, and the next push reads the new price.
+        Both decide the price the customer pays: the establishment's registration says whether there is a tax at all,
+        and stock's ``account_price_include`` says whether the typed price carries it. The key is the establishment (its
+        root company), so the items of a branch-owned catalog follow a change made on the root. Plain SQL on this model's
+        own table, as for a changed product: the company's writer holds no right on items and no company or catalog
+        record is read. Items already pending, syncing, in error or being removed keep their state, and the next push
+        reads the new price.
         """
         self.flush_model()
         self.env.cr.execute(
             "UPDATE liwan_inbox_catalog_item SET sync_state = 'pending' "
-            "WHERE company_id IN %s AND listed AND active AND sync_state = 'synced' RETURNING catalog_id",
-            [tuple(company_ids)],
+            "WHERE establishment_id IN %s AND listed AND active AND sync_state = 'synced' RETURNING catalog_id",
+            [tuple(establishment_ids) or (0,)],
         )
         catalog_ids = {row[0] for row in self.env.cr.fetchall()}
         self.invalidate_model(['sync_state'])
@@ -178,26 +186,32 @@ class LiwanInboxCatalogItem(models.Model):
             item.name = product.with_context(display_default_code=False).display_name[:MAX_PRODUCT_NAME]
             item.description = (product.description_sale or item.name)[:MAX_PRODUCT_DESCRIPTION]
 
-    @api.depends('product_id', 'catalog_id.prices_include_tax', 'catalog_id.company_id.liwan_vat_registered')
+    @api.depends('product_id', 'product_id.lst_price', 'product_id.taxes_id',
+                 'catalog_id.company_id.liwan_establishment_vat_registered', 'catalog_id.company_id.account_price_include',
+                 'catalog_id.company_id.currency_id')
     def _compute_price(self):
         for item in self:
             item.currency = item.catalog_id.company_id.currency_id.name
             item.price = item._liwan_price()
 
     def _liwan_price(self):
-        """The unit price the catalog shows: the list price with or without its taxes.
+        """The unit price the catalog shows: the total the customer pays.
 
-        A company that is not registered for VAT charges no tax, so its catalog prices carry none whatever the
-        catalog's "prices include tax" option says.
+        An establishment that is not registered for VAT charges no tax, so its catalog prices are the typed price; the
+        registration is the establishment's one decision, stored on the root company and read through
+        ``_liwan_vat_registered()`` by the root and its branches alike. Otherwise stock decides whether the typed price
+        carries the tax: the company's ``account_price_include`` makes its taxes price-included or added on top, and
+        ``compute_all`` answers the total the customer pays either way. The taxes are the ones stock picks for the
+        company, climbing to the first ancestor that owns one: a branch catalog uses the tax its root owns.
         """
         self.ensure_one()
         company = self.catalog_id.company_id
         product = self.product_id
         if not company._liwan_vat_registered():
             return product.lst_price
-        taxes = product.taxes_id.filtered(lambda tax: tax.company_id == company)
+        taxes = product.taxes_id._filter_taxes_by_company(company)
         totals = taxes.compute_all(product.lst_price, currency=company.currency_id, quantity=1.0, product=product)
-        return totals['total_included' if self.catalog_id.prices_include_tax else 'total_excluded']
+        return totals['total_included']
 
     @api.depends('link_override', 'catalog_id.default_link')
     def _compute_link(self):

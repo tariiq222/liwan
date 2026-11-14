@@ -9,6 +9,7 @@ from odoo.tools.mimetypes import guess_mimetype
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.controllers.vat import check_vat
+from odoo.addons.liwan_api.controllers.write_state import session_may_write
 from odoo.addons.liwan_api.serializers.company import dump_logo_url
 
 MAX_TEXT_LENGTH = 255
@@ -75,9 +76,15 @@ def dump_company_profile(company):
         'logo_url': logo_url,
         'report_header': _tagline(company),
         'company_registry': company.company_registry or None,
+        # The establishment's one registration, whoever asks: a branch answers its root's value and cannot change it.
         'vat_registered': company._liwan_vat_registered(),
-        # The number the tenant typed for its own records; the form offers it only while the company is
-        # registered, and only then does any document, price or pay page show a tax.
+        # Whether a change would be accepted now: the root, the VAT right, and a session no read-only fence refuses.
+        'vat_registration_editable': company._liwan_vat_registration_editable() and session_may_write(company),
+        # Why a branch session shows the registration read-only: it is set on the root, not on this company.
+        'is_root_company': not company.parent_id,
+        # The number the establishment registered under; a branch keeps its own number, and only the root's is the
+        # registration's. The form offers it only while the company is registered, and only then does any
+        # document, price or pay page show a tax.
         'vat': company.vat or None,
         'address': {
             'street': company.street or None,
@@ -146,9 +153,14 @@ def _parse_field(company, field, value, extensions):
     return _parse_text(value, field)
 
 
-def _check_vat_registration(company, vals):
-    """A company registered for VAT, before or after this write, needs a valid VAT number: the payload's own or the saved one."""
-    if not vals.get('vat_registered', company._liwan_vat_registered()):
+def check_vat_registration(company, vals):
+    """A registered establishment needs a valid VAT number: the payload's own or the saved one.
+
+    The registration and the number are one decision for the establishment, held on its root company, so the rule
+    is enforced there. A branch shows its establishment's answer and cannot change it, and its own partner holds no
+    number of its own; the root's check is the one that matters.
+    """
+    if company.parent_id or not vals.get('vat_registered', company._liwan_vat_registered()):
         return
     vat = vals.get('vat', company.vat or False)
     if not vat:
@@ -181,7 +193,7 @@ def parse_company_profile_vals(payload, company):
         raise ApiError(422, 'invalid', 'state_id does not belong to the company country', field='state_id')
     if 'vat' in vals:
         check_vat(company.country_id, vals['vat'], vals.get('name', company.name))
-    _check_vat_registration(company, vals)
+    check_vat_registration(company, vals)
     return {ORM_FIELDS.get(field, field): value for field, value in vals.items()}
 
 

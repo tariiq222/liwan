@@ -17,6 +17,13 @@ sides and expects the bridge to auto-install. ``check`` fails when the installed
 application or bridge that the run did not ask for (for the foundation run: also a shared service), or
 misses the target itself.
 
+A bridge links its two sides one of two ways: two LiwanOS modules (``liwan_tasks_pmo``), or one LiwanOS
+module and one stock module (``liwan_api_account`` on ``liwan_api`` and stock ``account``). A stock side has
+no rank, so there is nothing to switch off for it in the route probe. It is the single unranked module
+``auto_install`` names, and that list must name exactly the two sides, so Odoo installs the bridge only when
+both are present; the bridge may depend on further stock modules, as ``liwan_inbox_payments`` does on ``sale``.
+Anything else is refused and the error says what the manifest held.
+
 ``matrix`` packs the runs into ``GROUP_COUNT`` jobs per stage (space-separated modules, split by test
 weight like ``tools/odoo_shards.py``): each job pays its runner, Postgres and Odoo setup once, and the CI
 account runs a limited number of jobs at a time, so one job per module mostly waited in the queue.
@@ -76,11 +83,15 @@ def matrix(kind: str, layers: Path = LAYERS, addons: Path = ADDONS, only: list[s
     return [' '.join(group) for group in groups if group]
 
 
+def manifest(module: str, addons: Path = ADDONS) -> dict:
+    path = addons / module / '__manifest__.py'
+    if not path.is_file():
+        raise IsolationError(f'{module} has no manifest at {path}')
+    return ast.literal_eval(path.read_text(encoding='utf-8'))
+
+
 def depends(module: str, addons: Path = ADDONS) -> list[str]:
-    manifest = addons / module / '__manifest__.py'
-    if not manifest.is_file():
-        raise IsolationError(f'{module} has no manifest at {manifest}')
-    return list(ast.literal_eval(manifest.read_text(encoding='utf-8')).get('depends', []))
+    return list(manifest(module, addons).get('depends', []))
 
 
 def affected(changed: set[str], modules: list[str], addons: Path = ADDONS) -> list[str]:
@@ -97,15 +108,43 @@ def affected(changed: set[str], modules: list[str], addons: Path = ADDONS) -> li
     return sorted(reached & set(modules))
 
 
-def sides(bridge: str, layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
-    """The LiwanOS modules a bridge links; a bridge links exactly two."""
+def _bridge_sides(bridge: str, layers: Path, addons: Path) -> tuple[list[str], list[str]]:
+    """The (LiwanOS, stock) sides a bridge links, read from its manifest and validated.
+
+    Two ranked modules in ``depends`` are two LiwanOS sides, and any stock module it also depends on is a plain
+    dependency. With one ranked module, its stock side is the single unranked module its ``auto_install`` names,
+    and that list must name exactly those two sides, so Odoo installs the bridge only when both are present.
+    """
     known = ranks(layers)
     if known.get(bridge) != BRIDGE_RANK:
         raise IsolationError(f'{bridge} is not a rank-{BRIDGE_RANK} bridge in {layers.name}')
-    linked = sorted(module for module in depends(bridge, addons) if module in known)
-    if len(linked) != 2:
-        raise IsolationError(f'{bridge} must depend on exactly two LiwanOS modules, found {linked}')
-    return linked
+    bridge_manifest = manifest(bridge, addons)
+    dependencies = list(bridge_manifest.get('depends', []))
+    linked = sorted({module for module in dependencies if module in known})
+    if len(linked) == 2:
+        return linked, []
+    trigger = bridge_manifest.get('auto_install')
+    named = list(trigger) if isinstance(trigger, list) else []
+    stock = sorted({module for module in named if module not in known})
+    two_sides = sorted([*linked, *stock]) if len(linked) == 1 and len(stock) == 1 else []
+    if two_sides and sorted(named) == two_sides and all(module in dependencies for module in two_sides):
+        return linked, stock
+    found_stock = sorted({module for module in dependencies if module not in known})
+    raise IsolationError(
+        f'{bridge} must link two LiwanOS modules, or one LiwanOS module and one stock module its auto_install '
+        f'names; found LiwanOS modules {", ".join(linked) or "none"}, stock dependencies '
+        f'{", ".join(found_stock) or "none"}, and auto_install {trigger!r}')
+
+
+def sides(bridge: str, layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
+    """The two modules a bridge links: two LiwanOS modules, or one LiwanOS module and one stock module."""
+    linked, stock = _bridge_sides(bridge, layers, addons)
+    return sorted([*linked, *stock])
+
+
+def liwan_sides(bridge: str, layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
+    """The LiwanOS sides of a bridge: the ones its isolation run watches and the route probe switches off."""
+    return _bridge_sides(bridge, layers, addons)[0]
 
 
 def install_list(module: str, layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
@@ -124,18 +163,30 @@ def test_tags(module: str, layers: Path = LAYERS, addons: Path = ADDONS) -> str:
     return ','.join('/' + name for name in tested)
 
 
+def required(module: str, layers: Path = LAYERS, addons: Path = ADDONS) -> set[str]:
+    """The LiwanOS modules a run of ``module`` must have installed: the target and its LiwanOS sides.
+
+    A bridge's stock side is an Odoo dependency of the run's ``-i`` list, not a LiwanOS module, so the installed
+    LiwanOS list cannot show it and only the LiwanOS sides are required.
+    """
+    if ranks(layers).get(module) == BRIDGE_RANK:
+        return {module, *liwan_sides(module, layers, addons)}
+    return {module, *install_list(module, layers, addons)}
+
+
 def unexpected(module: str, installed: set[str], layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
     """Applications and bridges installed beyond what the run of ``module`` asked for."""
-    asked = set(install_list(module, layers, addons))
-    allowed = asked | {module}
-    # A bridge whose sides are all part of the run auto-installs legitimately. The foundation is part of
+    asked = required(module, layers, addons)
+    allowed = set(asked)
+    # A bridge whose LiwanOS sides are all part of the run auto-installs legitimately. The foundation is part of
     # every run, so a bridge between the foundation and the application under test (liwan_access_hr for
     # liwan_hr) belongs to that application's standalone install. So do the shared services the run pulled in
     # as dependencies: a bridge between two of them (liwan_ai_notify for liwan_ai and liwan_notify) comes
-    # with any run that needs both.
+    # with any run that needs both. A bridge's stock side never appears in the installed LiwanOS list, and Odoo
+    # installs the bridge only when that side is present too, so its LiwanOS side is the trigger this can see.
     present = asked | set(foundation(layers)) | (installed & set(modules_of_rank(SERVICE_RANK, layers)))
     for bridge in modules_of_rank(BRIDGE_RANK, layers):
-        if set(sides(bridge, layers, addons)) <= present:
+        if set(liwan_sides(bridge, layers, addons)) <= present:
             allowed.add(bridge)
     watched = set(modules_of_rank(APP_RANK, layers)) | set(modules_of_rank(BRIDGE_RANK, layers))
     if module == foundation(layers)[-1]:
@@ -145,7 +196,8 @@ def unexpected(module: str, installed: set[str], layers: Path = LAYERS, addons: 
 
 
 def check(module: str, installed: set[str], layers: Path = LAYERS, addons: Path = ADDONS) -> None:
-    missing = sorted(({module} | set(install_list(module, layers, addons))) - installed)
+    """Fail unless the run installed its target and LiwanOS sides, and nothing it did not ask for."""
+    missing = sorted(required(module, layers, addons) - installed)
     if missing:
         raise IsolationError(f'{module} run did not install {", ".join(missing)}')
     extra = unexpected(module, installed, layers, addons)

@@ -13,6 +13,17 @@ OUTSIDER_PASSWORD = 'finance_outsider_pass_123'
 SETUP_EXPECTED_USER_HEADER = 'X-Liwan-Expected-User-Id'
 SETUP_EXPECTED_COMPANY_HEADER = 'X-Liwan-Expected-Company-Id'
 
+# The price mode these fixtures compute under: their figures add the 15% tax on top of the typed price. Stating it in
+# the company's values keeps that arithmetic independent of stock's default and of the product's "price includes tax"
+# default (liwan_api_account). A branch never states its own value: base copies its root's and refuses a difference.
+TAX_EXCLUDED = 'tax_excluded'
+TAX_INCLUDED = 'tax_included'
+
+
+def company_values(name, price_mode=TAX_EXCLUDED, **values):
+    """Values for a root company that states the price mode its expected figures are computed under."""
+    return {'name': name, 'account_price_include': price_mode, **values}
+
 
 class LiwanFinanceCase(LiwanApiCase):
     """The shared liwan_api fixture plus two Saudi companies with the l10n_sa chart,
@@ -20,11 +31,19 @@ class LiwanFinanceCase(LiwanApiCase):
     of 1000 SAR with 15% VAT in each company."""
 
     @classmethod
-    def _saudi_company(cls, name):
+    def _assert_company_price_mode(cls, company, expected):
+        """The fixture's figures only hold under the mode it states; fail loudly if a write moved it."""
+        if company.account_price_include != expected:
+            msg = f'{company.name} has the price mode {company.account_price_include!r}, not {expected!r}'
+            raise AssertionError(msg)
+
+    @classmethod
+    def _saudi_company(cls, name, price_mode=TAX_EXCLUDED):
         saudi_arabia = cls.env.ref('base.sa')
-        company = cls.env['res.company'].create({
-            'name': name, 'country_id': saudi_arabia.id, 'currency_id': cls.env.ref('base.SAR').id,
-        })
+        company = cls.env['res.company'].create(company_values(
+            name, price_mode, country_id=saudi_arabia.id, currency_id=cls.env.ref('base.SAR').id,
+        ))
+        cls._assert_company_price_mode(company, price_mode)
         cls.env['account.chart.template'].try_loading('sa', company)
         # ZATCA phase 2 refuses to post until a journal is onboarded against ZATCA; the fixtures
         # sell through journals without that format. The ZATCA tests link it back where they need it.
@@ -33,11 +52,12 @@ class LiwanFinanceCase(LiwanApiCase):
         return company
 
     @classmethod
-    def _fresh_company_manager(cls, name, login, password):
+    def _fresh_company_manager(cls, name, login, password, price_mode=TAX_EXCLUDED):
         """A Saudi company as provisioning leaves it (the ``sa`` chart, nothing else) and a finance manager who works in it only."""
-        company = cls.env['res.company'].create({
-            'name': name, 'country_id': cls.env.ref('base.sa').id, 'currency_id': cls.env.ref('base.SAR').id,
-        })
+        company = cls.env['res.company'].create(company_values(
+            name, price_mode, country_id=cls.env.ref('base.sa').id, currency_id=cls.env.ref('base.SAR').id,
+        ))
+        cls._assert_company_price_mode(company, price_mode)
         cls.env['account.chart.template'].try_loading('sa', company)
         user = new_test_user(
             cls.env, login=login, password=password, name=login, groups='liwan_core.group_employee',

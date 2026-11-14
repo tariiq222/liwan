@@ -34,7 +34,7 @@ export function seedCatalog() {
   return {
     catalogs: [{
       id: 1, business_account_id: '203456789012345', meta_catalog_id: '9988776655443', name: 'كتالوج المتجر', state: 'connected', last_error: null, brand: 'متجر الأمل',
-      default_link: null, prices_include_tax: true, vat_registered: true, currency: 'SAR', last_sync_at: ago(0.5), created_at: ago(72),
+      default_link: null, currency: 'SAR', last_sync_at: ago(0.5), created_at: ago(72),
     }],
     items: [
       makeItem(1, 'wv-101', 'قهوة مختصة 250 غ', 45),
@@ -60,10 +60,11 @@ export function seedCatalog() {
   }
 }
 
-const priceOf = (catalog, item) => round2(catalog.prices_include_tax ? item.list_price * VAT : item.list_price)
+// The price the catalog shows is the total the customer pays, computed by the server from the establishment's tax.
+const priceOf = item => round2(item.list_price * VAT)
 const itemOut = (state, item) => {
   const catalog = state.catalog.catalogs.find(candidate => candidate.id === item.catalog_id)
-  return { ...item, price: priceOf(catalog, item), link: item.link_override ?? catalog.default_link ?? DEFAULT_LINK }
+  return { ...item, price: priceOf(item), link: item.link_override ?? catalog.default_link ?? DEFAULT_LINK }
 }
 const catalogOut = (state, catalog) => {
   const items = state.catalog.items.filter(item => item.catalog_id === catalog.id)
@@ -198,7 +199,7 @@ function createCatalog(state, body) {
   if (state.catalog.catalogs.some(item => item.business_account_id === channel.business_account_id)) return fail(409, 'conflict', 'يوجد كتالوج لهذا الحساب')
   const catalog = {
     id: state.catalog.ids.catalog++, business_account_id: channel.business_account_id, meta_catalog_id: body.meta_catalog_id, name: `كتالوج ${body.meta_catalog_id}`, state: 'connected',
-    last_error: null, brand: body.brand.trim(), default_link: body.default_link ?? null, prices_include_tax: body.prices_include_tax, vat_registered: true, currency: 'SAR', last_sync_at: null, created_at: iso(Date.now()),
+    last_error: null, brand: body.brand.trim(), default_link: body.default_link ?? null, currency: 'SAR', last_sync_at: null, created_at: iso(Date.now()),
   }
   state.catalog.catalogs.push(catalog)
   state.catalog.commerce.set(channel.id, { ...DEFAULT_COMMERCE })
@@ -234,7 +235,7 @@ function catalogRoute(state, method, parts, url, body) {
   if (method === 'PATCH') {
     if (!Object.keys(body).length) return fail(422, 'invalid', 'send at least one field')
     if ('brand' in body && !String(body.brand).trim()) return fail(422, 'invalid', 'العلامة التجارية مطلوبة', 'brand')
-    Object.assign(catalog, Object.fromEntries(['brand', 'default_link', 'prices_include_tax'].filter(key => key in body).map(key => [key, body[key]])))
+    Object.assign(catalog, Object.fromEntries(['brand', 'default_link'].filter(key => key in body).map(key => [key, body[key]])))
     for (const item of state.catalog.items) if (item.catalog_id === id && item.listed) queue(state, item)
     return ok(catalogOut(state, catalog))
   }
@@ -318,7 +319,7 @@ function orderOut(state, order) {
     const item = state.catalog.items.find(candidate => candidate.product_retailer_id === line.product_retailer_id)
     return {
       id: line.id, product_retailer_id: line.product_retailer_id, catalog_item_id: item?.id ?? null, name: item?.name ?? null, quantity: line.quantity,
-      cart_price: line.cart_price, unit_price: item && catalog ? priceOf(catalog, item) : null, currency: 'SAR', availability: item?.availability ?? null,
+      cart_price: line.cart_price, unit_price: item && catalog ? priceOf(item) : null, currency: 'SAR', availability: item?.availability ?? null,
     }
   })
   const total = round2(lines.reduce((sum, line) => sum + line.quantity * (line.unit_price ?? line.cart_price ?? 0), 0))
@@ -344,7 +345,7 @@ function newOrder(state, conv, lines, extra = {}) {
 function lineFromItem(state, itemId, quantity) {
   const item = state.catalog.items.find(candidate => candidate.id === itemId)
   if (!item) return null
-  return { product_retailer_id: item.product_retailer_id, quantity, cart_price: priceOf(state.catalog.catalogs[0], item) }
+  return { product_retailer_id: item.product_retailer_id, quantity, cart_price: priceOf(item) }
 }
 
 /** A customer's cart arriving: an inbound `order` message with its cart order. `lines` are `{ retailer_id, quantity }`. */
@@ -352,7 +353,7 @@ export function receiveCart(state, conv, lines, text, appendInbound) {
   const catalog = state.catalog.catalogs[0]
   const resolved = lines.map((line) => {
     const item = state.catalog.items.find(candidate => candidate.product_retailer_id === line.retailer_id)
-    return { product_retailer_id: line.retailer_id, quantity: line.quantity, cart_price: item && catalog ? priceOf(catalog, item) : 0 }
+    return { product_retailer_id: line.retailer_id, quantity: line.quantity, cart_price: item && catalog ? priceOf(item) : 0 }
   })
   const order = newOrder(state, conv, resolved)
   const message = appendInbound(conv, {
@@ -553,7 +554,7 @@ export function seedCommerceThread(state, conv, message) {
   const cartMessage = message('in', '', 0.5, { kind: 'order', commerce: null })
   const order = newOrder(state, conv, [
     { product_retailer_id: 'wv-101', quantity: 2, cart_price: 50.4 },
-    { product_retailer_id: 'wv-102', quantity: 1, cart_price: priceOf(catalog, state.catalog.items[1]) },
+    { product_retailer_id: 'wv-102', quantity: 1, cart_price: priceOf(state.catalog.items[1]) },
     { product_retailer_id: 'wv-999', quantity: 1, cart_price: 10 },
   ], { message_id: cartMessage.id })
   cartMessage.commerce = {

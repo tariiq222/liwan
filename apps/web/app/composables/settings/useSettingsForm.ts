@@ -5,8 +5,13 @@ import { saveErrorMessage } from '../../utils/formFeedback'
 interface SettingsFormOptions<Source, Draft> {
   /** The current settings as the page's query holds them. */
   source: () => Source
-  /** The fields this card owns, copied out of the settings. */
+  /** The fields this card's draft holds, copied out of the settings; the same shape every time the card reads it. */
   read: (source: Source) => Draft
+  /**
+   * The part of the draft this card owns. A field another card on the page owns stays in the draft's shape (so a draft
+   * whose shape changes when that card appears is not read as an edit) but never decides dirty or a conflict.
+   */
+  compare?: (draft: Draft) => unknown
   /** Saves the draft; `latest` is the newest settings the page knows (for its revision). Answers the saved settings. */
   save: (draft: Draft, latest: Source) => Promise<Source>
   /** Fetches the current settings after a 409. */
@@ -29,7 +34,8 @@ export function useSettingsForm<Source, Draft>(options: SettingsFormOptions<Sour
   const saving = ref(false)
   const reloading = ref(false)
   const reloadFailed = ref(false)
-  const dirty = computed(() => !same(draft.value, options.read(baseline.value)))
+  const owned = (draft: Draft) => (options.compare ? options.compare(draft) : draft)
+  const dirty = computed(() => !same(owned(draft.value), owned(options.read(baseline.value))))
   // Only a stale revision (409 `conflict`) locks the card; another 409 (the last access admin, a moved company) is a
   // refusal the manager reads and answers in the draft.
   const conflict = computed(() => failure.value instanceof ApiError && failure.value.status === 409 && failure.value.code === 'conflict')
@@ -47,7 +53,7 @@ export function useSettingsForm<Source, Draft>(options: SettingsFormOptions<Sour
   watch(options.source, (source) => {
     if (reloading.value || saving.value || conflict.value) return
     if (!dirty.value) adopt(source)
-    else if (same(options.read(source), options.read(baseline.value))) baseline.value = source
+    else if (same(owned(options.read(source)), owned(options.read(baseline.value)))) baseline.value = source
     else failure.value = new ApiError(409, 'conflict', 'Settings changed; reload before saving')
   })
   async function save() {

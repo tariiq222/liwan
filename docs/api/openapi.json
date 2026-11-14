@@ -12970,6 +12970,9 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "is_root_company": {
+            "type": "boolean"
+          },
           "logo_url": {
             "anyOf": [
               {
@@ -13006,6 +13009,9 @@
           "vat_registered": {
             "type": "boolean"
           },
+          "vat_registration_editable": {
+            "type": "boolean"
+          },
           "website": {
             "type": [
               "string",
@@ -13020,6 +13026,8 @@
           "report_header",
           "company_registry",
           "vat_registered",
+          "vat_registration_editable",
+          "is_root_company",
           "vat",
           "address",
           "email",
@@ -13038,6 +13046,65 @@
           "none"
         ],
         "type": "string"
+      },
+      "CompanyTaxPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "price_mode": {
+            "enum": [
+              "included",
+              "added"
+            ],
+            "type": "string"
+          },
+          "registered": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "CompanyTaxSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "can_change": {
+            "type": "boolean"
+          },
+          "choice": {
+            "enum": [
+              "none",
+              "included",
+              "added"
+            ],
+            "type": "string"
+          },
+          "is_root_session": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "price_mode": {
+            "enum": [
+              "included",
+              "added"
+            ],
+            "type": "string"
+          },
+          "registered": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "registered",
+          "price_mode",
+          "choice",
+          "locked",
+          "can_change",
+          "is_root_session"
+        ],
+        "type": "object"
       },
       "CompletionAcceptedNotificationSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -35370,6 +35437,9 @@
                 "price_include": {
                   "type": "boolean"
                 },
+                "price_include_editable": {
+                  "type": "boolean"
+                },
                 "tax_account": {
                   "anyOf": [
                     {
@@ -35413,6 +35483,7 @@
                 "amount_type",
                 "amount",
                 "price_include",
+                "price_include_editable",
                 "tax_account",
                 "active",
                 "used"
@@ -35500,6 +35571,9 @@
           "price_include": {
             "type": "boolean"
           },
+          "price_include_editable": {
+            "type": "boolean"
+          },
           "tax_account": {
             "anyOf": [
               {
@@ -35543,6 +35617,7 @@
           "amount_type",
           "amount",
           "price_include",
+          "price_include_editable",
           "tax_account",
           "active",
           "used"
@@ -56562,9 +56637,6 @@
           "meta_catalog_id": {
             "pattern": "^\\d{5,32}$",
             "type": "string"
-          },
-          "prices_include_tax": {
-            "type": "boolean"
           }
         },
         "required": [
@@ -57406,18 +57478,12 @@
                 "name": {
                   "type": "string"
                 },
-                "prices_include_tax": {
-                  "type": "boolean"
-                },
                 "state": {
                   "enum": [
                     "connected",
                     "error"
                   ],
                   "type": "string"
-                },
-                "vat_registered": {
-                  "type": "boolean"
                 }
               },
               "required": [
@@ -57429,8 +57495,6 @@
                 "last_error",
                 "brand",
                 "default_link",
-                "prices_include_tax",
-                "vat_registered",
                 "currency",
                 "channels",
                 "counts",
@@ -57473,9 +57537,6 @@
                 "type": "null"
               }
             ]
-          },
-          "prices_include_tax": {
-            "type": "boolean"
           }
         },
         "type": "object"
@@ -57955,18 +58016,12 @@
           "name": {
             "type": "string"
           },
-          "prices_include_tax": {
-            "type": "boolean"
-          },
           "state": {
             "enum": [
               "connected",
               "error"
             ],
             "type": "string"
-          },
-          "vat_registered": {
-            "type": "boolean"
           }
         },
         "required": [
@@ -57978,8 +58033,6 @@
           "last_error",
           "brand",
           "default_link",
-          "prices_include_tax",
-          "vat_registered",
           "currency",
           "channels",
           "counts",
@@ -93641,20 +93694,10 @@
           "system_admin_links": {
             "type": "boolean"
           },
-          "tax_mode": {
-            "enum": [
-              "included",
-              "added"
-            ],
-            "type": "string"
-          },
           "unpaid_order_expiry_minutes": {
             "maximum": 1440,
             "minimum": 5,
             "type": "integer"
-          },
-          "vat_registered": {
-            "type": "boolean"
           }
         },
         "required": [
@@ -93662,8 +93705,6 @@
           "invoice_when_paid",
           "refund_policy",
           "refund_amounts",
-          "tax_mode",
-          "vat_registered",
           "system_admin_links",
           "revision"
         ],
@@ -93697,13 +93738,6 @@
           },
           "system_admin_links": {
             "type": "boolean"
-          },
-          "tax_mode": {
-            "enum": [
-              "included",
-              "added"
-            ],
-            "type": "string"
           },
           "unpaid_order_expiry_minutes": {
             "maximum": 1440,
@@ -105394,14 +105428,6 @@
         ],
         "type": "object"
       },
-      "TaxModeSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "enum": [
-          "included",
-          "added"
-        ],
-        "type": "string"
-      },
       "TenantExportCountsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -107197,6 +107223,84 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "upload_admin_company_logo",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/company/tax": {
+      "get": {
+        "operationId": "liwan_api_account.CompanyTaxController.get_company_tax.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_company_tax",
+        "tags": [
+          "liwan_api_account"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api_account",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "CompanyTaxController",
+          "feature_keys": [
+            "registry:company_tax"
+          ],
+          "feature_operation": "read",
+          "handler": "get_company_tax",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_api_account.CompanyTaxController.patch_company_tax.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_company_tax",
+        "tags": [
+          "liwan_api_account"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api_account",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "CompanyTaxController",
+          "feature_keys": [
+            "registry:company_tax"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_company_tax",
           "readonly": false,
           "route_type": "json2"
         }
@@ -150646,6 +150750,7 @@
     "liwan_access_hr",
     "liwan_ai",
     "liwan_api",
+    "liwan_api_account",
     "liwan_appointments",
     "liwan_appointments_payments",
     "liwan_chat",

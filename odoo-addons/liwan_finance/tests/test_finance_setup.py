@@ -11,6 +11,7 @@ from .common import (
     SETUP_EXPECTED_COMPANY_HEADER,
     SETUP_EXPECTED_USER_HEADER,
     LiwanFinanceCase,
+    company_values,
 )
 from odoo.addons.liwan_api.controllers.common import (
     EXPECTED_ID_PATTERN,
@@ -57,9 +58,9 @@ class TestFinanceSetup(LiwanFinanceCase):
     def setUpClass(cls):
         super().setUpClass()
         saudi_arabia = cls.env.ref('base.sa')
-        cls.fresh = cls.env['res.company'].create({
-            'name': 'Finance Fresh', 'country_id': saudi_arabia.id, 'currency_id': cls.env.ref('base.SAR').id,
-        })
+        cls.fresh = cls.env['res.company'].create(company_values(
+            'Finance Fresh', country_id=saudi_arabia.id, currency_id=cls.env.ref('base.SAR').id,
+        ))
         cls.state = cls.env['res.country.state'].search([('country_id', '=', saudi_arabia.id)], limit=1)
         cls._user(ADMIN_LOGIN, cls.fresh, 'liwan_core.group_employee',
                   ['finance.setup.read', 'finance.setup.manage'])
@@ -271,10 +272,9 @@ class TestFinanceSetup(LiwanFinanceCase):
     def test_the_manager_who_is_not_an_administrator_never_touches_another_company(self):
         self._user(MANAGER_NO_ADMIN_LOGIN, self.fresh, 'liwan_core.group_employee',
                    ['finance.setup.read', 'finance.setup.manage'])
-        sibling = self.env['res.company'].create({
-            'name': 'Finance Sibling', 'country_id': self.env.ref('base.sa').id,
-            'currency_id': self.env.ref('base.SAR').id,
-        })
+        sibling = self.env['res.company'].create(company_values(
+            'Finance Sibling', country_id=self.env.ref('base.sa').id, currency_id=self.env.ref('base.SAR').id,
+        ))
         before = sibling.read(['vat', 'city', 'chart_template', 'fiscalyear_last_day', 'tax_lock_date'])
         self.authenticate(MANAGER_NO_ADMIN_LOGIN, PASSWORD)
         self.assertEqual(self._write('PATCH', 'fiscal', {'tax_lock_date': '2026-06-30'}).status_code, 200)

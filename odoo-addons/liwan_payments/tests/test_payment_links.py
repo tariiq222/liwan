@@ -2,7 +2,7 @@
 from odoo import Command
 from odoo.tests import new_test_user, tagged
 
-from .common import LiwanPayerCase
+from .common import LiwanPayerCase, branch_values
 from odoo.addons.liwan_payments.controllers.links import PaymentLinkController
 
 LINKS = '/api/v1/payments/links'
@@ -87,7 +87,7 @@ class TestPaymentLinks(LiwanPayerCase):
 
     def test_the_invoice_company_decides_not_the_company_of_the_session(self):
         # Company A allows system administrators to create links, company B does not; the session is in A and reaches both.
-        company_b = self.env['res.company'].create({'name': 'Links company B', 'parent_id': self.env.company.id})
+        company_b = self.env['res.company'].create(branch_values('Links company B', self.env.company))
         income = self.env['account.account'].create({
             'name': 'Income B', 'code': '400100', 'account_type': 'income', 'company_ids': [Command.set(company_b.ids)],
         })

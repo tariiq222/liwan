@@ -136,28 +136,35 @@ test.describe('settings page of cards', () => {
     })
   })
 
-  test('the VAT number appears and is required only while the company is registered for VAT', async ({ page }) => {
-    // The mock keeps what this test saves, so start every run from a registered company.
-    await page.request.patch('/api/v1/admin/company', { data: { vat_registered: true, vat: '300000000000003' } })
+  test('a root can save its VAT number before registering and must keep it while registered', async ({ page }) => {
+    await page.request.patch('/api/v1/admin/company/tax', { data: { registered: false, price_mode: 'included' } })
+    await page.request.patch('/api/v1/admin/company', { data: { vat_registered: false, vat: null } })
     await open(page, '/settings/company')
-    const card = page.getByTestId('company-profile')
-    await expect(page.getByTestId('company-vat')).toBeVisible()
-    await page.getByTestId('company-vat-registered').click()
-    await expect(page.getByTestId('company-vat')).toHaveCount(0)
-    // Turning it off is saved on its own, without the number.
-    const bodies: unknown[] = []
-    page.on('request', request => { if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/admin/company')) bodies.push(request.postDataJSON()) })
+    // The establishment tax card owns the registration; the profile card keeps only the number.
+    const taxCard = page.getByTestId('company-tax')
+    const profileCard = page.getByTestId('company-profile')
+    // The option card is the click target; its radio is visually hidden inside the label.
+    const choice = (name: string) => taxCard.getByTestId('company-tax-choice').locator('label').filter({ hasText: name })
+    await expect(taxCard).toBeVisible()
+    await expect(page.getByTestId('company-vat-registered')).toHaveCount(0)
+    const number = page.getByTestId('company-vat')
+    await expect(number).toBeVisible()
+    await expect(number).toHaveValue('')
+    await number.fill('300000000000003')
     await page.getByTestId('settings-save-bar-save').click()
     await expect(page.getByTestId('settings-save-bar')).toBeHidden()
-    expect(bodies).toEqual([{ vat_registered: false }])
-    await expect(page.getByTestId('company-vat')).toHaveCount(0)
-    // Back on, the number is required: the card refuses the save and names the field.
-    await page.getByTestId('company-vat-registered').click()
-    await expect(page.getByTestId('company-vat')).toBeVisible()
-    await page.getByTestId('company-vat').fill('')
+    const bodies: unknown[] = []
+    page.on('request', request => {
+      if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/admin/company/tax')) bodies.push(request.postDataJSON())
+    })
+    await choice('السعر شامل الضريبة').click()
     await page.getByTestId('settings-save-bar-save').click()
-    await expect(card).toContainText('أدخل الرقم الضريبي')
-    await expect(page.getByTestId('company-vat')).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.getByTestId('settings-save-bar')).toBeHidden()
+    expect(bodies).toEqual([{ registered: true }])
+    await number.fill('')
+    await page.getByTestId('settings-save-bar-save').click()
+    await expect(profileCard).toContainText('أدخل الرقم الضريبي')
+    await expect(number).toHaveAttribute('aria-invalid', 'true')
   })
 
   test('on a 390px phone a sub-list tap in the drawer closes it and scrolls to the card', async ({ page }) => {

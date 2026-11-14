@@ -32,7 +32,6 @@ class LiwanInboxCatalog(models.Model):
     brand = fields.Char(required=True)
     # The product page link Meta requires; empty sends the click-to-chat link of the WhatsApp number.
     default_link = fields.Char()
-    prices_include_tax = fields.Boolean(default=True)
     last_sync_at = fields.Datetime()
     item_ids = fields.One2many('liwan.inbox.catalog.item', 'catalog_id')
 
@@ -68,7 +67,7 @@ class LiwanInboxCatalog(models.Model):
 
     def write(self, vals):
         result = super().write(vals)
-        if {'brand', 'default_link', 'prices_include_tax'} & set(vals):
+        if {'brand', 'default_link'} & set(vals):
             self._liwan_mark_all_pending()
         return result
 
@@ -94,7 +93,7 @@ class LiwanInboxCatalog(models.Model):
         return channel._liwan_credentials() if channel else None
 
     def _liwan_mark_all_pending(self):
-        """Resync every listed item (brand, link or tax mode changed, or the owner asked for it)."""
+        """Resync every listed item (the brand or link changed, or the owner asked for it)."""
         self.item_ids.filtered(lambda item: item.listed and item.sync_state != 'removing').write({'sync_state': 'pending'})
         self._liwan_request_sync()
 

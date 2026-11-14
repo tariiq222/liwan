@@ -13,8 +13,9 @@ import { companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, vatNumb
 import { saveErrorMessage } from '@/utils/formFeedback'
 
 // One card of the company page (the profile itself, the national address or the contact details). The three cards share
-// this form, so they save and guard drafts alike; the company header card sits once above them.
-const props = defineProps<{ profile: CompanyProfile; section: CompanySection }>()
+// this form, so they save and guard drafts alike; the company header card sits once above them. `taxOwnsVat` is true while
+// the establishment tax card exists: it owns the VAT registration switch, so this card keeps only the number.
+const props = defineProps<{ profile: CompanyProfile; section: CompanySection; taxOwnsVat?: boolean }>()
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024
 const LOGO_TYPES = ['image/png', 'image/jpeg']
@@ -28,34 +29,58 @@ const update = useUpdateCompany()
 const uploadLogo = useUploadCompanyLogo()
 
 const editable = computed(() => can('settings.company.manage'))
-// The VAT registration and number are the system administrator's: other editors of the card see them read-only.
-const vatEditable = computed(() => can('settings.company.vat.manage'))
+// The server owns who may change the establishment's VAT registration: only the root company's session holding the VAT
+// right. A branch session reads the establishment's answer here and cannot change it, whatever role it holds.
+const vatEditable = computed(() => props.profile.vat_registration_editable)
+// The profile says whether this session's company is the root. A branch keeps its own VAT number; only the root's is the
+// establishment's registration number.
+const branchSession = computed(() => !props.profile.is_root_company)
+// Why the registration switch is read-only, from the real fact: a branch changes the registration from the main company;
+// a root session without the VAT right names the missing permission; a root session that holds the right and is still
+// refused is in a read-only state (seat, branch or subscription), which gets no reason of its own here.
+const vatReason = computed(() => {
+  if (branchSession.value) return t('settings.company.tax.changedFromRoot')
+  return can('settings.company.vat.manage') ? undefined : t('settings.company.vatManageHint')
+})
 const fieldErrors = ref<Record<string, string>>({})
 const logoError = ref('')
 const logoInput = ref<{ reset: () => void } | null>(null)
 
 // The fields installed applications add to this card, in the server's order.
 const extensions = computed(() => sectionExtensions(props.profile, props.section))
-// The fields this card owns, copied out of a profile.
+// Fields another card of this page owns: while the establishment tax card is on screen it saves the registration, so this
+// card never sends or compares it — otherwise that save looks like a change made elsewhere and locks this card.
+const ownedElsewhere = computed(() => (props.taxOwnsVat ? ['vat_registered'] : []))
+// The fields this card's draft holds, copied out of a profile. The shape never depends on whether another card owns a
+// field: the tax query can resolve after the profile query, and a draft that lost a field on that switch would read as
+// an unsaved edit. `compare` below is what keeps the owned field out of the dirty state and the conflict check.
 function read(profile: CompanyProfile): CompanyForm {
   const form = profileToForm(profile)
   const names = [...SECTION_FIELDS[props.section], ...sectionExtensions(profile, props.section).map(extension => extension.name)]
   return Object.fromEntries(names.map(name => [name, form[name] ?? null]))
 }
+// The draft fields this card decides: the fields another card owns are held in the draft but never compared.
+function compare(draft: CompanyForm): CompanyForm {
+  const owned = ownedElsewhere.value
+  return Object.fromEntries(Object.entries(draft).filter(([name]) => !owned.includes(name)))
+}
 
 const { draft, state, save, revert, reload } = useSettingsForm<CompanyProfile, CompanyForm>({
   source: () => props.profile,
   read,
+  compare,
   save: async (values, latest) => {
     fieldErrors.value = {}
     try {
       if (props.section === 'profile' && !String(values.name ?? '').trim()) {
         throw new ApiError(422, 'invalid', t('settings.company.errors.nameRequired'), 'name')
       }
-      const patch = companyPatch(props.section, sectionExtensions(latest, props.section), read(latest), values)
-      // Registering for VAT needs its number: the server refuses the body anyway, the field says so first. Only a save
-      // that changes the switch or the number is held to it.
-      if (props.section === 'profile' && vatNumberMissing(patch, values)) {
+      const patch = companyPatch(props.section, sectionExtensions(latest, props.section), read(latest), values, ownedElsewhere.value)
+      // Registering for VAT needs its number on the root company: the server refuses the body anyway, the field says so
+      // first. Only a save that changes the switch or the number is held to it, and a branch's own number is not the
+      // establishment's registration number, so the rule does not reach it.
+      const registered = props.taxOwnsVat ? registrationOn.value : Boolean(values.vat_registered)
+      if (props.section === 'profile' && !branchSession.value && vatNumberMissing(patch, { ...values, vat_registered: registered })) {
         throw new ApiError(422, 'invalid_vat', t('settings.company.errors.vatRequired'), 'vat')
       }
       if (!Object.keys(patch).length) return latest
@@ -77,6 +102,9 @@ const { draft, state, save, revert, reload } = useSettingsForm<CompanyProfile, C
 
 const locked = computed(() => !hydrated.value || !editable.value || state.value.saving || state.value.reloading)
 const vatLocked = computed(() => locked.value || !vatEditable.value)
+// The number is the registration number only in the root company, where the same right owns it. A branch keeps its own
+// number, and the server accepts that write there, so the branch session's read-only switch does not reach the field.
+const vatNumberLocked = computed(() => locked.value || (!vatEditable.value && !branchSession.value))
 const heading = computed(() => ({
   profile: { title: t('settings.company.identity.title') },
   address: { title: t('settings.company.address.title'), description: t('settings.company.address.hint') },
@@ -101,12 +129,14 @@ const fields = {
   email: text('email'), phone: text('phone'), website: text('website'),
 }
 
-// The VAT registration of the company: only a registered company shows and requires its VAT number, and only then
-// does any document, price or pay page of its customers or theirs show a tax.
+// The number belongs to the company. A root can save it before registering from the tax card.
 const vatRegistered = computed({
   get: () => Boolean(draft.value.vat_registered),
   set: (value: boolean) => { draft.value.vat_registered = value },
 })
+// The registration comes from the saved profile when the tax card owns it.
+const registrationOn = computed(() => (props.taxOwnsVat ? props.profile.vat_registered : vatRegistered.value))
+const showVatNumber = computed(() => registrationOn.value || (props.taxOwnsVat && !branchSession.value))
 
 function setField(field: string, value: string | number | null | undefined) {
   draft.value[field] = value ?? null
@@ -160,11 +190,11 @@ async function onLogo(event: Event) {
       <UFormField orientation="horizontal" name="company_registry" :label="t('settings.company.registry')" :error="fieldErrors.company_registry">
         <UInput id="company-registry" v-model="fields.company_registry.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-registry" :disabled="locked" />
       </UFormField>
-      <SharedSettingRow name="vat_registered" :label="t('settings.company.vatRegistered')" :description="vatEditable ? t('settings.company.vatRegisteredHint') : t('settings.company.vatManageHint')">
+      <SharedSettingRow v-if="!taxOwnsVat" name="vat_registered" :label="t('settings.company.vatRegistered')" :description="t('settings.company.vatRegisteredHint')" :disabled-reason="vatEditable ? undefined : vatReason">
         <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" data-testid="company-vat-registered" :disabled="vatLocked" />
       </SharedSettingRow>
-      <UFormField v-if="vatRegistered" orientation="horizontal" name="vat" :label="t('settings.company.vat')" :description="t('settings.company.vatHint')" required :error="fieldErrors.vat">
-        <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-vat" :disabled="vatLocked" />
+      <UFormField v-if="showVatNumber" orientation="horizontal" name="vat" :label="t('settings.company.vat')" :description="t('settings.company.vatHint')" :required="registrationOn" :error="fieldErrors.vat">
+        <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-vat" :disabled="vatNumberLocked" />
       </UFormField>
     </template>
 

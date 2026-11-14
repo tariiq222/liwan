@@ -15,7 +15,7 @@ describe('settings pages', () => {
   })
   it('hold the cards of company and system as parts of one page', () => {
     expect(page('company').to).toBe('/settings/company')
-    expect(page('company').parts.map(part => part.id)).toEqual(['profile', 'address', 'contact', 'branding'])
+    expect(page('company').parts.map(part => part.id)).toEqual(['profile', 'address', 'contact', 'tax', 'branding'])
     expect(page('system').to).toBe('/settings/system')
     expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance', 'storage', 'export'])
     expect(page('company').parts.every(part => part.to === undefined)).toBe(true)
@@ -61,12 +61,12 @@ describe('settings pages', () => {
     expect(settingsPageForPath('/settings/teams')).toBeNull()
   })
   it('send a card to its page with the id as hash, and a part with its own page to that page', () => {
-    expect(settingsPartTarget(page('company'), page('company').parts[3]!)).toEqual({ path: '/settings/company', hash: '#branding' })
+    expect(settingsPartTarget(page('company'), page('company').parts[4]!)).toEqual({ path: '/settings/company', hash: '#branding' })
     expect(settingsPartTarget(page('team'), page('team').parts[1]!)).toEqual({ path: '/settings/team', hash: '#roles' })
     expect(settingsPartTarget(page('billing'), page('billing').parts[1]!)).toBe('/subscription/change')
-    expect(settingsPartPath(page('company'), page('company').parts[3]!)).toBe('/settings/company#branding')
+    expect(settingsPartPath(page('company'), page('company').parts[4]!)).toBe('/settings/company#branding')
     expect(settingsPartPath(page('team'), page('team').parts[0]!)).toBe('/settings/team/users')
-    expect(settingsPartPath(page('company'), page('company').parts[3]!)).toBe('/settings/company#branding')
+    expect(settingsPartPath(page('company'), page('company').parts[4]!)).toBe('/settings/company#branding')
     expect(settingsPartPath(page('company'), { ...page('company').parts[0]!, within: '/settings/company/all' })).toBe('/settings/company/all')
   })
   it('opens a grouped part on its tab, and leaves an ungrouped part above the tabs', () => {

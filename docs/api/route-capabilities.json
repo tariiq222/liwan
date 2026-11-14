@@ -747,6 +747,20 @@
       "handler": "list_company_states",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/company/tax": {
+      "addon": "liwan_api_account",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:company_tax"
+      ],
+      "handler": "get_company_tax",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/employee-accounts/candidates": {
       "addon": "liwan_access_hr",
       "auth": "user",
@@ -6122,6 +6136,20 @@
       "capability_source": "decorator",
       "feature_keys": [],
       "handler": "patch_admin_company",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/admin/company/tax": {
+      "addon": "liwan_api_account",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.vat.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "registry:company_tax"
+      ],
+      "handler": "patch_company_tax",
       "no_capability_reason": null
     },
     "PATCH /api/v1/admin/maintenance/bookings/{booking_id}": {
