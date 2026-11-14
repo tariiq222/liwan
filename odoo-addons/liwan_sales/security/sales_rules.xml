@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The stock salesman rule gives a Sales reader the documents they own and the unassigned ones, and the stock
+         all-documents rule (implied by sales.documents.assign) gives everything. This one read rule adds the whole
+         company where the visibility setting is `all`. Group rules only add, so no stock rule is neutralised.
+         models/visibility.py `_liwan_domain` is the Python mirror used by the routes; keep them in step. -->
+    <record id="rule_sales_order_open_read" model="ir.rule">
+        <field name="name">liwan Sales orders: the whole company where it is open (read)</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_sales_read'))]"/>
+        <field name="domain_force">[('company_id', 'in', user.liwan_sales_open_company_ids.ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_sales_order_line_open_read" model="ir.rule">
+        <field name="name">liwan Sales order lines: the whole company where it is open (read)</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_sales_read'))]"/>
+        <field name="domain_force">[('company_id', 'in', user.liwan_sales_open_company_ids.ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

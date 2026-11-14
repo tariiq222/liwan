@@ -143,6 +143,18 @@
       "features": [
         "boolean:appointments.enabled"
       ]
+    },
+    {
+      "id": "sales",
+      "name": "Sales",
+      "description": "The Sales application.",
+      "sellable": true,
+      "modules": [
+        "liwan_sales"
+      ],
+      "features": [
+        "boolean:sales.enabled"
+      ]
     }
   ]
 }
