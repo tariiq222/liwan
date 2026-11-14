@@ -98,7 +98,7 @@ class TestOrderLineTax(LiwanOrdersCase):
 
     def test_the_invoice_of_an_unregistered_order_carries_no_tax(self):
         company = self.env.company
-        self.assertFalse(company._liwan_vat_registered())
+        self.register(company, False)
         order = self.order(company, [self.product(self.tax(company))])
         order.action_confirm()
         invoice = order._create_invoices()

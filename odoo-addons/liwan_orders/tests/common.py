@@ -38,10 +38,10 @@ class LiwanOrdersCase(TransactionCase):
         company.write({'vat': SAUDI_VAT, 'liwan_vat_registered': registered})
 
     @classmethod
-    def tax(cls, company):
-        group = cls.env['account.tax.group'].create({'name': f'{company.name} taxes', 'company_id': company.id})
+    def tax(cls, company, name='VAT 15%'):
+        group = cls.env['account.tax.group'].create({'name': f'{company.name} {name} group', 'company_id': company.id})
         return cls.env['account.tax'].create({
-            'name': f'{company.name} VAT 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'name': f'{company.name} {name}', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
             'company_id': company.id, 'tax_group_id': group.id,
         })
 
