@@ -36,6 +36,11 @@ class ResCompany(models.Model):
 
     def write(self, vals):
         result = super().write(vals)
+        if 'account_price_include' in vals:
+            # Stock computes a tax's ``price_include`` from the company mode but declares no dependency on it
+            # (account/models/account_tax.py:322), so a value this transaction cached before the write would survive
+            # it. Every reader of a tax (an order line, the products price function) reads the new mode from here on.
+            self.env['account.tax'].invalidate_model(['price_include', 'company_price_include'])
         if vals.get('active') is True:
             self._liwan_sync_price_mode_from_parent()
         return result

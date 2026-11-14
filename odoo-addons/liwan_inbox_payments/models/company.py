@@ -25,12 +25,7 @@ class ResCompany(models.Model):
         result = super().write(vals)
         changed = self.browse()
         for name in watched:
-            moved = self.filtered(lambda company, name=name: previous[company.id, name] != company[name])
-            if name == 'account_price_include' and moved:
-                # Stock computes a tax's ``price_include`` from the company mode but declares no dependency on it, so
-                # the value this transaction cached before the write would survive it. Read the new mode from here on.
-                self.env['account.tax'].invalidate_model(['price_include', 'company_price_include'])
-            changed |= moved
+            changed |= self.filtered(lambda company, name=name: previous[company.id, name] != company[name])
         if changed:
             self.env['liwan.inbox.catalog.item']._liwan_establishment_price_changed(changed.root_id.ids)
         return result
