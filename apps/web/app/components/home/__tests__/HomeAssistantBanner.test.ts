@@ -11,9 +11,9 @@ const messages = { 'ai.home.title': 'اقتراحات المساعد اليوم'
 interface Row { id: string; label: string; to: string; tone: 'urgent' | 'normal'; module: string }
 const row = (id: string): Row => ({ id, label: `بند ${id}`, to: `/${id}`, tone: 'normal', module: 'tasks' })
 
-async function render({ rows = [] as Row[], surface = true, allowed = true, apps = undefined as { id: string; icon: string }[] | undefined } = {}) {
+async function render({ rows = [] as Row[], surface = true, allowed = true } = {}) {
   const useAttention = vi.fn(() => ({ rows: Vue.computed(() => rows) }))
-  const html = await renderShared(file, { apps }, {}, {
+  const html = await renderShared(file, {}, {}, {
     messages, stubs: { ...DEFAULT_STUBS, NuxtLink, UButton },
     globals: { useMe: () => ({ me: Vue.ref({}) }) },
     modules: {
@@ -46,17 +46,11 @@ describe('HomeAssistantBanner', () => {
     expect(html).toContain('home-assistant-ask')
   })
 
-  it('draws the person\'s own applications as decorative tilted tiles a screen reader skips, shown from 1024px up', async () => {
-    const { html } = await render({ rows: [row('a')], apps: [{ id: 'crm', icon: 'i-lucide-handshake' }, { id: 'hr', icon: 'i-lucide-users' }, { id: 'tasks', icon: 'i-lucide-check-square' }] })
-    expect(html).toMatch(/data-testid="home-assistant-tiles"/)
-    expect(html).toContain('aria-hidden="true"')
-    for (const id of ['crm', 'hr', 'tasks']) expect(html).toContain(`data-app="${id}"`)
-    expect(html).toContain('max-lg:hidden')
-    expect(html).toContain('lg:grid-cols-')
-  })
-
-  it('draws no tiles when the person has no applications to show', async () => {
-    expect((await render({ rows: [row('a')], apps: [] })).html).not.toContain('home-assistant-tiles')
+  it('is one slim row with no decorative tiles and no check marks on unfinished work', async () => {
+    const { html } = await render({ rows: [row('a')] })
+    expect(html).not.toContain('home-assistant-tiles')
+    expect(html).not.toContain('i-lucide-check')
+    expect(html).toContain('flex-wrap')
   })
 
   it('is absent when the assistant surface does not exist or the user may not use it', async () => {

@@ -23,7 +23,7 @@ const { cards } = useAppCards({ assistant: false })
     <SetupHomeCard />
     <HomeIndicators />
     <HomeFocus />
-    <HomeAssistantBanner :apps="cards" />
+    <HomeAssistantBanner />
     <HomeApps v-if="cards.length" :cards="cards" />
     <SharedEmptyState v-else bordered :title="t('home.empty')" data-testid="home-empty-no-apps">
       <template #action><UButton to="/account" color="neutral" variant="outline" :label="t('nav.account')" /></template>
