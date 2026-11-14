@@ -32,7 +32,7 @@ export function lockedApplicationView(
     : code === 'feature_not_included' ? 'not_in_plan'
       : identity.platform?.state === 'payment_suspended' ? 'payment_suspended' : 'read_only'
   const manifest = manifestForPath(path)
-  const readable = manifest ? identity.platform?.readable_features.includes(manifest.feature) === true : false
+  const readable = !!manifest && (manifest.feature === null || identity.platform?.readable_features.includes(manifest.feature) === true)
   // The first landing the identity can really open, so "open existing data" never leads to another closed page.
   const landing = manifest && readable
     ? [...(manifest.landing ?? []).filter(entry => canReach(identity, entry.capability, entry.path) && canReachPath(identity, entry.path)).map(entry => entry.path), manifest.rail[0]?.to]

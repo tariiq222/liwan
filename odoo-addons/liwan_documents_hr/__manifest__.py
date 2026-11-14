@@ -2,11 +2,11 @@
 {
     'name': 'liwan Documents and HR',
     'summary': 'Employee and department contexts for the independent document library',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    'depends': ['liwan_documents', 'liwan_hr'],
+    'depends': ['liwan_document_service', 'liwan_hr'],
     'data': ['data/access_bridge.xml'],
     'auto_install': True,
     'installable': True,

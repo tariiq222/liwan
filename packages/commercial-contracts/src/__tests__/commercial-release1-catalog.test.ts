@@ -13,7 +13,7 @@ const AI_LIMITS = { 'ai.messages.monthly': 500, 'ai.tokens.monthly': 2500000, 'a
   'ai.tool_calls.per_run': 8, 'ai.output_tokens.per_run': 2000 }
 
 /** Release 1 composition (owner decision 2026-11-06): the always-included set and the two sold applications. */
-const INCLUDED = ['tasks.enabled', 'chat.enabled', 'documents.enabled', 'meetings.enabled', 'operations.enabled', 'ai.enabled']
+const INCLUDED = ['tasks.enabled', 'chat.enabled', 'meetings.enabled', 'ai.enabled']
 const SOLD = ['crm.enabled', 'inbox.enabled']
 const LOCKED = ['hr.enabled', 'finance.enabled', 'pmo.enabled', 'appointments.enabled', 'integrations.enabled']
 

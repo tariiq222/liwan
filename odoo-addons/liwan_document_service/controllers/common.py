@@ -12,7 +12,17 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_nonneg_int,
     parse_positive_int,
 )
-from odoo.addons.liwan_documents.serializers.document import dump_files
+from odoo.addons.liwan_document_service.serializers.document import (
+    dump_detail,
+    dump_files,
+    dump_summaries,
+    parse_revision,
+    strict,
+)
+from odoo.addons.liwan_document_service.serializers.document_access import (
+    dump_grants,
+    parse_access,
+)
 
 
 def require(capability):
@@ -100,3 +110,52 @@ def file_download(document, file_id):
     response = stream.get_response(as_attachment=True)
     response.headers['Content-Disposition'] = attachment_disposition(stream.download_name)
     return response
+
+
+def upload_document_file(document, payload):
+    strict(payload, {'expected_revision', 'name', 'data', 'mimetype', 'as_version'})
+    revision = parse_revision(payload)
+    as_version = payload.get('as_version', False)
+    if not isinstance(as_version, bool):
+        raise ApiError(422, 'invalid', 'as_version must be boolean', field='as_version')
+    upload = {
+        key: value
+        for key, value in payload.items()
+        if key not in ('expected_revision', 'as_version')
+    }
+    request.env['liwan.document.files']._liwan_upload(
+        document, upload, revision, as_version=as_version,
+    )
+    return dump_detail(document)
+
+
+def apply_document_file_action(document, file_id, action, payload):
+    revision = parse_revision(payload, only=True)
+    service = request.env['liwan.document.files']
+    if action in ('archive', 'restore'):
+        service._liwan_set_file_active(
+            document, file_id, action == 'restore', revision,
+        )
+    else:
+        service._liwan_set_file_lock(document, file_id, action == 'lock', revision)
+    return dump_detail(document)
+
+
+def document_page(model, domain, limit, offset):
+    documents = model.search(domain, limit=limit, offset=offset, order='write_date desc,id desc')
+    counts = {directory.id: count for directory, count in model.env['dms.file']._read_group(
+        [('directory_id', 'in', documents.directory_id.ids), ('active', '=', True)],
+        ['directory_id'], ['__count'],
+    )}
+    return {'items': dump_summaries(documents, counts), 'total': model.search_count(domain)}
+
+
+def update_document_access(document, payload):
+    revision = parse_revision(payload)
+    visibility, grants = parse_access(payload)
+    document._liwan_require('access')
+    # This operation may revoke the caller itself. Return only the approved
+    # access proposal, never try to reread revoked document content afterwards.
+    proposed = dump_grants(document.env, grants)
+    document._liwan_set_access(visibility, grants, revision)
+    return {'visibility': visibility, 'grants': proposed, 'revision': revision + 1}

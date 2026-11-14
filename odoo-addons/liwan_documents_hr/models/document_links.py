@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 
@@ -33,8 +34,6 @@ class DocumentLinks(models.AbstractModel):
         )
         entitlement = self.env['liwan.entitlement.service']
         if write:
-            # Normal document create/update also checks documents.enabled under
-            # its own profile/policy locks. Provider ownership remains in HR.
             entitlement.require('hr.enabled')
         else:
             entitlement.require_read('hr.enabled')
@@ -151,3 +150,23 @@ class DocumentLinks(models.AbstractModel):
                     'href': f'/hr/departments/{department_id}' if name else None,
                 }
         return result
+
+    @api.model
+    def _liwan_managed_context_features(self):
+        return (*super()._liwan_managed_context_features(), 'hr.enabled')
+
+    @api.model
+    def _liwan_managed_context(self, kind, subject_id, *, write=False):
+        if kind == 'employee':
+            model, field, capability = self.env['hr.employee'], 'employee_id', 'hr.employees.manage'
+        elif kind == 'department':
+            model, field = self.env['hr.department'], 'department_id'
+            capability = 'hr.departments.manage' if write else 'hr.departments.read'
+        else:
+            return super()._liwan_managed_context(kind, subject_id, write=write)
+        self._liwan_require_context_feature('hr.enabled', write=write)
+        self.env['liwan.access.service']._liwan_require_capability(capability)
+        subject = model.search([('id', '=', subject_id), ('company_id', '=', self.env.company.id)], limit=1)
+        if not subject:
+            raise ApiError(404, 'not_found', 'Document context not found.')
+        return model._name, [(field, '=', subject.id)]

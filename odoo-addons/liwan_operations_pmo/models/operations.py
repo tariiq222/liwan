@@ -7,6 +7,12 @@ class OperationsPmoProcess(models.Model):
     _inherit = 'liwan.operation.process'
 
     @api.model
+    def _operations_feature(self, execution_kind):
+        if execution_kind == 'pmo_completion':
+            return 'pmo.enabled'
+        return super()._operations_feature(execution_kind)
+
+    @api.model
     def _operations_execution_kinds(self):
         kinds = super()._operations_execution_kinds()
         if self.env['liwan.entitlement.service']._liwan_feature_write('pmo.enabled'):

@@ -24,6 +24,7 @@ function card(approval: HrLeaveApprovalProcess, createDefault = vi.fn().mockReso
     _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true),
     useCreateDefaultLeaveApprovalProcess: () => ({ mutateAsync: createDefault, isPending: Vue.ref(false) }),
+    useArchiveLeaveApprovalProcess: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
     joinList: (items: string[]) => items.join(', '), saveErrorMessage: (error: Error) => error.message,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))

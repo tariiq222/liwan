@@ -21,14 +21,12 @@ def set_hr_feature(case, key, enabled=True):
 
 
 def use_hr_decision_path(case):
-    """Test HR's own approve and refuse path even when an approval workflow bridge is installed.
-
-    A bridge governs every new leave while its workflow feature is on, so these tests switch that
-    feature off, which is the documented way back to the HR roles; the bridge's own tests switch it on.
-    """
-    key = 'operations.enabled'
-    if key in case.env['liwan.entitlement.service']._liwan_registry()._liwan_feature_map():
-        set_hr_feature(case, key, False)
+    """Keep HR-native tests independent of the configured approval workflow."""
+    if 'liwan.operation.process' in case.env.registry:
+        processes = case.env['liwan.operation.process']
+        if hasattr(processes, '_hr_leave_governing_process'):
+            case.classPatch(type(processes), '_hr_leave_governing_process', lambda model, company: model.browse())
+            case.classPatch(type(processes), '_hr_leave_is_being_edited', lambda model, company: False)
 
 
 def make_archivable(env, employees):
@@ -50,7 +48,10 @@ class LiwanHrCase(LiwanApiCase):
     HR pillar's endpoint tests. HR records (departments, employees, documents)
     are created per test class, since each exercises a different shape."""
 
+    use_native_leave_policy = True
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        use_hr_decision_path(cls)
+        if cls.use_native_leave_policy:
+            use_hr_decision_path(cls)

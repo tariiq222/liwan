@@ -17,8 +17,7 @@ class TestOwnApprovalFollowsTheHomeCompany(WorkingCompanyCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        for feature in ('hr.enabled', 'operations.enabled'):
-            set_hr_feature(cls, feature)
+        set_hr_feature(cls, 'hr.enabled')
         cls.annual = cls.env.ref('hr_holidays.leave_type_paid_time_off')
         cls.annual.leave_validation_type = 'both'
         cls.branch_a.country_id = cls.env.ref('base.sa')

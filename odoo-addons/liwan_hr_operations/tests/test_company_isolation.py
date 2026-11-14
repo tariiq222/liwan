@@ -12,7 +12,6 @@ from odoo.addons.liwan_api.tests.common import (
     assert_isolation_discovery,
     cover_isolation_routes,
 )
-from odoo.addons.liwan_hr.tests.common import set_hr_feature
 from odoo.addons.liwan_hr.tests.test_company_isolation import MATRIX
 from odoo.addons.liwan_hr_operations.models.common import BRIDGE, BRIDGE_CONTEXT
 
@@ -28,7 +27,6 @@ class TestHrOperationsCompanyIsolation(CompanyIsolationCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.by_tag = {'p': cls.company_p, 'p1': cls.company_p1, 'p2': cls.company_p2, 'c': cls.company_c}
-        set_hr_feature(cls, 'operations.enabled', True)
         for company in cls.by_tag.values():
             cls.env['liwan.access.assignment'].sudo().create({
                 'user_id': cls.iso_user.id, 'role_id': cls.env.ref('liwan_hr.role_hr_manager').id,

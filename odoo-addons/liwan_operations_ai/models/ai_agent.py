@@ -10,7 +10,7 @@ from odoo.addons.liwan_ai.models.tool_registry import (
 )
 
 OWNER = 'liwan_operations'
-FEATURE = 'operations.enabled'
+FEATURE = 'ai.enabled'
 
 OPERATIONS_AGENT = {
     'key': 'operations',

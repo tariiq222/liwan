@@ -54,15 +54,15 @@ const ME = {
   company: { id: 1, name: 'LiwanOS' }, companies: [{ id: 1, name: 'LiwanOS' }], home_company_id: 1,
   modules: ['liwan_chat', 'liwan_hr', 'liwan_documents', 'liwan_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'pmo.baselines': true, 'pmo.evm': true, 'pmo.change_control': true, 'meetings.enabled': true, 'tasks.enabled': true, 'customers.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
+    'pmo.enabled': true, 'pmo.baselines': true, 'pmo.evm': true, 'pmo.change_control': true, 'meetings.enabled': true, 'tasks.enabled': true, 'customers.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
     ...Object.fromEntries(INBOX_FEATURES.map(feature => [feature, true])),
     ...Object.fromEntries(HR_AREA_FEATURES.map(feature => [feature, true])),
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -961,6 +961,7 @@ async function handle(req, res) {
   if (method === 'GET' && match(path, '/api/v1/projects/:id/milestones')) return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && match(path, '/api/v1/projects/:id/updates')) return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/hr/employees') return json(res, 200, { items: [], total: 0 })
+  if (method === 'GET' && path === '/api/v1/document-contexts/department/2') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/hr/departments') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/admin/users') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/admin/roles') return json(res, 200, { items: [], total: 0 })

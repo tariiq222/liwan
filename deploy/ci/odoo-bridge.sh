@@ -39,15 +39,28 @@ fi
 isolation_setup "$BRIDGE"
 isolation_install_and_test "$(IFS=,; echo "${SIDES[*]}")" "/$BRIDGE"
 isolation_check "$BRIDGE"
-liwan_sides="$(IFS=,; echo "${LIWAN_SIDES[*]}")"
-if [ "${#LIWAN_SIDES[@]}" -eq 2 ] && [ "${LIWAN_RANKS[0]}" != 4 ] && [ "${LIWAN_RANKS[1]}" != 4 ]; then
-  LIWAN_PROBE_CALM="$liwan_sides,$BRIDGE" isolation_probe "$BRIDGE: two shared services, no application"
+applications=()
+services=()
+for index in "${!LIWAN_SIDES[@]}"; do
+  if [ "${LIWAN_RANKS[$index]}" = 4 ]; then
+    applications+=("${LIWAN_SIDES[$index]}")
+  else
+    services+=("${LIWAN_SIDES[$index]}")
+  fi
+done
+if [ "${#applications[@]}" -eq 0 ]; then
+  LIWAN_PROBE_CALM="$(IFS=,; echo "${LIWAN_SIDES[*]}"),$BRIDGE" isolation_probe "$BRIDGE: no application side"
 else
-  LIWAN_PROBE_ANSWER="$liwan_sides" LIWAN_PROBE_ALSO_ANSWER="$BRIDGE" \
+  LIWAN_PROBE_ANSWER="$(IFS=,; echo "${applications[*]}")" \
+    LIWAN_PROBE_ALSO_ANSWER="$BRIDGE" \
+    LIWAN_PROBE_CALM="$(IFS=,; echo "${services[*]}")" \
     isolation_probe "$BRIDGE with both sides on"
 fi
 for index in "${!LIWAN_SIDES[@]}"; do
   off="${LIWAN_SIDES[$index]}"
+  case "$off" in
+    liwan_documents|liwan_operations) continue ;;
+  esac
   other=""
   other_rank=""
   if [ "${#LIWAN_SIDES[@]}" -eq 2 ]; then

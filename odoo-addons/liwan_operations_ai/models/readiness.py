@@ -3,7 +3,7 @@
 from odoo import api, models
 
 RECORD_CHECK = {
-    'key': 'operations.requests', 'owner': 'liwan_operations', 'feature_key': 'operations.enabled', 'model': 'liwan.operation.request',
+    'key': 'operations.requests', 'owner': 'liwan_operations', 'feature_key': 'ai.enabled', 'model': 'liwan.operation.request',
     'capability': 'operations.requests.read', 'page': '/operations',
     'label_ar': 'لا طلبات بعد في العمليات: ارفع أول طلب',
     'label_en': 'No requests yet in Operations: submit the first request',

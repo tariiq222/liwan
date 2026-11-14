@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date, timedelta
+from unittest import SkipTest
 
 from odoo.tests import new_test_user
 
-from odoo.addons.liwan_hr.tests.common import LiwanHrCase, set_hr_feature
+from odoo.addons.liwan_hr.tests.common import LiwanHrCase
 from odoo.addons.liwan_hr_operations.models.common import APPROVER, KIND, OFFICERS
 
 LEAVES = '/api/v1/hr/leave/requests'
@@ -18,10 +19,14 @@ def next_monday(weeks):
 class LeaveApprovalCase(LiwanHrCase):
     """A requester whose time-off approver holds no HR capability, an HR officer and an operations admin."""
 
+    use_native_leave_policy = False
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        set_hr_feature(cls, 'operations.enabled', True)
+        if not cls.env.ref('liwan_operations.role_operations_manager', raise_if_not_found=False):
+            msg = 'This fixture exercises the central operations application'
+            raise SkipTest(msg)
         company = cls.env.company
         company.country_id = cls.env.ref('base.sa')
         cls.service = cls.env['liwan.access.service']

@@ -200,7 +200,7 @@ def kw_const(call: ast.Call, name: str):
     return None
 
 
-FEATURE_DECORATORS = ("requires_feature", "requires_registered_feature")
+FEATURE_DECORATORS = ("requires_feature", "requires_registered_feature", "requires_tenant_access")
 
 
 def feature_metadata(fn: ast.FunctionDef, constants: dict[str, str] | None = None) -> tuple[list[str], str | None]:

@@ -453,9 +453,18 @@ class ReconfigureTests(Base):
         with self.assertRaises(EffectError):
             se.parse_output('nothing')
 
+    def test_historical_policy_does_not_require_retired_application_flags(self):
+        request = make_request()
+        request['entitlement']['features'].update({'documents.enabled': True, 'operations.enabled': False})
+        observed = applied_state(request)
+        for key in se.RETIRED_BASE_FEATURES:
+            observed['features'].pop(key, None)
+        self.assertTrue(se.verify(request, observed))
+        self.assertEqual(observed['commercial_digest'], request['entitlement']['digest'])
+
     def test_apply_script_closes_unlisted_keys_through_odoo(self):
         script = se.build_apply_script(make_request())
-        self.assertIn("._liwan_close_unlisted_features(values['features'])", script)
+        self.assertIn("._liwan_close_unlisted_features(_without_retired_base_features(values['features']))", script)
         self.assertNotIn("item['type'] == 'boolean' and key not in features", script)
 
     def test_apply_script_rewrites_only_the_ai_keys_when_the_revision_is_delivered_again(self):

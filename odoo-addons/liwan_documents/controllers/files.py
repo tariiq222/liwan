@@ -2,16 +2,16 @@
 from odoo import http
 from odoo.http import request
 
-from .common import current_document, files_page, require
 from odoo.addons.liwan_api.controllers.common import (
-    ApiError,
     api_handler,
-    requires_feature,
+    requires_tenant_access,
 )
-from odoo.addons.liwan_documents.serializers.document import (
-    dump_detail,
-    parse_revision,
-    strict,
+from odoo.addons.liwan_document_service.controllers.common import (
+    apply_document_file_action,
+    current_document,
+    files_page,
+    require,
+    upload_document_file,
 )
 
 
@@ -21,7 +21,7 @@ class Files(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def list_files(self, document_id, **kwargs):
         require('documents.items.read')
         return files_page(current_document(document_id))
@@ -34,24 +34,10 @@ class Files(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def upload_file(self, document_id, **payload):
         require('documents.items.manage')
-        strict(payload, {'expected_revision', 'name', 'data', 'mimetype', 'as_version'})
-        revision = parse_revision(payload)
-        as_version = payload.get('as_version', False)
-        if not isinstance(as_version, bool):
-            raise ApiError(422, 'invalid', 'as_version must be boolean', field='as_version')
-        upload = {
-            key: value
-            for key, value in payload.items()
-            if key not in ('expected_revision', 'as_version')
-        }
-        document = current_document(document_id)
-        request.env['liwan.document.files']._liwan_upload(
-            document, upload, revision, as_version=as_version,
-        )
-        return dump_detail(document)
+        return upload_document_file(current_document(document_id), payload)
 
     @http.route(
         [
@@ -66,7 +52,7 @@ class Files(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='write')
+    @requires_tenant_access(operation='write')
     def file_action(self, document_id, file_id, **payload):
         action = request.httprequest.path.rsplit('/', 1)[-1]
         require(
@@ -74,13 +60,4 @@ class Files(http.Controller):
             if action in ('archive', 'restore')
             else 'documents.items.manage',
         )
-        revision = parse_revision(payload, only=True)
-        document = current_document(document_id)
-        service = request.env['liwan.document.files']
-        if action in ('archive', 'restore'):
-            service._liwan_set_file_active(
-                document, file_id, action == 'restore', revision,
-            )
-        else:
-            service._liwan_set_file_lock(document, file_id, action == 'lock', revision)
-        return dump_detail(document)
+        return apply_document_file_action(current_document(document_id), file_id, action, payload)

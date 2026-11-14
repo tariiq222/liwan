@@ -15,8 +15,8 @@ export const shellMe = MeSchema.parse({
   modules: ['liwan_pmo', 'liwan_meetings', 'liwan_hr', 'liwan_documents'],
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['pmo.enabled', 'meetings.enabled', 'documents.enabled', 'hr.enabled'],
-    writable_features: ['pmo.enabled', 'meetings.enabled', 'documents.enabled', 'hr.enabled'],
+    readable_features: ['pmo.enabled', 'meetings.enabled', 'hr.enabled'],
+    writable_features: ['pmo.enabled', 'meetings.enabled', 'hr.enabled'],
   },
 })
 

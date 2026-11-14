@@ -179,6 +179,13 @@ def utc_now():
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
+RETIRED_BASE_FEATURES = ('documents.enabled', 'operations.enabled')
+
+
+def _without_retired_base_features(features):
+    return {key: value for key, value in features.items() if key not in RETIRED_BASE_FEATURES}
+
+
 # ---------------------------------------------------------------- scripts
 _COMMON = '''
 OBS_ERRORS = %(errors)r
@@ -200,6 +207,13 @@ def _commercial_expiry_vals(values, profile, refuse):
             'commercial_valid_until_revision': wanted_revision}
 
 
+RETIRED_BASE_FEATURES = frozenset(%(retired_base_features)r)
+
+
+def _without_retired_base_features(features):
+    return {key: value for key, value in features.items() if key not in RETIRED_BASE_FEATURES}
+
+
 def _trial_policy_vals(values, profile, refuse):
     from datetime import datetime, timezone
     keys = ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest')
@@ -208,6 +222,8 @@ def _trial_policy_vals(values, profile, refuse):
         return {}
     if not all(hasattr(profile, key) for key in keys):
         refuse('tenant_upgrade_required')
+    if 'post_trial_features' in supplied:
+        supplied['post_trial_features'] = _without_retired_base_features(supplied['post_trial_features'])
     if 'trial_ends_at' in supplied:
         end = supplied['trial_ends_at']
         supplied['trial_ends_at'] = (datetime.fromisoformat(end.replace('Z', '+00:00'))
@@ -275,7 +291,7 @@ def read_profile():
     if len(profile) != 1:
         refuse('profile_invalid')
     return profile
-''' % {'errors': sorted(SCRIPT_ERRORS)}
+''' % {'errors': sorted(SCRIPT_ERRORS), 'retired_base_features': RETIRED_BASE_FEATURES}
 
 _OBSERVE_BODY = '''
 try:
@@ -333,7 +349,7 @@ try:
             roles_before = env['liwan.entitlement.service']._liwan_entitled_admin_roles()
             # Every application stays installed; keys the target omits close (booleans
             # false, limits 0). Odoo still refuses a target without its platform keys.
-            features = env['liwan.entitlement.service']._liwan_close_unlisted_features(values['features'])
+            features = env['liwan.entitlement.service']._liwan_close_unlisted_features(_without_retired_base_features(values['features']))
             write_vals = {'features': features, 'commercial_revision_id': values['target_revision_id'],
                           'commercial_digest': values['digest'],
                           'commercial_applied_at': fields.Datetime.now()}
@@ -586,6 +602,7 @@ def _complete_trial_policy(request, observed):
 
 def _matches_trial_features(actual, expected):
     """Odoo fills omitted installed application keys with closed values."""
+    expected = _without_retired_base_features(expected)
     if not isinstance(actual, dict) or not expected.keys() <= actual.keys():
         return False
     for key, value in actual.items():
@@ -656,7 +673,7 @@ def verify(request, observed, now=None):
     if expired and not _matches_trial_features(observed['features'], ent['features']):
         return False
     if not all(k in observed['features'] and type(observed['features'][k]) is type(v)
-               and observed['features'][k] == v for k, v in ent['features'].items()):
+               and observed['features'][k] == v for k, v in _without_retired_base_features(ent['features']).items()):
         return False
     by_id = {b['branch_id']: b for b in observed['branches']}
     for item in br['apply']:

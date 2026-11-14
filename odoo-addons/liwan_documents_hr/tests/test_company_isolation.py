@@ -12,6 +12,7 @@ from odoo.addons.liwan_api.tests.common import (
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 EXPECTED_GET_RECORD_ROUTES = 3
+EXPECTED_SHARED_RECORD_ROUTES = 6
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -22,9 +23,8 @@ class DocumentsHrCompanyIsolationCase(CompanyIsolationCase):
     def setUpClass(cls):
         super().setUpClass()
         profile = cls.env.ref('liwan_platform.tenant_profile')
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write(
-            {'features': {**(profile.features or {}), 'documents.enabled': True, 'hr.enabled': True}},
-        )
+        features = {**(profile.features or {}), 'hr.enabled': True}
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': features})
         cls.all_companies = (cls.company_p, cls.company_p1, cls.company_p2, cls.company_c)
         cls.documents = {}
         cls.files = {}
@@ -81,12 +81,32 @@ class DocumentsHrCompanyIsolationCase(CompanyIsolationCase):
                         'GET', f'/api/v1/documents/employee/me/{other.id}/files/{self.files[company.id].id}/download',
                         company.id)
 
+    def test_context_routes_reject_foreign_subjects(self):
+        for company in self.all_companies:
+            self.env_in(company)
+            other = next(item for item in self.all_companies if item != company)
+            record = self.documents[other.id]
+            subject = f'/api/v1/document-contexts/employee/{record.employee_id.id}'
+            for response in self.api_forged('GET', subject, other.id):
+                self.assertIn(response.status_code, (403, 404), response.text)
+            path = f'{subject}/{record.id}'
+            for suffix in ('', '/access', '/access/people', '/files', f'/files/{self.files[other.id].id}/download'):
+                for response in self.api_forged('GET', path + suffix, other.id):
+                    self.assertIn(response.status_code, (403, 404), response.text)
+
     def test_discovery_covers_every_get_record_route(self):
         assert_isolation_discovery(self, 'liwan_documents_hr', EXPECTED_GET_RECORD_ROUTES)
+        assert_isolation_discovery(self, 'liwan_document_service', EXPECTED_SHARED_RECORD_ROUTES)
 
 
 cover_isolation_routes(
     (
+        '/api/v1/document-contexts/<string:kind>/<int:subject_id>',
+        '/api/v1/document-contexts/<string:kind>/<int:subject_id>/<int:document_id>',
+        '/api/v1/document-contexts/<string:kind>/<int:subject_id>/<int:document_id>/access',
+        '/api/v1/document-contexts/<string:kind>/<int:subject_id>/<int:document_id>/access/people',
+        '/api/v1/document-contexts/<string:kind>/<int:subject_id>/<int:document_id>/files',
+        '/api/v1/document-contexts/<string:kind>/<int:subject_id>/<int:document_id>/files/<int:file_id>/download',
         '/api/v1/documents/employee/me/<int:document_id>',
         '/api/v1/documents/employee/me/<int:document_id>/files',
         '/api/v1/documents/employee/me/<int:document_id>/files/<int:file_id>/download',

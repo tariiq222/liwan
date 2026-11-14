@@ -74,7 +74,10 @@ class TestFeatureRouteCoverage(TransactionCase):
                     continue
                 keys = self._endpoint_attr(endpoint, '_liwan_feature_keys')
                 operation = self._endpoint_attr(endpoint, '_liwan_feature_operation')
-                if not keys:
+                base_route = self._endpoint_attr(endpoint, '_liwan_tenant_base_route')
+                if base_route:
+                    self.assertTrue(str(item).startswith(('/api/v1/documents', '/api/v1/operations')), item)
+                if not keys and not base_route:
                     missing.append(f'{methods} {item}')
                     continue
                 if operation not in ('read', 'write'):

@@ -9,7 +9,9 @@ const props = defineProps<{ approval: HrLeaveApprovalProcess }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutateAsync: createDefault, isPending } = useCreateDefaultLeaveApprovalProcess()
+const archive = useArchiveLeaveApprovalProcess()
 const confirming = ref(false)
+const confirmingArchive = ref(false)
 const failure = ref<unknown>(null)
 const message = computed(() => failure.value ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain')) : '')
 async function useDefault() {
@@ -18,6 +20,14 @@ async function useDefault() {
   try {
     await createDefault()
     confirming.value = false
+  } catch (error) { failure.value = error }
+}
+async function archiveProcess() {
+  if (!hydrated.value || archive.isPending.value || !props.approval.can_manage || !props.approval.process) return
+  failure.value = null
+  try {
+    await archive.mutateAsync(props.approval.process.revision)
+    confirmingArchive.value = false
   } catch (error) { failure.value = error }
 }
 </script>
@@ -32,7 +42,9 @@ async function useDefault() {
           <p class="mt-1 truncate text-sm text-muted">{{ step.resolver_label ?? joinList(step.reviewers.map(person => person.name), t) }}</p>
         </SharedSubCard>
       </ol>
-      <UButton v-if="approval.can_manage" class="mt-3" color="neutral" variant="outline" icon="i-lucide-pencil" :to="approval.href" :label="t('hr.leaveApproval.edit')" data-testid="hr-leave-approval-edit" />
+      <UButton v-if="approval.can_manage && approval.href" class="mt-3" color="neutral" variant="outline" icon="i-lucide-pencil" :to="approval.href" :label="t('hr.leaveApproval.edit')" data-testid="hr-leave-approval-edit" />
+      <SharedInlineConfirm v-if="confirmingArchive" color="error" :title="t('hr.leaveApproval.disable')" :description="t('hr.leaveApproval.disableHint')" :confirm-label="t('hr.leaveApproval.disable')" :cancel-label="t('hr.leaveApproval.cancel')" :pending="archive.isPending.value" @confirm="archiveProcess" @cancel="confirmingArchive = false" />
+      <UButton v-else-if="approval.can_manage" class="mt-3" color="neutral" variant="outline" :disabled="!hydrated" :label="t('hr.leaveApproval.disable')" @click="confirmingArchive = true" />
     </template>
     <template v-else>
       <p class="text-sm text-muted">{{ t('hr.leaveApproval.empty') }}</p>

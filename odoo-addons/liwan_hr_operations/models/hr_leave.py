@@ -2,8 +2,8 @@
 from odoo import Command, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .common import BRIDGE, BRIDGE_CONTEXT, operations_enabled
-from odoo.addons.liwan_operations.models.common import EXTERNAL_CLOSE
+from .common import BRIDGE, BRIDGE_CONTEXT
+from odoo.addons.liwan_approval_service.models.common import EXTERNAL_CLOSE
 
 
 class HrLeave(models.Model):
@@ -13,7 +13,7 @@ class HrLeave(models.Model):
 
     def _liwan_request_approval(self):
         super()._liwan_request_approval()
-        if self.state != 'confirm' or not operations_enabled(self.env):
+        if self.state != 'confirm' or not self.env['liwan.entitlement.service']._liwan_feature_write('hr.enabled'):
             return
         processes = self.env['liwan.operation.process']
         process = processes._hr_leave_governing_process(self.company_id)
@@ -46,13 +46,12 @@ class HrLeave(models.Model):
         return self.liwan_approval_request_ids.filtered(lambda record: record.state == 'pending')
 
     def _liwan_approval_governed(self):
-        return super()._liwan_approval_governed() or (operations_enabled(self.env) and bool(self._hr_leave_open_requests()))
+        return super()._liwan_approval_governed() or bool(self._hr_leave_open_requests())
 
     def _liwan_withdraw_approval(self):
         super()._liwan_withdraw_approval()
-        operations = operations_enabled(self.env)
         for record in self._hr_leave_open_requests():
-            if operations and record.requester_id == self.env.user:
+            if record.requester_id == self.env.user:
                 record.with_context(**{BRIDGE_CONTEXT: BRIDGE}).action_withdraw(record.revision)
             else:
                 self._hr_leave_close_externally(record)
@@ -63,19 +62,10 @@ class HrLeave(models.Model):
         )
 
     def _hr_leave_assert_not_governed(self):
-        """Stock approve and refuse belong to the workflow while it governs the leave.
-
-        An HR decision taken while operations is off closes the request it leaves open, so nothing
-        stays pending for when operations returns.
-        """
         if self.env.context.get(BRIDGE_CONTEXT) is BRIDGE:
             return
-        operations = operations_enabled(self.env)
-        for leave in self:
-            for record in leave._hr_leave_open_requests():
-                if operations:
-                    raise UserError(self.env._('This request is decided by its approval workflow.'))
-                leave._hr_leave_close_externally(record)
+        if any(leave._hr_leave_open_requests() for leave in self):
+            raise UserError(self.env._('This request is decided by its approval workflow.'))
 
     def action_approve(self, check_state=True):
         self._hr_leave_assert_not_governed()

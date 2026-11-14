@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
+from odoo.tools import SQL
 
 
 class Document(models.Model):
@@ -11,6 +12,28 @@ class Document(models.Model):
     employee_id = fields.Many2one(
         'hr.employee', index=True, ondelete='restrict', check_company=True,
     )
+
+    @api.model
+    def _liwan_scope_predicate(self, operation):
+        scope = super()._liwan_scope_predicate(operation)
+        entitlement = self.env['liwan.entitlement.service']
+        access = self.env['liwan.access.service']
+        feature = entitlement._liwan_feature_read if operation == 'read' else entitlement._liwan_feature_write
+        if not feature('hr.enabled'):
+            return scope
+        domain = [('company_id', '=', self.env.company.id)]
+        scopes = [SQL('(%s)', scope)] if scope is not None else []
+        if access._liwan_has_capability(self.env.user, 'hr.employees.manage'):
+            employees = self.env['hr.employee']._search(domain)
+            scopes.append(SQL('d.employee_id IN (%s)', employees.select()))
+        elif operation == 'read' and access._liwan_has_capability(self.env.user, 'hr.employees.read'):
+            own = self.env['hr.employee.public']._search([*domain, ('user_id', '=', self.env.uid)])
+            scopes.append(SQL('d.employee_id IN (%s)', own.select()))
+        department_capability = 'hr.departments.read' if operation == 'read' else 'hr.departments.manage'
+        if access._liwan_has_capability(self.env.user, department_capability):
+            departments = self.env['hr.department']._search(domain)
+            scopes.append(SQL('d.department_id IN (%s)', departments.select()))
+        return SQL(' OR ').join(scopes) if scopes else None
 
     @api.model
     def _liwan_context_fields(self):

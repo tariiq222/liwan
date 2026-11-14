@@ -1,7 +1,7 @@
 import { DocumentListSchema, HrEmployeeSchema } from '@liwan/contracts'
 import type { AppManifest } from '../types'
 const manifest: AppManifest = {
-  id: 'documents', feature: 'documents.enabled', routePrefixes: ['/documents', '/account/documents'],
+  id: 'documents', feature: null, routePrefixes: ['/documents', '/account/documents'],
   appCard: { category: 'team', plan: 'included', surface: 'lav' },
   rail: [{ id: 'documents', labelKey: 'documents.title', icon: 'i-lucide-files', to: '/documents', order: 70, core: 5 }],
   nav: [{ to: '/documents', labelKey: 'documents.title', icon: 'i-lucide-files', shortcut: '6', capability: 'documents.items.read' }],
@@ -24,7 +24,7 @@ const manifest: AppManifest = {
     },
   }],
   routeCapabilities: [
-    { pattern: /^\/account\/documents(?:\/|$)/, capability: 'documents.items.read', feature: 'hr.enabled', requiredCapabilities: ['hr.employees.read'] },
+    { pattern: /^\/account\/documents(?:\/|$)/, capability: 'documents.items.read', capabilityFeature: 'hr.enabled', requiredCapabilities: ['hr.employees.read'] },
     { pattern: /^\/documents\/new$/, capability: 'documents.items.manage' },
     { pattern: /^\/documents\/[^/]+\/edit$/, capability: 'documents.items.manage' },
     { pattern: /^\/documents\/[^/]+\/access$/, capability: 'documents.access.manage' },

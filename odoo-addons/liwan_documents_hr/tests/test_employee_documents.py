@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.liwan_documents.tests.common import DocumentHttpCase
+from odoo.addons.liwan_document_service.tests.common import DocumentHttpCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 
@@ -193,14 +194,93 @@ class TestEmployeeDocuments(DocumentHttpCase):
         self.assertEqual(self.api('GET', '/api/v1/documents/employee/me').status_code, 403)
         self.authenticate('docs_reader', 'docs_reader')
         profile = self.env.ref('liwan_platform.tenant_profile')
-        for feature in ('hr.enabled', 'documents.enabled'):
-            original = dict(profile.features)
-            profile.with_context(**{OPERATOR_CONTEXT: True}).write({
-                'features': {**original, feature: False},
-                'retained_read_features': [key for key in profile.retained_read_features if key != feature],
-            })
-            self.assertEqual(self.api('GET', '/api/v1/documents/employee/me').status_code, 403)
-            profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': original})
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'hr.enabled': False},
+            'retained_read_features': [
+                key for key in profile.retained_read_features if key != 'hr.enabled'
+            ],
+        })
+        self.assertEqual(self.api('GET', '/api/v1/documents/employee/me').status_code, 403)
+
+    def test_own_document_and_download_remain_available_through_context_routes(self):
+        document = self.linked(self.own_employee, grant=True)
+        payload = {'name': 'employment-letter.txt', 'data': 'ZW1wbG95bWVudCBsZXR0ZXI='}
+        file = self.env['liwan.document.files'].with_user(self.linker)._liwan_upload(
+            document, payload, document.revision,
+        )
+        other = self.linked(self.other_employee, grant=True)
+        hidden = self.linked(self.own_employee)
+        archived = self.linked(self.own_employee, grant=True)
+        archived._liwan_set_active(False, archived.revision)
+
+        self.authenticate('docs_reader', 'docs_reader')
+        path = '/api/v1/documents/employee/me'
+        listing = self.api('GET', path)
+        self.assertEqual(listing.status_code, 200, listing.text)
+        self.assertEqual(listing.json()['total'], 1)
+        self.assertEqual([item['id'] for item in listing.json()['items']], [document.id])
+        self.assertEqual(self.api('GET', f'{path}/{document.id}').status_code, 200)
+        response = self.api('GET', f'{path}/{document.id}/files/{file.id}/download')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b'employment letter')
+        for excluded in (other, hidden):
+            self.assertEqual(self.api('GET', f'{path}/{excluded.id}').status_code, 404)
+        self.assertFalse(hidden.with_user(self.reader)._liwan_can('read'))
+        self.assertEqual(self.api('GET', f'/api/v1/documents/{document.id}').status_code, 200)
+
+    def test_employee_context_management_through_context_routes(self):
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        path = f'/api/v1/document-contexts/employee/{self.own_employee.id}'
+        result = self.api('POST', path, {'name': 'Employment verification'})
+        self.assertEqual(result.status_code, 201, result.text)
+        body = result.json()
+        document_path = f'{path}/{body["id"]}'
+        update = self.api('PATCH', document_path, {'name': 'Verified', 'expected_revision': body['revision']})
+        self.assertEqual(update.status_code, 200, update.text)
+        self.assertEqual(self.api('GET', path).json()['total'], 1)
+        upload = self.api('POST', f'{document_path}/files', {
+            'name': 'proof.txt', 'data': 'b2s=', 'expected_revision': update.json()['revision'],
+        })
+        self.assertEqual(upload.status_code, 200, upload.text)
+        files = self.api('GET', f'{document_path}/files')
+        self.assertEqual(files.status_code, 200, files.text)
+        url = files.json()['items'][0]['download_url']
+        self.assertEqual(self.api('GET', url).content, b'ok')
+        revision = upload.json()['revision']
+        locked = self.api('POST', f'{document_path}/files/{files.json()["items"][0]["id"]}/lock', {'expected_revision': revision})
+        self.assertEqual(locked.status_code, 200, locked.text)
+        shared = self.api('POST', f'{document_path}/employee-access', {'expected_revision': locked.json()['revision']})
+        self.assertEqual(shared.status_code, 200, shared.text)
+        self.assertEqual(self.api('GET', f'/api/v1/documents/{body["id"]}').status_code, 200)
+        self.authenticate('docs_reader', 'docs_reader')
+        self.assertEqual(self.api('GET', f'/api/v1/documents/employee/me/{body["id"]}').status_code, 200)
+
+    def test_context_access_updates_participants_through_context_routes(self):
+        document = self.linked(self.own_employee)
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        path = f'/api/v1/document-contexts/employee/{self.own_employee.id}/{document.id}/access'
+        access = self.api('GET', path)
+        self.assertEqual(access.status_code, 200, access.text)
+        picker = self.api('GET', f'{path}/people?q={self.reader.name}')
+        self.assertEqual(picker.status_code, 200, picker.text)
+        self.assertIn(self.reader.id, [person['user_id'] for person in picker.json()])
+        payload = {
+            'expected_revision': access.json()['revision'], 'visibility': 'restricted',
+            'grants': [
+                {'user_id': self.linker.id, 'access': 'editor'},
+                {'user_id': self.reader.id, 'access': 'reader'},
+            ],
+        }
+        update = self.api('PUT', path, payload)
+        self.assertEqual(update.status_code, 200, update.text)
+        self.assertEqual(len(update.json()['grants']), 2)
+        self.assertEqual(self.api('PUT', path, payload).status_code, 409)
+        payload['expected_revision'] = update.json()['revision']
+        payload['visibility'] = 'company'
+        self.assertEqual(self.api('PUT', path, payload).status_code, 403)
+        self.authenticate('docs_reader', 'docs_reader')
+        self.assertEqual(self.api('GET', path).status_code, 403)
+        self.assertEqual(self.api('GET', f'/api/v1/documents/employee/me/{document.id}').status_code, 200)
 
     def test_employee_provider_options_require_hr_management(self):
         self.assertIn('employee_id', self.env['liwan.document']._fields)

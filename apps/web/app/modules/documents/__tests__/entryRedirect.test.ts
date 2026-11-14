@@ -18,7 +18,7 @@ describe('legacy document entry navigation', () => {
 
 import { canReachPath } from '../../../utils/accessPolicy'
 it('requires document capabilities even for system administrators and hides write routes from readers', () => {
-  const platform = { readable_features: ['documents.enabled'], writable_features: ['documents.enabled'] }
+  const platform = { readable_features: [], writable_features: [] }
   expect(canReachPath({ role: 'system_admin', capabilities: ['access.users.read'], platform }, '/documents')).toBe(false)
   const reader = { capabilities: ['documents.items.read'], platform }
   expect(canReachPath(reader, '/documents/8')).toBe(true)

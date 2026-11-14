@@ -12,7 +12,6 @@ from .common import (
     text,
     trusted,
 )
-from .notification_types import DECISION_KINDS, REVIEW_REQUESTED
 from odoo.addons.base_tier_validation.models.workflow_security import (
     _DOCUMENT_WRITE_TOKEN,
 )
@@ -85,6 +84,10 @@ class OperationRequest(models.Model):
         return self.env['res.users']
 
     @api.model
+    def _operations_feature(self, execution_kind):
+        return self.env['liwan.operation.process']._operations_feature(execution_kind)
+
+    @api.model
     def _operations_creation_capability(self, execution_kind):
         """The capability that lets a user file, submit and withdraw a request of ``execution_kind``; bridges override it."""
         return 'operations.requests.create'
@@ -111,7 +114,7 @@ class OperationRequest(models.Model):
             process = self._operations_published_process(vals.get('process_id'), self.env.company)
             if not process:
                 raise ValidationError(self.env._('Choose a published process from the current company.'))
-            require(self.env, self._operations_creation_capability(process.execution_kind))
+            require(self.env, self._operations_creation_capability(process.execution_kind), feature=self._operations_feature(process.execution_kind))
             target = self._operations_target_values(process, vals.pop('target_id', None))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
@@ -144,7 +147,7 @@ class OperationRequest(models.Model):
 
     def _guard(self, key=None):
         self.ensure_one()
-        require(self.env, key)
+        require(self.env, key, feature=self._operations_feature(self.execution_kind))
         self.check_access('read')
         if self.company_id != self.env.company or not self.env.user.active:
             raise AccessError(self.env._('Use an active account in the current company.'))
@@ -227,39 +230,12 @@ class OperationRequest(models.Model):
         return vals
 
     def _notify_current_reviewers(self):
-        """Bell row for the reviewers of the stage the request now waits at.
-
-        The actor is never among them: the requester is excluded from every stage at submission, and a
-        reviewer who approved one stage and also sits on the next (``per_stage`` mode) finds the request
-        in their own pending list instead of a notice of their own action.
-        """
-        self.ensure_one()
-        open_reviews = self.review_ids.filtered(lambda r: r.status in ('pending', 'waiting')).sorted('sequence')
-        if not open_reviews:
-            return
-        sequence = open_reviews[0].sequence
-        reviewers = self.env['res.users'].browse(self.stage_snapshot[sequence - 1]['reviewer_ids']) - self.env.user
-        service = self.env['liwan.notify.service']
-        for reviewer in reviewers:
-            service._liwan_deliver(
-                self._name, self.id, REVIEW_REQUESTED, reviewer.partner_id,
-                self.env._('%(actor)s asked for your review of %(name)s', actor=self.env.user.name, name=self.name),
-                key=f'{REVIEW_REQUESTED}:{self.id}:{self.cycle}:{sequence}:{reviewer.partner_id.id}',
-                values={'subject': self.name},
-            )
+        # Delivery belongs to the installed notification integration.
+        return
 
     def _notify_requester(self):
-        """Bell row for the requester once the request is approved, rejected or returned."""
-        self.ensure_one()
-        kind = DECISION_KINDS[self.state]
-        if self.requester_id == self.env.user:
-            return
-        self.env['liwan.notify.service']._liwan_deliver(
-            self._name, self.id, kind, self.requester_id.partner_id,
-            self.env._('%(actor)s decided your request %(name)s', actor=self.env.user.name, name=self.name),
-            key=f'{kind}:{self.id}:{self.cycle}:{self.requester_id.partner_id.id}',
-            values={'subject': self.name},
-        )
+        # Delivery belongs to the installed notification integration.
+        return
 
     def _decidable_reviews(self):
         """The open reviews the current user may decide, from the current stage on.
@@ -303,7 +279,7 @@ class OperationRequest(models.Model):
 
     def action_approve(self, revision, comment=''):
         self.ensure_one()
-        require(self.env)
+        require(self.env, feature=self._operations_feature(self.execution_kind))
         try:
             with self.env.cr.savepoint():
                 reviews = self._decision_guard(revision)
@@ -418,7 +394,13 @@ class OperationRequest(models.Model):
     def _operations_allowed_actions(self):
         self.ensure_one()
         service = self.env['liwan.access.service']
-        writable = self.company_id == self.env.company and self.env['liwan.entitlement.service']._liwan_feature_write('operations.enabled') and self.env.user.active
+        entitlement = self.env['liwan.entitlement.service']
+        feature = self._operations_feature(self.execution_kind)
+        feature_writable = (
+            entitlement._liwan_effective_state() == 'active' if feature is False
+            else entitlement._liwan_feature_write(feature)
+        )
+        writable = self.company_id == self.env.company and feature_writable and self.env.user.active
         creator = writable and self.requester_id == self.env.user and service._liwan_has_capability(self.env.user, self._operations_creation_capability(self.execution_kind), record=self)
         reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and bool(self._decidable_reviews())
         editable = creator and self.state in ('draft', 'returned')

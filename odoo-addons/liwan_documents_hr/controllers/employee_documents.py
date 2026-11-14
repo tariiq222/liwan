@@ -9,17 +9,17 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
     serves_own_data,
 )
-from odoo.addons.liwan_documents.controllers.common import (
+from odoo.addons.liwan_document_service.controllers.common import (
     archived_arg,
+    document_page,
     file_download,
     files_page,
     list_filter_domain,
     page_args,
     require,
 )
-from odoo.addons.liwan_documents.serializers.document import (
+from odoo.addons.liwan_document_service.serializers.document import (
     dump_detail,
-    dump_summaries,
 )
 from odoo.addons.liwan_hr.controllers.common import own_employee
 
@@ -47,7 +47,7 @@ class EmployeeDocuments(http.Controller):
     @http.route('/api/v1/documents/employee/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @serves_own_data()
-    @requires_feature('documents.enabled', 'hr.enabled', operation='read')
+    @requires_feature('hr.enabled', operation='read')
     @requires_capability('documents.items.read', 'hr.employees.read')
     def list_own_documents(self, **_):
         args = request.httprequest.args
@@ -59,17 +59,12 @@ class EmployeeDocuments(http.Controller):
         if args.get('q'):
             domain.append(('name', 'ilike', args['q']))
         model = request.env['liwan.document'].with_context(active_test=False)
-        documents = model.search(domain, limit=limit, offset=offset, order='write_date desc,id desc')
-        counts = {directory.id: count for directory, count in request.env['dms.file']._read_group(
-            [('directory_id', 'in', documents.directory_id.ids), ('active', '=', True)],
-            ['directory_id'], ['__count'],
-        )}
-        return {'items': dump_summaries(documents, counts), 'total': model.search_count(domain)}
+        return document_page(model, domain, limit, offset)
 
     @http.route('/api/v1/documents/employee/me/<int:document_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @serves_own_data()
-    @requires_feature('documents.enabled', 'hr.enabled', operation='read')
+    @requires_feature('hr.enabled', operation='read')
     @requires_capability('documents.items.read', 'hr.employees.read')
     def get_own_document(self, document_id, **_):
         return dump_detail(own_document(document_id))
@@ -77,7 +72,7 @@ class EmployeeDocuments(http.Controller):
     @http.route('/api/v1/documents/employee/me/<int:document_id>/files', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @serves_own_data()
-    @requires_feature('documents.enabled', 'hr.enabled', operation='read')
+    @requires_feature('hr.enabled', operation='read')
     @requires_capability('documents.items.read', 'hr.employees.read')
     def list_own_document_files(self, document_id, **_):
         return files_page(own_document(document_id), f'/api/v1/documents/employee/me/{document_id}/files')
@@ -88,7 +83,7 @@ class EmployeeDocuments(http.Controller):
     )
     @api_handler
     @serves_own_data()
-    @requires_feature('documents.enabled', 'hr.enabled', operation='read')
+    @requires_feature('hr.enabled', operation='read')
     @requires_capability('documents.items.read', 'hr.employees.read')
     def download_own_document_file(self, document_id, file_id, **_):
         return file_download(own_document(document_id), file_id)

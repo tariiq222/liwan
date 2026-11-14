@@ -144,6 +144,24 @@ def requires_feature(*keys, operation='write', match='all'):
     return decorator
 
 
+def requires_tenant_access(*, operation='write'):
+    # Apply the tenant lifecycle to a route included in every installation.
+    _check_feature_args(operation, 'all')
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                request.env['liwan.entitlement.service']._liwan_assert_lifecycle(write=operation == 'write')
+            except LiwanAccessRule as error:
+                _raise_feature_error(func, error)
+            return func(*args, **kwargs)
+        wrapper._liwan_tenant_base_route = True
+        wrapper._liwan_feature_operation = operation
+        return wrapper
+    return decorator
+
+
 def requires_registered_feature(model, method, *, keys, operation='write', match='any', open_method=None):
     """Gate a route on the feature keys that installed addons register at request time.
 
@@ -166,6 +184,10 @@ def requires_registered_feature(model, method, *, keys, operation='write', match
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if open_method and getattr(request.env[model], open_method)():
+                try:
+                    request.env['liwan.entitlement.service']._liwan_assert_lifecycle(write=operation == 'write')
+                except LiwanAccessRule as error:
+                    _raise_feature_error(func, error)
                 return func(*args, **kwargs)
             registered = tuple(sorted(set(getattr(request.env[model], method)())))
             if registered:

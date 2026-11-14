@@ -40,6 +40,16 @@ LIWAN_COMMERCIAL_CONFIG="$SCRATCH_ROOT/baseline-classification.json" "$ODOO_PYTH
   --addons-path="$BASE_ODOO_ROOT/odoo/addons,$BASE_ODOO_ROOT/addons,$SCRATCH_ROOT/baseline/odoo-addons,$OCA_PATH" \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
   -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port="$ODOO_PORT" --workers=0 --max-cron-threads=0 --stop-after-init
+fixture="$SCRATCH_ROOT/document-approval.json"
+if [ -f "$SCRATCH_ROOT/baseline/odoo-addons/liwan_documents_hr/__manifest__.py" ] \
+  && [ -f "$SCRATCH_ROOT/baseline/odoo-addons/liwan_hr_operations/__manifest__.py" ]; then
+  LIWAN_COMMERCIAL_CONFIG="$SCRATCH_ROOT/baseline-classification.json" \
+    "$ODOO_PYTHON" "$BASE_ODOO_ROOT/odoo-bin" shell "${ODOO_DB_ARGS[@]}" \
+    --addons-path="$BASE_ODOO_ROOT/odoo/addons,$BASE_ODOO_ROOT/addons,$SCRATCH_ROOT/baseline/odoo-addons,$OCA_PATH" \
+    --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/seed-document-approval.log" \
+    -d "$SCRATCH_DB" --no-http < deploy/odoo/seed_document_approval_upgrade.py > "$fixture"
+  python3 -m json.tool "$fixture" >/dev/null
+fi
 # Upgrade to this commit. -i installs the addons the previous release did
 # not have (liwan_meetings, liwan_meetings_pmo); Odoo skips the installed ones.
 python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$SCRATCH_ROOT/upgrade-classification.json"
@@ -55,3 +65,10 @@ python3 -B tools/upgrade_log_guard.py "$SCRATCH_ROOT/logs/upgrade.log"
   --data-dir="$SCRATCH_ROOT/data" -d "$SCRATCH_DB" --http-port="$ODOO_PORT" --no-http \
   < deploy/odoo/upgrade_smoke.py | tee "$SCRATCH_ROOT/smoke.log"
 grep -q UPGRADE_SMOKE_OK "$SCRATCH_ROOT/smoke.log"
+if [ -s "$fixture" ]; then
+  LIWAN_DOC_FIXTURE="$fixture" "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" shell "${ODOO_DB_ARGS[@]}" \
+    --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" \
+    --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/check-document-approval.log" \
+    -d "$SCRATCH_DB" --no-http < deploy/odoo/check_document_approval_upgrade.py | tee "$SCRATCH_ROOT/document-approval-check.log"
+  grep -qx DOCUMENT_UPGRADE_FIXTURE_OK "$SCRATCH_ROOT/document-approval-check.log"
+fi

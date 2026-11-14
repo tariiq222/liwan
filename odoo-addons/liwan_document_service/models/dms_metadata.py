@@ -6,7 +6,7 @@ from odoo.exceptions import AccessError
 def require_library(records):
     if records.env.user._is_superuser():
         return
-    records.env['liwan.entitlement.service'].require('documents.enabled')
+    records.env['liwan.entitlement.service']._liwan_assert_lifecycle(write=True)
     records.env['liwan.access.service']._liwan_require_capability(
         'documents.library.manage',
     )

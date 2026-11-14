@@ -12,22 +12,37 @@ class HrOperationsIrRule(models.Model):
 
     @api.model
     def _liwan_leave_extra_read_domain(self):
-        """The employee's time-off approver reads the leave while the workflow awaits a decision on it."""
+        """The time-off approver reads the leave while it is pending and they hold its snapshotted review right."""
         extra = super()._liwan_leave_extra_read_domain()
-        if not self.env['liwan.operation.request'].has_access('read'):
+        requests = self.env['liwan.operation.request']
+        if not requests.has_access('read'):
             return extra
         memberships = self.env['liwan.access.service']._liwan_membership_company_ids()
-        request_domain = [('state', '=', 'pending'), ('execution_kind', '=', KIND)]
+        candidates = requests.search([
+            ('state', '=', 'pending'), ('execution_kind', '=', KIND),
+            ('company_id', 'in', memberships), ('participant_ids', 'in', [self.env.uid]),
+        ])
+        eligible = candidates.filtered(lambda approval: approval._is_stage_reviewer())
         rejecting = self.env.context.get(REJECTING_CONTEXT)
         if isinstance(rejecting, tuple) and rejecting[0] is BRIDGE:
-            request_domain = [('execution_kind', '=', KIND), '|', ('state', '=', 'pending'), '&', ('id', '=', rejecting[1]), ('state', '=', 'rejected')]
-        pending = Domain('liwan_approval_request_ids', 'any', request_domain)
-        return extra | (Domain('employee_id.leave_manager_id', '=', self.env.uid) & Domain('company_id', 'in', memberships) & pending)
+            eligible |= requests.search([('execution_kind', '=', KIND), ('id', '=', rejecting[1]), ('state', '=', 'rejected')])
+        return extra | (
+            Domain('employee_id.leave_manager_id', '=', self.env.uid)
+            & Domain('company_id', 'in', memberships)
+            & Domain('liwan_approval_request_ids', 'in', eligible.ids)
+        )
 
     @api.model
     def _liwan_fresh_company_domain(self, model_name, mode):
         domain = super()._liwan_fresh_company_domain(model_name, mode)
-        if mode != 'read' or self.env.su:
+        if self.env.su:
+            return domain
+        if model_name in ('liwan.operation.process', 'liwan.operation.process.step'):
+            service = self.env['liwan.access.service']
+            companies = sorted(set(service._liwan_operation_capability_company_ids('hr.leave.config')) & set(service._liwan_scoped_company_ids()))
+            prefix = 'process_id.' if model_name.endswith('.step') else ''
+            domain |= Domain(prefix + 'execution_kind', '=', KIND) & Domain('company_id', 'in', companies)
+        if mode != 'read':
             return domain
         if model_name == 'liwan.operation.process':
             # Whoever may request leave sees the company's leave process in any state, so a leave filed while it
