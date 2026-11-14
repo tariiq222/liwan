@@ -14,7 +14,7 @@ declare module 'moyasar-payment-form' {
     currency: string
     description: string
     callback_url: string
-    on_failure: (failure: { type?: string }) => void
+    on_failure: (failure: { type?: string }) => Promise<void>
   }
   export default class Moyasar {
     static init(config: MoyasarFormConfig): void

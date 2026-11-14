@@ -97,7 +97,8 @@ export function moyasarFormConfig(session: CardFormSession, ctx: FormConfigConte
     // Where the form sends the browser when the provider answers at once (a decline before any 3-D Secure step). The relay reads the
     // attempt and asks the provider; the 3-D Secure return uses the address the server locked into the intent.
     callback_url: `${ctx.origin}/api/commercial/payment-callback?attempt=${encodeURIComponent(session.attempt_id)}`,
-    on_failure: ctx.onFailure,
+    // The form accepts only promise-based callbacks: a plain function makes it refuse the whole configuration.
+    on_failure: async (failure: { type?: string }) => { ctx.onFailure(failure) },
   }
 }
 

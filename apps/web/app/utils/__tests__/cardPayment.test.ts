@@ -79,6 +79,8 @@ describe('the provider form options', () => {
   })
   it('never weakens authentication and passes no metadata, no id and no other payment fields', () => {
     expect(JSON.stringify(config)).not.toMatch(/3ds|metadata|given_id|manual|apple|samsung|google|stc/i)
+    // Package 2.3.0 shows a configuration error and no card field when a callback is not an async function.
+    expect(config.on_failure.constructor.name).toBe('AsyncFunction')
     expect(Object.keys(config).sort()).toEqual(['amount', 'callback_url', 'credit_card', 'currency', 'description', 'element', 'language', 'methods', 'on_failure', 'payment_intent', 'publishable_api_key', 'supported_networks', 'use_payment_intent'])
   })
   it('sends an immediate provider answer to the relay for this attempt, never to a stored return address', () => {
