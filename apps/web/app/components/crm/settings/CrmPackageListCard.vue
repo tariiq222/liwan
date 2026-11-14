@@ -56,7 +56,7 @@ async function add() {
         @click="editor.remove(row.id)"
       />
     </li>
-    <template #add>
+    <template v-if="canEdit" #add>
       <div class="w-full">
         <SharedProductPicker v-model="productId" :exclude="rows.map(row => row.id)" :disabled="locked" :aria-label="t('crm.settings.packages.pick')" />
       </div>

@@ -19,7 +19,8 @@ const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const q = ref('')
 const search = refDebounced(q, 250)
-const query = useProductPick(search)
+// A locked picker asks for nothing: the pick list answers 403 to whoever may not pick.
+const query = useProductPick(search, computed(() => !props.disabled))
 const items = computed(() => {
   const excluded = new Set(props.exclude ?? [])
   return (query.data.value?.items ?? []).filter(product => !excluded.has(product.id))
