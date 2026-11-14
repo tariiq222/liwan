@@ -69,6 +69,12 @@ class TestSalesOrdersShape(LiwanSalesCase):
                 listed = self.api_as(self.agent, 'GET', f'{ORDERS}?state={expected}&limit=200').json()
                 self.assertIn(orders[state].id, {row['id'] for row in listed['items']})
         self.assertEqual(self.api_as(self.agent, 'GET', f'{ORDERS}?state=sale').status_code, 422)
+        both = self.api_as(self.agent, 'GET', f'{ORDERS}?state=draft,cancelled&limit=200').json()
+        listed = {row['id'] for row in both['items']}
+        self.assertTrue({orders['draft'].id, orders['cancel'].id} <= listed)
+        self.assertFalse(listed & {orders['sale'].id, orders['sent'].id})
+        unknown = self.api_as(self.agent, 'GET', f'{ORDERS}?state=draft,other').json()
+        self.assertEqual((unknown['code'], unknown['field']), ('invalid', 'state'))
 
     def test_lines_carry_the_kind_the_product_and_the_stored_amounts(self):
         order = self.make_order(self.agent, lines=[

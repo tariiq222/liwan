@@ -6,6 +6,7 @@ from . import (
     products_service,
     res_users,
     sale_order,
+    sales_service,
     sales_settings,
     visibility,
 )

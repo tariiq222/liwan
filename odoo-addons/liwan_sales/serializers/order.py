@@ -1,16 +1,18 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date
+
 from odoo.tools import html2plaintext
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_products.models.products_service import MAX_QUANTITY
+from odoo.addons.liwan_sales.models.sale_order import LINE_KINDS
 
 # The wire state of each stock state.
 STATE_WIRE = {'draft': 'draft', 'sent': 'sent', 'sale': 'confirmed', 'cancel': 'cancelled'}
 WIRE_STATES = {wire: stock for stock, wire in STATE_WIRE.items()}
 SOURCES = ('staff', 'online')
 BOOLEANS = {'true': True, 'false': False}
-# A subsection is reported as a section.
-LINE_KINDS = {False: 'product', 'line_section': 'section', 'line_subsection': 'section', 'line_note': 'note'}
 
 
 def _ref(record):
@@ -23,8 +25,9 @@ def _dump_salesperson(user):
 
 def _dump_line(line):
     # The tax of a line is never read: a branch session cannot read the root company's taxes. Only the stored amounts
-    # are.
+    # are, rounded to the currency because a freshly computed one still carries float noise.
     product = line.product_id.product_tmpl_id
+    money = line.currency_id.round
     return {
         'id': line.id,
         'kind': LINE_KINDS[line.display_type],
@@ -34,9 +37,9 @@ def _dump_line(line):
         'unit': line.product_uom_id.name or None,
         'unit_price': line.price_unit,
         'discount_percent': line.discount,
-        'amount_untaxed': line.price_subtotal,
-        'amount_tax': line.price_tax,
-        'amount_total': line.price_total,
+        'amount_untaxed': money(line.price_subtotal),
+        'amount_tax': money(line.price_tax),
+        'amount_total': money(line.price_total),
     }
 
 
@@ -55,9 +58,9 @@ def dump_order_item(order):
         'date': iso(order.date_order),
         'terms': html2plaintext(order.note) if order.note else '',
         'currency': {'id': currency.id, 'name': currency.name, 'symbol': currency.symbol},
-        'amount_untaxed': order.amount_untaxed,
-        'amount_tax': order.amount_tax,
-        'amount_total': order.amount_total,
+        'amount_untaxed': currency.round(order.amount_untaxed),
+        'amount_tax': currency.round(order.amount_tax),
+        'amount_total': currency.round(order.amount_total),
     }
 
 
@@ -75,16 +78,17 @@ def dump_orders(orders):
 
 
 def parse_order_filters(args):
-    """The search domain of the list filters (``q``, ``state``, ``source``, ``mine``), or a 422."""
+    """The search domain of the list filters (``q``, ``state`` as one wire state or a comma-separated list, ``source``, ``mine``), or a 422."""
     domain = []
     query = (args.get('q') or '').strip()
     if query:
         domain += ['|', ('name', 'ilike', query), ('partner_id.name', 'ilike', query)]
     state = args.get('state')
     if state:
-        if state not in WIRE_STATES:
-            raise ApiError(422, 'invalid', f'state must be one of {tuple(WIRE_STATES)}', field='state')
-        domain.append(('state', '=', WIRE_STATES[state]))
+        wanted = state.split(',')
+        if not set(wanted) <= set(WIRE_STATES):
+            raise ApiError(422, 'invalid', f'state must be one or more of {tuple(WIRE_STATES)}', field='state')
+        domain.append(('state', 'in', [WIRE_STATES[wire] for wire in wanted]))
     source = args.get('source')
     if source:
         if source not in SOURCES:
@@ -101,3 +105,125 @@ def parse_mine(args):
     if raw not in BOOLEANS:
         raise ApiError(422, 'invalid', 'mine must be true or false', field='mine')
     return BOOLEANS[raw]
+
+
+ORDER_KEYS = ('customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines')
+# The keys each kind of line accepts; a price or a tax is never one of them (D6, D8).
+LINE_KEYS = {
+    'product': ('id', 'kind', 'product_id', 'name', 'quantity', 'discount_percent'),
+    'section': ('id', 'kind', 'name'),
+    'note': ('id', 'kind', 'name'),
+}
+ALL_LINE_KEYS = set(LINE_KEYS['product'])
+MAX_TERMS = 10_000
+MAX_LINE_NAME = 2_000
+
+
+def _invalid(field, message):
+    raise ApiError(422, 'invalid', message, field=field)
+
+
+def _is_id(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _refuse_unknown(payload, accepted, prefix=''):
+    unknown = sorted(set(payload) - set(accepted))
+    if unknown:
+        _invalid(f'{prefix}{unknown[0]}', f'field {unknown[0]!r} is not accepted')
+
+
+def _parse_id(payload, key, field=None):
+    value = payload[key]
+    if not _is_id(value):
+        _invalid(field or key, f'{key} must be a positive integer')
+    return value
+
+
+def _parse_text(value, field, required, maximum):
+    if not isinstance(value, str) or (required and not value.strip()) or len(value) > maximum:
+        _invalid(field, f'{field} must be {"non-empty " if required else ""}text of at most {maximum} characters')
+    return value.strip() if required else value
+
+
+def _parse_date(value):
+    """``validity_date``: a ``YYYY-MM-DD`` date or None, else a 422."""
+    if value is None:
+        return None
+    message = 'validity_date must be YYYY-MM-DD or null'
+    if isinstance(value, str) and len(value) == len('YYYY-MM-DD'):
+        try:
+            return date.fromisoformat(value)
+        except ValueError as error:
+            raise ApiError(422, 'invalid', message, field='validity_date') from error
+    return _invalid('validity_date', message)
+
+
+def _parse_line(index, line):
+    """A line entry ``{index, id, kind, product_id, name, quantity, discount}``, or a 422 on ``lines.<index>.<key>``."""
+    prefix = f'lines.{index}.'
+    if not isinstance(line, dict):
+        _invalid(f'lines.{index}', 'a line must be an object')
+    _refuse_unknown(line, ALL_LINE_KEYS, prefix)
+    kind = line.get('kind')
+    if kind not in LINE_KEYS:
+        _invalid(f'{prefix}kind', f'kind must be one of {tuple(LINE_KEYS)}')
+    _refuse_unknown(line, LINE_KEYS[kind], prefix)
+    entry = {'index': index, 'id': None, 'kind': kind, 'name': None}
+    if 'id' in line:
+        entry['id'] = _parse_id(line, 'id', f'{prefix}id')
+    if kind != 'product' or line.get('name') is not None:
+        entry['name'] = _parse_text(line.get('name'), f'{prefix}name', required=True, maximum=MAX_LINE_NAME)
+    if kind != 'product':
+        return entry
+    if 'product_id' not in line:
+        _invalid(f'{prefix}product_id', 'a product line needs product_id')
+    entry['product_id'] = _parse_id(line, 'product_id', f'{prefix}product_id')
+    quantity = line.get('quantity')
+    if not _is_number(quantity) or not 0 < quantity <= MAX_QUANTITY:
+        _invalid(f'{prefix}quantity', f'quantity must be a number greater than zero, at most {MAX_QUANTITY}')
+    discount = line.get('discount_percent', 0)
+    if not _is_number(discount) or not 0 <= discount <= 100:
+        _invalid(f'{prefix}discount_percent', 'discount_percent must be a number from 0 to 100')
+    entry.update(quantity=quantity, discount=discount)
+    return entry
+
+
+def parse_order_body(payload, creating):
+    """The whitelisted values of a create (``creating``) or a PATCH, or a 422 naming the field."""
+    _refuse_unknown(payload, ORDER_KEYS)
+    if creating and 'customer_id' not in payload:
+        _invalid('customer_id', 'customer_id is required')
+    values = {}
+    for key in ('customer_id', 'salesperson_id'):
+        if key in payload:
+            values[key] = _parse_id(payload, key)
+    if 'validity_date' in payload:
+        values['validity_date'] = _parse_date(payload['validity_date'])
+    if 'terms' in payload:
+        values['terms'] = _parse_text(payload['terms'], 'terms', required=False, maximum=MAX_TERMS)
+    if 'lines' in payload:
+        if not isinstance(payload['lines'], list):
+            _invalid('lines', 'lines must be a list')
+        values['lines'] = [_parse_line(index, line) for index, line in enumerate(payload['lines'])]
+    elif creating:
+        values['lines'] = []
+    if not values:
+        _invalid(None, 'nothing to change')
+    return values
+
+
+def parse_assign_body(payload):
+    """The ``salesperson_id`` of an assign, or a 422."""
+    _refuse_unknown(payload, ('salesperson_id',))
+    if 'salesperson_id' not in payload:
+        _invalid('salesperson_id', 'salesperson_id is required')
+    return _parse_id(payload, 'salesperson_id')
+
+
+def dump_salespeople(users):
+    return [_dump_salesperson(user) for user in users]

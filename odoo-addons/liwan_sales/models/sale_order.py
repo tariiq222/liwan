@@ -3,6 +3,9 @@ from odoo import fields, models
 
 from .access_service import DOCUMENTS_ASSIGN, ORDERS_CONFIRM, QUOTATIONS_MANAGE
 
+# The wire kind of each stock display type; a subsection is reported as a section.
+LINE_KINDS = {False: 'product', 'line_section': 'section', 'line_subsection': 'section', 'line_note': 'note'}
+
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'

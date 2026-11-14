@@ -131,3 +131,103 @@ class LiwanSalesCase(LiwanApiCase):
 
     def api_as(self, user, method, path, json=None):
         return self.as_user(user).api(method, path, json=json)
+
+
+SAUDI_VAT = '300000000000003'
+CATALOG_KEYS = ('products.read', 'products.manage', 'products.prices.manage')
+
+
+class SalesWriteCase(LiwanSalesCase):
+    """The Sales users of ``LiwanSalesCase`` in an establishment registered for VAT, with two 15% sale taxes of the
+    root (one added to the price, one included in it), service products of the product service and parties of the
+    customer service."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.company.write({'country_id': cls.env.ref('base.sa').id, 'vat': SAUDI_VAT})
+        cls.register(True)
+        cls.tax_added = cls.tax('VAT 15% added', 'tax_excluded')
+        cls.tax_included = cls.tax('VAT 15% included', 'tax_included')
+        cls.catalog = cls.custom_user('sales_catalog', CATALOG_KEYS)
+        cls.taxed = cls.service_product('Taxed service', 100.0, cls.tax_added)
+        cls.included = cls.service_product('Tax-included service', 100.0, cls.tax_included)
+        cls.plain = cls.service_product('Default-tax service', 40.0)
+        cls.customer = cls.party('Sales customer')
+
+    @classmethod
+    def register(cls, registered):
+        cls.company.liwan_vat_registered = registered
+
+    @classmethod
+    def tax(cls, name, price_include):
+        group = cls.env['account.tax.group'].create({'name': f'{name} group', 'company_id': cls.company.id})
+        return cls.env['account.tax'].create({
+            'name': name, 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.company.id, 'tax_group_id': group.id, 'price_include_override': price_include,
+        })
+
+    @classmethod
+    def products_service(cls, user=None, company=None):
+        service = cls.env['liwan.products.service']
+        return service.with_user(user or cls.catalog).with_company(company or cls.company)
+
+    @classmethod
+    def service_product(cls, name, price, taxes=None, user=None, company=None):
+        """A ``product.template`` of the product service, priced at ``price``, with ``taxes`` (default: the
+        establishment's default sale tax, as the product service gives it)."""
+        values = {'name': name, 'type': 'service', 'list_price': price}
+        if taxes:
+            values['taxes'] = taxes.ids
+        return cls.products_service(user, company)._liwan_create(values).with_env(cls.env)
+
+    @classmethod
+    def party(cls, name, company=None):
+        """A party of the customer service; ``company`` makes it that company's own (default: shared)."""
+        settings = cls.env['liwan.customers.settings']._liwan_current()
+        service = cls.env['liwan.customers.service']
+        if not company:
+            return service._liwan_create({'name': name})
+        settings.sharing = 'branch'
+        party = service.with_company(company)._liwan_create({'name': name})
+        settings.sharing = 'establishment'
+        return party
+
+    @classmethod
+    def set_discount_limit(cls, percent):
+        cls.env['liwan.sales.settings']._liwan_current().discount_limit_percent = percent
+
+    @staticmethod
+    def product_line(product, quantity=1, **extra):
+        return {'kind': 'product', 'product_id': product.id, 'quantity': quantity, **extra}
+
+    def body(self, *lines, **extra):
+        return {'customer_id': self.customer.id, 'lines': list(lines or [self.product_line(self.taxed)]), **extra}
+
+    def post(self, user, body, expect=200):
+        response = self.api_as(user, 'POST', '/api/v1/sales/orders', body)
+        self.assertEqual(response.status_code, expect, response.text)
+        return response.json()
+
+    def patch_order(self, user, order_id, body, expect=200):
+        response = self.api_as(user, 'PATCH', f'/api/v1/sales/orders/{order_id}', body)
+        self.assertEqual(response.status_code, expect, response.text)
+        return response.json()
+
+    def act(self, user, order_id, action, body=None, expect=200):
+        response = self.api_as(user, 'POST', f'/api/v1/sales/orders/{order_id}/{action}', body)
+        self.assertEqual(response.status_code, expect, response.text)
+        return response.json()
+
+    def refused(self, response, status, code, field=None):
+        """The error body of ``response``, after checking its status, code and field."""
+        self.assertEqual(response.status_code, status, response.text)
+        body = response.json()
+        self.assertEqual((body['code'], body.get('field')), (code, field), response.text)
+        return body
+
+    def price_of(self, product, quantity, company=None):
+        """The unit price the price function gives ``product`` for the Sales customer."""
+        company = company or self.company
+        service = self.env['liwan.products.service'].with_company(company)
+        return service._liwan_price(product, quantity=quantity, company=company, customer=self.customer)['unit_price']
