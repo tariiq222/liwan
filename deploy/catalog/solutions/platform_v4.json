@@ -148,7 +148,7 @@
       "id": "sales",
       "name": "Sales",
       "description": "The Sales application.",
-      "sellable": true,
+      "sellable": false,
       "modules": [
         "liwan_sales"
       ],
