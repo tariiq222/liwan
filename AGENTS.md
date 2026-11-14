@@ -270,7 +270,7 @@ another application) needs the owner's approval, recorded by the owner as an
 
 Before every integration, including from an older worktree, follow the six steps in
 `docs/agents/integration-rules.md`. They are mandatory, as is its definition of the owner
-keywords «كومت ودمج» and «انشر». These are agent workflow instructions, not a Git hook or
+keywords «كومت ودمج», «انشر» and «دمج»/«ادمج». These are agent workflow instructions, not a Git hook or
 server-enforced branch protection; do not claim automated merge protection exists unless it has
 actually been installed and verified.
 

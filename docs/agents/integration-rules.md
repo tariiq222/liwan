@@ -63,6 +63,10 @@ Owner keywords:
 - «انشر» means: commit, run the checks, push the task branch, open the PR, mark it ready,
   merge it after current-head `ci-result` is green, and return the lane (`wt lane finish`, or `wt gc` for a temporary worktree). It never means a direct push to `main`,
   a release tag or a deployment.
+- «دمج» or «ادمج» means: merge the work the owner is pointing at into `main` through its PR,
+  following the six steps. These are also the words that allow enabling auto-merge on that PR.
+  When that work has no PR yet, the word covers pushing its branch and opening the PR. It
+  never means a direct push to `main`, a release tag or a deployment.
 
 ### Review-approval constraint on `protect-main` (recorded 2026-10-24)
 
@@ -150,10 +154,10 @@ procedure above remains required for subsequent remote publication.
 
 ## Keep the PR loop short
 
-Enable auto-merge (`gh pr merge <n> --auto --merge`) only when the owner asks for it in words. GitHub
-then merges the PR the moment the current-head `ci-result` is green, without waiting for an agent to
-come back. Without those words, the agent merges after the green check when the owner's words cover
-the merge. Auto-merge never bypasses protection: it waits
+Enable auto-merge (`gh pr merge <n> --auto --merge`) only when the owner says «دمج» or «ادمج» for
+that PR, or names auto-merge. GitHub then merges the PR the moment the current-head `ci-result` is
+green, without waiting for an agent to come back. Under «انشر» alone the agent waits for the green
+check and merges the PR itself. Auto-merge never bypasses protection: it waits
 for the required check and for resolved conversations. Disable it (`gh pr merge <n> --disable-auto`)
 before pushing a change that still needs review. Do not enable it on a PR that needs an owner
 decision or a separate authorization, or on one that changes authentication, authorization, tenant
