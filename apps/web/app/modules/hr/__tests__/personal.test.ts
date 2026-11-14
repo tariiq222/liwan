@@ -21,8 +21,10 @@ describe('HR personal contributions', () => {
     expect(manifest.personal?.find(entry => entry.id === 'hr-insurance')?.feature).toBe('hr.insurance')
     expect(manifest.personal?.find(entry => entry.section === 'leave')?.primaryAction).toMatchObject({to:'/account/leave/new', capability:'hr.leave.request'})
   })
-  it('allows leave readers to open the scoped review list', () => {
-    expect(manifest.routeCapabilities?.find(rule => rule.pattern.test('/hr/leave'))).toMatchObject({capability:'hr.leave.read'})
+  it('gates the leave list on approvers and managers and leaves the record to readers', () => {
+    expect(manifest.routeCapabilities?.find(rule => rule.pattern.test('/hr/leave'))).toMatchObject({capability:'hr.leave.read', anyCapabilities:['hr.leave.approve','hr.leave.manage']})
+    expect(manifest.routeCapabilities?.find(rule => rule.pattern.test('/hr/leave/7'))).toEqual(expect.objectContaining({capability:'hr.leave.read'}))
+    expect(manifest.routeCapabilities?.find(rule => rule.pattern.test('/hr/leave/7'))?.anyCapabilities).toBeUndefined()
   })
 })
 

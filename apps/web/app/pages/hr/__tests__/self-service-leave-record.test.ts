@@ -12,7 +12,7 @@ const approval = { request_id: 15, state: 'pending' as 'pending' | 'done', revis
   { sequence: 2, name: 'HR', reviewers: [person(9, 'Officer')], status: 'pending' as const },
 ] as { sequence: number; name: string; reviewers: ReturnType<typeof person>[]; status: 'waiting' | 'pending' | 'approved' | 'rejected' | 'cancel' }[] }
 
-async function render(personal: boolean, cancellationState?: 'approved' | 'refused', canCancel = false, stages: { data?: typeof approval; error?: unknown; viewer?: number } = {}) {
+async function render(personal: boolean, cancellationState?: 'approved' | 'refused', canCancel = false, stages: { data?: typeof approval; error?: unknown; viewer?: number; listReachable?: boolean } = {}) {
   const filename = resolve(import.meta.dirname, '../../../components/hr/LeaveRecord.vue')
   const descriptor = parse(readFileSync(filename,'utf8'),{filename}).descriptor
   const script = compileScript(descriptor,{id:'own-leave-record'}).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm,'').replace('export default','return')
@@ -26,7 +26,7 @@ async function render(personal: boolean, cancellationState?: 'approved' | 'refus
     useAccess:() => ({can:() => true}),useMe:() => ({me:Vue.ref({id:stages.viewer ?? 2})}),joinList:(items:string[]) => items.join(', '),
     useHrLeaveApproval:() => ({data:Vue.ref(stages.data),error:Vue.ref(stages.error ?? null)}),useHydrated:() => Vue.ref(true),useHrLeaveFormat:() => ({period:() => '',days:String}),
     useLeaveApprovalDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useMyHrLeaveRequest:query,useHrLeaveRequest:query,useCancellationDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useLeaveDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useWithdrawLeaveRequest:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),
-    owningListBack:() => '/account/leave',hrLeaveBadge:() => ({tone:'success',labelKey:'approved'}),statusTag:() => ({}),ApiError:Error,
+    owningListBack:(_query:unknown,paths:string[]) => paths[0],canReachPath:() => stages.listReachable ?? true,hrLeaveBadge:() => ({tone:'success',labelKey:'approved'}),statusTag:() => ({}),ApiError:Error,
   }
   const component = new Function(...Object.keys(bindings),transpile(script))(...Object.values(bindings))
   const state = component.setup({personal},{expose:() => {}})
@@ -34,7 +34,8 @@ async function render(personal: boolean, cancellationState?: 'approved' | 'refus
   if(template.errors.length) throw template.errors[0]
   const render = new Function('Vue',transpile(template.code))(Vue)
   const app = Vue.createSSRApp(Vue.defineComponent({setup:() => ({...state}),render}))
-  for(const name of ['SharedRecordPage','SharedIdentityCard','SharedRecordSection','SharedPropertiesPanel','SharedPropertyRow','HrLeaveDecisionConfirm','UAlert','SharedSubCard','SharedPersonAvatar']) app.component(name,Vue.defineComponent({setup(_, {slots}) {return () => Vue.h('div',[slots.actions?.(),slots.default?.(),slots.aside?.()])}}))
+  app.component('SharedRecordPage',Vue.defineComponent({props:['backTo'],setup(props,{slots}) {return () => Vue.h('div',{'data-back-to':String(props.backTo)},[slots.actions?.(),slots.default?.(),slots.aside?.()])}}))
+  for(const name of ['SharedIdentityCard','SharedRecordSection','SharedPropertiesPanel','SharedPropertyRow','HrLeaveDecisionConfirm','UAlert','SharedSubCard','SharedPersonAvatar']) app.component(name,Vue.defineComponent({setup(_, {slots}) {return () => Vue.h('div',[slots.actions?.(),slots.default?.(),slots.aside?.()])}}))
   app.component('UButton',Vue.defineComponent({inheritAttrs:false,setup(_,{attrs}) {return () => Vue.h('button',{'data-testid':attrs['data-testid'],'data-to':attrs.to},String(attrs.label))}}))
   app.component('SharedStatusBadge',Vue.defineComponent({props:['tone','label'],setup(props){return ()=>Vue.h('span',{'data-tone':props.tone},props.label)}}))
   return renderToString(app)
@@ -73,6 +74,15 @@ it.each([['refused','destructive'],['approved','success']] as const)('renders %s
   expect(await render(true,state)).toContain(`data-tone="${tone}"`)
 })
 
+
+describe('management record back target',() => {
+  it('returns to the HR list when the viewer can open it', async () => {
+    expect(await render(false)).toContain('data-back-to="/hr/leave"')
+  })
+  it('returns to the personal list when the viewer cannot open the HR list', async () => {
+    expect(await render(false, undefined, false, { listReachable: false })).toContain('data-back-to="/account/leave"')
+  })
+})
 
 describe('leave approval stages', () => {
   it('shows the workflow stages with their reviewers and status when the route answers', async () => {
