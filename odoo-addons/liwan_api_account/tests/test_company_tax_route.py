@@ -252,8 +252,26 @@ class TestCompanyTaxRoute(CompanyTaxCase):
 
     def test_registration_still_changes_while_the_price_mode_is_locked(self):
         skip_unless_vat_checked(self)
-        self.invoice(self.clean_branch, self.sale_tax(self.clean_branch))
+        self.assertFalse(self.clean_root._liwan_vat_registered())
+        self.invoice(self.clean_branch, self.env['account.tax'])
         body = self.ok(self.patch_as_system_admin({'registered': True}))
         self.assertTrue(body['registered'])
         self.assertTrue(body['locked'])
         self.assertEqual(self.clean_root.account_price_include, 'tax_included')
+        invoice = self.invoice(self.clean_branch, self.sale_tax(self.clean_branch))
+        self.assertEqual((invoice.amount_untaxed, invoice.amount_tax, invoice.amount_total), (100, 15, 115))
+
+    def test_a_payment_journal_item_locks_the_establishment_before_its_first_invoice(self):
+        company = self.clean_root
+        self.assertFalse(company._existing_accounting())
+        journal = self.env['account.journal'].search([('company_id', '=', company.id), ('type', '=', 'bank')], limit=1)
+        method = journal.inbound_payment_method_line_ids[:1]
+        method.payment_account_id = journal.default_account_id
+        payment = self.env['account.payment'].with_company(company).create({
+            'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.customer(company).id,
+            'amount': 115, 'journal_id': journal.id, 'payment_method_line_id': method.id,
+        })
+        payment.action_post()
+        self.assertTrue(payment.move_id.line_ids)
+        response = self.patch_as_system_admin({'price_mode': 'added'})
+        self.assertEqual((response.status_code, response.json().get('code')), (409, 'tax_mode_locked'), response.text)
