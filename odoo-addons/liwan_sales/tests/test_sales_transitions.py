@@ -1,9 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The state table (D1), online orders, duplicate (D9), assign, the salespeople list and what stays silent."""
+"""The state table (D1), online orders, duplicate (D9), assign, the salespeople person picker and what stays silent."""
+from unittest.mock import patch
+
 from odoo import Command, fields
 from odoo.tests import new_test_user, tagged
 
 from .common import SalesWriteCase
+from odoo.addons.liwan_sales.controllers import orders
 
 ORDERS = '/api/v1/sales/orders'
 SALESPEOPLE = '/api/v1/sales/salespeople'
@@ -242,16 +245,24 @@ class TestSalesAssign(SalesWriteCase):
         self.refused(self.api_as(self.agent, 'POST', f'{ORDERS}/{order_id}/assign', {'salesperson_id': self.agent.id}),
                      403, 'forbidden')
 
-    def test_the_salespeople_of_the_working_company(self):
-        body = self.api_as(self.manager, 'GET', f'{SALESPEOPLE}?limit=200').json()
-        ids = {item['id'] for item in body['items']}
+    def test_the_salespeople_answer_the_people_list_shape(self):
+        body = self.api_as(self.manager, 'GET', SALESPEOPLE).json()
+        self.assertIsInstance(body, list)
+        ids = {item['id'] for item in body}
         self.assertTrue({self.agent.id, self.agent2.id, self.manager.id} <= ids)
         self.assertFalse(ids & {self.outsider.id, self.in_branch.agent.id})
-        self.assertEqual(body['total'], len(ids))
-        item = next(item for item in body['items'] if item['id'] == self.agent.id)
+        item = next(item for item in body if item['id'] == self.agent.id)
         self.assertEqual(item, {'id': self.agent.id, 'name': self.agent.name, 'user_id': self.agent.id})
-        found = self.api_as(self.manager, 'GET', f'{SALESPEOPLE}?q=sales_agent2').json()
-        self.assertEqual([item['id'] for item in found['items']], [self.agent2.id])
+        names = [item['name'] for item in body]
+        self.assertEqual(names, sorted(names))
+
+    def test_the_salespeople_are_matched_by_name_and_capped(self):
+        found = self.api_as(self.manager, 'GET', f'{SALESPEOPLE}?q=SALES_AGENT2').json()
+        self.assertEqual([item['id'] for item in found], [self.agent2.id])
+        self.assertEqual(self.api_as(self.manager, 'GET', f'{SALESPEOPLE}?q=no-such-person').json(), [])
+        with patch.object(orders, 'MAX_SALESPEOPLE', 2):
+            capped = self.api_as(self.manager, 'GET', SALESPEOPLE).json()
+        self.assertEqual(len(capped), 2)
         self.assertEqual(self.api_as(self.agent, 'GET', SALESPEOPLE).status_code, 403)
 
 

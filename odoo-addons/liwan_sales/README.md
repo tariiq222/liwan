@@ -66,6 +66,14 @@ as a `draft` does, and only a `draft` is edited.
 A move outside the table is 403 `transition_forbidden`; a document the caller cannot read is 404; a document that is
 not theirs to write is 403 `forbidden`. No transition sends an e-mail.
 
+## Salespeople
+
+`GET /api/v1/sales/salespeople` (`sales.enabled`, `sales.documents.assign`) feeds the shared person picker, so it
+answers the people-list shape of `/api/v1/people` and `/api/v1/crm/agents`: a bare array of `{id, name, user_id}`,
+matched by `q` on the name and capped at 50. It is a search source the picker queries as the user types, not an
+`{items, total}` list, and takes no `limit` or `offset`. The people are the internal users of the working company who
+hold `sales.quotations.manage` there (`liwan.access.service._liwan_users_with_capability`).
+
 ## Price and tax of a line
 
 The wire carries neither a price nor a tax. When a line is created or its product changes, its unit price is
@@ -76,7 +84,7 @@ registered for VAT). Duplicate builds a new quotation through the same create pa
 A new `customer_id` on PATCH keeps the unit price of every kept line (D6) and only recomputes the taxes.
 
 Duplicate skips a product line of quantity zero (a removed line), checks every other copied quantity and discount
-against the bounds of a write (`models/sale_order.py`, shared with the parser), and refuses a combo line (a combo
+against the bounds of a write (the quantity bound is `liwan_products.models.products_service.valid_quantity`, the discount bound is `models/sale_order.py`; the parser uses both), and refuses a combo line (a combo
 product or a combo item) with 422 on its `product_id`.
 
 A line names a product template and takes its one variant: a template with more than one variant is refused with 422

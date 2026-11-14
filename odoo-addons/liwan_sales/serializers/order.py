@@ -1,27 +1,22 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import date
-
 from odoo.tools import html2plaintext
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_api.serializers.common import iso, parse_iso_date, ref
+from odoo.addons.liwan_products.models.products_service import (
+    QUANTITY_BOUNDS,
+    valid_quantity,
+)
 from odoo.addons.liwan_sales.models.sale_order import (
     DISCOUNT_BOUNDS,
     LINE_KINDS,
-    QUANTITY_BOUNDS,
     valid_discount,
-    valid_quantity,
 )
 
 # The wire state of each stock state.
 STATE_WIRE = {'draft': 'draft', 'sent': 'sent', 'sale': 'confirmed', 'cancel': 'cancelled'}
 WIRE_STATES = {wire: stock for stock, wire in STATE_WIRE.items()}
 SOURCES = ('staff', 'online')
-BOOLEANS = {'true': True, 'false': False}
-
-
-def _ref(record):
-    return {'id': record.id, 'name': record.display_name}
 
 
 def _dump_salesperson(user):
@@ -57,7 +52,7 @@ def dump_order_item(order):
         'state': STATE_WIRE[order.state],
         'locked': bool(order.locked),
         'source': 'staff' if order.liwan_staff_document else 'online',
-        'customer': _ref(order.partner_id),
+        'customer': ref(order.partner_id, label='display_name'),
         'salesperson': _dump_salesperson(order.user_id),
         'validity_date': order.validity_date.isoformat() if order.validity_date else None,
         'date': iso(order.date_order),
@@ -102,16 +97,6 @@ def parse_order_filters(args):
     return domain
 
 
-def parse_mine(args):
-    """Whether the list is limited to the caller's own orders, or a 422."""
-    raw = args.get('mine')
-    if raw is None:
-        return False
-    if raw not in BOOLEANS:
-        raise ApiError(422, 'invalid', 'mine must be true or false', field='mine')
-    return BOOLEANS[raw]
-
-
 ORDER_KEYS = ('customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines')
 # The keys each kind of line accepts; a price or a tax is never one of them (D6, D8).
 LINE_KEYS = {
@@ -149,19 +134,6 @@ def _parse_text(value, field, required, maximum):
     if not isinstance(value, str) or (required and not value.strip()) or len(value) > maximum:
         _invalid(field, f'{field} must be {"non-empty " if required else ""}text of at most {maximum} characters')
     return value.strip() if required else value
-
-
-def _parse_date(value):
-    """``validity_date``: a ``YYYY-MM-DD`` date or None, else a 422."""
-    if value is None:
-        return None
-    message = 'validity_date must be YYYY-MM-DD or null'
-    if isinstance(value, str) and len(value) == len('YYYY-MM-DD'):
-        try:
-            return date.fromisoformat(value)
-        except ValueError as error:
-            raise ApiError(422, 'invalid', message, field='validity_date') from error
-    return _invalid('validity_date', message)
 
 
 def _parse_line(index, line):
@@ -206,7 +178,7 @@ def parse_order_body(payload, creating):
         if key in payload:
             values[key] = _parse_id(payload, key)
     if 'validity_date' in payload:
-        values['validity_date'] = _parse_date(payload['validity_date'])
+        values['validity_date'] = parse_iso_date(payload['validity_date'], 'validity_date')
     if 'terms' in payload:
         values['terms'] = _parse_text(payload['terms'], 'terms', required=False, maximum=MAX_TERMS)
     if 'lines' in payload:

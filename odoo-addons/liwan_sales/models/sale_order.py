@@ -2,28 +2,18 @@
 from odoo import fields, models
 
 from .access_service import DOCUMENTS_ASSIGN, ORDERS_CONFIRM, QUOTATIONS_MANAGE
-from odoo.addons.liwan_products.models.products_service import MAX_QUANTITY
+from odoo.addons.liwan_products.models.products_service import is_number
 
 # The wire kind of each stock display type; a subsection is reported as a section.
 LINE_KINDS = {False: 'product', 'line_section': 'section', 'line_subsection': 'section', 'line_note': 'note'}
 # The stock states of a quotation: `sent` is one, though no Sales route produces it yet.
 QUOTATION_STATES = ('draft', 'sent')
-QUANTITY_BOUNDS = f'quantity must be a number greater than zero, at most {MAX_QUANTITY}'
 DISCOUNT_BOUNDS = 'discount_percent must be a number from 0 to 100'
-
-
-def _is_number(value):
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def valid_quantity(value):
-    """Whether ``value`` is a quantity a Sales line may carry (``QUANTITY_BOUNDS``)."""
-    return _is_number(value) and 0 < value <= MAX_QUANTITY
 
 
 def valid_discount(value):
     """Whether ``value`` is a discount percent a Sales line may carry (``DISCOUNT_BOUNDS``)."""
-    return _is_number(value) and 0 <= value <= 100
+    return is_number(value) and 0 <= value <= 100
 
 
 class SaleOrder(models.Model):

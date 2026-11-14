@@ -5,14 +5,12 @@ from odoo import api, fields, models
 from odoo.tools import html2plaintext, plaintext2html
 
 from .access_service import DISCOUNTS_APPROVE, QUOTATIONS_MANAGE
-from .sale_order import (
-    DISCOUNT_BOUNDS,
-    LINE_KINDS,
+from .sale_order import DISCOUNT_BOUNDS, LINE_KINDS, valid_discount
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_products.models.products_service import (
     QUANTITY_BOUNDS,
-    valid_discount,
     valid_quantity,
 )
-from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 DISPLAY_TYPES = {'product': False, 'section': 'line_section', 'note': 'line_note'}
 # The stock method of each transition of the state table (D1).
@@ -172,22 +170,13 @@ class LiwanSalesService(models.AbstractModel):
     @api.model
     def _liwan_salespeople(self, company, query=None):
         """The internal users of ``company`` who hold ``sales.quotations.manage`` there, by name."""
-        domain = [('company_ids', 'in', company.id), ('share', '=', False)]
-        if query:
-            domain.append(('name', 'ilike', query))
-        access = self.env['liwan.access.service']
-        return self.env['res.users'].search(domain, order='name, id').filtered(
-            lambda user: access._liwan_has_capability(user, QUOTATIONS_MANAGE, company=company),
-        )
+        return self.env['liwan.access.service']._liwan_users_with_capability(company, QUOTATIONS_MANAGE, query)
 
     @api.model
     def _liwan_eligible(self, user_id, company):
         """The salesperson ``user_id`` when they may own a quotation of ``company``, else 422."""
-        user = self.env['res.users'].search(
-            [('id', '=', user_id), ('company_ids', 'in', company.id), ('share', '=', False)], limit=1,
-        )
-        access = self.env['liwan.access.service']
-        if not (user and access._liwan_has_capability(user, QUOTATIONS_MANAGE, company=company)):
+        user = self._liwan_salespeople(company).filtered(lambda salesperson: salesperson.id == user_id)
+        if not user:
             _invalid('salesperson_id', 'the salesperson does not manage quotations in this company')
         return user
 

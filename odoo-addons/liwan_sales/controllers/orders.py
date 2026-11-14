@@ -4,6 +4,7 @@ from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
     api_handler,
+    parse_bool_arg,
     parse_page,
     requires_capability,
     requires_feature,
@@ -19,10 +20,11 @@ from odoo.addons.liwan_sales.serializers.order import (
     dump_orders,
     dump_salespeople,
     parse_assign_body,
-    parse_mine,
     parse_order_body,
     parse_order_filters,
 )
+
+MAX_SALESPEOPLE = 50
 
 
 def _visible_orders(extra=()):
@@ -50,7 +52,7 @@ class SalesOrdersController(http.Controller):
         args = request.httprequest.args
         limit, offset = parse_page(args)
         extra = parse_order_filters(args)
-        if parse_mine(args):
+        if parse_bool_arg(args, 'mine'):
             extra.append(('user_id', '=', request.env.user.id))
         orders, domain = _visible_orders(extra)
         found = orders.search(domain, order='date_order desc, id desc', limit=limit, offset=offset)
@@ -116,7 +118,11 @@ class SalesOrdersController(http.Controller):
     @requires_feature('sales.enabled', operation='read')
     @requires_capability(DOCUMENTS_ASSIGN)
     def list_salespeople(self, **_):
-        args = request.httprequest.args
-        limit, offset = parse_page(args)
-        people = _service()._liwan_salespeople(request.env.company, (args.get('q') or '').strip())
-        return {'items': dump_salespeople(people[offset:offset + limit]), 'total': len(people)}
+        """The people an order can be assigned to, as a person picker reads them.
+
+        A bare array of ``{id, name, user_id}`` matched by ``q`` and capped at ``MAX_SALESPEOPLE``, like
+        ``/api/v1/people`` and ``/api/v1/crm/agents``: the picker searches as the user types and never pages, so
+        this is not an ``{items, total}`` list.
+        """
+        people = _service()._liwan_salespeople(request.env.company, (request.httprequest.args.get('q') or '').strip())
+        return dump_salespeople(people[:MAX_SALESPEOPLE])
