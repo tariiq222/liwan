@@ -241,7 +241,7 @@ for DBT in "${TENANT_DATABASES[@]}"; do
     --entrypoint /usr/local/bin/liwan-odoo odoo \
     server -c /etc/odoo/odoo.conf \
     -d "$DBT" --db-filter="^${DBT}\$" \
-    -i liwan_core,liwan_platform,liwan_api,liwan_ai,liwan_chat,liwan_document_service,liwan_directory,liwan_documents,liwan_notify,liwan_meetings,liwan_approval_service,liwan_operations,liwan_payments,liwan_tasks,liwan_ai_notify,liwan_meetings_ai,liwan_operations_ai,liwan_tasks_ai,liwan_customers,liwan_crm,liwan_crm_ai,liwan_payments_customers,liwan_inbox,liwan_inbox_payments,liwan_pmo,liwan_meetings_pmo,liwan_operations_pmo,liwan_pmo_ai,liwan_tasks_pmo,liwan_hr,liwan_access_hr,liwan_documents_hr,liwan_hr_ai,liwan_hr_operations,liwan_integrations_sa,liwan_finance,liwan_api_account,liwan_finance_ai,liwan_hr_finance,liwan_pmo_finance,liwan_appointments,liwan_appointments_payments \
+    -i liwan_core,liwan_platform,liwan_api,liwan_ai,liwan_chat,liwan_document_service,liwan_directory,liwan_documents,liwan_notify,liwan_meetings,liwan_approval_service,liwan_operations,liwan_payments,liwan_tasks,liwan_ai_notify,liwan_meetings_ai,liwan_operations_ai,liwan_tasks_ai,liwan_customers,liwan_crm,liwan_crm_ai,liwan_payments_customers,liwan_inbox,liwan_inbox_payments,liwan_pmo,liwan_documents_pmo,liwan_meetings_pmo,liwan_operations_pmo,liwan_pmo_ai,liwan_tasks_pmo,liwan_hr,liwan_access_hr,liwan_documents_hr,liwan_hr_ai,liwan_hr_operations,liwan_integrations_sa,liwan_finance,liwan_api_account,liwan_finance_ai,liwan_hr_finance,liwan_pmo_finance,liwan_appointments,liwan_appointments_payments \
     --stop-after-init --no-http
 done
 echo "Addons installed."

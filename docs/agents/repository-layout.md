@@ -102,8 +102,10 @@ application's AI agent and tools.
   management role and `/api/v1/documents` library routes. The `liwan_documents_hr` bridge
   auto-installs with HR and the document service. Its employee self-service routes use HR
   eligibility and the document's grant, including when the central library is disabled.
-  Its contextual management routes live under `/api/v1/hr/documents`; they pin every
+  Its contextual management routes live under `/api/v1/document-contexts`; they pin every
   operation to a visible employee or department of the working company.
+  The `liwan_documents_pmo` bridge uses the same routes for project documents.
+  Projects enforce their own visibility and manager rights. Document grants are also required.
 - `odoo-addons/liwan_meetings` (application, rank 4) owns the meeting engine
   (`liwan.meeting.minute`, `liwan.meeting.resolution`; LGPL, vendored from Cyan,
   see `odoo-addons/liwan_meetings/PROVENANCE.md`) and the meeting,

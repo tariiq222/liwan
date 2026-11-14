@@ -37,6 +37,7 @@
     "liwan_payments": 3,
     "liwan_customers": 3,
     "liwan_documents_hr": 5,
+    "liwan_documents_pmo": 5,
     "liwan_access_hr": 5,
     "liwan_pmo_finance": 5,
     "liwan_hr_finance": 5,

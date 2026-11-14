@@ -2,7 +2,7 @@
 from contextlib import contextmanager
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Domain
 from odoo.tools import SQL
 
@@ -57,6 +57,10 @@ class Document(models.Model):
         return
 
     @api.model
+    def _liwan_context_restriction(self, operation):
+        return SQL('TRUE')
+
+    @api.model
     def _liwan_actor_scope(self, operation):
         user = self.env.user
         if not user.active or user.share or self.env.company not in user.company_ids:
@@ -108,12 +112,14 @@ class Document(models.Model):
         grants = ('reader', 'editor') if operation == 'read' else ('editor',)
         return SQL(
             """SELECT d.id FROM liwan_document d
-            WHERE d.company_id=%s AND (d.active OR %s) AND (%s)
+            WHERE d.company_id=%s AND (d.active OR %s) AND (%s) AND (%s)
               AND (d.visibility='company' OR EXISTS (
                 SELECT 1 FROM liwan_document_grant g
                 WHERE g.document_id=d.id AND g.user_id=%s AND g.access IN %s
               ))""",
-            self.env.company.id, bool(archived), scope, self.env.uid, grants,
+            self.env.company.id, bool(archived), scope,
+            SQL('TRUE') if self.env.user._is_superuser() else self._liwan_context_restriction(operation),
+            self.env.uid, grants,
         )
 
     @api.model
@@ -320,6 +326,13 @@ class Document(models.Model):
     @api.model
     def _liwan_context_fields(self):
         return ()
+
+    @api.constrains(lambda self: self._liwan_context_fields())
+    def _liwan_one_context(self):
+        for document in self:
+            if sum(bool(document[field]) for field in self._liwan_context_fields()) > 1:
+                msg = 'A document can belong to only one context.'
+                raise ValidationError(self.env._(msg))
 
     @api.model
     def _liwan_create_document(self, values, context=None):

@@ -242,7 +242,7 @@ class TestEmployeeDocuments(DocumentHttpCase):
             'retained_read_features': [key for key in profile.retained_read_features if key != 'documents.enabled'],
         })
         self.authenticate('employee_docs_linker', 'employee_docs_linker')
-        path = f'/api/v1/hr/documents/employee/{self.own_employee.id}'
+        path = f'/api/v1/document-contexts/employee/{self.own_employee.id}'
         result = self.api('POST', path, {'name': 'Employment verification'})
         self.assertEqual(result.status_code, 201, result.text)
         body = result.json()
@@ -275,7 +275,7 @@ class TestEmployeeDocuments(DocumentHttpCase):
             'retained_read_features': [key for key in profile.retained_read_features if key != 'documents.enabled'],
         })
         self.authenticate('employee_docs_linker', 'employee_docs_linker')
-        path = f'/api/v1/hr/documents/employee/{self.own_employee.id}/{document.id}/access'
+        path = f'/api/v1/document-contexts/employee/{self.own_employee.id}/{document.id}/access'
         access = self.api('GET', path)
         self.assertEqual(access.status_code, 200, access.text)
         picker = self.api('GET', f'{path}/people?q={self.reader.name}')

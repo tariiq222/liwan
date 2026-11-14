@@ -4,6 +4,7 @@ import { OperationProcessSchema, type OperationProcessBody } from '@liwan/contra
 import ProcessForm from '@/components/operations/ProcessForm.vue'
 import { hrLeaveKeys } from '@/composables/useHrLeave'
 
+const editorSchema = OperationProcessSchema.nullable()
 const editor = '/api/v1/hr/leave/approval-process/editor'
 const backTo = '/settings/apps/hr?area=leave'
 const { $api } = useApi()
@@ -17,7 +18,7 @@ const process = useQuery({
   enabled: computed(() => company.value !== null),
   queryFn: async () => {
     const expected = company.value
-    const result = await $api(editor, { schema: OperationProcessSchema })
+    const result = await $api(editor, { schema: editorSchema })
     if (expected === company.value) loadedCompany.value = expected
     return result
   },
@@ -53,6 +54,7 @@ async function save(body: OperationProcessBody) {
         :locked-kind="{ key: 'hr_leave', label: t('hr.leaveApproval.title') }"
         :resolvers-path="`${editor}/resolvers`" :back-to="backTo" :save="save" :refresh="refresh"
         @saved="navigateTo(backTo)" />
+      <SharedEmptyState v-else-if="process.data.value === null" :title="t('hr.leaveApproval.empty')" />
     </SharedPageState>
   </SharedPageContainer>
 </template>

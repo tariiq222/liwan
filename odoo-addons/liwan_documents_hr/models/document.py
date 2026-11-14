@@ -16,15 +16,13 @@ class Document(models.Model):
     @api.model
     def _liwan_scope_predicate(self, operation):
         scope = super()._liwan_scope_predicate(operation)
-        if scope is not None:
-            return scope
         entitlement = self.env['liwan.entitlement.service']
         access = self.env['liwan.access.service']
         feature = entitlement._liwan_feature_read if operation == 'read' else entitlement._liwan_feature_write
         if not feature('hr.enabled'):
-            return None
+            return scope
         domain = [('company_id', '=', self.env.company.id)]
-        scopes = []
+        scopes = [SQL('(%s)', scope)] if scope is not None else []
         if access._liwan_has_capability(self.env.user, 'hr.employees.manage'):
             employees = self.env['hr.employee']._search(domain)
             scopes.append(SQL('d.employee_id IN (%s)', employees.select()))

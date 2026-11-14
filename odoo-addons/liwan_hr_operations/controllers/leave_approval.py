@@ -105,9 +105,7 @@ class HrLeaveApprovalController(http.Controller):
     @requires_capability('hr.leave.config')
     def approval_editor(self, **_):
         process = _governing_process()
-        if not process:
-            raise ApiError(404, 'not_found', 'the company has no active leave approval process')
-        return dump_process(process)
+        return dump_process(process) if process else None
 
     @http.route('/api/v1/hr/leave/approval-process/editor/resolvers', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

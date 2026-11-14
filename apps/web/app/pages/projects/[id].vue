@@ -143,6 +143,9 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
                   <span v-if="dates" class="inline-flex items-center gap-1.5" data-testid="project-workspace-dates"><UIcon name="i-lucide-calendar-range" aria-hidden="true" class="size-3.5 shrink-0" /><bdi>{{ dates }}</bdi></span>
                 </p>
               </div>
+              <UButton v-if="me?.capabilities?.includes('documents.items.read') && me.modules?.includes('liwan_documents_pmo')"
+                color="neutral" variant="outline" icon="i-lucide-files" :label="t('documents.title')"
+                :to="`/projects/${project.id}/documents`" />
               <ProjectWorkspaceActions :project="project" @archive="confirmingArchive = true" />
             </div>
           </template>

@@ -961,6 +961,7 @@ async function handle(req, res) {
   if (method === 'GET' && match(path, '/api/v1/projects/:id/milestones')) return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && match(path, '/api/v1/projects/:id/updates')) return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/hr/employees') return json(res, 200, { items: [], total: 0 })
+  if (method === 'GET' && path === '/api/v1/document-contexts/department/2') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/hr/departments') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/admin/users') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/admin/roles') return json(res, 200, { items: [], total: 0 })
