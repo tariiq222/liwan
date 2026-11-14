@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { CALLBACK_REDIRECT_PATHS, CALLBACK_REDIRECT_PREFIX, isCallbackRedirect } from '../tenantTransport'
+import { CALLBACK_REDIRECT_PREFIXES, isCallbackRedirect } from '../tenantTransport'
 
 const CALLBACK = '/api/v1/inbox/tiktok/callback'
 
 describe('isCallbackRedirect', () => {
-  it('names only the provider OAuth callback as passable', () => {
-    expect([...CALLBACK_REDIRECT_PATHS]).toEqual([CALLBACK])
-    expect(CALLBACK_REDIRECT_PREFIX).toBe('/settings/apps/inbox')
+  it('names only the provider OAuth callbacks as passable', () => {
+    expect(CALLBACK_REDIRECT_PREFIXES).toEqual(['/settings/apps/inbox', '/settings/integrations'])
+  })
+
+  it('passes the integrations OAuth callback of any provider back to the integrations page', () => {
+    const callback = '/api/v1/integrations/oauth/tiktok/callback'
+    expect(isCallbackRedirect(callback, 302, '/settings/integrations?provider=tiktok&result=connected')).toBe(true)
+    expect(isCallbackRedirect(`${callback}?code=c&state=s`, 303, '/settings/integrations?provider=tiktok&error=denied')).toBe(true)
+    expect(isCallbackRedirect(callback, 302, '/settings/integrationsevil')).toBe(false)
+    expect(isCallbackRedirect(callback, 302, '/crm')).toBe(false)
+    expect(isCallbackRedirect('/api/v1/integrations/oauth/tiktok/start', 302, '/settings/integrations')).toBe(false)
+    expect(isCallbackRedirect('/api/v1/integrations/oauth/Tik/callback', 302, '/settings/integrations')).toBe(false)
   })
 
   it('passes the in-app redirect the callback answers with', () => {

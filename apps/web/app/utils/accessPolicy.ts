@@ -64,6 +64,7 @@ function destinations(): readonly Destination[] {
     ...landing.filter(entry => entry.late).map(toDestination),
     ...pageDestinations(appSettingsPages()),
     ...pageDestinations(settingsPage('company')),
+    ...pageDestinations(settingsPage('integrations')),
     ...pageDestinations(settingsPage('system')),
   ]
 }
@@ -145,6 +146,7 @@ export function requiredCapabilityForPath(path: string): string | null {
   if (path === '/') return INTERNAL_LIWAN_ACCESS
   if (path === '/notifications') return NOTIFICATION_ACCESS
   if (path === '/setup') return 'settings.company.manage'
+  if (path === '/settings/integrations/new') return 'integrations.manage'
   if (path === '/settings/team/users/new') return 'access.users.grant'
   if (/^\/settings\/team\/users\/[^/]+\/(access|branches)$/.test(path)) return 'access.users.assign_roles'
   if (/^\/settings\/team\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
