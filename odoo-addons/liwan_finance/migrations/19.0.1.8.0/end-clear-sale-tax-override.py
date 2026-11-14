@@ -26,7 +26,9 @@ def migrate(cr, version):
         ('type_tax_use', '=', 'sale'),
         ('price_include_override', '!=', False),
     ])
-    changed = taxes.filtered(lambda tax: tax.price_include_override != tax.company_id.account_price_include)
+    changed = taxes.filtered(
+        lambda tax: tax.amount_type != 'group' and tax.price_include_override != tax.company_id.account_price_include,
+    )
     refuse_open_documents_with_changed_taxes(env, changed)
     if taxes:
         taxes.write({'price_include_override': False})
