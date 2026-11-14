@@ -8,7 +8,7 @@ import SetupHomeCard from '@/components/setup/SetupHomeCard.vue'
 import { useAppCards } from '@/composables/useAppCards'
 import { postLoginPath } from '@/utils/accessPolicy'
 
-// «يومي»: the greeting, the assistant banner, the three personal counts, what to start with, then every application.
+// «يومي»: the greeting, the three personal counts, what to start with, the assistant banner, then every application.
 const { t } = useI18n()
 const { me, ready } = useMe()
 await ready
@@ -21,9 +21,9 @@ const { cards } = useAppCards({ assistant: false })
   <SharedPageContainer data-testid="foundation-home">
     <HomeGreeting />
     <SetupHomeCard />
-    <HomeAssistantBanner :apps="cards" />
     <HomeIndicators />
     <HomeFocus />
+    <HomeAssistantBanner :apps="cards" />
     <HomeApps v-if="cards.length" :cards="cards" />
     <SharedEmptyState v-else bordered :title="t('home.empty')" data-testid="home-empty-no-apps">
       <template #action><UButton to="/account" color="neutral" variant="outline" :label="t('nav.account')" /></template>
