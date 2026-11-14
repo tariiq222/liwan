@@ -24,7 +24,7 @@ LIWAN_ADDONS = (
     'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_document_service', 'liwan_directory',
     'liwan_documents', 'liwan_approval_service', 'liwan_notify', 'liwan_operations', 'liwan_ai',
     'liwan_chat', 'liwan_integrations_sa', 'liwan_meetings', 'liwan_payments', 'liwan_tasks',
-    'liwan_ai_notify', 'liwan_meetings_ai', 'liwan_operations_ai', 'liwan_tasks_ai',
+    'liwan_ai_notify', 'liwan_meetings_ai', 'liwan_operations_ai', 'liwan_orders', 'liwan_tasks_ai',
     'liwan_customers', 'liwan_products', 'liwan_crm', 'liwan_crm_ai', 'liwan_payments_customers',
     'liwan_inbox', 'liwan_inbox_payments', 'liwan_pmo', 'liwan_documents_pmo', 'liwan_meetings_pmo',
     'liwan_operations_pmo', 'liwan_pmo_ai', 'liwan_tasks_pmo', 'liwan_hr', 'liwan_access_hr',
