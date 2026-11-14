@@ -423,3 +423,28 @@ test('[PMO-506] the options other applications add to the project settings are n
   await expect(screen.getByText(extensions[0]!.help)).toBeVisible(slow);
   for (const english of ['Cost centers of projects', 'Automatic', 'Manual']) await expect(screen.getByText(english)).toHaveCount(0, slow);
 });
+
+test('[PMO-283] a board column opens the task create panel with that column preset', {
+  tags: ['projects'], timeout: 300_000, session: 'ceo', skip: ODOO_ONLY,
+}, async ({ app, screen, browser }) => {
+  const stage = { app, screen, browser };
+  const project = await projectOfPm(stage, `مشروع عمود اللوحة ${Date.now().toString(36)}`);
+  await signInAs('pm', stage);
+  const board = `/projects/${project.id}/tasks?view=board`;
+  await browser.goto(board, { waitUntil: 'domcontentloaded' });
+
+  const columnCreate = screen.getByRole('link', 'مهمة جديدة في هذا العمود').first();
+  await expect(columnCreate).toBeVisible(slow);
+  const linked = new URL((await columnCreate.getAttribute('href'))!, app.baseUrl);
+  const preset = [...linked.searchParams].filter(([key]) => key.startsWith('preset_'));
+  expect(preset).toHaveLength(1);
+
+  await columnCreate.tap();
+  await expect(browser).toHaveURL(new RegExp(`/projects/${project.id}/tasks/new\\?`), slow);
+  const opened = new URL(await browser.url());
+  expect([...opened.searchParams].filter(([key]) => key.startsWith('preset_'))).toEqual(preset);
+  expect(opened.searchParams.get('returnTo')).toBe(board);
+  // Leaving the untouched panel returns to the board it was opened from.
+  await screen.getByRole('button', 'إلغاء').first().tap();
+  await expect(browser).toHaveURL(new RegExp(`/projects/${project.id}/tasks\\?view=board$`), slow);
+});
