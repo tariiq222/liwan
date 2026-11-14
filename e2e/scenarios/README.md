@@ -101,6 +101,7 @@ database. Login is `e2e_<key>`; the credentials are declared in
 | `no_ai` | بدر الرشيدي | العمليات | ops_manager | custom «موظف بلا مساعد ذكي» (employee without `ai.use`) |
 | `payroll_finance` | جواهر العنزي | المالية | cfo | employee, payroll_manager, finance_manager |
 | `no_roles` | سعد الحربي | تقنية المعلومات | it_admin | none (internal user without any role) |
+| `tasks_only` | هيفاء الشهراني | العمليات | ops_manager | custom «مهام شخصية فقط» (`tasks.tasks.read`, `create`, `write`; no employee role, no `pmo.*`) |
 | `jeddah_staff` | وليد الحارثي | branch «فرع جدة» only | — | employee (in the branch) |
 | `dammam_manager` | منيرة الشهري | branch «فرع الدمام» only | — | employee, hr_manager, documents_manager, operations_manager, finance_manager (in the branch) |
 | `admin` | E2E Admin (technical) | — | — | legacy admin groups, used by the older journeys |

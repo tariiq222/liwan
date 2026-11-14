@@ -1,10 +1,10 @@
-import { test } from '@e2e-dev/web';
-import { credentials, expect } from 'e2e';
+import { test, type Browser as WebBrowser, type WebApp } from '@e2e-dev/web';
+import { credentials, expect, type TestFixtures } from 'e2e';
 import { deviceToken } from '../devices.ts';
 
 /**
  * Personal-tasks register rows against the scratch Odoo stack (`npm run e2e:odoo`).
- * Scenarios TSK-18 and TSK-107 (e2e/scenarios/tasks.md). Personas come from tools/e2e_seed.py;
+ * Scenarios TSK-18, TSK-94 and TSK-107 (e2e/scenarios/tasks.md). Personas come from tools/e2e_seed.py;
  * every task name carries a timestamp because the database is reused between runs.
  * API calls go through the signed-in page, so they carry the persona's session cookie.
  */
@@ -12,6 +12,7 @@ const slow = { timeout: 30_000 };
 const ODOO_ONLY = process.env.E2E_STACK !== 'odoo' ? 'needs the scratch Odoo stack (npm run e2e:odoo)' : false;
 const PAGE_SIZE = 50;
 const EMPTY_PAGE = 'لا توجد نتائج ظاهرة في هذه الصفحة.';
+const CONVERT_ACTION = 'تحويل إلى مهمة مشروع';
 
 type Json = Record<string, unknown>;
 type Answer = { status: number; body: Json };
@@ -27,6 +28,23 @@ function api(browser: Browser, method: string, path: string, payload?: Json): Pr
     });
     return { status: response.status, body: await response.json().catch(() => ({})) };
   }, [method, path, payload ?? null]) as Promise<Answer>;
+}
+
+type Persona = Parameters<typeof credentials.user>[0];
+type Stage = { app: WebApp; screen: TestFixtures['screen']; browser: WebBrowser };
+
+/** Replace the current session with PERSONA's: the remembered-device cookie passes the second sign-in step. */
+async function signInAs(persona: Persona, { app, screen, browser }: Stage) {
+  const user = credentials.user(persona);
+  await app.clearState();
+  await app.open('/login');
+  await browser.setCookies([{ url: '/', name: 'liwan_device', value: deviceToken(user.username), httpOnly: true, sameSite: 'Lax' }]);
+  await screen.getByLabel('اسم المستخدم').fill(user.username);
+  await screen.getByLabel('كلمة المرور').fill(user.password);
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/localhost:\d+\/(?!login)/, { timeout: 60_000 });
+  const me = await api(browser, 'GET', '/api/v1/me');
+  expect((me.body.user as Json | undefined)?.login ?? me.body.login).toBe(user.username);
 }
 
 test('[TSK-18] an offset past the last page of my tasks jumps to the last page', {
@@ -66,16 +84,7 @@ test('[TSK-107] a personal task of staff1 is not found by pm through any task ro
   // The owner reads it, so a 404 below is about the caller and not a missing record.
   expect((await api(browser, 'GET', `/api/v1/my-tasks/${id}`)).status).toBe(200);
 
-  await app.clearState();
-  const pm = credentials.user('pm');
-  await app.open('/login');
-  await browser.setCookies([{ url: '/', name: 'liwan_device', value: deviceToken(pm.username), httpOnly: true, sameSite: 'Lax' }]);
-  await screen.getByLabel('اسم المستخدم').fill(pm.username);
-  await screen.getByLabel('كلمة المرور').fill(pm.password);
-  await screen.getByRole('button', 'دخول').tap();
-  await expect(browser).toHaveURL(/localhost:\d+\/(?!login)/, { timeout: 60_000 });
-  const me = await api(browser, 'GET', '/api/v1/me');
-  expect((me.body.user as Json | undefined)?.login ?? me.body.login).toBe(pm.username);
+  await signInAs('pm', { app, screen, browser });
 
   for (const path of [`/api/v1/my-tasks/${id}`, `/api/v1/tasks/${id}`, `/api/v1/tasks/${id}/timeline`]) {
     const answer = await api(browser, 'GET', path);
@@ -83,4 +92,27 @@ test('[TSK-107] a personal task of staff1 is not found by pm through any task ro
   }
   const listed = await api(browser, 'GET', `/api/v1/my-tasks?q=${encodeURIComponent(name)}`);
   expect([listed.status, listed.body.total]).toEqual([200, 0]);
+});
+
+test('[TSK-94] a role with the tasks capabilities and no project rights cannot convert a task', {
+  tags: ['tasks'], timeout: 300_000, session: 'tasks_only', skip: ODOO_ONLY,
+}, async ({ app, screen, browser }) => {
+  await app.open('/my-tasks');
+  await expect(screen.getByTestId('my-tasks-total')).toBeVisible(slow);
+  const created = await api(browser, 'POST', '/api/v1/my-tasks', { name: `مهمة بلا مشاريع ${Date.now().toString(36)}` });
+  expect(created.status).toBe(200);
+  const id = created.body.id as number;
+
+  const targets = await api(browser, 'GET', '/api/v1/my-tasks/convert-targets');
+  expect([targets.status, targets.body.code]).toEqual([403, 'forbidden']);
+  // Refused for the missing capability before the project is read: a project id that exists nowhere still answers 403.
+  const converted = await api(browser, 'POST', `/api/v1/my-tasks/${id}/convert`, { project_id: 2_000_000_000 });
+  expect([converted.status, converted.body.code]).toEqual([403, 'forbidden']);
+
+  const task = await api(browser, 'GET', `/api/v1/my-tasks/${id}`);
+  expect([task.status, (task.body.allowed_actions as Json).convert]).toEqual([200, false]);
+  await browser.goto(`/my-tasks/${id}`, { waitUntil: 'domcontentloaded' });
+  await expect(screen.getByTestId('my-task-detail')).toBeVisible(slow);
+  await expect(screen.getByTestId('my-task-convert')).toHaveCount(0, slow);
+  await expect(screen.getByText(CONVERT_ACTION)).toHaveCount(0, slow);
 });

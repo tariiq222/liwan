@@ -16,6 +16,8 @@ export const PERSONA_KEYS = [
   // The Customer Inbox roles: without these no seeded account holds any inbox.* capability,
   // so every inbox scenario and its API routes are unreachable (finding 2026-11-07).
   'inbox_manager', 'inbox_supervisor', 'inbox_agent',
+  // The personal-tasks capabilities with no project right (TSK-94); seeded last, like the inbox roles.
+  'tasks_only',
 ] as const;
 
 export type PersonaKey = typeof PERSONA_KEYS[number];
