@@ -1,6 +1,6 @@
-import { test, type Browser as WebBrowser, type WebApp } from '@e2e-dev/web';
-import { credentials, expect, type TestFixtures } from 'e2e';
-import { deviceToken } from '../devices.ts';
+import { test } from '@e2e-dev/web';
+import { expect } from 'e2e';
+import { api, ODOO_ONLY, signInAs, slow, type Json } from '../scratch.ts';
 
 /**
  * Personal-tasks register rows against the scratch Odoo stack (`npm run e2e:odoo`).
@@ -8,44 +8,9 @@ import { deviceToken } from '../devices.ts';
  * every task name carries a timestamp because the database is reused between runs.
  * API calls go through the signed-in page, so they carry the persona's session cookie.
  */
-const slow = { timeout: 30_000 };
-const ODOO_ONLY = process.env.E2E_STACK !== 'odoo' ? 'needs the scratch Odoo stack (npm run e2e:odoo)' : false;
 const PAGE_SIZE = 50;
 const EMPTY_PAGE = 'لا توجد نتائج ظاهرة في هذه الصفحة.';
 const CONVERT_ACTION = 'تحويل إلى مهمة مشروع';
-
-type Json = Record<string, unknown>;
-type Answer = { status: number; body: Json };
-type Browser = { evaluate<T, A>(fn: (arg: A) => T | Promise<T>, arg: A): Promise<T> };
-
-/** One API call from the page: the status and the JSON body, never a thrown error on 4xx. */
-function api(browser: Browser, method: string, path: string, payload?: Json): Promise<Answer> {
-  return browser.evaluate(async ([verb, target, body]) => {
-    const response = await fetch(target as string, {
-      method: verb as string,
-      headers: body ? { 'content-type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return { status: response.status, body: await response.json().catch(() => ({})) };
-  }, [method, path, payload ?? null]) as Promise<Answer>;
-}
-
-type Persona = Parameters<typeof credentials.user>[0];
-type Stage = { app: WebApp; screen: TestFixtures['screen']; browser: WebBrowser };
-
-/** Replace the current session with PERSONA's: the remembered-device cookie passes the second sign-in step. */
-async function signInAs(persona: Persona, { app, screen, browser }: Stage) {
-  const user = credentials.user(persona);
-  await app.clearState();
-  await app.open('/login');
-  await browser.setCookies([{ url: '/', name: 'liwan_device', value: deviceToken(user.username), httpOnly: true, sameSite: 'Lax' }]);
-  await screen.getByLabel('اسم المستخدم').fill(user.username);
-  await screen.getByLabel('كلمة المرور').fill(user.password);
-  await screen.getByRole('button', 'دخول').tap();
-  await expect(browser).toHaveURL(/localhost:\d+\/(?!login)/, { timeout: 60_000 });
-  const me = await api(browser, 'GET', '/api/v1/me');
-  expect((me.body.user as Json | undefined)?.login ?? me.body.login).toBe(user.username);
-}
 
 test('[TSK-18] an offset past the last page of my tasks jumps to the last page', {
   tags: ['tasks'], timeout: 600_000, session: 'staff1', skip: ODOO_ONLY,
