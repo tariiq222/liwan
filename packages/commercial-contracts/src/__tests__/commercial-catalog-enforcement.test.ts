@@ -34,4 +34,12 @@ describe('catalog enforcement references', () => {
     expect(apps.map(app => app.id)).not.toContain('assistant')
     expect(apps.find(app => app.id === 'appointments')).toMatchObject({ name_en: 'Appointments', modules: ['liwan_appointments'], sellable: false })
   })
+
+  it('names every sold application of the release in Arabic, since the seeded bundle shows that name to the customer', () => {
+    const v4Solution = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url), 'utf8'))
+    const sold = catalogApplicationsFromSolution(v4Solution, 'v1').filter(app => app.sellable)
+    expect(Object.fromEntries(sold.map(app => [app.id, app.name_ar]))).toEqual({
+      crm: 'إدارة العملاء', inbox: 'رسائل العملاء', projects: 'المشاريع', people: 'الموارد البشرية', finance: 'المالية',
+    })
+  })
 })
