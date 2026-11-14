@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The writer group writes and creates the service's products only (plan D3). Read is left out on purpose: a
+         group rule on read would hide from a writer every product stock modules make (a down-payment product named on
+         an order line), because Odoo ORs only the group rules of the groups a user is in. Test:
+         test_writer_rights.test_the_writer_reads_every_product_and_writes_service_products_only. -->
+    <record id="rule_product_template_writer" model="ir.rule">
+        <field name="name">product.template: the writer writes service products only</field>
+        <field name="model_id" ref="product.model_product_template"/>
+        <field name="groups" eval="[Command.link(ref('group_products_writer'))]"/>
+        <field name="domain_force">[('liwan_product', '=', True)]</field>
+        <field name="perm_read" eval="False"/><field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/><field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_product_product_writer" model="ir.rule">
+        <field name="name">product.product: the writer writes variants of service products only</field>
+        <field name="model_id" ref="product.model_product_product"/>
+        <field name="groups" eval="[Command.link(ref('group_products_writer'))]"/>
+        <field name="domain_force">[('product_tmpl_id.liwan_product', '=', True)]</field>
+        <field name="perm_read" eval="False"/><field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/><field name="perm_unlink" eval="True"/>
+    </record>
+</odoo>
