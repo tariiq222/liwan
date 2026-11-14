@@ -22,7 +22,6 @@ from .res_company import (
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_finance.serializers.zatca import (
-    dump_zatca_readiness,
     dump_zatca_submission,
     plain_text,
     retry_allowed_at,
@@ -31,8 +30,6 @@ from odoo.addons.liwan_finance.serializers.zatca import (
 
 _logger = logging.getLogger(__name__)
 
-CONNECTION_KIND = 'zatca'
-CONNECTION_PROVIDER = 'ZATCA'
 MODE_REFUSALS = {
     'preprod': ('zatca_simulation_not_released', 'ZATCA simulation has not been released'),
     'prod': ('zatca_production_not_released', 'ZATCA production has not been released'),
@@ -145,13 +142,6 @@ class LiwanFinanceZatca(models.AbstractModel):
             elif INVALID_OTP.search(text):
                 message = 'Invalid OTP'
             self._liwan_onboarding_failed(journal, 422, 'zatca_rejected', message)
-        readiness = dump_zatca_readiness(self.env.company)
-        done = sum(row['onboarded'] for row in readiness['journals'])
-        elevated.env['liwan.integration.connection']._liwan_set_connection_state(
-            self.env.company, CONNECTION_KIND, CONNECTION_PROVIDER,
-            'connected' if readiness['onboarded'] else 'pending',
-            f'ZATCA sandbox: {done} of {len(readiness["journals"])} sales journals onboarded',
-        )
         _logger.info('finance.zatca.onboarded company=%s journal=%s user=%s', self.env.company.id, journal.id, self.env.uid)
         self.env['liwan.finance.audit.event']._liwan_log('zatca_onboarded', journal)
         return journal

@@ -20,10 +20,6 @@
       "count": 1,
       "reason": "liwan_core company-partner metadata check: `self.sudo().with_context(active_test=False)` in `_liwan_company_partner_ids`, which returns only partner ids for identity and storage classification; blocked by Odoo base `res_company_rule_employee` (/Users/tariq/code/odoo/addons/base/security/base_security.xml:113-120, `[('id','in',company_ids)]`) — the ACL grants read but the record rule hides every other company, and `active_test=False` must additionally see archived companies; loosening the rule would break multi-company isolation, which is the larger exposure."
     },
-    "odoo-addons/liwan_integrations_sa/models/res_company.py": {
-      "count": 1,
-      "reason": "liwan_integrations_sa per-company provisioning seed: `return self.sudo().with_context(active_test=False).env` in `_liwan_provisioning_env`, the one elevated environment of `_liwan_ensure_default_connections` for a company made after install; blocked by odoo-addons/liwan_integrations_sa/security/ir.model.access.csv `access_liwan_integration_connection_manager`, which grants create only to group_cap_integrations_manage: core `res.company.create` admits only a system administrator, who need not hold that capability, and the seed must also see archived rows (`active_test=False`) to stay idempotent. It writes only the company, kind and provider of its own default rows."
-    },
     "odoo-addons/liwan_inbox_payments/controllers/images.py": {
       "count": 1,
       "reason": "liwan_inbox_payments public product image route: `request.env['liwan.inbox.catalog.item'].sudo().search([('id', '=', item_id), ('listed', '=', True)], limit=1)` in `product_image`, whose item and `item.product_id.image_1024` are then read elevated; blocked by the missing ACL of the public user (auth='public', no session) on `liwan.inbox.catalog.item` (the ir.model.access.csv rows give read only to `group_cap_inbox_conversations_read`) and on the product the item names. The item is matched by its id and a constant-time compare of its own random image token, so Meta fetches only the image of a listed item whose address LiwanOS gave it; nothing but the image bytes leaves, and an unlisted item or a wrong token answers the same 404."
@@ -239,6 +235,18 @@
     "odoo-addons/liwan_products_account/models/elevated.py": {
       "count": 1,
       "reason": "liwan_products_account establishment tax read (plan D24): `env['account.tax'].sudo().env` in `elevated_env`, the superuser environment in which `product.template._liwan_elevated_tax_choices`, `_liwan_default_sale_tax_ids`, `_liwan_store_sale_taxes`, `_liwan_dump_sale_taxes` and `liwan.products.service._liwan_price_amounts` read the root's sale taxes, the fiscal position and the stock tax computation, store a product's `taxes_id` and activate an inactive tax a chart loaded (one with an `account.<company>_*` xmlid; an accountant's archived tax is never offered or activated); blocked by the company fence of odoo-addons/liwan_core/models/ir_rule.py `_liwan_fresh_company_domain` on `account.tax`, which hides the root's taxes from a branch session (an unelevated read of a shared product's taxes returns none, and stock refuses a branch session's write of taxes it cannot read, fields_relational.py:1503: tests test_a_branch_session_reads_the_roots_taxes_as_none_unelevated and test_a_branch_session_cannot_store_its_roots_taxes_unelevated). It runs only after the service's capability and company checks; only tax ids, names, rates, active flags and computed amounts leave it, as plain values."
+    },
+    "odoo-addons/liwan_finance/models/integration_registry.py": {
+      "count": 1,
+      "reason": "finance ZATCA status for the integrations page: `dump_zatca_readiness(company.sudo())` in `_liwan_external_status`, which reads only the onboarding state of the company's sales journals and returns a state and a count message, never journal data; blocked by the `account.journal` read ACL, which liwan_finance grants only to its accounting capability groups (for example `access_finance_journals_manage_journal`) while the page is read by holders of integrations.read (system_admin), who hold no accounting capability. Granting them the ACL would expose every journal field through the ORM, which is the larger exposure."
+    },
+    "odoo-addons/liwan_integrations_payments/models/integration_registry.py": {
+      "count": 1,
+      "reason": "payment gateway status for the integrations page: `self.env['payment.provider'].sudo().search([('code', '=', code), ('company_id', '=', company.id)], limit=1)` in `_liwan_external_status`, which reads one provider row of the given company and returns a state and a short message, never a key or its presence per field; blocked by the `payment.provider` read ACL, held only by stock `payment.provider.system` (base.group_system) and liwan_payments `group_cap_payments_providers_manage`, while the page is read by holders of integrations.read who hold no payments capability. Granting them the ACL would expose the provider's configuration fields through the ORM."
+    },
+    "odoo-addons/liwan_integrations_sa/models/connection_oauth.py": {
+      "count": 2,
+      "reason": "integrations service, the two writes `_liwan_access` can trigger for a consuming application's user who holds read ACL rows only. `stored = self.sudo()` in `_liwan_oauth_refresh` stores a refreshed grant (the two token secrets and the two deadlines); `self.sudo()._liwan_record_state('error', message)` in `_liwan_reconnect_required` records that the authorization is dead. Both are blocked by `access_liwan_integration_connection_manager` and `access_liwan_integration_secret_manager`, which give write only to group_cap_integrations_manage; giving the application's groups write rows would let them replace any secret. The row lock, the checks, the secret reads and the provider call stay in the caller's environment."
     }
   }
 }

@@ -167,7 +167,6 @@ class LiwanZatcaCase(LiwanFinanceWriteCase):
         cls.b2c_buyer = cls.env['res.partner'].create({'name': 'Sara Individual', 'company_type': 'person', 'liwan_party': True, **address})
         cls.submitter = cls.user_with('zatca_submitter', ['finance.zatca.read', 'finance.zatca.submit', 'finance.invoices.read'])
         cls.reader = cls.user_with('zatca_reader', ['finance.zatca.read', 'finance.invoices.read'])
-        cls.env['liwan.integration.connection']._liwan_ensure_default_connections()
 
     def setUp(self):
         super().setUp()
