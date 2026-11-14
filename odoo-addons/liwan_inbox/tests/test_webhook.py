@@ -28,13 +28,13 @@ class TestWhatsAppWebhook(LiwanInboxCase):
         return self.url_open(f'{HOOK}?{query}')
 
     def test_verification_with_the_channel_token_echoes_the_challenge(self):
-        response = self.verify(self.channel._liwan_verify_token())
+        response = self.verify(self.verify_token(self.channel))
         self.assertEqual((response.status_code, response.text), (200, '1158201444'))
         self.assertTrue(response.headers['Content-Type'].startswith('text/plain'))
 
     def test_verification_with_a_wrong_token_or_mode_is_403(self):
         self.assertError(self.verify('wrong-token'), 403, 'forbidden')
-        self.assertError(self.verify(self.channel._liwan_verify_token(), mode='unsubscribe'), 403, 'forbidden')
+        self.assertError(self.verify(self.verify_token(self.channel), mode='unsubscribe'), 403, 'forbidden')
 
     def test_an_empty_token_never_subscribes(self):
         # An empty query value is a missing handshake parameter, refused before any channel is read.
@@ -44,9 +44,16 @@ class TestWhatsAppWebhook(LiwanInboxCase):
         self.assertError(self.url_open(HOOK), 400, 'invalid')
         self.assertError(self.url_open(f'{HOOK}?hub.mode=subscribe&hub.challenge=1'), 400, 'invalid')
 
-    def test_a_disabled_channel_does_not_verify(self):
+    def test_a_disabled_account_does_not_verify(self):
+        token = self.verify_token(self.channel)
+        self.channel.connection_id.state = 'disabled'
+        self.assertError(self.verify(token), 403, 'forbidden')
+
+    def test_the_handshake_belongs_to_the_account_not_to_one_of_its_channels(self):
+        # Meta verifies the callback address once per account, also before its first channel exists or while one is off.
         self.channel.state = 'disabled'
-        self.assertError(self.verify(self.channel._liwan_verify_token()), 403, 'forbidden')
+        response = self.verify(self.verify_token(self.channel))
+        self.assertEqual((response.status_code, response.text), (200, '1158201444'))
 
     def test_a_signed_delivery_creates_one_event_and_nothing_else(self):
         raw = wa.body_of(wa.inbound_text())
@@ -161,7 +168,7 @@ class TestWhatsAppWebhook(LiwanInboxCase):
     def test_closed_whatsapp_feature_refuses_the_hook(self):
         set_probe_feature(self, key='inbox.whatsapp', enabled=False)
         self.assertError(self.post(wa.inbound_text()), 403, 'feature_not_included')
-        self.assertError(self.verify(self.channel._liwan_verify_token()), 403, 'feature_not_included')
+        self.assertError(self.verify(self.verify_token(self.channel)), 403, 'feature_not_included')
 
     def test_without_the_master_key_a_delivery_is_refused_like_a_bad_signature(self):
         with patch.dict('os.environ', {}, clear=False) as env:

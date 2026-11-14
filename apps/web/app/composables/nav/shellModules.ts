@@ -26,7 +26,7 @@ export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut
 const SETTINGS_KEYS: Readonly<Record<string, { shortcut: string; goKey?: string }>> = {
   '/settings/company#branding': { shortcut: 'i' },
   '/settings/system#maintenance': { shortcut: 'u' },
-  '/settings/system#integrations': { shortcut: 'w' },
+  '/settings/integrations#connections': { shortcut: 'w' },
   '/settings/team/users': { shortcut: '7', goKey: 'u' },
   '/settings/team/roles': { shortcut: '8', goKey: 'r' },
   '/settings/team/access-log': { shortcut: '9' },

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InboxAudienceListSchema, InboxAudienceMemberListSchema, InboxAudienceSchema, InboxCampaignListSchema, InboxCampaignPreviewSchema, InboxCampaignRecipientListSchema,
   InboxCampaignSchema, InboxCampaignSettingsSchema, InboxCampaignTestResultSchema, InboxChannelSendingSchema, InboxContactImportResultSchema, InboxContactMarketingSchema,
-  InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxChannelWorkListSchema, InboxConversationDetailSchema, InboxConversationListSchema,
+  InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelAccountListSchema, InboxChannelListSchema, InboxChannelSchema, InboxChannelWorkListSchema, InboxConversationDetailSchema, InboxConversationListSchema,
   InboxBusinessProfileSchema, InboxChannelAlertListSchema, InboxCostReportSchema, InboxReportBreakdownSchema, InboxReportOverviewSchema,
   InboxTemplateAnalyticsDetailSchema, InboxTemplateAnalyticsListSchema, InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxFlowListSchema,
   InboxFlowPreviewSchema, InboxFlowSchema, InboxFlowSubmissionListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema,
@@ -10,10 +10,10 @@ import {
   InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema, InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema,
   InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema,
   InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
-  InboxTikTokConnectResponseSchema, InboxTikTokShortcutEnableResultSchema, InboxTikTokShortcutListSchema, InboxTikTokSyncAnswerSchema,
+  InboxTikTokShortcutEnableResultSchema, InboxTikTokShortcutListSchema, InboxTikTokSyncAnswerSchema,
   InboxEventListSchema, InboxEventSchema, ApiErrorSchema, CustomerConflictDetailsSchema,
 } from '@liwan/contracts'
-import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
+import { inboxPreviewData, resetInboxPreview, setInboxConnectionAppId } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
 const call = (method: string, target: string, body: object = {}) => {
   const url = new URL(target, 'http://localhost')
@@ -44,12 +44,11 @@ describe('inbox audit mock', () => {
   it('serves a TikTok channel with its shortcuts and its import job', () => {
     const channels = InboxChannelListSchema.parse(call('GET', '/api/v1/inbox/channels').body).items
     const tiktok = channels.find(channel => channel.kind === 'tiktok')
-    expect(tiktok).toMatchObject({ phone_number_id: null, business_account_id: null, has_app_secret: null, has_verify_token: null, tiktok_username: 'al_amal_clinic' })
+    expect(tiktok).toMatchObject({ phone_number_id: null, connection: { id: 2, provider: 'tiktok', state: 'error' }, needs_reconnect: true })
     expect(InboxTikTokShortcutListSchema.parse(call('GET', '/api/v1/inbox/channels/2/tiktok/shortcuts').body).total).toBe(5)
     const enabled = InboxTikTokShortcutEnableResultSchema.parse(call('POST', '/api/v1/inbox/channels/2/tiktok/shortcuts/enable', { kind: 'prompt', enabled: true }).body)
     expect(enabled.items.every(item => item.kind === 'prompt')).toBe(true)
     expect(InboxTikTokSyncAnswerSchema.parse(call('GET', '/api/v1/inbox/channels/2/tiktok/sync').body).job?.state).toBe('done')
-    expect(InboxTikTokConnectResponseSchema.parse(call('POST', '/api/v1/inbox/channels/tiktok/connect', { name: 'تيك توك' }).body).authorize_url).toContain('https://')
   })
 
   it('filters the list like the server', () => {
@@ -128,11 +127,27 @@ describe('inbox audit mock', () => {
     expect(call('POST', `/api/v1/inbox/messages/${failed.id}/retry`).status).toBe(422)
   })
 
-  it('creates a channel without ever echoing a secret', () => {
-    const created = call('POST', '/api/v1/inbox/channels', { name: 'جديدة', kind: 'whatsapp', phone_number_id: '12345678', business_account_id: '87654321', access_token: 'x'.repeat(20), app_secret: 'y'.repeat(20) })
-    const channel = InboxChannelSchema.parse(created.body)
-    expect(channel.has_access_token).toBe(true)
-    expect(JSON.stringify(created.body)).not.toContain('xxxxx')
+  it('creates a channel of either kind on a connected account of its provider, and refuses any other', () => {
+    const whatsapp = InboxChannelSchema.parse(call('POST', '/api/v1/inbox/channels', { name: 'جديدة', kind: 'whatsapp', connection_id: 1, phone_number_id: '12345678' }).body)
+    expect(whatsapp).toMatchObject({ kind: 'whatsapp', phone_number_id: '12345678', connection: { id: 1, provider: 'meta', state: 'connected' } })
+    const tiktok = InboxChannelSchema.parse(call('POST', '/api/v1/inbox/channels', { name: 'تيك توك', kind: 'tiktok', connection_id: 2 }).body)
+    expect(tiktok).toMatchObject({ kind: 'tiktok', phone_number_id: null, connection: { id: 2, provider: 'tiktok', state: 'connected' } })
+    expect(call('POST', '/api/v1/inbox/channels', { name: 'x', kind: 'whatsapp', connection_id: 2, phone_number_id: '12345678' }).body).toMatchObject({ field: 'connection_id' })
+    expect(call('POST', '/api/v1/inbox/channels', { name: 'x', kind: 'whatsapp', connection_id: 1 }).body).toMatchObject({ field: 'phone_number_id' })
+    expect(call('POST', '/api/v1/inbox/channels', { name: 'x', kind: 'tiktok', connection_id: 2, phone_number_id: '12345678' }).body).toMatchObject({ field: 'phone_number_id' })
+  })
+
+  it('lists the accounts of a kind, with the Meta app id, and refuses an unknown kind', () => {
+    const meta = InboxChannelAccountListSchema.parse(call('GET', '/api/v1/inbox/channels/accounts?kind=whatsapp').body)
+    expect(meta.items.map(item => [item.id, item.provider, item.app_id])).toEqual([[1, 'meta', '555']])
+    const tiktok = InboxChannelAccountListSchema.parse(call('GET', '/api/v1/inbox/channels/accounts?kind=tiktok').body)
+    expect(tiktok.items.map(item => [item.id, item.state])).toEqual([[2, 'error']])
+    expect(call('GET', '/api/v1/inbox/channels/accounts?kind=sms').status).toBe(422)
+  })
+
+  it('patches only the name, the department and the disabled state', () => {
+    const patched = InboxChannelSchema.parse(call('PATCH', '/api/v1/inbox/channels/2', { name: 'تيك توك الجديد', department_id: null }).body)
+    expect(patched).toMatchObject({ kind: 'tiktok', name: 'تيك توك الجديد', department: null, connection: { id: 2 } })
   })
 
   it('applies a preset idempotently', () => {
@@ -191,7 +206,7 @@ describe('inbox audit mock', () => {
       const header = { type: 'image', example_attachment_id: (sample.body as { id: number }).id }
       expect(InboxTemplateSchema.parse(call('POST', '/api/v1/inbox/channels/1/templates', write({ header })).body).header).toMatchObject({ type: 'image' })
       expect(call('POST', '/api/v1/inbox/channels/1/templates', write({ name: 'x2', header: { type: 'image', example_attachment_id: 999 } })).body).toMatchObject({ field: 'header' })
-      call('PATCH', '/api/v1/inbox/channels/1', { app_id: null })
+      setInboxConnectionAppId(1, null)
       expect(call('POST', '/api/v1/inbox/channels/1/templates', write({ name: 'x3', header })).body).toMatchObject({ field: 'app_id' })
     })
 
@@ -383,7 +398,7 @@ describe('inbox audit mock', () => {
 
     it('gives every channel a health block, a new one an empty block, and the test fills and stamps it', () => {
       expect(channel().health).toMatchObject({ quality_rating: 'green', messaging_limit: 'tier_2k', account_state: 'active', template_insights_enabled: false })
-      const created = InboxChannelSchema.parse(call('POST', '/api/v1/inbox/channels', { name: 'جديدة', kind: 'whatsapp', phone_number_id: '12345678', business_account_id: '87654321', access_token: 'x'.repeat(20), app_secret: 'y'.repeat(20) }).body)
+      const created = InboxChannelSchema.parse(call('POST', '/api/v1/inbox/channels', { name: 'جديدة', kind: 'whatsapp', connection_id: 1, phone_number_id: '12345678' }).body)
       expect(created.health).toMatchObject({ quality_rating: 'unknown', checked_at: null, display_phone_number: null })
       const tested = InboxChannelSchema.parse(call('POST', `/api/v1/inbox/channels/${created.id}/test`).body)
       expect(tested.health.checked_at).not.toBeNull()
@@ -426,7 +441,7 @@ describe('inbox audit mock', () => {
       const picture = { name: 'a.png', mimetype: 'image/png', data: 'aGVsbG8=' }
       expect(InboxBusinessProfileSchema.parse(call('PUT', '/api/v1/inbox/channels/1/profile/picture', picture).body).picture_url).not.toBeNull()
       expect(call('PUT', '/api/v1/inbox/channels/1/profile/picture', { ...picture, mimetype: 'image/gif' }).status).toBe(422)
-      call('PATCH', '/api/v1/inbox/channels/1', { app_id: null })
+      setInboxConnectionAppId(1, null)
       expect(call('PUT', '/api/v1/inbox/channels/1/profile/picture', picture).body).toMatchObject({ field: 'app_id' })
     })
   })

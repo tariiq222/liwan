@@ -32,6 +32,7 @@ from . import (
     flow_submission,
     inbound_service,
     inbound_tiktok,
+    integration_registry,
     ir_http,
     lists,
     mail_message,

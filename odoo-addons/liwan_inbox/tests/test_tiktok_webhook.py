@@ -30,9 +30,7 @@ class TestTikTokWebhook(LiwanInboxCase):
         })
         env_patch.start()
         cls.addClassCleanup(env_patch.stop)
-        cls.tiktok = cls.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': BUSINESS_ID, 'state': 'connected',
-        })
+        cls.tiktok = cls.make_tiktok_channel(business_id=BUSINESS_ID)
 
     def setUp(self):
         super().setUp()

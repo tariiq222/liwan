@@ -2,8 +2,9 @@
 """The public WhatsApp webhook (machine to machine, no session).
 
 Its auth method `inbox_hook` (models/ir_http.py) runs the request as the inactive hook identity,
-whose only group may read channels and create raw events (security/ir.model.access.csv). No
-`sudo()`: that ACL is the whole authority. An unknown phone number id, a bad signature and a
+whose only group may read channels and create raw events (security/ir.model.access.csv). It reads
+the app secret and the handshake token of a channel's account through the webhook accessors of the
+integrations service, which hold the only elevation. An unknown phone number id, a bad signature and a
 malformed body all answer the same 403, so the route reveals nothing about which tenants or
 numbers exist. A template or form change (the account-level webhook fields) carries the business account id
 instead of a phone number id, so it reaches the channels of that account.
@@ -62,7 +63,7 @@ def parse_payload(raw):
 
 def signed_by(channel, raw, signature):
     try:
-        secret = channel._liwan_app_secret()
+        secret = channel._liwan_hook_secret('app_secret')
     except UserError:
         return False
     return bool(secret) and whatsapp.verify_signature(secret, raw, signature)
@@ -81,15 +82,13 @@ class WhatsAppHookController(http.Controller):
         missing = next((name for name in HANDSHAKE_PARAMS if not args.get(name)), None)
         if missing:
             raise ApiError(400, 'invalid', f'{missing} is required', field=missing)
-        env = request.env
-        channels = env['liwan.inbox.channel'].search([('kind', '=', 'whatsapp'), ('state', '!=', 'disabled')])
         token = args.get('hub.verify_token', '').encode()
-        # Every channel is compared, so the time taken does not reveal which one matched. A channel without a
+        # Every account is compared, so the time taken does not reveal which one matched. An account without a
         # stored token never matches, so an empty query value cannot subscribe anyone.
-        matches = []
-        for channel in channels:
-            stored = channel._liwan_verify_token()
-            matches.append(bool(stored) and bool(token) and hmac.compare_digest(stored.encode(), token))
+        matches = [
+            bool(stored) and bool(token) and hmac.compare_digest(stored.encode(), token)
+            for stored in request.env['liwan.inbox.channel']._liwan_hook_verify_tokens()
+        ]
         if args.get('hub.mode') != 'subscribe' or not any(matches):
             reject_webhook()
         return request.make_response(args.get('hub.challenge', ''), headers=[
@@ -105,11 +104,9 @@ class WhatsAppHookController(http.Controller):
         raw = read_body()
         payload = parse_payload(raw)
         env = request.env
-        channels = env['liwan.inbox.channel'].search([
-            ('kind', '=', 'whatsapp'), ('state', '!=', 'disabled'),
-            '|', ('phone_number_id', 'in', sorted(whatsapp.phone_number_ids(payload))),
-            ('business_account_id', 'in', sorted(whatsapp.account_business_ids(payload))),
-        ])
+        channels = env['liwan.inbox.channel']._liwan_hook_channels(
+            'whatsapp', whatsapp.account_business_ids(payload), whatsapp.phone_number_ids(payload),
+        )
         signature = request.httprequest.headers.get(SIGNATURE_HEADER, '')
         if not channels:
             whatsapp.verify_signature(UNMATCHED_SECRET, raw, signature)

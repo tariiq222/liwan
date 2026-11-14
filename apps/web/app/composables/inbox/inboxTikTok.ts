@@ -1,25 +1,23 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  InboxTikTokConnectResponseSchema,
   InboxTikTokShortcutEnableResultSchema,
   InboxTikTokShortcutListSchema,
   InboxTikTokShortcutSchema,
   InboxTikTokSyncAnswerSchema,
   InboxTikTokSyncSchema,
-  type InboxTikTokConnect,
   type InboxTikTokShortcutCreate,
   type InboxTikTokShortcutEnable,
   type InboxTikTokShortcutPatch,
 } from '@liwan/contracts'
 import { hasFeature } from '../../modules/registry'
 
-// The TikTok channel's own surface: the OAuth connect, and the refusal reasons its routes answer with. Every
+// The TikTok channel's own surface: the refusal reasons its routes answer with. Every
 // reason becomes one translated line in the inbox namespace, so a failed reply or settings save never shows the
 // server's English text; a reason this build does not know keeps the message the server sent.
 export const INBOX_TIKTOK_FEATURE = 'inbox.tiktok'
 
-/** The `details.reason` values of the TikTok routes: D3 sends, E2 connect, E5 automation, E6 import, E7 guards.
+/** The `details.reason` values of the TikTok routes: D3 sends, E5 automation, E6 import, E7 guards.
  * The closed reply window (`inbox_window_closed`) is the two kinds' shared reason, so it is not listed here:
  * the channel kind picks its line (inboxWindow). */
 export const INBOX_TIKTOK_REASONS = [
@@ -29,10 +27,7 @@ export const INBOX_TIKTOK_REASONS = [
   'inbox_tiktok_auto_message_limit',
   'inbox_tiktok_auto_message_refused',
   'inbox_tiktok_sync_running',
-  'inbox_tiktok_not_configured',
   'inbox_channel_kind_unsupported',
-  'inbox_tiktok_scopes_missing',
-  'inbox_tiktok_account_taken',
 ] as const
 
 const REASON_LABELS: ReadonlySet<string> = new Set(INBOX_TIKTOK_REASONS)
@@ -52,19 +47,6 @@ export function inboxTikTokErrorKey(error: unknown): string | null {
 export function useInboxTikTokEnabled() {
   const { me } = useMe()
   return computed(() => hasFeature(me.value, INBOX_TIKTOK_FEATURE))
-}
-
-/**
- * Starts the TikTok authorization: a new channel names itself, a channel being reconnected names its id.
- * The answer is the account page the browser is sent to; the callback creates or updates the channel.
- */
-export function useConnectInboxTikTok() {
-  const { $api } = useApi()
-  return useMutation({
-    mutationFn: (body: InboxTikTokConnect) => $api('/api/v1/inbox/channels/tiktok/connect', {
-      method: 'POST', body, schema: InboxTikTokConnectResponseSchema,
-    }),
-  })
 }
 
 // ---------------------------------------------------------------- suggested questions, chat prompts and import

@@ -340,7 +340,7 @@ test('the OAuth callback bounces the unchanged query to the tenant host', async 
     const query = `?code=code_123&state=${state}`
     const response = await fetch(`http://127.0.0.1:${f.port}/tiktok/oauth/callback${query}`, { redirect: 'manual' })
     assert.equal(response.status, 302)
-    assert.equal(response.headers.get('location'), `https://acme.example.test/api/v1/inbox/tiktok/callback${query}`)
+    assert.equal(response.headers.get('location'), `https://acme.example.test/api/v1/integrations/oauth/tiktok/callback${query}`)
   } finally { await f.close() }
 })
 
@@ -353,7 +353,7 @@ test('an Odoo state naming the tenant database bounces to its public host', asyn
     const query = `?code=code_123&state=${state}`
     const response = await fetch(`http://127.0.0.1:${f.port}/tiktok/oauth/callback${query}`, { redirect: 'manual' })
     assert.equal(response.status, 302)
-    assert.equal(response.headers.get('location'), `https://acme.example.test/api/v1/inbox/tiktok/callback${query}`)
+    assert.equal(response.headers.get('location'), `https://acme.example.test/api/v1/integrations/oauth/tiktok/callback${query}`)
   } finally { await f.close() }
 })
 

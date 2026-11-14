@@ -99,7 +99,7 @@ class LiwanInboxTikTokSync(models.Model):
         if self.state == 'queued':
             self.write({'state': 'running', 'started_at': fields.Datetime.now()})
         try:
-            credentials = self.channel_id._liwan_tiktok_credentials()
+            credentials = self.channel_id._liwan_credentials()
             if self.phase == MESSAGE_PHASE:
                 self._liwan_import_messages(credentials)
             else:

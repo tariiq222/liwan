@@ -22,7 +22,7 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import whatsapp
 
 HOOK = '/api/v1/inbox/hooks/whatsapp'
-SIBLING_SECRET = 'sibling-secret-0123456789abcdef'
+OTHER_ACCOUNT_SECRET = 'sibling-secret-0123456789abcdef'
 FIELDS = {
     'phone_number_quality_update': {'display_phone_number': '+966 50 111 2222', 'event': 'THROUGHPUT_UPGRADE'},
     'phone_number_name_update': {'display_phone_number': '966501112222', 'decision': 'PENDING', 'requested_verified_name': 'New'},
@@ -39,10 +39,7 @@ class TestHealthWebhook(LiwanInboxCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.channel.display_phone_number = DISPLAY_NUMBER
-        cls.sibling = cls.make_channel(
-            phone_id='100000000002', display_phone_number='966599999999',
-            **cls.env['liwan.inbox.channel']._liwan_secret_values(app_secret=SIBLING_SECRET),
-        )
+        cls.sibling = cls.make_channel(phone_id='100000000002', display_phone_number='966599999999')
 
     def post(self, payload, secret=None):
         raw = wa.body_of(payload)
@@ -73,11 +70,11 @@ class TestHealthWebhook(LiwanInboxCase):
             self.channel.with_user(self.env.ref('base.user_admin')).sudo().write({'name': 'Edited'})
         self.assertEqual(caught.exception.code, 'branch_read_only')
 
-    def test_every_health_field_is_routed_by_the_account_id_and_signed_by_the_channel_secret(self):
+    def test_every_health_field_is_routed_by_the_account_id_and_signed_by_the_account_secret(self):
         for field, value in FIELDS.items():
             payload = account_event(field, value)
             self.assertEqual(self.post(payload).status_code, 200, field)
-            self.assertEqual(self.post(payload, secret=SIBLING_SECRET).status_code, 200, field)
+            self.assertEqual(self.post(payload, secret=OTHER_ACCOUNT_SECRET).status_code, 403, field)
             self.assertEqual(self.post(payload, secret='wrong-secret-0123456789').status_code, 403, field)
             self.assertEqual(self.post(account_event(field, value, account_id='999999999999')).status_code, 403, field)
         events = self.env['liwan.inbox.event'].search([])

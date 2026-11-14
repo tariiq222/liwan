@@ -109,8 +109,8 @@ def parse_header(channel, template, value):
         parse_object(value, 'header', {'type'})
         return {**NO_HEADER, 'header_type': 'location'}
     value = parse_object(value, 'header', {'type', 'example_attachment_id'}, ('type', 'example_attachment_id'))
-    if not channel.app_id:
-        reject('the channel needs its Meta app id to upload the sample file of a media header', 'app_id')
+    if not channel.connection_id.app_id:
+        reject('the connection needs its Meta app id to upload the sample file of a media header', 'app_id')
     attachment = parse_sample(template, value['example_attachment_id'], kind)
     return {**NO_HEADER, 'header_type': kind, 'header_example_attachment_id': attachment.id}
 

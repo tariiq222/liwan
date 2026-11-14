@@ -35,10 +35,17 @@ const TEAM: SettingsPage = {
     { id: 'access-log', labelKey: 'nav.accessLog', icon: 'i-lucide-history', capability: 'access.audit.read', within: '/settings/team/access-log' },
   ],
 }
+// One page for every connected outside account; its record pages and the create panel sit beneath it.
+const INTEGRATIONS: SettingsPage = {
+  id: 'integrations', labelKey: 'integrations.title', icon: 'i-lucide-plug-zap', to: '/settings/integrations', within: '/settings/integrations',
+  parts: [
+    { id: 'connections', labelKey: 'integrations.connections.title', icon: 'i-lucide-plug-zap', capability: 'integrations.read' },
+    { id: 'providers', labelKey: 'integrations.providers.title', icon: 'i-lucide-plus', capability: 'integrations.manage' },
+  ],
+}
 const SYSTEM: SettingsPage = {
   id: 'system', labelKey: 'settings.sections.system.title', icon: 'i-lucide-shield-check', to: '/settings/system', within: '/settings/system',
   parts: [
-    { id: 'integrations', labelKey: 'integrations.nav', icon: 'i-lucide-plug-zap', capability: 'integrations.read' },
     { id: 'maintenance', labelKey: 'settings.maintenance.title', icon: 'i-lucide-calendar-clock', capability: 'settings.maintenance.manage' },
     { id: 'storage', labelKey: 'settings.storage.title', icon: 'i-lucide-hard-drive', capability: 'settings.company.manage', within: '/settings/system/storage' },
     // The export belongs to the root company: a branch session never sees the entry (`rootOnly`) and a direct link shows why.
@@ -63,9 +70,9 @@ export function appSettingsPages(): SettingsPage[] {
   return activeManifests().flatMap(manifest => (manifest.settings ? [{ ...manifest.settings, within: manifest.settings.to, group: APPS_GROUP }] : []))
 }
 
-/** The settings pages in their fixed order: company, team, the applications, system, billing. */
+/** The settings pages in their fixed order: company, team, the applications, integrations, system, billing. */
 export function settingsPages(): SettingsPage[] {
-  return [COMPANY, TEAM, ...appSettingsPages(), SYSTEM, BILLING]
+  return [COMPANY, TEAM, ...appSettingsPages(), INTEGRATIONS, SYSTEM, BILLING]
 }
 
 const pathnameOf = (path: string) => path.split(/[?#]/, 1)[0] ?? path

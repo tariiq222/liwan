@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  InboxChannelAccountListSchema,
   InboxChannelCreateSchema,
   InboxChannelKindSchema,
+  InboxChannelPatchSchema,
   InboxChannelSchema,
-  InboxTikTokConnectResponseSchema,
-  InboxTikTokConnectSchema,
   InboxTikTokShortcutCreateSchema,
   InboxTikTokShortcutEnableResultSchema,
   InboxTikTokShortcutEnableSchema,
@@ -36,6 +36,10 @@ const HEALTH = {
   analytics_error: null,
 }
 
+const TIKTOK_CONNECTION = {
+  id: 2, provider: 'tiktok', external_id: 'open-id-77', label: 'liwan.shop', app_id: null, state: 'connected', status_message: '',
+}
+
 const TIKTOK_CHANNEL = {
   id: 4,
   name: 'TikTok shop',
@@ -43,17 +47,10 @@ const TIKTOK_CHANNEL = {
   state: 'connected',
   department: null,
   phone_number_id: null,
-  business_account_id: null,
-  has_access_token: true,
-  has_app_secret: null,
-  app_id: null,
-  has_verify_token: null,
-  callback_url: 'https://app.example.test/api/v1/inbox/hooks/tiktok',
+  connection: TIKTOK_CONNECTION,
   last_error: null,
   last_event_at: '2026-11-05T09:00:00Z',
   health: HEALTH,
-  tiktok_username: 'liwan_shop',
-  token_expires_at: '2026-11-06T09:00:00Z',
   needs_reconnect: false,
   tiktok_welcome_audit: 'reviewing',
   tiktok_questions_enabled: true,
@@ -64,13 +61,7 @@ const WHATSAPP_CHANNEL = {
   ...TIKTOK_CHANNEL,
   kind: 'whatsapp',
   phone_number_id: '100000000001',
-  business_account_id: '200000000001',
-  has_app_secret: true,
-  app_id: '1234567890123',
-  has_verify_token: true,
-  callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
-  tiktok_username: null,
-  token_expires_at: null,
+  connection: { id: 1, provider: 'meta', external_id: '200000000001', label: 'Flower shop', app_id: '555', state: 'connected', status_message: '' },
   tiktok_welcome_audit: null,
   tiktok_questions_enabled: false,
 }
@@ -101,47 +92,45 @@ const SYNC = {
 }
 
 describe('inbox channel kinds', () => {
-  it('accepts TikTok and refuses to create it by hand', () => {
+  it('creates either kind on a connected account, the number id being WhatsApp only', () => {
     expect(InboxChannelKindSchema.parse('tiktok')).toBe('tiktok')
-    expect(() => InboxChannelCreateSchema.parse({
-      name: 'TikTok shop', kind: 'tiktok', phone_number_id: '100000000001',
-      business_account_id: '200000000001', access_token: 'x'.repeat(16), app_secret: 'y'.repeat(16),
-    })).toThrow()
     expect(InboxChannelCreateSchema.parse({
-      name: 'WhatsApp', kind: 'whatsapp', phone_number_id: '100000000001',
-      business_account_id: '200000000001', access_token: 'x'.repeat(16), app_secret: 'y'.repeat(16),
+      name: 'WhatsApp', kind: 'whatsapp', department_id: null, connection_id: 1, phone_number_id: '100000000001',
     }).kind).toBe('whatsapp')
+    expect(InboxChannelCreateSchema.parse({ name: 'TikTok shop', kind: 'tiktok', connection_id: 2 }).kind).toBe('tiktok')
+    expect(() => InboxChannelCreateSchema.parse({ name: 'WhatsApp', kind: 'whatsapp', connection_id: 1 })).toThrow()
+    expect(() => InboxChannelCreateSchema.parse({ name: 'TikTok shop', kind: 'tiktok', connection_id: 2, phone_number_id: '100000000001' })).toThrow()
+    expect(() => InboxChannelCreateSchema.parse({ name: 'TikTok shop', kind: 'tiktok' })).toThrow()
   })
 
-  it('parses both channel dumps: WhatsApp identity and TikTok account fields', () => {
+  it('refuses a credential or an identity field in a create or a patch', () => {
+    const create = { name: 'WhatsApp', kind: 'whatsapp', connection_id: 1, phone_number_id: '100000000001' }
+    for (const extra of [{ access_token: 'x'.repeat(16) }, { app_secret: 'y'.repeat(16) }, { business_account_id: '200000000001' }, { app_id: '1234567890123' }]) {
+      expect(() => InboxChannelCreateSchema.parse({ ...create, ...extra })).toThrow()
+      expect(() => InboxChannelPatchSchema.parse(extra)).toThrow()
+    }
+  })
+
+  it('parses both channel dumps with the connection they run on', () => {
     const tiktok = InboxChannelSchema.parse(TIKTOK_CHANNEL)
-    expect([tiktok.kind, tiktok.phone_number_id, tiktok.tiktok_username, tiktok.needs_reconnect]).toEqual(
-      ['tiktok', null, 'liwan_shop', false],
+    expect([tiktok.kind, tiktok.phone_number_id, tiktok.connection.provider, tiktok.needs_reconnect]).toEqual(
+      ['tiktok', null, 'tiktok', false],
     )
-    expect(tiktok.callback_url.endsWith('/hooks/tiktok')).toBe(true)
     const whatsapp = InboxChannelSchema.parse(WHATSAPP_CHANNEL)
-    expect([whatsapp.phone_number_id, whatsapp.has_app_secret, whatsapp.tiktok_username]).toEqual(
-      ['100000000001', true, null],
-    )
-    expect(() => InboxChannelSchema.parse({ ...TIKTOK_CHANNEL, tiktok_username: 1 })).toThrow()
+    expect([whatsapp.phone_number_id, whatsapp.connection.id, whatsapp.connection.provider]).toEqual(['100000000001', 1, 'meta'])
+    expect(() => InboxChannelSchema.parse({ ...TIKTOK_CHANNEL, connection: { ...TIKTOK_CONNECTION, provider: 'paymob' } })).toThrow()
+    expect(() => InboxChannelSchema.parse({ ...TIKTOK_CHANNEL, connection: { ...TIKTOK_CONNECTION, secrets: [] } })).toThrow()
+    expect(() => InboxChannelSchema.parse({ ...TIKTOK_CHANNEL, has_access_token: true })).toThrow()
     expect(() => InboxChannelSchema.parse({ ...TIKTOK_CHANNEL, needs_reconnect: null })).toThrow()
   })
 })
 
-describe('connect request', () => {
-  it('needs a name for a new channel and an id to reconnect one', () => {
-    expect(InboxTikTokConnectSchema.parse({ name: 'TikTok shop' })).toEqual({ name: 'TikTok shop' })
-    expect(InboxTikTokConnectSchema.parse({ channel_id: 4 })).toEqual({ channel_id: 4 })
-    expect(InboxTikTokConnectSchema.parse({ channel_id: 4, name: 'Renamed', department_id: null })).toBeTruthy()
-    expect(() => InboxTikTokConnectSchema.parse({ department_id: 2 })).toThrow()
-    expect(() => InboxTikTokConnectSchema.parse({ name: '' })).toThrow()
-    expect(() => InboxTikTokConnectSchema.parse({ name: 'x', bogus: 1 })).toThrow()
-  })
-
-  it('answers an https authorization page', () => {
-    const url = 'https://www.tiktok.com/v2/auth/authorize?client_key=key&state=abc'
-    expect(InboxTikTokConnectResponseSchema.parse({ authorize_url: url }).authorize_url).toBe(url)
-    expect(() => InboxTikTokConnectResponseSchema.parse({ authorize_url: 'http://www.tiktok.com/x' })).toThrow()
+describe('channel accounts', () => {
+  it('lists the account references a channel is created on', () => {
+    const items = [TIKTOK_CHANNEL.connection, WHATSAPP_CHANNEL.connection]
+    expect(InboxChannelAccountListSchema.parse({ items, total: 2 }).items[1]!.app_id).toBe('555')
+    expect(() => InboxChannelAccountListSchema.parse({ items: [{ ...items[0], secrets: [] }], total: 1 })).toThrow()
+    expect(() => InboxChannelAccountListSchema.parse({ items: [{ id: 1, provider: 'meta', external_id: '1', label: '', state: 'connected', status_message: '' }], total: 1 })).toThrow()
   })
 })
 

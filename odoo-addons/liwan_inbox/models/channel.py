@@ -1,29 +1,17 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import re
-import secrets
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .constants import CHANNEL_FEATURES, SECRET_PURPOSE
-from odoo.addons.liwan_core.models import secret_box
+from .constants import CHANNEL_FEATURES, CHANNEL_USES
+from .integration_registry import USE_PROVIDERS
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.adapters.whatsapp import Credentials
+from odoo.addons.liwan_integrations_sa.providers import errors as integration_errors
 
 PROVIDER_ID = re.compile(r'^\d{5,32}$')
-# The ciphertext columns are readable by the webhook identity, the channel managers and the template, form and
-# campaign managers (who call Meta with the channel's token) only.
-SECRET_GROUPS = (
-    'liwan_inbox.group_inbox_hook,liwan_inbox.group_cap_inbox_channels_manage,'
-    'liwan_inbox.group_cap_inbox_templates_manage,liwan_inbox.group_cap_inbox_flows_manage,'
-    'liwan_inbox.group_cap_inbox_campaigns_manage'
-)
-
-
-def _new_verify_token():
-    return secrets.token_urlsafe(24)
-
-
 INVALID = 'invalid'
 
 
@@ -48,16 +36,11 @@ class LiwanInboxChannel(models.Model):
         required=True, default='draft', index=True,
     )
     department_id = fields.Many2one('liwan.inbox.department', ondelete='set null')
-    # The WhatsApp provider ids; a TikTok channel is identified by its own `tiktok_business_id` instead
-    # (models/channel_tiktok.py), so neither is required on every kind.
+    # The provider account (its id, tokens and webhook secrets) lives on the connection of the integrations service.
+    # A restricted delete keeps an account that a channel still uses.
+    connection_id = fields.Many2one('liwan.integration.connection', required=True, index=True, ondelete='restrict')
+    # The WhatsApp number of the account this channel serves; a TikTok channel is its account and has none.
     phone_number_id = fields.Char()
-    business_account_id = fields.Char()
-    # The Meta app id: needed only to upload the sample file of a media-header template (not a secret).
-    app_id = fields.Char()
-    access_token_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
-    app_secret_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
-    # The webhook handshake secret: encrypted at rest like the other secrets and never returned in a read.
-    verify_token_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
     last_error = fields.Char()
     last_event_at = fields.Datetime()
     conversation_ids = fields.One2many('liwan.inbox.conversation', 'channel_id')
@@ -91,17 +74,19 @@ class LiwanInboxChannel(models.Model):
             ):
                 raise ValidationError(self.env._('The survey question is at most 1024 characters and each answer 1 to 20.'))
 
-    @api.constrains('app_id')
-    def _check_app_id(self):
-        for channel in self.filtered('app_id'):
-            if not PROVIDER_ID.match(channel.app_id):
-                raise ValidationError(self.env._('The Meta app id must be 5 to 32 digits.'))
-
-    @api.constrains('kind', 'phone_number_id', 'business_account_id')
-    def _check_provider_ids(self):
+    @api.constrains('kind', 'phone_number_id')
+    def _check_phone_number_id(self):
         for channel in self.filtered(lambda channel: channel.kind == 'whatsapp'):
-            if not (PROVIDER_ID.match(channel.phone_number_id or '') and PROVIDER_ID.match(channel.business_account_id or '')):
-                raise ValidationError(self.env._('Phone number id and business account id must be 5 to 32 digits.'))
+            if not PROVIDER_ID.match(channel.phone_number_id or ''):
+                raise ValidationError(self.env._('The phone number id must be 5 to 32 digits.'))
+
+    @api.constrains('kind', 'connection_id', 'owner_company_id')
+    def _check_connection(self):
+        """A channel serves the account of the provider of its kind, connected by its own company."""
+        for channel in self:
+            connection = channel.connection_id
+            if connection.provider != USE_PROVIDERS[channel.kind] or connection.company_id != channel.owner_company_id:
+                raise ValidationError(self.env._('The channel needs a %(provider)s connection of its own company.', provider=USE_PROVIDERS[channel.kind]))
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -124,28 +109,30 @@ class LiwanInboxChannel(models.Model):
         self.env['liwan.entitlement.service']._liwan_claim_channels(-len(self))
         return super().unlink()
 
-    @api.model
-    def _liwan_secret_values(self, access_token=None, app_secret=None):
-        """The ciphertext column values for the given plain secrets (only those given)."""
-        values = {}
-        if access_token is not None:
-            values['access_token_enc'] = secret_box.encrypt(self.env, SECRET_PURPOSE, access_token)
-        if app_secret is not None:
-            values['app_secret_enc'] = secret_box.encrypt(self.env, SECRET_PURPOSE, app_secret)
-        return values
-
     def _liwan_credentials(self):
-        """The channel's provider credentials, by kind (a TikTok token is refreshed when it is near expiry)."""
+        """The provider credentials of this channel, read from its connection (a TikTok token is refreshed by the service)."""
         self.ensure_one()
+        try:
+            access = self.connection_id._liwan_access(CHANNEL_USES[self.kind])
+        except integration_errors.ProviderError as error:
+            raise errors.ProviderError(str(error), error.retryable, error.code) from error
         if self.kind == 'tiktok':
-            return self._liwan_tiktok_credentials()
-        if not self.access_token_enc:
-            raise UserError(self.env._('The channel has no access token.'))
+            return tiktok.Credentials(access['external_id'], access['access_token'])
+        if not access.get('access_token'):
+            raise UserError(self.env._('The connection has no access token.'))
         return Credentials(
-            phone_number_id=self.phone_number_id,
-            business_account_id=self.business_account_id,
-            access_token=secret_box.decrypt(self.env, SECRET_PURPOSE, self.access_token_enc),
+            phone_number_id=self.phone_number_id, business_account_id=access['external_id'], access_token=access['access_token'],
         )
+
+    def _liwan_can_send(self):
+        """Whether the channel is connected and so is the account behind it."""
+        self.ensure_one()
+        return self.state == 'connected' and self.connection_id.state == 'connected'
+
+    @api.model
+    def _liwan_sendable_domain(self):
+        """The domain of the channels `_liwan_can_send` accepts."""
+        return [('state', '=', 'connected'), ('connection_id.state', '=', 'connected')]
 
     def _liwan_test_connection(self):
         """Test the provider connection: Meta's health for WhatsApp, the business profile for TikTok."""
@@ -155,21 +142,37 @@ class LiwanInboxChannel(models.Model):
         else:
             self._liwan_refresh_health()
 
-    def _liwan_app_secret(self):
-        self.ensure_one()
-        return secret_box.decrypt(self.env, SECRET_PURPOSE, self.app_secret_enc) if self.app_secret_enc else None
+    # webhook identity: it holds no capability in any company, so the account lookups and the webhook secrets come from
+    # the integrations service's elevated webhook accessors; the channels are read through the hook group's own rows.
+    # The provider signature or the handshake token checked with these values is the webhook's authentication.
 
-    def _liwan_verify_token(self):
-        """The plain webhook handshake token of the channel (compared in constant time by the hook)."""
-        self.ensure_one()
-        return secret_box.decrypt(self.env, SECRET_PURPOSE, self.verify_token_enc) if self.verify_token_enc else ''
+    @api.model
+    def _liwan_hook_channels(self, kind, external_ids=(), phone_number_ids=()):
+        """The active channels of `kind` whose account id or phone number id a delivery names.
 
-    def _liwan_rotate_verify_token(self):
-        """Replace the handshake token and return the new one once, for the administrator to paste into Meta."""
+        A channel matched by its phone number whose connection is disabled stays in the answer: its connection
+        yields no app secret, so the signature check refuses it.
+        """
+        accounts = self.env['liwan.integration.connection']._liwan_webhook_accounts(USE_PROVIDERS[kind], external_ids)
+        matches = [
+            match for match in (
+                ('connection_id', 'in', [account['id'] for account in accounts]) if accounts else None,
+                ('phone_number_id', 'in', list(phone_number_ids)) if phone_number_ids else None,
+            ) if match
+        ]
+        if not matches:
+            return self.browse()
+        return self.search([('kind', '=', kind), ('state', '!=', 'disabled'), *['|'] * (len(matches) - 1), *matches], order='id')
+
+    def _liwan_hook_secret(self, name):
+        """One decrypted secret of the channel's connection for a webhook check, or None when it is not set."""
         self.ensure_one()
-        token = _new_verify_token()
-        self.write({'verify_token_enc': secret_box.encrypt(self.env, SECRET_PURPOSE, token)})
-        return token
+        return self.env['liwan.integration.connection']._liwan_webhook_secret(self.connection_id.id, name)
+
+    @api.model
+    def _liwan_hook_verify_tokens(self):
+        """The webhook handshake tokens of every active WhatsApp account; the caller compares in constant time."""
+        return self.env['liwan.integration.connection']._liwan_webhook_secrets(USE_PROVIDERS['whatsapp'], 'verify_token')
 
     def _liwan_auto_message(self, purpose):
         """The welcome or away message of the channel (empty when none is set)."""

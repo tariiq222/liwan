@@ -8,7 +8,7 @@ from odoo.tests import tagged
 from odoo.tools import mute_logger
 
 from . import tiktok_payloads as tt
-from .common import LiwanInboxCase
+from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import (
@@ -31,15 +31,9 @@ class TestTikTokInbound(LiwanInboxCase):
     def setUp(self):
         super().setUp()
         set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
-        self.tiktok = self.env['liwan.inbox.channel'].create({
-            'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': tt.BUSINESS_ID,
-        })
-        now = fields.Datetime.now()
-        self.tiktok._liwan_tiktok_store(tiktok.TokenGrant(
-            open_id=tt.BUSINESS_ID, scopes=frozenset(tiktok.SCOPES),
-            access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
-            expires_at=now + timedelta(days=1), refresh_expires_at=now + timedelta(days=365),
-        ))
+        self.tiktok = self.make_tiktok_channel(
+            authorization=tiktok_grant(access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN),
+        )
         capability = patch.object(tiktok, 'image_send_capable', return_value=True)
         capability.start()
         self.addCleanup(capability.stop)

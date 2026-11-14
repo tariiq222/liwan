@@ -52,11 +52,10 @@ class LiwanInboxCatalog(models.Model):
     @api.constrains('business_account_id', 'company_id')
     def _check_channels_company(self):
         for catalog in self:
-            self.env.cr.execute(
-                'SELECT 1 FROM liwan_inbox_channel WHERE business_account_id = %s AND owner_company_id != %s LIMIT 1',
-                [catalog.business_account_id, catalog.company_id.id],
-            )
-            if self.env.cr.fetchone():
+            if self.env['liwan.inbox.channel'].search_count([
+                ('connection_id.external_id', '=', catalog.business_account_id),
+                ('owner_company_id', '!=', catalog.company_id.id),
+            ]):
                 raise ValidationError(self.env._('Every phone number of the WhatsApp account must belong to the catalog company.'))
 
     @api.model_create_multi
@@ -80,13 +79,13 @@ class LiwanInboxCatalog(models.Model):
         """The channels (phone numbers) of this catalog's WhatsApp account that the caller reaches."""
         self.ensure_one()
         return self.env['liwan.inbox.channel'].search([
-            ('business_account_id', '=', self.business_account_id), ('owner_company_id', '=', self.company_id.id),
+            ('connection_id.external_id', '=', self.business_account_id), ('owner_company_id', '=', self.company_id.id),
         ])
 
     def _liwan_usable_channel(self):
         """The first channel of the account that can call Meta (the numbers of an account share one business token)."""
         self.ensure_one()
-        return self._liwan_channels().filtered(lambda channel: channel.state != 'disabled' and channel.access_token_enc)[:1]
+        return self._liwan_channels().filtered(lambda channel: channel.state != 'disabled' and channel.connection_id.state != 'disabled')[:1]
 
     def _liwan_credentials(self):
         channel = self._liwan_usable_channel()

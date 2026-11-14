@@ -67,8 +67,9 @@ const manifest: AppManifest = {
     { pattern: /^\/inbox\/orders(?:\/|$)/, capability: 'inbox.conversations.read', feature: 'inbox.catalog' },
     { pattern: /^\/inbox(?:\/|$)/, capability: 'inbox.conversations.read' },
     { pattern: /^\/settings\/apps\/inbox\/catalog(?:\/|$)/, capability: 'inbox.catalog.manage', feature: 'inbox.catalog' },
-    // Connecting a WhatsApp number needs that channel kind, exactly as the create route checks it.
-    { pattern: /^\/settings\/apps\/inbox\/channels\/new$/, capability: 'inbox.channels.manage', feature: 'inbox.whatsapp' },
+    // A channel of either kind is created here: the page offers the kinds whose feature is on and refuses when none is,
+    // and the server checks the chosen kind's feature, so the route itself needs the capability only.
+    { pattern: /^\/settings\/apps\/inbox\/channels\/new$/, capability: 'inbox.channels.manage' },
     // A templates-only manager has no channel administration, so the template pages are not under the channels part's
     // capability; both the feature and the page's own capability decide, and the server checks the same pair.
     { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates\/new$/, capability: 'inbox.templates.manage', feature: 'inbox.templates' },

@@ -95,34 +95,36 @@ def dump_event(event):
     }
 
 
-def dump_channel(channel, callback_url):
-    """The channel for its administrator: secrets are reported only as present or absent.
+def dump_connection(connection):
+    """The account a channel serves, without any secret: the integrations page owns the account itself."""
+    return {
+        'id': connection.id, 'provider': connection.provider, 'external_id': connection.external_id,
+        'label': connection.label or '', 'app_id': connection.app_id or None, 'state': connection.state,
+        'status_message': connection.status_message or '',
+    }
 
-    A TikTok channel has no WhatsApp identity, no Meta app secret and no handshake token, so those fields
-    are null; it reports the TikTok account, its token deadline and its reconnect, welcome-audit and
-    automatic-message switches instead. `callback_url` is the channel's own hook endpoint by kind, and
-    `health` reads "unknown" until its provider health is read (Meta's number health for WhatsApp).
+
+def dump_channel(channel):
+    """The channel for its administrator.
+
+    The provider account, its secrets and its webhook address belong to the connection and are managed on the
+    integrations page; the channel reports the account it serves. A TikTok channel is its account, so it has no
+    phone number id. `health` reads "unknown" until its provider health is read (Meta's number health for WhatsApp).
     """
     tiktok = channel.kind == 'tiktok'
+    connection = channel.connection_id
     return {
         'id': channel.id,
         'name': channel.name,
         'kind': channel.kind,
         'state': channel.state,
         'department': dump_ref(channel.department_id),
+        'connection': dump_connection(connection),
         'phone_number_id': None if tiktok else channel.phone_number_id,
-        'business_account_id': None if tiktok else channel.business_account_id,
-        'has_access_token': bool(channel.access_token_enc),
-        'has_app_secret': None if tiktok else bool(channel.app_secret_enc),
-        'app_id': None if tiktok else (channel.app_id or None),
-        'has_verify_token': None if tiktok else bool(channel.verify_token_enc),
-        'callback_url': callback_url,
         'last_error': channel.last_error or None,
         'last_event_at': iso(channel.last_event_at),
         'health': dump_health(channel),
-        'tiktok_username': channel.tiktok_username or None,
-        'token_expires_at': iso(channel.token_expires_at),
-        'needs_reconnect': tiktok and channel.state == 'error',
+        'needs_reconnect': tiktok and connection.state == 'error',
         'tiktok_welcome_audit': channel.tiktok_welcome_audit or None,
         'tiktok_questions_enabled': channel.tiktok_questions_enabled,
         'tiktok_prompts_enabled': channel.tiktok_prompts_enabled,

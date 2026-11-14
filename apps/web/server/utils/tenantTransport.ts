@@ -20,9 +20,11 @@ export const HOOK_SIGNATURE_HEADERS: ReadonlyMap<string, string> = new Map([
 /** The provider OAuth callback finishes the connection and answers with an in-app redirect the browser must
  * follow. It is the only upstream 3xx that reaches the browser: Odoo builds it locally (`request.redirect`
  * with `local=True`), so its location is a path on this app, never another origin. */
-export const CALLBACK_REDIRECT_PATHS: ReadonlySet<string> = new Set(['/api/v1/inbox/tiktok/callback'])
-/** Where a callback redirect may point: the inbox settings pages that show the channel it connected. */
-export const CALLBACK_REDIRECT_PREFIX = '/settings/apps/inbox'
+export const CALLBACK_REDIRECT_PATHS: readonly RegExp[] = [
+  /^\/api\/v1\/integrations\/oauth\/[a-z][a-z0-9_]*\/callback$/,
+]
+/** Where a callback redirect may point: the integrations page that shows the account it connected. */
+export const CALLBACK_REDIRECT_PREFIXES: readonly string[] = ['/settings/integrations']
 const CALLBACK_REDIRECT_STATUSES: ReadonlySet<number> = new Set([302, 303])
 // The origin a location is resolved against to normalize `..` and `//`; it must survive as the origin.
 const LOCAL_ORIGIN = 'https://local.invalid'
@@ -30,20 +32,23 @@ const LOCAL_ORIGIN = 'https://local.invalid'
 const UNSAFE_LOCATION = /[\\\u0000-\u001f\u007f]/
 
 /** Whether this response is the callback's own in-app redirect, which the browser follows as sent.
- * Every other 3xx (and a callback redirect pointing anywhere but the inbox settings pages) stays a failure,
+ * Every other 3xx (and a callback redirect pointing anywhere but the integrations page) stays a failure,
  * so an upstream can never bounce the browser to another origin or to an arbitrary route. The location is
- * resolved first, so `..` and `//` cannot walk it out of the settings pages. */
+ * resolved first, so `..` and `//` cannot walk it out of the integrations page. */
 export function isCallbackRedirect(path: string, status: number, location: string | null | undefined): boolean {
-  if (!CALLBACK_REDIRECT_PATHS.has(path.split('?')[0] ?? path)) return false
+  const requestPath = path.split('?')[0] ?? path
+  if (!CALLBACK_REDIRECT_PATHS.some(pattern => pattern.test(requestPath))) return false
   if (!CALLBACK_REDIRECT_STATUSES.has(status)) return false
   const target = location ?? ''
   if (!target.startsWith('/') || UNSAFE_LOCATION.test(target)) return false
   let resolved: URL
   try { resolved = new URL(target, LOCAL_ORIGIN) } catch { return false }
   if (resolved.origin !== LOCAL_ORIGIN) return false
-  if (!resolved.pathname.startsWith(CALLBACK_REDIRECT_PREFIX)) return false
-  const boundary = resolved.pathname.charAt(CALLBACK_REDIRECT_PREFIX.length)
-  return !boundary || boundary === '/'
+  return CALLBACK_REDIRECT_PREFIXES.some((prefix) => {
+    if (!resolved.pathname.startsWith(prefix)) return false
+    const boundary = resolved.pathname.charAt(prefix.length)
+    return !boundary || boundary === '/'
+  })
 }
 const MAX_RESPONSE = 32 * 1024 * 1024
 /** Admission gate to the fixed operator upstreams. Odoo serves one request per worker process,
