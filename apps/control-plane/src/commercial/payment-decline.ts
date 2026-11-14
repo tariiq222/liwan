@@ -44,7 +44,9 @@ const DECLINE_CODES: Readonly<Record<string, DeclineKind>> = {
  * The messages the provider's sandbox returned for a failed payment (docs/operations/moyasar-form-spike.md, "Decline shapes"), in the
  * provider's own upper case. The sandbox payment carries no response code, so the message is the only signal there. A card that is lost, stolen
  * or expired will never pay, and a failure at the 3-D Secure step that the payer or the issuer decided (declined, rejected, service error, not
- * enrolled, not available for this card) leaves the token inactive: those stop the retries. `3DS: THE AUTHENTICATION IS UNAVAILABLE, PLEASE TRY AGAIN LATER` is the
+ * enrolled, not available for this card) stops the retries too. On the payment that saves a card such a failure leaves the token inactive. On
+ * a charge of an already active token the token stays active (sandbox run of 2026-11-14), but a background charge has no payer to answer the
+ * challenge, so a retry cannot pass either. `3DS: THE AUTHENTICATION IS UNAVAILABLE, PLEASE TRY AGAIN LATER` is the
  * issuer's own outage and is soft. Every other message (insufficient funds, a limit, a generic decline) can pass on a later day.
  */
 const HARD_DECLINE_MESSAGES: ReadonlySet<string> = new Set([

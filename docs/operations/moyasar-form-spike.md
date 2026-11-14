@@ -168,6 +168,24 @@ Screenshots (scratch directory `/private/tmp/claude-501/-Users-tariq-code-liwan/
 - A real bank challenge (the emulator is not a bank page), and the frictionless against challenge split for mada.
 - The published pinned file and integrity hash of the package, if it is ever loaded from their CDN; our build bundles it.
 
+## Token and refund re-run (2026-11-14)
+
+Scope: a second test-mode run of three questions, 23 API calls with the test keys, the documented test cards and the name "Test Customer". Seven payments and three tokens were created; the three tokens were deleted (204). The 3-D Secure step was completed in a browser on the provider's emulator page. No webhook, no account setting. Keys and full ids appear nowhere here.
+
+| # | Question | Verdict | Evidence |
+|---|---|---|---|
+| R1 | `save_card: true` gives a token the server can charge | Confirmed again | A 1000-halala payment made with the publishable key returned `initiated` with `source.token`. After the emulator result `AUTHENTICATED` the payment was `paid` and the token `active`. A server-side charge of 500 on that token returned `paid` at once, no CVC, no 3-D Secure |
+| R2 | Two partial refunds on one payment | Refused again | On a paid 1000-halala payment a refund of 300 returned 200, status `refunded`, `refunded: 300`. A second refund of 300 and one of 400 each returned 400 `invalid_request`, "Payment is already refunded.". The payment ended with `refunded: 300` |
+| R3 | A declining card and its token | Confirmed | The insufficient-funds Visa with `save_card: true`, emulator result `AUTHENTICATED`: payment `failed`, "INSUFFICIENT FUNDS", token `inactive`; a charge on it returned 400 `invalid_request_error`, "The token <id> is invalid.". The same card through `POST /v1/tokens`: the verification step ended in a failed payment with the same message and the token is `inactive` |
+| R4 | A failed charge on a token that is already active | New: the token stays active | A charge on the active token of R1 with `source["3ds"]: true`, emulator result `UNAUTHENTICATED`: payment `failed`, "3DS: Card authentication declined.". The token was still `active` and the next plain charge on it returned `paid` |
+
+Limit of R4: the failure was a 3-D Secure refusal. An issuer decline on an active token could not be produced, because the sandbox decides the outcome from the card number and a declining card never yields an active token (R3).
+
+What follows:
+
+- R4 answers open question 10 of the first spike in part: a token turns `inactive` when the payment or verification that creates it fails, not when a later charge on it fails. `payment-decline.ts` still stops the retries after a 3-D Secure refusal, because a background charge has no payer to answer the challenge.
+- R2 needs no answer from the provider. The product asks for one refund of the whole payment (`refundThroughProvider` in `settlements.ts` is the only caller of the adapter's `refund`), and the adapter turns the provider's refusal into `already_refunded`. A payment that was partly refunded outside the product is refused the remainder and ends in the operator's attention list.
+
 ## Provider facts applied in the code (2026-11-14)
 
 What the documentation and the two test runs established is now used by the control plane and the pay page. Closed by these changes:
@@ -180,7 +198,6 @@ What the documentation and the two test runs established is now used by the cont
 Still for the provider (not closed by code):
 
 1. Whether MOTO (`3ds: false`) is off on the live account, since the intent does not prevent it and the payment object proves no 3-D Secure step.
-2. Whether live accounts accept several partial refunds per payment (the sandbox allows exactly one).
-3. Whether a declined charge deactivates a saved token in live mode (the sandbox does, after a 3-D Secure failure and after a decline following a successful step).
-4. Which PCI self-assessment questionnaire applies to the embedded form.
-5. The names of the creation and update time filters of `GET /v1/payments`, and the live `meta` shape of the list (the adapter reads `meta.next_page`).
+2. Whether an issuer decline deactivates an already active saved token in live mode (the sandbox deactivates a token only when the payment or verification that creates it fails; see R3 and R4 of the re-run).
+3. Which PCI self-assessment questionnaire applies to the embedded form.
+4. The names of the creation and update time filters of `GET /v1/payments`, and the live `meta` shape of the list (the adapter reads `meta.next_page`).
