@@ -1,6 +1,6 @@
 # `liwan_orders` implementation plan
 
-> PR 1 of [the sales application design](../specs/2026-11-14-liwan-sales-design.md), which the owner approved on 2026-11-14. Status: built on 2026-11-14 in local commits on the branch `api-liwan-orders`, started before products PR 2 (#722) merged at the owner's request; nothing is pushed. The release-list copies and `docs/agents/repository-layout.md` are not done: another session holds them for #722, and they are synced after it merges (sections 5 and 9). Facts were first read on `origin/claude/products-service-pr2` at `366053b67` and rechecked on `origin/main` at `09ec47795` and on #722 at `817f64623` before the work started.
+> PR 1 of [the sales application design](../specs/2026-11-14-liwan-sales-design.md), which the owner approved on 2026-11-14. Status: built on 2026-11-14 on the branch `api-liwan-orders`, started before products PR 2 (#722) merged at the owner's request. After #722 merged (`aa678e8ce`), `origin/main` was merged into the branch, the release-list copies were synced and `docs/agents/repository-layout.md` got its entry; the checks of section 9 were rerun on that merged tree. Facts were first read on `origin/claude/products-service-pr2` at `366053b67` and rechecked on `origin/main` at `09ec47795` and on #722 at `817f64623` before the work started.
 
 ## 1. Goal
 
@@ -62,7 +62,7 @@ Server (one implementer). Files: `odoo-addons/liwan_orders/**`, `odoo-addons/liw
 - [x] Failing tests first for every line of "PR 1 proves" below, in `odoo-addons/liwan_orders/tests/`, discovered by `import_all_tests` in `tests/__init__.py`.
 - [x] The addon: manifest (D1), `models/sale_order_line.py` (D2, D8), `README.md`. No data file and no security file: it adds no model.
 - [x] Remove the copy of the rule from the payments factory (D5).
-- [ ] The orchestrator files. Done: `tools/arch_layers.json` and the closure test in `tools/test_module_closure.py`. Waiting for #722: the eight release-list copies, rewritten by `python3 -B tools/catalog_check.py --sync-release-copies`, and `docs/agents/repository-layout.md`. Until the sync, `tools/catalog_check.py` and its two tests fail on those copies.
+- [x] The orchestrator files: `tools/arch_layers.json`, the closure test in `tools/test_module_closure.py`, the eight release-list copies (rewritten by `python3 -B tools/catalog_check.py --sync-release-copies` after #722 merged; only `liwan_orders` joined each list) and `docs/agents/repository-layout.md`.
 - [x] `python3 -B tools/arch_policy.py`. The baseline does not change.
 
 ## 6. PR 1 proves
@@ -97,7 +97,7 @@ Each line is a test. The amounts use a product at 115 with the 15% sale tax, as 
 | A caller writes `tax_ids` directly and the rule is bypassed | D6. The sales serializer test is a line of sales PR 2 |
 | Products PR 2 changes the files this plan read | The first task rechecks every fact on `origin/main` |
 | Odoo renames the compute | D7 |
-| An existing database is upgraded with `-u` alone and runs payments without `liwan_orders` | D9. The release-list copies must be synced before this pull request is published, and a development database is updated with `-i liwan_orders` |
+| An existing database is upgraded with `-u` alone and runs payments without `liwan_orders` | D9. The release-list copies name `liwan_orders` (synced after #722), and a development database is updated with `-i liwan_orders` |
 | Sales PR 2 adds a route that copies an order | D8: that route recomputes the taxes of the copy, with a test for an order issued before a registration |
 
 ## 9. Evidence status
@@ -109,7 +109,7 @@ Each line is a test. The amounts use a product at 115 with the 15% sale tax, as 
 | The stock compute, its dependencies and the writable `tax_ids` | Read in Odoo 19 source and run through the tests of `liwan_orders` |
 | An override that declares no dependency adds none | Read in `odoo/orm/fields.py:584-598` and run: the registration tests of section 6 pass |
 | The rank rule, the two sides of a bridge and what the isolation check watches | Run on 2026-11-14: `tools/arch_policy.py` passes with and without `--base origin/main` |
-| A rank-3 addon that installs itself passes the isolation checks and the module closure | Run locally on 2026-11-14: `deploy/ci/odoo-bridge.sh` for both payment bridges installs `liwan_orders` without naming it and passes; `deploy/ci/odoo-app-standalone.sh liwan_api` installs none; the closure test passes. Not run in GitHub CI: nothing is pushed |
+| A rank-3 addon that installs itself passes the isolation checks and the module closure | Run locally on 2026-11-14 on the tree merged with `origin/main` at `aa678e8ce`: `deploy/ci/odoo-bridge.sh` installs `liwan_orders` without naming it and passes for `liwan_inbox_payments` (131 tests) and `liwan_appointments_payments` (43 tests); the closure test passes inside the tools suite (1507 tests, 0 failed). `deploy/ci/odoo-app-standalone.sh liwan_api` installs none (run before the merge, on `3db75217a`). GitHub CI is the pull request's `ci-result` |
 | The amounts 115 and 132.25 | Run in the tests of `liwan_orders` on 2026-11-14 |
-| Everything in sections 4 to 6 | Built in local commits on `api-liwan-orders`, except the release-list copies and `docs/agents/repository-layout.md`; not pushed, not merged |
-| The release-list copies name `liwan_orders` | Not done; `tools/catalog_check.py` fails on them until the sync after #722 |
+| Everything in sections 4 to 6 | Built on `api-liwan-orders`. On the merged tree, `npm run test:odoo -- --addons liwan_orders,liwan_payments,liwan_inbox_payments,liwan_appointments_payments` reports 360 tests, 0 failed, 0 errors |
+| The release-list copies name `liwan_orders` | Done after #722 merged; `tools/catalog_check.py` reports `CATALOG_OK solutions=4` |

@@ -1,6 +1,6 @@
 # Sales application design
 
-> Status: design written on 2026-11-14 at the owner's request ("build sales completely, on the Odoo module"). The owner decided two things in that request: the application is built now, and it stands on stock Odoo `sale`. The owner approved the eight points of section 9 the same day, each as recommended. PR 1 (`liwan_orders`) is built in local commits on the branch `api-liwan-orders` and is not pushed; nothing else here is built. Facts were read on `origin/main` at `65cb936d0`, after products PR 1 merged, and in the Odoo 19 checkout; none was run (section 10). The owner moved the draft from the Codex session to a Claude session the same day; this file supersedes the copy on `codex/sales-build` (`f3e819604`).
+> Status: design written on 2026-11-14 at the owner's request ("build sales completely, on the Odoo module"). The owner decided two things in that request: the application is built now, and it stands on stock Odoo `sale`. The owner approved the eight points of section 9 the same day, each as recommended. PR 1 (`liwan_orders`) is built on the branch `api-liwan-orders`; nothing else here is built. Facts were read on `origin/main` at `65cb936d0`, after products PR 1 merged, and in the Odoo 19 checkout; none was run (section 10). The owner moved the draft from the Codex session to a Claude session the same day; this file supersedes the copy on `codex/sales-build` (`f3e819604`).
 
 ## 1. Problem
 
@@ -119,13 +119,13 @@ The owner approved each point as written here.
 | The order factory, its elevation, its two callers and the payments dependency on `sale` | Read on `origin/main` at `65cb936d0`; not run |
 | A rank-3 addon cannot depend on a rank-3 addon, and `liwan_payments` is rank 3 | Read in `tools/arch_policy.py:168-177` and `tools/arch_layers.json`; the policy was not run on a `liwan_orders` manifest |
 | The bridge job accepts a bridge with exactly two sides, so a payment bridge cannot name a third LiwanOS module | Read in `tools/app_isolation.py` and `deploy/ci/odoo-bridge.sh` on `origin/claude/products-service-pr2` at `366053b67`; not run |
-| A rank-3 service that installs itself passes the isolation checks and the module closure | Run locally on 2026-11-14 on the branch `api-liwan-orders`: both payment bridge stages and the foundation standalone stage pass, and the closure test passes. Not run in GitHub CI: the branch is not pushed |
+| A rank-3 service that installs itself passes the isolation checks and the module closure | Run locally on 2026-11-14 on the branch `api-liwan-orders` merged with `origin/main` at `aa678e8ce`: both payment bridge stages pass and the closure test passes; the foundation standalone stage passed before that merge. GitHub CI is the `ci-result` of the pull request of PR 1 |
 | The tax rule on the stock compute holds through a staff edit and for an online order | Run on a scratch database on 2026-11-14: the tests of `liwan_orders` and the unchanged payments VAT tests pass. A copied order needed a second override, `copy_data`, for an unregistered establishment ([plan](../plans/2026-11-14-liwan-orders.md), D8) |
 | Stock puts the order line's product on the invoice line, and no file of `liwan_finance` outside its tests names a product | Read in Odoo 19 source and on `origin/main` at `65cb936d0`; not run |
 | Stock refuses a company on a product that another company has sold | Read in Odoo 19 source; not run |
 | Stock states, `locked`, `validity_date`, `require_signature`, `prepayment_percent`, `portal.mixin` on `sale.order`, the down-payment wizard | Read in Odoo 19 source; not run |
 | `sale_management` holds quotation templates and depends on `sale` and `digest` | Read in its manifest and models folder; not run |
-| Products PR 1 is merged (#711, `65cb936d0`); PR 2 is in progress on `claude/products-service-pr2`; PR 3 to PR 6 are not started | Read from Git on 2026-11-14 |
+| Products PR 1 is merged (#711, `65cb936d0`); PR 2 is merged (#722, `aa678e8ce`); PR 3 to PR 6 are not started | Read from Git on 2026-11-14 |
 | A role may imply the stock sales groups without opening stock routes | Inferred from CRM; the first test of PR 2 |
 | The public page can authorize by the order's access token alone | Inferred from the public namespace rule; the first test of PR 3 |
-| Everything in sections 3 to 8 | Design. PR 1 is built locally on `api-liwan-orders`, not pushed and not merged; PR 2 to PR 6 are not built |
+| Everything in sections 3 to 8 | Design. PR 1 is built on `api-liwan-orders` and checked locally on the tree merged with `origin/main`; PR 2 to PR 6 are not built |
