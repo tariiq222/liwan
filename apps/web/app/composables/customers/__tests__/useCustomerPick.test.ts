@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { customerKeys, isCustomerListing } from '../customerKeys'
 import { CUSTOMER_PICK_ENDPOINT, customerPickSearch } from '../useCustomerPick'
 
 describe('customerPickSearch', () => {
@@ -10,5 +11,14 @@ describe('customerPickSearch', () => {
 
   it('keeps the results of different searches apart in the cache', () => {
     expect(customerPickSearch('a').key).not.toEqual(customerPickSearch('b').key)
+  })
+})
+
+describe('isCustomerListing', () => {
+  it('refreshes the lists and the picker after a write, not a record or the settings', () => {
+    expect(isCustomerListing({ queryKey: customerKeys.list({}) })).toBe(true)
+    expect(isCustomerListing({ queryKey: customerPickSearch('a').key })).toBe(true)
+    expect(isCustomerListing({ queryKey: customerKeys.detail(1) })).toBe(false)
+    expect(isCustomerListing({ queryKey: customerKeys.settings(1) })).toBe(false)
   })
 })

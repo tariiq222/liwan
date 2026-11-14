@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { CustomerPickListSchema } from '@liwan/contracts'
+import { customerKeys } from './customerKeys'
 
 export const CUSTOMER_PICK_ENDPOINT = '/api/v1/customers/pick'
 
@@ -8,7 +9,7 @@ const PICK_LIMIT = 50
 
 /** The cache key and request query of one customer search. */
 export function customerPickSearch(q: string) {
-  return { key: ['customers', 'pick', q] as const, query: { q: q || undefined, limit: PICK_LIMIT } }
+  return { key: customerKeys.pick(q), query: { q: q || undefined, limit: PICK_LIMIT } }
 }
 
 /** The active customers a pick holder may choose from, by name (an empty query lists them all). */
