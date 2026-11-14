@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import TransactionCase, tagged
 
+from .tenant_export_columns import COLUMNS
 from odoo.addons.liwan_api.tests.tenant_export_support import (
+    assert_columns_pinned,
     assert_contribution,
     column,
     rows_of,
@@ -21,4 +23,7 @@ class TestTasksTenantExport(TransactionCase):
         )
         tasks = datasets['tasks']
         self.assertIn(task.id, column(tasks, rows_of(tasks), 'id'))
-        self.assertTrue(tasks['attachments'])
+        self.assertTrue(tasks['files'])
+
+    def test_the_exported_columns_are_pinned(self):
+        assert_columns_pinned(self, COLUMNS)

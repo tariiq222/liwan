@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The bell row the requester gets when the tenant data export is ready to download.
+"""The bell row the requester gets when the tenant data export is ready to download, or has failed.
 
 The platform's own kind (no application feature). It is addressed to the one account that asked, and it stays listed only
 while that account still holds the export capability.
@@ -10,16 +10,18 @@ from odoo.tools import html2plaintext
 from odoo.addons.liwan_api.models.tenant_export_access import TENANT_EXPORT
 from odoo.addons.liwan_api.serializers.common import iso
 
-KIND = 'tenant.export_ready'
+KIND = 'tenant.export_result'
 EXPORT_MODEL = 'liwan.tenant.export'
-BODY = 'ملف بيانات منشأتك جاهز للتنزيل. يبقى متاحًا سبعة أيام ثم يُحذف.'
+READY_BODY = 'ملف بيانات منشأتك جاهز للتنزيل. يبقى متاحًا سبعة أيام ثم يُحذف.'
+FAILED_BODY = 'تعذّر تجهيز ملف بيانات منشأتك. أعد الطلب لاحقًا، وإن تكرر الأمر فتواصل مع الدعم.'
+DISK_BODY = 'لم يُجهَّز ملف بيانات منشأتك لأن مساحة التخزين الحرة غير كافية الآن. أعد الطلب لاحقًا.'
 
 
 class LiwanNotifyExportMessage(models.Model):
     _inherit = 'mail.message'
 
     liwan_notification_kind = fields.Selection(
-        selection_add=[(KIND, 'Tenant export ready')], ondelete={KIND: 'cascade'},
+        selection_add=[(KIND, 'Tenant export result')], ondelete={KIND: 'cascade'},
     )
 
 
@@ -57,8 +59,13 @@ class LiwanNotifyExportTypes(models.AbstractModel):
 class LiwanNotifyTenantExport(models.Model):
     _inherit = 'liwan.tenant.export'
 
-    def _liwan_notify_ready(self):
-        super()._liwan_notify_ready()
-        self.env['liwan.notify.service']._liwan_deliver(
-            EXPORT_MODEL, self.id, KIND, self.user_id.partner_id, BODY, key=f'{KIND}:{self.id}',
-        )
+    def _liwan_notify_outcome(self):
+        super()._liwan_notify_outcome()
+        requester = self._liwan_requester()
+        if not requester:
+            return
+        body = {'done': READY_BODY, 'failed': DISK_BODY if self.failure == 'insufficient_disk' else FAILED_BODY}.get(self.state)
+        if body:
+            self.env['liwan.notify.service']._liwan_deliver(
+                EXPORT_MODEL, self.id, KIND, requester.partner_id, body, key=f'{KIND}:{self.id}:{self.state}',
+            )

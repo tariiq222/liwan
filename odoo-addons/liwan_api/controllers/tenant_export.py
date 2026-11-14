@@ -1,10 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.http import Stream, request
+from odoo.http import content_disposition, request
 
 from .common import api_handler, requires_capability
 from odoo.addons.liwan_api.models.tenant_export import refuse
 from odoo.addons.liwan_api.models.tenant_export_access import TENANT_EXPORT
+from odoo.addons.liwan_api.models.tenant_export_stream import iter_zip
 from odoo.addons.liwan_api.serializers.tenant_export import (
     dump_export,
     dump_export_list,
@@ -25,7 +26,7 @@ class TenantExportController(http.Controller):
     @api_handler
     @requires_capability(TENANT_EXPORT)
     def list_exports(self):
-        return dump_export_list(request.env[MODEL]._liwan_recent())
+        return dump_export_list(*request.env[MODEL]._liwan_listing())
 
     @http.route('/api/v1/admin/tenant-export', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -40,11 +41,9 @@ class TenantExportController(http.Controller):
     @requires_capability(TENANT_EXPORT)
     def download_export(self, export_id):
         path, filename = request.env[MODEL]._liwan_download(export_id)
-        stream = Stream(
-            type='path', path=str(path), mimetype=ZIP_TYPE, download_name=filename, as_attachment=True,
-            conditional=False, etag=False, size=path.stat().st_size,
-        )
-        response = stream.get_response()
-        response.headers['Cache-Control'] = 'private, no-store'
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        return response
+        return request.make_response(iter_zip(path), headers=[
+            ('Content-Type', ZIP_TYPE),
+            ('Content-Disposition', content_disposition(filename)),
+            ('Cache-Control', 'private, no-store'),
+            ('X-Content-Type-Options', 'nosniff'),
+        ])

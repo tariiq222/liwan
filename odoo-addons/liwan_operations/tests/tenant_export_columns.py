@@ -1,0 +1,62 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""The columns each tenant export dataset of this addon writes, pinned.
+
+A field added to or removed from a model changes a dataset that derives its columns, and fails the test that compares them
+with this file until someone decides whether the new column belongs in an export a tenant takes away.
+"""
+COLUMNS = {
+    'operation_processes': (
+        'id',
+        'company_id',
+        'create_date',
+        'create_uid',
+        'description',
+        'execution_kind',
+        'name',
+        'purpose',
+        'revision',
+        'stage_approval_mode',
+        'state',
+        'write_date',
+        'write_uid',
+    ),
+    'operation_steps': (
+        'id',
+        'company_id',
+        'create_date',
+        'create_uid',
+        'name',
+        'process_id',
+        'reviewer_ids',
+        'reviewer_resolver',
+        'sequence',
+        'write_date',
+        'write_uid',
+    ),
+    'operation_requests': (
+        'id',
+        'company_id',
+        'create_date',
+        'create_uid',
+        'cycle',
+        'description',
+        'execution_count',
+        'execution_kind',
+        'hr_leave_id',
+        'name',
+        'participant_ids',
+        'process_id',
+        'process_name',
+        'process_revision',
+        'purpose',
+        'requester_id',
+        'revision',
+        'stage_approval_mode',
+        'stage_snapshot',
+        'state',
+        'target_ref',
+        'validation_status',
+        'write_date',
+        'write_uid',
+    ),
+}

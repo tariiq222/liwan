@@ -9,7 +9,12 @@ import openpyxl
 from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.liwan_api.serializers import xlsx_export
-from odoo.addons.liwan_api.serializers.xlsx_export import Sheet, sheet_name, xlsx_bytes
+from odoo.addons.liwan_api.serializers.xlsx_export import (
+    Sheet,
+    sheet_name,
+    write_xlsx,
+    xlsx_bytes,
+)
 
 
 def load(content, **kwargs):
@@ -122,3 +127,20 @@ class TestXlsxExport(TransactionCase):
         self.assertEqual(sheet.max_row, 100_001)
         last = next(iter(sheet.iter_rows(min_row=100_001, max_row=100_001, values_only=True)))
         self.assertEqual(last, (99_999, 'row 99999'))
+
+    def test_a_text_over_the_cell_limit_is_refused_or_handed_to_the_overflow_callback(self):
+        long_text = 'x' * 32_767
+        with self.assertRaises(ValueError):
+            xlsx_bytes([Sheet('Long', ['text'], [[long_text]])])
+        seen = []
+
+        def overflow(sheet, row, column, value):
+            seen.append((sheet, row, column, len(value)))
+            return 'see side file'
+
+        buffer = io.BytesIO()
+        write_xlsx(buffer, [Sheet('Long', ['id', 'text'], [[7, long_text], [8, 'short']])], on_overflow=overflow)
+        self.assertEqual(seen, [('Long', [7, long_text], 1, 32_767)])
+        rows = list(load(buffer.getvalue())['Long'].iter_rows(values_only=True))
+        self.assertEqual(rows[1:], [(7, 'see side file'), (8, 'short')])
+        self.assertTrue(xlsx_bytes([Sheet('Fits', ['text'], [['=' + 'y' * 32_764]])]))

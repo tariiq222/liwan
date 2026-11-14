@@ -23,8 +23,8 @@ class LiwanTenantExportLog(models.Model):
     kind = fields.Selection(
         [(KIND_REQUEST, 'Request'), (KIND_BUILT, 'Built'), (KIND_DOWNLOAD, 'Download')], required=True, readonly=True,
     )
-    user_id = fields.Many2one('res.users', string='Who', required=True, readonly=True, ondelete='restrict',
-                              default=lambda self: self.env.user)
+    # The account is an id with no foreign key: removing the account is never blocked, and the row holds no name.
+    actor_id = fields.Integer(string='Who', required=True, readonly=True, default=lambda self: self.env.user.id)
     counts = fields.Json(readonly=True)
 
     def write(self, vals):

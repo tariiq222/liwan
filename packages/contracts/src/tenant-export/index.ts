@@ -4,14 +4,23 @@ const CountSchema = z.number().int().nonnegative()
 
 export const TENANT_EXPORT_STATES = ['requested', 'running', 'done', 'failed', 'expired'] as const
 
-/** What a finished export holds: rows per dataset key, the number of files and of models left out of it. */
+/** What a finished export holds: rows per dataset key, the files and their bytes, and the cells moved to side files. */
 export const TenantExportCountsSchema = z.object({
   rows: z.record(z.string(), CountSchema),
   files: CountSchema,
-  not_included: CountSchema,
+  file_bytes: CountSchema,
+  overflow_cells: CountSchema,
 }).strict()
 
-/** One run of the tenant data export (`GET`/`POST /api/v1/tenant-export`). */
+export const TENANT_EXPORT_FAILURES = ['insufficient_disk', 'build_failed', 'timeout', 'requester_not_authorized'] as const
+
+/** A fixed failure code and its message; the exception text stays in the server log. */
+export const TenantExportFailureSchema = z.object({
+  code: z.enum(TENANT_EXPORT_FAILURES),
+  message: z.string().min(1),
+}).strict()
+
+/** One run of the tenant data export (`GET`/`POST /api/v1/admin/tenant-export`). */
 export const TenantExportSchema = z.object({
   id: z.number().int().positive(),
   state: z.enum(TENANT_EXPORT_STATES),
@@ -19,17 +28,24 @@ export const TenantExportSchema = z.object({
   started_at: z.iso.datetime().nullable(),
   finished_at: z.iso.datetime().nullable(),
   expires_at: z.iso.datetime().nullable(),
-  failure: z.string().nullable(),
+  failure: TenantExportFailureSchema.nullable(),
+  steps_done: CountSchema,
+  steps_total: CountSchema,
   size_bytes: CountSchema,
   counts: TenantExportCountsSchema.nullable(),
   downloadable: z.boolean(),
 }).strict()
 
-/** The latest runs, newest first, and how many days a finished archive stays downloadable. */
+/**
+ * The latest ten runs, newest first, with the real count of runs, the time the next request is possible (`null` now),
+ * and how long an archive stays downloadable.
+ */
 export const TenantExportListSchema = z.object({
-  items: z.array(TenantExportSchema),
+  items: z.array(TenantExportSchema).max(10),
   total: CountSchema,
+  next_request_at: z.iso.datetime().nullable(),
   retention_days: z.number().int().positive(),
+  cooldown_hours: z.number().int().positive(),
 }).strict()
 
 /** The request takes no field: the export always covers the whole tenant. */

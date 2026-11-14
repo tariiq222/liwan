@@ -9,7 +9,11 @@ def datasets_by_key(env):
 
 def rows_of(dataset):
     """Every row of a dataset as a list, read the way the archive builder reads it."""
-    return [row for batch in dataset['batches']() for row in batch]
+    out, last, done = [], 0, False
+    while not done:
+        rows, last, done = dataset['rows'](last, 1000)
+        out += rows
+    return out
 
 
 def column(dataset, rows, name):
@@ -31,3 +35,14 @@ def assert_contribution(case, keys, required=None):
         for name in (required or {}).get(key, ()):
             case.assertIn(name, dataset['header'], key)
     return datasets
+
+
+def assert_columns_pinned(case, columns):
+    """Every dataset of ``columns`` writes exactly the pinned columns, so a new field is a decision, not a leak."""
+    datasets = datasets_by_key(case.env)
+    for key, pinned in columns.items():
+        case.assertIn(key, datasets)
+        case.assertEqual(
+            datasets[key]['header'], list(pinned),
+            f'{key}: its columns changed; decide whether the field belongs in the export, then update tenant_export_columns.py',
+        )

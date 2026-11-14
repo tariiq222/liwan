@@ -14,14 +14,18 @@ from odoo import api, models
 from odoo.tools import html2plaintext
 
 BATCH_ROWS = 500
+# Rows or records handled by one resumable build step; a step is committed before the next one starts.
+CHUNK_ROWS = 20_000
+FILE_RECORDS = 100
 # A field whose name says it holds a secret is never exported, whatever model it sits on.
 SENSITIVE_NAME = re.compile(
     r'(password|passwd|secret|token|api_?key|totp|hash|signature|credential|oauth|private_key|access_key|session|_enc$)',
 )
 # Models whose name says they hold pay or compensation data: behind dedicated capabilities, never in this export.
 COMPENSATION_NAME = re.compile(r'(payroll|payslip|salary|gosi|\.wps|end_of_service|compensation)')
+# A binary is a file, not a cell; a one2many is the other side of a relation, exported in the dataset that owns it.
 UNEXPORTED_TYPES = frozenset({'binary', 'image'})
-DATASET_KEYS = frozenset({'app', 'key', 'title', 'models', 'header', 'batches', 'attachments'})
+DATASET_KEYS = frozenset({'app', 'key', 'title', 'models', 'header', 'rows', 'files', 'filter'})
 
 REASON_NOT_COVERED = 'not_covered'
 REASON_CREDENTIALS = 'credentials'
@@ -47,7 +51,7 @@ def exportable_fields(model, exclude=()):
     """The stored, plain-data field names of ``model`` (``id`` first), minus secrets and what ``exclude`` names."""
     names = [
         name for name, field in model._fields.items()
-        if field.store and field.type not in UNEXPORTED_TYPES and not field.groups and not field.company_dependent
+        if field.store and field.type not in UNEXPORTED_TYPES and field.type != 'one2many' and not field.groups and not field.company_dependent
         and not SENSITIVE_NAME.search(name) and name not in exclude and name != 'id'
     ]
     return ['id', *sorted(names)]
@@ -74,25 +78,13 @@ def cell(record, name):
     return value
 
 
-def record_batches(env, model_name, domain, batch=BATCH_ROWS):
-    """The records of ``model_name`` (archived included) in id order, ``batch`` at a time; memory stays one batch."""
-    model = env[model_name].with_context(active_test=False)
-    last = 0
-    while True:
-        records = model.search([*domain, ('id', '>', last)], order='id', limit=batch)
-        if not records:
-            return
-        yield records
-        last = records[-1].id
-        env.invalidate_all()
-
-
-def model_dataset(env, app, key, title, model_name, *, fields=None, exclude=(), domain=(), attachments=None, extra_models=()):
+def model_dataset(env, app, key, title, model_name, *, fields=None, exclude=(), domain=(), scope=None, attachments=None, extra_models=()):
     """A dataset of one model: ``fields`` (default every exportable stored field) as columns, one row per record.
 
-    ``attachments`` is ``True`` for the files attached to the records (``ir.attachment`` of that model and record,
-    never a binary field), or a callable ``records -> [(record id, attachment)]`` when the files hang elsewhere.
-    ``extra_models`` names further models the dataset covers, so the not-included manifest does not list them.
+    ``domain`` limits the rows and then ``scope`` must say so in words: the manifest repeats it with the exported row
+    count next to the number of rows the model holds. ``attachments`` is ``True`` for the files attached to the records
+    (``ir.attachment`` of that model and record, never a binary field), or a callable ``records -> [(record id,
+    attachment)]`` when the files hang elsewhere. ``extra_models`` names further models the dataset covers.
     """
     model = env[model_name]
     if model._abstract or model._transient:
@@ -103,10 +95,25 @@ def model_dataset(env, app, key, title, model_name, *, fields=None, exclude=(), 
     if missing:
         msg = f'tenant export dataset {key!r}: {model_name} has no field {missing}'
         raise ValueError(msg)
+    if domain and not scope:
+        msg = f'tenant export dataset {key!r} filters rows and must state its scope'
+        raise ValueError(msg)
+    domain = list(domain)
 
-    def batches():
-        for records in record_batches(env, model_name, list(domain)):
-            yield [[cell(record, name) for name in names] for record in records]
+    def page(after, limit):
+        """``(records, last id, done)``: up to ``limit`` records after id ``after``; ``done`` when none follow."""
+        records = env[model_name].with_context(active_test=False).search(
+            [*domain, ('id', '>', after)], order='id', limit=limit,
+        )
+        return records, (records[-1].id if records else after), len(records) < limit
+
+    def rows(after, limit):
+        out, last, done = [], after, False
+        while len(out) < limit and not done:
+            records, last, done = page(last, min(BATCH_ROWS, limit - len(out)))
+            out += [[cell(record, name) for name in names] for record in records]
+            env.invalidate_all()
+        return out, last, done
 
     if attachments is True:
         def attachments(records):
@@ -115,13 +122,14 @@ def model_dataset(env, app, key, title, model_name, *, fields=None, exclude=(), 
                 ('type', '=', 'binary'),
             ], order='id')]
 
-    def file_batches():
-        for records in record_batches(env, model_name, list(domain)):
-            yield attachments(records)
+    def files(after, limit):
+        records, last, done = page(after, limit)
+        return attachments(records), last, done
 
     return {
         'app': app, 'key': key, 'title': title, 'models': (model_name, *extra_models), 'header': names,
-        'batches': batches, 'attachments': file_batches if attachments else None,
+        'rows': rows, 'files': files if attachments else None,
+        'filter': {'model': model_name, 'domain': domain, 'scope': scope} if domain else None,
     }
 
 
@@ -130,8 +138,10 @@ class LiwanTenantExportHooks(models.AbstractModel):
 
     * ``_liwan_export_datasets()``: a list of dataset dicts with the keys of ``DATASET_KEYS``: ``app`` (one workbook per
       app), ``key`` (unique), ``title`` (the sheet name), ``models`` (every model the dataset covers), ``header``,
-      ``batches`` (a callable returning an iterator of lists of rows) and ``attachments`` (``None``, or a callable
-      returning an iterator of batches, each a list of ``(record id, attachment)`` pairs).
+      ``rows(after, limit)`` and ``files(after, limit)`` (``None`` when the dataset has no files). Both read in id order
+      after the cursor ``after`` and answer ``(rows or (record id, attachment) pairs, last id, done)``, so the build can
+      stop after any call and resume from ``last id``. ``filter`` is ``None`` or ``{model, domain, scope}`` for a dataset
+      that holds only part of its model.
     * ``_liwan_export_technical_models()``: ``{model: reason code}`` of this addon's models that never belong in an
       export, each with its reason.
     """

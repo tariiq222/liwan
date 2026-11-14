@@ -22,6 +22,8 @@ WORKBOOK_OPTIONS = {
     'nan_inf_to_errors': True,
 }
 MAX_ROWS = 1_048_576
+# A spreadsheet cell holds at most this many characters; xlsxwriter cuts a longer string and only returns an error code.
+MAX_CELL_CHARS = 32_767
 SHEET_NAME_MAX = 31
 FORBIDDEN_SHEET_CHARS = re.compile(r'[\[\]:*?/\\]')
 DATE_FORMAT = 'yyyy-mm-dd'
@@ -46,12 +48,14 @@ def sheet_name(name):
     return cleaned[:SHEET_NAME_MAX] or 'Sheet'
 
 
-def write_xlsx(target, sheets, right_to_left=False):
+def write_xlsx(target, sheets, right_to_left=False, on_overflow=None):
     """Write ``sheets`` to ``target`` (a path or a binary stream), in the order given.
 
     ``right_to_left`` mirrors every sheet for Arabic. Text is made formula-safe by ``safe_cell``; ``bool``, numbers,
     ``date`` and ``datetime`` are typed cells; ``None`` is an empty cell. Any other value is a ``TypeError`` and a
-    sheet longer than Excel allows is a ``ValueError``: nothing is cut silently.
+    sheet longer than Excel allows is a ``ValueError``: nothing is cut silently. A text longer than a cell holds is
+    handed to ``on_overflow(sheet_name, row, column, value)``, which stores it elsewhere and returns the text to write
+    in its place; without that callback it is a ``ValueError``.
     """
     workbook = xlsxwriter.Workbook(target, WORKBOOK_OPTIONS)
     formats = {
@@ -67,7 +71,7 @@ def write_xlsx(target, sheets, right_to_left=False):
                 msg = f'two sheets are named {name!r} once made valid for Excel (names are case-insensitive)'
                 raise ValueError(msg)
             seen.add(name.lower())
-            _write_sheet(workbook.add_worksheet(name), sheet, formats, right_to_left)
+            _write_sheet(workbook.add_worksheet(name), sheet, formats, right_to_left, on_overflow)
     finally:
         workbook.close()
 
@@ -79,7 +83,7 @@ def xlsx_bytes(sheets, right_to_left=False):
     return buffer.getvalue()
 
 
-def _write_sheet(worksheet, sheet, formats, right_to_left):
+def _write_sheet(worksheet, sheet, formats, right_to_left, on_overflow):
     if right_to_left:
         worksheet.right_to_left()
     for column, title in enumerate(sheet.header):
@@ -89,7 +93,13 @@ def _write_sheet(worksheet, sheet, formats, right_to_left):
         if index >= MAX_ROWS:
             msg = f'sheet {worksheet.get_name()!r} has more rows than a spreadsheet holds ({MAX_ROWS})'
             raise ValueError(msg)
+        row = list(row)
         for column, value in enumerate(row):
+            if isinstance(value, str) and len(value) >= MAX_CELL_CHARS:
+                if on_overflow is None:
+                    msg = f'sheet {worksheet.get_name()!r} row {index} column {column} holds {MAX_CELL_CHARS} characters or more (the formula guard may add one)'
+                    raise ValueError(msg)
+                value = on_overflow(worksheet.get_name(), row, column, value)
             _write_cell(worksheet, index, column, value, formats)
 
 
@@ -109,7 +119,11 @@ def _write_cell(worksheet, row, column, value, formats):
             worksheet.write_number(row, column, value)
     elif isinstance(value, str):
         # A phone in international form is only digits after its plus sign, so it runs nothing (as phone_cell).
-        worksheet.write_string(row, column, value if E164.fullmatch(value) else safe_cell(value))
+        text = value if E164.fullmatch(value) else safe_cell(value)
+        if len(text) > MAX_CELL_CHARS:
+            msg = f'a text of {len(text)} characters does not fit a spreadsheet cell once made formula-safe'
+            raise ValueError(msg)
+        worksheet.write_string(row, column, text)
     else:
         msg = f'cannot write a {type(value).__name__} to a spreadsheet cell'
         raise TypeError(msg)

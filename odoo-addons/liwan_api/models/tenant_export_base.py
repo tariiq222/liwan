@@ -9,11 +9,13 @@ from .tenant_export_hooks import (
     REASON_RUNTIME,
     cell,
     model_dataset,
-    record_batches,
 )
 
 APP = 'base'
 USER_FIELDS = ('id', 'login', 'name', 'email', 'active', 'company_id', 'company_ids', 'lang', 'tz', 'create_date', 'login_date')
+USERS_SCOPE = 'Only the tenant accounts: not the vendor support accounts and not the public user.'
+BRANCH_FIELDS = ('id', 'company_id', 'branch_uid', 'state', 'read_only', 'create_date')
+ASSIGNMENT_FIELDS = ('id', 'user_id', 'role_id', 'company_id', 'create_date')
 ROLE_FIELDS = (
     'id', 'key', 'name_ar', 'name_en', 'description', 'type', 'active', 'protected', 'assignable', 'company_id',
 )
@@ -27,18 +29,26 @@ class LiwanTenantExportBase(models.AbstractModel):
         return [
             *super()._liwan_export_datasets(),
             model_dataset(self.env, APP, 'companies', 'Companies', 'res.company'),
-            model_dataset(self.env, APP, 'branches', 'Branches', 'liwan.tenant.branch'),
+            model_dataset(self.env, APP, 'branches', 'Branches', 'liwan.tenant.branch', fields=BRANCH_FIELDS),
             self._liwan_export_users(),
             self._liwan_export_roles(),
-            model_dataset(self.env, APP, 'role_assignments', 'Role assignments', 'liwan.access.assignment'),
+            model_dataset(
+                self.env, APP, 'role_assignments', 'Role assignments', 'liwan.access.assignment',
+                fields=ASSIGNMENT_FIELDS, domain=[('user_id', 'not in', self._liwan_export_hidden_user_ids())], scope=USERS_SCOPE,
+            ),
         ]
 
     @api.model
+    def _liwan_export_hidden_user_ids(self):
+        """The vendor's support accounts and the public user: never part of the tenant's people."""
+        return [*self.env['liwan.entitlement.service']._liwan_excluded_user_ids(), self.env.ref('base.public_user').id]
+
+    @api.model
     def _liwan_export_users(self):
-        """The accounts of the tenant: identity and state only, and none of the vendor's own support accounts."""
-        hidden = [*self.env['liwan.entitlement.service']._liwan_excluded_user_ids(), self.env.ref('base.public_user').id]
+        """The accounts of the tenant: identity and state only (never a hash, session, token or key)."""
         return model_dataset(
-            self.env, APP, 'users', 'Users', 'res.users', fields=USER_FIELDS, domain=[('id', 'not in', hidden)],
+            self.env, APP, 'users', 'Users', 'res.users', fields=USER_FIELDS,
+            domain=[('id', 'not in', self._liwan_export_hidden_user_ids())], scope=USERS_SCOPE,
         )
 
     @api.model
@@ -46,16 +56,14 @@ class LiwanTenantExportBase(models.AbstractModel):
         """Roles with the keys of their permissions, so the file says what each role may do."""
         env = self.env
 
-        def batches():
-            for roles in record_batches(env, 'liwan.access.role', []):
-                yield [
-                    [*(cell(role, name) for name in ROLE_FIELDS), ','.join(sorted(role.permission_ids.mapped('key')))]
-                    for role in roles
-                ]
+        def rows(after, limit):
+            roles = env['liwan.access.role'].with_context(active_test=False).search([('id', '>', after)], order='id', limit=limit)
+            out = [[*(cell(role, name) for name in ROLE_FIELDS), ','.join(sorted(role.permission_ids.mapped('key')))] for role in roles]
+            return out, (roles[-1].id if roles else after), len(roles) < limit
 
         return {
             'app': APP, 'key': 'roles', 'title': 'Roles', 'models': ('liwan.access.role',),
-            'header': [*ROLE_FIELDS, 'permission_keys'], 'batches': batches, 'attachments': None,
+            'header': [*ROLE_FIELDS, 'permission_keys'], 'rows': rows, 'files': None, 'filter': None,
         }
 
     @api.model

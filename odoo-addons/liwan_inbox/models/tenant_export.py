@@ -8,8 +8,73 @@ from odoo.addons.liwan_api.models.tenant_export_hooks import (
 )
 
 APP = 'inbox'
+# Channels and settings are explicit allowlists: a new field is not exported until someone decides it belongs in the export.
+# The provider's free-text error fields (last_error, analytics_error) are left out on purpose.
+CHANNEL_FIELDS = (
+    'id',
+    'name',
+    'kind',
+    'state',
+    'owner_company_id',
+    'department_id',
+    'phone_number_id',
+    'business_account_id',
+    'app_id',
+    'display_phone_number',
+    'verified_name',
+    'requested_name',
+    'name_status',
+    'quality_rating',
+    'messaging_limit',
+    'throughput_level',
+    'account_state',
+    'account_restricted_until',
+    'last_event_at',
+    'welcome_enabled',
+    'welcome_idle_days',
+    'away_enabled',
+    'away_repeat_hours',
+    'csat_enabled',
+    'csat_question',
+    'csat_good',
+    'csat_neutral',
+    'csat_bad',
+    'paid_notice_enabled',
+    'paid_notice_text',
+    'commerce_cart_enabled',
+    'commerce_catalog_visible',
+    'commerce_phone',
+    'currency_code',
+    'tiktok_bound',
+    'tiktok_business_id',
+    'tiktok_username',
+    'tiktok_prompts_enabled',
+    'tiktok_questions_enabled',
+    'create_date',
+    'write_date',
+)
+SETTINGS_FIELDS = (
+    'id',
+    'assignment_policy',
+    'auto_close_hours',
+    'company_id',
+    'consent_policy',
+    'create_date',
+    'default_country_code',
+    'default_daily_cap',
+    'first_response_alert_minutes',
+    'hours_timezone',
+    'keyword_opt_out',
+    'report_retention_months',
+    'reports_built_timezone',
+    'retention_months',
+    'round_robin_user_id',
+    'start_reply',
+    'stop_reply',
+    'visibility_policy',
+    'write_date',
+)
 DATASETS = (
-    ('inbox_channels', 'Channels', 'liwan.inbox.channel', False),
     ('inbox_departments', 'Departments', 'liwan.inbox.department', False),
     ('inbox_tags', 'Tags', 'liwan.inbox.tag', False),
     ('inbox_canned_replies', 'Canned replies', 'liwan.inbox.canned.reply', False),
@@ -27,7 +92,6 @@ DATASETS = (
     ('inbox_audiences', 'Audiences', 'liwan.inbox.audience', False),
     ('inbox_hours_ranges', 'Hours ranges', 'liwan.inbox.hours.range', False),
     ('inbox_hours_holidays', 'Holidays', 'liwan.inbox.hours.holiday', False),
-    ('inbox_settings', 'Settings', 'liwan.inbox.settings', False),
 )
 
 
@@ -38,6 +102,8 @@ class LiwanInboxTenantExport(models.AbstractModel):
     def _liwan_export_datasets(self):
         return [
             *super()._liwan_export_datasets(),
+            model_dataset(self.env, APP, 'inbox_channels', 'Channels', 'liwan.inbox.channel', fields=CHANNEL_FIELDS),
+            model_dataset(self.env, APP, 'inbox_settings', 'Settings', 'liwan.inbox.settings', fields=SETTINGS_FIELDS),
             *(
                 model_dataset(self.env, APP, key, title, model, attachments=files)
                 for key, title, model, files in DATASETS

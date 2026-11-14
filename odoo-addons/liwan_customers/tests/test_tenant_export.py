@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import TransactionCase, tagged
 
+from .tenant_export_columns import COLUMNS
 from odoo.addons.liwan_api.tests.tenant_export_support import (
+    assert_columns_pinned,
     assert_contribution,
     column,
     rows_of,
@@ -32,10 +34,13 @@ class TestCustomersTenantExport(TransactionCase):
             'name': 'contract.txt', 'raw': b'x', 'res_model': 'res.partner', 'res_id': party.id,
         })
         dataset = assert_contribution(self, KEYS)['customers']
-        pairs = [pair for batch in dataset['attachments']() for pair in batch]
+        pairs, _last, _done = dataset['files'](0, 1000)
         self.assertIn((party.id, attachment), pairs)
 
     def test_the_privacy_log_and_tokens_are_named_as_not_exported(self):
         technical = self.env['liwan.tenant.export.hooks']._liwan_export_technical_models()
         self.assertEqual(technical['liwan.customers.privacy.token'], 'credentials')
         self.assertEqual(technical['liwan.customers.privacy.request'], 'log')
+
+    def test_the_exported_columns_are_pinned(self):
+        assert_columns_pinned(self, COLUMNS)
