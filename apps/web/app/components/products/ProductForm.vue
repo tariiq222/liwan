@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { PRODUCT_LIMITS, type Product, type ProductType } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { productManagedReason, productFormField, productAlertVisible, type ProductFormField } from '@/composables/products/productErrors'
-import { useProductManagedElsewhere } from '@/composables/products/productManagement'
+import { useNewProductManagedElsewhere, useProductManagedElsewhere } from '@/composables/products/productManagement'
 import { productCreateBody, productPatchBody, type ProductAbilities, type ProductDraft, type ProductImageChange } from '@/composables/products/productPayload'
 import { useCreateProduct, useUpdateProduct } from '@/composables/products/useProducts'
 import { useProductTaxChoices } from '@/composables/products/useProductTaxChoices'
@@ -20,7 +20,10 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const abilities = computed<ProductAbilities>(() => ({ manage: can('products.manage'), prices: can('products.prices.manage') }))
-const managedElsewhere = useProductManagedElsewhere(() => props.product)
+// A new product is refused before the user types when this session could not save it (a shared product in a branch).
+const ownerElsewhere = useProductManagedElsewhere(() => props.product)
+const newElsewhere = useNewProductManagedElsewhere(() => !props.product)
+const managedElsewhere = computed(() => props.product ? ownerElsewhere.value : newElsewhere.value)
 
 const name = ref('')
 const type = ref<ProductType>('service')
