@@ -1100,6 +1100,204 @@ class TestCommandLine(PipelineCase):
         self.assertIn('backup_pipeline:', stderr)
 
 
+class _ScriptedStore(FilesystemStore):
+    """A filesystem store with seams: a list hook, a ghost key, a page cap and a delete that may do nothing."""
+
+    def __init__(self, root, *, on_list=None, ghost=None, page=None, delete_is_noop=False, absent_is_success=False) -> None:
+        super().__init__(root)
+        self.on_list, self.ghost, self.page = on_list, ghost, page
+        self.delete_is_noop, self.absent_is_success = delete_is_noop, absent_is_success
+        self.list_calls = 0
+        self.ghost_listed = False
+
+    def list(self, prefix: str) -> list[str]:
+        self.list_calls += 1
+        if self.on_list is not None:
+            self.on_list(self, self.list_calls)
+        keys = super().list(prefix)
+        if self.ghost is not None and not self.ghost_listed and keys:
+            self.ghost_listed = True
+            keys = sorted([*keys, self.ghost])
+        return keys if self.page is None else keys[: self.page]
+
+    def delete(self, key: str) -> None:
+        if self.delete_is_noop:
+            return
+        if self.absent_is_success and not (self._root / key).is_file():
+            return
+        super().delete(key)
+
+
+class TestPurgeTenant(PipelineCase):
+    def put_tenant(self, tenant: str = TENANT, count: int = 2) -> list[str]:
+        keys = []
+        for index in range(count):
+            prefix = bp.artifact_prefix(tenant, 'hourly' if index % 2 == 0 else 'daily', datetime(2026, 11, 1 + index, tzinfo=timezone.utc))
+            for name in (bp.ARTIFACT_CIPHERTEXT_NAME, bp.CHECKSUMS_NAME, bp.MANIFEST_NAME):
+                self.store.put(prefix + name, b'x')
+                keys.append(prefix + name)
+        return keys
+
+    def purge(self, store=None, tenant: str = TENANT, settle: float = 30, sleeps=None) -> bp.PurgeReport:
+        sleeps = [] if sleeps is None else sleeps
+        return bp.purge_tenant(store or self.store, tenant, settle, sleep=sleeps.append)
+
+    def test_every_object_of_the_tenant_goes_and_other_prefixes_stay(self):
+        self.put_tenant()
+        self.put_tenant('acme2')
+        self.put_tenant('control-plane', 1)
+        sleeps: list[float] = []
+        report = self.purge(sleeps=sleeps)
+        self.assertEqual(self.store.list(f'{TENANT}/'), [])
+        self.assertEqual(len(self.store.list('acme2/')), 6)
+        self.assertEqual(len(self.store.list('control-plane/')), 3)
+        self.assertEqual((report.first_pass_deleted, report.second_pass_deleted, report.delete_errors, report.remaining), (6, 0, 0, 0))
+        self.assertEqual(sleeps, [30])
+        self.assertEqual(set(report.as_dict()), {'tenant', 'first_pass_deleted', 'second_pass_deleted', 'delete_errors', 'remaining'})
+
+    def test_the_newest_backup_of_each_kind_does_not_survive_a_purge(self):
+        self.put_artifact('hourly', datetime(2026, 11, 8, tzinfo=timezone.utc))
+        self.put_artifact('daily', datetime(2026, 11, 8, tzinfo=timezone.utc))
+        self.purge()
+        self.assertEqual(self.store.list(f'{TENANT}/'), [])
+
+    def test_an_empty_tenant_is_already_done(self):
+        report = self.purge()
+        self.assertEqual((report.first_pass_deleted, report.second_pass_deleted, report.remaining), (0, 0, 0))
+
+    def test_a_second_run_changes_nothing(self):
+        self.put_tenant()
+        self.purge()
+        self.assertEqual(self.purge().first_pass_deleted, 0)
+
+    def test_a_key_removed_by_someone_else_before_its_delete_does_not_fail_the_purge(self):
+        # The listing names a key that is already gone; this store raises when asked to delete it.
+        self.put_tenant()
+        ghost = f'{TENANT}/hourly/2026-11-09T000000Z/{bp.MANIFEST_NAME}'
+        store = _ScriptedStore(self.root / 'bucket', ghost=ghost)
+        report = self.purge(store)
+        self.assertEqual((report.delete_errors, report.remaining), (1, 0))
+        self.assertEqual(store.list(f'{TENANT}/'), [])
+
+    def test_a_store_that_treats_an_absent_key_as_success_is_handled(self):
+        self.put_tenant()
+        ghost = f'{TENANT}/hourly/2026-11-09T000000Z/{bp.MANIFEST_NAME}'
+        store = _ScriptedStore(self.root / 'bucket', ghost=ghost, absent_is_success=True)
+        report = self.purge(store)
+        self.assertEqual((report.delete_errors, report.remaining), (0, 0))
+        self.assertEqual(report.first_pass_deleted, 7)
+
+    def test_a_capture_that_uploads_during_the_settle_wait_is_removed_by_the_second_pass(self):
+        self.put_tenant()
+        late = bp.artifact_prefix(TENANT, 'hourly', datetime(2026, 11, 14, tzinfo=timezone.utc)) + bp.MANIFEST_NAME
+
+        def upload_while_waiting(_seconds: float) -> None:
+            self.store.put(late, b'late capture')
+
+        report = bp.purge_tenant(self.store, TENANT, 30, sleep=upload_while_waiting)
+        self.assertEqual((report.first_pass_deleted, report.second_pass_deleted, report.remaining), (6, 1, 0))
+        self.assertEqual(self.store.list(f'{TENANT}/'), [])
+
+    def test_a_key_that_appears_after_the_second_pass_fails_the_purge(self):
+        self.put_tenant()
+        late = f'{TENANT}/hourly/2026-11-14T000000Z/{bp.MANIFEST_NAME}'
+
+        def upload_before_the_final_listing(store, call: int) -> None:
+            # Calls: first pass 2, second pass 1, final listing 4th.
+            if call == 4:
+                FilesystemStore.put(store, late, b'too late')
+
+        store = _ScriptedStore(self.root / 'bucket', on_list=upload_before_the_final_listing)
+        with self.assertRaises(bp.PurgeIncompleteError) as caught:
+            self.purge(store)
+        self.assertEqual(caught.exception.report.remaining, 1)
+        self.assertEqual(store.list(f'{TENANT}/'), [late])
+
+    def test_a_store_that_does_not_delete_fails_instead_of_looping(self):
+        self.put_tenant()
+        store = _ScriptedStore(self.root / 'bucket', delete_is_noop=True)
+        with self.assertRaises(bp.PurgeIncompleteError) as caught:
+            self.purge(store)
+        self.assertEqual(caught.exception.report.remaining, 6)
+        self.assertLess(store.list_calls, 20)
+
+    def test_a_prefix_larger_than_one_listing_page_is_emptied(self):
+        self.put_tenant(count=7)
+        store = _ScriptedStore(self.root / 'bucket', page=4)
+        report = self.purge(store)
+        self.assertEqual((report.first_pass_deleted, report.remaining), (21, 0))
+        self.assertEqual(FilesystemStore.list(store, f'{TENANT}/'), [])
+
+    def test_a_listing_that_names_a_foreign_key_is_refused_before_any_delete(self):
+        class Foreign:
+            deleted: list[str] = []
+
+            def list(self, prefix: str) -> list[str]:
+                return [f'{prefix}a', 'other/b']
+
+            def delete(self, key: str) -> None:
+                self.deleted.append(key)
+
+        store = Foreign()
+        with self.assertRaises(bp.PipelineError):
+            bp.purge_tenant(store, TENANT, 0, sleep=lambda _s: None)
+        self.assertEqual(store.deleted, [])
+
+    def test_an_id_the_registry_could_not_have_issued_is_refused_before_the_store_is_touched(self):
+        class Untouchable:
+            def list(self, prefix: str) -> list[str]:
+                message = 'the store must not be listed'
+                raise AssertionError(message)
+
+            def delete(self, key: str) -> None:
+                message = 'the store must not be written'
+                raise AssertionError(message)
+
+        for tenant in ('', 'a/b', 'acme/', '../x', '/acme', 'Acme', '1acme', '-acme', ' acme', 'acme ', 'a' * 64,
+                       bp.CONTROL_PLANE_SOURCE, None, 7, 'a b', 'acme\x00'):
+            with self.subTest(tenant=tenant), self.assertRaises(bp.PipelineError):
+                bp.purge_tenant(Untouchable(), tenant, 0, sleep=lambda _s: None)
+
+    def test_a_bad_settle_time_is_refused(self):
+        for settle in (-1, float('nan'), float('inf'), 10**9, True, None, '5'):
+            with self.subTest(settle=settle), self.assertRaises(bp.PipelineError):
+                bp.purge_tenant(self.store, TENANT, settle, sleep=lambda _s: None)
+
+    def test_the_command_purges_and_prints_counts_only(self):
+        keys = self.put_tenant()
+        runner = Runner(fake_backup())
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = bp.main(['purge', '--tenant', TENANT, '--settle-seconds', '0', '--store-root', str(self.root / 'bucket')], runner=runner)
+        self.assertEqual(code, bp.EXIT_OK)
+        report = json.loads(stdout.getvalue())
+        self.assertEqual((report['status'], report['first_pass_deleted'], report['remaining']), ('purged', len(keys), 0))
+        self.assertNotIn(TENANT + '/', stdout.getvalue())
+
+    def test_the_command_refuses_the_control_plane_source_and_a_slash(self):
+        self.put_tenant('control-plane', 1)
+        for tenant in (bp.CONTROL_PLANE_SOURCE, 'a/b', ''):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with self.subTest(tenant=tenant), contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = bp.main(['purge', '--tenant', tenant, '--settle-seconds', '0', '--store-root', str(self.root / 'bucket')],
+                               runner=Runner(fake_backup()))
+            self.assertEqual(code, bp.EXIT_REFUSED)
+            self.assertIn('backup_pipeline:', stderr.getvalue())
+        self.assertEqual(len(self.store.list('control-plane/')), 3)
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            bp.main(['purge', '--control-plane', '--tenant', TENANT])
+
+    def test_the_command_exits_not_verified_when_objects_remain(self):
+        self.put_tenant()
+        stdout = io.StringIO()
+        with mock.patch.object(bp.s3_client, 'FilesystemStore', lambda root: _ScriptedStore(root, delete_is_noop=True)), \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()):
+            code = bp.main(['purge', '--tenant', TENANT, '--settle-seconds', '0', '--store-root', str(self.root / 'bucket')],
+                           runner=Runner(fake_backup()))
+        self.assertEqual(code, bp.EXIT_NOT_VERIFIED)
+        self.assertEqual((json.loads(stdout.getvalue())['status'], json.loads(stdout.getvalue())['remaining']), ('incomplete', 6))
+
+
 class _environment:
     """Set and clear environment variables for the duration of a test block."""
 

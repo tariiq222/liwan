@@ -52,6 +52,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -123,6 +124,14 @@ MANIFEST_KEY_ITERATIONS = 600_000
 MANIFEST_TAG_FIELD = 'authentication_tag'
 
 TENANT_RE = re.compile(r'^[a-z0-9][a-z0-9_-]{0,62}$')
+# The id format of a tenant in the published registry (apps/web/server/utils/tenantHostResolver.ts, `tenantPattern`).
+# A purge is stricter than a capture: it must never accept a name the registry could not have issued.
+REGISTRY_TENANT_RE = re.compile(r'^[a-z][a-z0-9_-]{0,62}$')
+# A capture may still be uploading when a tenant is retired. This is the wait between the two purge passes;
+# the control-plane runner passes its own value, this one only serves the command line.
+DEFAULT_PURGE_SETTLE_SECONDS = 300.0
+MAXIMUM_PURGE_SETTLE_SECONDS = 24 * 3600.0
+MAXIMUM_PURGE_ROUNDS = 10_000
 SHA256_RE = re.compile(r'^[0-9a-f]{64}$')
 
 KEEP_NEWEST = 'newest-of-kind'
@@ -320,6 +329,34 @@ class PruneReport:
             'kept': [{'key': action.key, 'reason': action.reason} for action in self.kept],
             'deleted': [{'key': action.key, 'reason': action.reason} for action in self.deleted],
         }
+
+
+@dataclass(frozen=True)
+class PurgeReport:
+    """What a tenant purge did: counts only, never a key."""
+
+    tenant: str
+    first_pass_deleted: int
+    second_pass_deleted: int
+    delete_errors: int
+    remaining: int
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            'tenant': self.tenant,
+            'first_pass_deleted': self.first_pass_deleted,
+            'second_pass_deleted': self.second_pass_deleted,
+            'delete_errors': self.delete_errors,
+            'remaining': self.remaining,
+        }
+
+
+class PurgeIncompleteError(PipelineError):
+    """The prefix still held objects after the second pass; nothing may claim the tenant's backups are gone."""
+
+    def __init__(self, report: PurgeReport) -> None:
+        super().__init__(f'purge incomplete: {report.remaining} object(s) remain under the tenant prefix')
+        self.report = report
 
 
 def _require(condition: bool, message: str) -> None:
@@ -766,6 +803,73 @@ def prune(
     return PruneReport(tenant=tenant, kept=tuple(kept), deleted=tuple(deleted))
 
 
+def _require_purgeable_tenant(tenant_id: str) -> str:
+    """The registry id of a retired tenant, or a refusal; nothing else may name a prefix to empty."""
+    _require(isinstance(tenant_id, str) and bool(tenant_id), 'a purge needs a tenant id')
+    _require('/' not in tenant_id, 'a tenant id never contains a slash')
+    _require(bool(REGISTRY_TENANT_RE.fullmatch(tenant_id)),
+             f'tenant id must match the registry format {REGISTRY_TENANT_RE.pattern}')
+    _require(tenant_id != CONTROL_PLANE_SOURCE, f'{CONTROL_PLANE_SOURCE!r} is the control plane backup source, never a tenant')
+    return tenant_id
+
+
+def _purge_pass(store: ObjectStore, prefix: str) -> tuple[int, int]:
+    """Delete everything listed under the prefix until a listing is empty or stops shrinking.
+
+    A store may answer a listing with one page; repeating until the listing is empty covers a prefix larger than
+    a page. A delete that fails (a store that raises for a key another process removed first) is counted, not
+    trusted: the caller's final listing decides whether the prefix is empty.
+    """
+    deleted = errors = 0
+    previous: list[str] | None = None
+    for _round in range(MAXIMUM_PURGE_ROUNDS):
+        keys = store.list(prefix)
+        _require(all(key.startswith(prefix) for key in keys), 'the store listed a key outside the tenant prefix')
+        if not keys or keys == previous:
+            # Empty, or the same keys again after a delete pass: the store is not deleting, so stop and let the
+            # final listing report what is left.
+            return deleted, errors
+        previous = keys
+        for key in keys:
+            try:
+                store.delete(key)
+            except s3_client.StorageError:
+                errors += 1
+            else:
+                deleted += 1
+    return deleted, errors
+
+
+def purge_tenant(
+    store: ObjectStore,
+    tenant_id: str,
+    settle_seconds: float,
+    *,
+    sleep: Callable[[float], object] = time.sleep,
+) -> PurgeReport:
+    """Delete every object under ``<tenant id>/``, wait, delete again, then require an empty prefix.
+
+    The second pass exists because a capture that was running when the tenant was retired may upload after the
+    first pass. Retention (:func:`prune`) always keeps the newest of each kind, so deleting a tenant's backups
+    is a separate operation with a separate command. Fails with :class:`PurgeIncompleteError` unless a final listing
+    is empty. Versioned or replicated buckets keep earlier versions this function cannot see.
+    """
+    _require_purgeable_tenant(tenant_id)
+    _require(isinstance(settle_seconds, (int, float)) and not isinstance(settle_seconds, bool)
+             and 0 <= settle_seconds <= MAXIMUM_PURGE_SETTLE_SECONDS,
+             f'settle seconds must be between 0 and {MAXIMUM_PURGE_SETTLE_SECONDS:.0f}')
+    prefix = f'{tenant_id}/'
+    first, first_errors = _purge_pass(store, prefix)
+    sleep(settle_seconds)
+    second, second_errors = _purge_pass(store, prefix)
+    remaining = store.list(prefix)
+    _require(all(key.startswith(prefix) for key in remaining), 'the store listed a key outside the tenant prefix')
+    report = PurgeReport(tenant_id, first, second, first_errors + second_errors, len(remaining))
+    if remaining:
+        raise PurgeIncompleteError(report)
+    return report
+
+
 def latest_artifact(store: ObjectStore, tenant: str) -> ArtifactRef | None:
     """The newest artifact of either kind, or ``None`` when the tenant has none.
 
@@ -963,6 +1067,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_source_arguments(retention)
     retention.add_argument('--now', help='override the current time, ISO 8601 (tests only)')
 
+    purge = commands.add_parser(
+        'purge',
+        help='delete every backup of a retired tenant (not the retention prune: nothing is kept)',
+    )
+    purge.add_argument('--tenant', required=True, help='the registry tenant id; the control plane source is refused')
+    purge.add_argument('--settle-seconds', type=float, default=DEFAULT_PURGE_SETTLE_SECONDS,
+                       help='the wait between the two passes, for a capture still uploading')
+
     freshness = commands.add_parser('age', help='report the age of the newest artifact against the RPO')
     _add_source_arguments(freshness)
     freshness.add_argument('--now', help='override the current time, ISO 8601 (tests only)')
@@ -971,7 +1083,7 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument('--record', required=True, type=Path)
     report.add_argument('--now', help='override the current time, ISO 8601 (tests only)')
 
-    for subparser in (take, retention, freshness):
+    for subparser in (take, retention, purge, freshness):
         subparser.add_argument('--store-root', type=Path, help='a filesystem store instead of a bucket')
     return parser
 
@@ -1072,6 +1184,12 @@ def _run_prune(args: argparse.Namespace, _runner: Callable[..., object]) -> int:
     return EXIT_OK
 
 
+def _run_purge(args: argparse.Namespace, _runner: Callable[..., object]) -> int:
+    report = purge_tenant(build_store(args.store_root, os.environ), args.tenant, args.settle_seconds)
+    _write_json({**report.as_dict(), 'status': 'purged'})
+    return EXIT_OK
+
+
 def newest_age(
     store: ObjectStore,
     source: str,
@@ -1115,9 +1233,12 @@ def main(
 ) -> int:
     """Run one subcommand; ``runner`` is the process seam the tests replace."""
     args = build_parser().parse_args(list(argv) if argv is not None else None)
-    handlers = {'capture': _run_capture, 'prune': _run_prune, 'age': _run_age, 'status': _run_status}
+    handlers = {'capture': _run_capture, 'prune': _run_prune, 'purge': _run_purge, 'age': _run_age, 'status': _run_status}
     try:
         return handlers[args.command](args, runner)
+    except PurgeIncompleteError as error:
+        _write_json({**error.report.as_dict(), 'status': 'incomplete'})
+        return EXIT_NOT_VERIFIED
     except (PipelineError, s3_client.StorageError) as error:
         # s3_client's message carries no credential; this line never adds one.
         sys.stderr.write(f'backup_pipeline: {error}\n')
