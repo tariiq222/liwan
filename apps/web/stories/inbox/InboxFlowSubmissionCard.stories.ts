@@ -5,7 +5,7 @@ import InboxFlowSubmissionCard from '../../app/components/inbox/InboxFlowSubmiss
 import { storyContext } from '../support/context'
 
 const submission = InboxFlowSubmissionSchema.parse({
-  id: 1, flow: { id: 1, name: 'طلب موعد' }, conversation_id: 1, contact: { id: 1, name: 'ليلى القحطاني' }, request_message_id: 40, message_id: 41, submitted_at: '2026-10-29T08:30:00Z',
+  id: 1, flow: { id: 1, name: 'طلب موعد' }, conversation_id: 1, contact: { id: 1, name: 'ليلى القحطاني', erased: false }, request_message_id: 40, message_id: 41, submitted_at: '2026-10-29T08:30:00Z',
   answers: [
     { key: 'full_name', label: 'الاسم الكامل', kind: 'text_input', value: 'ليلى القحطاني' },
     { key: 'phone', label: 'رقم الجوال', kind: 'text_input', value: '0500000001' },
@@ -52,7 +52,7 @@ export const UnknownForm: Story = {
     components: { InboxFlowSubmissionCard, SubCard },
     setup: () => ({
       unknown: InboxFlowSubmissionSchema.parse({
-        id: 2, flow: null, conversation_id: 1, contact: { id: 1, name: 'ليلى' }, request_message_id: null, message_id: 42, submitted_at: '2026-10-29T09:00:00Z',
+        id: 2, flow: null, conversation_id: 1, contact: { id: 1, name: 'ليلى', erased: false }, request_message_id: null, message_id: 42, submitted_at: '2026-10-29T09:00:00Z',
         answers: [{ key: 'rating', label: 'rating', kind: 'unknown', value: '5' }, { key: 'comment', label: 'comment', kind: 'unknown', value: '' }],
       }),
     }),

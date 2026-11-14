@@ -12,7 +12,7 @@ export const message = (overrides: Partial<InboxMessage>): InboxMessage => ({
 })
 
 export const order = (overrides: Partial<InboxOrder> = {}): InboxOrder => ({
-  id: 1, conversation_id: 3, channel: { id: 1, name: 'واتساب المتجر' }, contact: { id: 2, name: 'ليلى القحطاني' }, message_id: 9, state: 'cart', reference: null,
+  id: 1, conversation_id: 3, channel: { id: 1, name: 'واتساب المتجر' }, contact: { id: 2, name: 'ليلى القحطاني', erased: false }, message_id: 9, state: 'cart', reference: null,
   lines: [
     { id: 1, product_retailer_id: 'wv-101', catalog_item_id: 1, name: coffee.name, quantity: 2, cart_price: 51.75, unit_price: 51.75, currency: 'SAR', availability: 'in_stock' },
     { id: 2, product_retailer_id: 'wv-102', catalog_item_id: 2, name: pot.name, quantity: 1, cart_price: 138, unit_price: 138, currency: 'SAR', availability: 'in_stock' },

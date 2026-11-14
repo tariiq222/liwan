@@ -41,11 +41,11 @@ function seed() {
     tiktok_welcome_audit: 'approved', tiktok_questions_enabled: true, tiktok_prompts_enabled: true,
   }]
   const contacts = [
-    { id: 1, name: 'ليلى القحطاني', phone: '+966500000001', email: null },
-    { id: 2, name: 'فهد الدوسري', phone: '+966500000002', email: 'fahad@example.test' },
-    { id: 3, name: 'منى العتيبي', phone: '+966500000003', email: null },
-    { id: 4, name: 'خالد الشمري', phone: '+966500000004', email: null },
-    { id: 5, name: 'ريم العنزي', phone: null, email: null },
+    { id: 1, name: 'ليلى القحطاني', phone: '+966500000001', email: null, erased: false },
+    { id: 2, name: 'فهد الدوسري', phone: '+966500000002', email: 'fahad@example.test', erased: false },
+    { id: 3, name: 'منى العتيبي', phone: '+966500000003', email: null, erased: false },
+    { id: 4, name: 'خالد الشمري', phone: '+966500000004', email: null, erased: false },
+    { id: 5, name: 'ريم العنزي', phone: null, email: null, erased: false },
   ]
   const conversation = (id, contact, rest) => ({
     id, contact, channel: { id: 1, name: channels[0].name, kind: 'whatsapp' }, department: null, assignee: null, state: 'open', priority: 'normal', tags: [], revision: 1,
@@ -129,7 +129,7 @@ function seed() {
   })
   const flowAnswer = message('in', 'طلب موعد', 1.86, { kind: 'flow_response', reply_to: quote(flowRequest) })
   const submissions = [{
-    id: 1, flow: { id: 1, name: 'طلب موعد' }, conversation_id: 1, contact: { id: contacts[0].id, name: contacts[0].name }, request_message_id: flowRequest.id, message_id: flowAnswer.id, submitted_at: flowAnswer.created_at,
+    id: 1, flow: { id: 1, name: 'طلب موعد' }, conversation_id: 1, contact: { id: contacts[0].id, name: contacts[0].name, erased: false }, request_message_id: flowRequest.id, message_id: flowAnswer.id, submitted_at: flowAnswer.created_at,
     answers: [
       { key: 'full_name', label: 'الاسم الكامل', kind: 'text_input', value: 'ليلى القحطاني' },
       { key: 'phone', label: 'رقم الجوال', kind: 'text_input', value: '0500000001' },
@@ -1050,7 +1050,7 @@ function answerFlow(body) {
   const answers = flow.screens.flatMap(screen => screen.fields).filter(field => 'key' in field).map(sample)
   const created = appendMessage(conv, { direction: 'in', kind: 'flow_response', body: flow.name, author: null, delivery_state: 'received', reply_to: request ? { id: request.id, preview: request.body.slice(0, 80) } : null })
   const submission = {
-    id: state.ids.submission++, flow: { id: flow.id, name: flow.name }, conversation_id: conv.id, contact: { id: conv.contact.id, name: conv.contact.name },
+    id: state.ids.submission++, flow: { id: flow.id, name: flow.name }, conversation_id: conv.id, contact: { id: conv.contact.id, name: conv.contact.name, erased: conv.contact.erased },
     request_message_id: request?.id ?? null, message_id: created.id, submitted_at: created.created_at, answers,
   }
   created.flow_response = submission

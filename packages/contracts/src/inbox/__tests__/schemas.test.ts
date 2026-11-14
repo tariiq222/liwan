@@ -19,7 +19,7 @@ import {
 
 const CONVERSATION = {
   id: 1,
-  contact: { id: 2, name: 'Sara', phone: '+966500000000', email: null },
+  contact: { id: 2, name: 'Sara', phone: '+966500000000', email: null, erased: false },
   channel: { id: 3, name: 'Main WhatsApp', kind: 'whatsapp' },
   department: null,
   assignee: { id: 4, name: 'Agent' },
@@ -41,6 +41,11 @@ describe('InboxConversationListSchema', () => {
   it('accepts the list envelope and rejects extra keys', () => {
     expect(InboxConversationListSchema.parse({ items: [CONVERSATION], total: 1 }).items[0]).toEqual(CONVERSATION)
     expect(() => InboxConversationListSchema.parse({ items: [{ ...CONVERSATION, secret: 1 }], total: 1 })).toThrow()
+  })
+
+  it('requires the erased flag of the contact', () => {
+    const { erased: _erased, ...unflagged } = CONVERSATION.contact
+    expect(() => InboxConversationListSchema.parse({ items: [{ ...CONVERSATION, contact: unflagged }], total: 1 })).toThrow()
   })
 
   it('requires UTC timestamps', () => {

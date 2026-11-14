@@ -229,7 +229,7 @@ it.each([
 
 function inboxOrder(status: InboxOrderPaymentStatus, id = 80, conversationId = 3) {
   return InboxOrderSchema.parse({
-    id, conversation_id: conversationId, channel: { id: 5, name: 'WhatsApp' }, contact: { id: 7, name: 'Customer' },
+    id, conversation_id: conversationId, channel: { id: 5, name: 'WhatsApp' }, contact: { id: 7, name: 'Customer', erased: false },
     message_id: null, state: 'ordered', reference: `SO${id}`, lines: [], cart_total: null, cart_currency: null,
     total: 100, currency: 'SAR', price_changed: false,
     payment: { status, amount_total: 100, amount_due: status === 'paid' ? 0 : 100, refund_due: false, needs_attention: false, currency: 'SAR', expires_at: '2026-11-07T00:00:00Z' },

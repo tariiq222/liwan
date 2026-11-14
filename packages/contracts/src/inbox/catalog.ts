@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { InboxContactRefSchema } from './refs'
 
 // Wire shapes of WhatsApp phase 7: catalog and commerce messages.
 // - The commerce content of a message (product, product_list, catalog_message) and the `commerce` block of a
@@ -314,7 +315,7 @@ export const InboxOrderSchema = z.object({
   id: Id,
   conversation_id: Id,
   channel: Ref,
-  contact: Ref,
+  contact: InboxContactRefSchema,
   // The customer's cart message; null for an order an agent built.
   message_id: Id.nullable(),
   state: InboxOrderStateSchema,

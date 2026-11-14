@@ -114,6 +114,8 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
     // Outside a shell there is no published trail; a test that wants one passes it in `globals`.
     usePageTrail: () => Vue.readonly(Vue.ref([])),
     usePageApp: () => Vue.readonly(Vue.ref(null)),
+    // No create panel is open; a test that wants one passes it in `globals`.
+    useCreatePanelOpen: () => Vue.readonly(Vue.ref(false)),
     ...options.globals,
   }
   new Function('require', 'exports', ...Object.keys(autoImports), code)(require, exports, ...Object.values(autoImports))

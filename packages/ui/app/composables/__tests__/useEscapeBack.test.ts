@@ -244,6 +244,7 @@ describe('SharedPageHeader wires the one Escape implementation', () => {
       usePageHeader: () => undefined,
       useEscapeBack: (backTo: () => unknown, enabled?: () => boolean) => { calls.push({ backTo, enabled }) },
       useFrameOwnsHeading: () => Vue.ref(false),
+      useCreatePanelOpen: () => Vue.ref(false),
       // The trail is a separate concern here; Empty keeps the header's own binding irrelevant.
       usePageTrail: () => Vue.readonly(Vue.ref([])),
       usePageApp: () => Vue.readonly(Vue.ref(null)),

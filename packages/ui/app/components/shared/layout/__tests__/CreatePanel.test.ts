@@ -1,3 +1,4 @@
+import { registerCreatePanel } from '../../../../composables/usePageHeader'
 import { FORM_ACTIONS_HOST } from '../../../../utils/formActions'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -27,11 +28,13 @@ function loadCreatePanel(): Component {
     provide: Vue.provide, useSlots: Vue.useSlots, FORM_ACTIONS_HOST,
     useI18n: () => ({ t: (key: string) => key, localeProperties: Vue.ref({ dir: 'rtl' }) }),
     usePageHeader: () => undefined,
+    registerCreatePanel, onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount,
     useRouter: () => router,
   }
   return new Function(...Object.keys(bindings), runnable)(...Object.values(bindings)) as Component
 }
 
+const panelCount = Vue.ref(0)
 let router: ReturnType<typeof createRouter>
 
 afterEach(() => {
@@ -44,6 +47,26 @@ function textOf(node: HostNode): string {
 }
 
 describe('SharedCreatePanel', () => {
+  it('counts itself as an open create panel from mount to unmount', async () => {
+    vi.stubGlobal('useState', () => panelCount)
+    router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/tasks', component: { template: '<div/>' } }] })
+    await router.push('/tasks')
+    await router.isReady()
+    const CreatePanel = loadCreatePanel()
+    const app = hostRenderer.createApp(defineComponent({ render: () => h(CreatePanel, { title: 'x', backTo: '/tasks' }) }))
+    app.component('UButton', defineComponent({ inheritAttrs: false, setup(_, { attrs }) { return () => h('button', attrs) } }))
+    app.component('USlideover', defineComponent({
+      inheritAttrs: false,
+      props: { open: Boolean, title: String, description: String, side: String, dismissible: Boolean, ui: Object, content: Object },
+      setup(_, { slots }) { return () => h('div', slots.header?.({ close: () => undefined })) },
+    }))
+    app.mount(createHostNode())
+    expect(panelCount.value).toBe(1)
+    app.unmount()
+    expect(panelCount.value).toBe(0)
+  })
+
+
   it('renders the title as h1', async () => {
     router = createRouter({
       history: createMemoryHistory(),

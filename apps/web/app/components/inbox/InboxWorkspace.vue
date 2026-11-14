@@ -10,6 +10,7 @@ import { ApiError } from '@/composables/useApi'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 import { CHANNEL_KIND_ICON } from '@/composables/inbox/inboxChannelKind'
 import { CONVERSATION_STATE_TONE, CSAT_TONE } from '@/composables/inbox/inboxPresentation'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
 import { useInboxCatalogEnabled, useInboxChannelCommerce } from '@/composables/inbox/useInboxCatalog'
 import { useInboxConversation, useInboxConversations, useMarkInboxConversationRead } from '@/composables/inbox/useInbox'
@@ -26,6 +27,7 @@ const { can } = useAccess()
 const routeState = computed(() => parseInboxListRoute(route.query))
 const listQuery = computed(() => serializeInboxListRoute(routeState.value))
 const { data, error, refetch } = useInboxConversation(() => props.conversationId)
+const contactName = computed(() => (data.value ? inboxContactName(data.value.contact, t) : ''))
 const { data: conversations } = useInboxConversations(() => routeState.value)
 const { mutate: markRead } = useMarkInboxConversationRead()
 watch(() => data.value, conversation => { if (conversation?.unread) markRead(conversation.id) }, { immediate: true })
@@ -72,9 +74,9 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
               <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
             </UButton>
           </UTooltip>
-          <UAvatar v-bind="avatarProps(data?.contact.name, data?.contact.id)" class="size-10 shrink-0" />
+          <UAvatar v-bind="avatarProps(contactName, data?.contact.id)" class="size-10 shrink-0" />
           <div class="min-w-0 flex-1 text-start">
-            <h2 class="truncate text-(length:--liwan-fs-conversation-title)/[1.3] font-semibold text-highlighted">{{ data?.contact.name || t('inbox.title') }}</h2>
+            <h2 class="truncate text-(length:--liwan-fs-conversation-title)/[1.3] font-semibold text-highlighted">{{ contactName || t('inbox.title') }}</h2>
             <p v-if="data" class="flex min-w-0 items-center gap-1 text-xs text-muted">
               <UIcon :name="CHANNEL_KIND_ICON[data.channel.kind]" class="size-3.5 shrink-0" :class="{ 'text-(color:--liwan-whatsapp)': data.channel.kind === 'whatsapp' }" aria-hidden="true" />
               <span class="truncate">{{ data.channel.name }}</span>

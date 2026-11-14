@@ -2,6 +2,7 @@
 """Wire shapes of orders (packages/contracts/src/inbox/catalog.ts)."""
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_inbox.serializers.conversation import dump_ref
+from odoo.addons.liwan_inbox.serializers.refs import dump_contact_ref
 from odoo.addons.liwan_inbox_payments.models.order import UNREAD
 
 
@@ -43,7 +44,7 @@ def dump_order(order, payment=UNREAD):
         'id': order.id,
         'conversation_id': conversation.id,
         'channel': dump_ref(conversation.channel_id),
-        'contact': dump_ref(conversation.contact_id),
+        'contact': dump_contact_ref(conversation.contact_id),
         'message_id': order.message_id.id or None,
         'state': order.state,
         'reference': order.reference or None,

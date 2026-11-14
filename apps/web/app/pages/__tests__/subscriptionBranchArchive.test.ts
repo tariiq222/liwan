@@ -21,9 +21,9 @@ describe('branch archive on the subscription branches page', () => {
     expect(panel).toContain("path: '/subscription/status', query: { order: order.id }")
     expect(panel).not.toContain('<UModal')
   })
-  it('leaves the create panel as the one h1 while /subscription/branches/new is open', () => {
-    expect(list).toContain(`'/subscription/branches/new'`)
-    expect(list).toContain(':hide-title="isCreateRoute"')
+  it('leaves the heading to the shared header while /subscription/branches/new is open', () => {
+    expect(list).not.toContain('isCreateRoute')
+    expect(list).not.toContain('hide-title')
   })
   it('stops on an expired or stale quote instead of placing it', () => {
     expect(panel).toContain('QUOTE_IS_EXPIRED(quote.value)')
