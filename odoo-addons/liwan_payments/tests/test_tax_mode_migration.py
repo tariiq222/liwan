@@ -86,6 +86,22 @@ class TestTaxModeMigration(LiwanOrderCase):
         self.assertEqual(root.account_price_include, TAX_INCLUDED)
         self.assertEqual((order.state, order.amount_total), ('draft', 115))
 
+    def test_a_zero_rated_tax_between_two_included_taxes_can_change_the_tax_breakdown(self):
+        root, zero, order = self._legacy_open_quote(0)
+        zero.sequence = 10
+        included = self.env['account.tax'].with_company(root).create([
+            {'name': f'Included VAT {sequence}', 'type_tax_use': 'sale', 'amount': 10, 'sequence': sequence,
+             'tax_group_id': zero.tax_group_id.id, 'price_include_override': TAX_INCLUDED}
+            for sequence in (5, 20)
+        ])
+        line = order.order_line
+        line.tax_ids = [Command.set((included | zero).ids)]
+        before = (order.amount_untaxed, order.amount_tax, order.amount_total)
+        with self.assertRaises(UserError) as refusal:
+            self.migrate_carry()
+        self.assertIn(f'sale.order #{order.id}', str(refusal.exception))
+        self.assertEqual((order.amount_untaxed, order.amount_tax, order.amount_total), before)
+
     def test_the_tax_copies_are_archived_and_stay_for_the_posted_documents_that_name_them(self):
         original = self.env['account.tax'].create({
             'name': 'VAT 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
