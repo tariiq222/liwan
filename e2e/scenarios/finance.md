@@ -5,7 +5,7 @@ Pages: `/finance`, `/finance/sales/invoices`, `/finance/sales/credit-notes`, `/f
 `/finance/accounting/accounts`, `/finance/bank/statements`, `/finance/budgets`, `/finance/assets`,
 `/finance/reports/[report]` (13 reports), settings `/settings/apps/finance` and its sub-pages
 (`accounts`, `journals`, `taxes`, `payment-terms`, `asset-profiles`, `audit`). Owners: `liwan_finance`
-(136 routes, 39 capabilities), `liwan_integrations_sa` (1 route, 2 capabilities).
+(136 routes, 39 capabilities). The integrations page that shows the ZATCA status is in [platform](platform.md).
 Personas and status values: [README](README.md).
 
 Role matrix (from `odoo-addons/liwan_finance/models/access_service.py`):
@@ -203,13 +203,6 @@ for a read capability, a write route the probe for a manage capability.
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-
-## Integrations connections (`liwan_integrations_sa`)
-
-| ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| FIN-486 | A role with `integrations.manage` must also hold `integrations.read` | custom role (integrations.manage) | Dependency added or role refused | `cap integrations.manage` | planned | r2 not run: role save needs an Arabic name in a shape not found; skipped; The only route needs read; no route needs manage yet |
-| FIN-487 | Another company's connections never listed | it_admin | Only the current company's rows | `GET /api/v1/integrations/connections` | planned | r3 not run: needs a connection owned by another company |
 
 ## Idempotency, concurrency and cross-cutting rules
 
