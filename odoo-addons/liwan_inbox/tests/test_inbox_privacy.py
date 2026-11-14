@@ -2,6 +2,7 @@
 """Customer Messages' contribution to the privacy hooks of liwan_customers: contacts, conversations and messages."""
 import base64
 import io
+import json
 
 import openpyxl
 
@@ -12,6 +13,7 @@ from .common import LiwanInboxCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_customers.models import privacy_hooks
 from odoo.addons.liwan_inbox.models import privacy_hooks as inbox_hooks
+from odoo.addons.liwan_inbox.serializers.conversation import dump_messages
 
 WA_ID = '966501110001'
 NAME = 'Sara Alqahtani'
@@ -117,6 +119,30 @@ class TestInboxPrivacy(LiwanInboxCase):
         self.assertEqual(self.conversation.last_message_preview, inbox_hooks.ERASED_MESSAGE)
         self.assertEqual(self.env['mail.message'].search_count([('model', 'like', 'liwan.inbox%')]), messages)
         self.assertEqual(self.customer.with_context(active_test=False).name, privacy_hooks.ERASED_NAME % self.customer.id)
+
+    def test_an_erase_removes_the_template_button_values_and_the_interactive_options_from_the_thread(self):
+        interactive = self.env['liwan.inbox.message'].create({
+            'conversation_id': self.conversation.id, 'direction': 'out', 'kind': 'interactive', 'delivery_state': 'sent',
+            'body': 'Pick a time', 'interactive_type': 'list', 'interactive_button': 'Times',
+            'option_ids': [(0, 0, {'option_id': 'a', 'title': 'Tuesday at the Olaya branch', 'description': 'Sara Alqahtani only'})],
+        })
+        template = self.env['liwan.inbox.message'].create({
+            'conversation_id': self.conversation.id, 'direction': 'out', 'kind': 'template', 'delivery_state': 'sent',
+            'body': 'Your code', 'template_name': 'otp',
+            'template_button_ids': [(0, 0, {'position': 0, 'kind': 'copy_code', 'text': 'Copy', 'value': 'CODE-4821'})],
+        })
+        before = dump_messages(interactive | template)
+        self.assertEqual(before[0]['interactive']['sections'][0]['rows'][0]['title'], 'Tuesday at the Olaya branch')
+        self.assertEqual(before[1]['template']['buttons'][0]['text'], 'CODE-4821')
+        self.erase()
+        self.env.invalidate_all()
+        after = dump_messages(interactive | template)
+        self.assertEqual(after[0]['interactive']['sections'], [])
+        self.assertEqual(after[1]['template']['buttons'], [])
+        self.assertFalse(interactive.option_ids)
+        self.assertFalse(template.template_button_ids)
+        self.assertNotIn('Olaya', json.dumps(after))
+        self.assertNotIn('CODE-4821', json.dumps(after))
 
     def test_the_same_person_writing_again_gets_a_new_contact_and_the_erased_data_is_not_restored(self):
         self.erase()

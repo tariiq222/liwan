@@ -204,10 +204,16 @@ class LiwanInboxPrivacyHooks(models.AbstractModel):
 
     @api.model
     def _liwan_inbox_erase_messages(self, messages):
-        """Blank the text and the personal values of the messages; a message still queued is failed, never sent."""
+        """Blank the text and the personal values of the messages; a message still queued is failed, never sent.
+
+        The template buttons (a copy-code value) and the interactive options (titles, descriptions) are deleted with
+        them: the thread shows both, and they hold what the agent wrote or the customer chose.
+        """
         queued = messages.filtered(lambda message: message.delivery_state == 'queued')
         queued.write({'delivery_state': 'failed'})
         messages.write({'body': ERASED_MESSAGE, **MESSAGE_CLEARED_VALUES})
+        messages.template_button_ids.unlink()
+        messages.option_ids.unlink()
 
     @api.model
     def _liwan_inbox_close_conversations(self, conversations):
