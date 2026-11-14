@@ -27,6 +27,10 @@ TIKTOK_SCOPES = 'message.list.read message.list.send user.info.basic'
 MESSAGE_LENGTH = 200
 # The one schema this script reads: every column of OLD_COLUMNS exists there and the handshake token is encrypted.
 REQUIRED_VERSION = '19.0.1.22.0'
+SERVICE_NOT_UPGRADED = (
+    'The integrations service is still at its old schema: upgrade liwan_integrations_sa in the same run as '
+    'liwan_inbox (it is a dependency, so it loads first), then the channel accounts can move to its connections.'
+)
 
 
 def migrate(cr, version):
@@ -40,6 +44,8 @@ def migrate(cr, version):
         )
     if not _has_column(cr, 'access_token_enc'):
         return
+    if not _has_column(cr, 'external_id', table='liwan_integration_connection'):
+        raise UserError(SERVICE_NOT_UPGRADED)
     cr.execute(SQL(
         'SELECT id, owner_company_id, kind, state, last_error, %s, verified_name FROM liwan_inbox_channel ORDER BY id',
         SQL(', ').join(SQL.identifier(column) for column in OLD_COLUMNS),
@@ -54,11 +60,11 @@ def migrate(cr, version):
         cr.execute(SQL('ALTER TABLE liwan_inbox_channel DROP COLUMN %s', SQL.identifier(column)))
 
 
-def _has_column(cr, column):
+def _has_column(cr, column, table='liwan_inbox_channel'):
     cr.execute(
         """SELECT 1 FROM information_schema.columns
-            WHERE table_schema = current_schema() AND table_name = 'liwan_inbox_channel' AND column_name = %s""",
-        [column],
+            WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s""",
+        [table, column],
     )
     return bool(cr.fetchone())
 
