@@ -210,6 +210,7 @@ test('mobile navigation opens team roles and preserves the roles page on reload'
 
   await toggle.click()
   await drawer.getByTestId('mobile-context-link-settings-team').click()
+  await drawer.getByTestId('mobile-context-link-settings-team-overview').click()
   await expect(page).toHaveURL(url => url.pathname === '/settings/team')
   const rolesCard = page.getByTestId('team-roles-preview')
   await expect(rolesCard).toBeVisible()
