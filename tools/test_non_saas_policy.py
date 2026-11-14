@@ -36,6 +36,7 @@ def load_service():
     http.request = None
     access = types.ModuleType('odoo.addons.liwan_core.models.access_service')
     access.LiwanAccessRule = PolicyError
+    access.SYSTEM_PERMISSIONS = frozenset()
     spec = importlib.util.spec_from_file_location(
         '_non_saas_entitlement_under_test',
         ROOT / 'odoo-addons/liwan_platform/models/entitlement_service.py',
