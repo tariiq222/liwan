@@ -10,6 +10,8 @@ const PROFILE: CompanyProfile = {
   report_header: null,
   company_registry: '1010000000',
   vat_registered: true,
+  vat_registration_editable: true,
+  is_root_company: true,
   vat: '300000000000003',
   address: {
     street: 'طريق الملك فهد',
@@ -56,6 +58,11 @@ describe('company profile form', () => {
   it('ignores a change to a field that belongs to another page', () => {
     const saved = profileToForm(PROFILE)
     expect(companyPatch('contact', profileExtensions('contact'), saved, { ...saved, name: 'x', email: 'a@b.co' })).toEqual({ email: 'a@b.co' })
+  })
+
+  it('leaves a field another card owns out of the patch', () => {
+    const saved = profileToForm(PROFILE)
+    expect(companyPatch('profile', profileExtensions('profile'), saved, { ...saved, vat_registered: false }, ['vat_registered'])).toEqual({})
   })
 
   it('gates the company page on the read capability and opens it to a branding-only administrator', () => {

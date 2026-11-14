@@ -2,9 +2,7 @@
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_payments.models.payments_settings import (
     DEFAULT_EXPIRY_MINUTES,
-    DEFAULT_TAX_MODE,
     EXPIRY_RANGE,
-    TAX_MODES,
 )
 from odoo.addons.liwan_payments.models.refund_policy import (
     COMPANY_POLICIES,
@@ -13,27 +11,24 @@ from odoo.addons.liwan_payments.models.refund_policy import (
     REFUND_AMOUNTS,
 )
 
-WRITABLE = {'revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts', 'tax_mode', 'system_admin_links'}
+WRITABLE = {'revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts', 'system_admin_links'}
 CHOICES = {
     'refund_policy': {value for value, _label in COMPANY_POLICIES},
     'refund_amounts': {value for value, _label in REFUND_AMOUNTS},
-    'tax_mode': {value for value, _label in TAX_MODES},
 }
 
 
-def dump_settings(row, invoice_when_paid, vat_registered):
+def dump_settings(row, invoice_when_paid):
     """The company's saved settings, or the defaults (revision 0) while it has no row.
 
-    ``vat_registered`` tells the card whether to offer the tax mode at all: an unregistered company charges no
-    tax, so the saved mode is kept (it applies again once the company registers) but is not offered.
+    Whether the establishment charges tax and whether a typed price includes it are the establishment's own tax
+    choice (``liwan_vat_registered`` on the root company, stock's ``account_price_include``), not payments settings.
     """
     return {
         'unpaid_order_expiry_minutes': row.unpaid_order_expiry_minutes if row else DEFAULT_EXPIRY_MINUTES,
         'invoice_when_paid': invoice_when_paid,
         'refund_policy': row.refund_policy if row else DEFAULT_POLICY,
         'refund_amounts': row.refund_amounts if row else DEFAULT_AMOUNTS,
-        'tax_mode': row.tax_mode if row else DEFAULT_TAX_MODE,
-        'vat_registered': vat_registered,
         'system_admin_links': row.system_admin_links if row else False,
         'revision': row.revision if row else 0,
     }

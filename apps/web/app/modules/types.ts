@@ -56,6 +56,8 @@ export interface AppSettingsPart {
   id: string; labelKey: string; icon: AppIcon; capability: string
   /** Further capabilities that also open the part, for a page that serves two rights (branch creation and branch access policy). */
   anyCapabilities?: string[]
+  /** An extra feature key the part needs on top of its capability (the establishment tax section follows a derived key). */
+  feature?: string
   to?: string
   within?: string
   /** Palette/search target when the card's `within` is a directory without a page (the channels list); defaults to `to ?? within ?? page + anchor`. */

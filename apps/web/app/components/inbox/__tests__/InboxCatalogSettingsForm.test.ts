@@ -22,29 +22,19 @@ function run(catalog: InboxCatalog) {
 }
 
 const catalog = (overrides: Partial<InboxCatalog> = {}): InboxCatalog => ({
-  id: 1, brand: 'ليوان', default_link: null, prices_include_tax: true, vat_registered: true, ...overrides,
+  id: 1, brand: 'ليوان', default_link: null, ...overrides,
 } as InboxCatalog)
 
 describe('InboxCatalogSettingsForm', () => {
-  it('sends the tax preference while the company is registered for VAT', () => {
+  it('sends the brand and the product link, with no tax preference', () => {
     const { state, mutate } = run(catalog())
-    state.includeTax = false
-    state.save()
-    expect(mutate.mock.lastCall?.[0]).toEqual({ brand: 'ليوان', default_link: null, prices_include_tax: false })
-  })
-
-  it('leaves the stored tax preference out while the company is not registered', () => {
-    const { state, mutate } = run(catalog({ vat_registered: false }))
     state.brand = 'علامة جديدة'
-    expect(state.dirty).toBe(true)
     state.save()
     expect(mutate.mock.lastCall?.[0]).toEqual({ brand: 'علامة جديدة', default_link: null })
-    expect(mutate.mock.lastCall?.[0]).not.toHaveProperty('prices_include_tax')
   })
 
-  it('does not count the hidden tax preference as a change when the company is not registered', () => {
-    const { state, mutate } = run(catalog({ vat_registered: false }))
-    state.includeTax = false
+  it('saves nothing while the defaults are unchanged', () => {
+    const { state, mutate } = run(catalog())
     expect(state.dirty).toBe(false)
     state.save()
     expect(mutate).not.toHaveBeenCalled()

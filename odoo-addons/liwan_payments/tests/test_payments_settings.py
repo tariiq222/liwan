@@ -4,7 +4,7 @@ from datetime import timedelta
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
-from .common import LiwanOrderCase
+from .common import LiwanOrderCase, company_values
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 
 SETTINGS = '/api/v1/payments/settings'
@@ -22,7 +22,7 @@ class TestPaymentsSettings(LiwanOrderCase):
         self.login_admin()
         self.assertEqual(self.api('GET', SETTINGS).json(), {
             'unpaid_order_expiry_minutes': 60, 'invoice_when_paid': True, 'refund_policy': 'full', 'refund_amounts': 'due',
-            'tax_mode': 'included', 'vat_registered': False, 'system_admin_links': False, 'revision': 0,
+            'system_admin_links': False, 'revision': 0,
         })
         saved = self.patch(
             revision=0, unpaid_order_expiry_minutes=30, invoice_when_paid=False, refund_policy='none', refund_amounts='any',
@@ -30,7 +30,7 @@ class TestPaymentsSettings(LiwanOrderCase):
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(saved.json(), {
             'unpaid_order_expiry_minutes': 30, 'invoice_when_paid': False, 'refund_policy': 'none', 'refund_amounts': 'any',
-            'tax_mode': 'included', 'vat_registered': False, 'system_admin_links': False, 'revision': 1,
+            'system_admin_links': False, 'revision': 1,
         })
         self.assertEqual(self.env['ir.config_parameter'].sudo().get_param(AUTOMATIC_INVOICE), 'False')
         before = fields.Datetime.now()
@@ -50,6 +50,7 @@ class TestPaymentsSettings(LiwanOrderCase):
             ({'revision': 1, 'refund_policy': 'notice'}, 'refund_policy'),
             ({'revision': 1, 'refund_policy': ['full']}, 'refund_policy'),
             ({'revision': 1, 'refund_amounts': 'some'}, 'refund_amounts'),
+            ({'revision': 1, 'tax_mode': 'included'}, 'tax_mode'),
             ({'revision': 1, 'company_id': 1}, 'company_id'),
             ({'unpaid_order_expiry_minutes': 30}, 'revision'),
         ):
@@ -77,7 +78,7 @@ class TestPaymentsSettings(LiwanOrderCase):
 
     def test_only_a_manager_of_the_root_company_changes_invoicing_for_the_whole_tenant(self):
         root = self.env['liwan.entitlement.service']._liwan_profile().root_company_id
-        other = self.env['res.company'].create({'name': 'Second payments company'})
+        other = self.env['res.company'].create(company_values('Second payments company'))
         user = new_test_user(
             self.env, login='payments_other', password='payments_other_pass_123', groups='liwan_core.group_employee',
             company_ids=[(6, 0, [root.id, other.id])], company_id=other.id,

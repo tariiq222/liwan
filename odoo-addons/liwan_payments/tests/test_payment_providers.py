@@ -7,7 +7,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import new_test_user, tagged
 from odoo.tools import mute_logger
 
-from .common import PAYMOB_CREDENTIALS, LiwanPaymentsCase
+from .common import PAYMOB_CREDENTIALS, LiwanPaymentsCase, company_values
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_payments.controllers.providers import PaymentProviderController
 
@@ -92,7 +92,7 @@ class TestPaymentProviders(LiwanPaymentsCase):
         self.assertEqual(item['account_country'], 'SA')
 
     def test_other_companies_and_providers_liwan_does_not_offer_are_the_same_404(self):
-        other = self.env['res.company'].create({'name': 'Payments company B'})
+        other = self.env['res.company'].create(company_values('Payments company B'))
         foreign = self.paymob.copy({'company_id': other.id})
         unoffered = self.env['payment.provider'].create({'name': 'Not offered', 'code': 'none'})
         self.login_admin()
@@ -167,7 +167,7 @@ class TestPaymentProviders(LiwanPaymentsCase):
         before = self.fresh().sudo().paymob_hmac_key
         with self.assertRaises(AccessError):
             self.paymob.with_user(self.employee)._liwan_payments_set_credentials(values)
-        other = self.env['res.company'].create({'name': 'Payments company D'})
+        other = self.env['res.company'].create(company_values('Payments company D'))
         foreign = self.paymob.copy({'company_id': other.id})
         with self.assertRaises(AccessError):
             foreign.with_user(self.admin)._liwan_payments_set_credentials(values)
@@ -322,7 +322,7 @@ class TestPaymentProviders(LiwanPaymentsCase):
     def test_the_state_switch_checks_the_capability_and_the_company_itself(self):
         with self.assertRaises(AccessError):
             self.paymob.with_user(self.employee)._liwan_payments_set_state('test')
-        other = self.env['res.company'].create({'name': 'Payments company C'})
+        other = self.env['res.company'].create(company_values('Payments company C'))
         foreign = self.paymob.copy({'company_id': other.id})
         with self.assertRaises(AccessError):
             foreign.with_user(self.admin)._liwan_payments_set_state('disabled')

@@ -1,8 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from psycopg2.errors import UniqueViolation
-
 from odoo import Command, api, fields, models
-from odoo.exceptions import AccessError, ConcurrencyError, LockError, UserError
+from odoo.exceptions import AccessError, LockError, UserError
 
 from .access_service import ORDERS_READ, REFUND, SYSTEM_ADMIN
 from .payer_service import STUCK_AFTER, payment_stuck
@@ -65,7 +63,14 @@ class LiwanPaymentsService(models.AbstractModel):
 
     @api.model
     def _liwan_add_line(self, order, product, quantity=1):
-        """Add ``quantity`` of ``product`` at its own price to an open online order; the new line, unelevated."""
+        """Add ``quantity`` of ``product`` at its own price to an open online order; the new line, unelevated.
+
+        The line keeps the taxes stock computed for the product in the order's company, so it is priced under that
+        company's own tax mode (``res.company.account_price_include``). The one LiwanOS rule is an establishment that
+        is not registered for VAT: its line carries no tax at all, whatever taxes its products keep. The registration
+        is one decision for the establishment, stored on its root company, so ``_liwan_vat_registered()`` answers the
+        same for the root's orders and a branch's.
+        """
         order = order.sudo()
         if not order.liwan_payment_deadline or order.state not in OPEN_STATES:
             raise UserError(self.env._("Only an open online order takes new lines."))
@@ -74,62 +79,9 @@ class LiwanPaymentsService(models.AbstractModel):
             'product_id': product.id,
             'product_uom_qty': quantity,
         })
-        # Whatever the product's taxes are, the order charges as the company decides: a company that is not
-        # registered for VAT charges no tax at all, and one that is charges its prices with the tax inside or added.
-        if order.company_id._liwan_vat_registered():
-            mode = order.env['liwan.payments.settings']._liwan_tax_mode(order.company_id)
-            line.tax_ids = [Command.set(self._liwan_priced_taxes(line.tax_ids, included=mode == 'included').ids)]
-        else:
+        if not order.company_id._liwan_vat_registered():
             line.tax_ids = [Command.clear()]
         return self.env['sale.order.line'].browse(line.id)
-
-    @api.model
-    def _liwan_priced_taxes(self, taxes, included):
-        """``taxes`` as taxes that are (``included``) or are not included in the price, so the order charges as the company decides.
-
-        Rounding the net price to cents cannot give back the exact gross price, hence a tax set to 'included in price'
-        for a price that contains its tax, and one set to 'excluded' where the tax is added to a price whose product tax
-        is included. The original tax stays as it is for every other document: each tax has one active linked copy per
-        kind (``liwan_copy_of_id``), made on first use and replaced when the tax it copies has changed since (rate,
-        group or repartition lines). A group tax is replaced by the copies of its children, so the price is never taxed
-        twice. A tax that already behaves as asked is kept. ``taxes`` must come from an elevated environment. Two
-        requests that make the first copy together: one fails on the unique index and is retried, finding the copy the
-        other committed.
-        """
-        result = taxes.env['account.tax']
-        for tax in taxes:
-            if tax.amount_type == 'group':
-                result |= self._liwan_priced_taxes(tax.children_tax_ids, included)
-            elif tax.price_include == included:
-                result |= tax
-            else:
-                result |= self._liwan_priced_copy(tax, included)
-        return result
-
-    @api.model
-    def _liwan_priced_copy(self, tax, included):
-        override = 'tax_included' if included else 'tax_excluded'
-        copy = tax.env['account.tax'].search([('liwan_copy_of_id', '=', tax.id), ('price_include_override', '=', override)], limit=1)
-        if copy and self._liwan_tax_signature(copy) == self._liwan_tax_signature(tax):
-            return copy
-        if copy:
-            # Out of date: archived, not edited, because posted documents may use it.
-            copy.active = False
-        name = self.env._("%(name)s (price included)", name=tax.name) if included else self.env._("%(name)s (price excluded)", name=tax.name)
-        try:
-            with self.env.cr.savepoint():
-                return tax.copy({'name': name, 'price_include_override': override, 'liwan_copy_of_id': tax.id})
-        except UniqueViolation as error:
-            raise ConcurrencyError(f'the {override} copy of tax {tax.id} was made by another request') from error
-
-    @staticmethod
-    def _liwan_tax_signature(tax):
-        """What makes two taxes charge the same amounts and report them the same way."""
-        lines = tuple(sorted(
-            (line.document_type, line.repartition_type, line.factor_percent, line.account_id.id, tuple(sorted(line.tag_ids.ids)))
-            for line in tax.repartition_line_ids
-        ))
-        return (tax.amount_type, tax.amount, tax.tax_group_id.id, tax.type_tax_use, tax.tax_scope, tax.include_base_amount, lines)
 
     @api.model
     def _liwan_orders_of(self, lines):

@@ -29,8 +29,7 @@ class PaymentSettingsController(http.Controller):
     @requires_capability(SETTINGS_MANAGE)
     def get_settings(self, **_):
         model = request.env['liwan.payments.settings']
-        company = request.env.company
-        return dump_settings(model._liwan_for(company), model._liwan_invoices_when_paid(), company._liwan_vat_registered())
+        return dump_settings(model._liwan_for(request.env.company), model._liwan_invoices_when_paid())
 
     @http.route('/api/v1/payments/settings', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -53,5 +52,4 @@ class PaymentSettingsController(http.Controller):
                     row = model.create({**parsed['values'], 'company_id': request.env.company.id})
         except UniqueViolation as error:
             raise ApiError(409, 'conflict', STALE_MESSAGE) from error
-        company = request.env.company
-        return dump_settings(row, model._liwan_invoices_when_paid(), company._liwan_vat_registered())
+        return dump_settings(row, model._liwan_invoices_when_paid())

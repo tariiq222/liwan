@@ -173,10 +173,6 @@ export const InboxCatalogSchema = z.object({
   brand: z.string().min(1).max(L.brand),
   // The product page link Meta requires; null sends the click-to-chat link of the item's WhatsApp number.
   default_link: HttpsUrl.nullable(),
-  // Always false while the company is not registered for VAT: then its prices carry no tax at all.
-  prices_include_tax: z.boolean(),
-  // Whether the company is registered for VAT: only then is the "prices include tax" option offered.
-  vat_registered: z.boolean(),
   currency: Currency,
   channels: z.array(InboxCatalogChannelSchema),
   counts: z.object({
@@ -194,7 +190,6 @@ export const InboxCatalogListSchema = list(InboxCatalogSchema)
 const CatalogFields = {
   brand: z.string().trim().min(1).max(L.brand),
   default_link: HttpsUrl.nullable(),
-  prices_include_tax: z.boolean(),
 }
 
 // Connect the catalog made in Commerce Manager to the WhatsApp account of `channel_id`. `connect: false` when it
@@ -204,8 +199,6 @@ export const InboxCatalogCreateSchema = z.object({
   meta_catalog_id: MetaId,
   connect: z.boolean(),
   ...CatalogFields,
-  // Left out while the company is not registered for VAT: the server then decides the default.
-  prices_include_tax: z.boolean().optional(),
 }).strict()
 
 export const InboxCatalogPatchSchema = z.object(CatalogFields).partial().strict()
@@ -247,7 +240,8 @@ export const InboxCatalogItemSchema = z.object({
   product_retailer_id: RetailerId,
   name: z.string(),
   description: z.string(),
-  // The sales price stored in LiwanOS (before taxes), and the price the catalog shows (`price`, taxes per the catalog).
+  // The price typed on the product (`list_price`), and the total the customer pays (`price`): the establishment's tax setting
+  // decides whether the typed price already carries the tax or has it added, and an unregistered one charges none.
   list_price: Amount,
   price: Amount,
   currency: Currency,

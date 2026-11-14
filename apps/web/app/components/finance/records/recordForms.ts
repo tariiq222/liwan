@@ -74,10 +74,18 @@ export function taxDraft(tax?: FinanceTax): TaxDraft {
   return { name: tax?.name ?? '', use: tax?.type_tax_use ?? 'sale', amountType: tax?.amount_type ?? 'percent', amount: tax?.amount ?? null, priceInclude: tax?.price_include ?? false, taxAccountId: tax?.tax_account?.id ?? null }
 }
 export const taxValid = (draft: TaxDraft) => trim(draft.name) !== '' && draft.amount !== null && draft.amount >= 0 && draft.taxAccountId !== null
+/**
+ * Whether the accountant may set the price mode: only a purchase tax carries its own answer. A sale tax follows the
+ * establishment's one tax choice, so it neither offers nor sends `price_include` (the server refuses it).
+ */
+export const priceIncludeEditable = (tax: FinanceTax | undefined, draft: Pick<TaxDraft, 'use'>): boolean =>
+  tax ? tax.price_include_editable : draft.use === 'purchase'
+/** A new purchase tax is added to the price unless the accountant says otherwise; a sale tax never carries the field. */
 export function taxCreate(draft: TaxDraft): FinanceTaxCreate {
   return {
     name: trim(draft.name), type_tax_use: draft.use, amount_type: draft.amountType, amount: draft.amount ?? 0,
-    price_include: draft.priceInclude, tax_account_id: draft.taxAccountId ?? 0,
+    ...(draft.use === 'purchase' ? { price_include: draft.priceInclude } : {}),
+    tax_account_id: draft.taxAccountId ?? 0,
   }
 }
 /** A tax that journal items use can only be renamed: the server refuses the rest, so it is not even sent. */
@@ -85,7 +93,7 @@ export function taxPatch(tax: FinanceTax, draft: TaxDraft): FinanceTaxPatch | nu
   return changes<FinanceTaxPatch>({
     ...(trim(draft.name) !== tax.name ? { name: trim(draft.name) } : {}),
     ...(!tax.used && draft.amount !== null && draft.amount !== tax.amount ? { amount: draft.amount } : {}),
-    ...(!tax.used && draft.priceInclude !== tax.price_include ? { price_include: draft.priceInclude } : {}),
+    ...(!tax.used && tax.type_tax_use === 'purchase' && tax.price_include_editable && draft.priceInclude !== tax.price_include ? { price_include: draft.priceInclude } : {}),
     ...(!tax.used && draft.taxAccountId !== null && draft.taxAccountId !== tax.tax_account?.id ? { tax_account_id: draft.taxAccountId } : {}),
   })
 }

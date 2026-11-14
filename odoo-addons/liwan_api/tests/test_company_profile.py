@@ -24,9 +24,13 @@ EMPLOYEE = 'company_profile_employee'
 ROUTE = '/api/v1/admin/company'
 VALID_VAT = '300000000000003'
 PROFILE_KEYS = {
-    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat_registered', 'vat',
-    'address', 'email', 'phone', 'website', 'currency', 'completeness', 'extensions',
+    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat_registered',
+    'vat_registration_editable', 'is_root_company', 'vat', 'address', 'email', 'phone', 'website', 'currency',
+    'completeness', 'extensions',
 }
+# The root company of the fixture's establishment, with a branch and a branch-only administrator.
+BRANCH = 'company_profile_branch'
+BRANCH_ADMIN = 'company_profile_branch_admin'
 ADDRESS_KEYS = {'street', 'street2', 'city', 'zip', 'state', 'country'}
 # A selection field of res.company stands in for what an application adds through the extension point.
 EXTENSION_SPEC = {'name': 'font', 'section': 'identity', 'kind': 'selection'}
@@ -72,6 +76,17 @@ class TestCompanyProfile(LiwanApiCase):
         service._liwan_replace_assignments(system_admin, [{
             'role_id': cls.env.ref('liwan_core.role_system_admin').id, 'company_id': cls.company.id,
         }])
+        cls.branch = cls.env['res.company'].create({
+            'name': 'Profile branch', 'parent_id': cls.company.id, 'country_id': cls.country.id,
+        })
+        branch_admin = new_test_user(
+            cls.env, login=BRANCH_ADMIN, password=PASSWORD, groups='liwan_core.group_employee',
+            company_id=cls.branch.id, company_ids=[Command.set(cls.branch.ids)],
+        )
+        service._liwan_replace_assignments(branch_admin, [{
+            'role_id': cls.env.ref('liwan_core.role_system_admin').id, 'company_id': cls.branch.id,
+        }])
+        cls.branch_admin = branch_admin
 
     def _patch(self, body):
         return self.api('PATCH', ROUTE, body)
@@ -94,6 +109,7 @@ class TestCompanyProfile(LiwanApiCase):
         self.authenticate(ADMIN, PASSWORD)
         body = self.api('GET', ROUTE).json()
         self.assertEqual(set(body), PROFILE_KEYS)
+        self.assertIs(body['vat_registration_editable'], True)
         self.assertEqual(set(body['address']), ADDRESS_KEYS)
         self.assertEqual((body['id'], body['name'], body['vat']), (self.company.id, 'Erada', VALID_VAT))
         self.assertEqual(body['address']['country'], {'id': self.country.id, 'name': self.country.name, 'code': 'SA'})
@@ -416,3 +432,75 @@ class TestCompanyProfile(LiwanApiCase):
             with self.subTest(body=body):
                 response = self._patch(body)
                 self.assertEqual((response.status_code, response.json()['field']), (422, 'vat_registered'))
+
+    def switch(self, company):
+        response = self.api('POST', '/api/v1/me/company', {'company_id': company.id})
+        self.assertEqual(response.status_code, 200, response.text)
+
+    def test_a_branch_session_reads_the_establishment_value_and_cannot_change_it_there(self):
+        self.company.write({'country_id': self.country.id, 'vat': VALID_VAT, 'liwan_vat_registered': True})
+        self.authenticate(BRANCH_ADMIN, PASSWORD)
+        self.switch(self.branch)
+        body = self.api('GET', ROUTE).json()
+        self.assertEqual((body['id'], body['vat_registered'], body['vat_registration_editable']),
+                         (self.branch.id, True, False))
+        self.assertIs(body['is_root_company'], False)
+        response = self._patch({'vat_registered': False})
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'vat_registration_is_set_on_the_root'), response.text)
+        self.env.invalidate_all()
+        self.assertTrue(self.company.liwan_vat_registered)
+        self.assertTrue(self.branch._liwan_vat_registered())
+        # The rest of the profile stays open, and so does resending the value the establishment already has.
+        response = self._patch({'city': 'Jeddah', 'vat_registered': True})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.env.invalidate_all()
+        self.assertEqual(self.branch.city, 'Jeddah')
+        self.assertFalse(self.branch.liwan_vat_registered, 'the branch row never stores the decision')
+
+    def test_an_unregistered_establishment_shows_a_branch_not_registered(self):
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(BRANCH_ADMIN, PASSWORD)
+        self.switch(self.branch)
+        body = self.api('GET', ROUTE).json()
+        self.assertEqual((body['vat_registered'], body['vat_registration_editable']), (False, False))
+
+    def test_the_only_root_session_with_the_vat_right_sees_it_editable(self):
+        self.authenticate(ADMIN, PASSWORD)
+        self.assertIs(self.api('GET', ROUTE).json()['vat_registration_editable'], True)
+        self.authenticate(SETTINGS_MANAGER, PASSWORD)
+        self.assertIs(self.api('GET', ROUTE).json()['vat_registration_editable'], False)
+
+    def test_the_profile_says_whether_the_session_company_is_the_root(self):
+        self.authenticate(ADMIN, PASSWORD)
+        self.assertIs(self.api('GET', ROUTE).json()['is_root_company'], True)
+        self.authenticate(BRANCH_ADMIN, PASSWORD)
+        self.switch(self.branch)
+        self.assertIs(self.api('GET', ROUTE).json()['is_root_company'], False)
+
+    def _editable_as_admin(self):
+        self.authenticate(ADMIN, PASSWORD)
+        response = self.api('GET', ROUTE)
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()['vat_registration_editable']
+
+    def test_a_read_only_seat_is_not_told_it_can_edit_the_registration(self):
+        self.assertIs(self._editable_as_admin(), True)
+        admin = self.env['res.users'].search([('login', '=', ADMIN)])
+        self.env['liwan.entitlement.service'].sudo()._liwan_apply_flags(admin, {'liwan_read_only': True})
+        self.assertIs(self._editable_as_admin(), False)
+
+    def test_a_read_only_company_is_not_told_it_can_edit_the_registration(self):
+        """The branch fence reads ``liwan_read_only`` of the session company, a flag of its tenant branch binding."""
+        self.assertIs(self._editable_as_admin(), True)
+        binding = self.env['liwan.tenant.branch'].sudo().create({
+            'branch_uid': 'profile-read-only', 'company_id': self.company.id, 'operation_id': 'fixture',
+        })
+        self.env['liwan.entitlement.service'].sudo()._liwan_apply_flags(binding, {'read_only': True})
+        self.assertTrue(self.company.liwan_read_only)
+        self.assertIs(self._editable_as_admin(), False)
+
+    def test_an_expired_tenant_is_not_told_it_can_edit_the_registration(self):
+        self.assertIs(self._editable_as_admin(), True)
+        self.env.cr.execute("UPDATE liwan_tenant_profile SET valid_until = CURRENT_DATE - 1")
+        self.env.invalidate_all()
+        self.assertIs(self._editable_as_admin(), False)

@@ -126,7 +126,10 @@ export const FinanceTaxSchema = z.object({
   type_tax_use: z.enum(['sale', 'purchase']),
   amount_type: z.enum(['percent', 'fixed']),
   amount: z.number(),
+  /** The computed answer: a sale tax follows the company's price mode, a purchase tax its own stored answer. */
   price_include: z.boolean(),
+  /** True for a purchase tax only: a sale tax carries no answer of its own, so the company's mode decides. */
+  price_include_editable: z.boolean(),
   /** Where the tax amount is booked; `null` when it follows the base line's account. */
   tax_account: FinanceRefSchema.nullable(),
   active: z.boolean(),
@@ -216,8 +219,12 @@ export const FinanceJournalPatchSchema = z.object({
   default_account_id: id.optional(),
 }).strict().refine(requirePatchField, PATCH_MESSAGE)
 
-/** POST /finance/taxes (`finance.taxes.manage`). `tax_account_id` is where the tax amount is booked. */
-export const FinanceTaxCreateSchema = z.object({
+/**
+ * POST /finance/taxes (`finance.taxes.manage`). `tax_account_id` is where the tax amount is booked.
+ * A sale tax follows the company's price mode and refuses `price_include` (422 `invalid` on that field); a purchase
+ * tax always keeps an explicit answer, "tax added" unless `price_include` is sent, so a vendor bill stays outside it.
+ */
+const FinanceTaxBodySchema = z.object({
   name: text.min(1),
   type_tax_use: z.enum(['sale', 'purchase']),
   amount_type: z.enum(['percent', 'fixed']).optional(),
@@ -226,9 +233,28 @@ export const FinanceTaxCreateSchema = z.object({
   tax_account_id: id,
 }).strict()
 
-/** PATCH /finance/taxes/{id}. A tax used by journal items can only be renamed (422 `tax_in_use`). */
-export const FinanceTaxPatchSchema = FinanceTaxCreateSchema.partial().strict()
-  .refine(requirePatchField, PATCH_MESSAGE)
+const saleTaxHasNoPriceInclude = (
+  body: { type_tax_use?: 'sale' | 'purchase', price_include?: boolean },
+  context: z.core.$RefinementCtx,
+) => {
+  if (body.type_tax_use === 'sale' && body.price_include !== undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['price_include'],
+      message: 'a sale tax follows the company price mode: price_include is not set per tax',
+    })
+  }
+}
+
+export const FinanceTaxCreateSchema = FinanceTaxBodySchema.superRefine(saleTaxHasNoPriceInclude)
+
+/**
+ * PATCH /finance/taxes/{id}. A tax used by journal items can only be renamed (422 `tax_in_use`).
+ * The schema refuses `price_include` on a sale tax only when the body names `type_tax_use`; a body that leaves it out is
+ * checked against the saved tax by the server, which owns the rest of the rule.
+ */
+export const FinanceTaxPatchSchema = FinanceTaxBodySchema.partial().refine(requirePatchField, PATCH_MESSAGE)
+  .superRefine(saleTaxHasNoPriceInclude)
 
 /** The lines of a payment term as the request sends them (`delay_type` defaults to days after the invoice date). */
 export const FinancePaymentTermLineInputSchema = FinancePaymentTermLineSchema.partial({ delay_type: true, nb_days: true }).strict()

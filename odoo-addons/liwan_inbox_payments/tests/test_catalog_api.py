@@ -2,10 +2,10 @@
 from odoo.tests import tagged
 
 from .common import CATALOG_ID, FakeMeta, LiwanCatalogCase, meta_response
+from odoo.addons.liwan_payments.tests.common import TAX_INCLUDED
 
 CREATE = {
     'channel_id': None, 'meta_catalog_id': CATALOG_ID, 'connect': True, 'brand': 'Acme', 'default_link': None,
-    'prices_include_tax': True,
 }
 
 
@@ -57,6 +57,24 @@ class TestCatalogApi(LiwanCatalogCase):
             with self.subTest(overrides=overrides):
                 self.assertError(self.create(FakeMeta(), **overrides), 422, 'invalid')
 
+    def test_the_removed_tax_option_is_refused_like_any_unknown_key_and_never_answered(self):
+        catalog = self.make_catalog()
+        self.login_user(self.manager)
+        for field in ('prices_include_tax', 'extra'):
+            with self.subTest(field=field):
+                response = self.create(FakeMeta(), **{field: True})
+                self.assertError(response, 422, 'invalid')
+                self.assertEqual(response.json()['field'], field)
+                response = self.api('PATCH', f'/api/v1/inbox/catalogs/{catalog.id}', {field: True})
+                self.assertError(response, 422, 'invalid')
+                self.assertEqual(response.json()['field'], field)
+        for response in (self.api('GET', f'/api/v1/inbox/catalogs/{catalog.id}'),
+                         self.api('GET', '/api/v1/inbox/catalogs')):
+            self.assertEqual(response.status_code, 200, response.text)
+            body = response.json()
+            for item in body.get('items', [body]):
+                self.assertFalse({'prices_include_tax', 'vat_registered'} & set(item))
+
     def test_the_catalog_manager_capability_works_alone_and_a_reply_only_agent_is_refused(self):
         self.login_user(self.catalog_only)
         self.assertEqual(self.create(FakeMeta()).status_code, 201)
@@ -80,7 +98,7 @@ class TestCatalogApi(LiwanCatalogCase):
         self.assertFalse(catalog.exists())
 
     def test_another_company_is_a_404(self):
-        other = self.env['res.company'].create({'name': 'Other'})
+        other = self.catalog_company('Other', price_mode=TAX_INCLUDED)
         self.make_channel(phone_id='100000000007', business_account_id='200000000007', owner_company_id=other.id)
         catalog = self.make_catalog(business_account_id='200000000007', company_id=other.id)
         self.login_user(self.manager)
