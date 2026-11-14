@@ -7,7 +7,8 @@ import { formatCurrency } from '@/utils/formatCurrency'
 // The one picker for choosing a product of the products service from /api/v1/products/pick: a search box over the list
 // of active products, each shown with its name and the total price of one unit (tax included). Tap a product to pick it
 // and tap it again to drop it. `exclude` hides products the caller already holds. It cannot make a product: a tenant
-// with no product yet is told that products are added from the products list.
+// with no product yet is told that products are added from the products list, with a link to the new-product page for
+// a holder of `products.manage`.
 const props = defineProps<{
   modelValue: number | null
   exclude?: number[]
@@ -17,6 +18,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: number | null]; resolve: [product: ProductPick | null] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const { can } = useAccess()
 const q = ref('')
 const search = refDebounced(q, 250)
 // A locked picker asks for nothing: the pick list answers 403 to whoever may not pick.
@@ -39,7 +41,10 @@ function toggle(product: ProductPick) {
     <UInput v-model="q" class="w-full" icon="i-lucide-search" :placeholder="t('app.productPicker.search')" :aria-label="props.ariaLabel ?? t('app.productPicker.search')" :disabled="off" data-testid="product-picker-search" @keydown.enter.prevent />
     <SharedLoadingSkeleton v-if="query.isLoading.value" />
     <SharedPageState v-else-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
-    <p v-else-if="!items.length" class="text-sm text-muted" data-testid="product-picker-empty">{{ q.trim() ? t('app.noResults') : t('app.productPicker.empty') }}</p>
+    <p v-else-if="!items.length" class="text-sm text-muted" data-testid="product-picker-empty">
+      {{ q.trim() ? t('app.noResults') : t('app.productPicker.empty') }}
+      <NuxtLink v-if="!q.trim() && can('products.manage')" to="/products/new" class="font-medium text-primary hover:underline" data-testid="product-picker-create">{{ t('app.productPicker.create') }}</NuxtLink>
+    </p>
     <ul v-else class="flex max-h-72 flex-col divide-y divide-default overflow-y-auto rounded-control ring ring-default" :aria-label="t('app.productPicker.listLabel')">
       <li v-for="product in items" :key="product.id">
         <button

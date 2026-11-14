@@ -4,7 +4,8 @@
     "productPicker": {
       "search": "Search products",
       "listLabel": "Products",
-      "empty": "There are no products yet. Products are added from the products list."
+      "empty": "There are no products yet. Products are added from the products list.",
+      "create": "Create a product"
     },
     "actions": "Actions",
     "edit": "Edit",

@@ -1,0 +1,117 @@
+{
+  "products": {
+    "title": "Products",
+    "new": "New product",
+    "edit": "Edit product",
+    "recordTitle": "Product",
+    "search": "Search by product name",
+    "clear": "Clear filters",
+    "empty": "There are no products yet.",
+    "emptyArchived": "There are no archived products.",
+    "footer": "{shown} of 1 result | {shown} of {total} results",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archiveConfirm": "Archive {name}?",
+    "archiveHint": "The product leaves the list and the product pickers. You can restore it from the archived products.",
+    "restoreConfirm": "Restore {name}?",
+    "restoreHint": "The product returns to the list and the product pickers.",
+    "rowActions": "Actions for product {name}",
+    "sharedByAllBranches": "Shared by all branches",
+    "columns": {
+      "name": "Name",
+      "type": "Type",
+      "listPrice": "Price as typed",
+      "total": "Total including tax",
+      "scope": "Managed from"
+    },
+    "status": {
+      "label": "Status",
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "type": {
+      "any": "All types",
+      "goods": "Goods",
+      "service": "Service"
+    },
+    "record": {
+      "details": "Product details",
+      "image": "Image",
+      "hasImage": "Has an image",
+      "noImage": "No image",
+      "scope": "Managed from",
+      "price": "Price of one unit",
+      "untaxed": "Before tax",
+      "tax": "Tax",
+      "currency": "Currency",
+      "taxes": "Taxes"
+    },
+    "tax": {
+      "label": "{name} ({rate}%)",
+      "inactive": "{tax}, will be switched on",
+      "several": "This product carries more than one tax. Pick one to replace them all, or leave them as they are.",
+      "placeholder": "Choose the tax",
+      "none": "No tax"
+    },
+    "managed": {
+      "title": "View only",
+      "managed_in_root_company": "This product is managed from the main company. Switch to a main company session to change it.",
+      "managed_in_branch": "This product is managed from another branch. Switch to that branch's session to change it."
+    },
+    "form": {
+      "definition": "Product details",
+      "definitionHint": "The name, type, price, tax and what your team sees when choosing the product.",
+      "name": "Name",
+      "nameRequired": "Enter the product name",
+      "type": "Type",
+      "price": "Price",
+      "priceHint": "Enter the price as you want it written on the product.",
+      "priceNeedsRight": "Changing the price needs the \"Manage prices\" permission.",
+      "priceOnly": "You can change the price only. The rest is view only.",
+      "tax": "Tax",
+      "description": "Description",
+      "saveError": "The product could not be saved",
+      "image": {
+        "label": "Image",
+        "hint": "A JPEG or PNG image of at most {size} MB.",
+        "choose": "Choose an image",
+        "none": "No image",
+        "stored": "The product has a saved image",
+        "chosen": "New image: {name}",
+        "willRemove": "The image will be removed when you save",
+        "remove": "Remove image",
+        "keep": "Keep the image",
+        "discard": "Discard the new image",
+        "previewAlt": "The new product image",
+        "badType": "Choose a JPEG or PNG image",
+        "empty": "The file is empty",
+        "tooLarge": "The image is larger than {size} MB"
+      },
+      "errors": {
+        "name": "The product name is not valid",
+        "type": "The product type is not valid",
+        "list_price": "The price is not valid",
+        "description": "The description is not valid",
+        "image": "The system did not accept this image. Make sure it really is a JPEG or PNG",
+        "taxes": "The system did not accept this tax"
+      }
+    },
+    "settings": {
+      "readOnlyTitle": "Settings are view only",
+      "readOnly": "Product settings belong to the managers of the main company. You can see them but cannot change them from here.",
+      "sharing": {
+        "title": "Product sharing",
+        "hint": "Does each branch manage its own products, or does the whole establishment share them?",
+        "branch": "Each branch's own products",
+        "branchHint": "Each new product belongs to the branch that created it, and only that branch's staff change it.",
+        "establishment": "Products of the whole establishment",
+        "establishmentHint": "Each new product is shared by all branches and managed from the main company.",
+        "shareTitle": "Before choosing \"Products of the whole establishment\"",
+        "shareRoot": "A shared product is created, edited and archived only from a main company session.",
+        "shareBranch": "Every branch's staff see and use a shared product, but cannot change it.",
+        "transferTitle": "The setting did not change",
+        "transferRequired": "Sharing cannot change once products exist. Moving products between the two modes comes in a later release, and the current value stays."
+      }
+    }
+  }
+}
