@@ -36,9 +36,12 @@ The tax rule of an order line belongs to `liwan_orders`.
 - `all`: a reader sees every document of the company and still writes only their own.
 - `sales.documents.assign`: sees and writes every document of the company and may change the salesperson.
 
-`group_cap_sales_read` implies the stock salesman group (own and unassigned) and `group_cap_sales_documents_assign`
-the stock all-documents group. Sales adds one read rule per model (`sale.order`, `sale.order.line`) on top of those,
-for the companies where the user reads everything. `liwan.sales.visibility._liwan_domain` mirrors it for the routes.
+`group_cap_sales_read` implies the stock salesman group (own and unassigned); no Sales group implies the stock
+all-documents group, whose rule would follow the user into every company. Capability groups are a union over the
+user's companies, so Sales scopes its own rules per company: an open read rule per model (`sale.order`,
+`sale.order.line`) for the companies where the user reads everything, and an assign rule on `sale.order` (read, write,
+create) for the companies where the user holds `sales.documents.assign`. `liwan.sales.visibility._liwan_domain`
+mirrors them for the routes.
 
 ## State table
 
@@ -57,6 +60,9 @@ the routes authorise each move from it.
 | any readable | duplicate | new `draft` | `sales.quotations.manage` |
 | any | assign | same | `sales.documents.assign` |
 
+Stock `sent` is a quotation state that no route of Sales produces yet: a `sent` staff document confirms and cancels
+as a `draft` does, and only a `draft` is edited.
+
 A move outside the table is 403 `transition_forbidden`; a document the caller cannot read is 404; a document that is
 not theirs to write is 403 `forbidden`. No transition sends an e-mail.
 
@@ -67,6 +73,14 @@ The wire carries neither a price nor a tax. When a line is created or its produc
 of a product line also writes the stored `price_unit`, because stock reprices from the list price on a quantity change
 otherwise. Taxes come from the stock compute with the `liwan_orders` rule (none while the establishment is not
 registered for VAT). Duplicate builds a new quotation through the same create path, so prices and taxes are fresh.
+A new `customer_id` on PATCH keeps the unit price of every kept line (D6) and only recomputes the taxes.
+
+Duplicate skips a product line of quantity zero (a removed line), checks every other copied quantity and discount
+against the bounds of a write (`models/sale_order.py`, shared with the parser), and refuses a combo line (a combo
+product or a combo item) with 422 on its `product_id`.
+
+A line names a product template and takes its one variant: a template with more than one variant is refused with 422
+on `lines.<i>.product_id` in create, edit and duplicate until products with variants arrive.
 
 ## Elevated line write
 

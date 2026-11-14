@@ -5,8 +5,13 @@ from odoo.tools import html2plaintext
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
-from odoo.addons.liwan_products.models.products_service import MAX_QUANTITY
-from odoo.addons.liwan_sales.models.sale_order import LINE_KINDS
+from odoo.addons.liwan_sales.models.sale_order import (
+    DISCOUNT_BOUNDS,
+    LINE_KINDS,
+    QUANTITY_BOUNDS,
+    valid_discount,
+    valid_quantity,
+)
 
 # The wire state of each stock state.
 STATE_WIRE = {'draft': 'draft', 'sent': 'sent', 'sale': 'confirmed', 'cancel': 'cancelled'}
@@ -127,10 +132,6 @@ def _is_id(value):
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
-def _is_number(value):
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
 def _refuse_unknown(payload, accepted, prefix=''):
     unknown = sorted(set(payload) - set(accepted))
     if unknown:
@@ -176,7 +177,9 @@ def _parse_line(index, line):
     entry = {'index': index, 'id': None, 'kind': kind, 'name': None}
     if 'id' in line:
         entry['id'] = _parse_id(line, 'id', f'{prefix}id')
-    if kind != 'product' or line.get('name') is not None:
+    name = line.get('name')
+    # An empty name on a product line means "not given": the stock description stays.
+    if kind != 'product' or (name is not None and not (isinstance(name, str) and not name.strip())):
         entry['name'] = _parse_text(line.get('name'), f'{prefix}name', required=True, maximum=MAX_LINE_NAME)
     if kind != 'product':
         return entry
@@ -184,11 +187,11 @@ def _parse_line(index, line):
         _invalid(f'{prefix}product_id', 'a product line needs product_id')
     entry['product_id'] = _parse_id(line, 'product_id', f'{prefix}product_id')
     quantity = line.get('quantity')
-    if not _is_number(quantity) or not 0 < quantity <= MAX_QUANTITY:
-        _invalid(f'{prefix}quantity', f'quantity must be a number greater than zero, at most {MAX_QUANTITY}')
+    if not valid_quantity(quantity):
+        _invalid(f'{prefix}quantity', QUANTITY_BOUNDS)
     discount = line.get('discount_percent', 0)
-    if not _is_number(discount) or not 0 <= discount <= 100:
-        _invalid(f'{prefix}discount_percent', 'discount_percent must be a number from 0 to 100')
+    if not valid_discount(discount):
+        _invalid(f'{prefix}discount_percent', DISCOUNT_BOUNDS)
     entry.update(quantity=quantity, discount=discount)
     return entry
 

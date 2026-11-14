@@ -194,6 +194,20 @@ class SalesWriteCase(LiwanSalesCase):
         return party
 
     @classmethod
+    def variant_template(cls):
+        """A service template with two variants, made as the superuser."""
+        attribute = cls.env['product.attribute'].create({
+            'name': 'Sales size', 'create_variant': 'always',
+            'value_ids': [Command.create({'name': 'Small'}), Command.create({'name': 'Large'})],
+        })
+        return cls.env['product.template'].create({
+            'name': 'Sized service', 'type': 'service', 'list_price': 10.0, 'liwan_product': True,
+            'attribute_line_ids': [Command.create({
+                'attribute_id': attribute.id, 'value_ids': [Command.set(attribute.value_ids.ids)],
+            })],
+        })
+
+    @classmethod
     def set_discount_limit(cls, percent):
         cls.env['liwan.sales.settings']._liwan_current().discount_limit_percent = percent
 

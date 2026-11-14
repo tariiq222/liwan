@@ -7,19 +7,22 @@ from .access_service import DOCUMENTS_ASSIGN, READ
 class ResUsers(models.Model):
     _inherit = 'res.users'
 
-    # Read by the sale.order record rule (security/sales_rules.xml): the companies whose whole order book this user
-    # reads, that is where they hold sales.documents.assign, and where they hold sales.read while the tenant's
-    # visibility setting is `all`. Capability groups are the union over all the user's companies, so the rule scopes
-    # every branch by this instead. Not stored: the rule domain is cached, and saving the setting or a capability
-    # change clears that cache, so the next request computes it afresh.
-    liwan_sales_open_company_ids = fields.Many2many('res.company', compute='_compute_liwan_sales_open_company_ids')
+    # Read by the record rules of security/sales_rules.xml. Capability groups are the union over all the user's
+    # companies, so each rule scopes every company by one of these instead. Not stored: the rule domain is cached, and
+    # saving the setting or a capability change clears that cache, so the next request computes them afresh.
+    # The companies whose whole order book this user reads: where they hold sales.documents.assign, and where they
+    # hold sales.read while the tenant's visibility setting is `all`.
+    liwan_sales_open_company_ids = fields.Many2many('res.company', compute='_compute_liwan_sales_company_ids')
+    # The companies where this user holds sales.documents.assign, so writes every document.
+    liwan_sales_assign_company_ids = fields.Many2many('res.company', compute='_compute_liwan_sales_company_ids')
 
-    def _compute_liwan_sales_open_company_ids(self):
+    def _compute_liwan_sales_company_ids(self):
         service = self.env['liwan.access.service']
         everyone_reads = self.env['liwan.sales.settings']._liwan_current().visibility == 'all'
         for user in self:
             keys = {company: service._liwan_capability_keys(user, company=company) for company in user.company_ids}
-            user.liwan_sales_open_company_ids = user.company_ids.filtered(
-                lambda company, keys=keys: DOCUMENTS_ASSIGN in keys[company]
-                or (everyone_reads and READ in keys[company]),
+            assign = user.company_ids.filtered(lambda company, keys=keys: DOCUMENTS_ASSIGN in keys[company])
+            user.liwan_sales_assign_company_ids = assign
+            user.liwan_sales_open_company_ids = assign | user.company_ids.filtered(
+                lambda company, keys=keys: everyone_reads and READ in keys[company],
             )

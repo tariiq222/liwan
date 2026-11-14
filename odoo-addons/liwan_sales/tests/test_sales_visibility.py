@@ -126,6 +126,19 @@ class TestSalesVisibilityChanges(LiwanSalesCase):
         self.assertNotIn(self.mate.id, self.ids(self.agent))
         self.assertEqual(self.api_as(self.agent, 'GET', f'{ORDERS}/{self.mate.id}').status_code, 404)
 
+    def test_under_own_an_agent_never_lists_or_opens_a_colleagues_document(self):
+        self.set_visibility('own')
+        self.assertNotIn(self.mate.id, self.ids(self.agent))
+        self.assertEqual(self.api_as(self.agent, 'GET', f'{ORDERS}/{self.mate.id}').status_code, 404)
+
+    def test_the_route_domain_alone_keeps_a_colleagues_document_out_under_own(self):
+        # The record rules hide the same documents; searched as the superuser, this proves the mirror on its own.
+        self.set_visibility('own')
+        mine = self.make_order(self.agent, self.company)
+        domain = self.env['liwan.sales.visibility'].with_company(self.company)._liwan_domain(self.agent)
+        found = self.env['sale.order'].search([*domain, ('id', 'in', (mine | self.mate).ids)])
+        self.assertEqual(found, mine)
+
     def test_granting_and_revoking_assign_applies_on_the_next_request(self):
         self.set_visibility('own')
         user = self.custom_user('sales_reader_only', ['sales.read'])
@@ -161,3 +174,46 @@ class TestSalesVisibilityChanges(LiwanSalesCase):
         )
         order = self.mate.with_user(accountant)
         self.assertEqual(order.read(['name'])[0]['name'], self.mate.name)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestSalesVisibilityCompanyUnion(LiwanSalesCase):
+    """Capability groups are a union over the user's companies: assign in A must not open B."""
+
+    def test_assign_in_one_company_opens_nothing_in_another(self):
+        self.set_visibility('own')
+        branch = self.branch
+        user = new_test_user(
+            self.env, login='sales_union', password='sales_union_pass_123', name='Union',
+            groups='liwan_core.group_employee', company_id=branch.id,
+            company_ids=[(6, 0, [self.company.id, branch.id])],
+        )
+        Role = self.env['liwan.access.role']
+        roles = {}
+        for company, keys in ((self.company, ('sales.read', 'sales.documents.assign')), (branch, ('sales.read',))):
+            roles[company] = Role.with_company(company).create({
+                'key': f'sales_union_{company.id}', 'name_ar': 'Union', 'name_en': 'Union',
+                'type': 'custom', 'assignable': True,
+                'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([('key', 'in', keys)]).ids)],
+            })
+        for company, role in roles.items():
+            self.env['liwan.access.assignment'].create({'user_id': user.id, 'role_id': role.id, 'company_id': company.id})
+        in_b = {
+            'own': self.make_order(user, branch), 'mate': self.make_order(self.in_branch.agent2, branch),
+            'online': self.make_order(None, branch, staff=False),
+        }
+        in_a = self.make_order(self.agent2, self.company) | self.make_order(None, self.company, staff=False)
+        fixture = set(in_a.ids) | {order.id for order in in_b.values()}
+        expected_b = {in_b['own'].id, in_b['online'].id}
+        orders = self.env['sale.order'].with_user(user)
+        in_branch = orders.with_context(allowed_company_ids=[branch.id])
+        self.assertEqual(set(in_branch.search([('company_id', '=', branch.id)]).ids) & fixture, expected_b)
+        with self.assertRaises(AccessError):
+            in_branch.browse(in_b['mate'].id).write({'note': 'not mine'})
+        body = self.api_as(user, 'GET', f'{ORDERS}?limit=200').json()
+        self.assertEqual({item['id'] for item in body['items']} & fixture, expected_b)
+        seen_a = orders.with_context(allowed_company_ids=[self.company.id]).search([('company_id', '=', self.company.id)])
+        self.assertEqual(set(seen_a.ids) & fixture, set(in_a.ids))
+        colleague = seen_a.filtered('user_id')
+        colleague.write({'note': 'Assigned here'})
+        self.assertEqual(colleague.note, '<p>Assigned here</p>')

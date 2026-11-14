@@ -10,8 +10,9 @@ NOTHING = [('id', 'in', [])]
 class LiwanSalesVisibility(models.AbstractModel):
     """Who reads and writes which quotation or order.
 
-    The record rules (the stock salesman and all-documents rules, and security/sales_rules.xml) enforce the policy on
-    every ORM path; ``_liwan_domain`` is its Python mirror for the working company, used by the routes.
+    The record rules (the stock salesman rule, and the open read and assign write rules of security/sales_rules.xml,
+    scoped per company) enforce the policy on every ORM path; ``_liwan_domain`` is its Python mirror for the working
+    company, used by the routes.
     """
 
     _name = 'liwan.sales.visibility'

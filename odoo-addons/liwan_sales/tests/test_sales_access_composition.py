@@ -63,14 +63,13 @@ class TestSalesAccessComposition(TransactionCase):
             self.assertFalse(self.Permission.search([('key', '=', key)]).dependency_ids, key)
         self.assertEqual(set(PERMISSION_DEPENDENCIES), SIX - {'sales.read', 'sales.settings.manage'})
 
-    def test_only_two_capability_groups_imply_a_stock_group(self):
+    def test_only_the_read_group_implies_a_stock_group(self):
         implied = {}
         for key in SIX:
             group = self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
             implied[key] = set(group.implied_ids.get_external_id().values())
         self.assertEqual(implied['sales.read'], {'sales_team.group_sale_salesman'})
-        self.assertEqual(implied['sales.documents.assign'], {'sales_team.group_sale_salesman_all_leads'})
-        for key in SIX - {'sales.read', 'sales.documents.assign'}:
+        for key in SIX - {'sales.read'}:
             self.assertFalse(implied[key], key)
 
     def test_vendor_support_holds_no_sales_capability(self):

@@ -102,6 +102,8 @@ class TestSalesCreate(SalesWriteCase):
             (self.product_line(self.taxed, discount_percent='5'), 'lines.0.discount_percent'),
             (self.product_line(self.taxed, name='x' * 2001), 'lines.0.name'),
             ({'kind': 'note', 'name': 'x' * 2001}, 'lines.0.name'),
+            ({'kind': 'note', 'name': ''}, 'lines.0.name'),
+            ({'kind': 'section', 'name': ''}, 'lines.0.name'),
         )
         for line, field in cases:
             with self.subTest(field=field, line=line):
@@ -111,6 +113,24 @@ class TestSalesCreate(SalesWriteCase):
         self.refused(long_terms, 422, 'invalid', 'terms')
         edge = self.post(self.agent, self.body(self.product_line(self.taxed, name='x' * 2000), terms='x' * 10_000))
         self.assertEqual(len(edge['lines'][0]['name']), 2000)
+
+    def test_an_empty_name_on_a_product_line_keeps_the_stock_description(self):
+        stock = self.post(self.agent, self.body(self.product_line(self.taxed)))['lines'][0]['name']
+        for name in ('', '   '):
+            with self.subTest(name=name):
+                body = self.post(self.agent, self.body(self.product_line(self.taxed, name=name)))
+                self.assertEqual(body['lines'][0]['name'], stock)
+
+    def test_a_product_with_several_variants_is_refused_on_create_and_edit(self):
+        variants = self.variant_template()
+        response = self.api_as(self.agent, 'POST', ORDERS, self.body(self.product_line(variants)))
+        self.refused(response, 422, 'invalid', 'lines.0.product_id')
+        body = self.post(self.agent, self.body())
+        line = {**self.product_line(variants), 'id': body['lines'][0]['id']}
+        for lines in ([line], [self.product_line(self.plain), self.product_line(variants)]):
+            with self.subTest(lines=lines):
+                response = self.api_as(self.agent, 'PATCH', f'{ORDERS}/{body["id"]}', {'lines': lines})
+                self.refused(response, 422, 'invalid', f'lines.{len(lines) - 1}.product_id')
 
     def test_sections_and_notes_keep_their_order_and_carry_no_amount(self):
         body = self.post(self.agent, self.body(
@@ -145,6 +165,16 @@ class TestSalesLinePriceAndTax(SalesWriteCase):
         swapped = self.patch_order(self.agent, body['id'], {'lines': [{**self.product_line(self.taxed, 5), 'id': line['id']}]})
         self.assertEqual(swapped['lines'][0]['unit_price'], self.price_of(self.taxed, 5))
         self.assertEqual(swapped['lines'][0]['id'], line['id'])
+
+    def test_a_change_of_product_takes_the_new_products_price_and_tax(self):
+        body = self.post(self.agent, self.body(self.product_line(self.plain, 2)))
+        line_id = body['lines'][0]['id']
+        swapped = self.patch_order(self.agent, body['id'], {'lines': [{**self.product_line(self.taxed, 2), 'id': line_id}]})
+        line = swapped['lines'][0]
+        self.assertEqual((line['id'], line['product']['id']), (line_id, self.taxed.id))
+        self.assertEqual(line['unit_price'], self.price_of(self.taxed, 2))
+        self.assertEqual((line['amount_untaxed'], line['amount_tax']), (200.0, 30.0))
+        self.assertEqual(self.env['sale.order.line'].browse(line_id).tax_ids, self.tax_added)
 
     def test_registered_amounts_in_each_session(self):
         for name, scope in self.scopes.items():
@@ -189,6 +219,18 @@ class TestSalesLinePriceAndTax(SalesWriteCase):
         response = self.api_as(scope.agent, 'PATCH', f'{ORDERS}/{mate["id"]}', {'lines': [line]})
         self.refused(response, 403, 'forbidden')
         self.assertEqual(self.env['sale.order'].browse(mate['id']).order_line.product_uom_qty, 1.0)
+
+    def test_a_changed_customer_keeps_the_prices_and_recomputes_the_taxes(self):
+        body = self.post(self.agent, self.body(self.product_line(self.taxed, 2)))
+        line = body['lines'][0]
+        self.products_service()._liwan_update(self.taxed, {'list_price': 300.0})
+        self.env['sale.order.line'].browse(line['id']).tax_ids = False
+        other = self.party('Third customer')
+        changed = self.patch_order(self.agent, body['id'], {
+            'customer_id': other.id, 'lines': [{**self.product_line(self.taxed, 2), 'id': line['id']}],
+        })
+        self.assertEqual((changed['lines'][0]['unit_price'], changed['amount_tax']), (100.0, 30.0))
+        self.assertEqual(self.env['sale.order.line'].browse(line['id']).tax_ids, self.tax_added)
 
     def test_a_changed_customer_recomputes_the_taxes(self):
         body = self.post(self.in_branch.agent, self.body())
@@ -248,11 +290,31 @@ class TestSalesDiscount(SalesWriteCase):
         body = self.post(self.agent, self.body(self.product_line(self.plain, discount_percent=30)))
         self.set_discount_limit(10)
         line_id = body['lines'][0]['id']
-        kept = self.patch_order(self.agent, body['id'], {'lines': [
-            {**self.product_line(self.plain, 4, discount_percent=30), 'id': line_id},
+        kept = self.patch_order(self.agent, body['id'], {'terms': 'New terms', 'lines': [
+            {**self.product_line(self.plain, discount_percent=30), 'id': line_id},
         ]})
         self.assertEqual(kept['lines'][0]['discount_percent'], 30.0)
         raised = self.api_as(self.agent, 'PATCH', f'{ORDERS}/{body["id"]}', {'lines': [
-            {**self.product_line(self.plain, 4, discount_percent=35), 'id': line_id},
+            {**self.product_line(self.plain, discount_percent=35), 'id': line_id},
         ]})
         self.refused(raised, 403, 'forbidden', 'lines.0.discount_percent')
+
+    def test_an_edited_line_loses_the_stored_discount_exemption(self):
+        body = self.post(self.agent, self.body(self.product_line(self.plain, discount_percent=50)))
+        self.set_discount_limit(10)
+        line_id = body['lines'][0]['id']
+        edits = {
+            'quantity': {**self.product_line(self.plain, 3, discount_percent=50), 'id': line_id},
+            'product': {**self.product_line(self.taxed, discount_percent=50), 'id': line_id},
+        }
+        for name, line in edits.items():
+            with self.subTest(changed=name):
+                response = self.api_as(self.agent, 'PATCH', f'{ORDERS}/{body["id"]}', {'lines': [line]})
+                refused = self.refused(response, 403, 'forbidden', 'lines.0.discount_percent')
+                self.assertEqual(refused['details'], {'reason': 'discount_above_limit'})
+                order_line = self.env['sale.order.line'].browse(line_id)
+                self.assertEqual((order_line.product_uom_qty, order_line.product_id), (1.0, self.plain.product_variant_id))
+        for name, line in edits.items():
+            with self.subTest(approver=name):
+                saved = self.patch_order(self.manager, body['id'], {'lines': [line]})
+                self.assertEqual(saved['lines'][0]['discount_percent'], 50.0)

@@ -5,7 +5,13 @@ from odoo import api, fields, models
 from odoo.tools import html2plaintext, plaintext2html
 
 from .access_service import DISCOUNTS_APPROVE, QUOTATIONS_MANAGE
-from .sale_order import LINE_KINDS
+from .sale_order import (
+    DISCOUNT_BOUNDS,
+    LINE_KINDS,
+    QUANTITY_BOUNDS,
+    valid_discount,
+    valid_quantity,
+)
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 DISPLAY_TYPES = {'product': False, 'section': 'line_section', 'note': 'line_note'}
@@ -125,13 +131,26 @@ class LiwanSalesService(models.AbstractModel):
 
     @api.model
     def _liwan_duplicate(self, order_id):
-        """A new draft of the caller built from the readable order ``order_id`` through the create path (D9)."""
+        """A new draft of the caller built from the readable order ``order_id`` through the create path (D9).
+
+        A product line of quantity zero is a removed line and is skipped; every other copied quantity and discount meets
+        the bounds of a write, and a combo line is refused (422 on its ``product_id``).
+        """
         source = self._liwan_order(order_id)
-        lines = source._get_copiable_order_lines().filtered(lambda line: not line._is_global_discount())
+        lines = source._get_copiable_order_lines().filtered(
+            lambda line: not line._is_global_discount() and (line.display_type or line.product_uom_qty),
+        )
         entries = []
         for index, line in enumerate(lines):
             entry = {'index': index, 'id': None, 'kind': LINE_KINDS[line.display_type], 'name': line.name}
             if entry['kind'] == 'product':
+                field = f'lines.{index}'
+                if line.combo_item_id or line.product_id.type == 'combo':
+                    _invalid(f'{field}.product_id', 'a combo line cannot be duplicated')
+                if not valid_quantity(line.product_uom_qty):
+                    _invalid(f'{field}.quantity', QUANTITY_BOUNDS)
+                if not valid_discount(line.discount):
+                    _invalid(f'{field}.discount_percent', DISCOUNT_BOUNDS)
                 entry.update(
                     product_id=line.product_id.product_tmpl_id.id, quantity=line.product_uom_qty, discount=line.discount,
                 )
@@ -206,6 +225,9 @@ class LiwanSalesService(models.AbstractModel):
             raise
         if product.company_id and product.company_id not in company.parent_ids:
             _invalid(field, 'the product belongs to another company')
+        # A line names a template and takes its one variant; products with variants come with a later pull request.
+        if len(product.product_variant_ids) > 1:
+            _invalid(field, 'products with variants are not supported yet')
         return product
 
     @api.model
@@ -250,7 +272,11 @@ class LiwanSalesService(models.AbstractModel):
                     product, quantity=entry['quantity'], company=company, customer=customer,
                 )
                 vals.update(product_id=variant.id, price_unit=price['unit_price'])
-            if limit and entry['discount'] > limit and not approves and not (line and line.discount == entry['discount']):
+            # A stored discount above the limit stays only on a line left as it was (D7); any edited line is checked.
+            unchanged = line and (line.product_id, line.product_uom_qty, line.discount) == (
+                variant, entry['quantity'], entry['discount'],
+            )
+            if limit and entry['discount'] > limit and not approves and not unchanged:
                 _forbidden(
                     f'a discount above {limit}% needs {DISCOUNTS_APPROVE}', field=f'{field}.discount_percent',
                     details={'reason': 'discount_above_limit'},

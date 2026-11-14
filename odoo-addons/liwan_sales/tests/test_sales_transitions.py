@@ -47,6 +47,14 @@ class TestSalesStateTable(SalesWriteCase):
             with self.subTest(state='cancelled', action=action):
                 self.assertEqual(self.act(self.agent, confirmed, action, expect=403)['code'], 'transition_forbidden')
 
+    def test_a_locked_confirmed_order_refuses_cancel(self):
+        order_id = self.created()
+        self.act(self.agent, order_id, 'confirm')
+        self.act(self.agent, order_id, 'lock')
+        self.assertEqual(self.act(self.agent, order_id, 'cancel', expect=403)['code'], 'transition_forbidden')
+        self.assertEqual(self.act(self.manager, order_id, 'cancel', expect=403)['code'], 'transition_forbidden')
+        self.assertEqual(self.env['sale.order'].browse(order_id).state, 'sale')
+
     def test_confirm_needs_a_product_line(self):
         order_id = self.post(self.agent, self.body({'kind': 'section', 'name': 'Only a title'}))['id']
         response = self.api_as(self.agent, 'POST', f'{ORDERS}/{order_id}/confirm')
@@ -75,6 +83,19 @@ class TestSalesStateTable(SalesWriteCase):
         self.env['sale.order'].browse(order_id).action_confirm()
         self.assertEqual(self.act(writer, order_id, 'cancel', expect=403)['code'], 'transition_forbidden')
         self.assertEqual(self.act(writer, order_id, 'confirm', expect=403)['code'], 'forbidden')
+
+    def test_a_sent_quotation_moves_like_a_draft_but_is_not_edited(self):
+        orders = [self.created(), self.created()]
+        self.env['sale.order'].browse(orders).write({'state': 'sent'})
+        actions = self.api_as(self.agent, 'GET', f'{ORDERS}/{orders[0]}').json()['actions']
+        self.assertEqual({key: actions[key] for key in ('edit', 'confirm', 'cancel', 'reopen', 'lock')},
+                         {'edit': False, 'confirm': True, 'cancel': True, 'reopen': False, 'lock': False})
+        self.assertEqual(self.patch_order(self.agent, orders[0], {'terms': 'x'}, expect=403)['code'], 'transition_forbidden')
+        self.assertEqual(self.act(self.agent, orders[0], 'confirm')['state'], 'confirmed')
+        self.assertEqual(self.act(self.agent, orders[1], 'cancel')['state'], 'cancelled')
+        writer = self.custom_user('sales_sent_confirmer', ['sales.read', 'sales.orders.confirm'])
+        mine = self.make_order(writer, state='sent')
+        self.assertFalse(mine._liwan_actions(writer)['cancel'])
 
     def test_no_mail_leaves_and_the_customer_does_not_follow(self):
         mails = self.env['mail.mail'].search_count([])
@@ -137,6 +158,66 @@ class TestSalesOnlineAndDuplicate(SalesWriteCase):
         self.register(False)
         self.assertEqual(self.act(self.agent, taxed['id'], 'duplicate')['amount_total'], 100.0)
 
+    def source(self, lines):
+        """A staff order of the agent for the Sales customer, made as the superuser with stock ``lines``."""
+        order = self.make_order(self.agent, lines=lines)
+        order.partner_id = self.customer
+        return order
+
+    def test_a_zero_quantity_line_is_skipped_and_other_copied_values_meet_the_write_bounds(self):
+        variant = self.plain.product_variant_id
+        source = self.source([
+            Command.create({'product_id': self.taxed.product_variant_id.id, 'product_uom_qty': 0, 'price_unit': 1.0}),
+            Command.create({'product_id': variant.id, 'product_uom_qty': 2, 'price_unit': 1.0}),
+        ])
+        copy = self.act(self.agent, source.id, 'duplicate')
+        self.assertEqual([(line['product']['id'], line['quantity']) for line in copy['lines']], [(self.plain.id, 2.0)])
+        negative = self.source([
+            Command.create({'product_id': variant.id, 'product_uom_qty': 1, 'price_unit': 1.0}),
+            Command.create({'product_id': variant.id, 'product_uom_qty': -1, 'price_unit': 1.0}),
+        ])
+        response = self.api_as(self.agent, 'POST', f'{ORDERS}/{negative.id}/duplicate')
+        self.refused(response, 422, 'invalid', 'lines.1.quantity')
+
+    def test_a_combo_line_is_not_duplicated(self):
+        # The smallest honest fixture: a combo product of one item on a line, and a line that names that combo item.
+        combo = self.env['product.combo'].create({
+            'name': 'Sales combo', 'combo_item_ids': [Command.create({'product_id': self.plain.product_variant_id.id})],
+        })
+        product = self.env['product.product'].create({
+            'name': 'Sales combo product', 'type': 'combo', 'combo_ids': [Command.link(combo.id)],
+        })
+        parent = self.source([
+            Command.create({'product_id': product.id, 'product_uom_qty': 1, 'price_unit': 1.0}),
+        ])
+        response = self.api_as(self.agent, 'POST', f'{ORDERS}/{parent.id}/duplicate')
+        self.refused(response, 422, 'invalid', 'lines.0.product_id')
+        # A combo item line ordered before its combo line, so that the combo item check answers first.
+        self.env['sale.order.line'].create({
+            'order_id': parent.id, 'product_id': self.plain.product_variant_id.id, 'product_uom_qty': 1,
+            'price_unit': 1.0, 'combo_item_id': combo.combo_item_ids.id, 'linked_line_id': parent.order_line.id,
+            'sequence': parent.order_line.sequence - 1,
+        })
+        response = self.api_as(self.agent, 'POST', f'{ORDERS}/{parent.id}/duplicate')
+        self.refused(response, 422, 'invalid', 'lines.0.product_id')
+        self.assertEqual(parent.order_line.sorted('sequence')[0].combo_item_id, combo.combo_item_ids)
+
+    def test_a_variant_product_in_the_source_is_refused(self):
+        source = self.source([Command.create({
+            'product_id': self.variant_template().product_variant_ids[0].id, 'product_uom_qty': 1, 'price_unit': 1.0,
+        })])
+        response = self.api_as(self.agent, 'POST', f'{ORDERS}/{source.id}/duplicate')
+        self.refused(response, 422, 'invalid', 'lines.0.product_id')
+
+    def test_a_non_approver_cannot_copy_a_discount_above_the_limit(self):
+        self.set_visibility('all')
+        source = self.post(self.manager, self.body(self.product_line(self.plain, discount_percent=30)))
+        self.set_discount_limit(10)
+        response = self.api_as(self.agent, 'POST', f'{ORDERS}/{source["id"]}/duplicate')
+        body = self.refused(response, 403, 'forbidden', 'lines.0.discount_percent')
+        self.assertEqual(body['details'], {'reason': 'discount_above_limit'})
+        self.assertEqual(self.act(self.manager, source['id'], 'duplicate')['lines'][0]['discount_percent'], 30.0)
+
     def test_a_product_that_can_no_longer_be_picked_is_refused(self):
         gone = self.service_product('Retired service', 10.0)
         source = self.post(self.agent, self.body(self.product_line(self.plain), self.product_line(gone)))
@@ -191,6 +272,31 @@ class TestSalesFences(SalesWriteCase):
         })
         orders = self.env['sale.order'].with_user(visitor).with_context(allowed_company_ids=[self.other_company.id])
         self.assertEqual(orders.search([('id', 'in', (own | staff).ids)]).ids, [])
+
+    def test_the_moves_of_a_staff_order_touch_no_inbox_order(self):
+        if 'liwan.inbox.order' not in self.env:
+            self.skipTest('liwan_inbox_payments is not installed in this run: no inbox order model exists')
+        models = ('liwan.inbox.order', 'liwan.inbox.order.line')
+        before = {model: self.snapshot(model) for model in models}
+        order_id = self.post(self.agent, self.body())['id']
+        for action in ('confirm', 'cancel', 'reopen'):
+            self.act(self.agent, order_id, action)
+        self.assertEqual({model: self.snapshot(model) for model in models}, before)
+
+    def test_the_moves_of_a_staff_order_touch_no_booking(self):
+        if 'resource.booking' not in self.env:
+            self.skipTest('liwan_appointments_payments is not installed in this run: no booking model exists')
+        before = self.snapshot('resource.booking')
+        order_id = self.post(self.agent, self.body())['id']
+        for action in ('confirm', 'cancel', 'reopen'):
+            self.act(self.agent, order_id, action)
+        self.assertEqual(self.snapshot('resource.booking'), before)
+
+    def snapshot(self, model):
+        """Each record of ``model`` with its last write, read as the superuser."""
+        records = self.env[model].with_context(active_test=False).search([])
+        records.invalidate_recordset()
+        return {record.id: record.write_date for record in records}
 
     def test_the_payments_list_and_its_cron_never_see_a_staff_order(self):
         if 'liwan.payments.service' not in self.env:

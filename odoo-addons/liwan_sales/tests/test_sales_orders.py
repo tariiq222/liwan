@@ -126,7 +126,7 @@ class TestSalesOrdersShape(LiwanSalesCase):
             'sale': {'cancel': True, 'lock': True, 'duplicate': True},
             'locked': {'unlock': True, 'duplicate': True},
             'cancel': {'reopen': True, 'duplicate': True},
-            'sent': {'duplicate': True},
+            'sent': {'confirm': True, 'cancel': True, 'duplicate': True},
         }
         for label, flags in expected.items():
             with self.subTest(state=label):
