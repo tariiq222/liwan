@@ -561,6 +561,25 @@ suite('a customer deletes its own workspace in two steps and the withdrawal wind
     expect((await row(a.customer)).withdraw_reason).toBe('Changed my mind')
   })
 
+  it('refuses every customer route that creates or changes something once the workspace is deleting, and lets a card be removed and everything be read', async () => {
+    const a = await paidCustomer('Gate A'), b = await paidCustomer('Gate B')
+    const card = await seedPaymentMethod(pool, a.customer, 'tok_gate')
+    // `deleting` set directly: this suite does not run the runner. The plan columns satisfy the table's checks.
+    await pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,due_marked_at,hold_until,deleting_at,plan,plan_digest,renewal_outcome,renewal_refusal)
+      VALUES($1,$2,'deleting',now(),'t',now(),'t',now(),now(),now(),now(),'{}'::jsonb,$3,'not_cancellable','no_subscription')`, [randomUUID(), a.customer, 'a'.repeat(64)])
+    const creations: [string, string, unknown][] = [['POST', '/v1/customer/quotes', {}], ['POST', '/v1/customer/orders', {}], ['POST', '/v1/customer/preview', {}], ['POST', '/v1/customer/trial', {}],
+      ['POST', '/v1/customer/trial/convert', {}], ['POST', '/v1/customer/trial/retry', {}], ['POST', '/v1/customer/branch-quotes', {}], ['POST', '/v1/customer/auto-renew', { enabled: true }],
+      ['POST', '/v1/customer/subscription/resume', {}], ['POST', '/v1/customer/subscription/cancel', {}], ['POST', `/v1/customer/orders/${randomUUID()}/payment`, {}],
+      ['POST', `/v1/customer/orders/${randomUUID()}/transfer-claim`, {}], ['PUT', '/v1/customer/anything', {}], ['DELETE', '/v1/customer/anything', {}]]
+    for (const [method, path, body] of creations) expect(await route(a, method, path, body, ['subscription.read', 'subscription.manage', 'billing.read', 'branches.manage', 'tenant.delete']), `${method} ${path}`).toMatchObject({ status: 409, data: { code: 'tenant_retiring' } })
+    // Reading, withdrawing (refused for another reason) and removing a card are not creations.
+    expect(await route(a, 'GET', '/v1/customer/subscription')).toMatchObject({ status: 200 })
+    expect(await route(a, 'POST', '/v1/customer/deletion/withdraw', {})).toMatchObject({ status: 409, data: { code: 'deletion_in_progress' } })
+    expect((await route(a, 'POST', `/v1/customer/payment-methods/${card}/remove`, {})).data?.code).not.toBe('tenant_retiring')
+    // Another customer is not gated.
+    expect((await route(b, 'POST', '/v1/customer/quotes', {})).data?.code).not.toBe('tenant_retiring')
+  })
+
   it('refuses a customer with no workspace or no address on record', async () => {
     const noTenant = randomUUID(), noAddress = randomUUID(), tenant = randomUUID()
     await pool.query('INSERT INTO customers(id,name,admin_login) VALUES($1,$2,$3)', [noTenant, 'No workspace', `${noTenant}@example.test`])

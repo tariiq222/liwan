@@ -1,5 +1,6 @@
 import type { Pool } from 'pg'
 import { tenantDeletionRequestSchema, tenantDeletionRunSchema, tenantDeletionSchema, type TenantDeletion, type TenantDeletionRequest, type TenantDeletionRun } from '@liwan/commercial-contracts'
+import { CommercialHttpError } from './lifecycle.js'
 import { deletionPrechecks, type DeletionPlan } from './tenant-deletion-plan.js'
 
 const iso = (value: Date | string | null): string | null => value === null ? null : value instanceof Date ? value.toISOString() : value
@@ -13,6 +14,11 @@ export const deletionClockRunningSql = (customerColumn: string) =>
 /** SQL: the workspace of the customer named by `customerColumn` is being or has been deleted (access stopped). Nothing may act on it any more. */
 export const tenantRetiringSql = (customerColumn: string) =>
   `EXISTS (SELECT 1 FROM tenant_deletion_requests d WHERE d.customer_id=${customerColumn} AND d.state IN ('deleting','deleted'))`
+
+/** Refuses (409 `tenant_retiring`) anything that would create or change the customer's commercial state once its workspace is being or has been deleted. */
+export async function assertCustomerNotRetiring(pool: Pick<Pool, 'query'>, customerId: string): Promise<void> {
+  if ((await pool.query(`SELECT ${tenantRetiringSql('$1')} AS retiring`, [customerId])).rows[0].retiring === true) throw new CommercialHttpError('tenant_retiring', 409)
+}
 
 /** What the tenant sees of its open request, or null. */
 export async function tenantDeletionOf(pool: Pick<Pool, 'query'>, customerId: string): Promise<TenantDeletion | null> {

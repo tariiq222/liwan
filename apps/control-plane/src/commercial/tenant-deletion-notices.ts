@@ -8,7 +8,7 @@ import { TENANT_DELETION_HOLD_HOURS, TENANT_DELETION_LAST_CALL_HOURS } from '@li
 import { DELETION_CODE_TTL_MINUTES, TENANT_DELETION_NOTICE_KIND, type DeletionNoticePayload } from './tenant-deletion.js'
 
 type Language = 'ar' | 'en'
-export type DeletionNoticeContext = { name: string; origin?: string | null; due_on: string | null; final_at: string | null; renewal_outcome: string | null; renewal_refusal: string | null }
+export type DeletionNoticeContext = { name: string; origin?: string | null; due_on: string | null; final_at: string | null; cards_unremoved?: number; relay_skipped?: boolean; renewal_outcome: string | null; renewal_refusal: string | null }
 
 /** Why the paid renewal could not be stopped, in words, for the customer and the owner. */
 const REFUSAL_WORDS: Record<string, Record<Language, string>> = {
@@ -35,9 +35,16 @@ const WHAT_IS_DELETED = {
 }
 /** Until when the request can still be withdrawn: the end of the final hold (Riyadh time). */
 const howToWithdraw = (until: string) => ({
-  ar: `يمكنك سحب الطلب حتى ${until} من صفحة الاشتراك في ليوان (قسم حذف مساحة العمل)، أو بمراسلتنا. مساحتك تعمل حتى ذلك الوقت.`,
-  en: `You can withdraw the request until ${until} from Subscription in LiwanOS (Delete workspace), or by writing to us. Your workspace keeps working until then.`,
+  ar: `يمكنك سحب الطلب حتى ${until} بتوقيت الرياض من صفحة الاشتراك في ليوان (قسم حذف مساحة العمل)، أو بمراسلتنا. مساحتك تعمل حتى ذلك الوقت.`,
+  en: `You can withdraw the request until ${until} Riyadh time from Subscription in LiwanOS (Delete workspace), or by writing to us. Your workspace keeps working until then.`,
 })
+/** What the deletion did to saved cards and to the TikTok relay, in words that follow what actually happened. */
+const cardsSentence = (unremoved: number, language: Language) => unremoved === 0
+  ? (language === 'ar' ? 'حُذفت بطاقات الدفع المحفوظة.' : 'The saved payment cards were deleted.')
+  : (language === 'ar' ? 'تعذّر حذف بعض بطاقات الدفع المحفوظة عند مزود الدفع الآن؛ ستبقى محاولة حذفها قائمة وسيزيلها فريق ليوان، ولا يمكن خصم أي مبلغ منها.' : 'Some saved payment cards could not be deleted at the payment provider yet; we keep retrying and the LiwanOS team will remove them, and nothing can be charged to them.')
+const relaySentence = (skipped: boolean, language: Language) => !skipped ? '' : (language === 'ar'
+  ? ' لم نفصل ربط حسابات TikTok من جهتنا، فافصل تفويض التطبيق من حساب TikTok.'
+  : ' We did not disconnect TikTok accounts on our side, so remove the app authorisation in your TikTok account.')
 /** What the customer must remove in accounts only they hold: nothing in LiwanOS can reach them. */
 const CUSTOMER_OWNED = {
   ar: 'ما لا نستطيع حذفه نيابةً عنك وعليك حذفه بنفسك: الـwebhook والرمز المميز في حسابك لدى Meta (واتساب)، والـwebhook في حساب بوابة الدفع الخاصة بك، وتفويض تطبيق TikTok.',
@@ -62,6 +69,7 @@ export function tenantDeletionNotice(payload: DeletionNoticePayload, context: De
   const on = context.due_on ?? ''
   const until = context.final_at ?? ''
   const withdraw = howToWithdraw(until)
+  const untilAr = `${until} بتوقيت الرياض`, untilEn = `${until} Riyadh time`
   const bodies: Record<DeletionNoticePayload['type'], { subject: string; ar: string; en: string }> = {
     requested: { subject: 'رمز تأكيد حذف مساحة العمل في LiwanOS',
       ar: `طُلب حذف مساحة عمل ${context.name}. رمز التأكيد: ${payload.code}. يعمل ${DELETION_CODE_TTL_MINUTES} دقيقة ومرة واحدة فقط، ولا يبدأ الحذف إلا بعد إدخاله مع اسم الشركة كما هو مكتوب عندنا. إن لم يطلب أحد من فريقك ذلك فتجاهل الرسالة ولن يحدث شيء، وراسلنا إن شككت في الوصول إلى حسابك.`,
@@ -76,17 +84,20 @@ export function tenantDeletionNotice(payload: DeletionNoticePayload, context: De
       ar: `سُحب طلب حذف مساحة عمل ${context.name} ولن تُحذف. ${context.renewal_outcome === 'cancelled' ? 'لم نستأنف اشتراكك تلقائيًا: ما زال تجديده ملغى، فاستأنفه من صفحة الاشتراك إن أردت أن يتجدد.' : ''}`.trim(),
       en: `The deletion of the workspace ${context.name} was withdrawn and it will not be deleted. ${context.renewal_outcome === 'cancelled' ? 'We did not resume your subscription automatically: its renewal is still cancelled, so resume it from Subscription if you want it to renew.' : ''}`.trim() },
     due: { subject: 'بدأت المهلة الأخيرة لحذف مساحة العمل في LiwanOS',
-      ar: `انتهت مهلة سحب طلب حذف مساحة عمل ${context.name} وبدأت مهلة أخيرة مدتها ${TENANT_DELETION_HOLD_HOURS} ساعة تنتهي في ${until}. مساحتك ما زالت تعمل، ولا يزال بإمكانك سحب الطلب حتى ذلك الوقت. بعده يبدأ الحذف وتتوقف مساحتك ولا يمكن سحب الطلب. ${WHAT_IS_DELETED.ar} ${withdraw.ar}`,
-      en: `The window for withdrawing the deletion of the workspace ${context.name} has ended and a final hold of ${TENANT_DELETION_HOLD_HOURS} hours started; it ends ${until}. Your workspace still works and you can still withdraw the request until then. After that the deletion starts, your workspace stops and the request can no longer be withdrawn. ${WHAT_IS_DELETED.en} ${withdraw.en}` },
+      ar: `انتهت مهلة سحب طلب حذف مساحة عمل ${context.name} وبدأت مهلة أخيرة مدتها ${TENANT_DELETION_HOLD_HOURS} ساعة تنتهي في ${untilAr}. مساحتك ما زالت تعمل، ولا يزال بإمكانك سحب الطلب حتى ذلك الوقت. بعده يبدأ الحذف وتتوقف مساحتك ولا يمكن سحب الطلب. ${WHAT_IS_DELETED.ar} ${withdraw.ar}`,
+      en: `The window for withdrawing the deletion of the workspace ${context.name} has ended and a final hold of ${TENANT_DELETION_HOLD_HOURS} hours started; it ends ${untilEn}. Your workspace still works and you can still withdraw the request until then. After that the deletion starts, your workspace stops and the request can no longer be withdrawn. ${WHAT_IS_DELETED.en} ${withdraw.en}` },
     last_call: { subject: 'آخر فرصة لسحب حذف مساحة العمل في LiwanOS',
-      ar: `تبقت ${TENANT_DELETION_LAST_CALL_HOURS} ساعة على نهاية المهلة الأخيرة لحذف مساحة عمل ${context.name}، وهي ${until}. إن أردت الاحتفاظ بمساحتك فاسحب الطلب الآن. ${withdraw.ar}`,
-      en: `${TENANT_DELETION_LAST_CALL_HOURS} hours are left in the final hold for deleting the workspace ${context.name}; it ends ${until}. If you want to keep your workspace, withdraw the request now. ${withdraw.en}` },
+      ar: `تبقت ${TENANT_DELETION_LAST_CALL_HOURS} ساعة على نهاية المهلة الأخيرة لحذف مساحة عمل ${context.name}، وهي ${untilAr}. إن أردت الاحتفاظ بمساحتك فاسحب الطلب الآن. ${withdraw.ar}`,
+      en: `${TENANT_DELETION_LAST_CALL_HOURS} hours are left in the final hold for deleting the workspace ${context.name}; it ends ${untilEn}. If you want to keep your workspace, withdraw the request now. ${withdraw.en}` },
+    hold_extended: { subject: 'تغيّر موعد نهاية المهلة الأخيرة لحذف مساحة العمل في LiwanOS',
+      ar: `تأخّر وصول إشعار المهلة الأخيرة إليك، فمددنا مهلة حذف مساحة عمل ${context.name} لتكتمل مدتها كاملة. تنتهي المهلة الآن في ${untilAr}، ومساحتك تعمل ويمكنك سحب الطلب حتى ذلك الوقت. ${withdraw.ar}`,
+      en: `Your final-hold notice reached you late, so we extended the hold for the workspace ${context.name} to give you its full length. It now ends ${untilEn}; your workspace keeps working and you can withdraw the request until then. ${withdraw.en}` },
     deleting: { subject: 'بدأ حذف مساحة العمل في LiwanOS',
       ar: `بدأ حذف مساحة عمل ${context.name} وأوقفنا الوصول إليها الآن. لم يعد بإمكانك سحب الطلب بنفسك؛ إن كان الحذف خطأً فراسلنا فورًا، ولا يمكننا التراجع بعد أن يمرّ الحذف بنقطة اللاعودة. سنرسل لك تأكيدًا عند الاكتمال.`,
       en: `The deletion of the workspace ${context.name} has started and access is stopped now. You can no longer withdraw the request yourself; if this is a mistake, write to us at once, because we cannot undo it once the deletion passes the point of no return. We will send a confirmation when it is complete.` },
     deleted: { subject: 'اكتمل حذف مساحة العمل في LiwanOS',
-      ar: `اكتمل حذف مساحة عمل ${context.name}: حُذفت قاعدة البيانات والملفات والنسخ الاحتياطية وبطاقات الدفع المحفوظة. نحتفظ بالفواتير وسجلات الدفع، وبسجل يثبت أن الحذف تم، وبسجل التجربة المجانية. ${CUSTOMER_OWNED.ar} إن أردت العودة فراسلنا.`,
-      en: `The deletion of the workspace ${context.name} is complete: the database, the files, the backups and the saved payment cards were deleted. We keep invoices and payment records, the record that the deletion happened, and the free-trial record. ${CUSTOMER_OWNED.en} If you want to come back, write to us.` },
+      ar: `اكتمل حذف مساحة عمل ${context.name}: حُذفت قاعدة البيانات والملفات والنسخ الاحتياطية. ${cardsSentence(context.cards_unremoved ?? 0, 'ar')}${relaySentence(context.relay_skipped ?? false, 'ar')} نحتفظ بالفواتير وسجلات الدفع، وبسجل يثبت أن الحذف تم، وبسجل التجربة المجانية. ${CUSTOMER_OWNED.ar} إن أردت العودة فراسلنا.`,
+      en: `The deletion of the workspace ${context.name} is complete: the database, the files and the backups were deleted. ${cardsSentence(context.cards_unremoved ?? 0, 'en')}${relaySentence(context.relay_skipped ?? false, 'en')} We keep invoices and payment records, the record that the deletion happened, and the free-trial record. ${CUSTOMER_OWNED.en} If you want to come back, write to us.` },
   }
   const body = bodies[payload.type]
   const workspace = workspaceLines(context.origin ?? null)
@@ -112,6 +123,8 @@ async function queueReminders(pool: Pool): Promise<void> {
 async function liveContext(pool: Pool, payload: DeletionNoticePayload): Promise<(DeletionNoticeContext & { customer_id: string; admin_login: string | null; days_left: number }) | undefined> {
   const row = (await pool.query(`SELECT r.state,r.code_seq,(r.code_expires_at > now()) AS code_live,r.renewal_outcome,r.renewal_refusal,c.name,c.id AS customer_id,c.admin_login,
       (r.due_at AT TIME ZONE 'Asia/Riyadh')::date::text AS due_on,
+      COALESCE((SELECT (s.evidence->>'unremoved')::int FROM tenant_deletion_steps s WHERE s.request_id=r.id AND s.step='delete_cards'),0) AS cards_unremoved,
+      EXISTS (SELECT 1 FROM tenant_deletion_steps s WHERE s.request_id=r.id AND s.step='unbind_relay' AND s.state='skipped') AS relay_skipped,
       to_char(COALESCE(r.hold_until, r.due_at + make_interval(hours => $2)) AT TIME ZONE 'Asia/Riyadh','YYYY-MM-DD HH24:MI') AS final_at,((r.due_at AT TIME ZONE 'Asia/Riyadh')::date - (now() AT TIME ZONE 'Asia/Riyadh')::date)::int AS days_left
     FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE r.id=$1`, [payload.request_id, TENANT_DELETION_HOLD_HOURS])).rows[0]
   if (!row) return undefined
@@ -122,10 +135,11 @@ async function liveContext(pool: Pool, payload: DeletionNoticePayload): Promise<
     withdrawn: row.state === 'withdrawn',
     due: ['due', 'deleting'].includes(row.state),
     last_call: row.state === 'due',
+    hold_extended: row.state === 'due',
     deleting: row.state === 'deleting',
     deleted: row.state === 'deleted',
   }[payload.type]
-  return live ? { name: row.name, customer_id: row.customer_id, admin_login: row.admin_login, due_on: row.due_on, final_at: row.final_at, days_left: row.days_left, renewal_outcome: row.renewal_outcome, renewal_refusal: row.renewal_refusal } : undefined
+  return live ? { name: row.name, customer_id: row.customer_id, admin_login: row.admin_login, due_on: row.due_on, final_at: row.final_at, cards_unremoved: row.cards_unremoved, relay_skipped: row.relay_skipped, days_left: row.days_left, renewal_outcome: row.renewal_outcome, renewal_refusal: row.renewal_refusal } : undefined
 }
 
 /**
@@ -148,12 +162,14 @@ export async function sendTenantDeletionNotices(pool: Pool, input: { mail: MailA
       if (!context.admin_login) { await failOutbox(pool, row.id, 'no_recipient'); await scrubCode(pool, row.id); continue }
       const notice = tenantDeletionNotice(row.payload, { ...context, origin: await workspaceOrigin(input.returnOrigin, context.customer_id) }, context.days_left)
       await input.mail.send({ to: context.admin_login, subject: notice.subject, text: notice.text, message_id: `tenant-deletion-${row.id}@liwan` })
-      await closeWithoutCode(pool, row.id)
+      await closeDelivered(pool, row.id)
       sent++
     } catch (error) { await deferOutbox(pool, row.id, error instanceof Error ? error.message.slice(0, 200) : 'tenant_deletion_notice_failed') }
   }
   return sent
 }
 
+/** A notice the customer's mailbox accepted: closed and marked delivered. A notice closed any other way (stale, no recipient) is never `delivered`. */
+async function closeDelivered(pool: Pool, id: string) { await completeOutbox(pool, id); await pool.query(`UPDATE commercial_outbox SET payload = (payload - 'code') || '{"delivered":true}'::jsonb WHERE id=$1`, [id]) }
 const scrubCode = (pool: Pool, id: string) => pool.query(`UPDATE commercial_outbox SET payload = payload - 'code' WHERE id=$1`, [id])
 async function closeWithoutCode(pool: Pool, id: string) { await completeOutbox(pool, id); await scrubCode(pool, id) }

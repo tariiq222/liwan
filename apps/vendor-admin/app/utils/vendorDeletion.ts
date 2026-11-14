@@ -1,8 +1,9 @@
 import { tenantDeletionStepNames, type TenantDeletionRequest, type TenantDeletionStepName } from '@liwan/commercial-contracts'
 
-/** The request states the customer page shows: an open request or a finished deletion (a withdrawn one is history). */
+/** The request states the customer page shows: an open request or a finished deletion. A withdrawn one is history, unless its access was already stopped (`deleting_at` is set): its reinstatement must stay visible until it is done. */
 const SHOWN_STATES: ReadonlyArray<TenantDeletionRequest['state']> = ['requested', 'confirmed', 'due', 'deleting', 'deleted']
-export const isDeletionShown = (request: TenantDeletionRequest | null | undefined): request is TenantDeletionRequest => Boolean(request && SHOWN_STATES.includes(request.state))
+export const isDeletionShown = (request: TenantDeletionRequest | null | undefined): request is TenantDeletionRequest =>
+  Boolean(request && (SHOWN_STATES.includes(request.state) || (request.state === 'withdrawn' && request.deleting_at !== null)))
 
 /** The vendor may withdraw until the point of no return: while the request is open, and while a running deletion has not committed. */
 export function deletionWithdrawable(request: TenantDeletionRequest): boolean {

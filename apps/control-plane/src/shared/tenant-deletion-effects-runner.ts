@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
-import { rm } from 'node:fs/promises'
-import { isAbsolute } from 'node:path'
+import { lstat, realpath, rm } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import type { Config } from '../config.js'
 import type { AssertOwned, DeletionEffects, DropStage } from '../commercial/tenant-deletion-effects.js'
 import { planDigestOf, type EffectPlan } from '../commercial/tenant-deletion-plan.js'
@@ -98,9 +98,10 @@ function relaySettings(env: NodeJS.ProcessEnv): { url: string; token: string } |
   return { url: url.origin + url.pathname.replace(/\/+$/, ''), token: token! }
 }
 
-export function createDeletionEffects(config: Config, runtime: SharedRuntimeConfig, signal: AbortSignal, options: { spawnChild?: Spawner; env?: NodeJS.ProcessEnv } = {}): DeletionEffects {
+export function createDeletionEffects(config: Config, runtime: SharedRuntimeConfig, signal: AbortSignal, options: { spawnChild?: Spawner; env?: NodeJS.ProcessEnv; backupRoot?: string; heartbeatMs?: number } = {}): DeletionEffects {
   const spawnChild = options.spawnChild ?? spawn
   const env = options.env ?? process.env
+  const backupRoot = options.backupRoot ?? join(runtime.stateDir, 'backups')
   return {
     stage: ({ stage, plan, planDigest, dryRun, assertOwned }) => {
       if (planDigestOf(plan) !== planDigest) throw Error('plan_digest_mismatch')
@@ -113,14 +114,21 @@ export function createDeletionEffects(config: Config, runtime: SharedRuntimeConf
       if (env.LIWAN_TENANT_DELETION_OFFSITE_STORE_ROOT) args.push('--store-root', env.LIWAN_TENANT_DELETION_OFFSITE_STORE_ROOT)
       return new Promise((resolve, reject) => {
         const child = spawnChild(config.python, args, { cwd: config.repositoryRoot, stdio: ['ignore', 'pipe', 'ignore'], env: offsiteEnv(env) })
-        let out = '', settled = false
-        const done = (fn: () => void) => { if (settled) return; settled = true; clearTimeout(timer); signal.removeEventListener('abort', abort); fn() }
+        let out = '', settled = false, lost = false, checking = false
+        const done = (fn: () => void) => { if (settled) return; settled = true; clearTimeout(timer); clearInterval(heartbeat); signal.removeEventListener('abort', abort); fn() }
         const abort = () => child.kill('SIGTERM')
+        // The purge can run long: the ownership is re-checked on a heartbeat, and the child is stopped the moment it is lost (the lease is two minutes).
+        const heartbeat = setInterval(() => {
+          if (checking || settled) return
+          checking = true
+          assertOwned().catch(() => { lost = true; child.kill('SIGTERM') }).finally(() => { checking = false })
+        }, options.heartbeatMs ?? HEARTBEAT_MS)
         signal.addEventListener('abort', abort, { once: true })
         const timer = setTimeout(() => child.kill('SIGTERM'), OFFSITE_TIMEOUT_MS)
         child.stdout?.on('data', chunk => { if (out.length < 65536) out += String(chunk) })
         child.on('error', () => done(() => reject(Error('offsite_purge_failed'))))
         child.on('close', code => done(() => {
+          if (lost) return reject(Error('deletion_lease_lost'))
           if (code === 3) return reject(Error('offsite_not_empty'))
           if (code !== 0) return reject(Error('offsite_purge_failed'))
           try { resolve({ state: 'empty', ...countsOnly(JSON.parse(out)) }) } catch { reject(Error('offsite_purge_failed')) }
@@ -142,11 +150,16 @@ export function createDeletionEffects(config: Config, runtime: SharedRuntimeConf
       if (typeof removed !== 'number' || !Number.isInteger(removed) || removed < 0) throw Error('relay_purge_failed')
       return { state: removed > 0 ? 'unbound' : 'absent' }
     },
-    async removeBackupArtifacts(paths) {
+    async removeBackupArtifacts(items) {
+      // Only `<root>/<id>` and `<root>/<id>.json` under the real backup root are removed; a link, another name or anything outside refuses the whole call.
+      const root = await realpath(backupRoot).catch(() => { throw Error('artifact_root_unavailable') })
       let removed = 0
-      for (const path of paths) {
-        if (!isAbsolute(path)) throw Error('artifact_path_invalid')
-        await rm(path, { force: true }); removed++
+      for (const { id, path } of items) {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id) || ![id, `${id}.json`].includes(basename(path)) || dirname(path) !== root) throw Error('artifact_path_invalid')
+        const entry = await lstat(path).catch(() => null)
+        if (!entry) continue
+        if (entry.isSymbolicLink() || !(entry.isFile() || entry.isDirectory())) throw Error('artifact_path_invalid')
+        await rm(path, { recursive: entry.isDirectory(), force: true }); removed++
       }
       return { removed }
     },

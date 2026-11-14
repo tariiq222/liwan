@@ -50,7 +50,9 @@ describe('vendorDeletion', () => {
   })
   it('shows open and finished requests and hides a withdrawn or missing one', () => {
     for (const state of ['requested', 'confirmed', 'due', 'deleting', 'deleted']) expect(isDeletionShown(request({ state: state as TenantDeletionRequest['state'] })), state).toBe(true)
-    expect(isDeletionShown(request({ state: 'withdrawn' }))).toBe(false)
+    expect(isDeletionShown(request({ state: 'withdrawn', deleting_at: null }))).toBe(false)
+    // A withdrawal after access was stopped stays visible: its reinstatement is not done until the workspace is back.
+    expect(isDeletionShown(request({ state: 'withdrawn', deleting_at: '2026-11-14T09:00:00.000Z' }))).toBe(true)
     expect(isDeletionShown(null)).toBe(false)
   })
   it('reads the stuck step only when it is a known step', () => {

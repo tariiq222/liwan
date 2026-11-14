@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto'
 import type { PoolClient } from 'pg'
 
+/** SQL: the dedupe key of the `type` notice of the hold the request row `alias` is in (hold 1 has the bare key, later holds carry their number). */
+export const noticeKeySql = (type: string, alias: string) => `CASE WHEN ${alias}.hold_notice_seq = 1 THEN '${type}:' || ${alias}.id ELSE '${type}:' || ${alias}.id || ':' || ${alias}.hold_notice_seq END`
+/** The dedupe key of a hold's notice in application code (the same rule). */
+export const noticeKey = (type: string, id: string, seq: number) => seq === 1 ? `${type}:${id}` : `${type}:${id}:${seq}`
+
 type Queryable = Pick<PoolClient, 'query'>
 
 /** The plan the Python effects receive (`tools/shared_saas_lifecycle/tenant_drop_effect.py`): exactly these keys, nothing else. */
@@ -22,7 +27,8 @@ export const planDigestOf = (value: unknown): string => createHash('sha256').upd
 
 /** The checks a request must pass before its plan is frozen, in order. A failed check defers the deletion; nothing here ever fails it. */
 const CHECKS: { code: string; sql: string }[] = [
-  { code: 'due_notice_delivered', sql: `EXISTS (SELECT 1 FROM commercial_outbox WHERE kind='tenant_deletion.notice' AND aggregate_id=$3::text AND dedupe_key='due:'||$3::text AND status='done')` },
+  { code: 'due_notice_delivered', sql: `EXISTS (SELECT 1 FROM commercial_outbox o JOIN tenant_deletion_requests r ON r.id::text=o.aggregate_id WHERE o.kind='tenant_deletion.notice' AND o.aggregate_id=$3::text
+      AND o.status='done' AND o.payload->>'delivered'='true' AND o.dedupe_key=${noticeKeySql('due', 'r')})` },
   { code: 'no_payment_in_flight', sql: `NOT EXISTS (SELECT 1 FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.customer_id=$1
       AND (a.status='unknown' OR (a.status IN ('created','redirected','pending') AND a.updated_at > now() - interval '24 hours') OR a.payment_hold_until > now()))` },
   { code: 'no_payment_after_due', sql: `NOT EXISTS (SELECT 1 FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.customer_id=$1 AND a.status='succeeded'

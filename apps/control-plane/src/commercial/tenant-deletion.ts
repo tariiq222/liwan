@@ -18,7 +18,7 @@ export const DELETION_CODE_COOLDOWN_SECONDS = 60
 export const DELETION_CODE_HOURLY_LIMIT = 5
 export const DELETION_SYSTEM_ACTOR = 'system:tenant-deletion'
 
-export type DeletionNoticeType = 'requested' | 'confirmed' | 'reminder' | 'withdrawn' | 'due' | 'last_call' | 'deleting' | 'deleted'
+export type DeletionNoticeType = 'requested' | 'confirmed' | 'reminder' | 'withdrawn' | 'due' | 'last_call' | 'hold_extended' | 'deleting' | 'deleted'
 export type DeletionNoticePayload = { type: DeletionNoticeType; request_id: string; seq?: number; days?: number; code?: string }
 type Row = Record<string, any> & { id: string; customer_id: string; state: string }
 export type Who = { actor: string; client_address: string | null }

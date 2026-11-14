@@ -1,7 +1,7 @@
 import type { EffectPlan } from './tenant-deletion-plan.js'
 
 /** The stages of `tools/shared_saas_lifecycle/tenant_drop_effect.py`. */
-export type DropStage = 'verify' | 'drop_database' | 'remove_filestore' | 'remove_restore_copies' | 'purge_local_backups' | 'remove_side_files'
+export type DropStage = 'verify' | 'stamp_marker' | 'drop_database' | 'remove_filestore' | 'remove_restore_copies' | 'purge_local_backups' | 'remove_side_files'
 /** Called before every permit and on a heartbeat: throws when the runner no longer owns the request (lease or fence lost, withdrawn, authority gone). */
 export type AssertOwned = () => Promise<void>
 
@@ -15,6 +15,6 @@ export interface DeletionEffects {
   purgeOffsite(input: { tenantId: string; settleSeconds: number; assertOwned: AssertOwned }): Promise<Record<string, unknown>>
   /** Removes the tenant's bindings from the shared relay. `not_configured` when the control plane has no relay address and token. */
   unbindRelay(input: { tenantId: string; assertOwned: AssertOwned }): Promise<{ state: 'not_configured' | 'unbound' | 'absent' }>
-  /** Removes the control plane's own backup artifact files (`shared_backups.artifact_path`). */
-  removeBackupArtifacts(paths: string[]): Promise<{ removed: number }>
+  /** Removes the control plane's own backup artifacts of this tenant: each item is a backup id and the path its row holds, which must resolve strictly under the backup root as `<id>` or `<id>.json`. */
+  removeBackupArtifacts(items: { id: string; path: string }[]): Promise<{ removed: number }>
 }

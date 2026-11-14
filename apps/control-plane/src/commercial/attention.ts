@@ -150,9 +150,16 @@ const subjectsSql = `WITH latest AS (
   -- withdraw it if it is not legitimate); the runner carries the deletion out when the hold ends.
   SELECT c.id AS customer_id, c.name, c.tenant_id, r.due_at FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE r.state='due'
 ), deletion_stuck AS (
-  -- A deletion that is deferred or failed in a step and needs the vendor; detail is step:code, never a secret.
-  SELECT c.id AS customer_id, c.name, c.tenant_id, r.stuck_at, r.stuck_code FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id
+  -- A deletion that is deferred or failed in a step and needs the vendor; detail is step:code, never a secret. A request withdrawn after its access was stopped
+  -- and not yet reinstated (a quarter of an hour on) is listed too: a customer who withdrew in time is never left offline silently.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, r.stuck_at AS at, r.stuck_code AS code FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id
   WHERE r.stuck_at IS NOT NULL AND r.state IN ('due','deleting','deleted')
+  UNION ALL
+  SELECT c.id, c.name, c.tenant_id, r.withdrawn_at, 'reinstate:' || COALESCE(rs.error_code, 'pending')
+  FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id
+  JOIN tenant_deletion_steps sa ON sa.request_id=r.id AND sa.step='stop_access' AND sa.evidence ? 'prior'
+  LEFT JOIN tenant_deletion_steps rs ON rs.request_id=r.id AND rs.step='reinstate'
+  WHERE r.state='withdrawn' AND r.committed_at IS NULL AND COALESCE(rs.state,'') <> 'done' AND r.withdrawn_at < now() - interval '15 minutes'
 ), form_payment_review AS (
   -- A card form payment the vendor must look up at the provider, for a customer who did something: an attempt used with no payment ever
   -- reported (while its order is still unpaid and its attempt has no payment), a paid payment that held this attempt's own callback secret but
@@ -191,7 +198,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
   UNION ALL SELECT 2,'tenant_deletion_due', customer_id, tenant_id, NULL, NULL, name, ${iso('due_at')}, NULL, due_at FROM deletion_due
-  UNION ALL SELECT 2,'tenant_deletion_stuck', customer_id, tenant_id, NULL, NULL, name, ${iso('stuck_at')}, stuck_code, stuck_at FROM deletion_stuck
+  UNION ALL SELECT 2,'tenant_deletion_stuck', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, code, at FROM deletion_stuck
   UNION ALL SELECT 2,'form_payment_review', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM form_payment_review
   UNION ALL SELECT 2,'form_payment_review', NULL::uuid, NULL::uuid, NULL, NULL, 'payment provider', ${iso('at')}, detail, at FROM provider_payment_review
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked

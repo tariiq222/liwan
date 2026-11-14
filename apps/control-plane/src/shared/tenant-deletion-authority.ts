@@ -4,7 +4,7 @@ import type { RegistryActor } from './registry-store.js'
 
 /** What the registry publication of a deletion may do: stop access (`retire`: disabled and retired) or undo that stop for a request withdrawn before the point of no return (`reinstate`). */
 export type DeletionAuthorityMode = 'retire' | 'reinstate'
-type Authority = { requestId: string; planDigest: string; mode: DeletionAuthorityMode }
+type Authority = { requestId: string; planDigest: string; mode: DeletionAuthorityMode; /** The exact `enabled` the published target must carry (`false` to retire; what it was before for a reinstatement). */ enabled: boolean }
 
 // Object identity is a server capability, as for the commercial enrollment authority; an HTTP issuer/UID cannot forge it.
 const authorities = new WeakMap<RegistryActor, Authority>()
@@ -23,7 +23,7 @@ export const isTenantDeletionActor = (actor: RegistryActor) => authorities.has(a
 export async function requireTenantDeletionAuthority(client: Pick<PoolClient, 'query'>, actor: RegistryActor, controlTenantId: string, target: { enabled: boolean; retired: boolean }) {
   const authority = authorities.get(actor)
   if (!authority) throw Error('tenant_deletion_forbidden')
-  const wanted = authority.mode === 'retire' ? { enabled: false, retired: true } : { enabled: true, retired: false }
+  const wanted = authority.mode === 'retire' ? { enabled: false, retired: true } : { enabled: authority.enabled, retired: false }
   if (target.enabled !== wanted.enabled || target.retired !== wanted.retired) throw Error('tenant_deletion_forbidden')
   const state = authority.mode === 'retire' ? "r.state='deleting' AND r.withdrawn_at IS NULL" : "r.state='withdrawn' AND r.committed_at IS NULL AND r.plan IS NOT NULL"
   const row = await client.query(`SELECT 1 FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id

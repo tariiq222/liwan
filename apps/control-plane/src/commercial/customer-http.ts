@@ -24,7 +24,7 @@ import { trialEndPreview } from './trial-preview.js'
 import { retryFreeBaseLock } from './free-base-lock.js'
 import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
 import { confirmDeletion, requestDeletion, withdrawDeletion } from './tenant-deletion.js'
-import { tenantDeletionOf } from './tenant-deletion-read.js'
+import { assertCustomerNotRetiring, tenantDeletionOf } from './tenant-deletion-read.js'
 import { getUsage } from './usage.js'
 import { defaultPaymentMethod, listPaymentMethods } from './payment-methods.js'
 import { removePaymentMethod } from './payment-method-removal.js'
@@ -126,6 +126,9 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(input.raw) { let body:unknown; try{body=JSON.parse(input.raw)}catch{throw new CommercialHttpError('invalid',400,'body')} assertNoCustomerIdentity(body) }
   const path=url.pathname.slice('/v1/customer'.length),m=input.method,customerId=principal.customer_id!
   if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
+  // From `deleting` on nothing the customer does may create or change anything but its own card removal: no order, quote, payment, saved card, branch, plan change, top-up,
+  // auto-renew or resume. One predicate for every route; the database refuses the same creations again for the paths that do not come through here.
+  if (m!=='GET' && !/^\/deletion(?:\/|$)/.test(path) && !/^\/payment-methods\/[^/]+\/remove$/.test(path)) await assertCustomerNotRetiring(pool,customerId)
   const cancelling=/^\/subscription\/(cancel|resume)$/.exec(path)
   if (m==='POST' && cancelling) {
     requireCapability(principal,'subscription.manage')
