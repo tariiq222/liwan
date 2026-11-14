@@ -1,0 +1,150 @@
+{
+  "sales": {
+    "title": "Sales",
+    "new": "New quotation",
+    "edit": "Edit quotation",
+    "recordTitle": "Sales document",
+    "search": "Search by number or customer",
+    "clear": "Clear filters",
+    "empty": "There are no quotations or orders yet.",
+    "footer": "{shown} of 1 result | {shown} of {total} results",
+    "mine": "Mine only",
+    "noSalesperson": "No salesperson",
+    "columns": {
+      "number": "Number",
+      "customer": "Customer",
+      "salesperson": "Salesperson",
+      "date": "Date",
+      "state": "Status",
+      "source": "Source",
+      "total": "Total"
+    },
+    "state": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled"
+    },
+    "stage": {
+      "label": "Stage",
+      "all": "All",
+      "quotations": "Quotations",
+      "orders": "Orders",
+      "cancelled": "Cancelled"
+    },
+    "source": {
+      "any": "All sources",
+      "staff": "Sales team",
+      "online": "Online order"
+    },
+    "actions": {
+      "confirm": "Confirm order",
+      "cancel": "Cancel",
+      "reopen": "Reopen",
+      "lock": "Lock",
+      "unlock": "Unlock",
+      "duplicate": "Duplicate",
+      "assign": "Change salesperson"
+    },
+    "assign": {
+      "label": "New salesperson",
+      "save": "Save salesperson"
+    },
+    "record": {
+      "details": "Document details",
+      "lines": "Lines",
+      "untaxed": "Before tax",
+      "tax": "Tax",
+      "currency": "Currency",
+      "discount": "{percent}% discount",
+      "noValidity": "No validity date",
+      "noTerms": "No terms.",
+      "locked": "Locked",
+      "onlineTitle": "Online order, read-only",
+      "online": "This order came from an online channel, so it is not edited in sales. Its payment and refunds are managed from the payments orders list.",
+      "actionError": "The action failed",
+      "cancelConfirm": "Cancel {number}?",
+      "cancelHint": "You can reopen it later as a draft.",
+      "notEditable": "This document cannot be edited now. A quotation is edited only while it is a draft."
+    },
+    "form": {
+      "header": "Quotation details",
+      "headerHint": "The customer, the salesperson, the validity date and the terms.",
+      "customer": "Customer",
+      "customerRequired": "Choose the customer",
+      "salesperson": "Salesperson",
+      "salespersonHint": "Leave it empty to be the salesperson yourself.",
+      "salespersonPlaceholder": "Choose the salesperson",
+      "validity": "Valid until",
+      "validityHint": "Leave it empty to use the validity in the settings.",
+      "terms": "Terms and conditions",
+      "termsHint": "Leave them empty to use the default terms in the settings.",
+      "lines": "Lines",
+      "linesHint": "Each product is priced from the products list when you save.",
+      "create": "Create quotation",
+      "saveError": "The quotation was not saved"
+    },
+    "lines": {
+      "empty": "No lines.",
+      "product": "Product",
+      "changeProduct": "Change product",
+      "quantity": "Quantity",
+      "discount": "Discount %",
+      "unitPrice": "Unit price",
+      "unitPriceHint": "From the products list, before tax.",
+      "preview": "Total before tax",
+      "moveUp": "Move line up",
+      "moveDown": "Move line down",
+      "remove": "Remove line",
+      "addProduct": "Add product",
+      "addSection": "Add section",
+      "addNote": "Add note",
+      "kind": {
+        "product": "Product",
+        "section": "Section",
+        "note": "Note"
+      },
+      "text": {
+        "section": "Section title",
+        "note": "Note text"
+      },
+      "errors": {
+        "product": "Choose the product",
+        "quantity": "Enter a quantity above zero",
+        "discount": "Enter a discount from 0 to 100",
+        "name": "Enter the text",
+        "none": "Add at least one line"
+      }
+    },
+    "errors": {
+      "discountAboveLimit": "This discount is above your limit. Ask someone who may approve it, or lower the discount.",
+      "transitionForbidden": "The document's current state does not allow this action. Refresh the page and try again.",
+      "featureNotIncluded": "The sales application is not part of your subscription.",
+      "forbidden": "You may not do this.",
+      "notFound": "The document does not exist or you may not read it.",
+      "conflict": "The document changed elsewhere. Refresh the page and try again."
+    },
+    "settings": {
+      "readOnlyTitle": "Read-only",
+      "readOnly": "Sales settings are changed in the main company by someone who may manage them.",
+      "visibility": {
+        "title": "Who sees documents",
+        "hint": "A change applies to every existing document at once. Whoever may assign salespeople always sees every document.",
+        "own": "Their own documents",
+        "ownHint": "Each salesperson sees their own documents and the online orders without a salesperson.",
+        "all": "All documents",
+        "allHint": "Everyone sees every document of the company; each salesperson edits only their own."
+      },
+      "quotations": {
+        "title": "Quotations",
+        "hint": "What a new quotation starts with, and the discount allowed without approval.",
+        "validityDays": "Validity in days",
+        "validityDaysHint": "Applies to new quotations only.",
+        "discountLimit": "Discount limit without approval %",
+        "discountLimitHint": "Zero means no limit. Applies to new and edited lines.",
+        "defaultTerms": "Default terms",
+        "defaultTermsHint": "Added to new quotations only."
+      }
+    }
+  }
+}
