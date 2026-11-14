@@ -29,6 +29,14 @@ export function api(browser: PageContext, method: string, path: string, payload?
   }, [method, path, payload ?? null]) as Promise<Answer>;
 }
 
+/** The user id of the one person the people picker finds under NAME. */
+export async function personId(browser: PageContext, name: string): Promise<number> {
+  const found = await api(browser, 'GET', `/api/v1/people?q=${encodeURIComponent(name)}`);
+  const people = (found.body as unknown as { name: string; user_id: number }[]).filter(person => person.name === name);
+  expect([name, found.status, people.length]).toEqual([name, 200, 1]);
+  return people[0]!.user_id;
+}
+
 /** Replace the current session with PERSONA's: the remembered-device cookie passes the second sign-in step. */
 export async function signInAs(persona: Persona, { app, screen, browser }: Stage) {
   const user = credentials.user(persona);

@@ -1,6 +1,6 @@
 import { test, type Browser as WebBrowser } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { api, ODOO_ONLY, signInAs, slow, type Answer, type Json, type PageContext, type Stage } from '../scratch.ts';
+import { api, ODOO_ONLY, personId, signInAs, slow, type Answer, type Json, type PageContext, type Stage } from '../scratch.ts';
 
 /**
  * Operations register rows against the scratch Odoo stack (`npm run e2e:odoo`).
@@ -29,14 +29,6 @@ async function ok(browser: PageContext, method: string, path: string, payload?: 
   const answer = await api(browser, method, path, payload);
   expect([method, path, answer.status, answer.body.message]).toEqual([method, path, 200, undefined]);
   return answer.body;
-}
-
-/** The user id of the one person the people picker finds under NAME. */
-async function personId(browser: PageContext, name: string): Promise<number> {
-  const found = await api(browser, 'GET', `/api/v1/people?q=${encodeURIComponent(name)}`);
-  const people = (found.body as unknown as { name: string; user_id: number }[]).filter(person => person.name === name);
-  expect([name, found.status, people.length]).toEqual([name, 200, 1]);
-  return people[0]!.user_id;
 }
 
 function asRecord(body: Json): Record_ {

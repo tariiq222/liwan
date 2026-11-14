@@ -36,27 +36,27 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-70 | Followers-only project in the list | staff2 | Hidden from non-followers, visible to followers, the manager and managers | `GET /api/v1/projects` | fail | private security advisory GHSA-9xq5-v9r4-xfxc; followers-only project: non-follower staff1/staff2 correctly do not see it in the list, followers do, BUT ceo (pmo_manager role) does not see it either, and direct GET answers 403 with the raw English Odoo text instead of 404; see findings |
+| PMO-70 | Followers-only project in the list | staff2 | Hidden from non-followers, visible to followers, the manager and managers | `GET /api/v1/projects` | fail | re-run 2026-11-15 by `e2e/tests/projects-register.e2e.ts` work: non-followers, the follower and the assigned manager behave as expected, a holder of the company-wide manager role still does not; details stay in the private security advisory; earlier note; private security advisory GHSA-9xq5-v9r4-xfxc; followers-only project: non-follower staff1/staff2 correctly do not see it in the list, followers do, BUT ceo (pmo_manager role) does not see it either, and direct GET answers 403 with the raw English Odoo text instead of 404; see findings |
 
 ## Creating and copying a project
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-92 | Open `/projects/new` directly as an employee under policy `managers` | staff1 | Page shows no form (no create right); back link returns to the list | `page /projects/new` `GET /api/v1/settings/projects/create-defaults` | fail | #196; UI as staff1 under policy managers: /projects/new shows the 403 permission page «لا تملك صلاحية فتح هذه الصفحة» (no form); that page offers «العودة إلى الصفحة الرئيسية», not the list. Not changed: the route needs `pmo.projects.create` (the command palette relies on it), so the in-page notice of `projects/new.vue` is only reached by someone who holds the capability; an owner decision on the shared permission page is needed |
-| PMO-100 | Copy of an invisible project | staff2 | 404 `not_found`; the copy link on the source summary is hidden when the caller cannot create | `POST /api/v1/projects/<id>/copy` | fail | private security advisory GHSA-9xq5-v9r4-xfxc; staff2 GET and copy of a followers-only project they cannot read answer 403 `forbidden` with the raw English Odoo AccessError, the contract says 404 `not_found` |
+| PMO-92 | Open `/projects/new` directly as an employee under policy `managers` | staff1 | The shared permission page «لا تملك صلاحية فتح هذه الصفحة» with «العودة إلى الصفحة الرئيسية» and «رجوع»; no form; `create-defaults` answers 403 `forbidden` | `page /projects/new` `GET /api/v1/settings/projects/create-defaults` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: the expected result now states the owner decision of 2026-11-01 on #196: the shared permission page stays); earlier note; #196; UI as staff1 under policy managers: /projects/new shows the 403 permission page «لا تملك صلاحية فتح هذه الصفحة» (no form); that page offers «العودة إلى الصفحة الرئيسية», not the list. Not changed: the route needs `pmo.projects.create` (the command palette relies on it), so the in-page notice of `projects/new.vue` is only reached by someone who holds the capability; an owner decision on the shared permission page is needed |
+| PMO-100 | Copy of an invisible project | staff2 | 404 `not_found`; the copy link on the source summary is hidden when the caller cannot create | `POST /api/v1/projects/<id>/copy` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: a non-follower gets the same 404 as for a missing project on read, edit and copy); earlier note; private security advisory GHSA-9xq5-v9r4-xfxc; staff2 GET and copy of a followers-only project they cannot read answer 403 `forbidden` with the raw English Odoo AccessError, the contract says 404 `not_found` |
 
 ## Project summary, edit, archive, status
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-105 | Open a followers-only project as a non-follower | staff2 | Same not-found page, nothing leaks about the project | `GET /api/v1/projects/<id>` | planned | #197; fixed in code: a project the caller cannot read answers 404 `not_found` (`records.get_record`), covered by `test_followers_and_visibility`; not yet re-run in the UI; private security advisory GHSA-9xq5-v9r4-xfxc |
-| PMO-114 | Edit with empty name, bad date, start after end | pm (own) | 422 `invalid` on the field; start after end names `date_start` | `PATCH /api/v1/projects/<id>` | fail | private security advisory GHSA-9xq5-v9r4-xfxc; start after end via PATCH answers 422 with the raw Odoo ValidationError (English text and a full Python traceback in the body) instead of 422 invalid on date_start; see findings; API empty name 422, bad date 422 |
+| PMO-105 | Open a followers-only project as a non-follower | staff2 | Same not-found page, nothing leaks about the project | `GET /api/v1/projects/<id>` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: the page shows the same not-found state as a missing project); earlier note; #197; fixed in code: a project the caller cannot read answers 404 `not_found` (`records.get_record`), covered by `test_followers_and_visibility`; not yet re-run in the UI; private security advisory GHSA-9xq5-v9r4-xfxc |
+| PMO-114 | Edit with empty name, bad date, start after end | pm (own) | 422 `invalid` on the field; start after end names `date_start` | `PATCH /api/v1/projects/<id>` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: each case answers 422 on its field with contract keys only; one date sent alone against the stored one answers 422 without a `field`); earlier note; private security advisory GHSA-9xq5-v9r4-xfxc; start after end via PATCH answers 422 with the raw Odoo ValidationError (English text and a full Python traceback in the body) instead of 422 invalid on date_start; see findings; API empty name 422, bad date 422 |
 
 ## Charter content
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-146 | Charter currency and amount display | staff1 | Amount shown with the company currency; unknown budget shows no amount | `page /projects/[id]/charter` `GET /api/v1/project-charter/defaults` | fail | #243; UI staff1: amount 12345.5 shows «12345.5USD ($)» (no thousands separator or two decimals, no space before the currency); unknown budget shows no amount; the project type is not shown on the read-only charter |
+| PMO-146 | Charter currency and amount display | pm (own) | A finance reader sees the amount with separators, two decimals and the company currency («12,345.50 SAR (SR)»); unknown budget shows no amount; a reader without project finance sees no budget section | `page /projects/[id]/charter` `GET /api/v1/project-charter/defaults` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: as pm; persona and expected result corrected, staff1 has no project finance under the seeded setting); earlier note; #243; UI staff1: amount 12345.5 shows «12345.5USD ($)» (no thousands separator or two decimals, no space before the currency); unknown budget shows no amount; the project type is not shown on the read-only charter |
 
 ## Charter approval workflow
 
@@ -84,9 +84,9 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-214 | Schedule scale switch | staff1 | «أسبوعي» / «شهري»; a long project groups columns and says so | `page /projects/[id]/schedule` | fail | #243; see findings: «شهري» columns step 30 days (1 أكتوبر, 31 أكتوبر, 30 نوفمبر ...) |
+| PMO-214 | Schedule scale switch | staff1 | «أسبوعي» / «شهري»; a long project groups columns and says so | `page /projects/[id]/schedule` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: calendar months, grouped columns on a long project, the scale stays in the URL; the timeline now lives at `/projects/[id]/tasks?view=timeline`); earlier note; #243; see findings: «شهري» columns step 30 days (1 أكتوبر, 31 أكتوبر, 30 نوفمبر ...) |
 | PMO-217 | Schedule shows only visible dependencies | staff1 | Dependency ids the caller cannot read are left out | `GET /api/v1/projects/<id>/schedule` | planned | same as PMO-259: no dependency id is hidden from a reader of the project, schedule showed the task for staff2 |
-| PMO-220 | Schedule start after end, or outside milestone and project bounds | pm (own) | 422 `invalid` with the matching message | `PATCH /api/v1/projects/<id>/schedule/tasks/<id>` | fail | #195; API run as the persona (pm on own project, project created by e2e_admin with pm as manager): start after end 422 works, but an end date far after the project end (2030 vs 2027-03-31) is accepted with 200; see findings |
+| PMO-220 | Schedule start after end, or outside milestone and project bounds | pm (own) | 422 `invalid` with the matching message | `PATCH /api/v1/projects/<id>/schedule/tasks/<id>` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: each range refusal answers 422 with its message); earlier note; #195; API run as the persona (pm on own project, project created by e2e_admin with pm as manager): start after end 422 works, but an end date far after the project end (2030 vs 2027-03-31) is accepted with 200; see findings |
 
 ## Updates
 
@@ -112,19 +112,19 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 | PMO-266 | Create an issue | pm (own) | 201; `score`, `probability` and `impact` are all null (the stored score of an issue stays 0 inside Odoo and is never returned) | `POST /api/v1/projects/<id>/register` | automated | `liwan_pmo` tests `test_an_issue_has_no_score_like_its_probability_and_impact` and `test_project_governance`; #196: the row text said score 0, the contract says null |
 | PMO-273 | Jump straight from closed back to open, or open to closed | pm (own) | Accepted: the route has no transition rules | `PATCH /api/v1/projects/<id>/register/<id>` | decision | #164; Owner to decide whether the register needs a status machine |
 | PMO-276 | Linked task the reader cannot see | staff2 | The item is listed without the task link | `GET /api/v1/projects/<id>/register` | planned | same as PMO-259: the register item with a linked task is shown with the task to a reader who follows the project |
-| PMO-277 | Governance routes for a hidden project | staff2 | 404 `not_found` on every governance read and write | `GET /api/v1/projects/<id>/register/<id>` | planned | #197; fixed in code: governance reads and writes of a hidden project answer 404 `not_found` through the same helper; not yet re-run as staff2; private security advisory GHSA-9xq5-v9r4-xfxc |
+| PMO-277 | Governance routes for a hidden project | staff2 | 404 `not_found` on every governance read and write | `GET /api/v1/projects/<id>/register/<id>` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: every governance read and write answers 404 to a non-follower); earlier note; #197; fixed in code: governance reads and writes of a hidden project answer 404 `not_found` through the same helper; not yet re-run as staff2; private security advisory GHSA-9xq5-v9r4-xfxc |
 
 ## Project tasks list and board
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-283 | Add a task from a column or the toolbar | pm (own) | `/projects/[id]/tasks/new` opens as the create panel preset with the column's stage or state | `page /projects/[id]/tasks/new` | fail | #216: toolbar «مهمة مشروع جديدة» opens the create panel (Escape returns) but «مهمة جديدة في هذا العمود» opens /tasks/new?view=board with no stage or state preset; #216 |
+| PMO-283 | Add a task from a column or the toolbar | pm (own) | `/projects/[id]/tasks/new` opens as the create panel preset with the column's stage or state | `page /projects/[id]/tasks/new` | fail | re-run 2026-11-15: the toolbar create opens the panel, but a plain click on «مهمة جديدة في هذا العمود» lands on `/projects/<id>/tasks/new?view=board` without the preset, although the link href carries `preset_state`; `openLiveLink` in `apps/web/app/pages/projects/[id]/tasks.vue` pushes the pathname only; earlier note; #216: toolbar «مهمة مشروع جديدة» opens the create panel (Escape returns) but «مهمة جديدة في هذا العمود» opens /tasks/new?view=board with no stage or state preset; #216 |
 
 ## Task list API
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-288 | Filters persist per browser and appear in the URL | staff1 | Assignee, deadline and priority are stored and mirrored; a key in the URL wins over the stored value | `page /tasks` | fail | #217 still: priority 3 chosen -> URL ?priority=3 and localStorage `liwan.tasks.filters` {closed,priority}; coming back to /tasks the list is filtered (total 0, chip «عاجلة») but the URL stays /tasks without the key; assignee and deadline also stored; a URL key wins (?priority=0); #217 |
+| PMO-288 | Filters persist per browser and appear in the URL | staff1 | Assignee, deadline and priority are stored and mirrored; a key in the URL wins over the stored value | `page /tasks` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: URL and storage mirror each filter and a URL key wins; opening bare /tasks with stored filters keeps the URL bare, which `pages/tasks.vue` documents as intended); earlier note; #217 still: priority 3 chosen -> URL ?priority=3 and localStorage `liwan.tasks.filters` {closed,priority}; coming back to /tasks the list is filtered (total 0, chip «عاجلة») but the URL stays /tasks without the key; assignee and deadline also stored; a URL key wins (?priority=0); #217 |
 | PMO-301 | List sorting and paging | staff1 | Sort by id, deadline (undated last), priority, name, create or write date, asc or desc; limit default 50 capped at 200; bad project id or limit 422 | `GET /api/v1/tasks` | automated | staff1 `sort=<field> <asc\|desc>` works for date_deadline (undated last in both directions), priority, name, id, write_date; limit=abc and project_id=abc 422; an unknown key or direction is 422 `invalid` on `sort` (`test_unknown_sort_keys_and_directions_are_refused`) |
 
 ## Creating and editing a task
@@ -146,13 +146,13 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-363 | Archived list validation and search | staff1 | Bad project id 422; negative limit or offset 422; `q` filters by name | `GET /api/v1/tasks/archived` | fail | #217; `project_id=abc` 422 and `-1` 422 hold; `limit`, `offset` and `q` on `/api/v1/tasks/archived` answer 400 `unsupported_filter` "pass filter=mine and/or project_id" (findings2/projects.md) |
+| PMO-363 | Archived list validation and search | staff1 | With `filter=mine` or `project_id`: bad project id 422; negative limit or offset 422; `q` filters by name | `GET /api/v1/tasks/archived` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: expected result now names the required filter); earlier note; #217; `project_id=abc` 422 and `-1` 422 hold; `limit`, `offset` and `q` on `/api/v1/tasks/archived` answer 400 `unsupported_filter` "pass filter=mine and/or project_id" (findings2/projects.md) |
 
 ## Task comments, timeline and attachments
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-374 | Upload an attachment | staff1 | 201 with name, size, download link; appears in the task | `POST /api/v1/tasks/<id>/attachments` | fail | #217; Upload 201 from the UI and API with name, mimetype and download url, but no size field in the response (findings2/projects.md) |
+| PMO-374 | Upload an attachment | staff1 | 201 with name, size, download link; appears in the task | `POST /api/v1/tasks/<id>/attachments` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: the answer carries the size); earlier note; #217; Upload 201 from the UI and API with name, mimetype and download url, but no size field in the response (findings2/projects.md) |
 
 ## Tags and personal stages
 
@@ -163,7 +163,7 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-393 | Open the digest page | pm | `/notification-digests/[id]` lists the snapshot tasks still open and readable, sorted by deadline, paged, with the digest date | `page /notification-digests/[id]` `GET /api/v1/notification-digests/<id>` | fail | #217; Page lists the snapshot tasks sorted by deadline with the footer «6 مهام متأخرة» and API paging works, but the digest date is not shown anywhere on the page (findings2/projects.md) |
+| PMO-393 | Open the digest page | pm | `/notification-digests/[id]` lists the snapshot tasks still open and readable, sorted by deadline, paged, with the digest date | `page /notification-digests/[id]` `GET /api/v1/notification-digests/<id>` | planned | 2026-11-15: the date is in the page (`digest-date`) and in `notificationDigest.test.ts`; the e2e run needs a digest made by `tools/e2e_cron.py` first; earlier note; #217; Page lists the snapshot tasks sorted by deadline with the footer «6 مهام متأخرة» and API paging works, but the digest date is not shown anywhere on the page (findings2/projects.md) |
 | PMO-401 | Bells switched off with the feature | ceo | With `pmo.enabled` off none of the project bell kinds are listed | `GET /api/v1/projects` | fail | #219; exclusive phase, pmo.enabled off with no retained read: staff1 GET /notifications still lists the pmo kinds (assignment 12, comment 2, deadline 3) and ceo lists overdue_digest and assignment; none of the project bell kinds is filtered out, see findings |
 
 ## Project finance
@@ -172,7 +172,7 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 | --- | --- | --- | --- | --- | --- | --- |
 | PMO-406 | Over budget | pm (own) | Actual above planned flags `over_budget`; exact decimal sums (0.10 + 0.20 equals 0.30) | `GET /api/v1/projects/<id>/finance/summary` | planned | needs finance off: expenses cannot be entered here; exact decimal sum 0.10 + 0.20 = 0.3 verified on budget lines |
 | PMO-408 | Add an expense | pm (own) | Needs positive amount and a date; may link a budget line of the same project | `POST /api/v1/projects/<id>/finance` | planned | needs finance off: expense POST is refused 422 "Expenses are recorded in the project's cost center, not here."; amount<=0 422 "amount must be between 0 and 1e12" and a missing date 422 "expense_date is required" checked |
-| PMO-413 | Edit with empty body or forbidden field | pm (own) | 422 "no fields to update" / `unknown_field` "cannot be changed" | `PATCH /api/v1/projects/<id>/finance/<id>` | fail | #217; Empty body 422 "no fields to update" and `kind` 422 unknown_field "cannot be changed" hold, but `project_id` alone is silently dropped and answers "no fields to update" (findings2/projects.md) |
+| PMO-413 | Edit with empty body or forbidden field | pm (own) | 422 "no fields to update" / `unknown_field` "cannot be changed" | `PATCH /api/v1/projects/<id>/finance/<id>` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: fixed fields are refused alone or beside a real change); earlier note; #217; Empty body 422 "no fields to update" and `kind` 422 unknown_field "cannot be changed" hold, but `project_id` alone is silently dropped and answers "no fields to update" (findings2/projects.md) |
 | PMO-414 | Delete an expense | pm (own) | Inline confirmation; token required; `{deleted: true}` | `DELETE /api/v1/projects/<id>/finance/<id>` | planned | needs finance off: no expense can be created to delete |
 | PMO-415 | Delete a budget line that expenses reference | pm (own) | 409 `finance_entry_linked`; delete the expenses or unlink them first | `DELETE /api/v1/projects/<id>/finance/<id>` | planned | needs finance off: no expense can reference a budget line; budget line delete without token answered 200 {deleted:true} |
 
@@ -180,7 +180,7 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-433 | Section pages of a project that does not exist | staff1 | Each tab URL for a missing project shows «المشروع غير موجود أو لا تملك صلاحية عرضه» without the workspace frame | `page /projects/[id]/finance` | fail | #243; UI staff1 on /projects/99999999: summary, tasks, milestones, charter, finance, updates, meetings show «المشروع غير موجود أو لا تملك صلاحية عرضه»; schedule, stakeholders, raci and register show the generic «هذا السجل غير متاح أو لم يعد موجودًا.» and the schedule and raci keep their controls |
+| PMO-433 | Section pages of a project that does not exist | staff1 | Each tab URL for a missing project shows «المشروع غير موجود أو لا تملك صلاحية عرضه» without the workspace frame | `page /projects/[id]/finance` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: fifteen section URLs show the one not-found state without the frame); earlier note; #243; UI staff1 on /projects/99999999: summary, tasks, milestones, charter, finance, updates, meetings show «المشروع غير موجود أو لا تملك صلاحية عرضه»; schedule, stakeholders, raci and register show the generic «هذا السجل غير متاح أو لم يعد موجودًا.» and the schedule and raci keep their controls |
 
 ## Project policy settings
 
@@ -205,4 +205,4 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-506 | Project settings page is fully Arabic | ceo | Every label in «الربط مع التطبيقات الأخرى» is Arabic | `page /settings/apps/projects` | fail | #138; Found 2026-10-28: «Cost centers of projects», its English description, «Automatic» and «Manual» are shown in the Arabic UI |
+| PMO-506 | Project settings page is fully Arabic | ceo | Every label in «الربط مع التطبيقات الأخرى» is Arabic | `page /settings/apps/projects` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: the added options are Arabic in the API and on the page); earlier note; #138; Found 2026-10-28: «Cost centers of projects», its English description, «Automatic» and «Manual» are shown in the Arabic UI |
