@@ -1,25 +1,17 @@
 <script setup lang="ts">
 import { visibleSettingsPages } from '@/composables/nav/shellModules'
 
-// The settings overview: one card per page the user can reach, listing the cards inside it.
+// The settings entry address: it opens the first page the user can reach, the same target its sidebar link uses.
 const { t } = useI18n()
 const { me, ready } = useMe()
 await ready
-const cards = computed(() => visibleSettingsPages(me.value).map(({ page, parts }) => ({
-  id: page.id,
-  to: parts[0]!.to ?? page.to,
-  icon: page.icon,
-  title: t(page.labelKey),
-  description: parts.map(part => t(part.labelKey)).join(t('settings.overview.separator')),
-})))
+const first = visibleSettingsPages(me.value)[0]
+if (first) await navigateTo(first.parts[0]!.to ?? first.page.to, { replace: true })
 </script>
 
 <template>
-  <SharedSettingsPage data-testid="settings-overview">
+  <SharedSettingsPage v-if="!first">
     <SharedPageHeader :title="t('settings.title')" />
-    <section v-if="cards.length" :aria-label="t('settings.title')" class="liwan-card-grid">
-      <SharedLinkCard v-for="card in cards" :key="card.id" :to="card.to" :icon="card.icon" :title="card.title" :description="card.description" :data-testid="`settings-section-${card.id}`" />
-    </section>
-    <SharedEmptyState v-else bordered :title="t('settings.forbidden')" />
+    <SharedEmptyState bordered :title="t('settings.forbidden')" />
   </SharedSettingsPage>
 </template>

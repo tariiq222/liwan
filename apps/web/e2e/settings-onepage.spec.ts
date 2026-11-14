@@ -104,7 +104,7 @@ test.describe('settings page of cards', () => {
   test.describe('projects settings', () => {
     const projectLink = (id: string) => (page: Page) => page.locator(`[data-testid="application-navigation"] a[href="/settings/apps/projects#${id}"]`)
 
-    test('cold client navigation from the overview: the spy follows the cards that render after the data arrives', async ({ page }) => {
+    test('cold client navigation from the settings entry: the spy follows the cards that render after the data arrives', async ({ page }) => {
       await open(page, '/settings')
       // The sidebar entry opens its sub-list; the page itself is the sub-list's first link.
       await page.getByTestId('settings-projects-tab').click()
