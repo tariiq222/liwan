@@ -6,7 +6,7 @@ from odoo import Command
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
-from .common import LiwanCatalogCase, image_bytes
+from .common import LiwanCatalogCase, image_bytes, upload
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_payments.tests.common import TAX_EXCLUDED, TAX_INCLUDED
 
@@ -65,6 +65,45 @@ class TestCatalogProductRights(LiwanCatalogCase):
         template = self.env['product.template'].browse(product['id'])
         with self.assertRaises(AccessError):
             template.with_user(self.manager).write({'name': 'Direct'})
+
+    def test_a_product_made_through_the_service_with_an_image_is_listed_and_one_without_is_refused(self):
+        catalog = self.make_catalog()
+        items = f'/api/v1/inbox/catalogs/{catalog.id}/items'
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.set_mode(mode)
+                self.login_user(self.manager)
+                bare = self.api('POST', PRODUCTS, {'name': f'No image {mode}', 'type': 'service', 'list_price': 20})
+                self.assertEqual(bare.status_code, 201, bare.text)
+                self.assertIs(bare.json()['has_image'], False)
+                self.assertError(self.api('POST', items, {'product_id': bare.json()['id']}), 422, 'invalid')
+                small = self.api('POST', PRODUCTS, {
+                    'name': f'Small image {mode}', 'type': 'service', 'list_price': 20, 'image': upload(size=(100, 100)),
+                })
+                self.assertIs(small.json()['has_image'], True)
+                self.assertError(self.api('POST', items, {'product_id': small.json()['id']}), 422, 'invalid')
+                made = self.api('POST', PRODUCTS, {
+                    'name': f'With image {mode}', 'type': 'service', 'list_price': 20, 'image': upload(),
+                })
+                self.assertEqual(made.status_code, 201, made.text)
+                self.assertIs(made.json()['has_image'], True)
+                listed = self.api('POST', items, {'product_id': made.json()['id']})
+                self.assertEqual(listed.status_code, 201, listed.text)
+                self.assertEqual(listed.json()['image']['width'], 600)
+
+    def test_changing_the_image_of_a_listed_product_through_the_service_resyncs_its_item(self):
+        product = self.products_as(self.manager)._liwan_create({
+            'name': 'Resynced', 'type': 'service', 'list_price': 40, 'image': upload(),
+        })
+        item = self.synced(self.make_item(self.make_catalog(), product.product_variant_id))
+        token = item.image_token
+        self.set_mode('saas')
+        self.login_user(self.manager)
+        changed = self.api('PATCH', f'{PRODUCTS}/{product.id}', {'image': upload(size=(700, 700), fmt='JPEG')})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        item.invalidate_recordset(['sync_state', 'image_token'])
+        self.assertEqual(item.sync_state, 'pending')
+        self.assertNotEqual(item.image_token, token)
 
     def test_a_catalog_manager_alone_picks_and_prices_the_products_of_the_service(self):
         product = self.products_as(self.manager)._liwan_create({'name': 'Pickable', 'type': 'service', 'list_price': 40})

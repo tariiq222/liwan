@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  PRODUCT_LIMITS,
   ProductCreateSchema,
   ProductListSchema,
   ProductPatchSchema,
@@ -15,7 +16,7 @@ const PRICE = {
   currency: { id: 2, name: 'SAR', symbol: 'ر.س' },
 }
 const PRODUCT = {
-  id: 9, name: 'Haircut', type: 'service', description: null, list_price: 100, price: PRICE,
+  id: 9, name: 'Haircut', type: 'service', description: null, has_image: true, list_price: 100, price: PRICE,
   company: null, active: true, taxes: [{ id: 5, name: 'VAT 15%', amount: 15 }],
 }
 const PICK = { id: 9, name: 'Haircut', type: 'service', ...PRICE }
@@ -26,9 +27,10 @@ describe('ProductSchema', () => {
     const { taxes: _taxes, ...untaxed } = PRODUCT
     expect(ProductSchema.parse(untaxed).taxes).toBeUndefined()
     expect(Object.keys(ProductSchema.shape).sort()).toEqual(
-      ['active', 'company', 'description', 'id', 'list_price', 'name', 'price', 'taxes', 'type'],
+      ['active', 'company', 'description', 'has_image', 'id', 'list_price', 'name', 'price', 'taxes', 'type'],
     )
     expect(() => ProductSchema.parse({ ...PRODUCT, image: null })).toThrow()
+    expect(() => ProductSchema.parse({ ...PRODUCT, has_image: undefined })).toThrow()
     expect(() => ProductSchema.parse({ ...PRODUCT, type: 'combo' })).toThrow()
     expect(() => ProductSchema.parse({ ...PRODUCT, price: { ...PRICE, currency: { id: 2, name: 'SAR' } } })).toThrow()
   })
@@ -57,6 +59,22 @@ describe('ProductCreateSchema', () => {
     expect(() => ProductCreateSchema.parse({ name: 'Haircut', type: 'service', list_price: -1 })).toThrow()
     expect(() => ProductCreateSchema.parse({ name: 'Haircut', type: 'service', taxes: [] })).toThrow()
     expect(() => ProductCreateSchema.parse({ name: 'Haircut', type: 'service', image: 'x' })).toThrow()
+  })
+})
+
+const IMAGE = { name: 'p.png', mimetype: 'image/png', data: 'iVBORw0KGgo=' }
+
+describe('ProductImageSchema', () => {
+  it('takes a named JPEG or PNG with base64 data, on create, and null to clear it on an edit', () => {
+    expect(ProductCreateSchema.parse({ name: 'Oil', type: 'goods', image: IMAGE }).image).toEqual(IMAGE)
+    expect(ProductPatchSchema.parse({ image: IMAGE }).image).toEqual(IMAGE)
+    expect(ProductPatchSchema.parse({ image: null })).toEqual({ image: null })
+    expect(() => ProductCreateSchema.parse({ name: 'Oil', type: 'goods', image: null })).toThrow()
+    expect(() => ProductPatchSchema.parse({ image: { ...IMAGE, mimetype: 'image/gif' } })).toThrow()
+    expect(() => ProductPatchSchema.parse({ image: { ...IMAGE, data: '' } })).toThrow()
+    expect(() => ProductPatchSchema.parse({ image: { ...IMAGE, data: 'A'.repeat(PRODUCT_LIMITS.imageData + 1) } })).toThrow()
+    expect(() => ProductPatchSchema.parse({ image: { name: 'p.png', data: IMAGE.data } })).toThrow()
+    expect(() => ProductPatchSchema.parse({ image: { ...IMAGE, extra: 1 } })).toThrow()
   })
 })
 

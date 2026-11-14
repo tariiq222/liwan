@@ -1,4 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import base64
+import io
+
+from PIL import Image
+
 from odoo.addons.liwan_api.tests.common import (
     PROBE_FEATURE,
     MembershipCase,
@@ -14,6 +19,21 @@ PICK_PROBE = 'access.roles.read'
 # A core capability that stands for an application's price capability: it prices, and never picks.
 PRICE_PROBE = 'access.audit.read'
 EVERY_CAPABILITY = ('products.read', 'products.manage', 'products.prices.manage')
+
+
+def image_bytes(size=(600, 600), fmt='PNG'):
+    out = io.BytesIO()
+    Image.new('RGB', size, 'red').save(out, format=fmt)
+    return out.getvalue()
+
+
+def image_upload(size=(600, 600), fmt='PNG', mimetype=None, raw=None):
+    """The wire ``image`` of a product: a real image of ``size`` and ``fmt`` (``raw`` bytes instead when given)."""
+    return {
+        'name': 'product.png',
+        'mimetype': mimetype or ('image/png' if fmt == 'PNG' else 'image/jpeg'),
+        'data': base64.b64encode(raw if raw is not None else image_bytes(size, fmt)).decode(),
+    }
 
 
 class ProductsCase(MembershipCase):

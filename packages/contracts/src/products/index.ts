@@ -8,7 +8,11 @@ const Id = z.number().int().positive()
 const RefSchema = z.object({ id: Id, name: z.string() }).strict()
 const Amount = z.number().nonnegative()
 
-export const PRODUCT_LIMITS = { name: 200, description: 4000 } as const
+// `image.data` is base64 text: four characters encode three bytes, so 5 MB of file is at most `imageData` characters.
+export const PRODUCT_LIMITS = { name: 200, description: 4000, imageName: 255, imageBytes: 5 * 1024 * 1024, imageData: 4 * Math.ceil((5 * 1024 * 1024) / 3) } as const
+
+/** The image formats a product accepts; the minimum size is the catalog's own rule when it lists the product. */
+export const ProductImageMimetypeSchema = z.enum(['image/jpeg', 'image/png'])
 
 export const ProductSharingSchema = z.enum(['establishment', 'branch'])
 
@@ -49,6 +53,8 @@ export const ProductSchema = z.object({
   name: z.string().min(1),
   type: ProductTypeSchema,
   description: z.string().nullable(),
+  // Whether the product has an image; the file itself is never in the product.
+  has_image: z.boolean(),
   list_price: Amount,
   price: ProductPriceSchema,
   company: RefSchema.nullable(),
@@ -74,12 +80,21 @@ export const ProductPickListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
+/** An uploaded image: a JPEG or PNG of at most 5 MB, base64 in `data`. The file must really be the type it says. */
+export const ProductImageSchema = z.object({
+  name: z.string().trim().min(1).max(PRODUCT_LIMITS.imageName),
+  mimetype: ProductImageMimetypeSchema,
+  data: z.string().min(1).max(PRODUCT_LIMITS.imageData),
+}).strict()
+
 const DefinitionFields = {
   name: z.string().trim().min(1).max(PRODUCT_LIMITS.name),
   type: ProductTypeSchema,
   // The price is `products.prices.manage`; the rest of the definition is `products.manage`.
   list_price: Amount,
   description: z.string().max(PRODUCT_LIMITS.description).nullable(),
+  // `products.manage`. A new product has no image until one is sent; `null` on an edit removes it.
+  image: ProductImageSchema.nullable(),
   // The establishment's own sale taxes (`ProductTaxChoiceSchema` ids): accepted only when it is registered for VAT.
   taxes: z.array(Id).min(1),
 }
@@ -89,6 +104,7 @@ export const ProductCreateSchema = z.object({
   type: DefinitionFields.type,
   list_price: DefinitionFields.list_price.optional(),
   description: DefinitionFields.description.optional(),
+  image: ProductImageSchema.optional(),
   taxes: DefinitionFields.taxes.optional(),
 }).strict()
 
@@ -120,6 +136,7 @@ export const ProductSettingsPatchSchema = z.object({
   revision: z.number().int().positive(),
 }).strict()
 
+export type ProductImage = z.infer<typeof ProductImageSchema>
 export type ProductSharing = z.infer<typeof ProductSharingSchema>
 export type ProductType = z.infer<typeof ProductTypeSchema>
 export type ProductCurrency = z.infer<typeof ProductCurrencySchema>

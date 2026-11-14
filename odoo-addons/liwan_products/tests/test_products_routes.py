@@ -156,6 +156,94 @@ class TestProductsRoutes(ProductsCase):
                 self.assertRefused(response, 422, 'invalid')
                 self.assertEqual(response.json()['field'], field)
 
+    def test_a_value_that_is_not_the_right_kind_of_json_is_refused_not_a_server_error(self):
+        product = self.created({'name': 'Patched', 'type': 'goods'})
+        path = f'{PRODUCTS}/{product["id"]}'
+        for mode in MODES:
+            with self.subTest(mode=mode), self.undone():
+                self.set_mode(mode)
+                set_probe_feature(self)
+                self.sign_in('pr_root_staff')
+                for key, value in (
+                    ('type', []), ('type', {}), ('type', [1]), ('type', 1), ('type', None), ('type', True),
+                    ('name', []), ('name', {}), ('name', 'a\x00b'), ('description', []), ('description', 'a\x00b'),
+                    ('list_price', []), ('list_price', '5'),
+                ):
+                    create = {'name': 'X', 'type': 'goods', key: value}
+                    for method, url, body in (('POST', PRODUCTS, create), ('PATCH', path, {key: value})):
+                        with self.subTest(method=method, key=key, value=repr(value)):
+                            response = self.api(method, url, body)
+                            self.assertRefused(response, 422, 'invalid')
+                            self.assertEqual(response.json()['field'], key)
+                self.assertEqual(self.env['product.template'].browse(product['id']).type, 'consu')
+
+    def test_a_price_that_is_not_a_finite_number_is_refused(self):
+        # requests cannot send NaN or Infinity, but Python's JSON reader accepts the bare words: send the text itself.
+        product = self.created({'name': 'Finite', 'type': 'goods', 'list_price': 7})
+        path = f'{PRODUCTS}/{product["id"]}'
+        for mode in MODES:
+            with self.subTest(mode=mode), self.undone():
+                self.set_mode(mode)
+                set_probe_feature(self)
+                self.sign_in('pr_root_staff')
+                for word in ('NaN', 'Infinity', '-Infinity'):
+                    for method, url, body in (
+                        ('POST', PRODUCTS, '{"name": "X", "type": "goods", "list_price": %s}' % word),
+                        ('PATCH', path, '{"list_price": %s}' % word),
+                    ):
+                        with self.subTest(method=method, word=word):
+                            response = self.url_open(
+                                url, data=body, headers={'Content-Type': 'application/json'}, method=method,
+                            )
+                            self.assertRefused(response, 422, 'invalid')
+                            self.assertEqual(response.json()['field'], 'list_price')
+        self.assertEqual(self.env['product.template'].browse(product['id']).list_price, 7)
+
+    def test_a_list_request_that_is_not_the_right_kind_is_refused_not_a_server_error(self):
+        self.sign_in('pr_root_staff')
+        for query, field in (
+            ('type=combo', 'type'), ('type=%5B%5D', 'type'), ('archived=maybe', 'archived'), ('q=a%00b', 'q'),
+            ('limit=x', 'limit'), ('limit=-1', 'limit'), ('offset=1.5', 'offset'), ('offset=99999999999999999999', 'offset'),
+            ('colour=red', 'colour'),
+        ):
+            for path in (PRODUCTS, PICK):
+                if path == PICK and field in ('type', 'archived', 'colour'):
+                    continue
+                with self.subTest(path=path, query=query):
+                    response = self.api('GET', f'{path}?{query}')
+                    self.assertEqual(response.status_code, 422, response.text)
+                    self.assertEqual(response.json()['field'], field)
+
+    def test_the_service_refuses_values_of_the_wrong_kind(self):
+        service = self.env['liwan.products.service'].with_user(self.root_staff).with_company(self.root_company)
+        for number in (float('nan'), float('inf')):
+            with self.subTest(number=number), self.assertRaisesRegex(LiwanAccessRule, 'list_price'):
+                service._liwan_create({'name': 'X', 'type': 'goods', 'list_price': number})
+        for offset in (-1, 2**31, 10**20, 1.5, [], True):
+            with self.subTest(offset=offset), self.assertRaisesRegex(LiwanAccessRule, 'offset'):
+                service._liwan_search(offset=offset)
+        for value in ([], {}, [1], 1):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(LiwanAccessRule, 'type must be one of'):
+                    service._liwan_search(type=value)
+                with self.assertRaisesRegex(LiwanAccessRule, 'type must be one of'):
+                    service._liwan_create({'name': 'X', 'type': value})
+
+    def test_the_settings_refuse_a_body_that_is_not_the_right_kind_of_json(self):
+        self.sign_in('pr_root_settings')
+        revision = self.settings.revision
+        for payload, field in (
+            ({'sharing': [], 'revision': revision}, 'sharing'), ({'sharing': {}, 'revision': revision}, 'sharing'),
+            ({'sharing': 'branch', 'revision': []}, 'revision'), ({'sharing': 'branch', 'revision': {}}, 'revision'),
+            ({'sharing': 'branch', 'revision': 1.5}, 'revision'), ({'sharing': 'branch', 'revision': True}, 'revision'),
+            ({'sharing': 'branch', 'revision': 10**30}, None),
+        ):
+            with self.subTest(payload=payload):
+                response = self.api('PATCH', SETTINGS, payload)
+                self.assertEqual(response.status_code, 409 if field is None else 422, response.text)
+                self.assertEqual(response.json().get('field'), field)
+        self.assertEqual(self.settings.sharing, 'establishment')
+
     def test_the_settings(self):
         self.sign_in('pr_a_staff')
         current = self.api('GET', SETTINGS).json()

@@ -1,20 +1,27 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import math
+
 from odoo import api, models
 from odoo.exceptions import AccessError
 
 from .access_service import PRODUCTS_MANAGE, PRODUCTS_PRICES_MANAGE, PRODUCTS_READ
+from .product_image import IMAGE_FIELD, parse_image
 from .product_template import PRODUCT_CREATE_MARKER, PRODUCT_MARKER
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_core.models.protected_write import marked
 
 NAME_MAX = 200
+# PostgreSQL stores no NUL character in text: it would answer 500.
+NUL = '\x00'
 DESCRIPTION_MAX = 4000
 ORDER = 'name, id'
+# The largest offset a list may ask: PostgreSQL refuses one beyond a bigint, and nobody pages that far.
+MAX_OFFSET = 2**31 - 1
 # The wire value of a product type and the stock value it stores (plan D10: combo waits for its editor).
 WIRE_TYPES = {'goods': 'consu', 'service': 'service'}
 STOCK_TYPES = {stock: wire for wire, stock in WIRE_TYPES.items()}
 # The values of the base definition a caller may give; contributing addons add their spec names.
-BASE_KEYS = frozenset({'name', 'type', 'list_price', 'description'})
+BASE_KEYS = frozenset({'name', 'type', 'list_price', 'description', IMAGE_FIELD})
 PRICE_KEYS = frozenset({'list_price'})
 
 
@@ -38,6 +45,7 @@ def _keys_of(values):
 
 
 def _is_number(value):
+    """A JSON number (never a boolean)."""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
@@ -120,9 +128,11 @@ class LiwanProductsService(models.AbstractModel):
         """The service products of one state, matching ``query`` on the name and of the wire ``type`` when given."""
         domain = [('liwan_product', '=', True), ('active', '=', not archived)]
         if query:
+            if not isinstance(query, str) or NUL in query:
+                _refuse_invalid('q', 'q must be text')
             domain.append(('name', 'ilike', query))
         if type is not None:
-            if type not in WIRE_TYPES:
+            if not isinstance(type, str) or type not in WIRE_TYPES:
                 _refuse_invalid('type', f'type must be one of {sorted(WIRE_TYPES)}')
             domain.append(('type', '=', WIRE_TYPES[type]))
         return domain
@@ -131,6 +141,8 @@ class LiwanProductsService(models.AbstractModel):
     def _liwan_search(self, query=None, archived=False, type=None, limit=50, offset=0):
         """``(products, total)`` the caller can see for ``_liwan_search_domain``, by name."""
         domain = self._liwan_search_domain(query, archived, type)
+        if not isinstance(offset, int) or isinstance(offset, bool) or not 0 <= offset <= MAX_OFFSET:
+            _refuse_invalid('offset', f'offset must be a whole number from 0 to {MAX_OFFSET}')
         templates = self.env['product.template'].with_context(active_test=False)
         found = templates.search(domain, order=ORDER, limit=limit, offset=offset)
         return found.with_context(active_test=True), templates.search_count(domain)
@@ -151,10 +163,10 @@ class LiwanProductsService(models.AbstractModel):
 
     @api.model
     def _liwan_create(self, values):
-        """A new service product from ``values`` (``name`` and ``type`` required; ``list_price``, ``description`` and
-        the contributed fields optional). Needs ``products.manage``, and ``products.prices.manage`` for a price; a
-        product created without one costs 0. Its company comes from the sharing setting (D7) and decides where it is
-        created (D23)."""
+        """A new service product from ``values`` (``name`` and ``type`` required; ``list_price``, ``description``,
+        ``image`` and the contributed fields optional). Needs ``products.manage``, and ``products.prices.manage`` for
+        a price; a product created without one costs 0. Its company comes from the sharing setting (D7) and decides
+        where it is created (D23)."""
         company = self._liwan_new_company()
         self._liwan_require_write(company, _keys_of(values))
         vals, extensions = self._liwan_definition_values(values, company, required=True)
@@ -261,25 +273,29 @@ class LiwanProductsService(models.AbstractModel):
         vals = {}
         if 'name' in values:
             name = values['name']
-            if not isinstance(name, str) or not name.strip() or len(name.strip()) > NAME_MAX:
+            if not isinstance(name, str) or not name.strip() or len(name.strip()) > NAME_MAX or NUL in name:
                 _refuse_invalid('name', f'name is required, at most {NAME_MAX} characters')
             vals['name'] = name.strip()
         if 'type' in values:
-            if values['type'] not in WIRE_TYPES:
+            if not isinstance(values['type'], str) or values['type'] not in WIRE_TYPES:
                 _refuse_invalid('type', f'type must be one of {sorted(WIRE_TYPES)}')
             vals['type'] = WIRE_TYPES[values['type']]
         if 'list_price' in values:
             price = values['list_price']
-            if not _is_number(price) or price < 0:
+            if not _is_number(price) or not math.isfinite(price) or price < 0:
                 _refuse_invalid('list_price', 'list_price must be a number, zero or more')
             vals['list_price'] = float(price)
         elif required:
             vals['list_price'] = 0.0
         if 'description' in values:
             description = values['description']
-            if description is not None and (not isinstance(description, str) or len(description) > DESCRIPTION_MAX):
+            if description is not None and (
+                not isinstance(description, str) or len(description) > DESCRIPTION_MAX or NUL in description
+            ):
                 _refuse_invalid('description', f'description must be text, at most {DESCRIPTION_MAX} characters')
             vals['description_sale'] = (description or '').strip() or False
+        if IMAGE_FIELD in values:
+            vals['image_1920'] = parse_image(values[IMAGE_FIELD])
         extensions = {
             name: spec['parse'](self.env, values[name], company) for name, spec in specs.items() if name in values
         }
@@ -302,7 +318,7 @@ class LiwanProductsService(models.AbstractModel):
         its session (403 otherwise). ``quantity`` is a number above zero (422 otherwise). ``unit_price`` is rounded to
         the currency; the amounts come from the unrounded unit price.
         """
-        if not _is_number(quantity) or quantity <= 0:
+        if not _is_number(quantity) or not math.isfinite(quantity) or quantity <= 0:
             _refuse_invalid('quantity', 'quantity must be a number greater than zero')
         company = company or self.env.company
         if not self.env.su:

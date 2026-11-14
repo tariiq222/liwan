@@ -85,8 +85,19 @@ application that calls them from its own route cannot skip the checks.
 
 `values` keys: `name` (text, 1-200 characters, required on create), `type` (`goods` = stock `consu`, `service`;
 required on create; `combo` is not offered, D10), `list_price` (a number, zero or more; 0 on a create without it),
-`description` (text up to 4000 characters, or null), plus each contributed field that applies (`taxes` with the tax
-bridge). Any other key is 422 `invalid` with `field` set to it.
+`description` (text up to 4000 characters, or null), `image` (below), plus each contributed field that applies (`taxes` with the tax
+bridge). Any other key is 422 `invalid` with `field` set to it. Every value is checked for its JSON kind first: a `type` that
+is not text (`[]`, `{}`), a text with a NUL character, a `list_price` that is not a finite number and a `q` argument
+with a NUL character are 422 `invalid` on their field, never a server error.
+
+`image` is `{name, mimetype, data}` (all three required, no other key): `data` is base64 text, `mimetype` is
+`image/jpeg` or `image/png`, the file is at most 5 MB and must really be the format it says (read from its header; a
+file with more than 50 million pixels is refused). `null` on an edit removes the image; on a create it means none. It
+needs `products.manage` (it is not a price key), checked before the value is read. Any failure is 422 `invalid` on
+`image`. The service stores the file in `image_1920`, so a catalog item listing the product watches it (a change
+resyncs the item and renews its public image address). The smallest size (500 x 500) is the catalog's own rule when it
+lists a product, not the product's. The image is part of the definition: no code but the service writes it (the
+single-writer guard). Parsing lives in `models/product_image.py`.
 
 D23: a product with no company (shared) is created, edited, priced, archived and restored only in a root-company
 session (`liwan.tenant.profile.root_company_id`) by a holder of the capability there; a product with a company only in
@@ -120,8 +131,10 @@ All are `type='json2'`, `auth='user'`, behind `api_handler` and the registered-f
 | `GET /api/v1/products/settings` | `products.read` or `products.settings.manage` | | `Settings` |
 | `PATCH /api/v1/products/settings` | `products.settings.manage` in the working and the root company | `{sharing, revision}` | `Settings` |
 
-- `Product`: `{id, name, type, description, list_price, price: Price, company: {id, name} | null, active}` plus each
+- `Product`: `{id, name, type, description, has_image, list_price, price: Price, company: {id, name} | null, active}` plus each
   contributed field that applies (`taxes: [{id, name, amount}]` with the tax bridge on a VAT-registered establishment).
+- `has_image` is a boolean; the bytes never leave the product shape, and no route here serves the file. `Pick` does not
+  carry it.
 - `Price`: `{unit_price, amount_untaxed, amount_tax, amount_total, currency: {id, name, symbol}}`, for one unit in the
   session's company. Every price leaves the API as the unit price as typed plus before tax, tax and total.
 - `Pick`: `{id, name, type, unit_price, amount_untaxed, amount_tax, amount_total, currency}`.

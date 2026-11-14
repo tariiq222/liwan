@@ -23,13 +23,14 @@ def dump_price(price):
 
 
 def dump_product(service, product):
-    """The detail shape of a service product, with its price for one unit in the session's company and the fields
+    """The detail shape of a service product (``has_image``, never the file), with its price for one unit in the session's company and the fields
     contributing addons add (only those that apply to the session's establishment)."""
     return {
         'id': product.id,
         'name': product.name,
         'type': STOCK_TYPES.get(product.type, product.type),
         'description': product.description_sale or None,
+        'has_image': bool(product.with_context(bin_size=True).image_1920),
         'list_price': product.list_price,
         'price': dump_price(service._liwan_price(product)),
         'company': _ref(product.company_id),
