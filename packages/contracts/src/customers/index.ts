@@ -17,10 +17,15 @@ export const CustomerSharingSchema = z.enum(['establishment', 'branch'])
 /** Which customers the tenant serves: it decides the forms a new customer gets, never an existing one. */
 export const CustomerPartyKindsSchema = z.enum(['individuals', 'companies', 'both'])
 
-/** A customer on the wire. `company` is null for a customer shared by every branch. Phones are E.164. */
+/**
+ * A customer on the wire. `company` is null for a customer shared by every branch. Phones are E.164. `erased` is true
+ * once the customer's personal data was erased: `name` is then a stored language-neutral marker, so a screen shows its
+ * own translated name instead.
+ */
 export const CustomerSchema = z.object({
   id: z.number().int().positive(),
   name: z.string().min(1),
+  erased: z.boolean(),
   phone: z.string().regex(/^\+[1-9]\d{6,14}$/).nullable(),
   email: z.string().nullable(),
   is_company: z.boolean(),

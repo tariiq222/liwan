@@ -94,7 +94,7 @@ class TestCustomersRoutes(CustomersCase):
         company = self.created({'name': 'Trading house', 'is_company': True, 'email': 'house@example.test'})
         contact = self.created({'name': 'House contact', 'parent_id': company['id'], 'phone': '0551234567'})
         self.assertEqual(contact, {
-            'id': contact['id'], 'name': 'House contact', 'phone': '+966551234567', 'email': None,
+            'id': contact['id'], 'name': 'House contact', 'erased': False, 'phone': '+966551234567', 'email': None,
             'is_company': False, 'parent': {'id': company['id'], 'name': 'Trading house'}, 'active': True,
             'company': None, 'properties': [],
         })

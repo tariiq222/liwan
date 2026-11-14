@@ -14,6 +14,13 @@ from odoo.addons.liwan_core.models.protected_write import marked
 # PRIVACY_WRITE_FIELDS under the privacy marker.
 ERASED_NAME = 'Erased customer %d'
 ERASED_ACCOUNT = 'erased-%d'
+
+
+def is_erased(partner):
+    """Whether the party carries the stable marker name an erase writes; the screens show a translated name instead."""
+    return partner.name == ERASED_NAME % partner.id
+
+
 ACTION_ERASE = 'erase'
 ACTION_RETAIN = 'retain'
 # What an erase cannot change, as keys the screen translates: message and tracking history, free text typed into other

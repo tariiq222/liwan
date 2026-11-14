@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../useApi'
 import { customerPrivacyRefusal } from '../customerPrivacyErrors'
-import { canRunErase, distinctReasons, groupPrivacyItems, knownPrivacyReason } from '../customerPrivacyView'
+import { blockedByOwner, canRunErase, distinctReasons, groupPrivacyItems, knownPrivacyReason } from '../customerPrivacyView'
 
 const blocker = { key: 'sale.order', owner: 'sale', reason: 'application_has_no_hook' }
 
@@ -85,5 +85,22 @@ describe('useCustomerPrivacy', () => {
     const preview = useCustomerErasePreview() as unknown as { mutationFn: (id: number) => Promise<unknown> }
     await preview.mutationFn(7)
     expect($api).toHaveBeenCalledWith('/api/v1/customers/7/privacy/erase-preview', expect.objectContaining({ method: 'POST' }))
+  })
+})
+
+describe('blockedByOwner', () => {
+  it('groups the blocked items of one reason by the application that owns them', () => {
+    const incomplete = [
+      { key: 'crm_leads', owner: 'liwan_crm', reason: 'caller_cannot_reach_all_records' },
+      { key: 'inbox_messages', owner: 'liwan_inbox', reason: 'caller_cannot_reach_all_records' },
+      { key: 'crm_calls', owner: 'liwan_crm', reason: 'caller_cannot_reach_all_records' },
+      { key: 'sale.order', owner: 'sale', reason: 'application_has_no_hook' },
+    ]
+    expect(blockedByOwner(incomplete, 'caller_cannot_reach_all_records')).toEqual([
+      { owner: 'liwan_crm', keys: ['crm_leads', 'crm_calls'] },
+      { owner: 'liwan_inbox', keys: ['inbox_messages'] },
+    ])
+    expect(blockedByOwner(incomplete, 'application_has_no_hook')).toEqual([{ owner: 'sale', keys: ['sale.order'] }])
+    expect(blockedByOwner(incomplete, 'session_does_not_cover_every_company')).toEqual([])
   })
 })
