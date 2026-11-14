@@ -218,6 +218,22 @@ class RealManifestClosureTest(unittest.TestCase):
         self.assertIn('liwan_api_account', module_closure.install_closure([ADDONS], BASE + ['liwan_finance']))
         self.assertNotIn('liwan_api_account', module_closure.install_closure([ADDONS], BASE))
 
+    def test_the_real_orders_service_joins_every_tier_with_an_addon_that_depends_on_stock_sale(self):
+        # liwan_orders installs itself on liwan_api and stock `sale`: it stays out of the foundation alone and joins
+        # every release tier whose closure holds an addon that names `sale` in its own depends (liwan_payments does).
+        # The closure resolves a stock module through direct dependencies only, as install_closure documents.
+        self.assertNotIn('liwan_orders', module_closure.install_closure([ADDONS], BASE))
+        self.assertIn('liwan_orders', module_closure.install_closure([ADDONS], BASE + ['liwan_payments']))
+        selling_tiers = 0
+        for tier, (_selected, closure) in _release_tiers().items():
+            installs_sale = any(
+                'sale' in _manifest_depends(ADDONS / module / '__manifest__.py') for module in closure - {'liwan_orders'}
+            )
+            selling_tiers += installs_sale
+            with self.subTest(tier=tier):
+                self.assertEqual('liwan_orders' in closure, installs_sale)
+        self.assertTrue(selling_tiers, 'no release tier installs stock sale: the test would prove nothing')
+
     def test_the_real_meetings_bridge_joins_only_with_both_applications(self):
         shared = {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_notify', 'liwan_directory'}
         self.assertEqual(

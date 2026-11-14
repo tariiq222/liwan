@@ -88,6 +88,12 @@ application's AI agent and tools.
   adds a product's sale taxes (`taxes`, `/api/v1/products/taxes`) and the tax part of the price function, following
   the establishment's tax choice of `liwan_api_account`. It holds the one elevated read of the establishment's taxes
   for a branch session (`tools/arch_documented_sudo.json`).
+- `odoo-addons/liwan_orders` (shared service, rank 3, `auto_install` on `liwan_api` and stock `sale`) owns one rule:
+  an order line of an establishment that is not registered for VAT carries no tax, whoever creates the line. It
+  overrides `sale.order.line._compute_tax_ids` and `copy_data`, and has no model, route, capability, setting or
+  feature key. The online order factory of `liwan_payments` relies on it and holds no copy of the rule. A database
+  that already has `liwan_api` and `sale` gets it only when `-i` names it. Its contract is
+  `odoo-addons/liwan_orders/README.md`. Plan: `docs/superpowers/plans/2026-11-14-liwan-orders.md`.
 - `odoo-addons/liwan_integrations_sa` (shared service, rank 3) owns the status of the Saudi live links
   (ZATCA, banks) at `/api/v1/integrations` and the `integrations.enabled` feature. It depends on `liwan_api` only.
 - `odoo-addons/liwan_pmo` owns projects, tasks, timelines, project settings,
@@ -196,9 +202,9 @@ application's AI agent and tools.
   copy of the name, e-mail, phone and address is cleared) and saved payment tokens (archived and neutralised), plus the
   access rows the two privacy capabilities need on those models.
 - `packages/contracts/src/<namespace>` holds the Zod wire contracts (current namespaces: `access`, `ai`,
-  `appointments`, `chat`, `common`, `crm`, `documents`, `finance`, `hr`, `inbox`, `integrations`,
-  `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `tasks`); each has a barrel re-exported
-  from `src/index.ts`.
+  `appointments`, `auth`, `chat`, `common`, `crm`, `customers`, `documents`, `finance`, `hr`, `inbox`,
+  `integrations`, `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `products`, `storage`, `tasks`,
+  `tenant-export`); each has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
   PMO components live in `app/components/pmo/{projects,tasks}`, personal-task
