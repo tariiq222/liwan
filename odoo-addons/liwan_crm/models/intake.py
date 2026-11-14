@@ -211,9 +211,7 @@ class LiwanCrmIntake(models.AbstractModel):
     @api.model
     def _liwan_packages(self, company):
         """Active packages of ``company`` by trimmed lower-case name (the lowest id wins a tie)."""
-        packages = self.env['product.template'].with_company(company).search([
-            ('liwan_crm_package', '=', True), '|', ('company_id', '=', False), ('company_id', '=', company.id),
-        ], order='id desc')
+        packages = self.env['liwan.crm.settings']._liwan_packages(company).sorted('id', reverse=True)
         return {package.name.strip().lower(): package for package in packages}
 
     @api.model
@@ -319,6 +317,7 @@ class LiwanCrmIntake(models.AbstractModel):
     @api.model
     def _liwan_lead_values(self, vals, company, source, stage, batch):
         package = vals['package']
+        price = self.env['liwan.products.service']._liwan_price(package, company=company)['unit_price'] if package else 0.0
         return {
             'name': vals['name'],
             'contact_name': vals['name'],
@@ -332,7 +331,7 @@ class LiwanCrmIntake(models.AbstractModel):
             'user_id': False,
             'liwan_import_batch_id': batch.id,
             'liwan_package_id': package.id,
-            'liwan_list_price': package.list_price,
+            'liwan_list_price': price,
         }
 
     @api.model

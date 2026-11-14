@@ -188,6 +188,13 @@ class LiwanCrmSettings(models.Model):
     )
     start_stage_id = fields.Many2one('crm.stage', ondelete='set null')
 
+    # The products the company offers as packages: a company-owned choice among the shared products (plan D13). A
+    # lead's package is one of these; the products themselves belong to liwan_products.
+    package_ids = fields.Many2many(
+        'product.template', 'liwan_crm_settings_package_rel', 'settings_id', 'product_id',
+        domain=[('liwan_product', '=', True)],
+    )
+
     visibility = fields.Selection(_selection(VISIBILITIES), required=True, default=DEFAULTS['visibility'])
     view_log_enabled = fields.Boolean(default=DEFAULTS['view_log_enabled'])
     # The audit trail of opportunity openings holds personal data ("who opened what"), so a company states
@@ -261,3 +268,15 @@ class LiwanCrmSettings(models.Model):
         values['start_stage_id'] = row.start_stage_id
         values['distribution_user_ids'] = row.distribution_user_ids.ids
         return values
+
+    @api.model
+    def _liwan_packages(self, company=None, archived=False):
+        """The products ``company`` (default: the current one) offers as packages; archived ones with ``archived``."""
+        row = self.with_company(company or self.env.company)._liwan_current()
+        packages = row.with_context(active_test=False).package_ids
+        return packages if archived else packages.filtered('active')
+
+    @api.model
+    def _liwan_current_or_create(self):
+        """The current company's row, created with the defaults when it was never saved."""
+        return self._liwan_current() or self.create({'company_id': self.env.company.id})

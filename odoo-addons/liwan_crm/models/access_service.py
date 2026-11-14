@@ -1,6 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from odoo.addons.liwan_products.models.access_service import (
+    PRODUCTS_MANAGE,
+    PRODUCTS_PRICES_MANAGE,
+    PRODUCTS_READ,
+)
+
 AGENT_PERMISSIONS = frozenset({'crm.leads.read', 'crm.leads.work'})
 PERMISSIONS = AGENT_PERMISSIONS | {
     'crm.leads.assign',
@@ -51,9 +57,12 @@ class LiwanCrmAccessService(models.AbstractModel):
     @api.model
     def _liwan_builtin_role_grants(self):
         grants = super()._liwan_builtin_role_grants()
+        # The manager creates and prices the products it offers as packages, through the products service (D4): the
+        # built-in role keeps what the removed package routes gave it, with the read capability both require (a built-in
+# role grant does not complete dependencies). A custom role must be given them.
         for role_xmlid, keys in (
             ('liwan_crm.role_crm_agent', AGENT_PERMISSIONS),
-            ('liwan_crm.role_crm_manager', PERMISSIONS),
+            ('liwan_crm.role_crm_manager', PERMISSIONS | {PRODUCTS_READ, PRODUCTS_MANAGE, PRODUCTS_PRICES_MANAGE}),
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants

@@ -30,18 +30,20 @@ class CrmLeadFlow(models.Model):
         if not self._liwan_visibility()._liwan_can_assign(user, self.company_id):
             raise ApiError(403, 'forbidden', f'{ASSIGN_CAPABILITY} capability is required')
 
-    def _liwan_discount(self, package, final_price, declared_percent, user):
+    def _liwan_package_price(self, package):
+        """The unit price of ``package`` as typed on the product, in this opportunity's company (plan D6)."""
+        return self.env['liwan.products.service']._liwan_price(package, company=self.company_id)['unit_price']
+
+    def _liwan_discount(self, list_price, final_price, declared_percent, user):
         """The discount the sale grants, derived from the prices alone, after the company's policy.
 
         A declared percentage must equal it (rounded to two decimals): the stored discount is one
         fact, the difference between the package price and the final price. ``None`` declares nothing.
         """
-        discount = round((package.list_price - final_price) * 100 / package.list_price, 2) if (
-            final_price < package.list_price
-        ) else 0
+        discount = round((list_price - final_price) * 100 / list_price, 2) if final_price < list_price else 0
         if declared_percent is not None and round(declared_percent, 2) != discount:
             raise ApiError(422, 'invalid', 'the discount does not match the prices', field='discount_percent')
-        if final_price > package.list_price:
+        if final_price > list_price:
             self._liwan_check_price_above_list(user)
         if not discount:
             return 0
@@ -70,10 +72,11 @@ class CrmLeadFlow(models.Model):
         self.ensure_one()
         self._liwan_visibility()._liwan_check_write(self, user)
         self._liwan_require_open()
-        discount = self._liwan_discount(package, final_price, discount_percent, user)
+        list_price = self._liwan_package_price(package)
+        discount = self._liwan_discount(list_price, final_price, discount_percent, user)
         self.write({
             'liwan_package_id': package.id,
-            'liwan_list_price': package.list_price,
+            'liwan_list_price': list_price,
             'liwan_discount_percent': discount,
             'liwan_final_price': final_price,
             'liwan_recycle_at': False,

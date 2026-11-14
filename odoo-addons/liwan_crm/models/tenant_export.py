@@ -20,6 +20,7 @@ SETTINGS_FIELDS = (
     'distribution_user_ids',
     'followup_attempts',
     'followup_interval_hours',
+    'package_ids',
     'preset',
     'price_above_list',
     'recycle_after_days',
