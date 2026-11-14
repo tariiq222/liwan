@@ -25,8 +25,8 @@ def use_hr_decision_path(case):
     if 'liwan.operation.process' in case.env.registry:
         processes = case.env['liwan.operation.process']
         if hasattr(processes, '_hr_leave_governing_process'):
-            case.patch(type(processes), '_hr_leave_governing_process', lambda model, company: model.browse())
-            case.patch(type(processes), '_hr_leave_is_being_edited', lambda model, company: False)
+            case.classPatch(type(processes), '_hr_leave_governing_process', lambda model, company: model.browse())
+            case.classPatch(type(processes), '_hr_leave_is_being_edited', lambda model, company: False)
 
 
 def make_archivable(env, employees):
