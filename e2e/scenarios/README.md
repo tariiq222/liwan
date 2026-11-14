@@ -66,6 +66,11 @@ the ID.
 | `decision` | Expected behaviour needs an owner decision before it can be tested |
 | `dropped` | No longer applies (reason in Notes) |
 
+A register is ready for a release when it has no `fail` or `planned` row and no status outside
+this table. `python3 -B tools/e2e_scenario_readiness.py` prints that for every register, or for
+the ones named (`crm inbox`); `--ids` lists the blocking rows, `--check` exits 1 when a reported
+register is not ready, and `--manual-since YYYY-MM-DD` also blocks on an older `manual` pass.
+
 ## Personas
 
 The demo company «شركة نخبة الأعمال للتقنية» and its personas are seeded through Odoo by
