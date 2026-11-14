@@ -352,6 +352,59 @@ class TestTenantExport(ExportFixture, TransactionCase):
         self.assertFalse(path.exists())
         self.assertFalse(leftover.exists())
 
+    def test_the_expiry_cron_keeps_the_directory_of_a_build_whose_name_is_committed_while_it_lists(self):
+        exports = self.env['liwan.tenant.export']
+        job = exports._liwan_request()
+        name = f'{job.id}-0123456789abcdef'
+        running = exports._liwan_dir() / name
+        running.mkdir(parents=True)
+        real = type(running).iterdir
+
+        def listed_then_committed(path):
+            entries = list(real(path))
+            job.with_user(SUPERUSER_ID).write({'state': 'running', 'archive_name': name})
+            return iter(entries)
+
+        with patch.object(type(running), 'iterdir', listed_then_committed):
+            exports._liwan_cron_expire()
+        self.assertTrue(running.is_dir())
+
+    def test_a_build_begins_by_naming_the_directory_before_creating_it(self):
+        job = self.exports()._liwan_request().with_user(SUPERUSER_ID)
+        seen = []
+        real = type(job)._liwan_checkpoint
+
+        def checkpoint(record):
+            seen.append(bool(record.archive_name) and not record._liwan_path().exists())
+            return real(record)
+
+        with patch.object(type(job), '_liwan_checkpoint', checkpoint):
+            job._liwan_begin()
+        self.assertEqual(seen, [True])
+        self.assertTrue(job._liwan_path().is_dir())
+
+    def test_a_build_whose_earlier_chunk_is_missing_does_not_finish_as_successful(self):
+        parent = self.env['res.partner'].create({'name': 'Export missing chunk owner'})
+        with self.sample(parent), patch.object(archive_module, 'CHUNK_ROWS', 1):
+            job = self.exports()._liwan_request()
+            real = archive_module.run_step
+            lost = []
+
+            def lose_first_chunk(env, root, progress, datasets):
+                if progress['workbooks'] and not lost:
+                    (root / progress['workbooks'][0]).unlink()
+                    lost.append(1)
+                return real(env, root, progress, datasets)
+
+            with patch.object(archive_module, 'run_step', lose_first_chunk):
+                for _ in range(export_module.MAX_ATTEMPTS + 40):
+                    self.run_cron()
+                    job.invalidate_recordset()
+                    if job.state not in ('running', 'requested'):
+                        break
+        self.assertEqual(lost, [1])
+        self.assertEqual((job.state, job.failure), ('failed', 'build_failed'))
+
     def test_the_requester_is_an_id_so_removing_the_account_is_not_blocked(self):
         job = self.build()
         user = new_test_user(self.env, login='export_removed', groups='liwan_core.group_employee')

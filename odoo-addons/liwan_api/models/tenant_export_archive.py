@@ -103,7 +103,7 @@ def new_progress(datasets):
     return {
         'plan': [{'app': item['app'], 'key': item['key']} for item in datasets],
         'index': 0, 'phase': 'rows', 'cursor': 0, 'part': 0,
-        'rows': {}, 'files': {}, 'files_bytes': {}, 'overflow': {}, 'finalized': False,
+        'rows': {}, 'files': {}, 'files_bytes': {}, 'overflow': {}, 'workbooks': [], 'finalized': False,
     }
 
 
@@ -157,7 +157,9 @@ def _rows_step(root, progress, dataset):
         part = progress['part'] + 1
         # A re-run of this step counts its overflow again from the cursor, so the count follows the cursor.
         sheet = Sheet(dataset['title'], dataset['header'], rows)
-        _write_workbook(root / app / _part_name(key, part), sheet, _overflow_writer(root, progress, dataset, part))
+        name = Path(app) / _part_name(key, part)
+        _write_workbook(root / name, sheet, _overflow_writer(root, progress, dataset, part))
+        progress['workbooks'].append(name.as_posix())
         progress['part'] = part
         progress['rows'][key] = progress['rows'].get(key, 0) + len(rows)
     progress['cursor'] = last
@@ -181,12 +183,31 @@ def _files_step(root, progress, dataset):
         progress['files_bytes'][key] = progress['files_bytes'].get(key, 0) + len(raw)
     if rows:
         part = progress['part'] + 1
-        _write_workbook(root / app / _part_name(key, part, '_files'), Sheet('File manifest', FILES_HEADER, rows))
+        name = Path(app) / _part_name(key, part, '_files')
+        _write_workbook(root / name, Sheet('File manifest', FILES_HEADER, rows))
+        progress['workbooks'].append(name.as_posix())
         progress['part'] = part
         progress['files'][key] = progress['files'].get(key, 0) + len(rows)
     progress['cursor'] = last
     if done:
         _advance(progress)
+
+
+def verify_complete(root, progress):
+    """Raise unless every workbook and every copied file the progress counts is on the disk.
+
+    The progress survives a lost directory or a missing chunk, and the next steps would recreate the directory and
+    carry on; without this check the archive would be marked successful with part of its content gone.
+    """
+    missing = [name for name in progress['workbooks'] if not (root / name).is_file()]
+    if missing:
+        msg = f'tenant export: {len(missing)} written workbook(s) are missing, the first is {missing[0]}'
+        raise ValueError(msg)
+    copied = [item for item in (root / 'files').rglob('*') if item.is_file()] if (root / 'files').is_dir() else []
+    expected = (sum(progress['files'].values()), sum(progress['files_bytes'].values()))
+    if (len(copied), sum(item.stat().st_size for item in copied)) != expected:
+        msg = 'tenant export: the copied files on the disk do not match what the progress counts'
+        raise ValueError(msg)
 
 
 # ---- the manifest ----

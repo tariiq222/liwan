@@ -192,9 +192,11 @@ class LiwanTenantExport(models.Model):
         old.write({'state': STATE_EXPIRED, 'archive_name': False})
         directory = self._liwan_dir()
         if directory.is_dir():
-            kept = set(self.search([('archive_name', '!=', False)]).mapped('archive_name'))
             for path in directory.iterdir():
-                if path.name not in kept:
+                # Asked per directory, after it was listed: a build commits its name before it creates the directory
+                # (``_liwan_begin``), so a directory that exists has its reference committed already, and an answer
+                # taken earlier for the whole folder could miss a build that started in between.
+                if not self.search_count([('archive_name', '=', path.name)]):
                     shutil.rmtree(path, ignore_errors=True)
 
     # ---- the cron: the build ----
@@ -233,6 +235,7 @@ class LiwanTenantExport(models.Model):
                 with self.env.cr.savepoint():
                     more = archive.run_step(self.env, root, progress, datasets)
                     if not more and not progress['finalized']:
+                        archive.verify_complete(root, progress)
                         archive.finalize(self.env, root, progress, datasets, self._liwan_tenant_name(), self._liwan_software_version())
                         progress['finalized'] = True
             except Exception:
@@ -260,14 +263,15 @@ class LiwanTenantExport(models.Model):
             self._liwan_fail(FAIL_DISK)
             return False
         name = f'{self.id}-{secrets.token_hex(8)}'
-        (directory / name).mkdir()
         datasets = archive.validated(self.env['liwan.tenant.export.hooks']._liwan_export_datasets())
         progress = archive.new_progress(datasets)
         self.write({
             'state': STATE_RUNNING, 'started_at': fields.Datetime.now(), 'archive_name': name, 'progress': progress,
             'steps_done': 0, 'steps_total': archive.steps_total(progress),
         })
+        # The name is committed before the directory exists, so the expiry cron never sees a directory without its job.
         self._liwan_checkpoint()
+        (directory / name).mkdir()
         return True
 
     @api.model
