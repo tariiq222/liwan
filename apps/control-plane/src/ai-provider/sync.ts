@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import type { Pool } from 'pg'
 import type { Config } from '../config.js'
 import { AI_PROVIDER_SAVE_LOCK, isComplete, openKey, providerFileContent, readConfig, replaceProviderFile } from './store.js'
+import { logText } from '../log-text.js'
 
 export type SyncOutcome = 'written' | 'unchanged' | 'incomplete' | 'unconfigured' | 'failed'
 
@@ -35,7 +36,7 @@ export async function syncProviderFile(pool: Pool, config: Config): Promise<Sync
       try { await client.query('SELECT pg_advisory_unlock($1)', [AI_PROVIDER_SAVE_LOCK]) } catch { broken = true }
     }
   } catch (error) {
-    console.error(`[control-plane] the AI platform provider file was not synced: ${(error as Error).message}`)
+    console.error('[control-plane] the AI platform provider file was not synced: %s', logText(error))
     return 'failed'
   } finally { client.release(broken) }
 }

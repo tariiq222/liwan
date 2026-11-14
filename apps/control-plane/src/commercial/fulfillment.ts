@@ -19,6 +19,7 @@ import { hasReachableManager } from './orders.js'
 import { deliveredEntitlement } from './ai-ledger.js'
 import { trialEndsAt } from './renewals.js'
 import { WORKSPACE_DELAY_MS } from './workspace-delay-notice.js'
+import { logText } from '../log-text.js'
 
 /** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
 export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: number): string {
@@ -330,9 +331,9 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         // One bad row must not stop the batch; its lease expires and it is claimed again.
         // The cause is logged and kept on the row so the operator can read it.
         const detail=`${code}; ${handlingError instanceof Error?`${handlingError.name}: ${handlingError.message}`:String(handlingError)}`.slice(0,300)
-        console.error(`[control-plane] fulfillment failure handling failed for outbox ${row.id}: ${detail}`)
+        console.error('[control-plane] fulfillment failure handling failed for outbox %s: %s',row.id,logText(detail))
         await pool.query("UPDATE commercial_outbox SET payload=payload||jsonb_build_object('error',$2::text) WHERE id=$1 AND status='pending'",[row.id,`failure_handling_failed: ${detail}`])
-          .catch(e=>console.error(`[control-plane] could not record failure cause for outbox ${row.id}: ${e instanceof Error?e.message:String(e)}`))
+          .catch(e=>console.error('[control-plane] could not record failure cause for outbox %s: %s',row.id,logText(e)))
         results.push({order_id:row.aggregate_id,reason:'failure_handling_failed'})
       }
     }

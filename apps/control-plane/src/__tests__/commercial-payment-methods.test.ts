@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { paymentMethodViewSchema } from '@liwan/commercial-contracts'
+import { CURRENT_CONSENT_TEXT_VERSION, paymentMethodViewSchema } from '@liwan/commercial-contracts'
 import { PaymentError } from '../commercial/payment-adapter.js'
 import { client, money, monthly, seedPaymentMethod, setup, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
@@ -63,7 +63,7 @@ suite('live PostgreSQL default payment method', () => {
     return await customerHttp(pool, config, { method, path, raw, headers: { ...signed, 'x-liwan-principal': header, 'content-type': 'application/json' } as never }, runtime) as { status: number; data: any }
   }
   const autoRenew = (tenant: string, body: unknown) => route(tenant, 'POST', '/v1/customer/auto-renew', body)
-  const CONSENT = { enabled: true, consent_text_version: 'auto-renew-2026-11' }
+  const CONSENT = { enabled: true, consent_text_version: CURRENT_CONSENT_TEXT_VERSION }
   let scope = ''
   const audits = async (action: string) => (await pool.query('SELECT actor,subject,reason,metadata FROM audit_events WHERE action=$1 AND subject IN (SELECT id::text FROM subscriptions WHERE customer_id=$2) ORDER BY created_at', [action, scope])).rows
   const vendorCaps = ['vendor.subscriptions.manage']
@@ -96,10 +96,20 @@ suite('live PostgreSQL default payment method', () => {
     const view = await getSubscription(pool, customer)
     expect(view.auto_renew.payment_method).toEqual({ id, brand: 'visa', last_four: '4242', exp_month: 12, exp_year: 2030, status: 'active', is_default: true })
     expect(JSON.stringify(view)).not.toContain('tok_visible')
-    expect(await audits('auto_renew.enabled')).toEqual([expect.objectContaining({ actor: '7', metadata: { payment_method_id: id, consent_text_version: 'auto-renew-2026-11' } })])
+    expect(await audits('auto_renew.enabled')).toEqual([expect.objectContaining({ actor: '7', metadata: { payment_method_id: id, consent_text_version: CURRENT_CONSENT_TEXT_VERSION } })])
     // Asking again changes nothing and writes nothing.
     await autoRenew(tenant, CONSENT)
     expect(await audits('auto_renew.enabled')).toHaveLength(1)
+  })
+
+  it('refuses a consent text version the server does not know, however the request is formed, and writes nothing', async () => {
+    const { customer, tenant } = await customerWithSubscription(); scope = customer
+    await seedPaymentMethod(pool, customer, 'tok_unknown_version')
+    for (const version of ['v1', '2026-01-01', 'x'.repeat(64)])
+      await expect(autoRenew(tenant, { enabled: true, consent_text_version: version })).rejects.toMatchObject({ code: 'consent_version_unknown', status: 422 })
+    expect((await getSubscription(pool, customer)).auto_renew.enabled).toBe(false)
+    expect(await audits('auto_renew.enabled')).toEqual([])
+    expect((await autoRenew(tenant, CONSENT)).data.auto_renew.enabled).toBe(true)
   })
 
   it('refuses to enable auto-renew when the plan does not allow it, and switches it off without a card', async () => {

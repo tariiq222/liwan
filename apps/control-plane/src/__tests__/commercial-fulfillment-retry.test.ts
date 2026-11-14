@@ -236,7 +236,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       expect(await processFulfillmentOutbox(refund, { enrollment })).toContainEqual({ order_id: s.order, reason: expect.any(String) })
-      expect(logged).toHaveBeenCalledWith(expect.stringContaining('failure handling failed'))
+      expect(logged).toHaveBeenCalledWith(expect.stringContaining('failure handling failed'), expect.any(String), expect.stringContaining('enrollment_base_catalog_missing'))
     } finally { logged.mockRestore() }
     const r = await row(s.order)
     expect(r.status).toBe('pending')

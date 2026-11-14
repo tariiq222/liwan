@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, enqueueOutbox, failOutbox, leaseOutboxRow, releaseOutbox } from './outbox.js'
+import { logText } from '../log-text.js'
 
 /** A first workspace not delivered this long after sign-up is late: the customer is told once, and the trial clock starts at delivery. */
 export const WORKSPACE_DELAY_MINUTES = 10
@@ -21,7 +22,7 @@ export async function sendWorkspaceDelayNotices(pool: Pool, input: { now: Date; 
   for (const row of late) {
     if (input.signal?.aborted) return sent
     try { sent += await noticeOf(pool, row, input) }
-    catch (error) { console.error(`[workspace-delay-notice] customer ${row.customer_id} skipped: ${error instanceof Error ? error.message.slice(0, 200) : 'error'}`) }
+    catch (error) { console.error('[workspace-delay-notice] customer %s skipped: %s', row.customer_id, logText(error instanceof Error ? error : 'error')) }
   }
   return sent
 }

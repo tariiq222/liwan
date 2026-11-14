@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { formPaymentSessionSchema, orderKindSchema, paymentAttemptRequestSchema } from '@liwan/commercial-contracts'
+import { ACCEPTED_CONSENT_TEXT_VERSIONS, CURRENT_CONSENT_TEXT_VERSION, formPaymentSessionSchema, orderKindSchema, paymentAttemptRequestSchema } from '@liwan/commercial-contracts'
 import {
   autoRenewBody, CARD_CONSENT_KEY, CARD_CONSENT_TEXT_VERSION, clearPaymentStarted, DEAD_INTENT_FAILURES, markPaymentStarted, moyasarFormConfig,
   paymentAttemptBody, payPath, payRefusal, paymentWasStarted, scopedFormCss, sessionMsLeft, STAND_IN_PUBLISHABLE_KEY,
@@ -22,6 +22,11 @@ describe('the consent wording and its version', () => {
   const WORDINGS: Record<string, string> = {
     '2026-11-14': '5047286849e23091240618418cf4819ae5b457770e51622476327c7d803c785a',
   }
+  it('agrees with the version the control plane accepts: this layer keeps its own copy and may not import the contract', () => {
+    expect(CARD_CONSENT_TEXT_VERSION).toBe(CURRENT_CONSENT_TEXT_VERSION)
+    expect(ACCEPTED_CONSENT_TEXT_VERSIONS).toContain(CARD_CONSENT_TEXT_VERSION)
+    expect(Object.keys(WORDINGS).sort()).toEqual([...ACCEPTED_CONSENT_TEXT_VERSIONS].sort())
+  })
   it('has a recorded fingerprint for the current version that matches both locale texts', () => {
     expect(CARD_CONSENT_KEY).toBe('subscription.cardConsent.text')
     const text = `${locale('ar').cardConsent.text}\n${locale('en').cardConsent.text}`
@@ -77,11 +82,12 @@ describe('the provider form options', () => {
     expect(en.credit_card).toEqual({ save_card: false })
     expect(en.language).toBe('en')
   })
-  it('never weakens authentication and passes no metadata, no id and no other payment fields', () => {
-    expect(JSON.stringify(config)).not.toMatch(/3ds|metadata|given_id|manual|apple|samsung|google|stc/i)
+  it('never weakens authentication and passes only the attempt id as metadata, no given id and no other payment fields', () => {
+    expect(JSON.stringify(config)).not.toMatch(/3ds|given_id|manual|apple|samsung|google|stc/i)
+    expect(config.metadata).toEqual({ attempt_id: 'a-1' })
     // Package 2.3.0 shows a configuration error and no card field when a callback is not an async function.
     expect(config.on_failure.constructor.name).toBe('AsyncFunction')
-    expect(Object.keys(config).sort()).toEqual(['amount', 'callback_url', 'credit_card', 'currency', 'description', 'element', 'language', 'methods', 'on_failure', 'payment_intent', 'publishable_api_key', 'supported_networks', 'use_payment_intent'])
+    expect(Object.keys(config).sort()).toEqual(['amount', 'callback_url', 'credit_card', 'currency', 'description', 'element', 'language', 'metadata', 'methods', 'on_failure', 'payment_intent', 'publishable_api_key', 'supported_networks', 'use_payment_intent'])
   })
   it('sends an immediate provider answer to the relay for this attempt, never to a stored return address', () => {
     expect(config.callback_url).toBe('https://acme.example/api/commercial/payment-callback?attempt=a-1')

@@ -175,12 +175,37 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     expect(f.charge).toHaveBeenCalledTimes(2)
     expect(await methodStatus(f.method)).toBe('active')
   })
+  it.each([['41','INSUFFICIENT FUNDS'],['43','DECLINED'],['54',null]])('a live decline with response code %s stops at once whatever the message says',async(code,message)=>{
+    const f=await invoiced()
+    f.adapter.scriptTokenCharge(f.token,{outcome:'declined',message:message as string,code})
+    await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+    expect(await methodStatus(f.method)).toBe('inactive')
+    await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,1)))
+    expect(f.charge).toHaveBeenCalledTimes(1)
+  })
+  it.each([['51'],['91'],['05']])('a live decline with response code %s is soft even when the message reads hard: the card stays and the next day is tried',async code=>{
+    const f=await invoiced()
+    f.adapter.scriptTokenCharge(f.token,{outcome:'declined',message:'DECLINED: LOST CARD',code})
+    await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+    await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,1)))
+    expect(f.charge).toHaveBeenCalledTimes(2)
+    expect(await methodStatus(f.method)).toBe('active')
+  })
+  it('a duplicate-transaction decline (94) is never retried blindly: the card stays, the vendor is shown the refused charge',async()=>{
+    const f=await invoiced()
+    f.adapter.scriptTokenCharge(f.token,{outcome:'declined',message:'DECLINED',code:'94'})
+    await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+    expect(await methodStatus(f.method)).toBe('active')
+    expect((await attemptsOf(f.order)).map(a=>[a.kind,a.status])).toEqual([['saved_card','failed']])
+    expect((await pool.query("SELECT metadata FROM audit_events WHERE action='payment.saved_card_charge_refused' AND subject=$1",[f.order])).rows).toEqual([{metadata:expect.objectContaining({code:'duplicate_transaction'})}])
+    expect(await noticesOf(f.s.id,'card_charge_failed')).toEqual([])
+  })
   it('classifies every message recorded in the spike, and an unknown or missing one as soft',()=>{
     expect(['DECLINED: LOST CARD','DECLINED: STOLEN CARD','DECLINED: EXPIRED CARD','declined: lost card ','3DS: service error occurred.','3DS: Card authentication declined.',
-      'DECLINED: RESTRICTED CARD','DECLINED: SUSPECTED FRAUD','DECLINED: CARD NOT PERMITTED','DECLINED: INVALID CARD NUMBER','DECLINED: CLOSED ACCOUNT'].map(classifyDecline)).toEqual(Array(11).fill('hard'))
+      'DECLINED: RESTRICTED CARD','DECLINED: SUSPECTED FRAUD','DECLINED: CARD NOT PERMITTED','DECLINED: INVALID CARD NUMBER','DECLINED: CLOSED ACCOUNT'].map(message=>classifyDecline({message}))).toEqual(Array(11).fill('hard'))
     // The issuer's own outage and the ambiguous holds are soft; an unknown message is soft.
     expect(['INSUFFICIENT FUNDS','DECLINED','DECLINED: EXCEEDS WITHDRAWAL LIMIT','UNSPECIFIED FAILURE','??',null,undefined,'DECLINED: DO NOT HONOR','DECLINED: PICK UP CARD',
-      '3DS: The authentication is unavailable, please try again later or contact issuer bank if problem persisted.'].map(classifyDecline)).toEqual(Array(10).fill('soft'))
+      '3DS: The authentication is unavailable, please try again later or contact issuer bank if problem persisted.'].map(message=>classifyDecline({message}))).toEqual(Array(10).fill('soft'))
   })
   it.each([['needs_customer_action'],['token_unusable']] as const)('a charge that is %s closes the attempt, deactivates the card, offers no hosted link and stops',async outcome=>{
     const f=await invoiced()

@@ -871,7 +871,7 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       const log = vi.spyOn(console, 'error').mockImplementation(() => {})
       await expect(runSubscriptionReconfigure(pool, push!, runner)).rejects.toThrow('ai_push_no_subscription')
       const tenant = (await pool.query('SELECT control_tenant_id FROM shared_jobs WHERE id=$1', [push])).rows[0].control_tenant_id
-      expect(log).toHaveBeenCalledWith(expect.stringContaining(`AI balance push ${push} for tenant ${tenant}`))
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('AI balance push %s for tenant %s'), push, tenant, 'ai_push_no_subscription')
       log.mockRestore()
       const row = (await pool.query('SELECT state,journal FROM shared_jobs WHERE id=$1', [push])).rows[0]
       expect(row).toMatchObject({ state: 'failed', journal: { error_code: 'ai_push_no_subscription' } })

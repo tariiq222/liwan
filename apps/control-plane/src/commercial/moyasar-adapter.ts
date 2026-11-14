@@ -4,9 +4,9 @@
 // behaves is recorded in docs/operations/moyasar-form-spike.md.
 import { timingSafeEqual } from 'node:crypto'
 import {
-  MIN_CHARGE_MINOR, MIN_REFUND_MINOR, PROVIDER_ERROR_TYPES, PaymentError, assertReturnUrl,
+  MIN_CHARGE_MINOR, MIN_REFUND_MINOR, PAYMENT_SEARCH_MAX_CANDIDATES, PAYMENT_SEARCH_MAX_PAGES, PROVIDER_ERROR_TYPES, PaymentError, assertReturnUrl,
   type AdapterHeaders, type ChargeTokenInput, type ChargeTokenOutcome, type CreateAttemptInput, type CreateAttemptResult, type CreateIntentInput,
-  intentStatusAt, type IntentCancelOutcome, type IntentStatus, type Money, type PaymentAdapter, type PaymentErrorCode, type PaymentIntent, type PaymentRecord,
+  intentStatusAt, type IntentCancelOutcome, type IntentStatus, type Money, type PaymentAdapter, type PaymentCandidates, type PaymentErrorCode, type PaymentIntent, type PaymentRecord,
   type ProviderErrorType, type ProviderEvent, type ProviderEventStatus, type RefundOutcome, type TokenInfo, type TokenStatus, type WebhookVerification,
 } from './payment-adapter.js'
 import { buildAttemptDescription, parseAttemptDescription } from './payment-description.js'
@@ -273,6 +273,7 @@ export class MoyasarAdapter implements PaymentAdapter {
       callback_url: text(p.callback_url), live: this.cfg.expectLive, invoice_id: text(p.invoice_id),
       token: text(source.token), authenticated: null,
       decline_message: status === 'failed' ? text(source.message) : null,
+      decline_code: status === 'failed' ? text(source.response_code) : null,
     }
   }
 
@@ -283,7 +284,7 @@ export class MoyasarAdapter implements PaymentAdapter {
       merchant_account: this.cfg.merchantAccount, live: r.live, status: r.status,
       amount: r.amount, ...(r.refunded ? { refunded: r.refunded } : {}),
       occurred_at: String(p.updated_at ?? p.created_at ?? new Date().toISOString()),
-      raw_type: `payment_${p.status}`, decline_message: r.decline_message,
+      raw_type: `payment_${p.status}`, decline_message: r.decline_message, decline_code: r.decline_code,
     }
   }
 
@@ -295,6 +296,22 @@ export class MoyasarAdapter implements PaymentAdapter {
 
   async readPayment(paymentId: string): Promise<PaymentRecord> {
     return this.recordOf(await this.call('GET', `/payments/${encodeURIComponent(paymentId)}`))
+  }
+
+  async listPaymentsByAttempt(attemptId: string, window: { from: Date; to: Date }): Promise<PaymentCandidates> {
+    // The provider can filter by metadata; the creation window is applied here, so the search does not depend on a filter name no run has tried.
+    const ids: string[] = []
+    for (let page = 1; page <= PAYMENT_SEARCH_MAX_PAGES; page++) {
+      const r = await this.call('GET', `/payments?metadata[attempt_id]=${encodeURIComponent(attemptId)}&page=${page}`)
+      for (const p of Array.isArray(r.payments) ? r.payments : []) {
+        const id = text(p?.id), created = Date.parse(String(p?.created_at))
+        if (!id || p.metadata?.attempt_id !== attemptId || !(created >= window.from.getTime() && created <= window.to.getTime())) continue
+        if (ids.length >= PAYMENT_SEARCH_MAX_CANDIDATES) return { payment_ids: ids, truncated: true }
+        ids.push(id)
+      }
+      if (!(Number(r.meta?.next_page) > page)) return { payment_ids: ids, truncated: false }
+    }
+    return { payment_ids: ids, truncated: true }
   }
 
   async lookupPayment(paymentId: string): Promise<ProviderEvent> {

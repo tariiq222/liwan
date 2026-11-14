@@ -16,6 +16,7 @@ import { processJobRecoveries } from './shared/job-recovery.js'
 import { processJobAbandonments } from './shared/job-abandon.js'
 import { onShutdownSignal } from './shutdown.js'
 import { createDeletionEffects } from './shared/tenant-deletion-effects-runner.js'
+import { logText } from './log-text.js'
 const config=getConfig()
 if(!await sharedOnboardingEnabled(config))throw Error('shared_adapter_unavailable')
 const pool=new Pool({connectionString:config.databaseUrl,max:8})
@@ -28,8 +29,8 @@ try{
   const adapter=createOdooAdapter(pool,config,controller.signal)
   let paymentAdapter:ReturnType<typeof paymentAdapterFromEnv>|undefined
   let mailAdapter:ReturnType<typeof mailAdapterFromEnv>|undefined
-  try{paymentAdapter=paymentAdapterFromEnv(process.env)}catch(e){console.error('commercial payment adapter unavailable:',e instanceof Error?e.message:e)}
-  try{mailAdapter=mailAdapterFromEnv(process.env,SCHEDULED_MAIL_SEND_TIMEOUT_MS)}catch(e){console.error('commercial mail adapter unavailable:',e instanceof Error?e.message:e)}
+  try{paymentAdapter=paymentAdapterFromEnv(process.env)}catch(e){console.error('commercial payment adapter unavailable: %s',logText(e))}
+  try{mailAdapter=mailAdapterFromEnv(process.env,SCHEDULED_MAIL_SEND_TIMEOUT_MS)}catch(e){console.error('commercial mail adapter unavailable: %s',logText(e))}
   const effect=config.internalEffect
   // The password effect runs here because only the worker may reach Docker; control-api calls it over authenticated HTTPS.
   try{
@@ -45,7 +46,7 @@ try{
     }
   }catch{console.error('internal_effect_unavailable','start_failed')}
   scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,tenantDeletionEffects:createDeletionEffects(config,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),controller.signal),signal:controller.signal})
-  const log=(message:string,error?:unknown)=>console.error(message,error instanceof Error?error.stack??error.message:error)
+  const log=(message:string,error?:unknown)=>console.error('%s %s',logText(message),logText(error instanceof Error?error.stack??error.message:error,2000))
   const isStopping=()=>controller.signal.aborted
   const maintenance:MaintenanceStep[]=[
     {name:'job-recoveries',run:()=>processJobRecoveries(pool,adapter,{log})},

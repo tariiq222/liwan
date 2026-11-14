@@ -141,7 +141,7 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
         // ends `failed` (which does not block the tenant), is logged, and shows on the operation feed. A subscription is
         // bound to its tenant once (from NULL) and a customer has one subscription, so there is no other tenant to re-push to.
         const code='ai_push_no_subscription'
-        console.error(`[control-plane] AI balance push ${id} for tenant ${job.controlTenantId} cannot be delivered: ${code}`)
+        console.error('[control-plane] AI balance push %s for tenant %s cannot be delivered: %s',id,job.controlTenantId,code)
         await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL,journal=$2 WHERE id=$1",[id,{stage:'failed',operation_id:job.authority.operation_id,error_code:code}])
         return {failed:code}
       }

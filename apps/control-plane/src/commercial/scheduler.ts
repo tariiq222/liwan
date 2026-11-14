@@ -33,6 +33,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadSharedRuntimeConfig } from '../shared/runtime-config.js'
 import { collectUsage, FRESH_MS, type UsageObserveRunner } from './usage-collector.js'
+import { logText } from '../log-text.js'
 
 type Env = Record<string, string | undefined>
 export type CommercialSchedulerOptions = {
@@ -78,7 +79,7 @@ export function sharedRuntimeBusy(pool: Pool, config: Config, log?: (message: st
 export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const { pool, config, env } = o
   const clock = o.clock ?? Date.now
-  const log = o.log ?? ((m: string, e?: unknown) => console.error('[commercial-scheduler] %s', m, e instanceof Error ? e.message : e ?? ''))
+  const log = o.log ?? ((m: string, e?: unknown) => console.error('[commercial-scheduler] %s %s', logText(m), logText(e ?? '')))
   const reconcileEvery = posInt(env.LIWAN_COMMERCIAL_RECONCILE_EVERY, 10)
   // Downgrade checks need a sample younger than 15 minutes (usage.ts): the interval defaults to 5 minutes and is capped at USAGE_MAX_INTERVAL_MS.
   const usageMs = Math.min(posInt(env.LIWAN_COMMERCIAL_USAGE_INTERVAL_SEC, 300) * 1000, USAGE_MAX_INTERVAL_MS)

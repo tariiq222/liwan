@@ -1,7 +1,7 @@
 // Unit test (no DB, no network): the Moyasar adapter's payment-intent, token, refund and webhook surface, with a stubbed fetch whose
 // responses are shaped after docs/operations/moyasar-form-spike.md, and the simulator's parity with it.
 import { describe, expect, it } from 'vitest'
-import { MIN_REFUND_MINOR, PaymentError, paymentAdapterFromEnv } from '../commercial/payment-adapter.js'
+import { MIN_REFUND_MINOR, PAYMENT_SEARCH_MAX_CANDIDATES, PAYMENT_SEARCH_MAX_PAGES, PaymentError, paymentAdapterFromEnv } from '../commercial/payment-adapter.js'
 import { MoyasarAdapter, USER_AGENT } from '../commercial/moyasar-adapter.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { buildAttemptDescription, parseAttemptDescription } from '../commercial/payment-description.js'
@@ -163,7 +163,7 @@ describe('MoyasarAdapter reading a payment', () => {
     expect(record).toEqual({
       payment_id: 'pay_1', status: 'succeeded', provider_status: 'paid', amount: sar(11500), refunded: null,
       description: buildAttemptDescription(ATTEMPT), attempt_id: ATTEMPT, callback_url: CALLBACK, live: false, invoice_id: null,
-      token: TOKEN, authenticated: null, decline_message: null,
+      token: TOKEN, authenticated: null, decline_message: null, decline_code: null,
     })
   })
   it('names the attempt by the locked description alone, never by the browser-chosen metadata', async () => {
@@ -444,5 +444,54 @@ describe('the simulator keeps the same payment surface', () => {
     expect(new SimulatorAdapter({ webhookRegistrationOpen: true }).webhookVerification(s.verificationWebhookBody('wh_1', '123456', { secret: null }), {})?.authenticated).toBe(false)
     expect(() => s.webhookVerification(s.verificationWebhookBody('wh_1', '123456', { secret: 'bad' }), {})).toThrow(/signature_invalid/)
     expect(s.webhookVerification(s.paymentWebhookBody(payment.payment_id), {})).toBeNull()
+  })
+})
+
+describe('the gateway response code of a declined payment', () => {
+  it('is carried from source.response_code when the provider gives one, and only for a failed payment', async () => {
+    const failed = await mk([paymentBody({ status: 'failed' }, { message: 'DECLINED', response_code: '51' })]).a.readPayment('p')
+    expect(failed).toMatchObject({ decline_message: 'DECLINED', decline_code: '51' })
+    expect((await mk([paymentBody({ status: 'failed' }, { message: 'DECLINED' })]).a.readPayment('p')).decline_code).toBeNull()
+    expect((await mk([paymentBody({}, { response_code: '00' })]).a.readPayment('p')).decline_code).toBeNull()
+    const event = await mk([paymentBody({ status: 'failed' }, { message: 'DECLINED', response_code: '41' })]).a.lookupPayment('p')
+    expect(event).toMatchObject({ decline_code: '41', decline_message: 'DECLINED' })
+  })
+})
+
+describe('listing the payments of an attempt by its metadata', () => {
+  const window = { from: new Date('2026-11-13T18:55:00Z'), to: new Date('2026-11-13T20:00:00Z') }
+  const row = (id: string, over: Record<string, unknown> = {}) => paymentBody({ id, metadata: { attempt_id: ATTEMPT }, ...over })
+  const page = (payments: unknown[], next: number | null) => ({ payments, meta: { current_page: 1, next_page: next, total_pages: next ?? 1 } })
+
+  it('asks for the attempt id by metadata key, keeps what carries it inside the creation window, and stops at the last page', async () => {
+    const m = mk([page([row('pay_a'), row('pay_b', { created_at: '2026-11-12T00:00:00Z' }), row('pay_c', { metadata: { attempt_id: 'someone-else' } })], null)])
+    expect(await m.a.listPaymentsByAttempt(ATTEMPT, window)).toEqual({ payment_ids: ['pay_a'], truncated: false })
+    expect(m.calls).toHaveLength(1)
+    expect(m.calls[0]!.url).toContain(`/payments?metadata[attempt_id]=${ATTEMPT}`)
+    expect(m.calls[0]!.init.method).toBe('GET')
+  })
+  it('reads at most the page cap and says so when the listing was cut short', async () => {
+    const m = mk([page([row('p1')], 2), page([row('p2')], 3), page([row('p3')], 4), page([row('p4')], 5)])
+    expect(await m.a.listPaymentsByAttempt(ATTEMPT, window)).toEqual({ payment_ids: ['p1', 'p2', 'p3'], truncated: true })
+    expect(m.calls).toHaveLength(PAYMENT_SEARCH_MAX_PAGES)
+  })
+  it('returns at most the candidate cap', async () => {
+    const many = Array.from({ length: PAYMENT_SEARCH_MAX_CANDIDATES + 5 }, (_, i) => row(`q${i}`))
+    const found = await mk([page(many, null)]).a.listPaymentsByAttempt(ATTEMPT, window)
+    expect(found.payment_ids).toHaveLength(PAYMENT_SEARCH_MAX_CANDIDATES)
+    expect(found.truncated).toBe(true)
+  })
+  it('finds nothing in an empty or malformed answer, and a provider error propagates', async () => {
+    expect(await mk([{}]).a.listPaymentsByAttempt(ATTEMPT, window)).toEqual({ payment_ids: [], truncated: false })
+    expect((await failure(mk([{ http: 500, body: { type: 'api_connection_error', message: 'down' } }]).a.listPaymentsByAttempt(ATTEMPT, window))).code).toBe('provider_error')
+  })
+  it('behaves the same in the simulator', async () => {
+    const s = new SimulatorAdapter({ env: { NODE_ENV: 'test' } })
+    const intent = await s.createIntent({ attempt_id: ATTEMPT, amount: sar(5000), callback_url: CALLBACK })
+    const tagged = s.fulfilIntent(intent.id, { clientSecret: intent.client_secret, metadata: { attempt_id: ATTEMPT } })
+    const other = s.directPayment({ status: 'succeeded', amount: sar(5000), description: 'x', callback_url: CALLBACK })
+    s.tagPayment(other.payment_id, ATTEMPT, new Date('2020-01-01T00:00:00Z'))
+    const found = await s.listPaymentsByAttempt(ATTEMPT, { from: new Date(Date.now() - 60_000), to: new Date(Date.now() + 60_000) })
+    expect(found).toEqual({ payment_ids: [tagged.payment_id], truncated: false })
   })
 })

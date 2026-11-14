@@ -14,6 +14,8 @@ declare module 'moyasar-payment-form' {
     currency: string
     description: string
     callback_url: string
+    /** Only a way for the server to find the payment later; it proves nothing and is verified server-side. */
+    metadata?: { attempt_id: string }
     on_failure: (failure: { type?: string }) => Promise<void>
   }
   export default class Moyasar {

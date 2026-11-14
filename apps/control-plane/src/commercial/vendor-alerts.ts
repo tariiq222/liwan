@@ -8,6 +8,7 @@ import type { TelegramSender } from './telegram-adapter.js'
 import { WEBHOOK_VERIFICATION_ACTION } from './payment-webhook-verification.js'
 import { REJECTION_SUPPRESSED_ACTION } from './form-payments.js'
 import { completeOutbox, deferOutbox, failOutbox, leaseOutboxRow, releaseOutbox } from './outbox.js'
+import { logText } from '../log-text.js'
 
 export const VENDOR_ALERT_KIND = 'vendor.alert'
 /** More alerts than this for one kind of event inside the window collapse into one summary line. */
@@ -324,7 +325,7 @@ export type VendorAlertInput = {
  * re-run or a restart never queues it twice) and delivers every due alert by email and Telegram. Returns the number delivered.
  */
 export async function sendVendorAlerts(pool: Pool, input: VendorAlertInput): Promise<number> {
-  const log = input.log ?? ((m: string, e?: unknown) => console.error('[vendor-alerts] %s', m, e instanceof Error ? e.message : e ?? ''))
+  const log = input.log ?? ((m: string, e?: unknown) => console.error('[vendor-alerts] %s %s', logText(m), logText(e ?? '')))
   if (input.signal?.aborted) return 0
   const since = new Date(input.now.getTime() - ALERT_LOOKBACK_HOURS * 3_600_000)
   try {

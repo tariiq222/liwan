@@ -3,10 +3,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { paymentAttemptRequestSchema, type FormPaymentSession, type PaymentAttemptRequest } from '@liwan/commercial-contracts'
+import { CURRENT_CONSENT_TEXT_VERSION, paymentAttemptRequestSchema, type FormPaymentSession, type PaymentAttemptRequest } from '@liwan/commercial-contracts'
 import { client, money, monthly, seedPaymentMethod, setup, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
+import { PaymentError } from '../commercial/payment-adapter.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { buildAttemptDescription } from '../commercial/payment-description.js'
 import { createPaymentAttempt, handleProviderEvent, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
@@ -63,7 +64,7 @@ suite('card form payments on PostgreSQL', () => {
   const ACTOR = '7'
   const form = (f: F, over: Partial<PaymentAttemptRequest> = {}, actor = ACTOR): Promise<FormPaymentSession> =>
     createPaymentAttempt(pool, { ...f.input, actor, request: paymentAttemptRequestSchema.parse({ method: 'form', ...over }) as PaymentAttemptRequest & { method: 'form' } })
-  const saving = { save_card: true, consent_text_version: 'v1' }
+  const saving = { save_card: true, consent_text_version: CURRENT_CONSENT_TEXT_VERSION }
   const fulfil = (f: F, s: FormPaymentSession, o: Parameters<SimulatorAdapter['fulfilIntent']>[1] extends infer T ? Partial<T> : never = {}) =>
     f.adapter.fulfilIntent(s.intent.id, { clientSecret: s.intent.client_secret, ...o })
   const hint = async (f: F, attemptId: string, paymentId: string) => {
@@ -96,8 +97,15 @@ suite('card form payments on PostgreSQL', () => {
       const f = await order()
       await expect(createPaymentAttempt(pool, { ...f.input, actor: ACTOR, request: { method: 'form', save_card: true } as any })).rejects.toMatchObject({ status: 422, code: 'consent_required' })
       const s = await form(f, saving)
-      expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, consent_text_version: 'v1' })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, consent_text_version: CURRENT_CONSENT_TEXT_VERSION })
       expect((await attemptRow(s.attempt_id)).consent_at).toBeInstanceOf(Date)
+    })
+    it('refuses a consent text version the server does not know with 422 consent_version_unknown, and writes nothing', async () => {
+      const f = await order()
+      for (const version of ['v1', '2026-01-01'])
+        await expect(form(f, { save_card: true, consent_text_version: version })).rejects.toMatchObject({ status: 422, code: 'consent_version_unknown' })
+      expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1', [f.order_id])).rows[0].n).toBe(0)
+      expect((await form(f, saving)).attempt_id).toBeTruthy()
     })
     it('refuses to save the card when the plan does not allow auto-renew, and writes nothing', async () => {
       const f = await order(false)
@@ -130,7 +138,7 @@ suite('card form payments on PostgreSQL', () => {
       const f = await order()
       const s = await form(f)
       await form(f, saving)
-      expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, consent_text_version: 'v1' })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, consent_text_version: CURRENT_CONSENT_TEXT_VERSION })
       await form(f)
       expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: false, consent_at: null, consent_text_version: null })
     })
@@ -221,7 +229,7 @@ suite('card form payments on PostgreSQL', () => {
       expect(await webhook(f, p.payment_id)).toEqual({ status: 200, outcome: 'accepted' })
       const [saved, ...rest] = await methods(f)
       expect(rest).toEqual([])
-      expect(saved).toMatchObject({ provider_token: p.token, brand: 'visa', last_four: '4242', status: 'active', is_default: true, consent_text_version: 'v1', source_attempt_id: s.attempt_id })
+      expect(saved).toMatchObject({ provider_token: p.token, brand: 'visa', last_four: '4242', status: 'active', is_default: true, consent_text_version: CURRENT_CONSENT_TEXT_VERSION, source_attempt_id: s.attempt_id })
       expect(saved.consent_at).toEqual((await attemptRow(s.attempt_id)).consent_at)
       expect(await subscription(f)).toMatchObject({ auto_renew_enabled: true })
       expect((await subscription(f)).auto_renew_consent_at).toEqual(saved.consent_at)
@@ -867,7 +875,7 @@ suite('card form payments on PostgreSQL', () => {
         expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, opened_by: '42' })
         fulfil(f, s)
         await expect(form(f, {}, '42')).rejects.toMatchObject({ status: 409, code: 'payment_in_progress' })
-        expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, consent_text_version: 'v1' })
+        expect(await attemptRow(s.attempt_id)).toMatchObject({ save_card: true, consent_text_version: CURRENT_CONSENT_TEXT_VERSION })
       })
       it('another person is never handed a live client secret: the unused intent is cancelled and they get a fresh one with their own choice', async () => {
         const f = await order()
@@ -1012,6 +1020,179 @@ suite('card form payments on PostgreSQL', () => {
           if (o.payment_state === 'refund_pending' || (await orderRow(f)).payment_state === 'refund_pending') expect(await methods(f)).toEqual([])
         }
       })
+    })
+  })
+  describe('finding a payment that never reported back', () => {
+    const OLD = "created_at=now()-interval '56 minutes',updated_at=now()-interval '1 hour'"
+    const AGED = "created_at=now()-interval '20 minutes',updated_at=now()-interval '1 hour'"
+    const age = (id: string, set: string) => pool.query(`UPDATE payment_attempts SET ${set} WHERE id=$1`, [id])
+    const tagged = (s: FormPaymentSession) => ({ metadata: { attempt_id: s.attempt_id } })
+    const reconcile = (f: F) => reconcileUnknownAttempts(pool, f.adapter)
+    const searches = async (s: FormPaymentSession) => (await audits('payment.form_payment_searched', s.attempt_id)).length
+
+    it('a paid payment found at the end of the lifetime settles without any operator action', async () => {
+      const f = await order()
+      const s = await form(f, saving)
+      const p = fulfil(f, s, { ...tagged(s), saveCard: true }) // paid; the webhook and the return both never came
+      await age(s.attempt_id, OLD)
+      await reconcile(f)
+      expect(await orderRow(f)).toMatchObject({ payment_state: 'paid', paid_attempt_id: s.attempt_id })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'succeeded', provider_ref: p.payment_id })
+      expect(await audits('payment.form_attempt_needs_review', f.order_id)).toEqual([])
+      expect(await fulfilments(f)).toBe(1)
+      expect(await methods(f)).toHaveLength(1)
+      expect(await searches(s)).toBe(1)
+    })
+    it('a paid payment is also found by the reconciler while the attempt is still open, once the provider has had its 15 minutes', async () => {
+      const f = await order()
+      const s = await form(f)
+      const p = fulfil(f, s, tagged(s))
+      await age(s.attempt_id, "created_at=now()-interval '10 minutes',updated_at=now()-interval '1 hour'")
+      await reconcile(f)
+      expect(f.adapter.searches).toBe(0) // too early: a payment still being authenticated would only be found in progress
+      await age(s.attempt_id, AGED)
+      await reconcile(f)
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'succeeded', provider_ref: p.payment_id })
+      expect(await orderRow(f)).toMatchObject({ payment_state: 'paid' })
+    })
+    it('a failed payment that is found records the decline: the customer starts again at once and no review item ever appears', async () => {
+      const f = await order()
+      const s = await form(f)
+      const p = fulfil(f, s, { ...tagged(s), card: { outcome: 'declined', message: 'INSUFFICIENT FUNDS' } })
+      await age(s.attempt_id, AGED)
+      await reconcile(f)
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'pending', provider_ref: null, declined_payment_ref: p.payment_id })
+      expect(await audits('payment.form_declined', f.order_id)).toHaveLength(1)
+      const next = await form(f)
+      expect(next.attempt_id).toBe(s.attempt_id)
+      expect(next.intent.id).not.toBe(s.intent.id)
+      // The same finding at the end of the lifetime asks for no review either.
+      const g = await order()
+      const t = await form(g)
+      fulfil(g, t, { ...tagged(t), card: { outcome: 'declined', message: 'DECLINED' } })
+      await age(t.attempt_id, OLD)
+      await reconcile(g)
+      expect(await attemptRow(t.attempt_id)).toMatchObject({ status: 'canceled' })
+      expect(await audits('payment.form_attempt_needs_review', g.order_id)).toEqual([])
+      expect((await attention(pool, true)).items.filter(i => i.kind === 'form_payment_review')).toEqual([])
+      expect((await pool.query('SELECT payment_hold_until FROM payment_attempts WHERE id=$1', [t.attempt_id])).rows[0].payment_hold_until).toBeNull()
+    })
+    it('a forged payment that carries the victim\'s attempt id in its metadata is found, rejected, and changes nothing', async () => {
+      const f = await order()
+      const s = await form(f)
+      fulfil(f, s, { card: { outcome: 'needs_customer_action' } }) // the victim is mid-authentication: the intent is fulfilled, the payment is not paid
+      const forged = forge(s, f) // paid, the locked description and the plain callback, but not the intent's secret
+      f.adapter.tagPayment(forged.payment_id, s.attempt_id)
+      await age(s.attempt_id, OLD)
+      await reconcile(f)
+      expect(await orderRow(f)).toMatchObject({ payment_state: 'awaiting_payment', paid_attempt_id: null })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ provider_ref: null, declined_payment_ref: null, status: 'canceled' })
+      expect(await audits('payment.form_search_rejected', f.order_id)).toEqual([expect.objectContaining({ metadata: expect.objectContaining({ reason: 'callback_mismatch', payment_id: forged.payment_id }) })])
+      expect(await fulfilments(f)).toBe(0)
+      // What no search can verify keeps today's behaviour: the vendor is asked to look.
+      expect(await audits('payment.form_attempt_needs_review', f.order_id)).toHaveLength(1)
+    })
+    it('a forged payment is not settled by an attempt whose id it merely names, even when its callback is copied from a real one', async () => {
+      const f = await order()
+      const s = await form(f)
+      const real = fulfil(f, s, { card: { outcome: 'needs_customer_action' } })
+      const copied = forge(s, f, { callback_url: (await f.adapter.getIntent(s.intent.id)).callback_url, description: null })
+      f.adapter.tagPayment(copied.payment_id, s.attempt_id)
+      await age(s.attempt_id, AGED)
+      await reconcile(f)
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ provider_ref: null, status: 'pending' })
+      expect(await orderRow(f)).toMatchObject({ payment_state: 'awaiting_payment' })
+      expect(real.payment_id).not.toBe(copied.payment_id)
+    })
+    it('nothing found keeps the review item and the hold', async () => {
+      const f = await order()
+      const s = await form(f)
+      fulfil(f, s) // paid, but nobody tagged it (a page from before the tag, say)
+      await age(s.attempt_id, OLD)
+      await reconcile(f)
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ status: 'canceled', provider_ref: null })
+      expect(await audits('payment.form_attempt_needs_review', f.order_id)).toHaveLength(1)
+      expect((await attemptRow(s.attempt_id)).payment_hold_until).toBeInstanceOf(Date)
+      expect(await searches(s)).toBe(1)
+    })
+    it('is bounded: never in a request, once per run, spaced out, at most four per attempt, and a provider failure costs a turn but changes nothing', async () => {
+      const f = await order()
+      const s = await form(f)
+      fulfil(f, s, { card: { outcome: 'needs_customer_action' } })
+      // A customer's return or request never searches.
+      await age(s.attempt_id, "created_at=now()-interval '30 minutes',updated_at=now()-interval '1 minute'")
+      await verifyReturnedAttempt(pool, { attempt_id: s.attempt_id, customer_id: f.customer, adapter: f.adapter })
+      await form(f).catch(() => {})
+      expect(f.adapter.searches).toBe(0)
+      // The reconciler searches once per run, and not again within the gap.
+      await age(s.attempt_id, AGED)
+      await reconcile(f)
+      await age(s.attempt_id, AGED)
+      await reconcile(f)
+      expect(f.adapter.searches).toBe(1)
+      // After the gap it may; at most four searches in all, the one at the end of the lifetime ignoring the gap.
+      const spaced = () => pool.query("UPDATE audit_events SET created_at=now()-interval '20 minutes' WHERE action='payment.form_payment_searched' AND subject=$1", [s.attempt_id])
+      for (let run = 0; run < 2; run++) { await spaced(); await age(s.attempt_id, AGED); await reconcile(f) }
+      expect(f.adapter.searches).toBe(3)
+      await age(s.attempt_id, OLD)
+      await reconcile(f)
+      expect(f.adapter.searches).toBe(4)
+      expect(await searches(s)).toBe(4)
+      // Nothing more, whatever the age or the gap.
+      await spaced()
+      await age(s.attempt_id, OLD)
+      await pool.query("UPDATE payment_attempts SET status='pending' WHERE id=$1", [s.attempt_id])
+      await reconcile(f)
+      expect(f.adapter.searches).toBe(4)
+      // A provider error ends the turn without changing the attempt.
+      const g = await order()
+      const t = await form(g)
+      fulfil(g, t, { card: { outcome: 'needs_customer_action' } })
+      vi.spyOn(g.adapter, 'listPaymentsByAttempt').mockRejectedValue(new PaymentError('provider_unreachable'))
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      await age(t.attempt_id, AGED)
+      await reconcile(g)
+      expect(await attemptRow(t.attempt_id)).toMatchObject({ status: 'pending', provider_ref: null, declined_payment_ref: null })
+      expect(await searches(t)).toBe(1)
+    })
+  })
+
+  describe('an abandoned payment', () => {
+    const abandonedWebhook = (f: F, paymentId: string, status: 'pending' | 'failed' = 'pending') =>
+      handleProviderEvent(pool, { provider: 'simulator', adapter: f.adapter, rawBody: f.adapter.paymentWebhookBody(paymentId, { status, type: 'payment_abandoned' }), headers: {} })
+
+    it('a payment_abandoned event records the decline: the customer may start again at once instead of waiting out the lifetime', async () => {
+      const f = await order()
+      const s = await form(f)
+      const p = fulfil(f, s, { card: { outcome: 'needs_customer_action' } }) // the payer left the 3-D Secure page
+      await expect(form(f)).rejects.toMatchObject({ status: 409, code: 'payment_in_progress' })
+      expect(await abandonedWebhook(f, p.payment_id)).toEqual({ status: 200, outcome: 'ignored' })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ declined_payment_ref: p.payment_id, provider_ref: null })
+      expect(await audits('payment.form_declined', f.order_id)).toEqual([expect.objectContaining({ metadata: expect.objectContaining({ cause: 'abandoned' }) })])
+      const next = await form(f)
+      expect(next.attempt_id).toBe(s.attempt_id)
+      expect(next.intent.id).not.toBe(s.intent.id)
+      expect(await orderRow(f)).toMatchObject({ payment_state: 'awaiting_payment' })
+    })
+    it('a pending payment is not a decline without the event, and the event cannot decline a payment that is not this attempt\'s', async () => {
+      const f = await order()
+      const s = await form(f)
+      const p = fulfil(f, s, { card: { outcome: 'needs_customer_action' } })
+      expect(await webhook(f, p.payment_id)).toEqual({ status: 200, outcome: 'ignored' })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ declined_payment_ref: null })
+      const forged = forge(s, f, { status: 'pending' })
+      expect(await abandonedWebhook(f, forged.payment_id)).toEqual({ status: 200, outcome: 'ignored' })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ declined_payment_ref: null })
+      await expect(form(f)).rejects.toMatchObject({ code: 'payment_in_progress' })
+    })
+    it('a payment that failed with the session-expired message is a decline, as any failed payment of the attempt is', async () => {
+      const f = await order()
+      const s = await form(f)
+      const p = fulfil(f, s, { card: { outcome: 'needs_customer_action' } })
+      f.adapter.setPaymentStatus(p.payment_id, 'failed', '3DS: The authentication session has expired')
+      expect(await hint(f, s.attempt_id, p.payment_id)).toMatchObject({ payment_state: 'awaiting_payment' })
+      expect(await attemptRow(s.attempt_id)).toMatchObject({ declined_payment_ref: p.payment_id })
+      expect((await form(f)).intent.id).not.toBe(s.intent.id)
     })
   })
 })

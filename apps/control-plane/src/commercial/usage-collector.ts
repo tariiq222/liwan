@@ -7,6 +7,7 @@ import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { recordUsage } from './usage.js'
 import { sweepAi } from './ai-ledger.js'
 import { tenantStatusSql } from './suspension.js'
+import { logText } from '../log-text.js'
 
 const observedLifecycle = z.object({
   post_trial_supported: z.boolean().optional(), excess_supported: z.boolean().optional(),
@@ -138,7 +139,7 @@ async function recordLifecycle(pool: Pool, target: { tenant_id: string; database
 export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; clock?: () => number; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number; signal?: AbortSignal; busy?: () => Promise<boolean> }) {
   const now = input.now ?? (() => new Date())
   const clock = input.clock ?? Date.now
-  const log = input.log ?? ((message: string) => console.error(`[usage-collector] ${message}`))
+  const log = input.log ?? ((message: string) => console.error('[usage-collector] %s', logText(message)))
   const result: { recorded: number; skipped: number; locked: boolean; busy?: boolean } = { recorded: 0, skipped: 0, locked: false }
   if (input.signal?.aborted) return result
   const lock = await pool.connect()

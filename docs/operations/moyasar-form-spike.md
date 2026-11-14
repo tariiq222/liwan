@@ -167,3 +167,20 @@ Screenshots (scratch directory `/private/tmp/claude-501/-Users-tariq-code-liwan/
 - Whether the live key hides the "Test mode active" line the form prints with a test key.
 - A real bank challenge (the emulator is not a bank page), and the frictionless against challenge split for mada.
 - The published pinned file and integrity hash of the package, if it is ever loaded from their CDN; our build bundles it.
+
+## Provider facts applied in the code (2026-11-14)
+
+What the documentation and the two test runs established is now used by the control plane and the pay page. Closed by these changes:
+
+- Open question 5 above (live payments expose `response_code`): the adapter carries `source.response_code` of a failed payment, and `commercial/payment-decline.ts` classifies by code first, then by message, then soft. The table holds only standard ISO 8583 codes of certain meaning and must be checked against the provider's published list before live use.
+- Open question 4 above, in part (an abandoned payment): a `payment_abandoned` event whose payment verifies as the attempt's, and a fetched payment that failed with the session-expired message, record the decline, so the payer may start again at once instead of waiting for the attempt's lifetime to end.
+- "A payment carries no intent id, so a lookup by attempt needs a payment list filtered by description, which was not tested": a payment list filtered by `metadata[key]` is now the way to find a payment that never reported back. The pay page puts `metadata: { attempt_id }` on the payment and nothing else. The metadata is the browser's, so a listed payment is only a candidate and is verified like any other (fetched with the secret key, intent fulfilled, description, amount, currency, locked callback with its secret). The creation-time filter is applied by us, not sent, because its name was not tried.
+- The consent text version the server stores is checked against one list in `packages/commercial-contracts` (`ACCEPTED_CONSENT_TEXT_VERSIONS`); an unknown one is refused with 422 `consent_version_unknown`.
+
+Still for the provider (not closed by code):
+
+1. Whether MOTO (`3ds: false`) is off on the live account, since the intent does not prevent it and the payment object proves no 3-D Secure step.
+2. Whether live accounts accept several partial refunds per payment (the sandbox allows exactly one).
+3. Whether a declined charge deactivates a saved token in live mode (the sandbox does, after a 3-D Secure failure and after a decline following a successful step).
+4. Which PCI self-assessment questionnaire applies to the embedded form.
+5. The names of the creation and update time filters of `GET /v1/payments`, and the live `meta` shape of the list (the adapter reads `meta.next_page`).

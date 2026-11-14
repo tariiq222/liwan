@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { isIP } from 'node:net'
 import { randomUUID } from 'node:crypto'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, tenantDeletionCodeSchema, paymentAttemptRequestSchema, autoRenewRequestSchema, cardExpired } from '@liwan/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, tenantDeletionCodeSchema, paymentAttemptRequestSchema, autoRenewRequestSchema, cardExpired, isAcceptedConsentTextVersion } from '@liwan/commercial-contracts'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
@@ -232,6 +232,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(m==='POST'&&path==='/auto-renew'){
     requireCapability(principal,'subscription.manage')
     const body=parseBody(input.raw,autoRenewRequestSchema)
+    if(body.enabled&&!isAcceptedConsentTextVersion(body.consent_text_version))throw new CommercialHttpError('consent_version_unknown',422)
     await transaction(pool,async client=>{
       const r=await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE',[customerId]);if(!r.rowCount)throw new CommercialHttpError('not_found',404)
       const s=r.rows[0]

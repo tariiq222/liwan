@@ -1,5 +1,14 @@
 import { z } from 'zod'
 
+/**
+ * The wording of the card-saving consent the customer sees is versioned. The control plane stores only a version it knows, so a client
+ * cannot record consent to a text that never existed. A new wording adds its version here and moves `CURRENT_CONSENT_TEXT_VERSION`;
+ * the customer app keeps its own copy of the current version (it may not import this package) and a test there fails when the two differ.
+ */
+export const CURRENT_CONSENT_TEXT_VERSION = '2026-11-14'
+export const ACCEPTED_CONSENT_TEXT_VERSIONS: readonly string[] = [CURRENT_CONSENT_TEXT_VERSION]
+export const isAcceptedConsentTextVersion = (version: unknown): version is string => typeof version === 'string' && ACCEPTED_CONSENT_TEXT_VERSIONS.includes(version)
+
 /** The version of the consent text a customer saw when asking for automatic renewal; the server records the moment itself. */
 export const autoRenewRequestSchema = z.strictObject({
   enabled: z.boolean(),

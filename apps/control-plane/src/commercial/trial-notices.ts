@@ -5,6 +5,7 @@ import { completeOutbox, enqueueOutbox, failOutbox, leaseOutboxRow, releaseOutbo
 import { trialEndPreview } from './trial-preview.js'
 import { TRIAL_NOTICE_DAYS } from './notice-timings.js'
 import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
+import { logText } from '../log-text.js'
 
 /**
  * One email per notice threshold and subscription. The in-app banner is always available from
@@ -24,7 +25,7 @@ export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: Mai
   for (const row of rows) {
     if (input.signal?.aborted) return sent
     try { sent += await noticesOf(pool, row, input) }
-    catch (error) { console.error(`[trial-notices] subscription ${row.id} skipped: ${error instanceof Error ? error.message.slice(0, 200) : 'error'}`) }
+    catch (error) { console.error('[trial-notices] subscription %s skipped: %s', row.id, logText(error instanceof Error ? error : 'error')) }
   }
   return sent
 }

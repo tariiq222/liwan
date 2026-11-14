@@ -181,7 +181,7 @@ async function chargeSavedCard(pool: Pool, adapter: PaymentAdapter, input: { att
       await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status IN ('created','unknown') THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId, charged.payment.payment_id])
       return
     case 'declined':
-      await closeWith(pool, client => failSavedCardAttempt(client, { attempt_id: attemptId, message: charged.message }))
+      await closeWith(pool, client => failSavedCardAttempt(client, { attempt_id: attemptId, message: charged.message, code: charged.payment.decline_code }))
       return
     case 'needs_customer_action':
       await closeWith(pool, client => failSavedCardAttempt(client, { attempt_id: attemptId, hard: true,

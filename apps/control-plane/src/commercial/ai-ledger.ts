@@ -31,7 +31,7 @@ export async function grantedUnits(db: Q, customerId: string): Promise<number> {
 export async function liveAiFeatures(client: Q, customerId: string): Promise<Record<string, number>> {
   const settings = await aiBillingSettings(client)
   const total = await grantedUnits(client, customerId)
-  if (total > AI_UNITS_MAX) console.error(`[ai-ledger] customer ${customerId} holds ${total} granted units; delivering the cap ${AI_UNITS_MAX}`)
+  if (total > AI_UNITS_MAX) console.error('[ai-ledger] customer %s holds %d granted units; delivering the cap %d', customerId, total, AI_UNITS_MAX)
   return aiEntitlementFeatures({ granted_units: Math.min(total, AI_UNITS_MAX),
     trial_units: sarMinorToAiUnits(settings.trial_allowance_minor, settings.usd_rate), monthly_units: sarMinorToAiUnits(settings.monthly_allowance_minor, settings.usd_rate) })
 }

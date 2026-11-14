@@ -78,7 +78,7 @@ export type FormConfigContext = { element: HTMLElement; saveCard: boolean; local
  * The provider form's options. The session decides everything about the payment: the intent locks amount, currency, description
  * and return address on the provider's side, and the form fulfils it with the publishable key only. The library insists on an
  * amount, a currency, a description and a callback address, so the page passes the session's amount and currency and neutral
- * placeholders; the provider ignores whatever the page says. 3-D Secure is never switched off.
+ * placeholders; the provider ignores whatever the page says. 3-D Secure is never switched off. The only other field is the attempt id in `metadata`.
  */
 export function moyasarFormConfig(session: CardFormSession, ctx: FormConfigContext) {
   const language: FormLocale = ctx.locale.startsWith('ar') ? 'ar' : 'en'
@@ -94,6 +94,9 @@ export function moyasarFormConfig(session: CardFormSession, ctx: FormConfigConte
     amount: session.amount.minor,
     currency: session.amount.currency,
     description: ctx.description,
+    // The one thing the page adds: the attempt id, so the control plane can find a payment that never reported back. It is only a way to
+    // find candidates; the provider keeps whatever the browser sends, so each candidate is verified in full on the server.
+    metadata: { attempt_id: session.attempt_id },
     // Where the form sends the browser when the provider answers at once (a decline before any 3-D Secure step). The relay reads the
     // attempt and asks the provider; the 3-D Secure return uses the address the server locked into the intent.
     callback_url: `${ctx.origin}/api/commercial/payment-callback?attempt=${encodeURIComponent(session.attempt_id)}`,

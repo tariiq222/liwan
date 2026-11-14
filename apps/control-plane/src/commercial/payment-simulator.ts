@@ -5,9 +5,9 @@
 // synchronously through the API's shared adapter and normal webhook handler.
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import {
-  MIN_REFUND_MINOR, PaymentError, toBytes,
+  MIN_REFUND_MINOR, PAYMENT_SEARCH_MAX_CANDIDATES, PaymentError, toBytes,
   type AdapterHeaders, type ChargeTokenInput, type ChargeTokenOutcome, type CreateAttemptInput, type CreateAttemptResult, type CreateIntentInput,
-  intentStatusAt, type IntentCancelOutcome, type Money, type PaymentAdapter, type PaymentIntent, type PaymentRecord, type ProviderEvent, type ProviderEventStatus,
+  intentStatusAt, type IntentCancelOutcome, type Money, type PaymentAdapter, type PaymentCandidates, type PaymentIntent, type PaymentRecord, type ProviderEvent, type ProviderEventStatus,
   type RefundOutcome, type TokenInfo, type TokenStatus, type WebhookVerification,
 } from './payment-adapter.js'
 import { buildAttemptDescription, parseAttemptDescription } from './payment-description.js'
@@ -25,6 +25,8 @@ export type SimulatorConfig = {
 type SimAttempt = { input: CreateAttemptInput; ref: string; payment_id: string; status: ProviderEventStatus; outcome: SimOutcome; refunded: number }
 export type WebhookOverrides = {
   status?: ProviderEventStatus; amount?: Money; merchant?: string; secret?: string; eventId?: string; live?: boolean
+  /** The provider's event name when it is not the one the status implies (`payment_abandoned` carries a still `initiated` payment). */
+  type?: string
 }
 const TYPE: Record<ProviderEventStatus, string> = {
   succeeded: 'payment_paid', failed: 'payment_failed', canceled: 'payment_voided', refunded: 'payment_refunded', pending: 'payment_authorized',
@@ -37,10 +39,11 @@ const DEFAULT_CARD = { brand: 'visa', last_four: '4242', exp_month: 12, exp_year
 /** What the simulator holds of an intent: the provider's own statuses only; `expired` is derived from the end time, as the real adapter does. */
 type SimIntent = Omit<PaymentIntent, 'status'> & { status: 'created' | 'fulfilled' | 'canceled'; fulfilled: boolean }
 /** What a scripted card does when the browser fulfils an intent or a saved token is charged. */
-export type SimCardOutcome = { outcome: 'paid' } | { outcome: 'declined'; message: string } | { outcome: 'needs_customer_action' } | { outcome: 'unknown' }
+export type SimCardOutcome = { outcome: 'paid' } | { outcome: 'declined'; message: string; code?: string } | { outcome: 'needs_customer_action' } | { outcome: 'unknown' }
   /** The provider refuses the token (any state), or has already used the `given_id` of an earlier payment (which then exists). */
   | { outcome: 'token_unusable' } | { outcome: 'used_given_id'; thenPaid?: boolean }
-export type FulfilIntentInput = { clientSecret: string; saveCard?: boolean; card?: Extract<SimCardOutcome, { outcome: 'paid' | 'declined' | 'needs_customer_action' | 'unknown' }> }
+/** `metadata` is what the browser put on the payment: the page passes its attempt id, and the provider keeps whatever it is given. */
+export type FulfilIntentInput = { clientSecret: string; saveCard?: boolean; metadata?: { attempt_id: string }; card?: Extract<SimCardOutcome, { outcome: 'paid' | 'declined' | 'needs_customer_action' | 'unknown' }> }
 export type SimVerificationOverrides = { secret?: string | null; merchant?: string; live?: boolean }
 
 export class SimulatorAdapter implements PaymentAdapter {
@@ -58,6 +61,10 @@ export class SimulatorAdapter implements PaymentAdapter {
   private readonly intents = new Map<string, SimIntent>()
   /** Direct payments (an intent fulfilled by the browser, a saved-token charge), by payment id. */
   private readonly payments = new Map<string, PaymentRecord>()
+  /** What the provider keeps beside a direct payment: the browser's metadata and the creation time the search window reads. */
+  private readonly paymentMeta = new Map<string, { attempt_id: string | null; created_at: Date }>()
+  /** Test counter: how many payment searches the provider was asked for. */
+  searches = 0
   private readonly charges = new Map<string, { amount: Money; outcome: ChargeTokenOutcome }>()
   private seq = 0
   // References must stay unique across restarts: payment_attempts keeps every earlier ref.
@@ -191,7 +198,7 @@ export class SimulatorAdapter implements PaymentAdapter {
       provider: 'simulator', event_id: `sim_lookup_${r.payment_id}_${r.status}`, provider_ref: r.payment_id, payment_id: r.payment_id,
       attempt_id: r.attempt_id, merchant_account: this.merchantAccount, live: false, status: r.status, amount: r.amount,
       ...(r.refunded ? { refunded: r.refunded } : {}), occurred_at: new Date(0).toISOString(), raw_type: `payment_${r.provider_status}`, simulated: true,
-      decline_message: r.decline_message,
+      decline_message: r.decline_message, decline_code: r.decline_code,
     }
   }
   async lookupByAttemptId(attemptId: string): Promise<ProviderEvent | null> {
@@ -234,9 +241,10 @@ export class SimulatorAdapter implements PaymentAdapter {
   private newPayment(over: Pick<PaymentRecord, 'payment_id' | 'status' | 'amount' | 'description' | 'callback_url'> & Partial<PaymentRecord>): PaymentRecord {
     const record: PaymentRecord = {
       provider_status: PROVIDER_STATUS[over.status], refunded: null, attempt_id: parseAttemptDescription(over.description), live: false,
-      invoice_id: null, token: null, authenticated: null, decline_message: null, ...over,
+      invoice_id: null, token: null, authenticated: null, decline_message: null, decline_code: null, ...over,
     }
     this.payments.set(record.payment_id, record)
+    this.paymentMeta.set(record.payment_id, { attempt_id: null, created_at: new Date() })
     return record
   }
 
@@ -284,15 +292,29 @@ export class SimulatorAdapter implements PaymentAdapter {
       token = `sim_token_${this.instance}_${this.seq}`
       this.addToken(token, status === 'succeeded' ? 'active' : status === 'failed' ? 'inactive' : 'initiated')
     }
-    return { ...this.newPayment({ payment_id: paymentId, status, amount: intent.amount, description: intent.description, callback_url: intent.callback_url, token,
-      decline_message: card.outcome === 'declined' ? card.message : null }) }
+    const payment = this.newPayment({ payment_id: paymentId, status, amount: intent.amount, description: intent.description, callback_url: intent.callback_url, token,
+      decline_message: card.outcome === 'declined' ? card.message : null, decline_code: card.outcome === 'declined' ? card.code ?? null : null })
+    if (input.metadata) this.tagPayment(paymentId, input.metadata.attempt_id)
+    return { ...payment }
+  }
+
+  /** Test helper: what the browser put in the payment's metadata, and when the payment was created. Anyone can tag a payment with any attempt id. */
+  tagPayment(paymentId: string, attemptId: string, createdAt: Date = new Date()): void {
+    if (!this.payments.has(paymentId)) throw new PaymentError('not_found', paymentId)
+    this.paymentMeta.set(paymentId, { attempt_id: attemptId, created_at: createdAt })
+  }
+
+  async listPaymentsByAttempt(attemptId: string, window: { from: Date; to: Date }): Promise<PaymentCandidates> {
+    this.searches++
+    const found = [...this.paymentMeta].filter(([, m]) => m.attempt_id === attemptId && m.created_at >= window.from && m.created_at <= window.to).map(([id]) => id)
+    return { payment_ids: found.slice(0, PAYMENT_SEARCH_MAX_CANDIDATES), truncated: found.length > PAYMENT_SEARCH_MAX_CANDIDATES }
   }
 
   /** Test helper: a direct payment changes state at the provider after it was created (a pending payment that later fails, say). */
-  setPaymentStatus(paymentId: string, status: 'succeeded' | 'failed' | 'pending', message: string | null = null): void {
+  setPaymentStatus(paymentId: string, status: 'succeeded' | 'failed' | 'pending', message: string | null = null, code: string | null = null): void {
     const record = this.payments.get(paymentId)
     if (!record) throw new PaymentError('not_found', paymentId)
-    this.payments.set(paymentId, { ...record, status, provider_status: status === 'succeeded' ? 'paid' : status === 'failed' ? 'failed' : 'initiated', decline_message: status === 'failed' ? message : null })
+    this.payments.set(paymentId, { ...record, status, provider_status: status === 'succeeded' ? 'paid' : status === 'failed' ? 'failed' : 'initiated', decline_message: status === 'failed' ? message : null, decline_code: status === 'failed' ? code : null })
   }
 
   /**
@@ -309,7 +331,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     if (!payment) throw new PaymentError('not_found', paymentId)
     const status = o.status ?? payment.status
     return toBytes(JSON.stringify({
-      id: o.eventId ?? `sim_evt_${paymentId}_${status}`, type: TYPE[status], created_at: new Date(0).toISOString(), secret_token: o.secret ?? this.webhookSecret,
+      id: o.eventId ?? `sim_evt_${paymentId}_${o.type ?? status}`, type: o.type ?? TYPE[status], created_at: new Date(0).toISOString(), secret_token: o.secret ?? this.webhookSecret,
       account_name: o.merchant ?? this.merchantAccount, live: o.live ?? false, simulated: true,
       data: { id: paymentId, status, amount: (o.amount ?? payment.amount).minor, currency: (o.amount ?? payment.amount).currency, description: payment.description,
         ...(payment.refunded ? { refunded: payment.refunded.minor } : {}), metadata: {} },
@@ -357,7 +379,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     const outcome = token.status === 'save_only' || script.outcome === 'needs_customer_action'
       ? { outcome: 'needs_customer_action' as const, payment: this.newPayment({ payment_id: paymentId, status: 'pending', amount: i.amount, description: i.description, callback_url: i.callback_url }) }
       : script.outcome === 'declined'
-        ? { outcome: 'declined' as const, message: script.message, payment: this.newPayment({ payment_id: paymentId, status: 'failed', amount: i.amount, description: i.description, callback_url: i.callback_url, decline_message: script.message }) }
+        ? { outcome: 'declined' as const, message: script.message, payment: this.newPayment({ payment_id: paymentId, status: 'failed', amount: i.amount, description: i.description, callback_url: i.callback_url, decline_message: script.message, decline_code: script.code ?? null }) }
         : { outcome: 'paid' as const, payment: this.newPayment({ payment_id: paymentId, status: 'succeeded', amount: i.amount, description: i.description, callback_url: i.callback_url }) }
     this.charges.set(i.given_id, { amount: i.amount, outcome })
     return outcome

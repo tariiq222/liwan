@@ -5,6 +5,7 @@ import { classifyDecline, type DeclineKind } from './payment-decline.js'
 import { LIVE_ATTEMPT_STATUSES } from './form-payments.js'
 
 const MESSAGE_MAX = 200
+const CODE_MAX = 8
 
 type Closed = { action: string; reason: string }
 const DECLINED: Closed = { action: 'payment.saved_card_declined', reason: 'The provider declined the saved card' }
@@ -16,11 +17,13 @@ const DECLINED: Closed = { action: 'payment.saved_card_declined', reason: 'The p
  * `card_charge_failed` notice for this attempt. A hard decline replaces the notices of the same invoice that have not gone out yet, so the
  * customer reads one. Returns false when the attempt was already closed (a replayed event changes nothing).
  */
-export async function failSavedCardAttempt(client: Pick<PoolClient, 'query'>, input: { attempt_id: string; message?: string | null; hard?: boolean; closed?: Closed; metadata?: Record<string, unknown> }): Promise<boolean> {
+export async function failSavedCardAttempt(client: Pick<PoolClient, 'query'>, input: { attempt_id: string; message?: string | null; code?: string | null; hard?: boolean; closed?: Closed; metadata?: Record<string, unknown> }): Promise<boolean> {
+  const decline: DeclineKind = input.hard ? 'hard' : classifyDecline({ code: input.code, message: input.message })
+  // A duplicate says an earlier payment with the same details may exist: the charge is not retried and the vendor looks it up.
+  if (decline === 'duplicate') return refuseSavedCardAttempt(client, { attempt_id: input.attempt_id, code: 'duplicate_transaction' })
   const attempt = (await client.query(`UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1 AND kind='saved_card' AND status = ANY($2::text[]) RETURNING *`,
     [input.attempt_id, LIVE_ATTEMPT_STATUSES])).rows[0]
   if (!attempt) return false
-  const decline: DeclineKind = input.hard ? 'hard' : classifyDecline(input.message)
   const order = (await client.query('SELECT subscription_id FROM orders WHERE id=$1', [attempt.order_id])).rows[0]
   await client.query("UPDATE renewals SET status='invoiced' WHERE order_id=$1 AND status='charging'", [attempt.order_id])
   if (decline === 'hard' && attempt.payment_method_id)
@@ -28,7 +31,7 @@ export async function failSavedCardAttempt(client: Pick<PoolClient, 'query'>, in
   const closed = input.closed ?? DECLINED
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
     [randomUUID(), 'system', closed.action, attempt.order_id, closed.reason,
-      JSON.stringify({ attempt_id: attempt.id, decline, message: input.message?.slice(0, MESSAGE_MAX) ?? null, ...input.metadata })])
+      JSON.stringify({ attempt_id: attempt.id, decline, code: input.code?.slice(0, CODE_MAX) ?? null, message: input.message?.slice(0, MESSAGE_MAX) ?? null, ...input.metadata })])
   const key = `card_charge_failed:${attempt.id}`
   if (decline === 'hard') await client.query(`UPDATE commercial_outbox SET status='done',processed_at=now() WHERE kind='billing.notice' AND status='pending'
     AND aggregate_id=$1 AND payload->>'type'='card_charge_failed' AND payload->>'invoice_id'=$2 AND dedupe_key<>$3`, [order.subscription_id, attempt.invoice_id, key])

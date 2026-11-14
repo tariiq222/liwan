@@ -48,6 +48,8 @@ export type ProviderEvent = {
   simulated?: boolean
   /** The provider's reason for a failed payment (`source.message`), when it gave one: what classifies a decline learned through a lookup or a webhook. */
   decline_message?: string | null
+  /** The gateway response code (ISO 8583) of a failed payment (`source.response_code`), when the provider gave one: it classifies a decline before the message does. */
+  decline_code?: string | null
 }
 
 /** What a `refunded` event refunded: the provider's cumulative figure, or null when it gave none (never assumed to be the whole payment). */
@@ -129,7 +131,15 @@ export type PaymentRecord = {
   authenticated: boolean | null
   /** `source.message` of a failed payment (upper-case text in the sandbox); null otherwise. */
   decline_message: string | null
+  /** `source.response_code` of a failed payment: filled by the provider in live mode only (the sandbox gives the message alone); null otherwise. */
+  decline_code: string | null
 }
+
+/** What a search for the payments of one attempt found. */
+export type PaymentCandidates = { payment_ids: string[]; truncated: boolean }
+/** The most pages one search reads, and the most candidates it returns: a search is a bounded read, never a crawl. */
+export const PAYMENT_SEARCH_MAX_PAGES = 3
+export const PAYMENT_SEARCH_MAX_CANDIDATES = 20
 
 export type TokenStatus = 'initiated' | 'active' | 'inactive' | 'save_only' | 'unrecognized'
 /** A saved card's display facts and state. A field the provider did not send is null. Never holds a number, a security code or a holder name. */
@@ -199,6 +209,12 @@ export interface PaymentAdapter {
   cancelAttempt?(providerRef: string): Promise<void>
   /** Reads a payment with everything verification needs; the sibling of `lookupPayment`, which keeps the event shape settlement uses. */
   readPayment(paymentId: string): Promise<PaymentRecord>
+  /**
+   * The ids of the payments whose `metadata.attempt_id` is `attemptId` and that were created in `window`, newest page first, read page by
+   * page up to a hard cap. The metadata is client-controlled in intent mode, so this only finds candidates: each one is fetched and
+   * verified in full before it counts (`resolveFormPayment`). `truncated` says the cap cut the listing short.
+   */
+  listPaymentsByAttempt(attemptId: string, window: { from: Date; to: Date }): Promise<PaymentCandidates>
   refund(paymentRef: string, amount?: Money): Promise<RefundOutcome>
   chargeToken(input: ChargeTokenInput): Promise<ChargeTokenOutcome>
   getToken(id: string): Promise<TokenInfo>

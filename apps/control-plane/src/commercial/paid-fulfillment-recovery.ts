@@ -8,6 +8,7 @@ import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { enqueueOutbox } from './outbox.js'
 import { markTopupRefunded } from './ai-ledger.js'
 import { recordFulfillmentFailure } from './settlements.js'
+import { logText } from '../log-text.js'
 
 const RETRY_MINUTES = [5, 15, 60]
 /** A first trial keeps retrying after the backoff above is used up: one retry this often, until the window below closes. */
@@ -216,10 +217,10 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
           archived_at=CASE WHEN odoo_company_id IS NULL THEN NULL ELSE now() END WHERE order_id=$1 AND state='pending'`, [order.id])
       })
     } catch (error) {
-      console.error(`[paid-fulfillment-recovery] order ${candidate.id}`, error)
+      console.error('[paid-fulfillment-recovery] order %s: %s', candidate.id, logText(error))
       await pool.query(`UPDATE orders SET fulfillment_retry_at=$2 WHERE id=$1 AND NOT cancelled
         AND fulfillment_state IN ('failed','needs_intervention')`, [candidate.id, new Date(now.getTime()+5*60_000)])
-        .catch(recordError => console.error(`[paid-fulfillment-recovery] could not defer ${candidate.id}`, recordError))
+        .catch(recordError => console.error('[paid-fulfillment-recovery] could not defer %s: %s', candidate.id, logText(recordError)))
     }
   }
 }

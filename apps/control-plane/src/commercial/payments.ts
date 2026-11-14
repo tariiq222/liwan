@@ -16,9 +16,11 @@ import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
 import { failSavedCardAttempt } from './saved-card-failure.js'
 import { isPaidFirstOrder, requireReachableManager } from './orders.js'
+import { searchUnreportedFormPayment, FORM_SEARCH_MIN_AGE_MS } from './form-payment-search.js'
 import { FORM_ATTEMPT_LIFETIME_MS, LIVE_ATTEMPT_STATUSES, lockSettlement, assertAutoRenewAllowed, callbackWithSecret, cancelIntentQuietly, closeUnpaidFormAttempt, formSession, intentMayHoldPayment,
   intentUsable, isPaymentHint, newCallbackSecret, readIntent, rejectFormPayment, resolveFormPayment, retireLiveFormAttempt } from './form-payments.js'
-import type { FormPaymentSession, PaymentAttemptRequest } from '@liwan/commercial-contracts'
+import { isAcceptedConsentTextVersion, type FormPaymentSession, type PaymentAttemptRequest } from '@liwan/commercial-contracts'
+import { logCode } from '../log-text.js'
 
 export function paymentAttemptView(row: any) {
   return { id: row.id, order_id: row.order_id, invoice_id: row.invoice_id, provider: row.provider, mode: row.mode,
@@ -58,7 +60,7 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   // and the customer can pay another way. A late decline of an attempt that already paid is not live and changes nothing.
   // A failed saved-card charge, however it was learned (a lookup, the reconciler, a webhook), ends through the one failure function: the decline
   // is classified, a hard one deactivates the card, the renewal goes back to invoiced and the customer is told once.
-  if (event.status === 'failed' && attempt.kind === 'saved_card') return await failSavedCardAttempt(client, { attempt_id: attempt.id, message: event.decline_message }) ? 'accepted' : 'ignored'
+  if (event.status === 'failed' && attempt.kind === 'saved_card') return await failSavedCardAttempt(client, { attempt_id: attempt.id, message: event.decline_message, code: event.decline_code }) ? 'accepted' : 'ignored'
   if (event.status === 'canceled' || event.status === 'failed') {
     const closed = await client.query("UPDATE payment_attempts SET status=$2,updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')",
       [attempt.id, event.status === 'failed' ? 'failed' : 'canceled'])
@@ -202,7 +204,8 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
   const owner = !known && event.attempt_id && z.uuid().safeParse(event.attempt_id).success
     ? (await pool.query('SELECT kind FROM payment_attempts WHERE id=$1', [event.attempt_id])).rows[0] : undefined
   if (!known && event.attempt_id && z.uuid().safeParse(event.attempt_id).success && (!owner || owner.kind === 'form')) {
-    const resolved = await resolveFormPayment(pool, input.adapter, { payment_id: event.payment_id ?? event.provider_ref, source: 'webhook', event_id: event.event_id, settle: apply })
+    const resolved = await resolveFormPayment(pool, input.adapter, { payment_id: event.payment_id ?? event.provider_ref, source: 'webhook', event_id: event.event_id,
+      abandoned: event.raw_type === 'payment_abandoned', settle: apply })
     if (resolved.outcome === 'rejected') return { status: 409, outcome: 'unmatched' as const }
     if (resolved.outcome === 'not_paid' || resolved.outcome === 'declined') return { status: 200, outcome: 'ignored' as const }
     if (resolved.outcome === 'settled') await closeSiblingAttempts(pool, input.adapter, event)
@@ -255,17 +258,35 @@ async function closeSiblingAttempts(pool: Pool, adapter: PaymentAdapter, paid: P
     } catch (error) {
       // The invoice stays payable until it expires; a payment on it later is recorded by the duplicate-charge path,
       // and the reconciler cancels it once it looks the attempt up again.
-      console.error('[payments] could not cancel sibling attempt %s (%s)', sibling.id, (error as { code?: string })?.code ?? (error as Error)?.constructor?.name ?? 'error')
+      console.error('[payments] could not cancel sibling attempt %s (%s)', sibling.id, logCode(error))
     }
   }
 }
 
-export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
+/**
+ * The search for the payment of a form attempt that never reported back: the page puts the attempt id in the payment's metadata, the provider
+ * lists payments by it, and every candidate is verified in full before it settles anything. A payment that settles closes the order's other
+ * attempts like any paid payment. The search is bounded per attempt (see `form-payment-search.ts`) and runs only from the reconciler and at
+ * the end of an attempt's lifetime, never in a request.
+ */
+const searchForFormPayment = (pool: Pool, adapter: PaymentAdapter, options: { ignoreGap?: boolean } = {}) => async (row: any) => {
+  const outcome = await searchUnreportedFormPayment(pool, adapter, row, apply, options)
+  if (outcome === 'settled') {
+    const settled = (await pool.query('SELECT provider_ref FROM payment_attempts WHERE id=$1', [row.id])).rows[0]
+    if (settled?.provider_ref) await closeSiblingAttempts(pool, adapter, { provider: adapter.provider, provider_ref: settled.provider_ref })
+  }
+  return outcome
+}
+
+/** `search` is for the reconciler only: a lookup that a customer's request triggers never asks the provider for a payment list. */
+export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any, options: { search?: boolean } = {}) {
   if (row.provider !== adapter.provider || row.mode !== adapter.mode) throw new CommercialHttpError('provider_mismatch', 409)
   if (row.kind === 'form' && !row.provider_ref) {
-    // Nothing at the provider names a payment from the attempt alone (a payment carries no intent id), so the payment id arrives by the
-    // callback or a webhook. All a lookup can do is close an attempt whose lifetime is over; a payment that shows up later still settles.
-    if (Date.now() - new Date(row.created_at).getTime() >= FORM_ATTEMPT_LIFETIME_MS) await closeUnpaidFormAttempt(pool, adapter, row, 'expired')
+    // A payment carries no intent id, so its id normally arrives by the callback or a webhook. When neither came, the reconciler (and the end
+    // of the attempt's lifetime) searches the provider's list by the attempt id in the metadata; what is found is verified like any other payment.
+    const age = Date.now() - new Date(row.created_at).getTime()
+    if (age >= FORM_ATTEMPT_LIFETIME_MS) await closeUnpaidFormAttempt(pool, adapter, row, 'expired', options.search ? searchForFormPayment(pool, adapter, { ignoreGap: true }) : undefined)
+    else if (options.search && age >= FORM_SEARCH_MIN_AGE_MS && intentMayHoldPayment(row, await readIntent(adapter, row.provider_intent_ref))) await searchForFormPayment(pool, adapter)(row)
     return 'ignored' as const
   }
   // A direct payment has a payment id, not an invoice: the invoice endpoint would answer 404 for it.
@@ -296,7 +317,7 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
     try {
       await adapter.cancelAttempt(row.provider_ref)
       await pool.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')", [row.id])
-    } catch (error) { console.error('[payments] could not cancel attempt %s of a paid order (%s)', row.id, (error as { code?: string })?.code ?? 'error') }
+    } catch (error) { console.error('[payments] could not cancel attempt %s of a paid order (%s)', row.id, logCode(error)) }
   }
   return outcome
 }
@@ -419,6 +440,7 @@ async function createFormAttempt(pool: Pool, input: AttemptInput, request: Attem
   const { adapter } = input
   if (!adapter.publishableKey) throw new CommercialHttpError('card_form_unavailable', 409)
   if (request.save_card && !request.consent_text_version) throw new CommercialHttpError('consent_required', 422)
+  if (request.save_card && !isAcceptedConsentTextVersion(request.consent_text_version)) throw new CommercialHttpError('consent_version_unknown', 422)
   if (!input.actor) throw new Error('form_actor_required')
   const spec: Extract<NewAttempt, { kind: 'form' }> = { kind: 'form', save_card: request.save_card, consent_text_version: request.save_card ? request.consent_text_version ?? null : null, actor: input.actor }
   const callbackFor = async (attemptId: string) => paymentReturnUrls(await input.returnOrigin(input.customer_id), attemptId)
@@ -568,7 +590,7 @@ export async function reconcileUnknownAttempts(pool: Pool, adapter: PaymentAdapt
   [adapter.provider, adapter.mode, now, limit])).rows
   const results: { id: string; outcome: ReconciliationOutcome }[] = []
   for (const row of rows) {
-    try { results.push({ id: row.id, outcome: await lookup(pool, adapter, row) }) }
+    try { results.push({ id: row.id, outcome: await lookup(pool, adapter, row, { search: true }) }) }
     catch (error) {
       const code = (error as { code?: string } | null)?.code
       const outcome: ReconciliationOutcome = code === 'payment_unknown' || code === 'not_found' ? 'unknown'

@@ -12,6 +12,7 @@ import { claimOutbox, deferOutbox, enqueueOutbox, releaseOutbox } from './outbox
 import { FORM_PAYMENT_HOLD_HOURS } from './notice-timings.js'
 import { holdsFreeBaseLockSql } from './free-base.js'
 import { deletionClockRunningSql } from './tenant-deletion-read.js'
+import { logCode } from '../log-text.js'
 
 type Queryable = Pick<Pool | PoolClient, 'query'>
 type Row = Record<string, any>
@@ -49,8 +50,9 @@ export type FormRejection =
   | 'bad_shape' | 'payment_not_found' | 'description_unrecognized' | 'attempt_unknown' | 'attempt_mismatch' | 'not_form_attempt' | 'mode_mismatch'
   | 'amount_mismatch' | 'intent_missing' | 'intent_not_fulfilled' | 'callback_mismatch' | 'payment_bound_elsewhere' | 'attempt_has_other_payment'
   | 'settlement_mismatch' | 'refunded_unclaimed' | 'rate_limited' | 'intent_closed'
-export type FormSource = 'hint' | 'webhook'
-const REJECTION_ACTION: Record<FormSource, string> = { hint: 'payment.form_hint_rejected', webhook: 'payment.form_payment_rejected' }
+/** Where a payment id came from: the browser's return (`hint`), a webhook, or the search of the provider's payment list by the attempt id in the metadata. */
+export type FormSource = 'hint' | 'webhook' | 'search'
+const REJECTION_ACTION: Record<FormSource, string> = { hint: 'payment.form_hint_rejected', webhook: 'payment.form_payment_rejected', search: 'payment.form_search_rejected' }
 
 /** Thrown inside the settlement transaction to roll it back; the caller turns it into the refusal it names. */
 class SettlementRefused extends Error {
@@ -69,8 +71,6 @@ export async function lockSettlement(client: PoolClient, orderId: string) {
   await client.query('SELECT id FROM customers WHERE id=$1 FOR UPDATE', [owner.customer_id])
   await client.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE', [owner.subscription_id])
 }
-
-const logCode = (error: unknown) => (error as { code?: string } | null)?.code ?? (error as Error | null)?.constructor?.name ?? 'error'
 
 async function writeAudit(db: Queryable, action: string, subject: string, reason: string, metadata: Record<string, unknown>) {
   await db.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [randomUUID(), 'system', action, subject, reason, JSON.stringify(metadata)])
@@ -309,7 +309,7 @@ export type SettleInTransaction = (client: PoolClient, event: ProviderEvent) => 
  * payment, or as a duplicate charge when the order was paid meanwhile; a second payment on an attempt that already has one is refused.
  * Only paid payments are audited when refused (they are money); a failed or pending payment that does not belong changes nothing.
  */
-export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, input: { payment_id: string; source: FormSource; expect?: Row; event_id?: string; settle: SettleInTransaction }): Promise<FormResolution> {
+export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, input: { payment_id: string; source: FormSource; expect?: Row; event_id?: string; abandoned?: boolean; settle: SettleInTransaction }): Promise<FormResolution> {
   const reject = (reason: FormRejection, ids: { attempt_id?: string; order_id?: string } = {}) => rejectFormPayment(pool, input.source, reason, { ...ids, payment_id: input.payment_id })
   if (!isPaymentHint(input.payment_id)) return reject('bad_shape', { attempt_id: input.expect?.id, order_id: input.expect?.order_id })
   if (await rejectionMemory(pool, input.source, input.payment_id)) return { outcome: 'rejected', reason: 'rate_limited' }
@@ -331,7 +331,10 @@ export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, in
     const owner = record.attempt_id ? (await pool.query('SELECT id,order_id FROM payment_attempts WHERE id=$1', [record.attempt_id])).rows[0] : undefined
     return reject('refunded_unclaimed', { attempt_id: owner?.id, order_id: owner?.order_id })
   }
-  if (record.status !== 'succeeded' && record.status !== 'failed') return { outcome: 'not_paid', status: record.status }
+  // The provider's `payment_abandoned` event says a payment that is still `initiated` will never finish (its authentication session timed out after
+  // about 15 minutes): once the payment is verified as this attempt's, that is a decline. A pending payment with no such event is simply not paid yet.
+  const abandoned = input.abandoned === true && record.status === 'pending'
+  if (record.status !== 'succeeded' && record.status !== 'failed' && !abandoned) return { outcome: 'not_paid', status: record.status }
   // A refusal of a payment that is not paid costs nothing, so it leaves no trace; a paid one is money and is audited.
   const refuse = (reason: FormRejection, ids: { attempt_id?: string; order_id?: string } = {}): FormResolution | Promise<FormResolution> =>
     record.status === 'succeeded' ? reject(reason, ids) : { outcome: 'not_paid', status: record.status }
@@ -341,7 +344,7 @@ export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, in
   if (!attempt) return refuse('attempt_unknown')
   const reason = await checkFormPayment(pool, adapter, attempt, record)
   if (reason) return refuse(reason, { attempt_id: attempt.id, order_id: attempt.order_id })
-  if (record.status === 'failed') return recordDecline(pool, attempt, record)
+  if (record.status === 'failed' || abandoned) return recordDecline(pool, attempt, record, abandoned ? 'abandoned' : 'failed')
   const plan = await planCard(adapter, attempt, record)
   let result: FormResolution | { outcome: 'refused'; reason: FormRejection }
   try {
@@ -375,12 +378,12 @@ export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, in
   return result
 }
 
-/** A failed payment of the attempt's current intent: the intent is consumed and nothing was charged, so the attempt may open a fresh one at once. */
-async function recordDecline(pool: Pool, attempt: Row, record: PaymentRecord): Promise<FormResolution> {
+/** A failed (or abandoned) payment of the attempt's current intent: the intent is consumed and nothing was charged, so the attempt may open a fresh one at once. */
+async function recordDecline(pool: Pool, attempt: Row, record: PaymentRecord, cause: 'failed' | 'abandoned'): Promise<FormResolution> {
   await transaction(pool, async client => {
     const marked = await client.query(`UPDATE payment_attempts SET declined_payment_ref=$2,updated_at=now()
       WHERE id=$1 AND provider_ref IS NULL AND declined_payment_ref IS DISTINCT FROM $2 RETURNING order_id`, [attempt.id, record.payment_id])
-    if (marked.rowCount) await writeAudit(client, 'payment.form_declined', attempt.order_id, 'Card form payment declined', { attempt_id: attempt.id, payment_id: record.payment_id })
+    if (marked.rowCount) await writeAudit(client, 'payment.form_declined', attempt.order_id, 'Card form payment declined', { attempt_id: attempt.id, payment_id: record.payment_id, cause })
   })
   return { outcome: 'declined' }
 }
@@ -435,15 +438,27 @@ export async function cancelIntentQuietly(adapter: PaymentAdapter, ref: string |
   }
 }
 
+/** The search for an attempt's unreported payment, as the caller that owns the settlement wires it (`payments.ts`). */
+export type FormPaymentSearch = (row: Row) => Promise<'settled' | 'declined' | 'none' | 'skipped'>
+
 /**
  * Closes a form attempt nobody paid, locally and at the provider. The order stays payable. A payment that shows up afterwards is still
  * found by its description and secret and settled as a late payment, so closing never loses money. At the end of its lifetime the intent
  * is read first: one that was fulfilled with no payment ever reported (no webhook, no return) may hold money, so the attempt is closed
- * with `payment.form_attempt_needs_review` and the vendor looks the payment up at the provider.
+ * with `payment.form_attempt_needs_review` and the vendor looks the payment up at the provider, unless a search by the attempt id (when the caller
+ * passes one) finds the payment first.
  */
-export async function closeUnpaidFormAttempt(pool: Pool, adapter: PaymentAdapter, row: Row, reason: 'expired' | 'method_changed' | 'order_paid') {
+export async function closeUnpaidFormAttempt(pool: Pool, adapter: PaymentAdapter, row: Row, reason: 'expired' | 'method_changed' | 'order_paid', search?: FormPaymentSearch) {
   const intent = reason === 'expired' ? await readIntent(adapter, row.provider_intent_ref) : null
-  const review = reason === 'expired' && intentMayHoldPayment(row, intent)
+  let current = row
+  // The payment may be findable: one last search by the attempt id (never from a request path, so only a caller that passes `search`). A payment
+  // that settled needs no closing; one found failed is a recorded decline, and the attempt then holds no money to review.
+  if (search && reason === 'expired' && intentMayHoldPayment(row, intent)) {
+    const found = await search(row)
+    if (found === 'settled') return
+    if (found === 'declined') current = (await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [row.id])).rows[0] ?? row
+  }
+  const review = reason === 'expired' && intentMayHoldPayment(current, intent)
   if (!review) await cancelIntentQuietly(adapter, row.provider_intent_ref)
   await transaction(pool, async client => {
     // A closed attempt whose intent may hold a payment keeps the saved card from being charged for the same invoice while that payment may still arrive.
