@@ -1,6 +1,12 @@
 # Explicit opt-in overlay, never loaded by dedicated deployments.
 # Render/review with: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.shared.yml config
 # NOT deployment authorization. Requires Compose supporting !reset (2.24.4+).
+
+# Bounded container logs: without this the json-file driver grows until the disk is full.
+x-logging: &liwan-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
 services:
   proxy:
     ports: !override
@@ -28,6 +34,7 @@ services:
       context: ..
       dockerfile: deploy/shared/Dockerfile
     restart: unless-stopped
+    logging: *liwan-logging
     ports: !reset []
     environment:
       LIWAN_TENANCY_MODE: shared
@@ -166,6 +173,7 @@ services:
   odoo-egress:
     build: { context: ./ai-egress }
     restart: unless-stopped
+    logging: *liwan-logging
     environment:
       AI_EGRESS_HOSTS: "${ODOO_EGRESS_HOSTS:-api.authentica.sa,graph.facebook.com,lookaside.fbsbx.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,.tiktokv.com,ksa.paymob.com,uae.paymob.com,accept.paymob.com,oman.paymob.com}"
       EGRESS_DENY_PRIVATE: "yes"
@@ -188,6 +196,7 @@ services:
   odoo-mail:
     build: { context: ./odoo-mail }
     restart: unless-stopped
+    logging: *liwan-logging
     environment:
       ODOO_MAIL_SENDER: "${ODOO_MAIL_SENDER:-}"
       ODOO_MAIL_UPSTREAM_HOST: "${ODOO_MAIL_UPSTREAM_HOST:-}"
@@ -230,6 +239,7 @@ services:
       context: ..
       dockerfile: deploy/shared/Dockerfile
     restart: unless-stopped
+    logging: *liwan-logging
     command: ["node", "deploy/shared/tiktok-relay.mjs"]
     environment:
       LIWAN_TENANCY_MODE: shared
@@ -269,6 +279,7 @@ services:
     # The same pinned image as `db`: the restore runner refuses a Postgres image that differs from the backup's.
     image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
     restart: unless-stopped
+    logging: *liwan-logging
     networks: [restore_database]
     user: postgres
     cap_drop: [ALL]
@@ -294,6 +305,7 @@ services:
     # The same image as `odoo`: the restore runner refuses an Odoo image that differs from the backup's.
     image: liwan-odoo:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
     restart: unless-stopped
+    logging: *liwan-logging
     entrypoint: ["/opt/venv/bin/python", "/opt/liwan/shared/launch_odoo.py"]
     # No scheduled job runs against a recovered database: the validator refuses any other argument set.
     command: ["--max-cron-threads=0"]
