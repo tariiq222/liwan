@@ -207,8 +207,9 @@ unless the accountant sends `price_include: true`, so a vendor bill stays outsid
 `price_include`, the computed value, with `price_include_editable` true only for a purchase tax. A tax that changes its
 `type_tax_use` loses its override when it becomes a sale tax and takes `tax_excluded` when it becomes a purchase tax.
 Once journal items use a tax (`used`), its kind, rate, price-include setting and tax account are fixed (422 `tax_in_use`); it
-can still be renamed or archived. Reactivating an unused archived sale tax clears its old override. Reactivating one
-that has been used and still holds an override returns `tax_in_use`; create a new sale tax for new documents.
+can still be renamed or archived. Reactivating an unused archived sale tax clears its old override only when it agrees
+with the company mode. Reactivating a used tax with an override or a tax with a conflicting override returns
+`tax_in_use`; create a new sale tax for new documents.
 The 19.0.1.8.0 migration lists and refuses any open sales documents whose calculation would change. Restore the
 pre-upgrade database and filestore, resolve those documents in the old version, and retry the upgrade from there.
 A payment term is `{name, note?, lines: [{value: percent|fixed, value_amount, nb_days, delay_type?}]}`; the

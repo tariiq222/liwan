@@ -174,12 +174,25 @@ class TestFinanceTaxWrite(LiwanFinanceWriteCase):
     def test_reactivating_an_unused_legacy_sale_tax_clears_its_override(self):
         tax = self.env['account.tax'].with_company(self.company).create({
             'name': 'Archived unused legacy tax', 'type_tax_use': 'sale', 'amount': 15,
-            'active': False, 'price_include_override': TAX_INCLUDED,
+            'active': False, 'price_include_override': TAX_EXCLUDED,
         })
         result = self.api('POST', f'{TAXES}/{tax.id}/unarchive')
         self.assertEqual((result.status_code, result.json()['active']), (200, True))
         self.env.invalidate_all()
         self.assertFalse(tax.price_include_override)
+
+    def test_reactivating_an_archived_sale_tax_with_a_conflicting_override_is_refused(self):
+        tax = self.env['account.tax'].with_company(self.company).create({
+            'name': 'Archived conflicting legacy tax', 'type_tax_use': 'sale', 'amount': 15,
+            'active': False, 'price_include_override': TAX_INCLUDED,
+        })
+        self.assertFalse(tax.is_used)
+        result = self.api('POST', f'{TAXES}/{tax.id}/unarchive')
+        self.assertEqual(result.status_code, 422, result.text)
+        self.assertEqual(result.json()['code'], 'tax_in_use')
+        self.env.invalidate_all()
+        self.assertFalse(tax.active)
+        self.assertEqual(tax.price_include_override, TAX_INCLUDED)
 
     def test_reactivating_a_used_legacy_sale_tax_with_an_override_is_refused(self):
         tax = self.env['account.tax'].with_company(self.company).create({

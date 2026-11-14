@@ -175,7 +175,7 @@ class FinanceTaxController(http.Controller):
         require_capability('finance.taxes.manage')
         tax = _find_tax(tax_id)
         if not tax.active and tax.type_tax_use == 'sale' and tax.price_include_override:
-            if tax.is_used:
+            if tax.is_used or tax.price_include_override != tax.company_id.account_price_include:
                 raise ApiError(
                     422, 'tax_in_use',
                     request.env._('This archived sale tax has a historical price override. Create a new sale tax to use it again.'),
