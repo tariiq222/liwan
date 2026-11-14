@@ -272,8 +272,12 @@ class LiwanCrmSettings(models.Model):
     @api.model
     def _liwan_packages(self, company=None, archived=False):
         """The products ``company`` (default: the current one) offers as packages; archived ones with ``archived``."""
-        row = self.with_company(company or self.env.company)._liwan_current()
-        packages = row.with_context(active_test=False).package_ids
+        company = company or self.env.company
+        row = self.with_company(company)._liwan_current()
+        # A product that was given to another company after it was offered (a sharing change) is no longer a package.
+        packages = row.with_context(active_test=False).package_ids.filtered(
+            lambda product: not product.company_id or product.company_id == company,
+        )
         return packages if archived else packages.filtered('active')
 
     @api.model

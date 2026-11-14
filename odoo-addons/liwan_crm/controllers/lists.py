@@ -300,6 +300,8 @@ class CrmListsController(http.Controller):
     @requires_capability('crm.settings.manage')
     def add_package(self, **payload):
         product = request.env['liwan.products.service']._liwan_pick_product(parse_package_body(payload))
+        if product.company_id and product.company_id != request.env.company:
+            raise ApiError(422, 'invalid', 'this product belongs to another company', field='product_id')
         try:
             with request.env.cr.savepoint():
                 request.env['liwan.crm.settings']._liwan_current_or_create().package_ids = [Command.link(product.id)]

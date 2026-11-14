@@ -178,6 +178,14 @@ class TestCrmPackages(LiwanCrmCase):
         self.assertEqual(self.as_manager().api('DELETE', f'{PACKAGES}/{self.package.id}').status_code, 200)
         self.assertEqual(self.api('GET', f'{PACKAGES}?active=all').json()['items'], [])
 
+    def test_a_package_given_to_another_company_is_no_longer_offered(self):
+        """A product that another company owns is never one of this company's packages, even while linked."""
+        self.package.company_id = self.other_company
+        self.assertEqual(self.listed(self.manager), [])
+        self.assertEqual(self.env['liwan.crm.settings']._liwan_packages(self.company), self.env['product.template'])
+        self.package.company_id = False
+        self.assertEqual(self.listed(self.manager), [self.package.id])
+
     def test_a_product_that_cannot_be_picked_is_refused(self):
         archived = self.env['product.template'].create({'name': 'Old', 'liwan_product': True, 'active': False})
         stock = self.env['product.template'].create({'name': 'Stock'})
