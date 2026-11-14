@@ -285,4 +285,5 @@ The list of the customers plan, section 7, with these changes:
 | The chart of a tenant with online payments and no finance | Not read; the first task of the tax bridge |
 | The VAT number a branch's invoice and ZATCA document carry | Read in `l10n_sa_edi` only; open before PR 1 starts (D25) |
 | An application may grant a service's capability to its own role | Inferred; no example exists |
-| Everything in section 5 | Plan, not built |
+| PR 1: company tax mode | Implemented in draft [PR #710](https://github.com/tariiq222/liwan/pull/710). Focused Odoo checks passed in both commercial modes, and the release smoke upgrade passed on a disposable database. The affected-document check still needs to cover changes to the company's stock mode for taxes without an explicit override. Restore and retry with legacy data remains to be exercised. |
+| PRs 2–6 | Planned: shared products service and consumers, the products screen, sharing transitions, moving the Meta catalog, and product selection on finance lines. |
