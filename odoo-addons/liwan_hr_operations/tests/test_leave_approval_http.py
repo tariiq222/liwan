@@ -72,12 +72,33 @@ class TestLeaveApprovalRoutes(LeaveApprovalCase):
         self.assertEqual(self.api('POST', f'{PROCESS}/default', json={}).status_code, 409)
         self.assertEqual(self.process.state, 'published')
 
-    def test_process_route_without_a_process_points_to_the_editor(self):
+    def test_process_route_without_a_process_has_no_edit_link(self):
         self.archive_process()
         self.login_as(self._config_user())
         body = self.api('GET', PROCESS).json()
         self.assertIsNone(body['process'])
-        self.assertTrue(body['href'].endswith('/new'))
+        self.assertIsNone(body['href'])
+
+    def test_editor_republishes_without_the_operations_application_feature(self):
+        leave = self.file_leave()
+        approval = self.approval_request(leave)
+        revision = approval.process_revision
+        set_hr_feature(self, 'operations.enabled', False)
+        self.login_as(self.officer)
+        editor = f'{PROCESS}/editor'
+        process = self.api('GET', editor)
+        self.assertEqual(process.status_code, 200, process.text)
+        original = process.json()
+        self.assertEqual(self.api('GET', f'{editor}/resolvers').json()['total'], 2)
+        payload = {
+            'process_id': original['id'], 'revision': original['revision'], 'name': 'Updated stages',
+            'steps': [{'name': row['name'], 'resolver': row['resolver']} for row in original['steps']],
+        }
+        result = self.api('PATCH', editor, json=payload)
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()['state'], 'published')
+        self.assertEqual(approval.process_revision, revision)
+        self.assertEqual(self.api('PATCH', editor, json=payload).status_code, 409)
 
     def _config_user(self):
         return self._user('lao_cfg', 'Config', ['liwan_core.role_employee', 'liwan_hr.role_hr_manager', 'liwan_operations.role_operations_manager'])

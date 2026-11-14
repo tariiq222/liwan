@@ -13,13 +13,8 @@ def dump_approval_process(process, env):
     access = env['liwan.access.service']
     entitlement = env['liwan.entitlement.service']
     can_manage = entitlement._liwan_feature_write('hr.enabled') and access._liwan_has_capability(env.user, 'hr.leave.config')
-    central = (
-        entitlement._liwan_feature_write('operations.enabled')
-        and access._liwan_has_capability(env.user, 'operations.processes.manage')
-    )
-    base = '/settings/apps/operations/processes'
     if not process:
-        return {'process': None, 'href': f'{base}/new' if central else None, 'can_manage': can_manage}
+        return {'process': None, 'href': None, 'can_manage': can_manage}
     steps = []
     for step in process.step_ids.sorted('sequence'):
         resolver = process._operations_reviewer_resolver(process.execution_kind, step.reviewer_resolver) if step.reviewer_resolver else None
@@ -27,4 +22,4 @@ def dump_approval_process(process, env):
             'name': step.name, 'resolver': step.reviewer_resolver or None, 'resolver_label': resolver['label'] if resolver else None,
             'reviewers': [person(user) for user in step.reviewer_ids],
         })
-    return {'process': {'id': process.id, 'name': process.name, 'revision': process.revision, 'steps': steps}, 'href': f'{base}/{process.id}' if central else None, 'can_manage': can_manage}
+    return {'process': {'id': process.id, 'name': process.name, 'revision': process.revision, 'steps': steps}, 'href': '/settings/apps/hr/leave-approval/edit' if can_manage else None, 'can_manage': can_manage}

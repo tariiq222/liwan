@@ -102,6 +102,8 @@ application's AI agent and tools.
   management role and `/api/v1/documents` library routes. The `liwan_documents_hr` bridge
   auto-installs with HR and the document service. Its employee self-service routes use HR
   eligibility and the document's grant, including when the central library is disabled.
+  Its contextual management routes live under `/api/v1/hr/documents`; they pin every
+  operation to a visible employee or department of the working company.
 - `odoo-addons/liwan_meetings` (application, rank 4) owns the meeting engine
   (`liwan.meeting.minute`, `liwan.meeting.resolution`; LGPL, vendored from Cyan,
   see `odoo-addons/liwan_meetings/PROVENANCE.md`) and the meeting,
@@ -145,7 +147,8 @@ application's AI agent and tools.
 - `odoo-addons/liwan_hr_operations` (bridge, rank 5, `auto_install`) runs leave
   approval from HR directly, including while the central Operations application is disabled.
   Archiving the published leave process prevents new requests entering it and leaves open
-  requests attached to their submitted stage snapshots.
+  requests attached to their submitted stage snapshots. HR settings can also edit and
+  republish the process using the central form and the same approval model.
 - `odoo-addons/liwan_pmo_finance` (bridge, rank 5, `auto_install`) is installed whenever `liwan_pmo`
   and `liwan_finance` both are. While `finance.enabled` is on, a project's actual cost is the posted
   expense of its cost center (an analytic account linked by `liwan_project_id`) instead of manual

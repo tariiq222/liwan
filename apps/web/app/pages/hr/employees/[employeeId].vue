@@ -9,7 +9,7 @@ import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.
 import { useHrCompensation } from '@/composables/useHrPayrollCompensation'
 import { useArchiveHrEmployee, useHrEmployee, useUnarchiveHrEmployee } from '@/composables/useHrEmployees'
 const route = useRoute()
-const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated()
+const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS); const { t } = useI18n(); const { can } = useAccess(); const { me } = useMe(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.employeeId))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
 const isDetail = computed(() => route.path === `/hr/employees/${route.params.employeeId}`)
@@ -47,6 +47,7 @@ const menuActions = computed<RowAction[]>(() => {
   const employee = query.data.value
   if (!employee) return []
   return [
+    ...(can('hr.employees.manage') && me.value?.capabilities?.includes('documents.items.read') ? [{ label: t('documents.title'), icon: 'i-lucide-files', to: `/hr/documents/employee-${employee.id}` } satisfies RowAction] : []),
     ...(employee.user_id && can('access.users.read') ? [{ label: t('hr.employee.manageAccount'), icon: 'i-lucide-user-cog', to: `/settings/team/users/${employee.user_id}` } satisfies RowAction] : []),
     ...(can('hr.employees.archive') ? [{
       label: employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive'),

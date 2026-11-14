@@ -148,6 +148,8 @@ const manifest: AppManifest = {
     'hr.payroll.': 'hr.payroll',
   },
   routeCapabilities: [
+    { pattern: /^\/hr\/documents\/(?:employee|department)-[1-9]\d*$/, capability: 'documents.items.read', capabilityFeature: 'hr.enabled' },
+    { pattern: /^\/settings\/apps\/hr\/leave-approval\/edit$/, capability: "hr.leave.config" },
     { pattern: /^\/account\/profile$/, capability: 'hr.employees.read' },
     { pattern: /^\/account\/leave\/new$/, capability: 'hr.leave.request', requiredCapabilities: ['hr.employees.read'] },
     { pattern: /^\/account\/leave(?:\/[^/]+)?$/, capability: 'hr.leave.read', requiredCapabilities: ['hr.employees.read'] },

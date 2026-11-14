@@ -6,6 +6,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     error_response,
+    parse_positive_int,
     requires_capability,
     requires_feature,
     serves_own_data,
@@ -13,6 +14,7 @@ from odoo.addons.liwan_api.controllers.common import (
 from odoo.addons.liwan_approval_service.models.operation_request import (
     OperationExecutionError,
 )
+from odoo.addons.liwan_approval_service.serializers.operations import dump_process
 from odoo.addons.liwan_hr.controllers.common import asks_for_own_data
 from odoo.addons.liwan_hr.controllers.hr_leave import _current_leave
 from odoo.addons.liwan_hr_operations.models.common import KIND
@@ -96,3 +98,39 @@ class HrLeaveApprovalController(http.Controller):
             raise ApiError(404, 'not_found', 'the company has no active leave approval process')
         process.action_archive(revision)
         return dump_approval_process(process.browse(), request.env)
+
+    @http.route('/api/v1/hr/leave/approval-process/editor', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature(*FEATURES, operation='read')
+    @requires_capability('hr.leave.config')
+    def approval_editor(self, **_):
+        process = _governing_process()
+        if not process:
+            raise ApiError(404, 'not_found', 'the company has no active leave approval process')
+        return dump_process(process)
+
+    @http.route('/api/v1/hr/leave/approval-process/editor/resolvers', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature(*FEATURES, operation='read')
+    @requires_capability('hr.leave.config')
+    def approval_edit_resolvers(self, **_):
+        processes = request.env['liwan.operation.process']
+        items = [{'key': entry['key'], 'label': entry['label']} for entry in processes._operations_reviewer_resolvers(KIND)]
+        return {'items': items, 'total': len(items)}
+
+    @http.route('/api/v1/hr/leave/approval-process/editor', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature(*FEATURES)
+    @requires_capability('hr.leave.config')
+    def save_approval_editor(self, process_id=None, revision=None, name=None, description='', steps=None, stage_approval_mode=None, **extra):
+        if extra:
+            raise ApiError(422, 'invalid', 'Unexpected approval configuration fields.')
+        process = _governing_process()
+        if not process or process.id != parse_positive_int(process_id, 'process_id'):
+            raise ApiError(409, 'conflict', 'The active approval process changed. Reload before saving.')
+        process.action_configure(
+            revision, name, description, KIND, steps, purpose='employee',
+            stage_approval_mode=stage_approval_mode,
+        )
+        process.action_publish(process.revision)
+        return dump_process(process)

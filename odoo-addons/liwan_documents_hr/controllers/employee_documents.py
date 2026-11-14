@@ -11,6 +11,7 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_document_service.controllers.common import (
     archived_arg,
+    document_page,
     file_download,
     files_page,
     list_filter_domain,
@@ -19,7 +20,6 @@ from odoo.addons.liwan_document_service.controllers.common import (
 )
 from odoo.addons.liwan_document_service.serializers.document import (
     dump_detail,
-    dump_summaries,
 )
 from odoo.addons.liwan_hr.controllers.common import own_employee
 
@@ -59,12 +59,7 @@ class EmployeeDocuments(http.Controller):
         if args.get('q'):
             domain.append(('name', 'ilike', args['q']))
         model = request.env['liwan.document'].with_context(active_test=False)
-        documents = model.search(domain, limit=limit, offset=offset, order='write_date desc,id desc')
-        counts = {directory.id: count for directory, count in request.env['dms.file']._read_group(
-            [('directory_id', 'in', documents.directory_id.ids), ('active', '=', True)],
-            ['directory_id'], ['__count'],
-        )}
-        return {'items': dump_summaries(documents, counts), 'total': model.search_count(domain)}
+        return document_page(model, domain, limit, offset)
 
     @http.route('/api/v1/documents/employee/me/<int:document_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

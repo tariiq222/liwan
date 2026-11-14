@@ -16,19 +16,26 @@ class Document(models.Model):
     @api.model
     def _liwan_scope_predicate(self, operation):
         scope = super()._liwan_scope_predicate(operation)
-        if scope is not None or operation != 'read':
+        if scope is not None:
             return scope
         entitlement = self.env['liwan.entitlement.service']
-        service = self.env['liwan.access.service']
-        if not entitlement._liwan_feature_read('hr.enabled') or not service._liwan_has_capability(
-            self.env.user, 'hr.employees.read',
-        ):
+        access = self.env['liwan.access.service']
+        feature = entitlement._liwan_feature_read if operation == 'read' else entitlement._liwan_feature_write
+        if not feature('hr.enabled'):
             return None
-        employees = self.env['hr.employee.public']._search([
-            ('user_id', '=', self.env.uid),
-            ('company_id', '=', self.env.company.id),
-        ])
-        return SQL('d.employee_id IN (%s)', employees.select())
+        domain = [('company_id', '=', self.env.company.id)]
+        scopes = []
+        if access._liwan_has_capability(self.env.user, 'hr.employees.manage'):
+            employees = self.env['hr.employee']._search(domain)
+            scopes.append(SQL('d.employee_id IN (%s)', employees.select()))
+        elif operation == 'read' and access._liwan_has_capability(self.env.user, 'hr.employees.read'):
+            own = self.env['hr.employee.public']._search([*domain, ('user_id', '=', self.env.uid)])
+            scopes.append(SQL('d.employee_id IN (%s)', own.select()))
+        department_capability = 'hr.departments.read' if operation == 'read' else 'hr.departments.manage'
+        if access._liwan_has_capability(self.env.user, department_capability):
+            departments = self.env['hr.department']._search(domain)
+            scopes.append(SQL('d.department_id IN (%s)', departments.select()))
+        return SQL(' OR ').join(scopes) if scopes else None
 
     @api.model
     def _liwan_context_fields(self):

@@ -34,6 +34,7 @@ async function load(file: string, url: RouteLocationRaw, props: Record<string, u
     _defineComponent: Vue.defineComponent, onMounted: () => {}, onUnmounted: () => {}, computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick, useId: Vue.useId,
     useRoute: () => router.currentRoute.value, useRouter: () => router,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
+    useMe: () => ({ me: Vue.ref({ capabilities: ['documents.items.read'] }) }),
     useHydrated: () => Vue.ref(true), useAccess: () => ({ can: () => true }), useToast: () => ({ add: vi.fn() }), usePageHeader: () => {},
     useHrDepartment: () => query(department), useHrDepartments: () => query({ items: [department] }), useHrEmployees: () => query({ items: [] }),
     useDeleteHrDepartment: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),

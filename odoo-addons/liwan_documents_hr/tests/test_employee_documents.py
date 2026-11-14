@@ -235,6 +235,38 @@ class TestEmployeeDocuments(DocumentHttpCase):
             self.assertFalse(excluded.with_user(self.reader)._liwan_can('read'))
         self.assertEqual(self.api('GET', f'/api/v1/documents/{document.id}').status_code, 403)
 
+    def test_employee_context_management_with_library_disabled(self):
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'documents.enabled': False},
+            'retained_read_features': [key for key in profile.retained_read_features if key != 'documents.enabled'],
+        })
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        path = f'/api/v1/hr/documents/employee/{self.own_employee.id}'
+        result = self.api('POST', path, {'name': 'Employment verification'})
+        self.assertEqual(result.status_code, 201, result.text)
+        body = result.json()
+        document_path = f'{path}/{body["id"]}'
+        update = self.api('PATCH', document_path, {'name': 'Verified', 'expected_revision': body['revision']})
+        self.assertEqual(update.status_code, 200, update.text)
+        self.assertEqual(self.api('GET', path).json()['total'], 1)
+        upload = self.api('POST', f'{document_path}/files', {
+            'name': 'proof.txt', 'data': 'b2s=', 'expected_revision': update.json()['revision'],
+        })
+        self.assertEqual(upload.status_code, 200, upload.text)
+        files = self.api('GET', f'{document_path}/files')
+        self.assertEqual(files.status_code, 200, files.text)
+        url = files.json()['items'][0]['download_url']
+        self.assertEqual(self.api('GET', url).content, b'ok')
+        revision = upload.json()['revision']
+        locked = self.api('POST', f'{document_path}/files/{files.json()["items"][0]["id"]}/lock', {'expected_revision': revision})
+        self.assertEqual(locked.status_code, 200, locked.text)
+        shared = self.api('POST', f'{document_path}/employee-access', {'expected_revision': locked.json()['revision']})
+        self.assertEqual(shared.status_code, 200, shared.text)
+        self.assertEqual(self.api('GET', f'/api/v1/documents/{body["id"]}').status_code, 403)
+        self.authenticate('docs_reader', 'docs_reader')
+        self.assertEqual(self.api('GET', f'/api/v1/documents/employee/me/{body["id"]}').status_code, 200)
+
     def test_employee_provider_options_require_hr_management(self):
         self.assertIn('employee_id', self.env['liwan.document']._fields)
         self.authenticate('employee_docs_linker', 'employee_docs_linker')

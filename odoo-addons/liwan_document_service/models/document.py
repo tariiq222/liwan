@@ -273,6 +273,7 @@ class Document(models.Model):
             operations[record.id] = 'create'
             try:
                 record._liwan_initialize_resources()
+                record._liwan_require('write')
             finally:
                 operations.pop(record.id, None)
         return records

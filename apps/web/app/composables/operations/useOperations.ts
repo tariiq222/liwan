@@ -65,15 +65,15 @@ export function useOperationProcessMutation() {
   return useMutation(operationProcessMutationOptions($api, useQueryClient()))
 }
 
-export function useOperationExecutionKinds() {
+export function useOperationExecutionKinds(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
-  return useQuery({ queryKey: ['operations', 'execution-kinds'], queryFn: () => $api('/api/v1/operations/execution-kinds', { schema: OperationExecutionKindsSchema }) })
+  return useQuery({ queryKey: ['operations', 'execution-kinds'], enabled: computed(() => toValue(enabled)), queryFn: () => $api('/api/v1/operations/execution-kinds', { schema: OperationExecutionKindsSchema }) })
 }
-export function useOperationReviewerResolvers(executionKind: MaybeRefOrGetter<string>) {
+export function useOperationReviewerResolvers(executionKind: MaybeRefOrGetter<string>, path = '/api/v1/operations/processes/reviewer-resolvers') {
   const { $api } = useApi()
   return useQuery({
-    queryKey: computed(() => ['operations', 'reviewer-resolvers', toValue(executionKind)]),
-    queryFn: () => $api('/api/v1/operations/processes/reviewer-resolvers', { query: { execution_kind: toValue(executionKind) }, schema: OperationReviewerResolversSchema }),
+    queryKey: computed(() => ['operations', 'reviewer-resolvers', path, toValue(executionKind)]),
+    queryFn: () => $api(path, { query: { execution_kind: toValue(executionKind) }, schema: OperationReviewerResolversSchema }),
   })
 }
 export function operationTargetQueryOptions(api: OperationApi, id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean>, q: MaybeRefOrGetter<string> = '') {

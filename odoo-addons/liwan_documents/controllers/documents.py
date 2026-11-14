@@ -11,13 +11,13 @@ from odoo.addons.liwan_api.controllers.common import (
 from odoo.addons.liwan_document_service.controllers.common import (
     archived_arg,
     current_document,
+    document_page,
     list_filter_domain,
     page_args,
     require,
 )
 from odoo.addons.liwan_document_service.serializers.document import (
     dump_detail,
-    dump_summaries,
     parse_revision,
     parse_values,
 )
@@ -53,17 +53,7 @@ class Documents(http.Controller):
                 kind, parse_positive_int(context_id, 'context_id'),
             )
         model = request.env['liwan.document'].with_context(active_test=False)
-        records = model.search(
-            domain, limit=limit, offset=offset, order='write_date desc,id desc',
-        )
-        counts = {directory.id: count for directory, count in request.env['dms.file']._read_group(
-            [('directory_id', 'in', records.directory_id.ids), ('active', '=', True)],
-            ['directory_id'], ['__count'],
-        )}
-        return {
-            'items': dump_summaries(records, counts),
-            'total': model.search_count(domain),
-        }
+        return document_page(model, domain, limit, offset)
 
     @http.route(
         '/api/v1/documents/<int:document_id>',
