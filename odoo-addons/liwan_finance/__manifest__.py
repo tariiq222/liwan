@@ -2,7 +2,7 @@
 {
     'name': 'liwan Finance',
     'summary': 'liwan platform: the Finance application — /api/v1/finance over account and l10n_sa',
-    'version': '19.0.1.7.0',
+    'version': '19.0.1.8.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

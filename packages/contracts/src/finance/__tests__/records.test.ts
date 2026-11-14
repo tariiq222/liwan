@@ -36,6 +36,21 @@ describe('setup record bodies', () => {
     expect(FinanceTaxPatchSchema.parse({ name: 'VAT' })).toEqual({ name: 'VAT' })
   })
 
+  it('refuses a price include answer on a sale tax and keeps it for a purchase tax', () => {
+    const purchase = { name: 'Input VAT 15%', type_tax_use: 'purchase' as const, amount: 15, tax_account_id: 7 }
+    expect(FinanceTaxCreateSchema.parse(purchase)).toEqual(purchase)
+    expect(FinanceTaxCreateSchema.parse({ ...purchase, price_include: true }).price_include).toBe(true)
+    const issue = FinanceTaxCreateSchema.safeParse({ ...purchase, type_tax_use: 'sale', price_include: false })
+    expect(issue.success).toBe(false)
+    expect(issue.error?.issues.map(item => [item.path.join('.'), item.message])).toEqual([
+      ['price_include', 'a sale tax follows the company price mode: price_include is not set per tax'],
+    ])
+    // A patch's `type_tax_use` may change the use on its own; only the pair is refused.
+    expect(FinanceTaxPatchSchema.parse({ type_tax_use: 'sale' })).toEqual({ type_tax_use: 'sale' })
+    expect(() => FinanceTaxPatchSchema.parse({ type_tax_use: 'sale', price_include: true })).toThrow()
+    expect(FinanceTaxPatchSchema.parse({ type_tax_use: 'purchase', price_include: true }).price_include).toBe(true)
+  })
+
   it('needs percent lines that add up to 100', () => {
     const half = [{ value: 'percent', value_amount: 50, nb_days: 0 }, { value: 'percent', value_amount: 50, nb_days: 30 }]
     expect(FinancePaymentTermCreateSchema.parse({ name: '50/50', lines: half }).lines).toHaveLength(2)

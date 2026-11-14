@@ -212,13 +212,17 @@ def sudo_calls(text: str, superuser_id: bool = True) -> int:
     return len(sudo_sites(text, superuser_id))
 
 
+# R10: a route names its feature, or (requires_registered_feature) the features installed addons register for it.
+FEATURE_GATES = frozenset({'requires_feature', 'requires_registered_feature'})
+
+
 def routes_without_feature(text: str) -> list[str]:
-    """R10: controller functions with a route decorator and no requires_feature."""
+    """R10: controller functions with a route decorator and no feature gate."""
     missing = []
     for node in ast.walk(ast.parse(text)):
         if isinstance(node, ast.FunctionDef):
             names = [_decorator_name(d) for d in node.decorator_list]
-            if 'route' in names and 'requires_feature' not in names:
+            if 'route' in names and not FEATURE_GATES & set(names):
                 missing.append(node.name)
     return missing
 

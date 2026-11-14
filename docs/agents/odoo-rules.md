@@ -139,7 +139,9 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 - Declare real dependencies, read from each addon manifest (core uses `base` only;
   shared services such as `liwan_notify` and `liwan_directory` depend on `liwan_api` and stock
   modules and know no application; a bridge such as `liwan_meetings_pmo` is `auto_install` and
-  depends on exactly its two sides). Do not copy a dependency list into prose. Ranks are in
+  depends on exactly its two sides, either two ranked LiwanOS modules or one ranked module and one stock
+  module its `auto_install` names, as `liwan_api_account` does on `liwan_api` and `account`). Do not copy a
+  dependency list into prose. Ranks are in
   `tools/arch_layers.json`. Preserve pillar direction:
   shared `liwan_api` and the shared services never import a pillar, and one
   application never imports another; only a bridge imports both.
@@ -191,7 +193,8 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `post_install` (see `docs/testing.md` section 1). The full fresh `-i` block under **Check commands**
   below is the release/CI-equivalent check; use it with `deploy/ci/odoo.sh` (the **odoo** stage, including its classification fixture; the
   **odoo-app-standalone** and **odoo-bridge** matrix stages run the same shape for every
-  application alone and every bridge with its two sides, see `docs/testing.md`),
+  application alone and every bridge with its two sides (one LiwanOS side and one stock side included),
+  see `docs/testing.md`),
   with the selected checkout's explicit addons path, `-i` modules,
   `--test-tags /<addon>` and `--stop-after-init`. Require a nonzero test count;
   preserve isolation/cleanup. These are documented commands, not run by setup.

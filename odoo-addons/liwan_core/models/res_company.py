@@ -3,7 +3,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tools import reset_cached_properties
 
-from .access_service import SELF_GRANT_POLICY_MARKER, VAT_PERMISSION
+from .access_service import SELF_GRANT_POLICY_MARKER, VAT_PERMISSION, LiwanAccessRule
 from .protected_write import is_marked_write, marked
 from .res_partner import (
     PARTNER_BRANDING_MARKER,
@@ -20,6 +20,8 @@ COMPANY_PROFILE_FIELDS = (PARTNER_COMPANY_FIELDS - {'image_1920'}) | {'logo', 'r
 EXTENSION_BLOCKED_FIELDS = frozenset({'country_id', 'partner_id', 'currency_id'})
 EXTENSION_SECTIONS = frozenset({'identity', 'address'})
 EXTENSION_KINDS = {'char': 'text', 'selection': 'selection'}
+# The refusal a branch meets for the VAT decision that belongs to its root.
+VAT_REGISTRATION_ROOT_ONLY = 'vat_registration_is_set_on_the_root'
 
 
 class ResCompany(models.Model):
@@ -29,9 +31,19 @@ class ResCompany(models.Model):
 
     liwan_access_policy_version = fields.Integer(default=1, required=True)
 
-    # Whether the company is registered for VAT: only then is a tax computed, shown or invoiced anywhere its
-    # customers or its end customers look, and only then is the VAT number required. Off by default.
+    # The establishment's VAT registration, stored on the root company only: only then is a tax computed, shown or
+    # invoiced anywhere the establishment's customers or their end customers look, and only then is the VAT number
+    # required. Off by default. A branch keeps it false: the answer is the derived field below.
     liwan_vat_registered = fields.Boolean(default=False, copy=False)
+
+    # The establishment's answer on every company of it, maintained by the ORM from the root's stored decision: the
+    # compute reads the record's own parent chain, so a branch answers from its own row and never reads the root,
+    # which base ``res_company_rule_employee`` (``[('id', 'in', company_ids)]``, base_security.xml:117) hides from a
+    # branch-only session. Odoo computes stored fields in superuser mode (``compute_sudo``, like base ``root_id``),
+    # so no LiwanOS code elevates anything; the root's stored value stays the one source of truth.
+    liwan_establishment_vat_registered = fields.Boolean(
+        compute='_compute_liwan_establishment_vat_registered', store=True, recursive=True, copy=False,
+    )
 
     liwan_branch_access_mode = fields.Selection(
         [('isolated', 'Isolated'), ('delegated', 'Delegated'), ('inherited', 'Inherited')],
@@ -50,6 +62,19 @@ class ResCompany(models.Model):
         default='IBM_Plex_Sans_Arabic',
         ondelete={'IBM_Plex_Sans_Arabic': 'set default'},
     )
+
+    @api.depends('parent_id.liwan_establishment_vat_registered', 'liwan_vat_registered')
+    def _compute_liwan_establishment_vat_registered(self):
+        """The establishment's answer: the root's registration, following the record's own parent chain.
+
+        A company with a parent takes its parent's answer; the root takes its own stored ``liwan_vat_registered``. The
+        dependency on the parent's derived field is what carries a root change down the whole hierarchy.
+        """
+        for company in self:
+            parent = company.parent_id
+            company.liwan_establishment_vat_registered = (
+                parent.liwan_establishment_vat_registered if parent else company.liwan_vat_registered
+            )
 
     @api.model
     def _liwan_marked_write_fields(self):
@@ -75,8 +100,10 @@ class ResCompany(models.Model):
         if not self.env.is_system():
             raise AccessError(self.env._('Only Odoo system administrators can create institutions.'))
         companies = super().create(vals_list)
-        # A company created already registered is a registration change too: from the default, not registered.
-        companies.filtered('liwan_vat_registered')._liwan_log_vat_registration(dict.fromkeys(companies.ids, False))
+        # A root created already registered is a registration change too: from the default, not registered. A new
+        # branch shows its root's answer through the derived field and records nothing of its own.
+        roots = companies.filtered(lambda company: not company.parent_id and company.liwan_vat_registered)
+        roots._liwan_log_vat_registration(dict.fromkeys(roots.ids, False))
         return companies
 
     def write(self, vals):
@@ -84,6 +111,17 @@ class ResCompany(models.Model):
                 and self.env.company.id not in self.env.cr.precommit.data.get('liwan_core.branch_policy', set())):
             msg = 'use_protected_liwan_access_operation'
             raise AccessError(msg)
+        if 'liwan_vat_registered' in vals and not self.env.is_superuser() and self.filtered(
+            lambda company: company.parent_id
+            and bool(company.liwan_vat_registered) != bool(vals['liwan_vat_registered']),
+        ):
+            # One decision per establishment, stored on its root, so a branch row never carries one. A write of the
+            # value the branch already holds changes nothing; anything else is refused here with the route's 403,
+            # before the root would have to be read. The constraint below is the same rule for every other writer.
+            message = self.env._(
+                'The VAT registration is one decision for the establishment, set on its root company.',
+            )
+            raise LiwanAccessRule(VAT_REGISTRATION_ROOT_ONLY, message, status=403)
         policy_allowed = is_marked_write(self, SELF_GRANT_POLICY_MARKER, {'liwan_self_grant_policy'}, vals)
         if 'liwan_self_grant_policy' in vals and not self.env.is_superuser() and not policy_allowed:
             msg = 'use_protected_liwan_access_operation'
@@ -143,13 +181,29 @@ class ResCompany(models.Model):
         return result
 
     def _liwan_vat_registered(self):
-        """Whether this company is registered for VAT; the one helper every other layer calls (R4: down only).
+        """Whether the establishment is registered for VAT; the one helper every other layer calls (R4: down only).
 
-        Off by default: then no tax is computed, shown or invoiced anywhere the company's customers or
-        their end customers look. Existing documents keep what they were issued with.
+        The establishment is the root company and its branches, and it has one answer, stored on the root. The
+        derived ``liwan_establishment_vat_registered`` carries it on every company of the establishment, so this
+        record answers by itself: an ordinary branch-only session needs no read of the root, which Odoo base's
+        ``res_company_rule_employee`` hides from it, and an elevated caller gets the same answer.
+        Off by default: then no tax is computed, shown or invoiced anywhere the establishment's customers or their
+        end customers look. Existing documents keep what they were issued with.
         """
         self.ensure_one()
-        return bool(self.liwan_vat_registered)
+        return bool(self.liwan_establishment_vat_registered)
+
+    def _liwan_vat_registration_editable(self):
+        """Whether this session may change the establishment's registration here: the root, with the VAT right.
+
+        A branch session shows the establishment's value read-only with the reason, whatever role it holds there.
+        """
+        self.ensure_one()
+        return not self.parent_id and bool(
+            self.env['liwan.access.service']._liwan_has_capability(
+                self.env.user, VAT_PERMISSION, company=self,
+            ),
+        )
 
     @api.model
     def _liwan_vat_number_is_checked(self):
@@ -161,25 +215,45 @@ class ResCompany(models.Model):
         return 'base_vat' in self.env['ir.module.module']._installed()
 
     def _liwan_require_vat_registration_right(self, registered):
-        """Changing whether the company is registered for VAT needs ``settings.company.vat.manage``.
+        """Changing whether the establishment is registered for VAT needs ``settings.company.vat.manage``.
 
         The company profile's own capability (``settings.company.manage``, which custom roles may hold) is not
-        enough: this decides whether any tax shows, so only the system administrator role holds it. Sending the
-        value the company already has changes nothing and needs nothing.
+        enough: this decides whether any tax shows, so only the system administrator role holds it. One decision
+        per establishment means only the root company holds it, so a branch session is refused with
+        ``403 vat_registration_is_set_on_the_root`` instead of a right it could never exercise. Sending the value
+        the establishment already has changes nothing and needs nothing, in a branch as in the root.
         """
         self.ensure_one()
-        if bool(registered) != self.liwan_vat_registered:
-            self.env['liwan.access.service']._liwan_require_capability(VAT_PERMISSION)
+        if bool(registered) == self._liwan_vat_registered():
+            return
+        if self.parent_id:
+            message = self.env._(
+                'The VAT registration is one decision for the establishment, set on its root company.',
+            )
+            raise LiwanAccessRule(VAT_REGISTRATION_ROOT_ONLY, message, status=403)
+        self.env['liwan.access.service']._liwan_require_capability(VAT_PERMISSION)
 
     def _liwan_check_vat_registration(self):
-        """Refuse a VAT-registered company without a valid VAT number: registering needs one, and so does keeping it.
+        """Refuse a VAT-registered establishment without a valid VAT number: registering needs one, and so does keeping it.
 
+        The registration is the establishment's one decision and lives on its root company, so the check applies
+        there. A branch row never carries it (the derived ``liwan_establishment_vat_registered`` is what it shows),
+        and the derived answer follows the root's own check.
         Odoo's own number check for the company's country (``base_vat``, the Saudi 15-digit TIN rule under
         ``l10n_sa``) decides, never a hand-written pattern. ``liwan_core`` depends on ``base`` only, so the
         check runs where ``base_vat`` is installed; the company profile route refuses to register a company
         where it is not (``vat_check_unavailable``), so no customer request registers an unchecked number.
         """
         for company in self:
+            if company.parent_id:
+                if company.liwan_vat_registered:
+                    # One decision per establishment, stored on its root: a branch row carrying it would be a second
+                    # source of truth. Stock's own propagation cannot write it, and this refuses any other writer,
+                    # including the superuser path the migration uses to clear old rows.
+                    raise ValidationError(self.env._(
+                        'The VAT registration is one decision for the establishment, set on its root company.',
+                    ))
+                continue
             if not company.liwan_vat_registered:
                 continue
             if not company.vat:
@@ -187,18 +261,19 @@ class ResCompany(models.Model):
             if company.country_id and self._liwan_vat_number_is_checked():
                 self.env['res.partner']._run_vat_checks(company.country_id, company.vat, company.name)
 
-    @api.constrains('liwan_vat_registered', 'vat')
+    @api.constrains('liwan_vat_registered', 'vat', 'parent_id')
     def _check_vat_registration(self):
         self._liwan_check_vat_registration()
 
     def _liwan_log_vat_registration(self, previous):
         """Record the VAT-registration change: who changed it and from what to what, never the VAT number itself.
 
-        A write that leaves the value as it was records nothing.
+        One establishment has one decision, so the entry names the root company only: the derived answer every branch
+        shows follows it and is never an event of its own. A write that leaves the value as it was records nothing.
         """
         for company in self:
             before = previous.get(company.id)
-            if before == company.liwan_vat_registered:
+            if company.parent_id or before == company.liwan_vat_registered:
                 continue
             self.env['liwan.access.audit']._liwan_log(
                 'company.vat_registration_changed', company,
@@ -223,9 +298,17 @@ class ResCompany(models.Model):
             raise AccessError(msg)
         if 'liwan_vat_registered' in vals:
             self._liwan_require_vat_registration_right(vals['liwan_vat_registered'])
+        written = dict(vals)
+        if self.parent_id and 'liwan_vat_registered' in written:
+            # The registration is the establishment's and lives on its root. A branch shows it: sending the current
+            # value writes nothing (and needs no right), and a different one was refused above with
+            # 403 vat_registration_is_set_on_the_root.
+            written.pop('liwan_vat_registered')
+            if not written:
+                return True
         with marked(self.env, {COMPANY_PROFILE_MARKER: {self.id}, PARTNER_COMPANY_MARKER: {self.partner_id.id}}):
-            result = self.write(vals)
-        self._liwan_log_company_change('company.profile_changed', vals)
+            result = self.write(written)
+        self._liwan_log_company_change('company.profile_changed', written)
         return result
 
     def _liwan_log_company_change(self, action, vals):

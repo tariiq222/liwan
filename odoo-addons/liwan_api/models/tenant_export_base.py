@@ -28,7 +28,10 @@ class LiwanTenantExportBase(models.AbstractModel):
     def _liwan_export_datasets(self):
         return [
             *super()._liwan_export_datasets(),
-            model_dataset(self.env, APP, 'companies', 'Companies', 'res.company'),
+            model_dataset(
+                self.env, APP, 'companies', 'Companies', 'res.company',
+                exclude=('liwan_establishment_vat_registered',),
+            ),
             model_dataset(self.env, APP, 'branches', 'Branches', 'liwan.tenant.branch', fields=BRANCH_FIELDS),
             self._liwan_export_users(),
             self._liwan_export_roles(),

@@ -11,13 +11,14 @@ import {
   accountCreate, accountDraft, accountPatch, accountValid,
   assetProfileCreate, assetProfileDraft, assetProfilePatch, assetProfileValid,
   journalCreate, journalDraft, journalPatch, journalValid,
-  newTermLine, percentTotal, taxCreate, taxDraft, taxPatch, taxValid,
+  newTermLine, percentTotal, priceIncludeEditable, taxCreate, taxDraft, taxPatch, taxValid,
   termCreate, termDraft, termPatch, termValid,
 } from '../recordForms'
 
 const ACCOUNT: FinanceAccount = { id: 1, code: '600100', name: 'Rent', account_type: 'expense', reconcile: false, currency: null, active: true }
 const JOURNAL: FinanceJournal = { id: 2, name: 'Sales', code: 'SLS', type: 'sale', currency: 'SAR', default_account: null, active: true }
-const TAX: FinanceTax = { id: 3, name: 'VAT 15%', type_tax_use: 'sale', amount_type: 'percent', amount: 15, price_include: false, tax_account: { id: 7, name: 'VAT payable' }, active: true, used: false }
+const TAX: FinanceTax = { id: 3, name: 'VAT 15%', type_tax_use: 'sale', amount_type: 'percent', amount: 15, price_include: true, price_include_editable: false, tax_account: { id: 7, name: 'VAT payable' }, active: true, used: false }
+const PURCHASE_TAX: FinanceTax = { ...TAX, id: 8, name: 'VAT purchase 15%', type_tax_use: 'purchase', price_include: false, price_include_editable: true }
 const TERM: FinancePaymentTerm = { id: 4, name: 'Net 30', shared: false, active: true, lines: [{ value: 'percent', value_amount: 100, nb_days: 30, delay_type: 'days_after' }] }
 
 describe('the account form', () => {
@@ -59,12 +60,32 @@ describe('the tax form', () => {
     expect(FinanceTaxCreateSchema.parse(taxCreate(draft))).toMatchObject({ type_tax_use: 'sale', amount: 5, tax_account_id: 7 })
   })
 
+  it('never sends price_include on a sale tax, on create or on edit', () => {
+    const draft = { ...taxDraft(), name: 'VAT 5%', amount: 5, taxAccountId: 7, priceInclude: true }
+    expect(taxCreate(draft)).not.toHaveProperty('price_include')
+    expect(FinanceTaxCreateSchema.safeParse(taxCreate(draft)).success).toBe(true)
+    // Even a server answer that wrongly marked a sale tax editable never makes the form send the field.
+    const sale = { ...TAX, price_include_editable: true }
+    expect(taxPatch(sale, { ...taxDraft(sale), priceInclude: !sale.price_include })).toBeNull()
+    expect(taxPatch(TAX, { ...taxDraft(TAX), name: 'VAT standard' })).toEqual({ name: 'VAT standard' })
+  })
+
+  it('offers the price mode to a purchase tax only, and sends it there', () => {
+    expect(priceIncludeEditable(undefined, { use: 'sale' })).toBe(false)
+    expect(priceIncludeEditable(undefined, { use: 'purchase' })).toBe(true)
+    expect(priceIncludeEditable(TAX, { use: 'sale' })).toBe(false)
+    expect(priceIncludeEditable(PURCHASE_TAX, { use: 'purchase' })).toBe(true)
+    const draft = { ...taxDraft(), name: 'VAT purchase 5%', use: 'purchase' as const, amount: 5, taxAccountId: 7, priceInclude: true }
+    expect(FinanceTaxCreateSchema.parse(taxCreate(draft))).toMatchObject({ type_tax_use: 'purchase', price_include: true })
+    expect(taxPatch(PURCHASE_TAX, { ...taxDraft(PURCHASE_TAX), priceInclude: true })).toEqual({ price_include: true })
+  })
+
   it('lets a used tax change only its name', () => {
-    const used = { ...TAX, used: true }
+    const used = { ...PURCHASE_TAX, used: true }
     const draft = { ...taxDraft(used), name: 'VAT standard', amount: 5, priceInclude: true, taxAccountId: 8 }
     expect(taxPatch(used, draft)).toEqual({ name: 'VAT standard' })
-    expect(taxPatch(TAX, draft)).toEqual({ name: 'VAT standard', amount: 5, price_include: true, tax_account_id: 8 })
-    expect(taxPatch(TAX, taxDraft(TAX))).toBeNull()
+    expect(taxPatch(PURCHASE_TAX, draft)).toEqual({ name: 'VAT standard', amount: 5, price_include: true, tax_account_id: 8 })
+    expect(taxPatch(PURCHASE_TAX, taxDraft(PURCHASE_TAX))).toBeNull()
   })
 })
 

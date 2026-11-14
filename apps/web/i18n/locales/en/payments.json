@@ -159,13 +159,6 @@
         "hint": "The invoice is created and posted once payment is confirmed. It applies to the whole account, not one company."
       },
       "saved": "The order settings were saved",
-      "taxMode": {
-        "label": "Tax in the price",
-        "hint": "Whether the price includes tax or tax is added on top. Tax shows as its own line, for new orders of the current company.",
-        "included": "Price includes tax",
-        "added": "Tax is added to the price",
-        "unregistered": "The company is not VAT-registered, so no tax is added. Turn registration on in the company profile."
-      },
       "systemAdminLinks": {
         "label": "Payment links for system administrators",
         "hint": "A system administrator can create a pay link without invoice-read permission. Off by default."

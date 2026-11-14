@@ -203,6 +203,15 @@ class TestPureRules(unittest.TestCase):
         )
         self.assertEqual(routes_without_feature(text), ['bare'])
 
+    def test_a_registered_feature_gate_is_a_feature_gate(self):
+        text = (
+            "class C:\n"
+            "    @http.route('/api/v1/a')\n"
+            "    @requires_registered_feature('m', 'keys', keys=('registry:a',))\n"
+            "    def gated(self): pass\n"
+        )
+        self.assertEqual(routes_without_feature(text), [])
+
     def test_foreign_components_are_counted_by_tag_and_import(self):
         text = "<HrEmployeeCard /><TaskRow /><Hrx />\nimport X from '~/components/hr/EmployeeCard.vue'"
         self.assertEqual(foreign_component_uses(text, 'pmo', WEB_APPS), 2)

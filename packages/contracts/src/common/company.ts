@@ -33,8 +33,18 @@ export const CompanyProfileSchema = z.object({
   logo_url: z.string().min(1).nullable(),
   report_header: text,
   company_registry: text,
-  /** Whether the company is registered for VAT; off by default. Only then is `vat` present and required. */
+  /**
+   * Whether the establishment is registered for VAT; off by default. One decision for the whole establishment, stored
+   * on its root company, so a branch answers its root's value. Only then is `vat` present and required.
+   */
   vat_registered: z.boolean(),
+  /**
+   * Whether this session may change `vat_registered` here: only in a root-company session holding
+   * `settings.company.vat.manage` that no read-only fence (seat, branch or subscription) refuses.
+   */
+  vat_registration_editable: z.boolean(),
+  /** Whether the session company is the establishment's root (it has no parent): a branch cannot change `vat_registered`. */
+  is_root_company: z.boolean(),
   vat: text,
   address: z.object({
     street: text,

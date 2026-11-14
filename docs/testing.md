@@ -315,12 +315,14 @@ shard count is `SHARD_COUNT` in `tools/odoo_shards.py`; a changed count changes 
 
 `odoo-app-standalone` and `odoo-bridge` prove that each application works alone and each bridge works with
 its two sides (owner decision 2026-10-20: a customer subscribing to one application is not affected by
-another). Both are matrices built by `tools/app_isolation.py` from the ranks in `tools/arch_layers.json`:
-the foundation, every rank-4 application and every rank-5 bridge, so a newly registered application or
-bridge joins them without a workflow edit. `matrix` packs them into `GROUP_COUNT` jobs per stage (3 for
-applications, 2 for bridges, split by test weight like the `odoo` shards); `deploy/ci/lib/isolation-group.sh`
-runs each module of its job in turn and fails at the end naming every module that did not pass. Each run
-installs only its part on a disposable PostgreSQL database:
+another; a side is a ranked LiwanOS module or, for a bridge such as `liwan_api_account`, the one stock
+module its `auto_install` names, owner decision D19 of 2026-11-13). Both are matrices built by
+`tools/app_isolation.py` from the ranks in `tools/arch_layers.json`: the foundation, every rank-4
+application and every rank-5 bridge, so a newly registered application or bridge joins them without a
+workflow edit. `matrix` packs them into `GROUP_COUNT` jobs per stage (3 for applications, 2 for bridges,
+split by test weight like the `odoo` shards); `deploy/ci/lib/isolation-group.sh` runs each module of its
+job in turn and fails at the end naming every module that did not pass. Each run installs only its part on
+a disposable PostgreSQL database:
 
 - `deploy/ci/odoo-app-standalone.sh liwan_api` installs the foundation alone (ranks 0-2, no shared service,
   application or bridge), runs the tests of every foundation module, and with the route probe also creates,
@@ -332,7 +334,9 @@ installs only its part on a disposable PostgreSQL database:
   application's features on.
 - `deploy/ci/odoo-bridge.sh <bridge>` installs the bridge's two sides, requires the bridge to auto-install
   and its tests to pass, checks nothing else came along, runs the route probe with every feature on, and
-  then once per side with the other side's features switched off (no retained read).
+  then once per LiwanOS side with the other LiwanOS side's features switched off (no retained read). A side
+  with a rank in `tools/arch_layers.json` is LiwanOS; the other side of a bridge such as `liwan_api_account`
+  is a stock Odoo module that the bridge's `auto_install` names, and it takes no switched-off probe of its own.
 
 The route probe (`deploy/ci/odoo_route_probe.py`, run inside `odoo-bin shell`) calls every parameterless
 `GET /api/v1` route of the probed modules through the real HTTP dispatch as a user holding every

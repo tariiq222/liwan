@@ -9,7 +9,12 @@ from PIL import Image
 from odoo import Command, fields
 
 from odoo.addons.liwan_inbox.tests.common import PASSWORD, LiwanInboxCase
-from odoo.addons.liwan_payments.tests.common import LiwanOrderCase
+from odoo.addons.liwan_payments.tests.common import (
+    TAX_INCLUDED,
+    LiwanOrderCase,
+    branch_values,
+    company_values,
+)
 
 BASE_URL = 'https://tenant.example.test'
 CATALOG_ID = '300000000001'
@@ -100,6 +105,19 @@ class LiwanCatalogCase(LiwanOrderCase, LiwanInboxCase):
             'business_account_id': cls.channel.business_account_id, 'meta_catalog_id': CATALOG_ID, 'name': 'Shop',
             'brand': 'Acme', **values,
         })
+
+    @classmethod
+    def catalog_company(cls, name, price_mode=TAX_INCLUDED, parent=None):
+        """A Saudi company for a catalog, stating the price mode its expected figures are computed under.
+
+        A branch takes its root's own mode: base copies the root-delegated field and refuses a branch that differs.
+        A root is separate from the shared fixture: only a company with no journal item may change its mode, and the
+        fixture posted an invoice.
+        """
+        country = {'country_id': cls.env.ref('base.sa').id, 'currency_id': cls.env.ref('base.SAR').id}
+        if parent:
+            return cls.env['res.company'].create(branch_values(name, parent, **country))
+        return cls.env['res.company'].create(company_values(name, price_mode=price_mode, **country))
 
     @classmethod
     def make_item(cls, catalog, product=None, **values):

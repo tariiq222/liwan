@@ -19,6 +19,8 @@ const COMPANY: SettingsPage = {
     { id: 'profile', labelKey: 'settings.sections.company.profile', icon: 'i-lucide-building-2', capability: 'settings.company.read' },
     { id: 'address', labelKey: 'settings.sections.company.address', icon: 'i-lucide-map-pin', capability: 'settings.company.read' },
     { id: 'contact', labelKey: 'settings.sections.company.contact', icon: 'i-lucide-phone', capability: 'settings.company.read' },
+    // Present only while the server addon carries `company_tax.enabled`; without that key the profile keeps its VAT switch.
+    { id: 'tax', labelKey: 'settings.sections.company.tax', icon: 'i-lucide-percent', capability: 'settings.company.read', feature: 'company_tax.enabled' },
     { id: 'branding', labelKey: 'settings.sections.company.branding', icon: 'i-lucide-palette', capability: 'settings.branding.manage' },
   ],
 }
