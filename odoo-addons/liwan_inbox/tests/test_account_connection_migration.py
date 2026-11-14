@@ -148,8 +148,8 @@ class TestAccountConnectionMigration(LiwanInboxCase):
         self.env.invalidate_all()
         self.assertEqual(channel.connection_id.external_id, ACCOUNT)
 
-    def test_a_database_older_than_the_schema_the_script_reads_is_refused(self):
-        for older in ('19.0.1.12.0', '19.0.1.13.0', '19.0.1.21.0'):
-            with self.assertRaisesRegex(UserError, '19.0.1.22.0'):
-                load().migrate(self.env.cr, older)
-        load().migrate(self.env.cr, PREVIOUS)
+    def test_only_a_database_still_holding_the_handshake_token_in_plain_text_is_refused(self):
+        with self.assertRaisesRegex(UserError, 'plain'):
+            load().migrate(self.env.cr, '19.0.1.12.0')
+        # Every released version from the encrypted handshake token on is carried forward, the upgrade baseline too.
+        load().migrate(self.env.cr, '19.0.1.17.0')

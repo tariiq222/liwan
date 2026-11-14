@@ -48,6 +48,8 @@ const identity = reactive({ label: props.connection.label, app_id: props.connect
 const identityChanged = computed(() => identity.label.trim() !== props.connection.label || (identity.app_id.trim() !== '' && identity.app_id.trim() !== (props.connection.app_id ?? '')))
 const typed = reactive<Record<string, string>>({})
 const secretsChanged = computed(() => Object.keys(typedValues(typed)).length > 0)
+// An edited name, app id or typed key is a draft: leaving the page asks first.
+const dirty = computed(() => identityChanged.value || secretsChanged.value)
 onBeforeUnmount(() => {
   for (const name of Object.keys(typed)) typed[name] = ''
   rotated.value = null
@@ -99,6 +101,11 @@ const disconnect = () => run(async () => {
   } finally {
     confirmingDisconnect.value = false
   }
+  // The record is gone: a draft of its name or keys is nothing to ask about on the way out.
+  identity.label = props.connection.label
+  identity.app_id = props.connection.app_id ?? ''
+  for (const name of Object.keys(typed)) typed[name] = ''
+  await nextTick()
   emit('disconnected')
 })
 const reconnect = () => run(async () => {
@@ -114,6 +121,7 @@ async function copy(value: string) {
 
 <template>
   <div class="grid gap-(--liwan-gap-card)" data-testid="integration-record">
+    <SharedUnsavedChanges :dirty="dirty" />
     <SharedRecordSection id="status" variant="panel" :title="t('integrations.record.status')">
       <div class="grid gap-3 text-start">
         <div class="flex flex-wrap items-center gap-3">

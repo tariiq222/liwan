@@ -17,6 +17,8 @@ const idBase = useId()
 
 // The only provider field the create body carries today.
 const attributeNames = computed(() => props.provider.attributes.filter(name => name === 'app_id'))
+// The fields this form draws an input for: a server error on any other field has no place next to one.
+const renderedFields = computed(() => new Set(['external_id', 'label', ...attributeNames.value, ...props.provider.secrets]))
 
 const externalId = ref('')
 const label = ref('')
@@ -24,6 +26,10 @@ const attributes = reactive<Record<string, string>>({})
 const secrets = reactive<Record<string, string>>({})
 const fieldErrors = ref<Record<string, string>>({})
 const failure = ref('')
+// The same limits as the server and the contract: a key is 8 to 1024 characters.
+const SECRET_MIN = 8
+const SECRET_MAX = 1024
+const secretLengthOk = (value: string) => value.trim().length >= SECRET_MIN && value.trim().length <= SECRET_MAX
 const saved = ref(false)
 const dirty = computed(() => !saved.value && Boolean(externalId.value.trim() || label.value.trim() || Object.values(attributes).some(value => value.trim()) || Object.values(secrets).some(value => value.trim())))
 const busy = computed(() => !hydrated.value || create.isPending.value)
@@ -44,7 +50,14 @@ async function submit() {
   if (busy.value) return
   failure.value = ''
   fieldErrors.value = {}
+  const outOfRange = props.provider.secrets.find(name => !secretLengthOk(secrets[name] ?? ''))
   const missing = missingField()
+  if (!missing && outOfRange) {
+    fieldErrors.value = { [outOfRange]: t('integrations.new.secretLength', { min: SECRET_MIN, max: SECRET_MAX }) }
+    await nextTick()
+    document.getElementById(`${idBase}-${outOfRange}`)?.focus()
+    return
+  }
   if (missing) {
     fieldErrors.value = { [missing]: t('integrations.new.required') }
     await nextTick()
@@ -66,8 +79,9 @@ async function submit() {
   } catch (error) {
     const field = failedField(error)
     const text = integrationErrorText(error, t)
-    if (field) fieldErrors.value = { [field]: integrationServerMessage(error) || text }
-    else failure.value = text
+    // A field the form does not render (the server names `secrets` for any key) is shown at the form level.
+    if (field && renderedFields.value.has(field)) fieldErrors.value = { [field]: integrationServerMessage(error) || text }
+    else failure.value = integrationServerMessage(error) || text
   }
 }
 </script>

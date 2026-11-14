@@ -25,8 +25,9 @@ PROVIDERS = {'whatsapp': 'meta', 'tiktok': 'tiktok'}
 # The scopes the TikTok connect of the old channel required before it stored a token.
 TIKTOK_SCOPES = 'message.list.read message.list.send user.info.basic'
 MESSAGE_LENGTH = 200
-# The one schema this script reads: every column of OLD_COLUMNS exists there and the handshake token is encrypted.
-REQUIRED_VERSION = '19.0.1.22.0'
+# The handshake token is encrypted from this version on; below it the plain `verify_token` column is still there
+# and the step that encrypted it (19.0.1.13.0) no longer exists, so such a database cannot be carried forward.
+REQUIRED_VERSION = '19.0.1.13.0'
 SERVICE_NOT_UPGRADED = (
     'The integrations service is still at its old schema: upgrade liwan_integrations_sa in the same run as '
     'liwan_inbox (it is a dependency, so it loads first), then the channel accounts can move to its connections.'
@@ -38,26 +39,31 @@ def migrate(cr, version):
         return
     if parse_version(version) < parse_version(REQUIRED_VERSION):
         raise UserError(
-            f'This database is at liwan_inbox {version}. Moving channel accounts to connections reads the '
-            f'{REQUIRED_VERSION} schema only: upgrade the database with a LiwanOS checkout that ships '
-            f'liwan_inbox {REQUIRED_VERSION} first, or recreate it.',
+            f'This database is at liwan_inbox {version}, which still keeps the webhook handshake token in plain '
+            f'text. The step that encrypted it is gone, so the channel accounts cannot move to connections from '
+            f'here: upgrade the database with a LiwanOS checkout that ships liwan_inbox {REQUIRED_VERSION} to '
+            '19.0.1.22.0 first, or recreate it.',
         )
     if not _has_column(cr, 'access_token_enc'):
         return
     if not _has_column(cr, 'external_id', table='liwan_integration_connection'):
         raise UserError(SERVICE_NOT_UPGRADED)
+    # A release between REQUIRED_VERSION and this one may lack a column a later release added (the TikTok ones):
+    # read the ones the database has, and treat the rest as empty.
+    present = [column for column in (*OLD_COLUMNS, 'verified_name') if _has_column(cr, column)]
     cr.execute(SQL(
-        'SELECT id, owner_company_id, kind, state, last_error, %s, verified_name FROM liwan_inbox_channel ORDER BY id',
-        SQL(', ').join(SQL.identifier(column) for column in OLD_COLUMNS),
+        'SELECT id, owner_company_id, kind, state, last_error, %s FROM liwan_inbox_channel ORDER BY id',
+        SQL(', ').join(SQL.identifier(column) for column in present),
     ))
-    channels = cr.dictfetchall()
+    absent = {column: None for column in (*OLD_COLUMNS, 'verified_name') if column not in present}
+    channels = [{**absent, **row} for row in cr.dictfetchall()]
     env = api.Environment(cr, SUPERUSER_ID, {})
     cr.execute('ALTER TABLE liwan_inbox_channel ADD COLUMN IF NOT EXISTS connection_id integer')
     for (company_id, provider, account_id), members in _groups(channels).items():
         connection_id = _connection(cr, env, company_id, provider, account_id, members)
         cr.execute('UPDATE liwan_inbox_channel SET connection_id = %s WHERE id = ANY(%s)', [connection_id, [m['id'] for m in members]])
     for column in OLD_COLUMNS:
-        cr.execute(SQL('ALTER TABLE liwan_inbox_channel DROP COLUMN %s', SQL.identifier(column)))
+        cr.execute(SQL('ALTER TABLE liwan_inbox_channel DROP COLUMN IF EXISTS %s', SQL.identifier(column)))
 
 
 def _has_column(cr, column, table='liwan_inbox_channel'):

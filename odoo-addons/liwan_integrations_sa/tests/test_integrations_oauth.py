@@ -9,10 +9,13 @@ from datetime import timedelta
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
+import psycopg2
+
 from odoo import Command, fields
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST
+from odoo.tools import mute_logger
 
 from .common import (
     CLIENT_KEY,
@@ -194,7 +197,29 @@ class TestIntegrationOAuth(LiwanIntegrationsCase):
 
     def test_a_non_exclusive_provider_allows_the_same_account_in_two_companies(self):
         other = self.env['res.company'].create({'name': 'Integrations company J'})
-        self.assertEqual(self.make_meta().external_id, self.make_meta(company=other).external_id)
+        mine, theirs = self.make_meta(), self.make_meta(company=other)
+        self.assertEqual(mine.external_id, theirs.external_id)
+        self.assertEqual((mine.exclusive, theirs.exclusive), (False, False))
+        # A limit the provider keeps per account is counted over every company's connection to it.
+        self.assertEqual(set(mine._liwan_account_connection_ids()), set((mine | theirs).ids))
+
+    def test_the_database_itself_refuses_a_second_company_on_an_exclusive_account(self):
+        # Two companies finishing at the same moment both pass any check made in Python: the unique index is what holds,
+        # and it refuses the second row at the insert itself.
+        other = self.env['res.company'].create({'name': 'Integrations company K'})
+        mine = self.make_tiktok()
+        self.assertTrue(mine.exclusive)
+        with mute_logger('odoo.sql_db'), self.assertRaises(psycopg2.errors.UniqueViolation) as refused, self.env.cr.savepoint():
+            self.make_tiktok(company=other)
+        self.assertIn('exclusive_account_unique', refused.exception.diag.constraint_name)
+
+    def test_moving_a_connection_onto_an_account_another_company_holds_is_refused_too(self):
+        other = self.env['res.company'].create({'name': 'Integrations company L'})
+        mine = self.make_tiktok()
+        theirs = self.make_tiktok(grant(open_id='business-open-id-other'), company=other)
+        with mute_logger('odoo.sql_db'), self.assertRaises(psycopg2.errors.UniqueViolation), self.env.cr.savepoint():
+            theirs.external_id = mine.external_id
+            theirs.flush_recordset()
 
     def test_a_grant_missing_a_scope_a_use_needs_connects_nothing(self):
         exchange, probe = self.answer(grant(scopes={'user.info.basic'}))

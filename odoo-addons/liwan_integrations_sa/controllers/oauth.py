@@ -13,6 +13,8 @@ import hmac
 import json
 import time
 
+import psycopg2
+
 from odoo import http
 from odoo.http import request
 
@@ -36,10 +38,11 @@ from odoo.addons.liwan_integrations_sa.models.constants import (
     MANAGE,
     STATE_TTL,
 )
-from odoo.addons.liwan_integrations_sa.models.errors import AccountTaken
 from odoo.addons.liwan_integrations_sa.providers import errors
 
 SETTINGS_PATH = '/settings/integrations'
+# The unique index of liwan.integration.connection that keeps an exclusive provider account to one company.
+EXCLUSIVE_INDEX = 'exclusive_account_unique'
 STATE_INVALID = 'this connection request is not valid'
 
 
@@ -180,7 +183,10 @@ class IntegrationOAuthController(http.Controller):
         try:
             with request.env.cr.savepoint():
                 self._connection_of(company, provider, grant.open_id)._liwan_oauth_store(grant, label)
-        except AccountTaken:
+        except psycopg2.errors.UniqueViolation as error:
+            # Another company of the database holds this exclusive account: the unique index refused the row.
+            if EXCLUSIVE_INDEX not in (error.diag.constraint_name or ''):
+                raise
             return _redirect(provider, error='account_taken')
         return _redirect(provider, result='connected')
 

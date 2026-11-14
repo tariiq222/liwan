@@ -6,7 +6,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from .constants import AUTH_EXTERNAL, AUTH_OAUTH, SECRET_PURPOSE
-from .errors import AccountTaken, ReconnectRequired
+from .errors import ReconnectRequired
 from odoo.addons.liwan_core.models import secret_box
 from odoo.addons.liwan_integrations_sa import providers
 from odoo.addons.liwan_integrations_sa.providers import errors
@@ -46,9 +46,23 @@ class LiwanIntegrationConnection(models.Model):
     # The names of the secrets that are set: presence is public, a value never is. Read without the secret ACL on purpose.
     secret_names = fields.Json(compute='_compute_secret_names', compute_sudo=True)
 
+    # Whether the provider keeps an account to one company of the database (its registry definition), stored and part
+    # of the insert so the database itself refuses a second row: two companies finishing a connection at the same
+    # moment cannot both pass, which no check made in Python could guarantee.
+    exclusive = fields.Boolean(compute='_compute_exclusive', store=True, precompute=True)
+
     _company_provider_external_unique = models.Constraint(
         'UNIQUE(company_id, provider, external_id)', 'this provider account is already connected for the company',
     )
+    _exclusive_account_unique = models.UniqueIndex(
+        '(provider, external_id) WHERE exclusive IS TRUE', 'This provider account is already connected in another company.',
+    )
+
+    @api.depends('provider')
+    def _compute_exclusive(self):
+        definitions = self.env['liwan.integration.registry']._liwan_provider_map()
+        for connection in self:
+            connection.exclusive = bool(definitions.get(connection.provider, {}).get('exclusive'))
 
     @api.constrains('provider')
     def _check_provider(self):
@@ -65,17 +79,6 @@ class LiwanIntegrationConnection(models.Model):
             pattern = definitions.get(connection.provider, {}).get('external_id_pattern')
             if pattern and not re.fullmatch(pattern, connection.external_id or ''):
                 raise ValidationError(self.env._('The account id %(id)s is not valid for %(provider)s.', id=connection.external_id, provider=connection.provider))
-
-    @api.constrains('provider', 'external_id', 'company_id')
-    def _check_exclusive_account(self):
-        """An exclusive provider's account belongs to one company of the database (constraints run elevated, so all rows are seen)."""
-        definitions = self.env['liwan.integration.registry']._liwan_provider_map()
-        for connection in self:
-            if definitions.get(connection.provider, {}).get('exclusive') and self.search_count([
-                ('provider', '=', connection.provider), ('external_id', '=', connection.external_id),
-                ('id', '!=', connection.id),
-            ]):
-                raise AccountTaken(self.env._('This %(provider)s account is already connected in another company.', provider=connection.provider))
 
     @api.depends('secret_ids.name')
     def _compute_secret_names(self):
@@ -139,6 +142,16 @@ class LiwanIntegrationConnection(models.Model):
     # the handshake token that a caller checks with these values is the webhook's whole authentication. Each accessor
     # elevates one read and returns plain data, never a recordset of the elevated environment. A caller must compare
     # the values it gets in constant time (`hmac.compare_digest`).
+
+    def _liwan_account_connection_ids(self):
+        """The ids of every connection to this provider account, in any company and any state.
+
+        A limit the provider keeps per account (a messaging budget) is shared by every company that connected it, so
+        an application counts its usage over all of them. Elevated: the company rule hides the other companies' rows.
+        Only ids are returned.
+        """
+        self.ensure_one()
+        return self.sudo().search([('provider', '=', self.provider), ('external_id', '=', self.external_id)]).ids
 
     @api.model
     def _liwan_webhook_provider(self, provider):

@@ -74,7 +74,8 @@
       "keysHint": "They are stored encrypted and never shown after saving.",
       "submit": "Connect account",
       "unknownProvider": "This provider cannot be connected here.",
-      "required": "This field is required"
+      "required": "This field is required",
+      "secretLength": "A key must be {min} to {max} characters long"
     },
     "field": {
       "externalId": "Account ID",
