@@ -19,6 +19,8 @@ def next_monday(weeks):
 class LeaveApprovalCase(LiwanHrCase):
     """A requester whose time-off approver holds no HR capability, an HR officer and an operations admin."""
 
+    use_native_leave_policy = False
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
