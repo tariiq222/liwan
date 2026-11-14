@@ -1,9 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-# Every CRM capability implies one of these two, so every CRM user may pick and price the products the company
-# offers as packages (the list shows each package's price). Writing a product stays with the products capabilities.
-PICK_CAPABILITIES = ('crm.leads.read', 'crm.settings.read')
+# Whoever adds a package picks it from the products of the service. Every CRM capability implies one of the two
+# read capabilities, so every CRM user sees the price of the company's packages (the list, a sale, an import) without
+# browsing the products. Writing a product stays with the products capabilities.
+PICK_CAPABILITIES = ('crm.settings.manage',)
+PRICE_CAPABILITIES = ('crm.leads.read', 'crm.settings.read')
 
 
 class LiwanCrmProductsService(models.AbstractModel):
@@ -16,3 +18,7 @@ class LiwanCrmProductsService(models.AbstractModel):
     @api.model
     def _liwan_products_pick_capabilities(self):
         return (*super()._liwan_products_pick_capabilities(), *PICK_CAPABILITIES)
+
+    @api.model
+    def _liwan_products_price_capabilities(self):
+        return (*super()._liwan_products_price_capabilities(), *PRICE_CAPABILITIES)

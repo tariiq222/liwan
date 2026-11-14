@@ -2,9 +2,10 @@
 """The price function of plan D6 without the tax bridge, and the products stock modules make."""
 from odoo.tests import tagged
 
+from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_products.models.products_service import LiwanProductsService
-from odoo.addons.liwan_products.tests.common import ProductsCase
+from odoo.addons.liwan_products.tests.common import PICK, ProductsCase
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -37,12 +38,31 @@ class TestProductsPrice(ProductsCase):
                 )
                 self.assertEqual((untaxed, tax, total), (amount, 0.0, amount))
 
-    def test_the_price_needs_a_pick_holder(self):
+    def test_the_price_needs_a_pick_or_price_holder(self):
         nobody = self.env['liwan.products.service'].with_user(self.nobody).with_company(self.branch_a)
         with self.assertRaisesRegex(LiwanAccessRule, 'forbidden'):
             nobody._liwan_price(self.product)
+        for user in (self.picker, self.price_only):
+            with self.subTest(user=user.login):
+                service = self.env['liwan.products.service'].with_user(user).with_company(self.branch_a)
+                self.assertEqual(service._liwan_price(self.product)['unit_price'], 115)
+
+    def test_a_price_holder_cannot_pick_through_the_service_or_the_route(self):
+        service = self.env['liwan.products.service'].with_user(self.price_only).with_company(self.branch_a)
+        self.assertFalse(service._liwan_can_pick())
+        with self.assertRaisesRegex(LiwanAccessRule, 'forbidden'):
+            service._liwan_pick_search()
+        with self.assertRaisesRegex(LiwanAccessRule, 'forbidden'):
+            service._liwan_pick_product(self.product.id)
+        for mode in ('saas', 'non_saas'):
+            with self.subTest(mode=mode), self.undone():
+                self.set_mode(mode)
+                set_probe_feature(self)
+                for login, status in (('pr_price_only', 403), ('pr_nobody', 403), ('pr_picker', 200)):
+                    self.sign_in(login)
+                    self.assertEqual(self.api('GET', PICK).status_code, status, login)
         picker = self.env['liwan.products.service'].with_user(self.picker).with_company(self.branch_a)
-        self.assertEqual(picker._liwan_price(self.product)['unit_price'], 115)
+        self.assertEqual(picker._liwan_pick_search()[1], 1)
 
     def test_stock_products_stay_out_of_the_list_and_the_pick_list(self):
         stock = self.env['product.template'].create({'name': 'Priced stock product', 'type': 'service'})

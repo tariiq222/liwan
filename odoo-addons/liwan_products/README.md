@@ -46,8 +46,11 @@ owns the decision): `supplier_taxes_id`, `uom_id`, `sale_ok`, `standard_price`, 
 
 - `liwan.products.service._liwan_products_feature_keys()`: the feature keys that open `/api/v1/products`. The routes
   are open while any of them is readable (`requires_registered_feature`, 403 `feature_not_included` otherwise).
-- `liwan.products.service._liwan_products_pick_capabilities()`: capabilities that may pick and price a product inside
-  an application's own action.
+- `liwan.products.service._liwan_products_pick_capabilities()`: capabilities that may browse and pick a product
+  (the pick list, picking by id) inside an application's own action; they also price.
+- `liwan.products.service._liwan_products_price_capabilities()`: capabilities that may only price a product inside the
+  application's own record (a package of the company, a catalog item). They cannot browse or pick: the pick list and
+  `GET /api/v1/products/pick` stay closed to them. The base returns none.
 - `product.template._liwan_product_extension_specs()`: fields a contributing addon adds to the definition. Each spec
   is a dict `{name, field, applies(env), parse(env, value, company), default(env, company), blank, write(product,
   stored), dump(product)}` (see the method's docstring). The base returns none; `liwan_products_account` adds
@@ -66,6 +69,8 @@ application that calls them from its own route cannot skip the checks.
 | --- | --- | --- |
 | `_liwan_can_pick()` | | `products.read` or a registered pick capability in the current company |
 | `_liwan_require_pick()` | | 403 `forbidden` unless `_liwan_can_pick()` |
+| `_liwan_can_price()` | | `_liwan_can_pick()`, or a registered price capability in the current company |
+| `_liwan_require_price()` | | 403 `forbidden` unless `_liwan_can_price()` |
 | `_liwan_product(product_id, include_archived=False)` | record rules and the company fence | the `product.template`, or 404 `not_found` |
 | `_liwan_search(query=None, archived=False, type=None, limit=50, offset=0)` | record rules and the fence | `(products, total)` by name; `type` is `goods` or `service`, else 422 `invalid` on `type` |
 | `_liwan_pick_search(query=None, limit=50, offset=0)` | `_liwan_require_pick()` | `(products, total)` of the active products |
@@ -74,7 +79,7 @@ application that calls them from its own route cannot skip the checks.
 | `_liwan_create(values)` | `products.manage`; `products.prices.manage` when `list_price` is given; D23 on the new product's company | the new `product.template` |
 | `_liwan_update(product, values)` | `products.prices.manage` for `list_price`, `products.manage` for any other key; D23 | `product` |
 | `_liwan_archive(product)`, `_liwan_restore(product)` | `products.manage`; D23 | `product` |
-| `_liwan_price(product, quantity=1.0, uom=None, company=None, customer=None, date=None)` | `_liwan_require_pick()` and `company` in the session's companies, unless the environment is elevated; `quantity` a number above zero (422) | see below |
+| `_liwan_price(product, quantity=1.0, uom=None, company=None, customer=None, date=None)` | `_liwan_require_price()` and `company` in the session's companies, unless the environment is elevated; `quantity` a number above zero (422) | see below |
 | `_liwan_price_amounts(variant, unit_price, quantity, company, customer)` | | `(untaxed, tax, total)`; the base has no tax; the tax bridge overrides it |
 | `_liwan_adopt(products)` | any `env.su` caller, for consumers' migrations (`AccessError('use_liwan_products_migration: ...')` otherwise) | the templates, marked and with their company cleared (D17); with the tax bridge, sale taxes that are not the establishment's valid sale taxes (or none) become its default, and purchase taxes are cleared |
 
@@ -111,7 +116,7 @@ All are `type='json2'`, `auth='user'`, behind `api_handler` and the registered-f
 | `POST /api/v1/products` | `products.manage` (+ the service checks) | `values` | 201 `Product` |
 | `PATCH /api/v1/products/<id>` | `products.manage` or `products.prices.manage` (+ the service checks) | `values` (any subset) | `Product` |
 | `POST /api/v1/products/<id>/archive`, `/restore` | `products.manage` (+ D23) | | `Product` |
-| `GET /api/v1/products/pick` | `products.read` or a registered pick capability | `q`, `limit`, `offset` | `{items: [Pick], total}` |
+| `GET /api/v1/products/pick` | `products.read` or a registered pick capability (a price capability does not open it) | `q`, `limit`, `offset` | `{items: [Pick], total}` |
 | `GET /api/v1/products/settings` | `products.read` or `products.settings.manage` | | `Settings` |
 | `PATCH /api/v1/products/settings` | `products.settings.manage` in the working and the root company | `{sharing, revision}` | `Settings` |
 

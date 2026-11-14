@@ -129,14 +129,43 @@ class TestCrmPackages(LiwanCrmCase):
         added = self.add(self.manager, product_id)
         self.assertEqual(added.json(), {'id': product_id, 'name': 'Silver', 'price': 500, 'description': '', 'active': True})
 
-    def test_the_agent_picks_a_product_but_cannot_write_one(self):
+    def test_the_agent_cannot_pick_or_write_a_product(self):
         self.as_agent()
-        picked = self.api('GET', PICK)
-        self.assertEqual(picked.status_code, 200, picked.text)
-        self.assertIn(self.package.id, [item['id'] for item in picked.json()['items']])
+        self.assertEqual(self.api('GET', PICK).status_code, 403)
         self.assertEqual(self.api('POST', PRODUCTS, {'name': 'Made', 'type': 'service'}).status_code, 403)
         self.as_user(self.outsider)
         self.assertEqual(self.api('GET', PICK).status_code, 403)
+
+    def test_a_read_only_user_sees_the_package_prices_but_cannot_pick(self):
+        readers = (
+            self.custom_user('crm_leads_read_only', ['crm.leads.read']),
+            self.custom_user('crm_settings_read_only', ['crm.settings.read']),
+        )
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.set_mode(mode)
+                for user in readers:
+                    listed = self.as_user(user).api('GET', PACKAGES)
+                    self.assertEqual(listed.status_code, 200, listed.text)
+                    self.assertEqual([(item['id'], item['price']) for item in listed.json()['items']], [(self.package.id, 1000)])
+                    self.assertEqual(self.api('GET', PICK).status_code, 403, user.login)
+                    self.assertEqual(self.api('GET', PRODUCTS).status_code, 403, user.login)
+
+    def test_only_the_settings_manager_picks_a_product_for_a_package(self):
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.set_mode(mode)
+                picked = self.as_user(self.settings_only).api('GET', PICK)
+                self.assertEqual(picked.status_code, 200, picked.text)
+                self.assertIn(self.package.id, [item['id'] for item in picked.json()['items']])
+                self.assertEqual(self.as_manager().api('GET', PICK).status_code, 200)
+                self.assertEqual(self.as_agent().api('GET', PICK).status_code, 403)
+
+    def test_a_lead_worker_records_a_sale_at_the_real_package_price(self):
+        lead = self.make_lead(self.agent)
+        sold = self.as_agent().api('POST', f'{OPPORTUNITIES}/{lead.id}/won', {'package_id': self.package.id, 'final_price': 1000})
+        self.assertEqual(sold.status_code, 200, sold.text)
+        self.assertEqual((sold.json()['list_price'], sold.json()['final_price']), (1000, 1000))
 
     # Offering a package
 
@@ -217,7 +246,7 @@ class TestCrmPackages(LiwanCrmCase):
                 product_id = created.json()['id']
                 self.assertEqual(self.add(self.manager, product_id).status_code, 200)
                 self.assertIn(product_id, self.listed(self.agent))
-                self.assertEqual(self.as_agent().api('GET', PICK).status_code, 200)
+                self.assertEqual(self.as_agent().api('GET', PICK).status_code, 403)
                 self.assertEqual(self.add(self.agent, product_id).status_code, 403)
                 self.assertEqual(self.as_user(self.settings_only).api('POST', PRODUCTS, {'name': 'x', 'type': 'goods'}).status_code, 403)
                 self.assertEqual(self.as_manager().api('DELETE', f'{PACKAGES}/{product_id}').status_code, 200)
@@ -264,6 +293,19 @@ class TestCrmPackages(LiwanCrmCase):
         leads = self.env['crm.lead'].search([('phone_sanitized', 'in', ['+966501234567', '+966507654321'])])
         self.assertEqual(sorted((lead.liwan_package_id.id, lead.liwan_list_price) for lead in leads),
                          sorted([(self.package.id, 321.0), (False, 0.0)]))
+
+    def test_an_import_prices_a_package_at_the_real_price_for_a_caller_without_a_pick_right(self):
+        self.company.country_id = self.env.ref('base.sa')
+        importer = self.custom_user('crm_importer_only', ['crm.leads.read', 'crm.leads.assign', 'crm.leads.import'])
+        source = self.env['utm.source'].create({'name': 'Real price import'})
+        content = b'Name,Phone,Package\nSara,0501234567,Gold\n'
+        response = self.as_user(importer).api('POST', IMPORTS, {
+            'file_name': 'leads.csv', 'content_base64': base64.b64encode(content).decode(),
+            'mapping': {'name': 'Name', 'phone': 'Phone', 'package': 'Package'}, 'source_id': source.id,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        lead = self.env['crm.lead'].search([('phone_sanitized', '=', '+966501234567')])
+        self.assertEqual((lead.liwan_package_id, lead.liwan_list_price), (self.package, 1000.0))
 
     def test_a_package_that_is_not_offered_cannot_be_sold(self):
         unlisted = self.env['product.template'].create({'name': 'Unlisted', 'list_price': 5, 'liwan_product': True})

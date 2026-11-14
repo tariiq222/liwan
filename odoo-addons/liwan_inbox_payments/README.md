@@ -15,9 +15,10 @@ catalog button) and `inbox.orders.manage` (edit a cart, create the order, send t
   batch, and reads Meta's review status. An unchanged payload (hash) is never resent. The price is the
   `amount_total` of the products service's price function for one unit in the catalog's company (`price`; `unit_price`
   is the price as typed): the company's stock tax mode decides whether the typed price carries the tax or has it added,
-  and an establishment that is not registered for VAT charges none. `inbox.catalog.manage` and
-  `inbox.conversations.read` are registered pick capabilities, because every screen showing an item's price reads it
-  through that function as the viewer. The registration is one decision for the establishment,
+  and an establishment that is not registered for VAT charges none. `inbox.catalog.manage` is a
+  registered pick capability and `inbox.conversations.read` a registered price capability, because every screen showing
+  an item's price reads it through that function as the viewer; a reader prices an item and cannot browse or pick
+  products. The registration is one decision for the establishment,
   stored on its root company; a catalog owned by a branch follows it through
   `res.company.liwan_establishment_vat_registered`.
 - A change of the registration (`liwan_vat_registered`, written on a root) or of the price mode

@@ -62,7 +62,14 @@ class LiwanProductsService(models.AbstractModel):
 
     @api.model
     def _liwan_products_pick_capabilities(self):
-        """Capability keys that may pick a product inside the application's own action."""
+        """Capability keys that may browse and pick a product (the pick list, picking by id) inside the application's
+        own action. They also price (``_liwan_can_price``)."""
+        return ()
+
+    @api.model
+    def _liwan_products_price_capabilities(self):
+        """Capability keys that may price a product inside the application's own record (a package of the company, a
+        catalog item) and may not browse or pick products."""
         return ()
 
     @api.model
@@ -79,6 +86,21 @@ class LiwanProductsService(models.AbstractModel):
         """403 ``forbidden`` unless the caller may pick a product (``_liwan_can_pick``)."""
         if not self._liwan_can_pick():
             _refuse_forbidden('picking a product is not allowed')
+
+    @api.model
+    def _liwan_can_price(self):
+        """Whether the caller may price a product: it may pick one, or holds a registered price capability in the
+        current company."""
+        service = self.env['liwan.access.service']
+        return self._liwan_can_pick() or any(
+            service._liwan_has_capability(self.env.user, key) for key in self._liwan_products_price_capabilities()
+        )
+
+    @api.model
+    def _liwan_require_price(self):
+        """403 ``forbidden`` unless the caller may price a product (``_liwan_can_price``)."""
+        if not self._liwan_can_price():
+            _refuse_forbidden('pricing a product is not allowed')
 
     # ---- reads ----
 
@@ -275,7 +297,7 @@ class LiwanProductsService(models.AbstractModel):
         Returns ``{unit_price, amount_untaxed, amount_tax, amount_total, currency}``: the unit price as typed on the
         product (stock pricelist engine on an empty pricelist, so pricelists later change it without touching a
         caller), then the amounts for the quantity. The tax part is ``_liwan_price_amounts``, which the tax bridge
-        extends; without it there is no tax. 403 unless the caller may pick a product; an elevated caller (a cron, a
+        extends; without it there is no tax. 403 unless the caller may price a product (``_liwan_can_price``); an elevated caller (a cron, a
         public page) is not checked and passes ``company`` explicitly. A non-elevated caller may ask only for a company of
         its session (403 otherwise). ``quantity`` is a number above zero (422 otherwise). ``unit_price`` is rounded to
         the currency; the amounts come from the unrounded unit price.
@@ -284,7 +306,7 @@ class LiwanProductsService(models.AbstractModel):
             _refuse_invalid('quantity', 'quantity must be a number greater than zero')
         company = company or self.env.company
         if not self.env.su:
-            self._liwan_require_pick()
+            self._liwan_require_price()
             if company not in self.env.companies:
                 _refuse_forbidden('the price is asked for a company outside the session')
         # An archived product keeps its variant archived: the price of an archived product is still shown.

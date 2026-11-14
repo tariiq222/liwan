@@ -81,10 +81,30 @@ class TestCatalogProductRights(LiwanCatalogCase):
                 self.assertEqual((shown.status_code, shown.json()['price']), (200, 40.0), shown.text)
                 self.assertError(self.api('GET', PRODUCTS), 403, 'forbidden')
 
+    def test_a_catalog_manager_alone_creates_an_item_from_a_picked_product(self):
+        catalog = self.make_catalog()
+        self.login_user(self.catalog_only)
+        picked = self.api('GET', f'{PRODUCTS}/pick')
+        self.assertEqual(picked.status_code, 200, picked.text)
+        created = self.api('POST', f'/api/v1/inbox/catalogs/{catalog.id}/items', {'product_id': self.product.product_tmpl_id.id})
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['price'], 100.0)
+
     def test_a_reader_of_the_conversations_sees_the_price_of_a_listed_item(self):
         item = self.make_item(self.make_catalog())
         item.invalidate_recordset(['price', 'unit_price', 'currency'])
         self.assertEqual(item.with_user(self.reader_only).price, 100.0)
+
+    def test_a_reader_of_the_conversations_sees_an_item_price_but_cannot_pick_a_product(self):
+        item = self.make_item(self.make_catalog())
+        item.invalidate_recordset(['price', 'unit_price', 'currency'])
+        self.assertEqual(item.with_user(self.reader_only).price, 100.0)
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.set_mode(mode)
+                self.login_user(self.reader_only)
+                self.assertError(self.api('GET', f'{PRODUCTS}/pick'), 403, 'forbidden')
+                self.assertError(self.api('GET', PRODUCTS), 403, 'forbidden')
 
 
 @tagged('post_install', '-at_install', 'liwan')
