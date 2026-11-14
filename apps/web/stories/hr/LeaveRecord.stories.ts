@@ -47,7 +47,7 @@ export const StaleConflict: Story = { ...CancellationDecision, parameters: { msw
 export const Forbidden: Story = { parameters: { msw: { handlers: { api: [http.get('/api/v1/hr/leave/me/:id', () => HttpResponse.json({ code: 'forbidden', message: 'ليس لديك صلاحية' }, { status: 403 })), ...hrSelfServiceHandlers] } } } }
 
 const reviewer = (id: number, name: string) => ({ id, user_id: id, name })
-const approval = { request_id: 15, state: 'pending' as const, href: '/operations/15', steps: [
+const approval = { request_id: 15, state: 'pending' as const, revision: 2, can_review: false, steps: [
   { sequence: 1, name: 'المدير المباشر', reviewers: [reviewer(3, 'نورة العتيبي')], status: 'approved' as const },
   { sequence: 2, name: 'الموارد البشرية', reviewers: [reviewer(9, 'خالد الدوسري'), reviewer(10, 'ريم الحربي')], status: 'pending' as const },
 ] }

@@ -4,7 +4,7 @@ import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.
 import type { DocumentFile } from '@liwan/contracts'
 import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
-import { useDocument, useDocumentFiles, useDocumentTransition, useUploadDocumentFile, useDocumentFileAction } from '@/composables/useDocuments'
+import { readDocumentFile, useDocument, useDocumentFiles, useDocumentTransition, useUploadDocumentFile, useDocumentFileAction } from '@/composables/useDocuments'
 import { documentRecordBack, documentChildTo } from '@/lib/documentNavigation'
 import DocumentReader from '@/components/documents/DocumentReader.vue'
 import DocumentFiles from '@/components/documents/DocumentFiles.vue'
@@ -54,7 +54,7 @@ async function upload(file: File, options: { name?: string; asVersion?: boolean 
   if (!document.value?.allowed_actions.upload_file || !hydrated.value || pending.value) return
   const revision = document.value.revision; readingFile.value = true; duplicateUpload.value = null
   await perform(async () => {
-    const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1] ?? ''); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file) })
+    const data = await readDocumentFile(file)
     await uploadMutation.mutateAsync({ id: documentId.value, body: { name: options.name ?? file.name, data, expected_revision: revision, ...(options.asVersion ? { as_version: true } : {}), ...(file.type ? { mimetype: file.type } : {}) } })
   }, cause => { if (cause.code !== 'duplicate_name') return false; duplicateUpload.value = file; return true })
   readingFile.value = false

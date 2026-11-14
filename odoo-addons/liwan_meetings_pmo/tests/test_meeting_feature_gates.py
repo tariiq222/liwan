@@ -33,7 +33,12 @@ class TestMeetingFeatureGates(LiwanPmoCase):
         # Closing the owners one at a time leaves each route open until its last owner is off.
         # The bell also carries platform-owned kinds (an access change) that no application feature
         # gates, so it stays open once every application feature is off; each row is still filtered.
-        always_open = {'/api/v1/notifications'} if self.env['liwan.notify.registry']._liwan_notify_has_platform_kind() else set()
+        # The people picker also stays open while a base application (documents, operations) consumes it.
+        always_open = set()
+        if self.env['liwan.notify.registry']._liwan_notify_has_platform_kind():
+            always_open.add('/api/v1/notifications')
+        if self.env['liwan.directory']._liwan_directory_has_base_consumer():
+            always_open.add('/api/v1/people')
         closed = {}
         remaining = {path: {key for key in keys if profile.features.get(key)} for path, keys in owners.items()}
         for key in sorted(gated):

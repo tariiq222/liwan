@@ -11,6 +11,7 @@ export const OperationBellKindSchema = z.enum([
 export const OperationBellRowSchema = z.looseObject({
   id: z.number().int().positive(),
   kind: OperationBellKindSchema,
+  href: z.string().optional(),
   request_id: z.number().int().positive(),
   title: z.string(),
   created_at: z.string(),

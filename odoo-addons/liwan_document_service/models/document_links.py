@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 
@@ -57,3 +58,16 @@ class DocumentLinks(models.AbstractModel):
                 msg, 'unknown document context', field='context',
             )
         return [(descriptor['field'], '=', context_id)]
+
+    @api.model
+    def _liwan_managed_context_features(self):
+        return ()
+
+    @api.model
+    def _liwan_managed_context(self, kind, subject_id, *, write=False):
+        raise ApiError(404, 'not_found', 'Unknown document context.')
+
+    @api.model
+    def _liwan_require_context_feature(self, feature, *, write):
+        entitlement = self.env['liwan.entitlement.service']
+        (entitlement.require if write else entitlement.require_read)(feature)

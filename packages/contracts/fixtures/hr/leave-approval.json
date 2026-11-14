@@ -1,5 +1,6 @@
 {
-  "href": "/operations/15",
+  "revision": 2,
+  "can_review": false,
   "request_id": 15,
   "state": "pending",
   "steps": [

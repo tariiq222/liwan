@@ -19,7 +19,7 @@ const manifests = [
   app('legacy', 40),
 ]
 const identity = (grants: string[]) => {
-  const features = manifests.map(manifest => manifest.feature)
+  const features = manifests.flatMap(manifest => manifest.feature ? [manifest.feature] : [])
   return { id: 1, capabilities: grants, platform: { state: 'active', read_only: false, readable_features: features, writable_features: features } }
 }
 const all = ['tasks.read', 'crm.read', 'ai.read', 'legacy.read']

@@ -5,7 +5,7 @@ from datetime import timedelta
 from odoo import fields
 from odoo.tests import tagged
 
-from .common import DocumentHttpCase
+from odoo.addons.liwan_document_service.tests.common import DocumentHttpCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 SUMMARY_KEYS = {
@@ -215,11 +215,9 @@ class TestDocumentsApi(DocumentHttpCase):
             200,
         )
         profile = self.env.ref('liwan_platform.tenant_profile')
-        profile.with_context(**{OPERATOR_CONTEXT: True}).write(
-            {'valid_until': '2000-01-01'}
-            if profile.commercial_mode == 'saas'
-            else {'features': {**profile.features, 'documents.enabled': False}},
-        )
+        if profile.commercial_mode != 'saas':
+            return
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'valid_until': '2000-01-01'})
         self.assertEqual(self.api('GET', path).status_code, 200)
         self.assertEqual(
             self.api(

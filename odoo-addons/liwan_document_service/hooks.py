@@ -1,6 +1,30 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 
+def pre_init_hook(env):
+    """Adopt the installed library's engine records before loading service data."""
+    # Keep the central application's feature, directory extensions and manager role.
+    retained = (
+        'group_documents_manager',
+        'role_documents_manager',
+        'model_liwan_directory',
+        'field_liwan_directory__id',
+        'field_liwan_directory__display_name',
+        'model_liwan_feature_registry',
+        'field_liwan_feature_registry__id',
+        'field_liwan_feature_registry__display_name',
+    )
+    source = env['ir.module.module'].search([('name', '=', 'liwan_documents')], limit=1)
+    if not source or source.state not in ('installed', 'to upgrade'):
+        return
+    target = env['ir.module.module'].search([('name', '=', 'liwan_document_service')], limit=1)
+    env['ir.model.data'].search([
+        ('module', '=', source.name), ('name', 'not in', retained),
+    ]).write({'module': target.name})
+    for model in ('ir.model.constraint', 'ir.model.relation'):
+        env[model].search([('module', '=', source.id)]).write({'module': target.id})
+
+
 def post_init_hook(env):
     env['liwan.document']._liwan_bootstrap_libraries()
     # Existing rows were adopted before model initialization; create directories

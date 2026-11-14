@@ -21,8 +21,8 @@ describe('HR personal contributions', () => {
     expect(manifest.personal?.find(entry => entry.id === 'hr-insurance')?.feature).toBe('hr.insurance')
     expect(manifest.personal?.find(entry => entry.section === 'leave')?.primaryAction).toMatchObject({to:'/account/leave/new', capability:'hr.leave.request'})
   })
-  it('requires either leave management or approval authority on the administrative list', () => {
-    expect(manifest.routeCapabilities?.find(rule => rule.pattern.test('/hr/leave'))).toMatchObject({capability:'hr.leave.read',anyCapabilities:['hr.leave.approve','hr.leave.manage']})
+  it('allows leave readers to open the scoped review list', () => {
+    expect(manifest.routeCapabilities?.find(rule => rule.pattern.test('/hr/leave'))).toMatchObject({capability:'hr.leave.read'})
   })
 })
 

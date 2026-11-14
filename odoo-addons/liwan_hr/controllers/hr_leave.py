@@ -66,7 +66,8 @@ def _leave_visibility_domain():
     return ((Domain('employee_id.user_id', '=', request.env.uid)
              & Domain('company_id', 'in', memberships))
             | (Domain('company_id', 'in', service._liwan_scoped_company_ids())
-               & Domain('company_id', 'in', sorted(staff_ids))))
+               & Domain('company_id', 'in', sorted(staff_ids)))
+            | request.env['ir.rule']._liwan_leave_extra_read_domain())
 
 
 def _is_own(leave):

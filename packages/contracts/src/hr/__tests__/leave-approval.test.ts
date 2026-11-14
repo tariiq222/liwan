@@ -8,7 +8,7 @@ describe('HrLeaveApprovalSchema', () => {
     const parsed = HrLeaveApprovalSchema.parse({
       request_id: 9,
       state: 'pending',
-      href: '/operations/9',
+      revision: 2, can_review: false,
       steps: [
         { sequence: 1, name: 'Direct manager', reviewers: [REVIEWER], status: 'approved' },
         { sequence: 2, name: 'HR', reviewers: [REVIEWER], status: 'pending' },
@@ -21,7 +21,7 @@ describe('HrLeaveApprovalSchema', () => {
     const parsed = HrLeaveApprovalSchema.parse({
       request_id: 9,
       state: 'pending',
-      href: '/operations/9',
+      revision: 2, can_review: false,
       steps: [
         { sequence: 1, name: 'Direct manager', reviewers: [], status: 'skipped' },
         { sequence: 2, name: 'HR', reviewers: [REVIEWER], status: 'pending' },
@@ -31,7 +31,7 @@ describe('HrLeaveApprovalSchema', () => {
   })
 
   it('rejects an unknown request state', () => {
-    expect(() => HrLeaveApprovalSchema.parse({ request_id: 9, state: 'open', href: '/operations/9', steps: [] })).toThrow()
+    expect(() => HrLeaveApprovalSchema.parse({ request_id: 9, state: 'open', revision: 2, can_review: false, steps: [] })).toThrow()
   })
 })
 

@@ -375,6 +375,36 @@ class TestEntitlements(TransactionCase):
         self.assertEqual(self._operator()._liwan_grant_opened_admin_roles('enrolment_admin', before), [])
         self.assertIn('pmo_manager', self._assigned(admin))
 
+    def test_unregistered_domains_neither_open_nor_close_an_administrator_role(self):
+        gate = 'zz_probe.enabled'
+        app = 'liwan_platform'
+        probe = {'key': gate, 'type': 'boolean', 'owner': app, 'module': app}
+        registry = type(self.features)
+        definitions = registry._liwan_feature_definitions
+        self.patch(registry, '_liwan_feature_definitions', lambda model: (*definitions(model), probe))
+        self.patch(
+            type(self.env['liwan.access.service']), '_liwan_legacy_admin_roles',
+            lambda model: ['zz_probe_role'],
+        )
+        permissions = self.env['liwan.access.permission']
+        gated, ungated = (
+            permissions.create({
+                'key': f'{domain}.items.read', 'domain': domain, 'resource': 'items', 'action': 'read',
+                'name_ar': domain, 'description_ar': domain, 'group_xmlid': 'liwan_core.group_employee',
+            })
+            for domain in ('zz_probe', 'zz_shared')
+        )
+        role = self.env['liwan.access.role'].create({
+            'key': 'zz_probe_role', 'name_ar': 'zz probe role', 'permission_ids': [(6, 0, (gated | ungated).ids)],
+        })
+        self.patch(type(self.service), '_liwan_features_payload', lambda model: {gate: False})
+        self.assertNotIn('zz_probe_role', self.service._liwan_entitled_admin_roles())
+        self.patch(type(self.service), '_liwan_features_payload', lambda model: {gate: True})
+        self.assertIn('zz_probe_role', self.service._liwan_entitled_admin_roles())
+        role.permission_ids = ungated  # only an ungated domain: nothing closes it, not even the gate being off
+        self.patch(type(self.service), '_liwan_features_payload', lambda model: {gate: False})
+        self.assertIn('zz_probe_role', self.service._liwan_entitled_admin_roles())
+
     def test_no_login_or_unusable_login_grants_nothing(self):
         before = self._admin_role_probe()
         inactive = new_test_user(self.env, login='inactive_admin', groups='liwan_core.group_employee')

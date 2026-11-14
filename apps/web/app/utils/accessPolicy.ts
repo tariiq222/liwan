@@ -76,8 +76,12 @@ export function canReach(identity: AccessIdentity, capability: string, path?: st
   }
   if (!hasCapability(identity, capability)) return false
   const write = path ? pathIsWrite(path) : false
+  const rule = path ? ownedRouteRule(path) : undefined
+  const capabilityFeature = rule?.capability === capability ? rule.capabilityFeature : undefined
+  const pathFeature = path ? featureForPath(path) : null
+  if (capabilityFeature) return hasFeature(identity, capabilityFeature, write) && hasFeature(identity, feature ?? null, write)
   if (!canUse(identity, capability, write)) return false
-  return hasFeature(identity, path ? featureForPath(path) : null, write) && hasFeature(identity, feature ?? null, write)
+  return hasFeature(identity, pathFeature, write) && hasFeature(identity, feature ?? null, write)
 }
 /**
  * Why a path the identity cannot open is closed: the plan, not the user's permissions. The tenant's
@@ -88,10 +92,11 @@ export function canReach(identity: AccessIdentity, capability: string, path?: st
 export function planDenialCode(identity: AccessIdentity, path: string): 'feature_not_included' | 'tenant_read_only' | null {
   if (isPersonalPath(path)) identity = personalIdentity(identity)
   const capability = requiredCapabilityForPath(path)
-  const featuresClosed = (write: boolean) => [featureForPath(path), requiredFeatureForPath(path)].some(key => !hasFeature(identity, key ?? null, write))
+  const capabilityFeature = ownedRouteRule(path)?.capabilityFeature
+  const featuresClosed = (write: boolean) => [capabilityFeature ?? featureForPath(path), requiredFeatureForPath(path)].some(key => !hasFeature(identity, key ?? null, write))
   if (featuresClosed(false)) return 'feature_not_included'
   // A write capability or a write page is open only while the tenant allows writes of its features.
-  const writeClosed = (pathIsWrite(path) && featuresClosed(true)) || Boolean(capability && !canUse(identity, capability))
+  const writeClosed = (pathIsWrite(path) && featuresClosed(true)) || Boolean(capability && !capabilityFeature && !canUse(identity, capability))
   if (writeClosed) return identity?.platform?.read_only ? 'tenant_read_only' : 'feature_not_included'
   return null
 }

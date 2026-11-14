@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { DocumentCreate, DocumentDetail } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
 import { useCreateDocument, useShareDocumentWithEmployee } from '@/composables/useDocuments'
 import DocumentEditor from './DocumentEditor.vue'
 import DocumentMetadataFields from './DocumentMetadataFields.vue'
-const props = defineProps<{ initialContext?: { kind: string; id: number } | null; backTo: RouteLocationRaw }>()
+const props = defineProps<{ initialContext?: { kind: string; id: number } | null; backTo: RouteLocationRaw; contextualSave?: (body: DocumentCreate) => Promise<DocumentDetail> }>()
 const emit = defineEmits<{ saved: [id: number] }>()
 const { t } = useI18n(); const hydrated = useHydrated(); const toast = useToast()
 const name = ref(''); const body = ref(''); const expiry = ref<string | null>(null); const context = ref(props.initialContext ?? null); const tags = ref<number[]>([]); const shareWithEmployee = ref(false)
@@ -12,37 +13,42 @@ const nameInput = ref<{ inputRef?: HTMLInputElement } | null>(null)
 const saved = ref(false); const attempted = ref(false); const error = ref('')
 const titleError = computed(() => attempted.value && !name.value.trim() ? t('documents.titleRequired') : undefined)
 const mutation = useCreateDocument(); const share = useShareDocumentWithEmployee()
+const saving = ref(false)
+const pending = computed(() => saving.value || mutation.isPending.value || share.isPending.value)
 const contextChanged = computed(() => (context.value?.kind ?? null) !== (props.initialContext?.kind ?? null) || (context.value?.id ?? null) !== (props.initialContext?.id ?? null))
 const dirty = computed(() => !saved.value && (!!name.value.trim() || !!body.value || !!expiry.value || tags.value.length > 0 || contextChanged.value))
 async function submit() {
-  if (!hydrated.value || mutation.isPending.value) return
+  if (!hydrated.value || pending.value) return
   attempted.value = true; error.value = ''
   if (!name.value.trim()) { await nextTick(); nameInput.value?.inputRef?.focus(); return }
+  saving.value = true
   try {
-    const document = await mutation.mutateAsync({ name: name.value.trim(), body: body.value, expiry_date: expiry.value || null, context: context.value, tag_ids: tags.value })
+    const values = { name: name.value.trim(), body: body.value, expiry_date: expiry.value || null, context: context.value, tag_ids: tags.value }
+    const document = await (props.contextualSave ?? mutation.mutateAsync)(values)
     saved.value = true; toast.add({ title: t('documents.created'), color: 'success' })
     if (shareWithEmployee.value && context.value?.kind === 'hr.employee') {
       try { await share.mutateAsync({ id: document.id, expected_revision: document.revision }) } catch { toast.add({ title: t('documents.shareWithEmployeeFailed'), color: 'warning' }) }
     }
     await nextTick(); emit('saved', document.id)
   } catch (cause) { error.value = cause instanceof ApiError ? cause.message : t('errors.generic') }
+  finally { saving.value = false }
 }
 </script>
 <template>
-  <SharedUnsavedChanges :dirty="dirty || mutation.isPending.value" />
+  <SharedUnsavedChanges :dirty="dirty || pending" />
   <UForm novalidate :loading-auto="false" :state="{ name, body }" class="liwan-form" @submit="submit">
     <UAlert v-if="error" color="error" variant="subtle" :title="error" />
     <UAlert color="info" variant="subtle" :title="t('documents.restrictedDefault')" :description="t('documents.visibilityHelp.restricted')" />
     <SharedFormSection panel :title="t('documents.documentInfo')">
       <div class="grid gap-(--liwan-gap-card)">
-        <UFormField :label="t('documents.columns.name')" name="document-name" required :error="titleError"><UInput ref="nameInput" id="document-name" v-model="name" class="w-full" :disabled="!hydrated || mutation.isPending.value" required /></UFormField>
-        <UFormField :label="t('documents.body')" name="document-body" :help="t('documents.bodyHelp')"><DocumentEditor v-model="body" :document-id="0" :debounce="false" :disabled="!hydrated || mutation.isPending.value" /></UFormField>
+        <UFormField :label="t('documents.columns.name')" name="document-name" required :error="titleError"><UInput ref="nameInput" id="document-name" v-model="name" class="w-full" :disabled="!hydrated || pending" required /></UFormField>
+        <UFormField :label="t('documents.body')" name="document-body" :help="t('documents.bodyHelp')"><DocumentEditor v-model="body" :document-id="0" :debounce="false" :disabled="!hydrated || pending" /></UFormField>
         <p class="text-sm text-muted">{{ t('documents.createFilesHelp') }}</p>
       </div>
     </SharedFormSection>
-    <SharedFormSection panel :title="t('documents.optionalDetails')" :description="t('documents.optionalDetailsHelp')">
-      <div class="grid gap-(--liwan-gap-card)"><DocumentMetadataFields v-model:expiry="expiry" v-model:context="context" v-model:tags="tags" v-model:share-with-employee="shareWithEmployee" :disabled="mutation.isPending.value || share.isPending.value" /></div>
+    <SharedFormSection v-if="!contextualSave" panel :title="t('documents.optionalDetails')" :description="t('documents.optionalDetailsHelp')">
+      <div class="grid gap-(--liwan-gap-card)"><DocumentMetadataFields v-model:expiry="expiry" v-model:context="context" v-model:tags="tags" v-model:share-with-employee="shareWithEmployee" :disabled="pending" /></div>
     </SharedFormSection>
-    <SharedFormActions><div class="ms-auto flex gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" :disabled="mutation.isPending.value" /><UButton type="submit" icon="i-lucide-plus" :label="t('documents.create')" :disabled="!hydrated" :loading="mutation.isPending.value" /></div></SharedFormActions>
+    <SharedFormActions><div class="ms-auto flex gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" :disabled="pending" /><UButton type="submit" icon="i-lucide-plus" :label="t('documents.create')" :disabled="!hydrated" :loading="pending" /></div></SharedFormActions>
   </UForm>
 </template>

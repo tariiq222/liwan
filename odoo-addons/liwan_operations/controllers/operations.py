@@ -14,14 +14,14 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_page,
     parse_positive_int,
     require_capabilities,
-    requires_feature,
+    requires_tenant_access,
 )
 from odoo.addons.liwan_api.serializers.attachment import parse_attachment_upload
-from odoo.addons.liwan_operations.models.common import STAGE_APPROVAL_MODES
-from odoo.addons.liwan_operations.models.operation_request import (
+from odoo.addons.liwan_approval_service.models.common import STAGE_APPROVAL_MODES
+from odoo.addons.liwan_approval_service.models.operation_request import (
     OperationExecutionError,
 )
-from odoo.addons.liwan_operations.serializers.operations import (
+from odoo.addons.liwan_approval_service.serializers.operations import (
     dump_process,
     dump_request,
     dump_summary,
@@ -76,7 +76,7 @@ def stage_approval_mode_value(value):
 class OperationsController(http.Controller):
     @http.route('/api/v1/operations/execution-kinds', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def execution_kinds(self, **_):
         require_capabilities('operations.processes.manage')
         items = [{'key': kind['key'], 'label': kind['label']} for kind in request.env['liwan.operation.process']._operations_execution_kinds()]
@@ -84,7 +84,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/processes/reviewer-resolvers', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def reviewer_resolvers(self, **_):
         require_capabilities('operations.processes.manage')
         kind = request.httprequest.args.get('execution_kind', '')
@@ -95,7 +95,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/processes/<int:process_id>/targets', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def process_targets(self, process_id, **_):
         process = find('liwan.operation.process', process_id, 'operations.requests.create')
         items = process._operations_targets(request.httprequest.args.get('q', '')[:200])
@@ -103,7 +103,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/processes', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def list_processes(self, **_):
         require_capabilities('operations.requests.read')
         args = request.httprequest.args
@@ -122,13 +122,13 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/processes/<int:process_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def get_process(self, process_id, **_):
         return dump_process(find('liwan.operation.process', process_id, 'operations.requests.read'))
 
     @http.route('/api/v1/operations/processes', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature('operations.enabled')
+    @requires_tenant_access()
     def create_process(self, **_):
         require_capabilities('operations.processes.manage')
         payload = body({'name', 'description', 'execution_kind', 'purpose', 'stage_approval_mode', 'steps'})
@@ -140,7 +140,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/processes/<int:process_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
-    @requires_feature('operations.enabled')
+    @requires_tenant_access()
     def update_process(self, process_id, **_):
         record = find('liwan.operation.process', process_id, 'operations.processes.manage')
         payload = body({'name', 'description', 'execution_kind', 'purpose', 'stage_approval_mode', 'steps', 'revision'})
@@ -153,7 +153,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/processes/<int:process_id>/<string:action>', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature('operations.enabled')
+    @requires_tenant_access()
     def transition_process(self, process_id, action, **_):
         record = find('liwan.operation.process', process_id, 'operations.processes.manage')
         payload = body({'revision'})
@@ -167,7 +167,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def list_requests(self, **_):
         args = request.httprequest.args
         scope = args.get('scope', 'mine')
@@ -195,7 +195,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests/<int:request_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def get_request(self, request_id, **_):
         require_stage_capability()
         record = find_record('liwan.operation.request', request_id)
@@ -205,7 +205,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests/employee/me/<int:request_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def get_own_employee_request(self, request_id, **_):
         return dump_request(find(
             'liwan.operation.request', request_id, 'operations.requests.read',
@@ -214,7 +214,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature('operations.enabled')
+    @requires_tenant_access()
     def create_request(self, **_):
         require_capabilities('operations.requests.create')
         payload = body({'name', 'description', 'process_id', 'target_id'})
@@ -225,7 +225,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests/<int:request_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
-    @requires_feature('operations.enabled')
+    @requires_tenant_access()
     def update_request(self, request_id, **_):
         record = find('liwan.operation.request', request_id, 'operations.requests.create')
         payload = body({'name', 'description', 'revision'})
@@ -234,7 +234,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests/<int:request_id>/<string:action>', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature('operations.enabled')
+    @requires_tenant_access()
     def transition_request(self, request_id, action, **_):
         deciding = action in ('approve', 'reject', 'return')
         require_capabilities(*(stage_capabilities() if deciding else ['operations.requests.read']), match='any')
@@ -257,7 +257,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests/<int:request_id>/attachments/<int:attachment_id>/download', type='http', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('operations.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def download_attachment(self, request_id, attachment_id, **_):
         record = find('liwan.operation.request', request_id, 'operations.requests.read')
         attachments = request.env['ir.attachment'].search([('res_model', '=', record._name), ('res_id', '=', record.id), ('type', '=', 'binary')])
@@ -265,7 +265,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests/<int:request_id>/attachments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature('operations.enabled')
+    @requires_tenant_access()
     def upload_attachment(self, request_id, **_):
         record = find('liwan.operation.request', request_id, 'operations.requests.create')
         record._editable()
@@ -275,7 +275,7 @@ class OperationsController(http.Controller):
 
     @http.route('/api/v1/operations/requests/<int:request_id>/attachments/<int:attachment_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
-    @requires_feature('operations.enabled')
+    @requires_tenant_access()
     def delete_attachment(self, request_id, attachment_id, **_):
         record = find('liwan.operation.request', request_id, 'operations.requests.create')
         record._editable()

@@ -2,12 +2,12 @@
 from odoo import http
 from odoo.http import request
 
-from .common import page_args, require
 from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     parse_positive_int,
-    requires_feature,
+    requires_tenant_access,
 )
+from odoo.addons.liwan_document_service.controllers.common import page_args, require
 
 
 class Contexts(http.Controller):
@@ -19,7 +19,7 @@ class Contexts(http.Controller):
         readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def contexts(self, **kwargs):
         require('documents.items.read')
         definitions = request.env['liwan.document.links']._liwan_context_definitions()
@@ -39,7 +39,7 @@ class Contexts(http.Controller):
         readonly=True,
     )
     @api_handler
-    @requires_feature('documents.enabled', operation='read')
+    @requires_tenant_access(operation='read')
     def options(self, kind, **kwargs):
         require('documents.items.manage')
         args = request.httprequest.args

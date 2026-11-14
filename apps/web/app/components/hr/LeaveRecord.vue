@@ -3,7 +3,7 @@ import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 import { joinList } from '@/utils/listFormat'
-import { useHrLeaveApproval, useHrLeaveRequest, useMyHrLeaveRequest, useLeaveDecision, useCancellationDecision, useWithdrawLeaveRequest, type HrLeaveDecision } from '@/composables/useHrLeave'
+import { useHrLeaveApproval, useHrLeaveRequest, useMyHrLeaveRequest, useLeaveDecision, useLeaveApprovalDecision, useCancellationDecision, useWithdrawLeaveRequest, type HrLeaveDecision } from '@/composables/useHrLeave'
 import type { LeaveConfirmKind } from '@/components/hr/LeaveDecisionConfirm.vue'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
@@ -11,7 +11,6 @@ import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 const props = defineProps<{ personal?: boolean }>()
 const route = useRoute()
 const { t } = useI18n()
-const { me } = useMe()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const { period, days } = useHrLeaveFormat()
@@ -34,14 +33,14 @@ const backTo = computed(() => owningListBack(route.query, sourcePaths.value, rou
 const approval = computed(() => approvalQuery.data.value)
 const approvalFailed = computed(() => approvalQuery.error.value instanceof ApiError && approvalQuery.error.value.status !== 404)
 const APPROVAL_TONE = { approved: 'success', pending: 'info', rejected: 'destructive', waiting: 'neutral', cancel: 'neutral', skipped: 'neutral' } as const
-// Only a reviewer of the stage awaiting a decision is offered the workflow page, where the decision is taken.
-const canReview = computed(() => !!me.value && approval.value?.state === 'pending' && approval.value.steps.some(step => step.status === 'pending' && step.reviewers.some(person => person.user_id === me.value?.id)))
+const canReview = computed(() => !props.personal && approval.value?.can_review === true)
 
 const headerTags = computed(() => leave.value
   ? [statusTag({ tone: hrLeaveBadge(leave.value.state).tone, label: t(hrLeaveBadge(leave.value.state).labelKey) }, 'hr-leave-state')]
   : [])
 
 const decision = useLeaveDecision()
+const approvalDecision = useLeaveApprovalDecision()
 const cancellationDecision = useCancellationDecision()
 const withdrawal = useWithdrawLeaveRequest()
 const decisionError = ref('')
@@ -53,7 +52,7 @@ function beginConfirm(kind: LeaveConfirmKind) {
   confirmationRevision.value = leave.value?.cancellation?.revision ?? null
 }
 watch(id, () => { confirming.value = null; confirmationRevision.value = null; decisionError.value = '' })
-const writing = computed(() => decision.isPending.value || withdrawal.isPending.value || cancellationDecision.isPending.value)
+const writing = computed(() => decision.isPending.value || approvalDecision.isPending.value || withdrawal.isPending.value || cancellationDecision.isPending.value)
 const canApprove = computed(() => !props.personal && !!leave.value?.can_approve && can('hr.leave.approve'))
 const canRefuse = computed(() => !props.personal && !!leave.value?.can_refuse && can('hr.leave.approve'))
 const canCancel = computed(() => !!leave.value?.can_cancel)
@@ -66,11 +65,17 @@ async function decide(kind: HrLeaveDecision, reason?: string) {
   if (!leave.value || !hydrated.value || writing.value) return
   decisionError.value = ''
   try {
-    await decision.mutateAsync({ id: leave.value.id, decision: kind, reason, mine: !!props.personal })
+    if (canReview.value && approval.value && (kind === 'approve' || kind === 'refuse')) {
+      await approvalDecision.mutateAsync({ id: leave.value.id, action: kind === 'approve' ? 'approve' : 'reject', revision: approval.value.revision, comment: reason })
+    } else {
+      await decision.mutateAsync({ id: leave.value.id, decision: kind, reason, mine: !!props.personal })
+    }
     confirming.value = null
   } catch (cause) {
-    decisionError.value = cause instanceof ApiError && cause.status === 409 ? t('hr.leave.cancellationConflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
-    if (cause instanceof ApiError && cause.status === 409) await query.value.refetch()
+    decisionError.value = cause instanceof ApiError && cause.status === 409 && !canReview.value
+      ? t('hr.leave.cancellationConflict')
+      : cause instanceof ApiError ? cause.message : t('errors.generic')
+    if (cause instanceof ApiError && cause.status === 409) await Promise.all([query.value.refetch(), approvalQuery.refetch()])
   }
 }
 
@@ -115,9 +120,9 @@ async function withdraw() {
     :error="pageError"
     @retry="query.refetch"
   >
-    <template v-if="leave && (canApprove || canRefuse || leave.can_withdraw || canCancel || canRequestCancellation || canApproveCancellation || canRefuseCancellation)" #actions>
-      <UButton v-if="canApprove" color="primary" icon="i-lucide-check" :loading="decision.isPending.value" :disabled="!hydrated || writing" :label="t('hr.leave.approve')" data-testid="hr-leave-record-approve" @click="decide('approve')" />
-      <UButton v-if="canRefuse" color="neutral" variant="outline" icon="i-lucide-x" :disabled="!hydrated || decision.isPending.value" :label="t('hr.leave.refuse')" data-testid="hr-leave-record-refuse" @click="beginConfirm('refuse')" />
+    <template v-if="leave && (canReview || canApprove || canRefuse || leave.can_withdraw || canCancel || canRequestCancellation || canApproveCancellation || canRefuseCancellation)" #actions>
+      <UButton v-if="canApprove || canReview" color="primary" icon="i-lucide-check" :loading="decision.isPending.value" :disabled="!hydrated || writing" :label="t('hr.leave.approve')" data-testid="hr-leave-record-approve" @click="decide('approve')" />
+      <UButton v-if="canRefuse || canReview" color="neutral" variant="outline" icon="i-lucide-x" :disabled="!hydrated || decision.isPending.value" :label="t('hr.leave.refuse')" data-testid="hr-leave-record-refuse" @click="beginConfirm('refuse')" />
       <UButton v-if="leave.can_withdraw" color="error" variant="outline" icon="i-lucide-undo-2" :disabled="!hydrated || writing" :label="t('hr.leave.withdraw')" data-testid="hr-leave-record-withdraw" @click="beginConfirm('withdraw')" />
       <UButton v-if="canCancel" color="error" variant="outline" icon="i-lucide-ban" :disabled="!hydrated || writing" :label="t(`hr.leave.${cancelKind}`)" data-testid="hr-leave-record-cancel" @click="beginConfirm(cancelKind)" />
       <UButton v-if="canRequestCancellation" color="neutral" variant="outline" icon="i-lucide-calendar-x" :disabled="!hydrated || writing" :label="t('hr.leave.requestCancellation')" data-testid="hr-leave-record-request-cancellation" @click="beginConfirm('requestCancellation')" />
@@ -154,7 +159,6 @@ async function withdraw() {
               <SharedStatusBadge :tone="APPROVAL_TONE[step.status]" :label="t(`hr.leave.approval.status.${step.status}`)" />
             </SharedSubCard>
           </ol>
-          <UButton v-if="canReview" class="mt-3" color="primary" variant="outline" icon="i-lucide-external-link" :to="approval.href" :label="t('hr.leave.approval.open')" data-testid="hr-leave-approval-open" />
         </template>
       </SharedRecordSection>
       <SharedRecordSection v-if="leave.notes" :title="t('hr.leave.form.notes')">

@@ -551,13 +551,15 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         name, modules = catalog_check.current_release(ROOT)
         self.assertEqual(name, 'platform_v4.json')
         data = json.loads((ROOT / 'deploy/catalog/solutions' / name).read_text())
-        self.assertEqual(data['base_modules'], ['liwan_core', 'liwan_platform', 'liwan_api'])
+        self.assertEqual(data['base_modules'][:3], ['liwan_core', 'liwan_platform', 'liwan_api'])
+        self.assertEqual(set(data['base_modules'][3:]), catalog_check.BASE_APPLICATIONS)
         order = catalog_check.release_install_order(ROOT, data)
-        self.assertEqual(order[:3], data['base_modules'])
+        base = catalog_check.install_closure([ROOT / 'odoo-addons'], data['base_modules'])
+        self.assertEqual(set(order[:len(base)]), base)
         self.assertEqual(sorted(order), modules)
         self.assertEqual(len(order), len(set(order)))
         position = {module: index for index, module in enumerate(order)}
-        seen = set(data['base_modules'])
+        seen = set(base)
         selected = list(data['base_modules'])
         for tier in data['tiers']:
             selected += tier['modules']

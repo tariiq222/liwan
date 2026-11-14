@@ -21,6 +21,7 @@ export function operationBellTitle(row: Record<string, unknown>, t: Translate): 
 
 /** The request page of an operations row, or null for a row without one. */
 export function operationBellHref(row: Record<string, unknown>): string | null {
+  if (typeof row.href === 'string' && /^\/(?:hr\/leave|projects)\/[1-9]\d*(?:\/tasks\/[1-9]\d*)?$/.test(row.href)) return row.href
   return typeof row.request_id === 'number' ? `/operations/${row.request_id}` : null
 }
 

@@ -47,6 +47,7 @@ const manifest: AppManifest = {
     { pattern: /^\/projects\/[1-9]\d*\/meetings$/, capability: 'meetings.read' },
   ],
   routeCapabilities: [
+    { pattern: /^\/projects\/[1-9]\d*\/documents$/, capability: 'documents.items.read', capabilityFeature: 'pmo.enabled', requiredCapabilities: ['pmo.projects.read'] },
     { pattern: /^\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/[^/]+\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/new$/, capability: 'pmo.projects.create' },

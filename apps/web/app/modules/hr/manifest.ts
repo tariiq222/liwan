@@ -148,6 +148,8 @@ const manifest: AppManifest = {
     'hr.payroll.': 'hr.payroll',
   },
   routeCapabilities: [
+    { pattern: /^\/hr\/documents\/(?:employee|department)-[1-9]\d*$/, capability: 'documents.items.read', capabilityFeature: 'hr.enabled' },
+    { pattern: /^\/settings\/apps\/hr\/leave-approval\/edit$/, capability: "hr.leave.config" },
     { pattern: /^\/account\/profile$/, capability: 'hr.employees.read' },
     { pattern: /^\/account\/leave\/new$/, capability: 'hr.leave.request', requiredCapabilities: ['hr.employees.read'] },
     { pattern: /^\/account\/leave(?:\/[^/]+)?$/, capability: 'hr.leave.read', requiredCapabilities: ['hr.employees.read'] },
@@ -175,7 +177,7 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/insurance\/(?:enrollments|plans)\/new$/, capability: 'hr.insurance.manage' },
     { pattern: /^\/hr\/insurance(?:\/|$)/, capability: 'hr.insurance.read' },
     { pattern: /^\/hr\/leave\/allocations(?:\/|$)/, capability: 'hr.leave.manage' },
-    { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read', anyCapabilities: ['hr.leave.approve', 'hr.leave.manage'] },
+    { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read' },
     // The page renders its own managers-only message (SharedForbiddenState) instead of the generic 403 page.
     { pattern: /^\/hr\/reports$/, capability: 'hr.employees.read' },
     { pattern: /^\/hr\/employees\/[^/]+\/compensation$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },

@@ -14,7 +14,7 @@ const AI_LIMITS = { 'ai.messages.monthly': 500, 'ai.tokens.monthly': 2500000, 'a
 
 /** Release 1 composition (owner decisions 2026-11-06 and 2026-11-14): the always-included set, which holds the
  *  Saudi integrations, the five sold applications, and appointments installed but locked. */
-const INCLUDED = ['tasks.enabled', 'chat.enabled', 'documents.enabled', 'meetings.enabled', 'operations.enabled', 'ai.enabled', 'integrations.enabled']
+const INCLUDED = ['tasks.enabled', 'chat.enabled', 'meetings.enabled', 'ai.enabled', 'integrations.enabled']
 const SOLD = ['crm.enabled', 'inbox.enabled', 'hr.enabled', 'finance.enabled', 'pmo.enabled']
 const LOCKED = ['appointments.enabled']
 /** Every key of one sold application (the keys of the catalog tier), used to prove a purchase opens only its own. */
