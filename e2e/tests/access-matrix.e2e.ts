@@ -3,29 +3,28 @@ import { expect } from 'e2e';
 
 /**
  * Role matrix against the scratch Odoo stack (`npm run e2e:odoo`): every demo-company
- * persona (tools/e2e_seed.py) signs in, the application rail lists exactly the
- * applications its roles open, and each page below either opens or shows the
+ * persona (tools/e2e_seed.py) signs in, the sidebar and the all-applications page offer
+ * only destinations its roles open, and each page below either opens or shows the
  * forbidden page. Scenarios ACC-01, ACC-02, ACC-14, FIN-21, HR-41, PMO-03, MTG-02,
  * OPS-11, OPS-20, OPS-22, DOC-14 (e2e/scenarios). Read-only: nothing is created.
  */
 const slow = { timeout: 30_000 };
 const FORBIDDEN = 'لا تملك صلاحية فتح هذه الصفحة';
 
-// A plain employee's rail: the applications every internal user reaches.
-const COMMON_APPS = ['/', '/my-tasks', '/projects', '/meetings', '/chat'];
-// Rail link labels, read from the app's own locale file rather than retyped in the test.
-const LABEL_OF: Record<string, string> = {
-  '/': 'يومي',
-  '/my-tasks': 'مهامي',
-  '/projects': 'المشاريع',
-  '/meetings': 'الاجتماعات',
-  '/chat': 'المحادثات',
-  '/hr': 'الموظفين',
-  '/operations': 'العمليات',
-  '/documents': 'المستندات',
-  '/finance': 'المالية',
-  '/settings': 'الإعدادات',
-};
+// The sidebar's core row (owner decision 2026-11-08): «يومي» and the base applications every
+// internal user reaches, by rail id. A link's name grows a count while it has a badge, so the
+// row is read by its test ids.
+const CORE_APPS = ['home', 'tasks', 'meetings', 'chat'];
+// An application outside the core row is pinned or not per person, so the sidebar cannot
+// vouch for it; «كل التطبيقات» (/apps) lists every application the identity may open.
+const COMMON_APPLICATION = 'المشاريع';
+
+type Links = { all(): Promise<{ getAttribute(name: string): Promise<string | null> }[]> };
+/** The destinations a set of links points at; read before navigating, while the links are still on screen. */
+async function hrefsOf(links: Links): Promise<string[]> {
+  const hrefs = await Promise.all((await links.all()).map(link => link.getAttribute('href')));
+  return hrefs.filter((href): href is string => !!href);
+}
 
 // Page -> the rule that opens it, copied from each manifest's `routeCapabilities` and
 // `settings.parts`. A rule is a capability, an "any of" set, a "all of" set, or a feature.
@@ -41,8 +40,8 @@ const PAGES: PageRule[] = [
   // settingsCardsOpeningPage), never for one named capability.
   { path: '/settings/apps/finance', any: ['finance.accounts.read', 'finance.journals.read', 'finance.taxes.read', 'finance.setup.read', 'finance.payment_terms.read'] },
   { path: '/hr/payroll', capability: 'hr.payroll.read' },
-  // The HR leave list is an administration page: read alone is not enough.
-  { path: '/hr/leave', any: ['hr.leave.approve', 'hr.leave.manage'] },
+  // A leave reader opens the HR leave list and the API scopes its rows (route gate since 2026-11-14).
+  { path: '/hr/leave', capability: 'hr.leave.read' },
   { path: '/hr/employees/new', capability: 'hr.employees.manage' },
   { path: '/hr/recruitment', capability: 'hr.recruitment.read' },
   { path: '/hr/assets', capability: 'hr.assets.read' },
@@ -61,10 +60,6 @@ const PAGES: PageRule[] = [
   { path: '/documents/new', capability: 'documents.items.manage', required: ['hr.employees.read'], feature: 'hr.enabled' },
 ];
 
-// Rail expectations per persona, verified against the seeded groups of liwan_scratch_e2e:
-// finance needs finance.invoices.read (cfo, accountant, auditor); settings is administration
-// (it_admin holds system_admin) and appears for ceo/hr_manager/ops_manager/payroll too; a
-// plain employee sees neither.
 const PERSONAS = ['ceo', 'it_admin', 'hr_manager', 'payroll', 'cfo', 'accountant',
   'auditor', 'pm', 'ops_manager', 'staff1', 'staff2'];
 
@@ -90,20 +85,24 @@ for (const key of PERSONAS) {
     const capabilities = new Set(me.capabilities ?? []);
     const features = new Set(me.platform?.readable_features ?? []);
 
-    const rail = screen.getByTestId('module-rail');
-    // The applications every internal user reaches.
-    for (const href of COMMON_APPS) {
-      await expect(rail.getByRole('link', { name: LABEL_OF[href]! })).toBeVisible(slow);
+    const sidebar = screen.getByTestId('application-navigation');
+    for (const id of CORE_APPS) {
+      await expect(sidebar.getByTestId(`core-app-${id}`)).toBeVisible(slow);
     }
-    // The rail never offers a destination the identity cannot open: every link it draws must
+    const offered = new Set(await hrefsOf(sidebar.getByRole('link')));
+
+    await browser.goto('/apps', { waitUntil: 'domcontentloaded' });
+    const applications = screen.getByTestId('apps-page');
+    await expect(applications.getByRole('heading', COMMON_APPLICATION)).toBeVisible(slow);
+    for (const href of await hrefsOf(applications.getByTestId('launcher-open'))) offered.add(href);
+
+    // Neither surface offers a destination the identity cannot open: every link they draw must
     // load without the forbidden state. This is the property that matters (no over-exposure)
-    // and it needs no hand-kept table, so a role or rail-order change cannot falsify it.
-    for (const link of await rail.getByRole('link').all()) {
-      const href = await link.getAttribute('href');
-      if (!href) continue;
+    // and it needs no hand-kept table, so a role, pin or order change cannot falsify it.
+    for (const href of offered) {
       await browser.goto(href, { waitUntil: 'domcontentloaded' });
       await expect(screen.getByRole('main')).toBeVisible(slow);
-      await expect(screen.getByText(FORBIDDEN), `rail link ${href} must open`).toHaveCount(0, slow);
+      await expect(screen.getByText(FORBIDDEN)).toHaveCount(0, slow);
     }
 
     for (const rule of PAGES) {
