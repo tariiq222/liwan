@@ -3,7 +3,7 @@ import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
-import { adminLoginErrorKey, cancellationErrorKey, deletionErrorKey, renewalErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
+import { adminLoginErrorKey, cancellationErrorKey, cardActionErrorKey, deletionErrorKey, renewalErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
@@ -183,6 +183,27 @@ async function changeRenewal() {
     await refreshCancellationState()
   } catch (cause) { renewalFailure.value = t(renewalErrorKey(cause)) } finally { renewalBusy.value = false }
 }
+// The saved card: removing it (deleted at the provider first) or only stopping automatic renewal. Both need a reason and a fresh passkey confirmation.
+const cardAction = ref<'remove' | 'disableAutoRenew' | null>(null)
+const cardReason = ref('')
+const cardBusy = ref(false)
+const cardFailure = ref<string | undefined>()
+const savedCard = computed(() => view.value?.auto_renew.payment_method ?? null)
+const canChangeCard = computed(() => can('vendor.subscriptions.manage') && !error.value && Boolean(savedCard.value))
+const validCardReason = computed(() => cardReason.value.trim().length >= 3 && cardReason.value.trim().length <= 1000)
+function closeCardAction() { cardAction.value = null; cardReason.value = ''; cardFailure.value = undefined }
+async function changeCard() {
+  const action = cardAction.value
+  const card = savedCard.value
+  if (!hydrated.value || cardBusy.value || !action || !view.value || !card || !validCardReason.value) return
+  cardBusy.value = true; cardFailure.value = undefined
+  try {
+    if (action === 'remove') await api.removePaymentMethod(view.value.id, card.id, cardReason.value)
+    else await api.disableAutoRenew(view.value.id, cardReason.value)
+    closeCardAction()
+    await refreshCancellationState()
+  } catch (cause) { cardFailure.value = t(cardActionErrorKey(cause)) } finally { cardBusy.value = false }
+}
 // The customer's own workspace-deletion request: the console shows its dates and what happened to the renewal, and withdraws it on the customer's behalf with a reason and a fresh passkey confirmation. It cannot ask for or confirm one.
 const { data: deletionData, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletion(id.value))).value?.deletion ?? null)
 const deletion = computed(() => (deletionData.value && ['requested', 'confirmed', 'due'].includes(deletionData.value.state) ? deletionData.value : null))
@@ -269,6 +290,18 @@ async function cancelPendingOrder() {
             </template>
             <p v-if="!view" class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
             <VendorSubscriptionSummary v-else :subscription="view" :plan-name="planName">
+              <template v-if="canChangeCard" #card-actions>
+                <div class="space-y-3" data-testid="card-actions">
+                  <UAlert v-if="cardFailure" color="error" variant="subtle" role="alert" :title="cardFailure" />
+                  <SharedInlineConfirm v-if="cardAction" :title="t(`vendor.customers.cardActions.${cardAction}Title`)" :description="t(`vendor.customers.cardActions.${cardAction}Hint`)" :confirm-label="t(`vendor.customers.cardActions.${cardAction}`)" color="error" :pending="cardBusy" :disabled="!hydrated || cardBusy || !validCardReason" @confirm="changeCard" @cancel="closeCardAction">
+                    <UFormField :label="t('vendor.customers.cardActions.reason')" required class="mt-3"><UTextarea v-model="cardReason" :maxlength="1000" :disabled="!hydrated || cardBusy" class="w-full" /></UFormField>
+                  </SharedInlineConfirm>
+                  <div v-else class="flex flex-wrap gap-2">
+                    <UButton v-if="view.auto_renew.enabled" color="neutral" variant="outline" size="sm" icon="i-lucide-repeat-2" :disabled="!hydrated" data-testid="disable-auto-renew" @click="cardAction = 'disableAutoRenew'">{{ t('vendor.customers.cardActions.disableAutoRenew') }}</UButton>
+                    <UButton color="error" variant="outline" size="sm" icon="i-lucide-credit-card" :disabled="!hydrated" data-testid="remove-card" @click="cardAction = 'remove'">{{ t('vendor.customers.cardActions.remove') }}</UButton>
+                  </div>
+                </div>
+              </template>
               <template #order-actions>
                 <div v-if="canPayLink" class="mb-3 space-y-2" data-testid="pay-link">
                   <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-link" :disabled="!hydrated || payLinkBusy" :loading="payLinkBusy" @click="createPayLink">{{ t('vendor.customers.payLink.create') }}</UButton>

@@ -237,16 +237,6 @@ export function safeIdemAction(kind: string, subscriptionId: string, revision: n
   return `${kind}:${(h >>> 0).toString(36)}`
 }
 
-/** Provider redirect is followed only for https URLs (or the local simulator on same origin). */
-export function safePaymentRedirect(url: string | null | undefined, origin: string): string | null {
-  if (!url) return null
-  try {
-    const u = new URL(url, origin)
-    if (u.protocol === 'https:' || u.origin === origin) return u.toString()
-  } catch { /* fall through */ }
-  return null
-}
-
 /** A usage row's label: its limit key's translation, else its unit's, else a readable id. */
 export function usageMetricLabel(metric: Pick<UsageMetric, 'key' | 'unit'>, t: (key: string) => string, te: (key: string) => boolean): string {
   const byKey = `subscription.usage.keys.${metric.key.replace(/\./g, '_')}`

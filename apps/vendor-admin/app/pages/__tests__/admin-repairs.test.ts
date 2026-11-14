@@ -19,7 +19,7 @@ const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]
 const scopes: Vue.EffectScope[] = []
 afterEach(() => scopes.splice(0).forEach(s => s.stop()))
 const order = { id: 'order/1', kind: 'new', payment_state: 'awaiting_payment', fulfillment_state: 'not_started' }
-const subscription = { id: 'sub1', applied: null, target: null, pending_order: order, revision: 1 }
+const subscription = { id: 'sub1', applied: null, target: null, pending_order: order, revision: 1, auto_renew: { enabled: false, consent_at: null, payment_method: null } }
 const customer = { id: 'customer1', name: 'Customer', subscription, tenant_id: null }
 const money = { minor: 12345, exponent: 2, currency: 'SAR' }
 const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'issued', kind: 'initial', total: money, subtotal: money, tax: money, period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [],
@@ -43,6 +43,8 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     paymentAttempts: vi.fn(async () => { if (options.attemptsError) throw options.attemptsError; return { items: options.attempts ?? [attempt], total: (options.attempts ?? [attempt]).length } }),
     changeQuote: vi.fn(async () => ({ id: 'new-quote' })), placeOrder: vi.fn(async () => order),
     createPaymentAttempt: vi.fn(async () => { calls.push('pay-link'); return { ...attempt, redirect_url: 'https://pay.example.test/i/1' } }),
+    removePaymentMethod: vi.fn(async () => { calls.push('remove-card'); return current }),
+    disableAutoRenew: vi.fn(async () => { calls.push('disable-auto-renew'); return current }),
     cancelOrder: vi.fn(async () => { calls.push('cancel'); current = { ...current, pending_order: null }; return order }),
   }
   const hydrated = Vue.ref(options.hydrated ?? true)
@@ -82,7 +84,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     const captured: { name: string; props: Record<string, unknown> }[] = []
     const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => Object.fromEntries(Object.entries(state).filter(([key]) => !key.startsWith('$'))), render }))
     for (const name of new Set([...descriptor.template!.content.matchAll(/<([A-Z]\w*)/g)].map(m => m[1]!))) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
-      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'NuxtPage' ? 'NESTED PAGE' : null, attrs.title as string, attrs.description as string, name === 'SharedStatusBadge' ? attrs.label as string : null, name === 'SharedPageState' && (attrs.loading || attrs.error) ? (attrs.loading ? 'LOADING' : 'ERROR') : slots.default?.(), slots.header?.(), slots.actions?.(), slots['order-actions']?.(), name === 'SharedRecordPage' ? slots.aside?.() : null]) }
+      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'NuxtPage' ? 'NESTED PAGE' : null, attrs.title as string, attrs.description as string, name === 'SharedStatusBadge' ? attrs.label as string : null, name === 'SharedPageState' && (attrs.loading || attrs.error) ? (attrs.loading ? 'LOADING' : 'ERROR') : slots.default?.(), slots.header?.(), slots.actions?.(), slots['order-actions']?.(), slots['card-actions']?.(), name === 'SharedRecordPage' ? slots.aside?.() : null]) }
     } }))
     return { html: await renderToString(app), captured }
   }
@@ -144,6 +146,37 @@ describe('customer detail repairs', () => {
     await p.state.createPayLink()
     expect(p.api.createPaymentAttempt).toHaveBeenCalledWith(order.id)
     expect(p.state.payLink.value).toBe('https://pay.example.test/i/1')
+  })
+  it('offers removing the saved card and stopping automatic renewal beside the card facts, with a reason, and only to a subscription manager', async () => {
+    const card = { id: 'pm-1', brand: 'visa', last_four: '4242', exp_month: 3, exp_year: 2030, status: 'active', is_default: true }
+    const saved = { ...subscription, auto_renew: { enabled: true, consent_at: '2026-10-01T08:00:00.000Z', payment_method: card } }
+    const denied = await page('customers/[id].vue', { tab: 'subscription', subscription: saved, grants: ['vendor.read'] })
+    expect((await denied.rendered()).html).not.toContain('vendor.customers.cardActions.remove')
+    const none = await page('customers/[id].vue', { tab: 'subscription', subscription })
+    expect((await none.rendered()).html).not.toContain('vendor.customers.cardActions.remove')
+    const p = await page('customers/[id].vue', { tab: 'subscription', subscription: saved })
+    const html = (await p.rendered()).html
+    expect(html).toContain('vendor.customers.cardActions.remove'); expect(html).toContain('vendor.customers.cardActions.disableAutoRenew')
+    // Nothing is sent without a reason; with one, the card is removed on this subscription and the page reads the truth again.
+    p.state.cardAction.value = 'remove'
+    await p.state.changeCard()
+    expect(p.api.removePaymentMethod).not.toHaveBeenCalled()
+    p.state.cardReason.value = 'Customer asked by phone'
+    await p.state.changeCard()
+    expect(p.api.removePaymentMethod).toHaveBeenCalledWith('sub1', 'pm-1', 'Customer asked by phone')
+    expect(p.state.cardAction.value).toBeNull()
+    p.state.cardAction.value = 'disableAutoRenew'; p.state.cardReason.value = 'Customer asked'
+    await p.state.changeCard()
+    expect(p.api.disableAutoRenew).toHaveBeenCalledWith('sub1', 'Customer asked')
+  })
+  it('says the card stays when the provider could not delete it', async () => {
+    const card = { id: 'pm-1', brand: 'visa', last_four: '4242', exp_month: 3, exp_year: 2030, status: 'active', is_default: true }
+    const p = await page('customers/[id].vue', { tab: 'subscription', subscription: { ...subscription, auto_renew: { enabled: true, consent_at: null, payment_method: card } } })
+    p.api.removePaymentMethod.mockRejectedValueOnce({ status: 503, data: { code: 'provider_unavailable' } })
+    p.state.cardAction.value = 'remove'; p.state.cardReason.value = 'Customer asked'
+    await p.state.changeCard()
+    expect(p.state.cardFailure.value).toBe('vendor.customers.cardActions.errors.provider_unavailable')
+    expect(p.state.cardAction.value).toBe('remove')
   })
   it('hides and rejects cancellation of an unpaid renewal order', async () => {
     const p = await page('customers/[id].vue', { tab: 'subscription', subscription: { ...subscription, pending_order: { ...order, kind: 'renewal' } } })

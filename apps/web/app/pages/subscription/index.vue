@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { payPath } from '@/utils/cardPayment'
 import { dayBefore, subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { deletionErrorKey, formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, safePaymentRedirect, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
+import { deletionErrorKey, formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@liwan/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
@@ -62,9 +63,8 @@ async function convertTrial() {
   converting.value = true; convertError.value = undefined
   try {
     const result = await api.convertTrial()
-    const url = result.attempt?.redirect_url ? safePaymentRedirect(result.attempt.redirect_url, window.location.origin) : null
-    if (url) { window.location.assign(url); return }
-    if (result.order) { await navigateTo({ path: '/subscription/status', query: { order: result.order.id } }); return }
+    // A conversion with an invoice to pay opens the pay page; one with nothing due, or still being prepared, reads on the status page.
+    if (result.order) { await navigateTo(result.order.payment_state === 'awaiting_payment' ? payPath(result.order.id) : { path: '/subscription/status', query: { order: result.order.id } }); return }
     convertError.value = t('subscription.trial.activationPending')
   } catch (cause: any) { convertError.value = t(refusalKey(refusalCode(cause)) ?? 'subscription.trial.convertFailed') } finally { converting.value = false }
 }
@@ -87,6 +87,15 @@ async function changeDeletion(action: 'request' | 'confirm' | 'withdraw', input?
     else await api.withdrawDeletion()
     await refresh()
   } catch (cause) { deletionError.value = t(deletionErrorKey(refusalCode(cause))) } finally { deletionBusy.value = false }
+}
+const removeBusy = ref(false); const removeFailure = ref<'not_removed' | 'failed' | null>(null)
+// The provider could not delete the card (503): the card is still saved and renewals still charge it.
+async function removeCard() {
+  const card = data.value?.sub?.auto_renew.payment_method
+  if (!hydrated.value || removeBusy.value || !can('subscription.manage') || !card) return
+  removeBusy.value = true; removeFailure.value = null
+  try { await api.removeCard(card.id); await refresh() }
+  catch (cause: any) { removeFailure.value = (cause?.statusCode ?? cause?.status) === 503 || refusalCode(cause) === 'provider_unavailable' ? 'not_removed' : 'failed' } finally { removeBusy.value = false }
 }
 const arBusy = ref(false); const arError = ref<unknown>(null)
 async function setAutoRenew(enabled: boolean) {
@@ -173,7 +182,7 @@ definePageMeta({ middleware: 'customer-commercial' })
             :pending="cancelBusy" :hydrated="hydrated" :error="cancelError" @cancel="changeCancellation('cancel', $event)" @resume="changeCancellation('resume')" />
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.paymentMethod.title')" data-testid="payment-method">
-          <SubscriptionPaymentMethodPanel :card="data.sub.auto_renew.payment_method" :auto-renew="data.sub.auto_renew.enabled">
+          <SubscriptionPaymentMethodPanel :card="data.sub.auto_renew.payment_method" :auto-renew="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="removeBusy" :hydrated="hydrated" :remove-failure="removeFailure" @remove="removeCard">
             <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :needs-card="!data.sub.auto_renew.payment_method" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
             <UAlert v-if="arError" color="error" variant="subtle" :title="t('errors.generic')" />
           </SubscriptionPaymentMethodPanel>

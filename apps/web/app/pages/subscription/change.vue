@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { payPath } from '@/utils/cardPayment'
 import type { Quote } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { fitStorageMb, hasTrialPreview, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics, storageOptions, storageUnlisted, trialBundleNames, trialEndActions, usersOverCap } from '@/utils/subscription'
+import { fitStorageMb, hasTrialPreview, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, sameQuoteEconomics, storageOptions, storageUnlisted, trialBundleNames, trialEndActions, usersOverCap } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
@@ -163,13 +164,9 @@ async function accept() {
     const action = safeIdemAction('change', sub?.id ?? '', sub?.revision ?? 0, JSON.stringify(value))
     const { order } = await api.accept(action, { quote_id: fresh.id, expected_subscription_revision: sub?.revision ?? 0 })
     redirecting.value = true
-    if (order.payment_state === 'awaiting_payment') {
-      const attempt = await api.payment(order.id, action)
-      const url = safePaymentRedirect(attempt.redirect_url, window.location.origin)
-      if (url) { window.location.assign(url); return }
-    }
     api.done(action)
-    await navigateTo({ path: '/subscription/status', query: { order: order.id } })
+    // An unpaid order is paid on its own page, which opens the card form; a paid or free one goes straight to its status.
+    await navigateTo(order.payment_state === 'awaiting_payment' ? payPath(order.id) : { path: '/subscription/status', query: { order: order.id } })
   } catch (cause: any) {
     redirecting.value = false
     const key = refusalKey(refusalCode(cause))

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
   customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason,
-  type VendorCustomer, type VendorInvoice, adminLoginErrorKey, deletionErrorKey,
+  type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { sar } from '../vendorCommercial'
@@ -172,6 +172,14 @@ describe('deletionErrorKey', () => {
   it('names the closed window and leaves every other failure to the shared message', () => {
     expect(deletionErrorKey({ status: 409, data: { code: 'deletion_due' } })).toBe('vendor.customers.deletion.errors.deletion_due')
     expect(deletionErrorKey({ status: 404, data: { code: 'not_found' } })).toBe('vendor.pricing.errors.not_found')
+  })
+})
+
+describe('cardActionErrorKey', () => {
+  it('says the card stays when the provider cannot delete it, and falls back to the shared message otherwise', () => {
+    expect(cardActionErrorKey({ status: 503, data: { code: 'provider_unavailable' } })).toBe('vendor.customers.cardActions.errors.provider_unavailable')
+    expect(cardActionErrorKey({ status: 409, data: { code: 'provider_mismatch' } })).toBe('vendor.customers.cardActions.errors.provider_mismatch')
+    expect(cardActionErrorKey({ status: 403, data: { code: 'step_up_required' } })).toBe('vendor.pricing.errors.step_up_required')
   })
 })
 

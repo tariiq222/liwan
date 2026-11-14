@@ -271,6 +271,12 @@ export function renewalErrorKey(cause: unknown): string {
     ? `vendor.customers.renewalCancel.errors.${code}` : commercialErrorKey(cause)
 }
 
+/** Removing the card or stopping automatic renewal: a card the provider could not delete stays on file, and a mismatched provider is refused; anything else falls back to the shared message. */
+export function cardActionErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return ['provider_unavailable', 'provider_mismatch'].includes(code) ? `vendor.customers.cardActions.errors.${code}` : commercialErrorKey(cause)
+}
+
 /** What changing the address on record did. */
 export type AdminLoginChange = { admin_login: string; previous_admin_login: string | null; deletion_code_invalidated: boolean }
 /** What a change would meet, without making it: other customers that already hold the address (nothing forbids it, but "find my workspace" lists all their workspaces to that mailbox). */

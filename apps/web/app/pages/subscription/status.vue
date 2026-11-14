@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
-import { orderOutcome, safePaymentRedirect, subscriptionStateBadge } from '@/utils/subscription'
+import { clearPaymentStarted, payPath, paymentWasStarted } from '@/utils/cardPayment'
+import { orderOutcome, subscriptionStateBadge } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
@@ -47,17 +48,16 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(timer))
 const OUTCOME_COLOR = { applied: 'success', processing: 'info', recovering: 'info', awaiting_payment: 'warning', cancelled: 'neutral', activation_failed: 'error', refund: 'error' } as const
-const payBusy = ref(false); const payError = ref<string | undefined>()
-async function continuePayment() {
-  if (!hydrated.value || !canRetry.value || !order.value || payBusy.value) return
-  payBusy.value = true; payError.value = undefined
-  try {
-    const attempt = await api.payment(order.value.id, `status:${order.value.id}`)
-    const url = safePaymentRedirect(attempt.redirect_url, window.location.origin)
-    if (url) window.location.assign(url)
-    else payError.value = t('subscription.status.paymentFailed')
-  } catch { payError.value = t('subscription.status.paymentFailed') } finally { payBusy.value = false }
+// This tab opened the card form for the order and the order is still unpaid: the payment did not go through (declined, or the
+// bank's check was not finished). Nothing was charged and the order stays payable; the pay page takes another card.
+const cameBackUnpaid = ref(false)
+function readPaymentStarted() {
+  if (!orderId.value || !import.meta.client) { cameBackUnpaid.value = false; return }
+  if (outcome.value && outcome.value !== 'awaiting_payment') clearPaymentStarted(window.sessionStorage, orderId.value)
+  cameBackUnpaid.value = outcome.value === 'awaiting_payment' && paymentWasStarted(window.sessionStorage, orderId.value)
 }
+onMounted(readPaymentStarted)
+watch(outcome, readPaymentStarted)
 // Owner decision 2026-10-29: a customer cancels only its own unpaid first order.
 const canCancel = computed(() => outcome.value === 'awaiting_payment' && order.value?.kind === 'new' && can('subscription.manage'))
 const cancelOpen = ref(false); const cancelReason = ref(''); const cancelBusy = ref(false); const cancelError = ref<string | undefined>()
@@ -79,9 +79,9 @@ definePageMeta({ middleware: 'customer-commercial' })
         <template #actions><SharedStatusBadge v-if="display" data-slot="subscription-state" :data-state="display" :tone="subscriptionStateBadge(display).tone" :label="t(subscriptionStateBadge(display).labelKey)" /></template>
         <div class="space-y-4">
           <UAlert
-            v-if="order && outcome" data-testid="order-outcome" :data-outcome="outcome" variant="subtle"
-            :color="OUTCOME_COLOR[outcome]"
-            :title="t(`subscription.status.outcomes.${outcome}.title`)" :description="t(`subscription.status.outcomes.${outcome}.description`)"
+            v-if="order && outcome" data-testid="order-outcome" :data-outcome="cameBackUnpaid ? 'not_completed' : outcome" variant="subtle"
+            :color="cameBackUnpaid ? 'warning' : OUTCOME_COLOR[outcome]"
+            :title="t(cameBackUnpaid ? 'subscription.status.notCompleted.title' : `subscription.status.outcomes.${outcome}.title`)" :description="t(cameBackUnpaid ? 'subscription.status.notCompleted.description' : `subscription.status.outcomes.${outcome}.description`)"
           />
           <SharedPropertiesPanel v-if="order && outcome !== 'applied'" data-testid="order-status">
             <SharedPropertyRow :label="t('subscription.status.payment')" :value="t(`subscription.status.payments.${order.payment_state}`)" />
@@ -90,14 +90,13 @@ definePageMeta({ middleware: 'customer-commercial' })
           <UAlert v-else-if="readFailed" color="error" variant="subtle" role="alert" data-testid="order-read-error" :title="t('subscription.status.readError')" />
           <p v-else-if="settled" class="text-sm text-muted" role="status" data-testid="order-settled">{{ t('subscription.status.settled') }}</p>
           <p v-else class="text-sm text-muted" role="status" data-testid="order-empty">{{ t('subscription.status.empty') }}</p>
-          <UAlert v-if="payError" color="error" variant="subtle" role="alert" :title="payError" />
           <SharedInlineConfirm v-if="canCancel && cancelOpen" :title="t('subscription.status.cancel.title')" :description="t('subscription.status.cancel.description')" :confirm-label="t('subscription.status.cancel.action')" :pending="cancelBusy" :disabled="!hydrated || cancelBusy || !validReason" @confirm="cancelFirstOrder" @cancel="cancelOpen = false">
             <UFormField :label="t('subscription.status.cancel.reason')" required class="mt-3"><UTextarea v-model="cancelReason" :maxlength="1000" :disabled="!hydrated || cancelBusy" class="w-full" /></UFormField>
           </SharedInlineConfirm>
           <UAlert v-if="cancelError" color="error" variant="subtle" role="alert" :title="cancelError" />
           <div class="flex flex-wrap gap-2">
             <UButton v-if="canCancel && !cancelOpen" color="error" variant="outline" :disabled="!hydrated" @click="cancelOpen = true">{{ t('subscription.status.cancel.action') }}</UButton>
-            <UButton v-if="canRetry" :disabled="!hydrated || payBusy" :loading="payBusy" @click="continuePayment">{{ t('subscription.status.retryPayment') }}</UButton>
+            <UButton v-if="canRetry && order" :to="payPath(order.id)" data-testid="pay-order">{{ t(cameBackUnpaid ? 'subscription.status.tryAnotherCard' : 'subscription.status.retryPayment') }}</UButton>
             <UButton v-if="!order || outcome === 'applied' || outcome === 'cancelled' || outcome === 'activation_failed' || outcome === 'refund'" to="/subscription" color="neutral" variant="outline">{{ t('subscription.status.viewSubscription') }}</UButton>
             <UButton color="neutral" variant="outline" :disabled="!hydrated" @click="refresh()">{{ t('subscription.status.refresh') }}</UButton>
           </div>

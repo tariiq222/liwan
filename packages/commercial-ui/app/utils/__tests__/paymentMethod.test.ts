@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { cardExpired, cardExpiryLabel, maskedCardNumber, savedCardState } from '../paymentMethod'
+import { cardExpiryLabel, maskedCardNumber, savedCardState } from '../paymentMethod'
 
 const card = { brand: 'visa', last_four: '4242', exp_month: 3, exp_year: 2028, status: 'active' }
 
 describe('saved card display', () => {
   it('stays valid through the last day of the expiry month in Riyadh time', () => {
     // 2028-03-31 23:59 in Riyadh is 20:59 UTC; the card still works.
-    expect(cardExpired(card, new Date('2028-03-31T20:59:00Z'))).toBe(false)
+    expect(savedCardState(card, new Date('2028-03-31T20:59:00Z'))).toBe('active')
     // 2028-04-01 00:00 in Riyadh is 2028-03-31 21:00 UTC; the card is expired.
-    expect(cardExpired(card, new Date('2028-03-31T21:00:00Z'))).toBe(true)
+    expect(savedCardState(card, new Date('2028-03-31T21:00:00Z'))).toBe('expired')
   })
   it('rolls December over to January of the next year', () => {
-    const december = { exp_month: 12, exp_year: 2026 }
-    expect(cardExpired(december, new Date('2026-12-31T20:59:59Z'))).toBe(false)
-    expect(cardExpired(december, new Date('2026-12-31T21:00:00Z'))).toBe(true)
+    const december = { ...card, exp_month: 12, exp_year: 2026 }
+    expect(savedCardState(december, new Date('2026-12-31T20:59:59Z'))).toBe('active')
+    expect(savedCardState(december, new Date('2026-12-31T21:00:00Z'))).toBe('expired')
   })
   it('reports expired before inactive, and inactive for any non-active status', () => {
     const now = new Date('2027-01-01T00:00:00Z')

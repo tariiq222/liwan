@@ -36,6 +36,7 @@ const order = computed(() => props.subscription.pending_order)
       <SharedPropertyRow v-if="subscription.grace_ends_at" :label="t('vendor.customers.sub.graceEnds')" :value="date(subscription.grace_ends_at)" />
       <slot />
     </SharedPropertiesPanel>
+    <slot name="card-actions" />
     <UAlert v-if="status !== 'applied_only' && status !== 'none'" :color="status === 'target_failed' ? 'error' : 'info'" variant="subtle" :ui="{ title: 'text-default', description: 'text-default' }" :title="t(`vendor.customers.target.${status}`)" :description="t(`vendor.customers.target.${status}Hint`)" />
     <section v-if="order" class="space-y-3 rounded-control p-4 ring ring-default" aria-labelledby="pending-order-title" data-slot="pending-order">
       <div class="flex flex-wrap items-center justify-between gap-2">

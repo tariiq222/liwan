@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import DeleteWorkspacePanel from '../../app/components/subscription/DeleteWorkspacePanel.vue'
 import { storyContext } from '../support/context'
-const meta = { title: 'Subscription/DeleteWorkspacePanel', component: DeleteWorkspacePanel, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/index.vue:179') },
+const meta = { title: 'Subscription/DeleteWorkspacePanel', component: DeleteWorkspacePanel, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/index.vue:191') },
   args: { deletion: null, hydrated: true } } satisfies Meta<typeof DeleteWorkspacePanel>
 export default meta
 type Story = StoryObj<typeof meta>

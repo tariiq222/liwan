@@ -2,9 +2,10 @@ import { computed, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useCustomerCapabilities } from '../useSubscription'
 
-// Plain vitest has no `@` alias: point the composable's two alias imports at their real files.
+// Plain vitest has no `@` alias: point the composable's alias imports at their real files.
 vi.mock('@/utils/customerCapabilities', async () => import('../../utils/customerCapabilities'))
 vi.mock('@/utils/subscription', async () => import('../../utils/subscription'))
+vi.mock('@/utils/cardPayment', async () => import('../../utils/cardPayment'))
 
 const withMe = (me: Record<string, unknown>) => {
   vi.stubGlobal('computed', computed)

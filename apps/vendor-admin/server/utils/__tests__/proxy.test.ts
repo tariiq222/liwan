@@ -165,6 +165,23 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the saved-card actions as a POST only, and refuses their near misses', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await post('/commercial/subscriptions/s-1/payment-methods/pm-1/remove')).status).toBe(200)
+    expect((await post('/commercial/subscriptions/s-1/disable-auto-renew')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual([
+      'POST /v1/commercial/subscriptions/s-1/payment-methods/pm-1/remove',
+      'POST /v1/commercial/subscriptions/s-1/disable-auto-renew',
+    ])
+    const forwarded = calls.length
+    expect((await get('/commercial/subscriptions/s-1/disable-auto-renew')).status).toBe(405)
+    expect((await get('/commercial/subscriptions/s-1/payment-methods/pm-1/remove')).status).toBe(405)
+    for (const path of ['/commercial/subscriptions/s-1/payment-methods', '/commercial/subscriptions/s-1/payment-methods/pm-1', '/commercial/subscriptions/s-1/payment-methods/pm-1/remove/x', '/commercial/subscriptions/s-1/disable-auto-renew/x']) {
+      expect((await post(path)).status, path).toBe(404)
+    }
+    expect(calls).toHaveLength(forwarded)
+  })
+
   it('forwards the customer refund request, as a POST only', async () => {
     // A2: the paid-invoice page offers «طلب استرداد». Without this entry the BFF answered its own 404 and a customer who
     // asked for their money back inside the window could never be refunded from the console.

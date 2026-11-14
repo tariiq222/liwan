@@ -110,3 +110,22 @@ test('only the sign-up and find-workspace pages may load Cloudflare Turnstile, a
   }
   for (const path of ['/register-other', '/find-workspace-other', '/login', '/find-workspace/x']) assert.equal(applyDocumentHeaders({}, path)['content-security-policy'], DOCUMENT_SECURITY_HEADERS['content-security-policy'])
 })
+
+test('only the card payment page may call the payment provider API, and only through connect-src', () => {
+  const origin = 'https://api.moyasar.com'
+  const base = DOCUMENT_SECURITY_HEADERS['content-security-policy']
+  assert.ok(!base.includes('moyasar'))
+  for (const path of ['/subscription/pay/6f1c9c52-0a3e-4a43-9d3e-2f6f1f9a0b11', '/subscription/pay/6f1c9c52-0a3e-4a43-9d3e-2f6f1f9a0b11/', '/subscription/pay/abc?x=1']) {
+    const policy = applyDocumentHeaders({}, path)['content-security-policy']
+    const directives = Object.fromEntries(policy.split('; ').map(d => [d.split(' ')[0], d.split(' ').slice(1)]))
+    assert.deepEqual(directives['connect-src'], ["'self'", origin, 'wss:'])
+    assert.deepEqual(directives['frame-src'], ["'none'"])
+    assert.deepEqual(directives['script-src'], ["'self'", "'unsafe-inline'"])
+    assert.ok(!policy.includes('appsignal'))
+    // Nothing else changed: the pay policy is the default one with that one origin added.
+    assert.equal(policy.replace(` ${origin}`, ''), base)
+  }
+  for (const path of ['/subscription', '/subscription/pay', '/subscription/pay/', '/subscription/pay/a/b', '/subscription/status', '/subscription/invoices/x', '/register']) {
+    assert.ok(!applyDocumentHeaders({}, path)['content-security-policy'].includes(origin), path)
+  }
+})

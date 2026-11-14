@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CARD_CONSENT_KEY } from '@/utils/cardPayment'
 const props = defineProps<{ enabled: boolean; canManage: boolean; pending?: boolean; hydrated?: boolean; needsCard?: boolean }>()
 const emit = defineEmits<{ change: [enabled: boolean] }>()
 const { t } = useI18n()
@@ -13,7 +14,7 @@ const consent = ref(false)
       <p class="text-sm text-muted" data-slot="needs-card">{{ t('subscription.autoRenew.needsCard') }}</p>
     </template>
     <template v-else-if="!enabled">
-      <UCheckbox v-model="consent" :label="t('subscription.autoRenew.consent')" :disabled="hydrated === false" />
+      <UCheckbox v-model="consent" :label="t(CARD_CONSENT_KEY)" :disabled="hydrated === false" />
       <UButton :disabled="!consent || pending || hydrated === false" :loading="pending" @click="emit('change', true)">{{ t('subscription.autoRenew.enable') }}</UButton>
     </template>
     <UButton v-else color="neutral" variant="outline" :disabled="pending || hydrated === false" :loading="pending" @click="emit('change', false)">{{ t('subscription.autoRenew.disable') }}</UButton>

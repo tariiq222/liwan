@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
+import { payPath } from '@/utils/cardPayment'
+import { QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('branches.manage'))
@@ -23,13 +24,9 @@ async function accept() {
   try {
     const { order } = await api.accept(action.value, { quote_id: quote.value.id, expected_subscription_revision: sub.value.revision })
     placed.value = true
-    if (order.payment_state === 'awaiting_payment') {
-      const attempt = await api.payment(order.id, action.value)
-      const url = safePaymentRedirect(attempt.redirect_url, window.location.origin)
-      if (url) { window.location.assign(url); return }
-    }
     api.done(action.value)
-    await navigateTo({ path: '/subscription/status', query: { order: order.id } })
+    // An unpaid order is paid on its own page, which opens the card form; a paid or free one goes straight to its status.
+    await navigateTo(order.payment_state === 'awaiting_payment' ? payPath(order.id) : { path: '/subscription/status', query: { order: order.id } })
   } catch (c) { failure.value = c; if ((c as any)?.statusCode === 409) quote.value = null } finally { busy.value = false }
 }
 definePageMeta({ middleware: 'customer-commercial' })

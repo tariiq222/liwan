@@ -32,8 +32,23 @@ const registerPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
   .replace("connect-src 'self'", `connect-src 'self' ${TURNSTILE_ORIGIN}`)
   .replace("frame-src 'none'", `frame-src ${TURNSTILE_ORIGIN}`)
 
+/** The card payment page (`/subscription/pay/<order>`, the only page that mounts the Moyasar card form). The form package is
+ * bundled with our own scripts and styles and its card-brand images are data URIs, so the page needs one extra origin and only
+ * for `connect-src`: the provider's API, where the form fulfils the payment intent with the publishable key. Its error reporter
+ * would call a second origin (`appsignal-endpoint.net`); that stays blocked on purpose. The 3-D Secure pages open by navigating
+ * the whole window, which no directive here governs. */
+const MOYASAR_API_ORIGIN = 'https://api.moyasar.com'
+const PAY_PATH = /^\/subscription\/pay\/[A-Za-z0-9_-]{1,128}\/?$/
+const payPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
+  .replace("connect-src 'self'", `connect-src 'self' ${MOYASAR_API_ORIGIN}`)
+
 /** The referrer policy is a default: an upstream value that is already set survives. */
 export const DEFAULT_ONLY_HEADERS = Object.freeze(new Set(['referrer-policy']))
+
+function policyFor(path, defaultPolicy) {
+  if (REGISTER_PATH.test(path)) return registerPolicy
+  return PAY_PATH.test(path) ? payPolicy : defaultPolicy
+}
 
 /** Apply the document headers to one outgoing response's header map, in place.
  * A fixed header always wins over an upstream value (`defer` on the dedicated edge);
@@ -42,7 +57,7 @@ export const DEFAULT_ONLY_HEADERS = Object.freeze(new Set(['referrer-policy']))
 export function applyDocumentHeaders(headers, path = '') {
   for (const [name, value] of Object.entries(DOCUMENT_SECURITY_HEADERS)) {
     if (DEFAULT_ONLY_HEADERS.has(name) && headers[name] !== undefined) continue
-    headers[name] = name === 'content-security-policy' && REGISTER_PATH.test(path.split('?')[0]) ? registerPolicy : value
+    headers[name] = name === 'content-security-policy' ? policyFor(path.split('?')[0], value) : value
   }
   return headers
 }

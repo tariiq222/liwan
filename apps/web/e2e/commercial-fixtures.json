@@ -110,7 +110,7 @@
         "number": "INV-0001",
         "customer_id": "cust-alpha",
         "subscription_id": "sub-alpha",
-        "order_id": null,
+        "order_id": "order-pay-1",
         "kind": "initial",
         "status": "issued",
         "currency": "SAR",
@@ -452,5 +452,32 @@
       ],
       "created_at": "2026-10-01T08:00:00.000Z"
     }
+  },
+  "payOrder": {
+    "id": "order-pay-1",
+    "kind": "new",
+    "payment_state": "awaiting_payment",
+    "fulfillment_state": "not_started",
+    "cancelled": false,
+    "due_now": {
+      "minor": 34500,
+      "currency": "SAR",
+      "exponent": 2
+    },
+    "created_at": "2026-10-01T08:00:00.000Z"
+  },
+  "payFormSession": {
+    "attempt_id": "00000000-0000-4000-8000-0000000000a1",
+    "intent": {
+      "id": "intent-stand-in-1",
+      "client_secret": "secret-stand-in-1"
+    },
+    "publishable_key": "pk_stand_in",
+    "amount": {
+      "minor": 34500,
+      "currency": "SAR",
+      "exponent": 2
+    },
+    "expires_at": "2099-01-01T00:00:00.000Z"
   }
 }

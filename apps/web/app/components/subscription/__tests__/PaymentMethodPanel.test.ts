@@ -47,6 +47,23 @@ describe('PaymentMethodPanel', () => {
     expect(html).toMatch(/<bdi dir="ltr"[^>]*>•••• 4242<\/bdi>/)
     expect(html).toMatch(/<bdi dir="ltr"[^>]*>03\/28<\/bdi>/)
   })
+  it('offers removal only to a manager of a saved card, confirms inline, and says the card stays when the provider could not delete it', async () => {
+    const stubs = { SharedStatusBadge: Badge, SharedInlineConfirm: Vue.defineComponent({ props: { title: String }, setup: p => () => Vue.h('div', { 'data-slot': 'inline-confirm' }, p.title) }) }
+    const withStubs = (props: Record<string, unknown>) => renderShared(component, props, {}, {
+      messages, modules: { '@liwan/commercial-ui/app/utils/paymentMethod': card }, stubs,
+      globals: { ref: Vue.ref, computed: Vue.computed, useI18n: () => ({ t: (key: string) => messages[key] ?? key, te: (key: string) => key in messages }) },
+    })
+    expect(await withStubs({ card: saved, autoRenew: true, now: before })).not.toContain('data-slot="remove-card"')
+    expect(await withStubs({ card: null, autoRenew: false, canManage: true })).not.toContain('data-slot="remove-card"')
+    const manager = await withStubs({ card: saved, autoRenew: true, now: before, canManage: true })
+    expect(manager).toContain('data-testid="remove-card"')
+    expect(manager).toContain(messages['subscription.paymentMethod.remove.action'])
+    const failed = await withStubs({ card: saved, autoRenew: true, now: before, canManage: true, removeFailure: 'not_removed' })
+    expect(failed).toContain('data-testid="remove-card-failed"')
+    expect(failed).toContain(messages['subscription.paymentMethod.remove.not_removed'])
+    expect(messages['subscription.paymentMethod.remove.not_removed']).toContain('NOT removed')
+    expect(messages['subscription.paymentMethod.remove.descriptionAutoRenew']).toContain('automatic renewal stops')
+  })
   it('without a card, says none is saved and that paying an invoice by card offers to save one', async () => {
     const html = await render({ card: null, autoRenew: false })
     expect(html).toContain(messages['subscription.paymentMethod.none'])

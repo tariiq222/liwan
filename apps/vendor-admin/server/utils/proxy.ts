@@ -36,7 +36,9 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
   // suspend and resume are separate actions the customer page offers; without them the console answered its own 404.
-  new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage|suspend|resume|cancel-renewal|resume-renewal))?$`),
+  new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage|suspend|resume|cancel-renewal|resume-renewal|disable-auto-renew))?$`),
+  // Removing a customer's saved card, and stopping its automatic renewal without touching the card: reason and fresh step-up, POST only.
+  new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`),
   /^\/v1\/platform\/ai-provider(\/(presets|models|test))?$/,
   /^\/v1\/admin\/(me|accounts)$/,
   /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|reset)$/,
@@ -67,6 +69,8 @@ const METHOD_BOUND = [
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion/withdraw$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`), methods: ['PATCH'] },
+  { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/disable-auto-renew$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`), methods: ['POST'] },
 ] as const
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */

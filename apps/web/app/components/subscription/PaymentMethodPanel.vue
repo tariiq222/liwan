@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { cardExpiryLabel, maskedCardNumber, savedCardState, type SavedCard } from '@liwan/commercial-ui/app/utils/paymentMethod'
-const props = defineProps<{ card: SavedCard | null; autoRenew: boolean; now?: Date }>()
+const props = defineProps<{ card: SavedCard | null; autoRenew: boolean; now?: Date; canManage?: boolean; pending?: boolean; hydrated?: boolean; removeFailure?: 'not_removed' | 'failed' | null }>()
+const emit = defineEmits<{ remove: [] }>()
+const confirming = ref(false)
+function confirmRemove() { emit('remove'); confirming.value = false }
 const { t, te } = useI18n()
 const state = computed(() => (props.card ? savedCardState(props.card, props.now ?? new Date()) : null))
 const TONE = { active: 'success', inactive: 'warning', expired: 'destructive' } as const
@@ -22,6 +25,11 @@ const hint = computed(() => (props.autoRenew ? 'subscription.paymentMethod.charg
       <p class="text-sm text-muted">{{ t('subscription.paymentMethod.noneHint') }}</p>
     </div>
     <p v-if="card" class="text-sm text-muted" data-slot="renewal-hint">{{ t(hint) }}</p>
+    <div v-if="card && canManage" class="space-y-2" data-slot="remove-card">
+      <UAlert v-if="removeFailure" color="error" variant="subtle" role="alert" data-testid="remove-card-failed" :title="t(`subscription.paymentMethod.remove.${removeFailure}`)" />
+      <SharedInlineConfirm v-if="confirming" :title="t('subscription.paymentMethod.remove.title')" :description="t(autoRenew ? 'subscription.paymentMethod.remove.descriptionAutoRenew' : 'subscription.paymentMethod.remove.description')" :confirm-label="t('subscription.paymentMethod.remove.confirm')" :pending="pending" :disabled="hydrated === false || pending" @confirm="confirmRemove" @cancel="confirming = false" />
+      <UButton v-else color="error" variant="outline" size="sm" icon="i-lucide-trash-2" data-testid="remove-card" :disabled="hydrated === false || pending" @click="confirming = true">{{ t('subscription.paymentMethod.remove.action') }}</UButton>
+    </div>
     <slot />
   </div>
 </template>

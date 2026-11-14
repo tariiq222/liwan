@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import CancelPanel from '../../app/components/subscription/CancelPanel.vue'
 import { storyContext } from '../support/context'
-const meta = { title: 'Subscription/CancelPanel', component: CancelPanel, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/index.vue:160') },
+const meta = { title: 'Subscription/CancelPanel', component: CancelPanel, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/index.vue:181') },
   args: { cancellation: null, cancellable: true, renewalOn: '2026-12-12', canManage: true } } satisfies Meta<typeof CancelPanel>
 export default meta
 type Story = StoryObj<typeof meta>

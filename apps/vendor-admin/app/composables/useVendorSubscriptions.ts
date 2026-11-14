@@ -47,6 +47,10 @@ export function useVendorSubscriptions() {
     resumeSubscription: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/resume`, { method: 'POST', body: { reason: reason.trim() } }),
     /** Stops the renewal on the customer's behalf: the paid period stays and the subscription drops to the free base on its renewal date. */
     cancelRenewal: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/cancel-renewal`, { method: 'POST', body: { reason: reason.trim() } }),
+    /** Deletes the customer's saved card at the provider first; if that fails the card stays and the control plane answers 503. Automatic renewal stops with it. */
+    removePaymentMethod: (id: string, paymentMethodId: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/payment-methods/${seg(paymentMethodId)}/remove`, { method: 'POST', body: { reason: reason.trim() } }),
+    /** Stops automatic renewal and keeps the card; the customer's next invoice is paid by hand. */
+    disableAutoRenew: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/disable-auto-renew`, { method: 'POST', body: { reason: reason.trim() } }),
     resumeRenewal: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/resume-renewal`, { method: 'POST', body: { reason: reason.trim() } }),
     /** The customer's latest workspace-deletion request (any state), or null. The customer asks for and confirms it; the console only reads it. */
     tenantDeletion: (customerId: string) => request<{ deletion: TenantDeletionRequest | null }>(`commercial/customers/${seg(customerId)}/deletion`),
