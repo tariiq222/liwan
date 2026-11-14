@@ -68,10 +68,6 @@ describe('spec 3.6 acceptance: plans flip keys and limits on a tenant with every
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.pricing.manage'] }
   const reason = 'Phase 3 acceptance'
   const solution = JSON.parse(readFileSync(`${repo}deploy/catalog/solutions/platform_v4.json`, 'utf8'))
-  // The production release sells CRM and Inbox. Make PMO and HR selectable in this fixture.
-  for (const tier of solution.tiers) {
-    if (tier.id === 'projects' || tier.id === 'people') tier.sellable = true
-  }
   // A tier must list modules (the parser refuses none). liwan_directory is a real release module (already in the
   // install closure of messaging/projects), so the effect accepts it and installs nothing extra.
   solution.tiers.push({ id: 'probe', name: 'Probe', description: 'Registry probe (acceptance only).', sellable: true, modules: ['liwan_directory'], features: ['boolean:probe.enabled'] })

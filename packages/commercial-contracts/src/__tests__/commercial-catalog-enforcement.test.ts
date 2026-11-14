@@ -29,9 +29,17 @@ describe('catalog enforcement references', () => {
     const v4Solution = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url), 'utf8'))
     const apps = catalogApplicationsFromSolution(v4Solution, 'v1')
     const core = apps.find(app => app.id === 'core')
-    expect(core?.modules).toEqual(['liwan_ai', 'liwan_api', 'liwan_chat', 'liwan_core', 'liwan_documents', 'liwan_meetings', 'liwan_operations', 'liwan_payments', 'liwan_platform', 'liwan_tasks'])
+    expect(core?.modules).toEqual(['liwan_ai', 'liwan_api', 'liwan_chat', 'liwan_core', 'liwan_documents', 'liwan_integrations_sa', 'liwan_meetings', 'liwan_operations', 'liwan_payments', 'liwan_platform', 'liwan_tasks'])
     expect(core?.features.filter(feature => feature.kind === 'limit').map(feature => feature.key)).toContain('ai.messages.monthly')
     expect(apps.map(app => app.id)).not.toContain('assistant')
-    expect(apps.find(app => app.id === 'projects')).toMatchObject({ name_en: 'Projects', modules: ['liwan_pmo'], sellable: false })
+    expect(apps.find(app => app.id === 'appointments')).toMatchObject({ name_en: 'Appointments', modules: ['liwan_appointments'], sellable: false })
+  })
+
+  it('names every sold application of the release in Arabic, since the seeded bundle shows that name to the customer', () => {
+    const v4Solution = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url), 'utf8'))
+    const sold = catalogApplicationsFromSolution(v4Solution, 'v1').filter(app => app.sellable)
+    expect(Object.fromEntries(sold.map(app => [app.id, app.name_ar]))).toEqual({
+      crm: 'إدارة العملاء', inbox: 'رسائل العملاء', projects: 'المشاريع', people: 'الموارد البشرية', finance: 'المالية',
+    })
   })
 })
