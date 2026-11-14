@@ -2,7 +2,7 @@
 const STATIC_FAMILIES = new Set([
   'canned-replies', 'tags', 'agents', 'settings', 'departments', 'channel-ref',
   'campaign-channels', 'campaign-settings', 'automation-channels', 'working-hours', 'automation', 'rules',
-  'catalogs', 'catalog', 'catalog-items', 'catalog-item', 'catalog-products', 'channel-commerce', 'catalog-pick',
+  'catalogs', 'catalog', 'catalog-items', 'catalog-item', 'channel-commerce', 'catalog-pick',
 ])
 
 function matchesOrUnknown(ids: ReadonlySet<number>, relation: unknown): boolean {

@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { TagSchema } from '@liwan/contracts'
+import { productPicks } from '../fixtures/products'
 import { charterDefaults, charterOwningUnits, charterTypes, me, people, projectCreateDefaults, projectDetail, projectRefs, tags, taskDetail } from '../fixtures/pmo'
 
 const contains = (value: string, request: Request) => value.includes(new URL(request.url).searchParams.get('q') ?? '')
@@ -7,6 +8,10 @@ const contains = (value: string, request: Request) => value.includes(new URL(req
 export const apiHandlers = [
   http.get('/api/v1/me', () => HttpResponse.json(me)),
   http.get('/api/v1/people', ({ request }) => HttpResponse.json(people.filter(person => contains(person.name, request)))),
+  http.get('/api/v1/products/pick', ({ request }) => {
+    const items = productPicks.filter(product => contains(product.name, request))
+    return HttpResponse.json({ items, total: items.length })
+  }),
   http.get('/api/v1/projects', () => HttpResponse.json(projectRefs)),
   http.get('/api/v1/projects/:id', () => HttpResponse.json(projectDetail)),
   http.get('/api/v1/reports/projects/summary', () => HttpResponse.json({

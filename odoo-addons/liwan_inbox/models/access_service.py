@@ -1,6 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from odoo.addons.liwan_products.models.access_service import (
+    PRODUCTS_MANAGE,
+    PRODUCTS_PRICES_MANAGE,
+    PRODUCTS_READ,
+)
+
 READ = 'inbox.conversations.read'
 REPLY = 'inbox.conversations.reply'
 ASSIGN = 'inbox.conversations.assign'
@@ -25,11 +31,14 @@ PERMISSION_DEPENDENCIES = {
 }
 # Vendor support runs the channels and the settings, and never reads the customers' conversations (owner decision 2026-10-29, INB-18).
 VENDOR_SUPPORT_PERMISSIONS = frozenset({MANAGE_CHANNELS, MANAGE_SETTINGS})
+# The manager creates and prices the products its catalog lists, through the shared products service (plan D4, option A);
+# built-in roles list their dependencies themselves, so the read capability the two writes require is granted too.
+PRODUCT_GRANTS = frozenset({PRODUCTS_READ, PRODUCTS_MANAGE, PRODUCTS_PRICES_MANAGE})
 # Customer messages are sensitive: the base employee role gets none of them.
 ROLE_GRANTS = {
     'liwan_inbox.role_inbox_agent': frozenset({READ, REPLY}),
     'liwan_inbox.role_inbox_supervisor': frozenset({READ, REPLY, ASSIGN, EXPORT, REPORTS_READ}),
-    'liwan_inbox.role_inbox_manager': PERMISSIONS,
+    'liwan_inbox.role_inbox_manager': PERMISSIONS | PRODUCT_GRANTS,
     'liwan_core.role_vendor_support': VENDOR_SUPPORT_PERMISSIONS,
 }
 

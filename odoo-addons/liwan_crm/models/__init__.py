@@ -17,7 +17,7 @@ from . import (
     notification_types,
     phonecall,
     privacy_hooks,
-    product_template,
+    products_service,
     res_company,
     res_users,
     rotation,

@@ -17,18 +17,21 @@ const DepositPercentSchema = z.number().int().min(APPOINTMENT_DEPOSIT_PERCENT.mi
 export const AppointmentTypePaymentSchema = z.object({
   online_payment: AppointmentOnlinePaymentSchema,
   deposit_percent: DepositPercentSchema,
-  price: z.number().positive().nullable(),
+  product_id: z.number().int().positive().nullable(),
+  // The unit price of the type's product: 0 for a linked product that was created without a price.
+  price: z.number().nonnegative().nullable(),
   currency: z.string().length(3),
   ...RefundRulesSchema.shape,
 }).strict()
 
 /**
- * PATCH body: a type takes online payment or refund rules only once it has a price (422 on `price`
- * otherwise); `refund_tiers` replaces every tier, and a `notice` policy needs one (422 on `refund_tiers`).
+ * PATCH body: `product_id` picks the product that sells the type, `price` is its unit price as typed; a type takes
+ * online payment or refund rules only once it has a price (422 on `price` otherwise); `refund_tiers` replaces every tier, and a `notice` policy needs one (422 on `refund_tiers`).
  */
 export const AppointmentTypePaymentUpdateSchema = z.object({
   online_payment: AppointmentOnlinePaymentSchema.optional(),
   deposit_percent: DepositPercentSchema.optional(),
+  product_id: z.number().int().positive().optional(),
   price: z.number().positive().optional(),
   refund_policy: RefundRulesSchema.shape.refund_policy.optional(),
   refund_amounts: RefundRulesSchema.shape.refund_amounts.optional(),

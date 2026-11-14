@@ -385,15 +385,17 @@ class TestCrmImport(LiwanCrmCase):
         self.assertEqual(sara.liwan_final_price, 0.0)
         self.assertFalse(self.lead_of('+966501112222').liwan_package_id)
 
-    def test_archived_and_foreign_packages_are_unknown(self):
+    def test_archived_foreign_and_unlisted_packages_are_unknown(self):
         archived = self.make_package(name='Retired')
         archived.active = False
-        foreign = self.env['product.template'].create({
-            'name': 'Foreign', 'liwan_crm_package': True, 'company_id': self.other_company.id,
-        })
-        content = f'Name,Phone,Package\nSara,0501234567,{archived.name}\nOmar,0507654321,{foreign.name}\n'.encode()
+        foreign = self.make_package(name='Foreign', company=self.other_company)
+        unlisted = self.env['product.template'].create({'name': 'Unlisted', 'liwan_product': True})
+        content = (
+            f'Name,Phone,Package\nSara,0501234567,{archived.name}\nOmar,0507654321,{foreign.name}\n'
+            f'Huda,0501112222,{unlisted.name}\n'
+        ).encode()
         body = self.preview(content, mapping={'name': 'Name', 'phone': 'Phone', 'package': 'Package'}).json()
-        self.assertEqual(body['invalid'], 2)
+        self.assertEqual(body['invalid'], 3)
 
     def test_mapped_column_missing_from_the_file_is_refused(self):
         response = self.preview(csv_bytes('Sara,0501234567'), mapping={'name': 'Name', 'phone': 'Mobile'})

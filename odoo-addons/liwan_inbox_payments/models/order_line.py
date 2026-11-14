@@ -33,4 +33,4 @@ class LiwanInboxOrderLine(models.Model):
     def _liwan_unit_price(self):
         """The price the catalog shows for this line now, or None for a line without a catalog item."""
         self.ensure_one()
-        return self.catalog_item_id._liwan_price() if self.catalog_item_id else None
+        return self.catalog_item_id.price if self.catalog_item_id else None

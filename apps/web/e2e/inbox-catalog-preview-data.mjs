@@ -3,6 +3,8 @@
 // shaped like packages/contracts/src/inbox/catalog.ts; app/composables/inbox/__tests__/inboxMockContract.test.ts parses
 // them with the contract schemas, so the mock cannot drift from the wire shape.
 
+import { findMockProduct } from './products-mock-routes.mjs'
+
 const HOUR = 3_600_000
 const iso = ms => new Date(Math.floor(ms / 1000) * 1000).toISOString().replace('.000Z', 'Z')
 const ago = hours => iso(Date.now() - hours * HOUR)
@@ -10,11 +12,10 @@ const META_ID = /^\d{5,32}$/
 const RETAILER_ID = /^[A-Za-z0-9._-]{1,100}$/
 const VAT = 1.15
 const DEFAULT_COMMERCE = { cart_enabled: true, catalog_visible: false, paid_notice_enabled: true, paid_notice_text: 'تم استلام دفعتك لطلب {reference}. شكرًا لك' }
-const IMAGE_MIN = 500
-const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 const DEFAULT_LINK = 'https://wa.me/966112345678'
-// Products the "existing product" tab can list: id -> { name, price, hasImage }.
-const PRODUCTS = { 201: ['شاي أخضر', 22, true], 202: ['عسل سدر', 160, true], 203: ['ميزان مطبخ', 75, true], 204: ['منتج بلا صورة', 10, false] }
+// An item lists a product of the products service (products-mock-routes.mjs, the ids of its pick list); Meta needs an
+// image, so the server refuses the products listed here.
+const NO_IMAGE = new Set([204])
 
 const ok = body => ({ status: 200, body })
 const fail = (status, code, message, field) => ({ status, body: { code, message, ...(field ? { field } : {}) } })
@@ -56,7 +57,7 @@ export function seedCatalog() {
     parties: new Set([7, 41, 42]),
     // Item id -> when it was queued for Meta; the push cron is simulated by settleItems.
     queued: new Map(),
-    ids: { catalog: 2, item: 7, order: 1, line: 1, reference: 12, product: 300 },
+    ids: { catalog: 2, item: 7, order: 1, line: 1, reference: 12 },
   }
 }
 
@@ -100,48 +101,19 @@ const queue = (state, item) => {
 
 const pickable = state => state.catalog.items.filter(item => item.listed && item.sync_state === 'synced' && item.review_status !== 'rejected')
 
-// ---------------------------------------------------------------- image check (PNG and JPEG headers)
-
-function imageSize(bytes) {
-  if (bytes.length > 24 && bytes[0] === 0x89 && bytes[1] === 0x50) return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) }
-  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
-    let offset = 2
-    while (offset + 9 < bytes.length) {
-      if (bytes[offset] !== 0xff) return null
-      const marker = bytes[offset + 1]
-      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return { height: bytes.readUInt16BE(offset + 5), width: bytes.readUInt16BE(offset + 7) }
-      offset += 2 + bytes.readUInt16BE(offset + 2)
-    }
-  }
-  return null
-}
-
-function imageProblem(upload) {
-  if (!upload || !['image/jpeg', 'image/png'].includes(upload.mimetype) || !upload.data) return 'الصورة يجب أن تكون JPEG أو PNG'
-  const bytes = Buffer.from(upload.data, 'base64')
-  if (bytes.length > IMAGE_MAX_BYTES) return 'الصورة أكبر من 5 ميغابايت'
-  const size = imageSize(bytes)
-  if (!size || size.width < IMAGE_MIN || size.height < IMAGE_MIN) return 'الصورة أصغر من 500×500'
-  return null
-}
-
 // ---------------------------------------------------------------- items
 
+const CREATE_FIELDS = new Set(['product_id', 'product_retailer_id', 'availability', 'listed', 'link_override'])
+
 function createItem(state, catalog, body) {
-  let product
-  if ('product_id' in body) {
-    const known = PRODUCTS[body.product_id]
-    if (!known) return fail(422, 'invalid', 'المنتج غير موجود', 'product_id')
-    if (!known[2]) return fail(422, 'invalid', 'المنتج بلا صورة، أضف صورة قبل إدراجه', 'product_id')
-    if (state.catalog.items.some(item => item.catalog_id === catalog.id && item.product.id === body.product_id)) return fail(409, 'conflict', 'المنتج مدرج في الكتالوج')
-    product = { id: body.product_id, name: known[0], listPrice: known[1], description: known[0] }
-  } else {
-    const input = body.product ?? {}
-    if (!String(input.name ?? '').trim()) return fail(422, 'invalid', 'اسم المنتج مطلوب', 'product.name')
-    const problem = imageProblem(input.image)
-    if (problem) return fail(422, 'invalid', problem, 'product.image')
-    product = { id: state.catalog.ids.product++, name: input.name.trim(), listPrice: input.list_price ?? 0, description: input.description ?? input.name.trim() }
-  }
+  const unknown = Object.keys(body).find(key => !CREATE_FIELDS.has(key))
+  if (unknown) return fail(422, 'invalid', 'field is not writable', unknown)
+  if (!Number.isInteger(body.product_id)) return fail(422, 'invalid', 'product_id is required', 'product_id')
+  const known = findMockProduct(body.product_id)
+  if (!known) return fail(404, 'not_found', 'Record does not exist')
+  if (NO_IMAGE.has(known.id)) return fail(422, 'invalid', 'المنتج بلا صورة، أضف صورة قبل إدراجه', 'product_id')
+  if (state.catalog.items.some(item => item.catalog_id === catalog.id && item.product.id === known.id)) return fail(409, 'conflict', 'المنتج مدرج في الكتالوج', 'product_id')
+  const product = { id: known.id, name: known.name, listPrice: known.unit_price, description: known.name }
   const retailerId = body.product_retailer_id ?? `wv-${product.id}`
   if (!RETAILER_ID.test(retailerId)) return fail(422, 'invalid', 'معرّف المنتج غير صحيح', 'product_retailer_id')
   if (state.catalog.items.some(item => item.catalog_id === catalog.id && item.product_retailer_id === retailerId)) return fail(409, 'conflict', 'معرّف المنتج مستخدم', 'product_retailer_id')
@@ -155,18 +127,15 @@ function createItem(state, catalog, body) {
   return { status: 201, body: itemOut(state, created) }
 }
 
+const PATCH_FIELDS = new Set(['product_retailer_id', 'availability', 'listed', 'link_override'])
+
 function patchItem(state, item, body) {
+  const unknown = Object.keys(body).find(key => !PATCH_FIELDS.has(key))
+  if (unknown) return fail(422, 'invalid', 'field is not writable', unknown)
   if ('product_retailer_id' in body && body.product_retailer_id !== item.product_retailer_id) {
     if (item.last_synced_at) return fail(422, 'invalid', 'لا يتغير معرّف المنتج بعد المزامنة', 'product_retailer_id')
     if (!RETAILER_ID.test(body.product_retailer_id)) return fail(422, 'invalid', 'معرّف المنتج غير صحيح', 'product_retailer_id')
     item.product_retailer_id = body.product_retailer_id
-  }
-  if (body.product) {
-    if (item.product.id < 300) return fail(422, 'invalid', 'يُعدَّل المنتج الذي أنشأه المحرر هنا فقط', 'product')
-    if (body.product.image && imageProblem(body.product.image)) return fail(422, 'invalid', imageProblem(body.product.image), 'product.image')
-    if ('name' in body.product) { item.name = body.product.name; item.product = { ...item.product, name: body.product.name } }
-    if ('description' in body.product) item.description = body.product.description ?? item.name
-    if ('list_price' in body.product) item.list_price = body.product.list_price
   }
   for (const key of ['availability', 'listed', 'link_override']) if (key in body) item[key] = body[key]
   queue(state, item)
@@ -217,15 +186,6 @@ function catalogRoute(state, method, parts, url, body) {
   if (parts[5] === 'items') {
     if (method === 'GET') return itemList(state, catalog, url)
     return method === 'POST' ? createItem(state, catalog, body) : undefined
-  }
-  if (parts[5] === 'products' && method === 'GET') {
-    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
-    const options = Object.entries(PRODUCTS)
-      .filter(([, [name]]) => !q || name.toLowerCase().includes(q))
-      .map(([id, [name, price, hasImage]]) => ({ id: Number(id), name, list_price: price, currency: 'SAR', has_image: hasImage, listed: state.catalog.items.some(item => item.catalog_id === catalog.id && item.product.id === Number(id)) }))
-    const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
-    const limit = Math.max(1, Number(url.searchParams.get('limit') ?? 50) || 50)
-    return ok({ items: options.slice(offset, offset + limit), total: options.length })
   }
   if (parts[5] === 'sync' && method === 'POST') {
     for (const item of state.catalog.items) if (item.catalog_id === id && item.listed && item.sync_state !== 'error') queue(state, item)

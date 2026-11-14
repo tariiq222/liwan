@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import fields, models
+from odoo import models
 
 # The product fields that change what Meta shows; a change resyncs the product's catalog items.
 WATCHED = frozenset({
@@ -11,9 +11,6 @@ IMAGE_FIELDS = frozenset({'image_1920', 'image_variant_1920'})
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
-
-    # Set on products made by the catalog editor: it edits only those.
-    liwan_inbox_catalog = fields.Boolean(copy=False)
 
     def write(self, vals):
         result = super().write(vals)

@@ -65,6 +65,7 @@ class LiwanInboxCatalogItem(models.Model):
     name = fields.Char(compute='_compute_content')
     description = fields.Char(compute='_compute_content')
     price = fields.Float(compute='_compute_price', digits=(16, 2))
+    unit_price = fields.Float(compute='_compute_price', digits=(16, 2))
     currency = fields.Char(compute='_compute_price')
     link = fields.Char(compute='_compute_link')
     image_url = fields.Char(compute='_compute_image_url')
@@ -190,28 +191,20 @@ class LiwanInboxCatalogItem(models.Model):
                  'catalog_id.company_id.liwan_establishment_vat_registered', 'catalog_id.company_id.account_price_include',
                  'catalog_id.company_id.currency_id')
     def _compute_price(self):
-        for item in self:
-            item.currency = item.catalog_id.company_id.currency_id.name
-            item.price = item._liwan_price()
+        """The price of one unit, from the products service's price function in the catalog's company.
 
-    def _liwan_price(self):
-        """The unit price the catalog shows: the total the customer pays.
-
-        An establishment that is not registered for VAT charges no tax, so its catalog prices are the typed price; the
-        registration is the establishment's one decision, stored on the root company and read through
-        ``_liwan_vat_registered()`` by the root and its branches alike. Otherwise stock decides whether the typed price
-        carries the tax: the company's ``account_price_include`` makes its taxes price-included or added on top, and
-        ``compute_all`` answers the total the customer pays either way. The taxes are the ones stock picks for the
-        company, climbing to the first ancestor that owns one: a branch catalog uses the tax its root owns.
+        ``price`` is the total the customer pays and ``unit_price`` the price as typed on the product. The function
+        answers an establishment that is not registered for VAT with no tax, and one registered with the taxes stock
+        picks for the catalog's company (a branch catalog uses its root's tax, a price-included or tax-added choice
+        follows stock). The catalog's company is always passed: this runs in crons and as staff whose session may be
+        another company's.
         """
-        self.ensure_one()
-        company = self.catalog_id.company_id
-        product = self.product_id
-        if not company._liwan_vat_registered():
-            return product.lst_price
-        taxes = product.taxes_id._filter_taxes_by_company(company)
-        totals = taxes.compute_all(product.lst_price, currency=company.currency_id, quantity=1.0, product=product)
-        return totals['total_included']
+        service = self.env['liwan.products.service']
+        for item in self:
+            price = service._liwan_price(item.product_id, company=item.catalog_id.company_id)
+            item.currency = price['currency'].name
+            item.unit_price = price['unit_price']
+            item.price = price['amount_total']
 
     @api.depends('link_override', 'catalog_id.default_link')
     def _compute_link(self):

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { InboxCatalogPickItem } from '@liwan/contracts'
-import { formatInboxMoney } from '@/composables/inbox/inboxCommerce'
+import { formatCurrency } from '@/utils/formatCurrency'
 
 // The product list of a conversation's or channel's catalog, with a search box: tap a product to pick it, tap again to
 // drop it. It only reports the tap (`toggle`); the editor that owns the draft decides where the product goes and how
@@ -35,7 +35,7 @@ const isPicked = (item: InboxCatalogPickItem) => props.picked.includes(item.prod
           <InboxProductImage :src="item.image_url" class="size-10 shrink-0 rounded-control" />
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm font-medium text-highlighted">{{ item.name }}</span>
-            <span class="block truncate text-xs text-muted"><bdi dir="ltr">{{ item.product_retailer_id }}</bdi> · {{ formatInboxMoney(item.price, item.currency, locale) }}</span>
+            <span class="block truncate text-xs text-muted"><bdi dir="ltr">{{ item.product_retailer_id }}</bdi> · {{ formatCurrency(item.price, item.currency, locale) }}</span>
           </span>
           <SharedStatusBadge v-if="item.availability === 'out_of_stock'" size="sm" tone="neutral" :label="t('inbox.catalog.availability.out_of_stock')" />
           <UIcon :name="isPicked(item) ? 'i-lucide-circle-check' : 'i-lucide-circle'" class="size-5 shrink-0" :class="isPicked(item) ? 'text-primary' : 'text-muted'" aria-hidden="true" />

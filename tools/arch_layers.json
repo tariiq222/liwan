@@ -34,6 +34,7 @@
     "liwan_integrations_sa": 3,
     "liwan_payments": 3,
     "liwan_customers": 3,
+    "liwan_products": 3,
     "liwan_documents_hr": 5,
     "liwan_access_hr": 5,
     "liwan_pmo_finance": 5,
@@ -41,6 +42,7 @@
     "liwan_appointments_payments": 5,
     "liwan_inbox_payments": 5,
     "liwan_api_account": 5,
+    "liwan_products_account": 5,
     "liwan_payments_customers": 5
   },
   "exempt": [],

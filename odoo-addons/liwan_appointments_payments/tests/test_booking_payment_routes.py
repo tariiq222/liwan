@@ -12,7 +12,7 @@ from odoo.addons.liwan_appointments_payments.serializers.booking_payment import 
 )
 
 TYPE_PAYMENT_KEYS = {
-    'online_payment', 'deposit_percent', 'price', 'currency', 'refund_policy', 'refund_amounts', 'refund_tiers',
+    'online_payment', 'deposit_percent', 'product_id', 'price', 'currency', 'refund_policy', 'refund_amounts', 'refund_tiers',
 }
 BOOKING_PAYMENT_KEYS = {
     'status', 'needs_attention', 'currency', 'amount_total', 'amount_due', 'amount_received', 'amount_to_refund', 'expires_at',
@@ -58,7 +58,8 @@ class TestBookingPaymentRoutes(LiwanPaidBookingCase):
             ({'price': 0}, 'price'),
             ({'price': '10'}, 'price'),
             ({'price': 1_000_001}, 'price'),
-            ({'product_id': 1}, 'product_id'),
+            ({'product_id': '1'}, 'product_id'),
+            ({'product_id': 0}, 'product_id'),
             ({}, 'online_payment'),
         ):
             with self.subTest(field=field):

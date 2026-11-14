@@ -16,7 +16,7 @@ class CrmLead(models.Model):
     source_id = fields.Many2one(tracking=True)
     liwan_package_id = fields.Many2one(
         'product.template', string='Package', index='btree_not_null', ondelete='restrict', tracking=True,
-        domain=[('liwan_crm_package', '=', True)],
+        domain=lambda self: [('id', 'in', self.env['liwan.crm.settings']._liwan_packages().ids)],
     )
     liwan_list_price = fields.Monetary(string='Package price', currency_field='company_currency')
     liwan_discount_percent = fields.Float(string='Discount (%)', tracking=True)

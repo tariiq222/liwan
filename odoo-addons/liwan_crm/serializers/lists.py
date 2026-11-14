@@ -32,8 +32,10 @@ def dump_source(source):
 
 
 def dump_package(package):
+    """A package: its product, with the unit price as typed on it (plan D6)."""
+    price = package.env['liwan.products.service']._liwan_price(package)['unit_price']
     return {
-        'id': package.id, 'name': package.name, 'price': package.list_price,
+        'id': package.id, 'name': package.name, 'price': price,
         'description': package.description_sale or '', 'active': package.active,
     }
 
@@ -76,12 +78,6 @@ def parse_price(value, field):
     return value
 
 
-def _description(value, field):
-    if not isinstance(value, str) or len(value) > 2000:
-        raise ApiError(422, 'invalid', 'must be text of at most 2000 characters', field=field)
-    return value.strip()
-
-
 # API field -> (ORM field, parser, required on create). `active` is patch-only (DELETE archives).
 STAGE_FIELDS = {'name': ('name', _name, True), 'is_won': ('is_won', _boolean, False)}
 OUTCOME_FIELDS = {
@@ -89,10 +85,17 @@ OUTCOME_FIELDS = {
     'lost_reason_id': ('lost_reason_id', _reason_id, False),
 }
 NAME_FIELDS = {'name': ('name', _name, True)}
-PACKAGE_FIELDS = {
-    'name': ('name', _name, True), 'price': ('list_price', parse_price, True),
-    'description': ('description_sale', _description, False),
-}
+
+
+def parse_package_body(payload):
+    """The ``product_id`` of the product a body adds to the company's packages."""
+    unknown = sorted(set(payload) - {'product_id'})
+    if unknown:
+        raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
+    product_id = payload.get('product_id')
+    if type(product_id) is not int or product_id <= 0:
+        raise ApiError(422, 'invalid', 'must be a product id', field='product_id')
+    return product_id
 
 
 def parse_body(payload, fields, creating):
