@@ -26,15 +26,20 @@ class SaleOrderLine(models.Model):
                 lines.tax_ids = False
 
     def copy_data(self, default=None):
-        """A copied line is a new line: its taxes are computed anew, under the establishment's answer now.
+        """A copied line of an establishment not registered for VAT is a new line, so it is taxed anew: with none.
 
         Stock copies ``tax_ids`` as an explicit value, which skips the compute and with it the rule: an order
-        duplicated after the registration changed would keep the old answer. Removing the value lets the stock
-        compute and the rule decide. A ``tax_ids`` in ``default`` is the caller's explicit choice and stays.
+        duplicated after the establishment stopped being registered would keep its old VAT. Removing the value for
+        such a line lets the stock compute and the rule decide, also when the line is copied into an order of
+        another company. A ``tax_ids`` in ``default`` is the caller's explicit choice and stays.
+
+        A line of a registered establishment is returned exactly as stock built it: a hand-set tax and a global
+        discount line carry taxes the compute cannot reproduce from the product.
         """
         copies = super().copy_data(default)
         if 'tax_ids' not in (default or {}):
-            for values in copies:
-                if values is not None:  # stock returns None for a record already copied in the same call
+            for line, values in zip(self, copies):
+                # stock returns None for a record already copied in the same call
+                if values is not None and line.company_id and not line.company_id._liwan_vat_registered():
                     values.pop('tax_ids', None)
         return copies

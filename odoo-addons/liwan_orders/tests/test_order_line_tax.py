@@ -5,6 +5,7 @@ from odoo.tests import tagged
 from .common import PRICE, TAX_EXCLUDED, TAX_INCLUDED, LiwanOrdersCase
 
 NO_TAX = 0.0
+HALF = 50.0
 TAX_ADDED_TOTAL = 132.25
 
 
@@ -132,3 +133,17 @@ class TestOrderLineTax(LiwanOrdersCase):
         line = self.env['sale.order.line'].new({'product_id': product.id})
         line._compute_tax_ids()
         self.assertFalse(line.company_id)
+
+    def test_the_down_payment_of_an_unregistered_order_carries_no_tax(self):
+        company = self.env.company
+        self.register(company, False)
+        order = self.order(company, [self.product(self.tax(company))])
+        order.action_confirm()
+        wizard = self.env['sale.advance.payment.inv'].with_context(active_ids=order.ids).create({
+            'advance_payment_method': 'percentage', 'amount': HALF,
+        })
+        wizard.create_invoices()
+        down_payment = order.order_line.filtered(lambda line: line.is_downpayment and not line.display_type)
+        invoice = order.invoice_ids
+        self.assertEqual((down_payment.tax_ids, invoice.amount_tax), (self.env['account.tax'], NO_TAX))
+        self.assertEqual(invoice.amount_total, PRICE * HALF / 100)

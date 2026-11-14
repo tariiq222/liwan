@@ -12,16 +12,21 @@ The addon has no model, route, capability, setting or feature key, and no elevat
 ## Where the rule sits
 
 `sale.order.line._compute_tax_ids` is overridden: stock computes first, then the lines of unregistered
-establishments are cleared. The rule therefore applies to every line, whoever made it (an online channel or a member
-of staff), at creation and when the product or company is edited. The override declares no `@api.depends`.
+establishments are cleared. The rule applies when a line is created without explicit taxes, when its product or
+company is edited, when the order's taxes are recomputed, and when a line of an unregistered establishment is copied.
+The override declares no `@api.depends`.
 
-A copied line computes its taxes anew. Stock copies `tax_ids` as an explicit value, which would skip the compute, so
-`copy_data` drops it: a duplicated order follows the establishment's answer at the time of the copy. A `tax_ids`
-passed in the copy's defaults is kept.
+A copied line of an unregistered establishment computes its taxes anew, so it carries none. Stock copies `tax_ids` as
+an explicit value, which would skip the compute, so `copy_data` drops it for such a line, also when the copy goes into
+an order of another company. A `tax_ids` passed in the copy's defaults is kept. In a registered establishment the copy
+is stock's copy, taxes included: a hand-set tax and a global discount line carry taxes the compute cannot reproduce.
 
-Two kinds of line are outside the compute by stock design and follow the order's existing lines: down payment lines
-(`sale.order._prepare_down_payment_line_values_from_base_line`, `sale_order.py:2100`) and discount lines
-(`sale/wizard/sale_order_discount.py`). This is consistent with a document keeping what it was issued with.
+Open limit: an untaxed line issued before the establishment registered is copied untaxed by stock. No LiwanOS route
+copies an order today; the route that will (sales PR 2) must recompute the taxes of the copy.
+
+Down payment lines (`sale.order._prepare_down_payment_line_values_from_base_line`, `sale_order.py:2100`) and discount
+lines (`sale/wizard/sale_order_discount.py:94`) are created by stock with the taxes of the order's existing lines, so
+they follow the order. This is consistent with a document keeping what it was issued with.
 
 ## When the registration changes
 
@@ -44,8 +49,9 @@ this addon's tests fail; the rule is not lost silently.
 
 Odoo installs an `auto_install` module only when one of its trigger dependencies is being installed in the same
 operation (`odoo/addons/base/models/ir_module.py:418-422`). A database that already has `liwan_api` and `sale`
-therefore gets this addon only when `-i` names it. The release module list does (`deploy/ci/upgrade.sh` passes it to
-both `-u` and `-i`). An upgrade with `-u` alone leaves it out, and then nothing clears the tax of an unregistered
+therefore gets this addon only when `-i` names it. `deploy/ci/upgrade.sh` passes the release module list to both
+`-u` and `-i`, and that list is the install closure computed by `tools/catalog_check.py --release-modules`, which
+holds this addon. An upgrade with `-u` alone leaves it out, and then nothing clears the tax of an unregistered
 establishment.
 
 ## The order factory
