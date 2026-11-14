@@ -13,4 +13,5 @@ from . import (
     me,
     setup,
     storage,
+    tenant_export,
 )

@@ -21,6 +21,7 @@ from . import (
     res_company,
     res_users,
     rotation,
+    tenant_export,
     utm_source,
     view_log,
     visibility,

@@ -11,4 +11,5 @@ from . import (
     res_partner,
     res_partner_bank,
     res_users,
+    tenant_export,
 )
