@@ -13,7 +13,6 @@ def refuse_open_documents_with_changed_company_modes(env, companies, new_mode):
     taxes = env['account.tax'].with_context(active_test=False).search([
         ('company_id', 'in', changing.ids),
         ('type_tax_use', 'in', ('sale', 'none')),
-        ('amount_type', '!=', 'group'),
         ('price_include_override', '=', False),
     ])
     refuse_open_documents_with_changed_taxes(env, taxes)
@@ -21,6 +20,8 @@ def refuse_open_documents_with_changed_company_modes(env, companies, new_mode):
 
 def refuse_open_documents_with_changed_taxes(env, changed_taxes):
     """Stop an upgrade when an open document uses a tax whose inclusion mode changes."""
+    # Stock computes groups from their leaves, and a zero amount is neutral.
+    changed_taxes = changed_taxes.filtered(lambda tax: tax.amount_type != 'group' and tax.amount != 0)
     if not changed_taxes:
         return
 

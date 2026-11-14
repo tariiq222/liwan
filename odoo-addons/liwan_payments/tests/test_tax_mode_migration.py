@@ -54,19 +54,23 @@ class TestTaxModeMigration(LiwanOrderCase):
             load(CARRY, 'carry_tax_mode').migrate(self.env.cr, '19.0.1.7.0')
         self.env.invalidate_all()
 
-    def test_a_company_mode_change_reports_an_open_quote_before_changing_its_tax(self):
+    def _legacy_open_quote(self, tax_amount):
         root = self.env['res.company'].create(company_values(
             'Legacy quote root', country_id=self.env.ref('base.sa').id, currency_id=self.env.ref('base.SAR').id,
         ))
         tax_group = self.env['account.tax.group'].create({'name': 'Legacy quote tax group', 'company_id': root.id})
         tax = self.env['account.tax'].with_company(root).create({
-            'name': 'Legacy quote VAT', 'type_tax_use': 'sale', 'amount': 15, 'tax_group_id': tax_group.id,
+            'name': 'Legacy quote VAT', 'type_tax_use': 'sale', 'amount': tax_amount, 'tax_group_id': tax_group.id,
         })
         order = self.env['sale.order'].with_company(root).create({'partner_id': self.customer.id, 'company_id': root.id})
         self.env['sale.order.line'].create({
             'order_id': order.id, 'product_id': self.service.id, 'price_unit': 115, 'tax_ids': [Command.set(tax.ids)],
         })
         self.set_stored_mode(root, 'included')
+        return root, tax, order
+
+    def test_a_company_mode_change_reports_an_open_quote_before_changing_its_tax(self):
+        root, tax, order = self._legacy_open_quote(15)
         self.assertFalse(tax.price_include_override)
         self.assertEqual(order.amount_total, 132.25)
         with self.assertRaises(UserError) as refusal:
@@ -74,6 +78,13 @@ class TestTaxModeMigration(LiwanOrderCase):
         self.assertIn(f'sale.order #{order.id}', str(refusal.exception))
         self.assertEqual(root.account_price_include, TAX_EXCLUDED)
         self.assertEqual(order.amount_total, 132.25)
+
+    def test_a_company_mode_change_preserves_a_zero_rated_open_quote(self):
+        root, _, order = self._legacy_open_quote(0)
+        self.assertEqual(order.amount_total, 115)
+        self.migrate_carry()
+        self.assertEqual(root.account_price_include, TAX_INCLUDED)
+        self.assertEqual((order.state, order.amount_total), ('draft', 115))
 
     def test_the_tax_copies_are_archived_and_stay_for_the_posted_documents_that_name_them(self):
         original = self.env['account.tax'].create({
