@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
   InboxAttachmentSchema,
+  InboxContactRefSchema,
   InboxRefSchema,
   InboxTemplateCategorySchema,
   InboxMessagingLimitSchema,
@@ -114,6 +115,7 @@ export const InboxAudienceMemberSchema = z.object({
   phone: z.string().nullable(),
   consent: InboxConsentStateSchema,
   tags: z.array(InboxRefSchema),
+  erased: z.boolean(),
 }).strict()
 export const InboxAudienceMemberListSchema = list(InboxAudienceMemberSchema)
 
@@ -258,7 +260,7 @@ export const InboxCampaignPreviewRequestSchema = z.object({
 }).strict()
 
 export const InboxCampaignPreviewSchema = z.object({
-  contact: InboxRefSchema.nullable(),
+  contact: InboxContactRefSchema.nullable(),
   header_text: z.string().nullable(),
   body: z.string(),
   footer: z.string().nullable(),
@@ -283,7 +285,7 @@ export const InboxRecipientFailureSchema = z.enum([
 
 export const InboxCampaignRecipientSchema = z.object({
   id: Id,
-  contact: z.object({ id: Id, name: z.string(), phone: z.string().nullable() }).strict(),
+  contact: InboxContactRefSchema.extend({ phone: z.string().nullable() }).strict(),
   state: InboxRecipientStateSchema,
   skip_reason: InboxRecipientSkipReasonSchema.nullable(),
   failure: InboxRecipientFailureSchema.nullable(),

@@ -6,6 +6,7 @@ import { useInboxConversations } from '@/composables/inbox/useInbox'
 import { CHANNEL_KIND_ICON, channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, PRIORITIES, INBOX_PRIORITY_TONE, inboxFileKindKey, inboxListTime } from '@/composables/inbox/inboxPresentation'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { useInboxConversationsExport } from '@/composables/inbox/useInboxConversationsExport'
 import { exportTooLargeMessage } from '@/utils/exportErrors'
 import { INBOX_PAGE_SIZE, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
@@ -176,10 +177,10 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
             :data-testid="`inbox-conversation-${item.id}`"
           >
-            <UAvatar v-bind="avatarProps(item.contact.name, item.contact.id)" class="size-(--liwan-conversation-avatar) shrink-0" :ui="{ fallback: 'text-(length:--liwan-fs-section)' }" />
+            <UAvatar v-bind="avatarProps(inboxContactName(item.contact, t), item.contact.id)" class="size-(--liwan-conversation-avatar) shrink-0" :ui="{ fallback: 'text-(length:--liwan-fs-section)' }" />
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
-                <span class="truncate" :class="item.unread ? 'font-bold' : 'font-medium'">{{ item.contact.name }}</span>
+                <span class="truncate" :class="item.unread ? 'font-bold' : 'font-medium'">{{ inboxContactName(item.contact, t) }}</span>
                 <time v-if="item.last_message_at" class="shrink-0 text-xs" :class="item.unread ? 'font-semibold text-highlighted' : 'text-muted'">{{ inboxListTime(item.last_message_at, locale) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">

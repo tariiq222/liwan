@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { InboxFlow, InboxFlowSubmission } from '@liwan/contracts'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { answerColumns, answerDisplay, answerOf, conversationRoute } from '@/composables/inbox/inboxFlow'
 
 // The answers to one form: the date, the contact (a link to the answer in the conversation) and one column per
@@ -48,7 +49,7 @@ const link = (submission: InboxFlowSubmission) => conversationRoute(submission.c
   >
     <template #date-cell="{ row }"><time :datetime="row.original.submitted_at" class="whitespace-nowrap">{{ when(row.original.submitted_at) }}</time></template>
     <template #contact-cell="{ row }">
-      <NuxtLink :to="link(row.original)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :data-testid="`inbox-flow-response-contact-${row.original.id}`">{{ row.original.contact.name }}</NuxtLink>
+      <NuxtLink :to="link(row.original)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :data-testid="`inbox-flow-response-contact-${row.original.id}`">{{ inboxContactName(row.original.contact, t) }}</NuxtLink>
     </template>
     <template v-for="question in questions" :key="question.key" #[`answer-${question.key}-cell`]="{ row }">
       <span v-if="cellKind(row.original, question.key) === 'none'" class="text-muted">—</span>
@@ -60,7 +61,7 @@ const link = (submission: InboxFlowSubmission) => conversationRoute(submission.c
     </template>
     <template #mobile-row="{ row }">
       <div class="flex items-start justify-between gap-3">
-        <NuxtLink :to="link(row)" class="min-w-0 truncate text-base font-semibold text-highlighted hover:underline">{{ row.contact.name }}</NuxtLink>
+        <NuxtLink :to="link(row)" class="min-w-0 truncate text-base font-semibold text-highlighted hover:underline">{{ inboxContactName(row.contact, t) }}</NuxtLink>
         <time :datetime="row.submitted_at" class="shrink-0 text-xs text-muted">{{ when(row.submitted_at) }}</time>
       </div>
       <dl class="mt-2 grid gap-1.5 text-sm">

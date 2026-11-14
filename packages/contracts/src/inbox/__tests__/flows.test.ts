@@ -181,7 +181,7 @@ describe('answers', () => {
 
   it('makes a submission whose form may be unknown', () => {
     const submission = {
-      id: 1, flow: null, conversation_id: 2, contact: { id: 3, name: 'Sara' }, request_message_id: null, message_id: 4,
+      id: 1, flow: null, conversation_id: 2, contact: { id: 3, name: 'Sara', erased: false }, request_message_id: null, message_id: 4,
       submitted_at: '2026-10-29T09:00:00Z', answers: [{ key: 'a', label: 'a', kind: 'unknown', value: 'x' }],
     }
     expect(InboxFlowSubmissionSchema.safeParse(submission).success).toBe(true)

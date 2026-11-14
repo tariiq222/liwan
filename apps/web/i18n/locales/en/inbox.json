@@ -3,6 +3,7 @@
     "title": "Customer Messages",
     "railLabel": "Messages",
     "unassigned": "Unassigned",
+    "erasedContact": "Erased contact {id}",
     "unavailable": "This conversation is not available to you.",
     "select": "Select a conversation",
     "selectDescription": "Pick a conversation from the list to read and reply.",

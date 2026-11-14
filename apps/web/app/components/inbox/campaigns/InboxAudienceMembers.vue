@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { InboxAudienceMember } from '@liwan/contracts'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { CONSENT_STATES, CONSENT_TONE } from '@/composables/inbox/inboxCampaignPresentation'
 import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseMemberRoute, serializeMemberRoute, type MemberRoute } from '@/composables/inbox/inboxCampaignRoute'
 import { useInboxAudienceMembers } from '@/composables/inbox/useInboxCampaigns'
@@ -56,7 +57,7 @@ const columns = computed<TableColumn<InboxAudienceMember>[]>(() => [
     <SharedPageState :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
       <SharedEmptyState v-if="!list.isLoading.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t('inbox.campaigns.audiences.noMembers')" />
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :loading="list.isLoading.value" :caption="t('inbox.campaigns.audiences.members')">
-        <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ row.original.name }}</span></template>
+        <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ inboxContactName(row.original, t) }}</span></template>
         <template #phone-cell="{ row }"><bdi v-if="row.original.phone" dir="ltr">{{ row.original.phone }}</bdi></template>
         <template #consent-cell="{ row }"><SharedStatusBadge size="sm" :tone="CONSENT_TONE[row.original.consent]" :label="t(`inbox.campaigns.consent.${row.original.consent}`)" /></template>
         <template #tags-cell="{ row }">
@@ -64,7 +65,7 @@ const columns = computed<TableColumn<InboxAudienceMember>[]>(() => [
         </template>
         <template #mobile-row="{ row }">
           <div class="flex items-center justify-between gap-2">
-            <span class="font-medium text-highlighted">{{ row.name }}</span>
+            <span class="font-medium text-highlighted">{{ inboxContactName(row, t) }}</span>
             <SharedStatusBadge size="sm" :tone="CONSENT_TONE[row.consent]" :label="t(`inbox.campaigns.consent.${row.consent}`)" />
           </div>
           <bdi v-if="row.phone" dir="ltr" class="text-sm text-muted">{{ row.phone }}</bdi>

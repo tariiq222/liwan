@@ -210,7 +210,7 @@ class TestCampaignsApi(CampaignCase):
             {'location': 'button', 'position': 1, 'source': 'static', 'value': 'abc'},
         ]
         preview = self.api('POST', f'{BASE}/campaigns/preview', {'template_id': template.id, 'params': params, 'contact_id': contact.id}).json()
-        self.assertEqual(preview['contact'], {'id': contact.id, 'name': 'Layla Hassan'})
+        self.assertEqual(preview['contact'], {'id': contact.id, 'name': 'Layla Hassan', 'erased': False})
         self.assertEqual((preview['header_text'], preview['body'], preview['footer']), ('Hi Layla', 'Dear Layla Hassan, code {{2}}', 'Bye'))
         self.assertEqual(preview['missing'], [{'location': 'body', 'position': 2}])
         self.assertEqual(preview['buttons'], [{'type': 'quick_reply', 'text': 'Yes'}, {'type': 'url', 'text': 'Open'}])
