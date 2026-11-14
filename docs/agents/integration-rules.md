@@ -15,8 +15,8 @@ may perform it, without an exclusive model requirement or paid API fallback.
 
 Keep a PR draft while local preparation is incomplete. Marking ready requests
 CI and review; it does not by itself authorize publication, merging or release.
-Publication and merging are covered by the standing authorization below; release,
-deployment and the other excluded operations need the owner's explicit words for
+A local commit is covered by the standing authorization below; publication, merging,
+release, deployment and the other excluded operations need the owner's explicit words for
 their scope. Prior approved product, access and data decisions remain binding. New
 changes require updated evidence and any authorization their scope needs.
 
@@ -26,21 +26,25 @@ and cleanup remain distinct operations. Local consolidation authority does not
 authorize a remote push or production deployment. Missing services, stale checks and failed
 checks never justify bypassing branch protection.
 
-### Standing authorization (owner decision 2026-11-08)
+### Standing authorization (owner decision 2026-11-11)
 
-The owner authorizes every agent, in every session, to do the following without
-asking each time, provided the evidence rules of this file hold:
+The owner authorizes every agent (Claude and Codex), in every session, to do the following
+without asking each time, provided the evidence rules of this file hold:
 
-- commit the task's work, and push the task branch;
-- open a pull request, and move it from draft to ready;
-- merge the PR once current-head `ci-result` is green and no blocking review
-  finding or unresolved conversation remains;
+- commit the task's work locally on its task branch;
 - resolve a review thread after verifying the fix in the code;
 - after a merge, return the lane with `python3 -B tools/wt.py lane finish <lane>`, or remove a temporary
   task worktree with `python3 -B tools/wt.py gc --apply`, once the content is preserved and no
   process uses the worktree (step 6).
 
-Excluded, and needing the owner's explicit words each time: a `release/19.0.X.Y.Z`
+Publication and merging need the owner's explicit words in the current conversation, each
+for its own step: pushing a branch, opening a pull request, moving it from draft to ready,
+merging it, and enabling auto-merge. No new pull request is opened unless the owner asks
+for one. The owner keywords below are explicit words for the steps they name. Words given
+for one branch, one PR or one conversation do not carry to the next. The 2026-11-08
+authorization, which also covered push, PR, ready and merge, is superseded.
+
+Also excluded, and needing the owner's explicit words each time: a `release/19.0.X.Y.Z`
 tag, deploying to any server, force-push or history rewrite, a direct push to `main`,
 bypassing branch protection or a failing check, and merging unrelated worktrees.
 Changes to external source versions still follow [UPDATE_POLICY.md](../UPDATE_POLICY.md).
@@ -56,8 +60,8 @@ Owner keywords:
   the latest remote `main`, preserving previously approved behavior and adding the
   requested changes, then follow the six steps. It does not authorize undoing an
   earlier decision, merging unrelated worktrees or deleting recovery material.
-- «انشر» means: commit, run the checks, open the PR, merge it after current-head
-  `ci-result` is green, and return the lane (`wt lane finish`, or `wt gc` for a temporary worktree). It never means a direct push to `main`,
+- «انشر» means: commit, run the checks, push the task branch, open the PR, mark it ready,
+  merge it after current-head `ci-result` is green, and return the lane (`wt lane finish`, or `wt gc` for a temporary worktree). It never means a direct push to `main`,
   a release tag or a deployment.
 
 ### Review-approval constraint on `protect-main` (recorded 2026-10-24)
@@ -113,8 +117,8 @@ count stays at `0`.
    skipped stages and scope. An old green head, local checks or a conflict check
    alone does not establish readiness for protected remote integration.
 5. **Merge the candidate.** Recheck the current base/head, current-head
-   CI, resolved review findings and conversations, and that the merge falls
-   within the standing authorization (or the owner's explicit one).
+   CI, resolved review findings and conversations, and that the owner's explicit
+   words in the current conversation cover this merge.
    Fix failures in the owned scope and repeat affected checks after a change.
    When the head moves, update its evidence before merging. A moved base alone
    is not a reason to merge `main` into a branch: that cancels and restarts its
@@ -146,9 +150,10 @@ procedure above remains required for subsequent remote publication.
 
 ## Keep the PR loop short
 
-When marking a PR ready under the standing authorization, enable auto-merge in the same step
-(`gh pr merge <n> --auto --merge`) so GitHub merges it the moment the current-head `ci-result` is
-green, without waiting for an agent to come back. Auto-merge never bypasses protection: it waits
+Enable auto-merge (`gh pr merge <n> --auto --merge`) only when the owner asks for it in words. GitHub
+then merges the PR the moment the current-head `ci-result` is green, without waiting for an agent to
+come back. Without those words, the agent merges after the green check when the owner's words cover
+the merge. Auto-merge never bypasses protection: it waits
 for the required check and for resolved conversations. Disable it (`gh pr merge <n> --disable-auto`)
 before pushing a change that still needs review. Do not enable it on a PR that needs an owner
 decision or a separate authorization, or on one that changes authentication, authorization, tenant
