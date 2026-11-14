@@ -20,13 +20,20 @@ class TestCompanyTaxPurchase(CompanyTaxCase):
     def test_a_purchase_tax_without_override_is_added_after_the_chart_loads(self):
         company = self.saudi_root('Chart purchase company')
         purchase = self.chart_purchase_taxes(company)
-        self.assertTrue(purchase, 'the sa chart ships purchase taxes')
+        self.assertTrue(purchase, 'the chart ships purchase taxes')
         self.assertEqual(set(purchase.mapped('price_include_override')), {'tax_excluded'})
 
     def test_a_stock_written_override_survives_the_chart_hook(self):
-        # The Saudi chart's own CSV sets `tax_included` on the customs VAT tax: it carries an override, so
-        # this addon does not touch it, and the tax stays included whatever the company's own choice is.
         company = self.saudi_root('Chart override company')
+        if company.chart_template == 'generic_coa':
+            purchase = self.chart_purchase_taxes(company)[:1]
+            self.assertTrue(purchase)
+            purchase.price_include_override = 'tax_included'
+            self.env['account.chart.template'].try_loading(company.chart_template, company)
+            self.assertEqual(purchase.price_include_override, 'tax_included')
+            return
+
+        # The Saudi chart's CSV sets an explicit override on the customs VAT tax.
         customs = self.env['account.tax'].search([
             ('company_id', '=', company.id), ('type_tax_use', '=', 'purchase'),
             ('name', '=', STOCK_OVERRIDDEN_PURCHASE_TAX),

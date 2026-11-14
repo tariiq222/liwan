@@ -66,16 +66,22 @@ class CompanyTaxCase(LiwanApiCase):
             'name': name, 'country_id': cls.env.ref('base.sa').id,
             'currency_id': cls.env.ref('base.SAR').id, **vals,
         })
-        cls.env['account.chart.template'].try_loading('sa', company)
+        # The isolated bridge installs stock account only. Its generic chart
+        # supplies accounts and journals without installing another module.
+        installed = cls.env['ir.module.module']._installed()
+        chart = 'sa' if 'l10n_sa' in installed else 'generic_coa'
+        cls.env['account.chart.template'].try_loading(chart, company)
         return company
 
     @classmethod
     def saudi_branch(cls, root, name):
-        """A branch with the root's country and currency; the flush lets stock load its chart while it is active."""
+        """Load the parent's chart while the branch is still active."""
         branch = cls.env['res.company'].create({
             'name': name, 'parent_id': root.id,
             'country_id': root.country_id.id, 'currency_id': root.currency_id.id,
         })
+        if root.chart_template == 'generic_coa':
+            cls.env['account.chart.template'].try_loading(root.chart_template, branch)
         cls.env.flush_all()
         return branch
 
@@ -163,9 +169,10 @@ class CompanyTaxCase(LiwanApiCase):
         })
 
     def customer(self, company):
-        """A customer with the company's own receivable and payable accounts."""
-        partner = self.env['res.partner'].create({'name': 'Tax customer', 'liwan_party': True})
-        accounts = self.env['account.account'].search([('company_ids', 'in', company.ids)])
+        """A customer with receivable and payable accounts available in its company."""
+        partner = self.env['res.partner'].create({'name': 'Tax customer'})
+        Account = self.env['account.account'].with_company(company)
+        accounts = Account.search(Account._check_company_domain(company))
         partner.with_company(company).write({
             'property_account_receivable_id': accounts.filtered(
                 lambda account: account.account_type == 'asset_receivable')[:1].id,
