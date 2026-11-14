@@ -21,6 +21,8 @@ const customer = computed(() => query.data.value)
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const canManage = computed(() => can('customers.manage'))
+// Erasing and exporting personal data are system-administrator rights of their own, not part of managing customers.
+const canPrivacy = computed(() => can('customers.erase') || can('customers.privacy.export'))
 // A long address may wrap at the @ instead of inside a word.
 const emailParts = computed(() => {
   const email = customer.value?.email ?? ''
@@ -50,13 +52,20 @@ const headerTags = computed<PageHeaderTag[]>(() => customer.value
     ]
   : [])
 const menuActions = computed<RowAction[]>(() => {
-  if (!customer.value || !canManage.value) return []
-  return [{
-    label: customer.value.active ? t('customers.archive') : t('customers.restore'),
-    icon: customer.value.active ? 'i-lucide-archive' : 'i-lucide-archive-restore',
-    destructive: customer.value.active,
-    onSelect: () => { confirmArchive.value = !confirmArchive.value },
-  }]
+  if (!customer.value) return []
+  const actions: RowAction[] = []
+  if (canManage.value) {
+    actions.push({
+      label: customer.value.active ? t('customers.archive') : t('customers.restore'),
+      icon: customer.value.active ? 'i-lucide-archive' : 'i-lucide-archive-restore',
+      destructive: customer.value.active,
+      onSelect: () => { confirmArchive.value = !confirmArchive.value },
+    })
+  }
+  if (canPrivacy.value) {
+    actions.push({ label: t('customers.privacy.open'), icon: 'i-lucide-shield-check', to: recordChildTo(`/customers/${id.value}/privacy`, route.query, sourcePaths.value, route.hash) })
+  }
+  return actions
 })
 </script>
 
@@ -71,8 +80,8 @@ const menuActions = computed<RowAction[]>(() => {
     :error="pageError"
     @retry="query.refetch"
   >
-    <template v-if="customer && canManage" #actions>
-      <UButton color="primary" icon="i-lucide-pencil" :disabled="!hydrated" :to="recordChildTo(`/customers/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('app.edit')" data-testid="customer-edit" @click="!hydrated && $event.preventDefault()" />
+    <template v-if="customer && (canManage || canPrivacy)" #actions>
+      <UButton v-if="canManage" color="primary" icon="i-lucide-pencil" :disabled="!hydrated" :to="recordChildTo(`/customers/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('app.edit')" data-testid="customer-edit" @click="!hydrated && $event.preventDefault()" />
       <SharedRowActions :actions="menuActions" :label="t('customers.rowActions', { name: customer.name })" :disabled="archivePending" />
     </template>
     <SharedInlineConfirm

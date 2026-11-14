@@ -19641,6 +19641,258 @@
         ],
         "type": "object"
       },
+      "CustomerEraseIncompleteDetailsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "incomplete": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "reason": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "owner",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "incomplete"
+        ],
+        "type": "object"
+      },
+      "CustomerErasePreviewSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "customer": {
+            "additionalProperties": false,
+            "properties": {
+              "erased": {
+                "type": "boolean"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "erased"
+            ],
+            "type": "object"
+          },
+          "empty_models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "expires_in": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "incomplete": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "reason": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "owner",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "erase",
+                    "retain",
+                    "unhandled"
+                  ],
+                  "type": "string"
+                },
+                "complete": {
+                  "type": "boolean"
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "owner",
+                "action",
+                "count",
+                "complete"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "not_covered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "reach": {
+            "additionalProperties": false,
+            "properties": {
+              "covers_all": {
+                "type": "boolean"
+              },
+              "shared": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "shared",
+              "covers_all"
+            ],
+            "type": "object"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer",
+          "items",
+          "incomplete",
+          "empty_models",
+          "not_covered",
+          "reach",
+          "token",
+          "expires_in"
+        ],
+        "type": "object"
+      },
+      "CustomerEraseResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "erased": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "customer_id",
+          "erased",
+          "request_id",
+          "items"
+        ],
+        "type": "object"
+      },
+      "CustomerEraseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "confirmation",
+          "reason"
+        ],
+        "type": "object"
+      },
       "CustomerFieldRemovalDetailsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -20000,6 +20252,90 @@
             "type": "object"
           }
         },
+        "type": "object"
+      },
+      "CustomerPrivacyActionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "erase",
+          "retain",
+          "unhandled"
+        ],
+        "type": "string"
+      },
+      "CustomerPrivacyExportSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CustomerPrivacyIncompleteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "owner",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CustomerPrivacyItemSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "erase",
+              "retain",
+              "unhandled"
+            ],
+            "type": "string"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "key": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "owner",
+          "action",
+          "count",
+          "complete"
+        ],
         "type": "object"
       },
       "CustomerSchema": {
@@ -82179,6 +82515,10 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "is_root_company": {
+            "default": true,
+            "type": "boolean"
+          },
           "lang": {
             "type": "string"
           },
@@ -82237,6 +82577,7 @@
                 "enum": [
                   "active",
                   "suspended",
+                  "payment_suspended",
                   "expired"
                 ],
                 "type": "string"
@@ -82401,6 +82742,7 @@
           "capabilities",
           "access_policy_version",
           "company",
+          "is_root_company",
           "companies",
           "home_company_id",
           "home_capabilities",
@@ -83138,6 +83480,7 @@
             "enum": [
               "active",
               "suspended",
+              "payment_suspended",
               "expired"
             ],
             "type": "string"
@@ -83389,6 +83732,10 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "is_root_company": {
+            "default": true,
+            "type": "boolean"
+          },
           "lang": {
             "type": "string"
           },
@@ -83447,6 +83794,7 @@
                 "enum": [
                   "active",
                   "suspended",
+                  "payment_suspended",
                   "expired"
                 ],
                 "type": "string"
@@ -83608,6 +83956,7 @@
           "capabilities",
           "access_policy_version",
           "company",
+          "is_root_company",
           "companies",
           "home_company_id",
           "home_capabilities",
@@ -103007,6 +103356,237 @@
         ],
         "type": "string"
       },
+      "SetupOutcomeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "done",
+          "skipped"
+        ],
+        "type": "string"
+      },
+      "SetupProgressChangeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "outcome": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "done",
+                      "skipped"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "step": {
+                "enum": [
+                  "company",
+                  "sector",
+                  "channels",
+                  "team",
+                  "contacts"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "outcome"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "closed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "closed"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SetupProgressSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "steps": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "enum": [
+                    "company",
+                    "sector",
+                    "channels",
+                    "team",
+                    "contacts"
+                  ],
+                  "type": "string"
+                },
+                "outcome": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "done",
+                        "skipped"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "recorded_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recorded_by": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "outcome",
+                "recorded_by",
+                "recorded_at"
+              ],
+              "type": "object"
+            },
+            "maxItems": 5,
+            "minItems": 5,
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "closed_at",
+          "complete"
+        ],
+        "type": "object"
+      },
+      "SetupStepKeySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "company",
+          "sector",
+          "channels",
+          "team",
+          "contacts"
+        ],
+        "type": "string"
+      },
+      "SetupStepSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "enum": [
+              "company",
+              "sector",
+              "channels",
+              "team",
+              "contacts"
+            ],
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "done",
+                  "skipped"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recorded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recorded_by": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "outcome",
+          "recorded_by",
+          "recorded_at"
+        ],
+        "type": "object"
+      },
       "StageOrderBodySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -103033,9 +103613,6 @@
             "items": {
               "additionalProperties": false,
               "properties": {
-                "blocked": {
-                  "type": "boolean"
-                },
                 "created_at": {
                   "anyOf": [
                     {
@@ -103055,6 +103632,9 @@
                 },
                 "name": {
                   "type": "string"
+                },
+                "over_limit": {
+                  "type": "boolean"
                 },
                 "record": {
                   "anyOf": [
@@ -103093,7 +103673,7 @@
                 "name",
                 "size_bytes",
                 "created_at",
-                "blocked",
+                "over_limit",
                 "record"
               ],
               "type": "object"
@@ -103106,11 +103686,6 @@
               {
                 "additionalProperties": false,
                 "properties": {
-                  "blocked_bytes": {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  },
                   "limit_mb": {
                     "anyOf": [
                       {
@@ -103123,6 +103698,11 @@
                       }
                     ]
                   },
+                  "over_limit_bytes": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
                   "used_bytes": {
                     "maximum": 9007199254740991,
                     "minimum": 0,
@@ -103132,7 +103712,7 @@
                 "required": [
                   "limit_mb",
                   "used_bytes",
-                  "blocked_bytes"
+                  "over_limit_bytes"
                 ],
                 "type": "object"
               },
@@ -104848,11 +105428,479 @@
         ],
         "type": "object"
       },
+      "TenantExportCountsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "file_bytes": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "files": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "overflow_cells": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rows": {
+            "additionalProperties": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "rows",
+          "files",
+          "file_bytes",
+          "overflow_cells"
+        ],
+        "type": "object"
+      },
+      "TenantExportFailureSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "insufficient_disk",
+              "build_failed",
+              "timeout",
+              "requester_not_authorized"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "TenantExportListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cooldown_hours": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "counts": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "file_bytes": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "files": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "overflow_cells": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "rows": {
+                          "additionalProperties": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "files",
+                        "file_bytes",
+                        "overflow_cells"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "downloadable": {
+                  "type": "boolean"
+                },
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "failure": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "insufficient_disk",
+                            "build_failed",
+                            "timeout",
+                            "requester_not_authorized"
+                          ],
+                          "type": "string"
+                        },
+                        "message": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "finished_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "requested_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "size_bytes": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "started_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "requested",
+                    "running",
+                    "done",
+                    "failed",
+                    "expired"
+                  ],
+                  "type": "string"
+                },
+                "steps_done": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "steps_total": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "state",
+                "requested_at",
+                "started_at",
+                "finished_at",
+                "expires_at",
+                "failure",
+                "steps_done",
+                "steps_total",
+                "size_bytes",
+                "counts",
+                "downloadable"
+              ],
+              "type": "object"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "next_request_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retention_days": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "next_request_at",
+          "retention_days",
+          "cooldown_hours"
+        ],
+        "type": "object"
+      },
+      "TenantExportRequestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "TenantExportSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "file_bytes": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "files": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "overflow_cells": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "rows": {
+                    "additionalProperties": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "rows",
+                  "files",
+                  "file_bytes",
+                  "overflow_cells"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "downloadable": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "enum": [
+                      "insufficient_disk",
+                      "build_failed",
+                      "timeout",
+                      "requester_not_authorized"
+                    ],
+                    "type": "string"
+                  },
+                  "message": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size_bytes": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "requested",
+              "running",
+              "done",
+              "failed",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "steps_done": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "steps_total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "requested_at",
+          "started_at",
+          "finished_at",
+          "expires_at",
+          "failure",
+          "steps_done",
+          "steps_total",
+          "size_bytes",
+          "counts",
+          "downloadable"
+        ],
+        "type": "object"
+      },
       "TenantStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "active",
           "suspended",
+          "payment_suspended",
           "expired"
         ],
         "type": "string"
@@ -105292,7 +106340,7 @@
   "info": {
     "description": "Generated surface of every /api/v1 route across the liwan Odoo addons, with contract schemas harvested from @liwan/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
     "title": "liwan /api/v1",
-    "version": "19.0.1.2.0"
+    "version": "19.0.1.3.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -107124,6 +108172,131 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "role_state",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/tenant-export": {
+      "get": {
+        "operationId": "liwan_api.TenantExportController.list_exports.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_exports",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "TenantExportController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "list_exports",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_api.TenantExportController.request_export.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "request_export",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "TenantExportController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "request_export",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/tenant-export/{export_id}/download": {
+      "get": {
+        "operationId": "liwan_api.TenantExportController.download_export.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_export",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "TenantExportController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "download_export",
           "readonly": false,
           "route_type": "json2"
         }
@@ -114316,6 +115489,165 @@
           ],
           "feature_operation": "write",
           "handler": "archive_customer",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}/privacy/erase": {
+      "post": {
+        "operationId": "liwan_customers.CustomersPrivacyController.erase_customer.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "erase_customer",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersPrivacyController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "write",
+          "handler": "erase_customer",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}/privacy/erase-preview": {
+      "post": {
+        "operationId": "liwan_customers.CustomersPrivacyController.preview_erase.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "preview_erase",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersPrivacyController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "preview_erase",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}/privacy/export": {
+      "post": {
+        "operationId": "liwan_customers.CustomersPrivacyController.export_subject.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "export_subject",
+        "tags": [
+          "liwan_customers"
+        ],
+        "x-liwan": {
+          "addon": "liwan_customers",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "CustomersPrivacyController",
+          "feature_keys": [
+            "registry:liwan.customers.service"
+          ],
+          "feature_operation": "read",
+          "handler": "export_subject",
           "readonly": false,
           "route_type": "json2"
         }
@@ -137079,7 +138411,7 @@
           "feature_keys": [
             "inbox.tiktok"
           ],
-          "feature_operation": null,
+          "feature_operation": "read",
           "handler": "receive",
           "readonly": null,
           "route_type": "http"
@@ -137149,7 +138481,7 @@
           "feature_keys": [
             "inbox.whatsapp"
           ],
-          "feature_operation": null,
+          "feature_operation": "read",
           "handler": "receive",
           "readonly": null,
           "route_type": "http"
@@ -148077,6 +149409,80 @@
           "feature_operation": null,
           "handler": "list_storage",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/setup/progress": {
+      "get": {
+        "operationId": "liwan_api.SetupController.setup_progress.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "setup_progress",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "SetupController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "setup_progress",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "put": {
+        "operationId": "liwan_api.SetupController.put_setup_progress.put",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "put_setup_progress",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "SetupController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "put_setup_progress",
+          "readonly": false,
           "route_type": "json2"
         }
       }

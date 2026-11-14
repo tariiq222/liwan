@@ -33,6 +33,8 @@
     },
     "status": {
       "registered": "Registered",
+      "deleting": "Deleting",
+      "deleted": "Deleted",
       "provisioning": "Provisioning",
       "active": "Active",
       "needs_intervention": "Needs attention",
@@ -66,18 +68,24 @@
       "kinds": {
         "past_due": "Overdue for {duration}",
         "refund_rejected": "A provider refund could not be recorded ({operation}): the money left and there is no credit note",
+        "refund_unrecorded": "The provider has already returned this money. Do not refund it again. Check why recording the refund is blocked.",
         "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
-        "free_base_blocked": "The trial ended {duration} ago but locking onto the free base is blocked ({operation}); the company is not locked",
+        "free_base_blocked": "Dropping the subscription to the free base has been blocked for {duration} ({operation}); the company is not locked",
         "trial_end_overdue": "The trial ended {duration} ago but its end has not run: the paid applications are still open and new orders are refused until it does",
         "renewal_failed": "The renewal could not be generated ({operation}); other renewals are not affected",
         "suspension_undelivered": "The suspension has not reached the workspace. Delivery retries continue.",
         "stalled_failed": "Activation failed and needs you",
         "stalled_waiting": "Activation stalled for {duration}",
         "invitation_failed": "The admin invitation could not be delivered after several attempts: nobody can open the workspace yet",
+        "bank_transfer_claimed": "The customer says it transferred on {operation}: confirm the transfer once the money arrives",
+        "notice_failed": "A notice to the customer could not be sent ({operation})",
         "operation_failed": "Operation failed: {operation}",
         "setup_required": "Needs commercial setup",
         "renewal_missed": "Renewal date passed {duration} ago and not renewed",
-        "renewal_soon": "Renews within {duration}"
+        "renewal_soon": "Renews within {duration}",
+        "tenant_deletion_due": "The customer's deletion request is in its final hold. The workspace still works: withdraw the request if it is not legitimate, otherwise it is deleted when the hold ends",
+        "tenant_deletion_stuck": "A workspace deletion is stuck ({operation}) and waits for you",
+        "form_payment_review": "A card payment needs checking at the payment provider ({operation}): money may have been taken that nothing settled, or a card token was not deleted"
       },
       "refundReasons": {
         "refund_exceeds_payment": "refunded more than was paid",
@@ -89,6 +97,7 @@
       "actions": {
         "past_due": "Open the invoice",
         "refund_rejected": "Open the invoice",
+        "refund_unrecorded": "Open the invoice",
         "billing_blocked": "Open the subscription",
         "free_base_blocked": "Open the subscription",
         "trial_end_overdue": "Open the subscription",
@@ -96,10 +105,15 @@
         "suspension_undelivered": "Open the subscription",
         "stalled_activation": "Open the workspace",
         "invitation_failed": "Re-issue the invitation",
+        "bank_transfer_claimed": "Open the invoice",
+        "notice_failed": "Open the subscription",
         "operation_failed": "Open the operation",
         "setup_required": "Open the subscription",
         "renewal_missed": "Open the subscription",
-        "renewal_soon": "Open the subscription"
+        "renewal_soon": "Open the subscription",
+        "tenant_deletion_due": "Open the request",
+        "tenant_deletion_stuck": "Open the deletion",
+        "form_payment_review": "Open the invoices"
       },
       "statusTitle": "Overall status",
       "statusLabel": "Overall status counts",
@@ -914,7 +928,7 @@
       "resendInvitationHint": "Sends a new invitation to the customer administrator and replaces the previous one. It is valid for 72 hours.",
       "invitationQueued": "The invitation is queued for delivery.",
       "invitationFailed": "The invitation could not be sent. Try again.",
-      "payLink": {"create": "Create payment link", "label": "Payment link", "copy": "Copy link", "copied": "Link copied.", "copyFailed": "Copy failed. Copy it by hand.", "failed": "The payment link could not be created. Check the payment provider setup."},
+      "payLink": {"create": "Create hosted payment link (saves no card)", "label": "Payment link", "copy": "Copy link", "copied": "Link copied.", "copyFailed": "Copy failed. Copy it by hand.", "failed": "The payment link could not be created. Check the payment provider setup."},
       "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now. If payment is due, the first invoice follows the lock. The action is audited.", "reopen": "Reopen trial", "reopenHint": "Restores the trial configuration for the chosen number of days. Any unpaid first renewal invoice is voided. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
       "trialStart": {"title": "Start a trial", "hint": "The customer has no subscription yet. A trial creates the workspace and sends the administrator invitation; the customer pays from inside the workspace after the trial.", "plan": "Plan", "cadence": "Billing cadence", "action": "Start {days}-day trial", "noPlans": "No published plan offers a trial."},
       "title": "Customers",
@@ -929,6 +943,7 @@
       "noPlan": "No plan",
       "renewal": "Renewal date",
       "setupRequired": "Commercial setup required",
+      "signupAcceptance": "The company accepted the terms and privacy policy (version {version}) on {date}",
       "setupHint": "Migrated legacy customer without a commercial plan yet.",
       "noSubscription": "No subscription",
       "customizeTerms": "Customize customer terms",
@@ -976,8 +991,7 @@
         "not_required": "No payment required",
         "awaiting_payment": "Awaiting payment",
         "paid": "Paid",
-        "failed": "Payment failed",
-        "refund_pending": "Refund pending",
+                "refund_pending": "Refund pending",
         "refunded": "Refunded"
       },
       "fulfillment": {
@@ -991,6 +1005,10 @@
       "sub": {
         "period": "Current period",
         "autoRenew": "Auto-renew",
+        "card": "Payment card",
+        "cardNone": "No card saved",
+        "cardExpiry": "Card expiry",
+        "cardState": { "active": "Active", "inactive": "Inactive", "expired": "Expired" },
         "trialEnds": "Trial ends",
         "graceEnds": "Grace ends",
         "pendingOrder": "Order in progress",
@@ -1078,6 +1096,144 @@
         "resumeHint": "The workspace users can work again. If an invoice is overdue, a fresh grace period starts before collection can stop it again.",
         "reason": "Reason (3-1000 characters)",
         "suspendedNotice": "The subscription is suspended: workspace users cannot sign in."
+      },
+      "cardActions": {
+        "remove": "Remove card",
+        "removeTitle": "Remove the customer's saved card?",
+        "removeHint": "The card is deleted at the payment provider and automatic renewal stops. The customer pays the next invoice by hand and can save a new card then.",
+        "disableAutoRenew": "Stop automatic renewal",
+        "disableAutoRenewTitle": "Stop automatic renewal?",
+        "disableAutoRenewHint": "The card stays on file but nothing is charged to it automatically. The customer pays the next invoice by hand and can turn automatic renewal on again.",
+        "reason": "Reason (3-1000 characters)",
+        "errors": {
+          "provider_unavailable": "The payment provider could not delete the card now. The card was NOT removed and automatic renewal is unchanged. Try again later.",
+          "provider_mismatch": "This card belongs to another payment provider mode and cannot be removed here."
+        }
+      },
+      "renewalCancel": {
+        "endsNotice": "Cancels on {date}, requested by {by} on {requested}.",
+        "by": {
+          "customer": "the customer",
+          "vendor": "the vendor"
+        },
+        "cancel": "Cancel renewal",
+        "cancelTitle": "Cancel the renewal on the customer's behalf?",
+        "cancelHint": "The customer keeps the paid period until the renewal date, then drops to the free base. Nothing is deleted and no refund is made. The customer can resume before that date. They receive an email.",
+        "resume": "Resume renewal",
+        "resumeTitle": "Withdraw the cancellation?",
+        "resumeHint": "The subscription renews on its renewal date as usual. The customer receives an email.",
+        "reason": "Reason (3-1000 characters)",
+        "errors": {
+          "nothing_to_cancel": "The plan has nothing paid to cancel.",
+          "subscription_past_due": "An invoice is overdue. Collect it first.",
+          "lock_pending": "A change to the free base is being applied. Try again later.",
+          "subscription_suspended": "The subscription is suspended.",
+          "subscription_change_pending": "A change is still being processed.",
+          "cancel_trial_unsupported": "A trial ends by itself.",
+          "cancel_already_effective": "The period has ended; the cancellation can no longer be withdrawn."
+        }
+      },
+      "adminLogin": {
+        "title": "Address on record",
+        "hint": "Every message the control plane sends for this workspace goes to this address: the invitation, subscription billing, trial and cancellation notices and the workspace deletion code.",
+        "none": "No address on record",
+        "change": "Change address",
+        "changeTitle": "Change the address on record",
+        "consequence": "The new address receives all control-plane mail from now on, queued mail included, and both the old and the new address are told. Unused invitations to the old address stop working and a pending deletion code is cancelled. No account, password or login inside the workspace changes: the new person must already have an account there.",
+        "newAddress": "New address",
+        "reason": "Reason (3-1000 characters)",
+        "confirm": "Change address",
+        "errors": {
+          "admin_login_unchanged": "This is already the address on record.",
+          "no_workspace": "This customer has no workspace yet.",
+          "workspace_not_activated": "No manager has activated this workspace yet, so its address was fixed at provisioning and cannot be changed. Create the customer again with the right address, or wait for the rename action."
+        },
+        "changed": "The address was changed. No account in the workspace was touched. Both addresses were told.",
+        "shared": "{count} other customer(s) already use this address. \"Find my workspace\" will list all their workspaces to that mailbox."
+      },
+      "deletion": {
+        "requested": "Deletion requested on {requested}. Waiting for the customer to confirm with the emailed code.",
+        "confirmed": "Deletion confirmed on {confirmed}. The workspace, its files and its backups are due to be deleted on {due}.",
+        "due": "The withdrawal window ended on {due}. The request is in its final hold until {hold} and the workspace still works.",
+        "deleting": "Access to the workspace has been stopped since {deleting} and the deletion is being carried out.",
+        "deleted": "The workspace was deleted on {deleted}.",
+        "workspaceDeleted": "Workspace deleted {date}",
+        "renewal": {
+          "cancelled": "The paid renewal was cancelled at the period end. No refund is made.",
+          "already_cancelled": "The paid renewal was already cancelled.",
+          "not_cancellable": "The paid renewal could not be cancelled automatically ({reason}). Stop it by hand if the customer pays."
+        },
+        "refusals": {
+          "nothing_to_cancel": "the workspace is on the free base",
+          "no_subscription": "there is no subscription",
+          "cancel_trial_unsupported": "it is a trial",
+          "subscription_past_due": "an invoice is overdue",
+          "lock_pending": "a change to the free base is being applied",
+          "subscription_suspended": "the subscription is suspended",
+          "subscription_change_pending": "a change is still being processed",
+          "renewal_in_progress": "a renewal is being applied",
+          "subscription_required": "the subscription has no applied plan"
+        },
+        "withdraw": "Withdraw deletion request",
+        "withdrawTitle": "Withdraw the deletion request on the customer's behalf?",
+        "withdrawHint": "The workspace is not deleted, and access is restored if it was stopped. A cancelled renewal is not resumed: the customer resumes it from the subscription page. The customer receives an email and so do you.",
+        "reason": "Reason (3-1000 characters)",
+        "run": {
+          "title": "Deletion run",
+          "runnerOn": "The deletion runner is on.",
+          "runnerOff": "The deletion runner is off: it records its plan and carries nothing out.",
+          "runnerOffReasons": {"kill_switch_off": "The kill switch is off.", "mail_host_unset": "No mail host is configured, so no notice could be delivered.", "local_mail_capture": "The mail host is a local capture (localhost or mailpit): a mail accepted there reaches no customer."},
+          "restoreHold": "Restore hold: after a control plane restore no request leaves its final hold before this time.",
+          "holdUntil": "Hold ends",
+          "deletingAt": "Access stopped",
+          "committedAt": "Point of no return passed",
+          "deletedAt": "Deleted",
+          "notCommitted": "The point of no return has not been passed: you can still withdraw the request.",
+          "committed": "The point of no return has passed: the request can no longer be withdrawn.",
+          "stuck": "Stuck at {step}: {code}",
+          "planTitle": "Frozen plan",
+          "planDatabase": "Database",
+          "planHost": "Host",
+          "planBackups": "Backups",
+          "planRestoreCopies": "Restore copies",
+          "planCards": "Saved cards",
+          "noPlan": "The plan is frozen when the hold ends.",
+          "prechecksTitle": "Pre-checks",
+          "prechecksBlocked": "Blocked by {code}",
+          "prechecksClear": "Nothing blocks the deletion.",
+          "checkOk": "passed",
+          "checkFailing": "blocking",
+          "stepsTitle": "Steps",
+          "noSteps": "No step has run yet.",
+          "attempts": "{attempts} attempts, {failures} failed",
+          "nextAttempt": "Next attempt {date}",
+          "lastError": "Last error: {code}",
+          "states": {
+            "pending": "Pending",
+            "running": "Running",
+            "done": "Done",
+            "failed": "Failed",
+            "skipped": "Skipped"
+          },
+          "stepNames": {
+            "preflight": "Pre-checks",
+            "stop_access": "Stop access",
+            "unbind_relay": "Unbind the TikTok relay",
+            "commit": "Point of no return",
+            "delete_cards": "Delete saved cards",
+            "drop_database": "Drop the database",
+            "remove_filestore": "Remove the files",
+            "remove_restore_copies": "Remove restore copies",
+            "purge_local_backups": "Purge local backups",
+            "purge_offsite": "Purge off-site backups",
+            "remove_side_files": "Remove side files",
+            "clean_registry_rows": "Clean registry rows",
+            "finish": "Finish",
+            "anonymise_contacts": "Remove the administrator contact",
+            "reinstate": "Reinstate the workspace"
+          }
+        },
+        "errors": { "deletion_in_progress": "The deletion has passed its point of no return: the request can no longer be withdrawn." }
       },
       "cancelOrder": {
         "action": "Cancel pending order",
@@ -1176,12 +1332,23 @@
       "save": "Save settings",
       "saved": "The billing settings were saved.",
       "sections": {
+        "seller": "Seller identity on invoices",
+        "sellerHint": "Printed on every customer invoice, copied onto each invoice when it is issued. A legal name in either language is required before it shows; the rest is optional. There is no tax number field: Liwan is not VAT-registered.",
         "refund": "Refund window",
         "onboarding": "Assisted onboarding",
         "bank": "Bank transfer account",
         "bankHint": "Customers see this account on an unpaid invoice. Leave the IBAN empty to stop offering bank transfer."
       },
       "fields": {
+        "sellerNameAr": "Legal name (Arabic)",
+        "sellerNameEn": "Legal name (English)",
+        "sellerRegistration": "Commercial registration number",
+        "sellerPhone": "Phone",
+        "sellerEmail": "Contact email",
+        "sellerCity": "City",
+        "sellerCountry": "Country",
+        "sellerAddress": "Address",
+        "sellerAddressHint": "One address line per row.",
         "window": "Refund window (days)",
         "windowHint": "A full refund is allowed only for the customer's first payment and only within these days of it.",
         "accountName": "Account name",
@@ -1194,6 +1361,7 @@
         "onboardingFeeHint": "A positive whole amount charged once when a customer starts with assisted onboarding. Enter 0 to stop offering it; leave it empty to keep the current fee."
       },
       "errors": {
+        "sellerEmail": "Enter a valid email address, or leave it empty.",
         "window": "Enter a whole number of days between 0 and 365.",
         "iban": "Enter a Saudi IBAN (SA and 22 digits), or leave it empty.",
         "onboardingFee": "Enter a whole amount in SAR, without fractions, such as 499, or 0 to stop offering onboarding."
@@ -1256,12 +1424,26 @@
         "amountHint": "In riyals, with at most two decimals, such as 123.45.",
         "amountInvalid": "Enter the amount as a number in riyals, such as 123.45, with no sign or letters.",
         "amountDecimals": "A riyal amount has at most two decimals. Enter the exact amount received, without rounding.",
+        "claimed": "Stated by the customer, not verified: it transferred this on {date}",
+        "claimedReference": "Sender or bank reference given by the customer: {reference}",
         "valueDate": "Value date"
       },
       "refund": {
         "action": "Record refund",
         "title": "Record that this credit note was refunded",
-        "description": "This does not refund anything. Refund the customer in the payment provider's dashboard first, then record the provider's reference here.",
+        "description": "This does not refund anything. Return the money another way first (a bank transfer, or the payment provider's dashboard after checking it was not already refunded there), then record the reference here.",
+        "automatic": {
+          "inProgress": "The refund is being made through the payment provider. Nothing else is needed; this page shows the result.",
+          "recording": "The payment provider has returned the money. The record will complete by itself; no manual refund is needed or allowed.",
+          "recordingBlocked": "The record is delayed, and it is retried automatically. Last answer: {reason}",
+          "unverified": "The provider has not confirmed this refund yet. Do not refund by hand.",
+          "unverifiedHint": "Check the provider's dashboard. This page keeps checking the provider and records the refund when it shows the money returned. The manual form stays closed so the customer is not paid twice.",
+          "retrying": "The provider has not confirmed yet. Last answer: {reason}",
+          "failed": "The payment provider could not refund this payment: {reason}",
+          "failedHint": "Check the provider's dashboard first so the customer is not paid twice. If the money was not returned, return it another way and record the reference below.",
+          "done": "Refunded by the system through the payment provider. The reference below is the provider's."
+        },
+        "dropsToFreeBase": "This is the customer's first payment: recording the refund drops the subscription to the free base at once. Items bought with a later payment stay.",
         "reference": "Provider refund reference",
         "referenceHint": "The refund or payment id shown in the provider's dashboard.",
         "reason": "Reason",
@@ -1276,10 +1458,10 @@
         "alreadyRequested": "A refund was already requested for this invoice. Its credit note is listed under adjustments.",
         "request": {
           "title": "Refund request",
-          "hint": "When the customer asks for their money back inside the refund window, request the refund here. It opens a credit note for the whole invoice; this step refunds nothing.",
+          "hint": "When the customer asks for their money back inside the refund window, request the refund here. It opens a credit note for the whole invoice. A card payment is returned through the provider automatically; a bank transfer is returned by you and recorded on the note.",
           "action": "Request refund",
           "confirmTitle": "Request a full refund of this invoice",
-          "confirmHint": "This opens a pending credit note for the invoice total. Refund the customer in the payment provider's dashboard, then record the provider's reference on the note.",
+          "confirmHint": "This opens a credit note for the invoice total. A card payment is refunded by the system through the payment provider. A bank transfer is returned by you, then recorded on the note.",
           "confirm": "Request refund",
           "unitsUsed": "AI units already used",
           "unitsUsedHint": "Read the units this top-up has spent in the customer's workspace. Enter 0 if none were used. A top-up with any use cannot be refunded.",
@@ -1291,7 +1473,10 @@
           "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
           "refund_reference_in_use": "This refund reference is already recorded on another credit note.",
           "refund_window_closed": "The refund window has closed, so this payment cannot be refunded.",
-          "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot."
+          "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot.",
+          "lock_pending": "The subscription is still being moved to the free base. Record the refund again once that finishes.",
+          "fulfillment_pending": "This order is still being delivered. Request the refund once the delivery ends.",
+          "refund_in_progress": "The system is still refunding this payment through the provider. Wait for the result; the manual form opens only if the provider cannot refund."
         }
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",

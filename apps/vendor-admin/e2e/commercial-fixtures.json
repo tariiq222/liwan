@@ -1,4 +1,13 @@
 {
+  "savedCard": {
+    "id": "pm-card-1",
+    "brand": "visa",
+    "last_four": "4242",
+    "exp_month": 3,
+    "exp_year": 2030,
+    "status": "active",
+    "is_default": true
+  },
   "context": {
     "enabled": true,
     "capabilities": [
@@ -119,7 +128,7 @@
           "auto_renew": {
             "enabled": false,
             "consent_at": null,
-            "token_ref_present": false
+            "payment_method": null
           },
           "trial_ends_at": null,
           "grace_ends_at": null
@@ -201,7 +210,7 @@
           "auto_renew": {
             "enabled": false,
             "consent_at": null,
-            "token_ref_present": false
+            "payment_method": null
           },
           "trial_ends_at": null,
           "grace_ends_at": null
@@ -702,6 +711,7 @@
           "invoice_id": "inv-3",
           "provider": "simulator",
           "mode": "simulator",
+          "kind": "hosted_invoice",
           "provider_ref": null,
           "amount": {
             "currency": "SAR",
@@ -1598,7 +1608,7 @@
       "auto_renew": {
         "enabled": false,
         "consent_at": null,
-        "token_ref_present": false
+        "payment_method": null
       },
       "trial_ends_at": null,
       "grace_ends_at": null
@@ -1674,7 +1684,7 @@
       "auto_renew": {
         "enabled": false,
         "consent_at": null,
-        "token_ref_present": false
+        "payment_method": null
       },
       "trial_ends_at": null,
       "grace_ends_at": null

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { deletionWithdrawable, isDeletionShown } from '@/utils/vendorDeletion'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
-import { cancellationErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
+import { adminLoginErrorKey, cancellationErrorKey, cardActionErrorKey, deletionErrorKey, renewalErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
@@ -97,6 +98,37 @@ async function resendInvitation() {
   catch { inviteState.value = 'failed' }
   finally { inviteBusy.value = false }
 }
+// The address on record receives every control-plane mail for the workspace (invitation, billing, trial, cancellation and deletion notices).
+// Changing it needs a reason and a fresh passkey confirmation; it never changes an account inside the workspace.
+const canChangeAdminLogin = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && !error.value && !workspaceDeleted.value && deletion.value?.state !== 'deleting')
+const adminLoginOpen = ref(false)
+const adminLoginValue = ref('')
+const adminLoginReason = ref('')
+const adminLoginBusy = ref(false)
+const adminLoginFailure = ref<string | undefined>()
+const adminLoginChanged = ref(false)
+const adminLoginShared = ref(0)
+const adminLoginRefusal = ref<string | undefined>()
+const validAdminLogin = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminLoginValue.value.trim()) && adminLoginValue.value.trim().length <= 100)
+const validAdminLoginReason = computed(() => adminLoginReason.value.trim().length >= 3 && adminLoginReason.value.trim().length <= 1000)
+function closeAdminLogin() { adminLoginOpen.value = false; adminLoginValue.value = ''; adminLoginReason.value = ''; adminLoginFailure.value = undefined; adminLoginShared.value = 0; adminLoginRefusal.value = undefined }
+// Before confirming, ask the server (it writes nothing) whether the workspace can change at all and whether the address is already used by another customer.
+async function checkAdminLogin() {
+  adminLoginShared.value = 0; adminLoginRefusal.value = undefined
+  if (!hydrated.value || !validAdminLogin.value) return
+  try { adminLoginShared.value = (await api.previewAdminLogin(id.value, adminLoginValue.value)).preview.other_customers_with_address }
+  catch (cause) { adminLoginRefusal.value = t(adminLoginErrorKey(cause)) }
+}
+async function changeAdminLogin() {
+  if (!hydrated.value || adminLoginBusy.value || !canChangeAdminLogin.value || !validAdminLogin.value || !validAdminLoginReason.value) return
+  adminLoginBusy.value = true; adminLoginFailure.value = undefined
+  try {
+    await api.changeAdminLogin(id.value, { admin_login: adminLoginValue.value, reason: adminLoginReason.value })
+    adminLoginChanged.value = true
+    closeAdminLogin()
+    await refresh()
+  } catch (cause) { adminLoginFailure.value = t(adminLoginErrorKey(cause)) } finally { adminLoginBusy.value = false }
+}
 // A hosted-payment link the vendor sends to the customer: reuses the order's live payment attempt (owner decision 2026-10-29).
 const canPayLink = computed(() => can('vendor.billing.manage') && view.value?.pending_order?.payment_state === 'awaiting_payment')
 const payLinkBusy = ref(false)
@@ -133,6 +165,76 @@ async function changeSuspension() {
     await refreshCancellationState()
   } catch (cause) { suspensionFailure.value = t(commercialErrorKey(cause)) } finally { suspensionBusy.value = false }
 }
+// Cancelling the renewal on the customer's behalf keeps the paid period; the customer can resume before the renewal date. Both need a reason and a fresh passkey confirmation.
+const renewalAction = ref<'cancel' | 'resume' | null>(null)
+const renewalReason = ref('')
+const renewalBusy = ref(false)
+const renewalFailure = ref<string | undefined>()
+const canChangeRenewal = computed(() => can('vendor.subscriptions.manage') && !error.value && Boolean(view.value?.cancellation || view.value?.cancellable))
+const validRenewalReason = computed(() => renewalReason.value.trim().length >= 3 && renewalReason.value.trim().length <= 1000)
+function closeRenewal() { renewalAction.value = null; renewalReason.value = ''; renewalFailure.value = undefined }
+async function changeRenewal() {
+  const action = renewalAction.value
+  if (!hydrated.value || renewalBusy.value || !action || !view.value || !validRenewalReason.value) return
+  renewalBusy.value = true; renewalFailure.value = undefined
+  try {
+    if (action === 'cancel') await api.cancelRenewal(view.value.id, renewalReason.value)
+    else await api.resumeRenewal(view.value.id, renewalReason.value)
+    closeRenewal()
+    await refreshCancellationState()
+  } catch (cause) { renewalFailure.value = t(renewalErrorKey(cause)) } finally { renewalBusy.value = false }
+}
+// The saved card: removing it (deleted at the provider first) or only stopping automatic renewal. Both need a reason and a fresh passkey confirmation.
+const cardAction = ref<'remove' | 'disableAutoRenew' | null>(null)
+const cardReason = ref('')
+const cardBusy = ref(false)
+const cardFailure = ref<string | undefined>()
+const savedCard = computed(() => view.value?.auto_renew.payment_method ?? null)
+const canChangeCard = computed(() => can('vendor.subscriptions.manage') && !error.value && Boolean(savedCard.value))
+const validCardReason = computed(() => cardReason.value.trim().length >= 3 && cardReason.value.trim().length <= 1000)
+function closeCardAction() { cardAction.value = null; cardReason.value = ''; cardFailure.value = undefined }
+async function changeCard() {
+  const action = cardAction.value
+  const card = savedCard.value
+  if (!hydrated.value || cardBusy.value || !action || !view.value || !card || !validCardReason.value) return
+  cardBusy.value = true; cardFailure.value = undefined
+  try {
+    if (action === 'remove') await api.removePaymentMethod(view.value.id, card.id, cardReason.value)
+    else await api.disableAutoRenew(view.value.id, cardReason.value)
+    closeCardAction()
+    await refreshCancellationState()
+  } catch (cause) { cardFailure.value = t(cardActionErrorKey(cause)) } finally { cardBusy.value = false }
+}
+// The customer's own workspace-deletion request: the console shows its dates and what happened to the renewal, and withdraws it on the customer's behalf with a reason and a fresh passkey confirmation. It cannot ask for or confirm one.
+const { data: deletionRun, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletionRun(id.value))).value?.run ?? null)
+const deletion = computed(() => (isDeletionShown(deletionRun.value?.request) ? deletionRun.value!.request : null))
+const workspaceDeleted = computed(() => deletion.value?.state === 'deleted' || tenant.value?.status === 'deleted')
+const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatLiwanDate(deletion.value?.deleted_at ?? '') }))
+const deletionWithdrawOpen = ref(false)
+const deletionReason = ref('')
+const deletionBusy = ref(false)
+const deletionFailure = ref<string | undefined>()
+const canWithdrawDeletion = computed(() => can('vendor.subscriptions.manage') && !error.value && deletion.value !== null && deletionWithdrawable(deletion.value))
+const validDeletionReason = computed(() => deletionReason.value.trim().length >= 3 && deletionReason.value.trim().length <= 1000)
+function closeDeletion() { deletionWithdrawOpen.value = false; deletionReason.value = ''; deletionFailure.value = undefined }
+async function withdrawDeletion() {
+  if (!hydrated.value || deletionBusy.value || !canWithdrawDeletion.value || !validDeletionReason.value) return
+  deletionBusy.value = true; deletionFailure.value = undefined
+  try {
+    await api.withdrawTenantDeletion(id.value, deletionReason.value)
+    closeDeletion()
+    await refreshDeletion()
+  } catch (cause) { deletionFailure.value = t(deletionErrorKey(cause)) } finally { deletionBusy.value = false }
+}
+const deletionMessage = computed(() => deletion.value && t(`vendor.customers.deletion.${deletion.value.state}`, {
+  requested: formatLiwanDate(deletion.value.requested_at), confirmed: formatLiwanDate(deletion.value.confirmed_at ?? ''), due: formatLiwanDate(deletion.value.due_at ?? ''),
+  hold: formatLiwanDateTime(deletion.value.hold_until ?? ''), deleting: formatLiwanDateTime(deletion.value.deleting_at ?? ''), deleted: formatLiwanDate(deletion.value.deleted_at ?? ''),
+}))
+const deletionRenewal = computed(() => {
+  const request = deletion.value
+  if (!request?.renewal_outcome) return null
+  return t(`vendor.customers.deletion.renewal.${request.renewal_outcome}`, { reason: request.renewal_refusal ? t(`vendor.customers.deletion.refusals.${request.renewal_refusal}`) : '' })
+})
 async function refreshCancellationState() {
   await refresh()
   await refreshExtra()
@@ -170,6 +272,7 @@ async function cancelPendingOrder() {
             <SharedStatusBadge v-if="workspaceBadge" :tone="workspaceBadge.tone" :label="t(workspaceBadge.labelKey)" />
             <SharedStatusBadge v-else tone="neutral" variant="outline" :label="t('vendor.customers.noWorkspace')" />
           </span>
+          <span v-if="workspaceDeleted" class="text-sm text-muted" data-testid="workspace-deleted-summary">{{ workspaceDeletedText }}</span>
           <SharedStatusBadge v-if="customer.commercial_setup_required" tone="warning" icon="i-lucide-triangle-alert" :label="t('vendor.customers.setupRequired')" />
         </div>
       </template>
@@ -179,6 +282,9 @@ async function cancelPendingOrder() {
         <template v-if="tab === 'summary'">
           <UAlert v-if="customer.commercial_setup_required" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.setupRequired')" :description="t('vendor.customers.setupHint')" />
           <VendorCustomerGlance :setup-required="customer.commercial_setup_required" :subscription="view" :plan-name="planNameOf(view?.applied?.plan_revision_id) ?? pendingPlanName" :plan-pending="!view?.applied && Boolean(pendingPlanName)" :invoices="glanceInvoices" :has-workspace="hasWorkspace" :workspace-badge="workspaceBadge" :provisioning-failed="progress.failed" :operation-failed="operationFailed" :workspace-unreadable="workspaceUnreadable" :invoices-offered="canBilling" :login-url="progress.loginUrl" :tab-to="tabTo" @retry="retryWorkspaceState" />
+          <p v-if="customer.signup_acceptance" class="text-sm text-muted" data-testid="signup-acceptance">
+            {{ t('vendor.customers.signupAcceptance', { version: customer.signup_acceptance.terms_version, date: formatLiwanDate(customer.signup_acceptance.accepted_at) }) }}
+          </p>
         </template>
 
         <template v-else-if="tab === 'subscription'">
@@ -189,6 +295,18 @@ async function cancelPendingOrder() {
             </template>
             <p v-if="!view" class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
             <VendorSubscriptionSummary v-else :subscription="view" :plan-name="planName">
+              <template v-if="canChangeCard" #card-actions>
+                <div class="space-y-3" data-testid="card-actions">
+                  <UAlert v-if="cardFailure" color="error" variant="subtle" role="alert" :title="cardFailure" />
+                  <SharedInlineConfirm v-if="cardAction" :title="t(`vendor.customers.cardActions.${cardAction}Title`)" :description="t(`vendor.customers.cardActions.${cardAction}Hint`)" :confirm-label="t(`vendor.customers.cardActions.${cardAction}`)" color="error" :pending="cardBusy" :disabled="!hydrated || cardBusy || !validCardReason" @confirm="changeCard" @cancel="closeCardAction">
+                    <UFormField :label="t('vendor.customers.cardActions.reason')" required class="mt-3"><UTextarea v-model="cardReason" :maxlength="1000" :disabled="!hydrated || cardBusy" class="w-full" /></UFormField>
+                  </SharedInlineConfirm>
+                  <div v-else class="flex flex-wrap gap-2">
+                    <UButton v-if="view.auto_renew.enabled" color="neutral" variant="outline" size="sm" icon="i-lucide-repeat-2" :disabled="!hydrated" data-testid="disable-auto-renew" @click="cardAction = 'disableAutoRenew'">{{ t('vendor.customers.cardActions.disableAutoRenew') }}</UButton>
+                    <UButton color="error" variant="outline" size="sm" icon="i-lucide-credit-card" :disabled="!hydrated" data-testid="remove-card" @click="cardAction = 'remove'">{{ t('vendor.customers.cardActions.remove') }}</UButton>
+                  </div>
+                </div>
+              </template>
               <template #order-actions>
                 <div v-if="canPayLink" class="mb-3 space-y-2" data-testid="pay-link">
                   <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-link" :disabled="!hydrated || payLinkBusy" :loading="payLinkBusy" @click="createPayLink">{{ t('vendor.customers.payLink.create') }}</UButton>
@@ -216,6 +334,28 @@ async function cancelPendingOrder() {
               </SharedInlineConfirm>
               <UButton v-else-if="canSuspend" color="error" variant="outline" size="sm" icon="i-lucide-pause" :disabled="!hydrated" data-testid="suspend-subscription" @click="suspensionAction = 'suspend'">{{ t('vendor.customers.suspension.suspend') }}</UButton>
               <UButton v-else color="neutral" variant="outline" size="sm" icon="i-lucide-play" :disabled="!hydrated" data-testid="resume-subscription" @click="suspensionAction = 'resume'">{{ t('vendor.customers.suspension.resume') }}</UButton>
+            </div>
+            <div v-if="view?.cancellation || canChangeRenewal" class="mt-4 space-y-3" data-testid="renewal-actions">
+              <UAlert v-if="view?.cancellation" color="warning" variant="subtle" icon="i-lucide-calendar-x" :title="t('vendor.customers.renewalCancel.endsNotice', { date: formatLiwanDate(view.cancellation.effective_on), by: t(`vendor.customers.renewalCancel.by.${view.cancellation.requested_by}`), requested: formatLiwanDate(view.cancellation.requested_at) })" />
+              <UAlert v-if="renewalFailure" color="error" variant="subtle" role="alert" :title="renewalFailure" />
+              <template v-if="canChangeRenewal">
+                <SharedInlineConfirm v-if="renewalAction" :title="t(`vendor.customers.renewalCancel.${renewalAction}Title`)" :description="t(`vendor.customers.renewalCancel.${renewalAction}Hint`)" :confirm-label="t(`vendor.customers.renewalCancel.${renewalAction}`)" :color="renewalAction === 'cancel' ? 'error' : 'primary'" :pending="renewalBusy" :disabled="!hydrated || renewalBusy || !validRenewalReason" @confirm="changeRenewal" @cancel="closeRenewal">
+                  <UFormField :label="t('vendor.customers.renewalCancel.reason')" required class="mt-3"><UTextarea v-model="renewalReason" :maxlength="1000" :disabled="!hydrated || renewalBusy" class="w-full" /></UFormField>
+                </SharedInlineConfirm>
+                <UButton v-else-if="view?.cancellation" color="neutral" variant="outline" size="sm" icon="i-lucide-rotate-ccw" :disabled="!hydrated" data-testid="resume-renewal" @click="renewalAction = 'resume'">{{ t('vendor.customers.renewalCancel.resume') }}</UButton>
+                <UButton v-else color="error" variant="outline" size="sm" icon="i-lucide-calendar-x" :disabled="!hydrated" data-testid="cancel-renewal" @click="renewalAction = 'cancel'">{{ t('vendor.customers.renewalCancel.cancel') }}</UButton>
+              </template>
+            </div>
+            <div v-if="deletion" class="mt-4 space-y-3" data-testid="deletion-request">
+              <UAlert :color="deletion.state === 'requested' || deletion.state === 'confirmed' ? 'warning' : 'error'" variant="subtle" icon="i-lucide-trash-2" :title="deletionMessage ?? undefined" :description="deletionRenewal ?? undefined" />
+              <VendorDeletionRunPanel v-if="deletionRun" :run="deletionRun" />
+              <UAlert v-if="deletionFailure" color="error" variant="subtle" role="alert" :title="deletionFailure" />
+              <template v-if="canWithdrawDeletion">
+                <SharedInlineConfirm v-if="deletionWithdrawOpen" :title="t('vendor.customers.deletion.withdrawTitle')" :description="t('vendor.customers.deletion.withdrawHint')" :confirm-label="t('vendor.customers.deletion.withdraw')" color="primary" :pending="deletionBusy" :disabled="!hydrated || deletionBusy || !validDeletionReason" @confirm="withdrawDeletion" @cancel="closeDeletion">
+                  <UFormField :label="t('vendor.customers.deletion.reason')" required class="mt-3"><UTextarea v-model="deletionReason" :maxlength="1000" :disabled="!hydrated || deletionBusy" class="w-full" /></UFormField>
+                </SharedInlineConfirm>
+                <UButton v-else color="neutral" variant="outline" size="sm" icon="i-lucide-rotate-ccw" :disabled="!hydrated" data-testid="withdraw-deletion" @click="deletionWithdrawOpen = true">{{ t('vendor.customers.deletion.withdraw') }}</UButton>
+              </template>
             </div>
             <VendorTrialPanel v-if="view && (view.state === 'trialing' || view.trial_reopenable)" :subscription="view" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
             <p v-if="view?.pending_order && can('vendor.subscriptions.manage')" class="mt-3 text-sm text-muted">{{ t('vendor.customers.changeBlocked') }}</p>
@@ -266,10 +406,25 @@ async function cancelPendingOrder() {
 
         <template v-else-if="tab === 'workspace' || tab === 'operations'">
           <SharedEmptyState v-if="!customer.tenant_id" :title="t('vendor.customers.noWorkspaceYet')" :description="t('vendor.customers.noWorkspaceHint')" />
+          <SharedEmptyState v-else-if="workspaceDeleted" :title="workspaceDeletedText" data-testid="workspace-deleted" />
           <SharedPageState v-else-if="tab === 'workspace'" :loading="tenantPending && !tenant" :error="tenantError" @retry="refreshTenant">
             <div v-if="tenant" class="space-y-6">
               <VendorTenantProperties :tenant="tenant" :progress="progress" hide-open />
               <VendorWorkspacePanel :tenant="tenant" :progress="progress" />
+              <SharedRecordSection variant="panel" :title="t('vendor.customers.adminLogin.title')" :description="t('vendor.customers.adminLogin.hint')">
+                <template v-if="canChangeAdminLogin && !adminLoginOpen" #actions>
+                  <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-pencil" data-testid="change-admin-login" :disabled="!hydrated" @click="adminLoginOpen = true">{{ t('vendor.customers.adminLogin.change') }}</UButton>
+                </template>
+                <p class="text-sm" data-testid="admin-login-value"><bdi dir="ltr" class="font-semibold">{{ customer.admin_login ?? t('vendor.customers.adminLogin.none') }}</bdi></p>
+                <SharedInlineConfirm v-if="adminLoginOpen" class="mt-3" :title="t('vendor.customers.adminLogin.changeTitle')" :description="t('vendor.customers.adminLogin.consequence')" :confirm-label="t('vendor.customers.adminLogin.confirm')" color="primary" :pending="adminLoginBusy" :disabled="!hydrated || adminLoginBusy || !validAdminLogin || !validAdminLoginReason || Boolean(adminLoginRefusal)" @confirm="changeAdminLogin" @cancel="closeAdminLogin">
+                  <UFormField :label="t('vendor.customers.adminLogin.newAddress')" required class="mt-3"><UInput v-model="adminLoginValue" type="email" dir="ltr" :maxlength="100" :disabled="!hydrated || adminLoginBusy" class="w-full" @blur="checkAdminLogin" /></UFormField>
+                  <UFormField :label="t('vendor.customers.adminLogin.reason')" required class="mt-3"><UTextarea v-model="adminLoginReason" :maxlength="1000" :disabled="!hydrated || adminLoginBusy" class="w-full" /></UFormField>
+                </SharedInlineConfirm>
+                <UAlert v-if="adminLoginOpen && adminLoginRefusal" class="mt-3" color="error" variant="subtle" role="alert" data-testid="admin-login-refusal" :title="adminLoginRefusal" />
+                <UAlert v-if="adminLoginOpen && adminLoginShared > 0" class="mt-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="admin-login-shared" :title="t('vendor.customers.adminLogin.shared', { count: adminLoginShared })" />
+                <UAlert v-if="adminLoginFailure" class="mt-3" color="error" variant="subtle" role="alert" :title="adminLoginFailure" />
+                <p v-if="adminLoginChanged" role="status" class="mt-3 text-sm text-muted" data-testid="admin-login-result">{{ t('vendor.customers.adminLogin.changed') }}</p>
+              </SharedRecordSection>
               <SharedRecordSection v-if="canInvite" variant="panel" :title="t('vendor.customers.resendInvitation')" :description="t('vendor.customers.resendInvitationHint')">
                 <template #actions>
                   <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-mail" data-testid="resend-invitation" :disabled="!hydrated || inviteBusy" :loading="inviteBusy" @click="resendInvitation">{{ t('vendor.customers.resendInvitation') }}</UButton>
@@ -297,5 +452,5 @@ async function cancelPendingOrder() {
         </template>
       </div>
 </SharedRecordPage>
-  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || operationsDirty" guard-route-updates />
+  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || Boolean(deletionReason.trim()) || Boolean(adminLoginReason.trim()) || Boolean(adminLoginValue.trim()) || operationsDirty" guard-route-updates />
 </template>

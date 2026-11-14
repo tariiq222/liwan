@@ -56,3 +56,13 @@ export function client(pool: Pool, caps: any[] = ALL, issuer = 'commercial-test'
 }
 export const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 export const monthly = { unit: 'month' as const, count: 1 }
+
+/** A saved card for a customer, the way the renewal path reads it: the default active row. Display facts are fixed; only the token and status vary. */
+export async function seedPaymentMethod(pool: Pool, customerId: string, token: string, over: { status?: 'active' | 'inactive' | 'removed'; is_default?: boolean; provider?: string; mode?: string } = {}) {
+  const id = randomUUID()
+  await pool.query(
+    `INSERT INTO payment_methods(id,customer_id,provider,mode,provider_token,brand,last_four,exp_month,exp_year,status,is_default,consent_at,consent_text_version,created_by,removed_at,removed_by)
+     VALUES($1,$2,$3,$4,$5,'visa','4242',12,2030,$6,$7,now(),'test-v1','test',CASE WHEN $6='removed' THEN now() END,CASE WHEN $6='removed' THEN 'test' END)`,
+    [id, customerId, over.provider ?? 'simulator', over.mode ?? 'simulator', token, over.status ?? 'active', over.is_default ?? true])
+  return id
+}

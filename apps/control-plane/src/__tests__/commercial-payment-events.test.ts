@@ -220,32 +220,33 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
     f.adapter.settle(a.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
     const bid=randomUUID(),created=await f.adapter.createAttempt({attempt_id:bid,order_id:f.order_id,amount:{minor:11500,currency:'SAR',exponent:2},description:'x',success_url:'https://liwan.test/a',back_url:'https://liwan.test/a',callback_url:'https://liwan.test/a'})
-    const b=(await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status)
-      SELECT $1,order_id,invoice_id,provider,mode,merchant_ref,$2,amount_minor,currency,exponent,'redirected' FROM payment_attempts WHERE id=$3 RETURNING id`,[bid,created.provider_ref,a.id])).rows[0]
+    const b=(await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,kind)
+      SELECT $1,order_id,invoice_id,provider,mode,merchant_ref,$2,amount_minor,currency,exponent,'redirected',kind FROM payment_attempts WHERE id=$3 RETURNING id`,[bid,created.provider_ref,a.id])).rows[0]
     await reconcileUnknownAttempts(pool,f.adapter)
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('canceled')
     expect((await f.adapter.lookupAttempt(created.provider_ref)).status).toBe('canceled')
   })
   it('closes a token charge the provider does not know so the renewal can be paid by hand',async()=>{
     const f=await fixture(),order=await state(f.order_id)
-    const insert=(ref:string)=>pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,token_charge)
-      SELECT $1,$2,$3,'simulator','simulator',$2::uuid::text,$4,11500,'SAR',2,'unknown',true`,[randomUUID(),f.order_id,f.invoice,ref])
+    const insert=(ref:string,id=randomUUID())=>pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,kind)
+      SELECT $1,$2,$3,'simulator','simulator',$2::uuid::text,$4,11500,'SAR',2,'unknown','saved_card'`,[id,f.order_id,f.invoice,ref])
     // A payment id the provider answered 404 for is authoritative.
     await insert(`pay_gone_${randomUUID()}`)
     const next=await createPaymentAttempt(pool,f.input)
     expect(next.status).toBe('redirected')
-    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'failed'}])
-    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.token_charge_missing' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
+    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND kind='saved_card'",[f.order_id])).rows).toEqual([{status:'failed'}])
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.direct_payment_missing' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
     expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
-    // Only our own order id as the reference proves nothing yet: it waits out a grace period.
-    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE order_id=$1 AND NOT token_charge",[f.order_id])
-    await pool.query('DELETE FROM payment_attempts WHERE order_id=$1 AND token_charge',[f.order_id])
-    await insert(order.id)
+    // Only our own attempt id as the reference (the idempotency key before the answer arrived) proves nothing yet: it waits out a grace period.
+    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE order_id=$1 AND kind<>'saved_card'",[f.order_id])
+    await pool.query('DELETE FROM payment_attempts WHERE order_id=$1 AND kind=\'saved_card\'',[f.order_id])
+    const own=randomUUID()
+    await insert(own,own)
     await expect(createPaymentAttempt(pool,f.input)).rejects.toBeTruthy()
-    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'unknown'}])
-    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '2 hours' WHERE order_id=$1 AND token_charge",[f.order_id])
+    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND kind='saved_card'",[f.order_id])).rows).toEqual([{status:'unknown'}])
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '2 hours' WHERE order_id=$1 AND kind='saved_card'",[f.order_id])
     expect((await createPaymentAttempt(pool,f.input)).status).toBe('redirected')
-    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'failed'}])
+    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND kind='saved_card'",[f.order_id])).rows).toEqual([{status:'failed'}])
   })
   it('never closes a hosted invoice attempt because the provider says it is missing',async()=>{
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
@@ -285,13 +286,16 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
     expect(await counts(f.order_id)).toEqual({payments:1,outbox:1})
   })
-  it('a declined attempt fails the order and refuses a new attempt, but a late success is still honoured',async () => {
+  it('a declined attempt closes it and leaves the order payable: a new attempt opens, and a late success of the first is still honoured',async () => {
     const f=await fixture(),first=await createPaymentAttempt(pool,f.input)
     f.adapter.settle(first.provider_ref,'failed')
     expect(await deliver(f.adapter,f.adapter.webhookBody(first.provider_ref))).toEqual({status:200,outcome:'accepted'})
-    expect(await state(f.order_id)).toMatchObject({payment_state:'failed'})
+    expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[first.id])).rows[0].status).toBe('failed')
-    await expect(createPaymentAttempt(pool,f.input)).rejects.toMatchObject({status:409,code:'payment_not_awaiting'})
+    const second=await createPaymentAttempt(pool,f.input)
+    expect(second.id).not.toBe(first.id)
+    // A repeated decline event changes nothing.
+    expect(await deliver(f.adapter,f.adapter.webhookBody(first.provider_ref))).toEqual({status:200,outcome:'duplicate'})
   })
   it('paid after cancellation requires refund rather than fulfillment',async () => {
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)

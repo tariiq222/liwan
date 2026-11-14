@@ -13,6 +13,7 @@ vi.mock('../commercial/fulfillment.js', () => ({ processFulfillmentOutbox: async
 vi.mock('../commercial/outbox.js', () => ({ claimOutbox: async () => [], completeOutbox: async () => {}, failOutbox: async () => {} }))
 vi.mock('../shared/subscription-reconcile.js', () => ({ recoverInterrupted: async () => {} }))
 vi.mock('../commercial/renewals.js', () => ({ generateRenewals: async () => {}, applyDunning: async () => {} }))
+vi.mock('../commercial/saved-card-charges.js', () => ({ chargeSavedCards: async () => {} }))
 vi.mock('../commercial/settlements.js', () => ({ processRefundOutbox: async () => 0 }))
 
 afterEach(() => { vi.restoreAllMocks(); jobs.reconcile.mockReset() })

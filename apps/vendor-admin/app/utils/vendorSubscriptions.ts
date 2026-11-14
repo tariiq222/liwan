@@ -1,17 +1,22 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
-import { riyadhDate, subscriptionDisplayState, type Adjustment, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
+import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 
 export { subscriptionDisplayState }
-export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
+export type VendorCustomer = { id: string; name: string; tenant_id: string | null; admin_login: string | null; commercial_setup_required: boolean; signup_acceptance: SignupAcceptance | null; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
-/** Whether the owner may still refund this invoice's payment: only the customer's first payment, inside the window. */
-export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number }
-export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[]; refund: VendorRefundability }
+/** Whether the owner may still refund this invoice's payment (only the customer's first payment, inside the window), and
+ * whether recording its pending refund drops the subscription to the free base. */
+export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number; locks_subscription: boolean }
+/** The refund the system makes through the payment provider for a note the vendor requested; the server sets it only for a card payment. */
+export type VendorAutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null }
+/** A credit note with what the server allows: `manual_record_allowed` is true only with no automatic refund, or one that failed with no money returned. */
+export type VendorAdjustment = Adjustment & { automatic_refund: VendorAutomaticRefund | null; manual_record_allowed: boolean }
+export type VendorInvoice = Invoice & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -38,7 +43,7 @@ export function targetStatus(view: Pick<SubscriptionView, 'applied' | 'target' |
   return view.applied ? 'applied_only' : 'none'
 }
 export const orderBadgeColor = (o: Pick<Order, 'payment_state' | 'fulfillment_state'>) => {
-  if (o.fulfillment_state === 'failed' || o.fulfillment_state === 'needs_intervention' || o.payment_state === 'failed' || o.payment_state === 'refund_pending') return 'error' as const
+  if (o.fulfillment_state === 'failed' || o.fulfillment_state === 'needs_intervention' || o.payment_state === 'refund_pending') return 'error' as const
   if (o.fulfillment_state === 'applied') return 'success' as const
   if (o.payment_state === 'awaiting_payment') return 'warning' as const
   return 'info' as const
@@ -132,7 +137,7 @@ export type RefundRequestBlock = 'alreadyRequested' | 'windowClosed' | 'notFirst
  * the customer's first payment (`refund`); a vendor credit note that is not void means the request was already made, or
  * already recorded, and the server refuses a second one. A system note never blocks it.
  */
-export function refundRequestBlock(invoice: Pick<VendorInvoice, 'refund' | 'adjustments'>): RefundRequestBlock | null {
+export function refundRequestBlock(invoice: Pick<VendorInvoice, 'refund'> & { adjustments: Adjustment[] }): RefundRequestBlock | null {
   if (invoice.adjustments.some(note => note.origin === 'vendor' && note.kind === 'credit_note' && note.status !== 'void')) return 'alreadyRequested'
   if (invoice.refund.refundable) return null
   return invoice.refund.first_payment ? 'windowClosed' : 'notFirstPayment'
@@ -149,14 +154,14 @@ export function parseUnitsUsed(text: string): number | null {
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
-  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used'].includes(code)
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress'].includes(code)
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 
 // ---- Bank transfer form ----
-/** The form opens on the invoice total and on today's date in Riyadh, the calendar of the bank statement, never the UTC day. */
-export function transferFormDefaults(total: Money, now: Date = new Date()): { amount: string; valueDate: string } {
-  return { amount: minorToInput(total.minor, total.exponent), valueDate: riyadhDate(now) }
+/** The form opens on the invoice total, today's date in Riyadh (the calendar of the bank statement, never the UTC day) and an empty reference: the vendor types the date and reference from the bank statement, never from what the customer claimed. */
+export function transferFormDefaults(total: Money, now: Date = new Date()): { amount: string; valueDate: string; reference: string } {
+  return { amount: minorToInput(total.minor, total.exponent), valueDate: riyadhDate(now), reference: '' }
 }
 export type TransferAmount = { minor: number } | { issue: 'invalid' | 'decimals' }
 /** The amount in riyals as typed (Arabic-Indic digits included) → minor units. More decimals than the currency has is refused, never rounded. */
@@ -257,4 +262,33 @@ export function cancellationErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   return ['order_not_cancellable', 'payment_reconciliation_required', 'provider_mismatch', 'reason_required'].includes(code)
     ? `vendor.customers.cancelOrder.errors.${code}` : commercialErrorKey(cause)
+}
+
+/** Renewal cancellation errors name the rule that refused them; anything else falls back to the shared message. */
+export function renewalErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return ['nothing_to_cancel', 'subscription_past_due', 'lock_pending', 'subscription_suspended', 'subscription_change_pending', 'cancel_trial_unsupported', 'cancel_already_effective'].includes(code)
+    ? `vendor.customers.renewalCancel.errors.${code}` : commercialErrorKey(cause)
+}
+
+/** Removing the card or stopping automatic renewal: a card the provider could not delete stays on file, and a mismatched provider is refused; anything else falls back to the shared message. */
+export function cardActionErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return ['provider_unavailable', 'provider_mismatch'].includes(code) ? `vendor.customers.cardActions.errors.${code}` : commercialErrorKey(cause)
+}
+
+/** What changing the address on record did. */
+export type AdminLoginChange = { admin_login: string; previous_admin_login: string | null; deletion_code_invalidated: boolean }
+/** What a change would meet, without making it: other customers that already hold the address (nothing forbids it, but "find my workspace" lists all their workspaces to that mailbox). */
+export type AdminLoginPreview = { other_customers_with_address: number }
+
+/** Changing the address on record is refused for the same address, a customer with no workspace or a workspace nobody has activated; anything else falls back to the shared message. */
+export function adminLoginErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return ['admin_login_unchanged', 'no_workspace', 'workspace_not_activated'].includes(code) ? `vendor.customers.adminLogin.errors.${code}` : commercialErrorKey(cause)
+}
+
+/** Withdrawing a deletion request is refused once the deletion passed its point of no return; anything else falls back to the shared message. */
+export function deletionErrorKey(cause: unknown): string {
+  return commercialFailure(cause).code === 'deletion_in_progress' ? 'vendor.customers.deletion.errors.deletion_in_progress' : commercialErrorKey(cause)
 }

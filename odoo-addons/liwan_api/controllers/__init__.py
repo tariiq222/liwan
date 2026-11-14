@@ -11,5 +11,7 @@ from . import (
     company,
     maintenance,
     me,
+    setup,
     storage,
+    tenant_export,
 )

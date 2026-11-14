@@ -62,6 +62,8 @@ export interface AppSettingsPart {
   within?: string
   /** Palette/search target when the card's `within` is a directory without a page (the channels list); defaults to `to ?? within ?? page + anchor`. */
   navTo?: string
+  /** The part belongs to the root company: a branch session does not see it listed (a direct link still opens its page, which says why). */
+  rootOnly?: boolean
 }
 /**
  * One tab of a long settings page: its label and the parts it shows. A page with groups shows one tab per group; a

@@ -8,24 +8,41 @@ import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { enqueueOutbox } from './outbox.js'
 import { markTopupRefunded } from './ai-ledger.js'
 import { recordFulfillmentFailure } from './settlements.js'
+import { logText } from '../log-text.js'
 
 const RETRY_MINUTES = [5, 15, 60]
+/** A first trial keeps retrying after the backoff above is used up: one retry this often, until the window below closes. */
+export const FIRST_TRIAL_RETRY_MINUTES = 60
+export const FIRST_TRIAL_RETRY_WINDOW_HOURS = 72
 const PERMANENT = ['stale_target', 'provision_needs_intervention', 'order_not_released', 'renewal_missing',
   'enrollment_base_catalog_missing', 'enrollment_link_conflict', 'idempotency_conflict', 'shared_replay_forbidden']
 
-const permanentFailure = (code: string | null) => Boolean(code && (PERMANENT.includes(code) || code.startsWith('retries_exhausted:')))
+/** A zero-due `new` order is a first trial: the customer was promised a workspace and there is no money to refund. */
+const isFirstTrial = (order: Record<string, any>) => order.kind === 'new' && order.payment_state === 'not_required'
+
+const withinFirstTrialWindow = (order: Record<string, any>, now: Date) =>
+  now.getTime() - new Date(order.created_at).getTime() < FIRST_TRIAL_RETRY_WINDOW_HOURS * 3_600_000
+
+// A paid order whose enqueue retries ran out is released at once. A first trial has nothing to refund, so it is retried again with the recovery backoff.
+const PROVISION_STUCK = 'provision_needs_intervention'
+
+const permanentFailure = (code: string | null, order: Record<string, any>) =>
+  Boolean(code && (PERMANENT.includes(code) || (code.startsWith('retries_exhausted:') && !isFirstTrial(order))))
 
 /** A known non-retryable refusal releases the target on the next pass. Others retry at 5, 15 and 60 minutes. */
 export async function scheduleFulfillmentRecovery(client: PoolClient, order: Record<string, any>, code: string) {
-  const minutes = permanentFailure(code) ? 0 : RETRY_MINUTES[order.fulfillment_retries] ?? 0
+  // A first trial waiting on an operator's repair of its provision job is looked at hourly, like any other retry.
+  const minutes = permanentFailure(code, order) && !(code === PROVISION_STUCK && isFirstTrial(order) && withinFirstTrialWindow(order, new Date())) ? 0
+    : RETRY_MINUTES[order.fulfillment_retries] ?? (isFirstTrial(order) && withinFirstTrialWindow(order, new Date()) ? FIRST_TRIAL_RETRY_MINUTES : 0)
   // A recovery floor set by queueSameDelivery outlives a failure that would release the order at once, so a fenced job is not retried every tick.
   await client.query(`UPDATE orders SET fulfillment_retry_at=CASE WHEN $2::int>0 THEN now()+make_interval(mins=>$2::int)
     WHEN fulfillment_retry_at>now() THEN fulfillment_retry_at ELSE NULL END,fulfillment_failure_code=$3 WHERE id=$1`,
     [order.id, minutes, code])
 }
 
-const recoverable = `(o.payment_state='paid' OR (o.payment_state='not_required' AND (o.idempotency_key LIKE 'trial-reopen:%' OR o.idempotency_key LIKE 'trial-bootstrap:%' OR EXISTS (
-  SELECT 1 FROM trial_lapses l WHERE l.subscription_id=o.subscription_id AND l.state='pending'
+// A first trial recovers like a paid order.
+const recoverable = `(o.payment_state='paid' OR (o.payment_state='not_required' AND (o.kind='new' OR o.idempotency_key LIKE 'trial-reopen:%' OR o.idempotency_key LIKE 'trial-bootstrap:%' OR EXISTS (
+  SELECT 1 FROM free_base_locks l WHERE l.subscription_id=o.subscription_id AND l.state='pending'
 ))))`
 
 type RecoveryJob = {
@@ -146,7 +163,11 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
         const delivery = matchingJob(order, subscription, effect, job)
         const currentTarget = subscription.target_revision_id === order.target_revision_id
           || order.kind === 'renewal' && subscription.applied_revision_id === order.target_revision_id
-        if (currentTarget && !permanentFailure(order.fulfillment_failure_code) && order.fulfillment_retries < RETRY_MINUTES.length) {
+        // The operator repaired the provision job: a first trial blocked on it rejoins the retries instead of waiting for a re-queue by hand.
+        const repaired = currentTarget && isFirstTrial(order) && order.fulfillment_failure_code === PROVISION_STUCK && withinFirstTrialWindow(order, now)
+          && (await client.query(`SELECT 1 FROM shared_onboardings o JOIN shared_jobs j ON j.id=o.job_id
+            WHERE o.control_tenant_id=$1 AND j.state='needs_intervention'`, [subscription.tenant_id])).rowCount === 0
+        if (currentTarget && (repaired || !permanentFailure(order.fulfillment_failure_code, order)) && (order.fulfillment_retries < RETRY_MINUTES.length || (isFirstTrial(order) && withinFirstTrialWindow(order, now)))) {
           const next = nextOrderState(order, { type: 'fulfillment_retry' })
           await client.query(`UPDATE orders SET fulfillment_state=$2,fulfillment_retries=fulfillment_retries+1,fulfillment_retry_at=NULL WHERE id=$1`, [order.id, next.fulfillment_state])
           if (job?.state === 'needs_intervention')
@@ -159,12 +180,18 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
           await requeueTrialPolicy(client, order, subscription, effect, job, delivery, currentTarget, now)
           return
         }
+        if (isFirstTrial(order)) {
+          // A first trial has no money to refund and nothing to release: once the retry window closes or the code is permanent it stays failed, in the
+          // vendor attention list as a stalled activation, instead of being cancelled out of sight.
+          await deferRecovery(client, order.id, now)
+          return
+        }
         if (order.payment_state === 'paid' && job) {
           const branches = delivery?.authority.branches
           // Only an abandoned paid trial-time policy write with no branch operation may be refunded unreconciled, and only
-          // once the trial has lapsed: the pending lapse then orders the lock, whose delivery names the recorded digests as
+          // once the trial has ended: the pending trial lock then orders the lock, whose delivery names the recorded digests as
           // predecessors. While the trial still runs nothing can reconcile Odoo, so the same delivery stays fenced.
-          const lapsed = (await client.query("SELECT 1 FROM trial_lapses WHERE subscription_id=$1 AND state='pending'", [subscription.id])).rowCount === 1
+          const lapsed = (await client.query("SELECT 1 FROM free_base_locks WHERE subscription_id=$1 AND state='pending' AND cause IN ('trial_end','first_invoice_unpaid')", [subscription.id])).rowCount === 1
           const trialPolicyOnly = lapsed && Boolean(delivery?.authority.trial_ends_at) && branches
             && !branches.apply.length && !branches.archive.length && !branches.restore?.length
           if (!trialPolicyOnly && (!delivery || !provenPreWrite(job, delivery))) {
@@ -190,10 +217,10 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
           archived_at=CASE WHEN odoo_company_id IS NULL THEN NULL ELSE now() END WHERE order_id=$1 AND state='pending'`, [order.id])
       })
     } catch (error) {
-      console.error(`[paid-fulfillment-recovery] order ${candidate.id}`, error)
+      console.error('[paid-fulfillment-recovery] order %s: %s', candidate.id, logText(error))
       await pool.query(`UPDATE orders SET fulfillment_retry_at=$2 WHERE id=$1 AND NOT cancelled
         AND fulfillment_state IN ('failed','needs_intervention')`, [candidate.id, new Date(now.getTime()+5*60_000)])
-        .catch(recordError => console.error(`[paid-fulfillment-recovery] could not defer ${candidate.id}`, recordError))
+        .catch(recordError => console.error('[paid-fulfillment-recovery] could not defer %s: %s', candidate.id, logText(recordError)))
     }
   }
 }

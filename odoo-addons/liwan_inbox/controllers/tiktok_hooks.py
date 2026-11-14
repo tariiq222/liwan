@@ -33,7 +33,7 @@ class TikTokHookController(http.Controller):
         '/api/v1/inbox/hooks/tiktok', type='http', auth='inbox_hook', methods=['POST'], csrf=False, save_session=False,
     )
     @api_handler
-    @requires_feature(TIKTOK_FEATURE)
+    @requires_feature(TIKTOK_FEATURE, operation='read')
     def receive(self, **_):
         raw = read_body()
         payload = parse_payload(raw)

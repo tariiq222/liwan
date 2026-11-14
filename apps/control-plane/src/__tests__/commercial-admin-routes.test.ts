@@ -95,7 +95,6 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
       ['suspended', true, null, null, false, false, 'inactive'],
       ['cancelled', false, null, null, false, false, 'inactive'],
       ['active', true, 'awaiting_payment', 'not_started', false, false, 'awaiting_payment'],
-      ['active', true, 'failed', 'not_started', false, false, 'awaiting_payment'],
       ['active', true, 'paid', 'queued', false, false, 'activating'],
       ['active', true, 'not_required', 'applying', false, false, 'activating'],
       ['active', true, 'paid', 'failed', false, false, 'failed'],
@@ -160,17 +159,12 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
     await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' })).rejects.toMatchObject({ status: 409, code: 'order_not_cancellable' })
     expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [f.id])).rows[0].cancelled).toBe(false)
   })
-  it('cancels a failed order that has no live attempt', async () => {
-    const f = await order('failed')
-    await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' })).resolves.toMatchObject({ status: 200, data: { id: f.id } })
-    expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [f.id])).rows[0].cancelled).toBe(true)
-  })
   it('requires reconciliation for an unknown provider attempt instead of cancelling locally', async () => {
     const f = await order(), invoice = randomUUID()
     await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end)
       VALUES($1,$2,$3,$4,'initial','SAR',2,100,0,100,'2026-01-01','2026-02-01')`, [invoice, f.customer, f.subscription, f.id])
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status)
-      VALUES($1,$2,$3,'simulator','simulator',100,'SAR',2,'unknown')`, [randomUUID(), f.id, invoice])
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status,kind)
+      VALUES($1,$2,$3,'simulator','simulator',100,'SAR',2,'unknown','hosted_invoice')`, [randomUUID(), f.id, invoice])
     await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' }, caps, { adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('http://liwan.test') })).rejects.toMatchObject({ status: 409, code: 'payment_reconciliation_required' })
     expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [f.id])).rows[0].cancelled).toBe(false)
     expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE subject=$1 AND action='order.cancelled'", [f.id])).rows[0].n).toBe(0)

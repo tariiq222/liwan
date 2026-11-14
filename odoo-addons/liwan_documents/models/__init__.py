@@ -15,5 +15,6 @@ from . import (
     ir_attachment,
     ir_binary,
     res_company,
+    tenant_export,
     tenant_profile,
 )

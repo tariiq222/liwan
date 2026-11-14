@@ -1,5 +1,6 @@
 # Edge block for the vendor admin host. Add it next to the customer block of deploy/Caddyfile (or import it); it changes no
 # existing block. The BFF in apps/vendor-admin signs every call to the control plane and overwrites x-liwan-client-ip itself.
+# The upstream is the `vendor-console` service of deploy/control-plane/compose.production.yml; the edge joins its `admin_edge` network (LIWAN_ADMIN_EDGE_NETWORK).
 {$ADMIN_DOMAIN} {
 	encode zstd gzip
 
@@ -43,7 +44,7 @@
 				ipv6_prefix 64
 			}
 		}
-		reverse_proxy vendor-admin:3100 {
+		reverse_proxy vendor-console:3100 {
 			# Set after Connection-nominated fields are stripped; never append. The BFF reads only X-Forwarded-For (trustProxy).
 			header_up X-Forwarded-For {remote_host}
 		}

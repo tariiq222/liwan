@@ -12,7 +12,11 @@ import { getVendorInvoice } from '../commercial/invoices.js'
 import { confirmBankTransfer, bankTransferInstructions } from '../commercial/bank-transfer.js'
 import { billingSettings, setBillingSettings } from '../commercial/billing-settings.js'
 import { refundEligibility } from '../commercial/settlements.js'
-import { processRefundOutbox, refundCreditNote } from '../commercial/settlements.js'
+import { processRefundOutbox, refundCreditNote, requestInvoiceRefund } from '../commercial/settlements.js'
+import { processFreeBaseLocks } from '../commercial/free-base-lock.js'
+import { generateRenewals } from '../commercial/renewals.js'
+import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import { routesB } from '../commercial/routes-b.js'
 
 const suite = url ? describe : describe.skip
@@ -153,8 +157,8 @@ suite('bank transfer (W5)', () => {
     // Simulate the crash A3 names: the attempt row committed as `pending` (reserved) and the settlement never ran, so
     // the order is still awaiting payment. A `succeeded` row here would mean the settlement DID run.
     const attemptId = randomUUID()
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date)
-      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8)`,
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,kind)
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8,'bank_transfer')`,
     [attemptId, order.id, invoice.id, body.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), body.value_date])
     expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.id])).rows[0].payment_state).toBe('awaiting_payment')
     const retry = await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...body } as never)
@@ -301,8 +305,8 @@ suite('bank transfer (W5)', () => {
     // A paid invoice is immutable, so the route cannot record a value date before the invoice was issued; the earlier
     // duplicate is written the way a second money-in with its own earlier success time is stored.
     const duplicateId = randomUUID()
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at)
-      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,($8::timestamp + time '12:00') AT TIME ZONE 'Asia/Riyadh')`,
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at,kind)
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,($8::timestamp + time '12:00') AT TIME ZONE 'Asia/Riyadh','bank_transfer')`,
     [duplicateId, order.id, invoice.id, `TRF-dup-${duplicateId.slice(0, 8)}`, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), day(3)])
     // By time the duplicate really is the earlier success...
     const byTime = (await pool.query("SELECT id FROM payment_attempts WHERE order_id=$1 AND status='succeeded' ORDER BY succeeded_at,id", [order.id])).rows.map(r => r.id)
@@ -425,6 +429,41 @@ suite('bank transfer (W5)', () => {
     const { invoice } = await unpaidOrder()
     await expect(bankTransferInstructions(pool, { invoice_id: invoice.id })).rejects.toMatchObject({ status: 409, code: 'bank_account_unavailable' })
   })
+
+  it('drops a vendor-paid customer to the free base when the refund of its transfer is recorded, and bills a priced base at once', async () => {
+    const { customer_id, order, invoice } = await unpaidOrder()
+    await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice) } as never)
+    // Delivered, as the shared worker would leave it.
+    await pool.query(`UPDATE subscriptions s SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',
+      renewal_at=(r.snapshot->>'period_end')::date,revision=s.revision+1 FROM subscription_revisions r WHERE r.id=s.target_revision_id AND s.customer_id=$1`, [customer_id])
+    await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1", [order.id])
+    await pool.query('UPDATE tenants SET post_trial_supported=true,excess_supported=true WHERE id=(SELECT tenant_id FROM customers WHERE id=$1)', [customer_id])
+    const sub = (await pool.query('SELECT s.*,r.snapshot FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.customer_id=$1', [customer_id])).rows[0]
+    const actor = { issuer: 'refund-test', actorUid: 7 }
+    const note = await requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Customer asked within 14 days' })
+    expect((await getVendorInvoice(pool, invoice.id))!.refund.locks_subscription).toBe(true)
+    await refundCreditNote(pool, { adjustment_id: note.id, actor, request: { external_reference: 'TRF-BACK-1', reason: 'Returned by bank transfer' } })
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='subscription.refund_lock_armed' AND subject=$1", [sub.id])).rowCount).toBe(1)
+    const at = new Date(Date.now() + 60_000)
+    await processFreeBaseLocks(pool, { now: at, subscription_id: sub.id })
+    const lock = (await pool.query('SELECT *,period_start::text AS start FROM free_base_locks WHERE subscription_id=$1', [sub.id])).rows[0]
+    expect(lock).toMatchObject({ cause: 'refund', state: 'ordered', start: sub.snapshot.period_start })
+    const lockOrder = (await pool.query('SELECT * FROM orders WHERE id=$1', [lock.order_id])).rows[0]
+    expect(lockOrder).toMatchObject({ kind: 'change', due_now_minor: '0', payment_state: 'not_required' })
+    expect(lockOrder.idempotency_key).toBe(`free-base-lock:${sub.id}:1`)
+    // The lock delivery lands, as the shared worker would apply it.
+    await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE id=$1', [sub.id])
+    await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1", [lockOrder.id])
+    await processFreeBaseLocks(pool, { now: at, subscription_id: sub.id })
+    expect((await pool.query('SELECT state FROM free_base_locks WHERE subscription_id=$1', [sub.id])).rows[0].state).toBe('done')
+    const after = (await pool.query('SELECT state,trial_outcome,renewal_at::text FROM subscriptions WHERE id=$1', [sub.id])).rows[0]
+    // This fixture's plan prices its base, so the locked configuration owes and is billed from the current period, as a trial end is.
+    expect(after).toEqual({ state: 'active', trial_outcome: null, renewal_at: sub.snapshot.period_start })
+    expect((await pool.query("SELECT payload FROM commercial_outbox WHERE kind='free_base.locked' AND aggregate_id=$1", [sub.id])).rows[0].payload)
+      .toMatchObject({ cause: 'refund', outcome: 'free_base' })
+    const [renewal] = await generateRenewals(pool, { now: at, subscription_id: sub.id, returnOrigin: fixedReturnOrigin('https://liwan.test') })
+    expect(renewal).toMatchObject({ kind: 'renewal', due_now: { minor: 9900 } })
+  })
 })
 
 suite('the 14-day refund window (W7)', () => {
@@ -453,7 +492,7 @@ suite('the 14-day refund window (W7)', () => {
 
   /** A paid order and its paid invoice at a chosen payment time; `withNote` also plants the pending note the old flow
    * closed, which the A2 route tests must NOT do (the route is what creates the note). */
-  async function paidWithCreditNote(paidAt: string, origin: 'vendor' | 'system' = 'vendor', withNote = true) {
+  async function paidWithCreditNote(paidAt: string, origin: 'vendor' | 'system' = 'vendor', withNote = true, provider: 'moyasar' | 'bank_transfer' = 'moyasar') {
     const id = randomUUID()
     const tenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','dedicated_managed',$2,true)", [tenant, `c-${tenant}`])
@@ -463,9 +502,10 @@ suite('the 14-day refund window (W7)', () => {
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)
     const invoice = (await pool.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued'", [order.id])).rows[0]
     const attemptId = randomUUID()
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,updated_at,succeeded_at)
-      VALUES($1,$2,$3,'moyasar','live',$4,$5,$6,$7,'succeeded',$8,$8)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt])
-    await pool.query("UPDATE orders SET payment_state='paid',paid_attempt_id=$2 WHERE id=$1", [order.id, attemptId])
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,updated_at,succeeded_at,kind)
+      VALUES($1,$2,$3,$9,'live',$4,$5,$6,$7,'succeeded',$8,$8,CASE WHEN $9::text='bank_transfer' THEN 'bank_transfer' ELSE 'hosted_invoice' END)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt, provider])
+    // Delivered: a paid order still being delivered cannot be refunded yet (`fulfillment_pending`).
+    await pool.query("UPDATE orders SET payment_state='paid',paid_attempt_id=$2,fulfillment_state='applied' WHERE id=$1", [order.id, attemptId])
     await pool.query("UPDATE invoices SET status='paid',paid_at=$2 WHERE id=$1", [invoice.id, paidAt])
     if (!withNote) return { customer_id: id, order, invoice, noteId: null as string | null }
     const noteId = randomUUID()
@@ -487,7 +527,7 @@ suite('the 14-day refund window (W7)', () => {
   it('records a vendor refund after the window closed, because the window was judged when the note was requested', async () => {
     // The operator refunds at the provider and records the reference days later. Judging the window again at that point
     // stranded the note: `refund_already_requested` blocked a second one and `refund_window_closed` blocked this one.
-    const paid = await paidWithCreditNote(new Date(Date.now() - 3 * 86_400_000).toISOString(), 'vendor', false)
+    const paid = await paidWithCreditNote(new Date(Date.now() - 3 * 86_400_000).toISOString(), 'vendor', false, 'bank_transfer')
     const requested = (await requestRefund(paid.invoice.id))!
     expect(requested.status).toBe(201)
     const noteId = (requested.data as { id: string }).id
@@ -575,7 +615,7 @@ suite('the 14-day refund window (W7)', () => {
     new URL('http://localhost/v1/commercial'))
 
   it('the refund route creates the pending vendor note for the full total of an eligible invoice', async () => {
-    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false)
+    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false, 'bank_transfer')
     const answer = (await requestRefund(paid.invoice.id))!
     expect(answer.status).toBe(201)
     expect(answer.data).toMatchObject({ invoice_id: paid.invoice.id, status: 'pending', kind: 'credit_note' })
@@ -606,8 +646,8 @@ suite('the 14-day refund window (W7)', () => {
     await pool.query(`INSERT INTO invoices(id,number,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,paid_at,issued_at)
       SELECT $1,'INV-R',customer_id,subscription_id,$2,'renewal','paid',currency,exponent,subtotal_minor,0,total_minor,current_date,current_date+30,now(),now() FROM invoices WHERE id=$3`,
       [laterInvoice, laterOrder, paid.invoice.id])
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
-      SELECT $1,$2,$3,'moyasar','live',$4,total_minor,currency,exponent,'succeeded',now()+interval '30 days' FROM invoices WHERE id=$3`,
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at,kind)
+      SELECT $1,$2,$3,'moyasar','live',$4,total_minor,currency,exponent,'succeeded',now()+interval '30 days','hosted_invoice' FROM invoices WHERE id=$3`,
       [randomUUID(), laterOrder, laterInvoice, `moy-${laterOrder.slice(0, 8)}`])
     await expect(requestRefund(laterInvoice)).rejects.toMatchObject({ status: 409, code: 'refund_not_first_payment' })
     // The first invoice is still refundable, so the refusal is about which payment, not about the customer.
@@ -643,7 +683,7 @@ suite('the 14-day refund window (W7)', () => {
 
   it('two duplicate transfers on one invoice are both refundable, while a vendor full refund is refused twice', async () => {
     // A4: the old unique index allowed one refunded note per invoice, so the second duplicate's money was stuck.
-    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false)
+    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false, 'bank_transfer')
     const duplicate = async () => {
       const noteId = randomUUID()
       await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)

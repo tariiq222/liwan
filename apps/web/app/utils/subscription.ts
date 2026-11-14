@@ -1,4 +1,4 @@
-import { daysBetween, MAX_USERS, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type SubscriptionState, type SubscriptionView, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { daysBetween, MAX_USERS, riyadhDate, type CustomerInvoice, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type SubscriptionState, type SubscriptionView, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
 
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
@@ -31,6 +31,11 @@ export function usageFigure(metric: UsageMetric, freshness: UsageSnapshot['fresh
   return { value: known ? metric.used : null, limit: metric.limit, known, stale: known && freshness === 'stale' }
 }
 
+/** The calendar day before an ISO date (`YYYY-MM-DD`): the last day a cancelled subscription's paid applications stay available. */
+export function dayBefore(iso: string): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+}
+
 /** The refusal code `createError({statusCode,data})` produces on the client: the body is nested one level. */
 export function refusalCode(cause: unknown): string | null {
   const e = cause as { data?: { code?: string; data?: { code?: string } } } | null
@@ -43,15 +48,23 @@ export function refusalKey(code: unknown): string | null {
   // Release 1: the server refuses a quote above MAX_USERS; the customer is told the cap and who to contact.
   if (code === 'users_limit_exceeded') return 'subscription.change.usersCapNote'
   if (code === 'storage_step_invalid') return 'subscription.change.storageStepInvalid'
+  if (code === 'value_date_in_future' || code === 'value_date_before_invoice' || code === 'invalid_value_date' || code === 'invalid_sender_reference' || code === 'invoice_not_payable')
+    return `subscription.bankTransfer.claim.${code}`
   if (code === 'trial_ending' || code === 'lock_pending') return `subscription.trialEnd.details.${code}`
+  if (code === 'subscription_cancelling' || code === 'nothing_to_cancel' || code === 'subscription_past_due' || code === 'subscription_suspended' || code === 'subscription_change_pending'
+    || code === 'cancel_trial_unsupported' || code === 'cancel_already_effective') return `subscription.cancel.refusals.${code}`
   return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'
     ? `subscription.trial.${code === 'tenant_upgrade_required' ? 'upgradeRequired' : 'notConfigured'}`
     : null
 }
 
-/** The trial-end preview exists while a trial runs, after it settles, and during an unresolved lapse (trial_ends_at is already cleared then). */
+/**
+ * The trial-end preview exists while a trial runs, after it settles, and during an unresolved trial lock (trial_ends_at is
+ * already cleared then). A refund lock on a subscription that never had a trial has no trial to preview.
+ */
 export function hasTrialPreview(sub: SubscriptionView | null) {
-  return Boolean(sub?.applied && (sub.trial_ends_at || sub.trial_outcome || sub.trial_lapse_pending))
+  const trialLock = sub?.pending_free_base_lock === 'trial_end' || sub?.pending_free_base_lock === 'first_invoice_unpaid'
+  return Boolean(sub?.applied && (sub.trial_ends_at || sub.trial_outcome || trialLock))
 }
 
 export function trialEndActions(status: TrialEndPreview['status'] | null, state: SubscriptionState | null, canManage: boolean) {
@@ -224,16 +237,6 @@ export function safeIdemAction(kind: string, subscriptionId: string, revision: n
   return `${kind}:${(h >>> 0).toString(36)}`
 }
 
-/** Provider redirect is followed only for https URLs (or the local simulator on same origin). */
-export function safePaymentRedirect(url: string | null | undefined, origin: string): string | null {
-  if (!url) return null
-  try {
-    const u = new URL(url, origin)
-    if (u.protocol === 'https:' || u.origin === origin) return u.toString()
-  } catch { /* fall through */ }
-  return null
-}
-
 /** A usage row's label: its limit key's translation, else its unit's, else a readable id. */
 export function usageMetricLabel(metric: Pick<UsageMetric, 'key' | 'unit'>, t: (key: string) => string, te: (key: string) => boolean): string {
   const byKey = `subscription.usage.keys.${metric.key.replace(/\./g, '_')}`
@@ -274,7 +277,32 @@ export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => st
   }
 }
 
-export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payment_failed' | 'processing' | 'recovering' | 'activation_failed' | 'refund'
+export type InvoicePrintState = 'draft' | 'issued' | 'paid' | 'void' | 'credit_pending' | 'refunded'
+
+/**
+ * What the credit notes do to an invoice: what they credit, what is left, and the state line to print. Every non-void
+ * credit note counts (the server sends no void ones). The invoice reads "refunded" only once the credit covers the whole
+ * total and every note has been refunded; covered but not yet refunded stays "credit note pending".
+ */
+export function invoiceCreditSummary(invoice: Pick<CustomerInvoice, 'status' | 'total' | 'credit_notes'>): { credited: Money; net: Money; state: InvoicePrintState } {
+  const creditedMinor = invoice.credit_notes.reduce((sum, note) => sum + note.amount.minor, 0)
+  const covered = invoice.total.minor > 0 && creditedMinor >= invoice.total.minor
+  const state: InvoicePrintState = covered
+    ? (invoice.credit_notes.every(note => note.status === 'refunded') ? 'refunded' : 'credit_pending')
+    : invoice.status
+  return {
+    credited: { ...invoice.total, minor: creditedMinor },
+    net: { ...invoice.total, minor: Math.max(0, invoice.total.minor - creditedMinor) },
+    state,
+  }
+}
+
+/** The seller's legal name in the reader's language, falling back to the other one. */
+export function sellerLegalName(seller: NonNullable<CustomerInvoice['seller']>, locale: string): string {
+  return (locale.startsWith('ar') ? seller.legal_name_ar || seller.legal_name_en : seller.legal_name_en || seller.legal_name_ar)
+}
+
+export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'processing' | 'recovering' | 'activation_failed' | 'refund'
 
 /** What the customer should see for an order, whether it is still open or already closed. */
 export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_state'> & { cancelled?: boolean }): OrderOutcome {
@@ -285,7 +313,6 @@ export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_s
     return order.payment_state === 'paid' && !order.cancelled ? 'recovering' : 'activation_failed'
   }
   if (order.cancelled) return 'cancelled'
-  if (order.payment_state === 'failed') return 'payment_failed'
   if (order.payment_state === 'awaiting_payment') return 'awaiting_payment'
   return 'processing'
 }
@@ -298,6 +325,22 @@ export function trialDaysRemaining(endsAt: string | null | undefined, now: Date 
 /** The invoice page asks for bank-transfer instructions only for a permitted reader of an invoice that is still `issued`. */
 export function invoiceWantsTransfer(allowed: boolean, invoice: { status: string } | null | undefined): boolean {
   return allowed && invoice?.status === 'issued'
+}
+
+/** Today's calendar day in Riyadh, the latest date a transfer can carry. */
+export const riyadhToday = (): string => riyadhDate(new Date())
+
+/** The customer's own "I made the transfer", as the control plane answers it with the instructions. */
+export type BankTransferClaimLike = { value_date: string; sender_reference: string | null; claimed_at: string }
+
+/**
+ * What the invoice page tells the customer about the transfer: the instructions alone until they say they paid, then
+ * "awaiting confirmation since <day>" (the day they first said it) with the date and reference they gave.
+ */
+export function transferClaimState(claim: BankTransferClaimLike | null | undefined, locale: string) {
+  if (!claim) return { stage: 'instructions' as const }
+  const day = (value: string | Date) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'Asia/Riyadh' }).format(new Date(value))
+  return { stage: 'awaiting' as const, since: day(claim.claimed_at), valueDate: day(`${claim.value_date}T12:00:00+03:00`), reference: claim.sender_reference }
 }
 
 /**
@@ -332,4 +375,10 @@ export function bankTransferOutcome<T extends BankTransferInstructionsLike>(want
 export function latestOnly() {
   let latest = 0
   return { next: () => ++latest, isCurrent: (ticket: number) => ticket === latest, cancel: () => { latest++ } }
+}
+
+/** The sentence for a workspace-deletion refusal the control plane answers; an unknown code gets the generic one. */
+export function deletionErrorKey(code: unknown): string {
+  return ['invalid_code', 'company_name_mismatch', 'rate_limited', 'deletion_pending', 'deletion_in_progress', 'tenant_retired', 'tenant_retiring', 'no_workspace', 'no_manager_address'].includes(String(code))
+    ? `subscription.deletion.errors.${code}` : 'subscription.deletion.failed'
 }

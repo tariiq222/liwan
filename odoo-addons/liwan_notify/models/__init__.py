@@ -5,6 +5,7 @@ from . import (
     notify_registry,
     notify_service,
     storage_limit_notification,
+    tenant_export_notification,
     user_access_notification,
     user_membership_notification,
 )

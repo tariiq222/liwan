@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { subscriptionStateBadge } from '@/utils/subscription'
+import { payPath } from '@/utils/cardPayment'
+import { dayBefore, subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, safePaymentRedirect, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
+import { deletionErrorKey, formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@liwan/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, te, locale } = useI18n(); const api = useSubscriptionApi(); const { can, readOnly } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
 const { can: canAccess } = useAccess()
+const { me } = useMe()
 const isMissing = (cause: any) => (cause?.statusCode ?? cause?.status ?? cause?.response?.status) === 404
 const { data, error, pending, refresh } = await useAsyncData('subscription:overview', async () => {
   // A secondary section that fails is reported as failed, never shown as empty.
   const failed = new Set<'usage' | 'branches' | 'invoices' | 'trial'>()
-  const soft = <T,>(key: 'usage' | 'branches' | 'invoices' | 'trial', request: Promise<T>) => request.catch(() => { failed.add(key); return null })
+  const soft = <T,>(key: 'usage' | 'branches' | 'invoices' | 'trial', request: Promise<T>) => request.catch((cause: any) => { if (key !== 'trial' || !isMissing(cause)) failed.add(key); return null })
   const [sub, usage, branches, invoices] = await Promise.all([
     api.subscription().catch((cause: any) => { if (isMissing(cause)) return null; throw cause }),
     soft('usage', api.usage()), soft('branches', api.branches()),
@@ -61,14 +63,40 @@ async function convertTrial() {
   converting.value = true; convertError.value = undefined
   try {
     const result = await api.convertTrial()
-    const url = result.attempt?.redirect_url ? safePaymentRedirect(result.attempt.redirect_url, window.location.origin) : null
-    if (url) { window.location.assign(url); return }
-    if (result.order) { await navigateTo({ path: '/subscription/status', query: { order: result.order.id } }); return }
+    // A conversion with an invoice to pay opens the pay page; one with nothing due, or still being prepared, reads on the status page.
+    if (result.order) { await navigateTo(result.order.payment_state === 'awaiting_payment' ? payPath(result.order.id) : { path: '/subscription/status', query: { order: result.order.id } }); return }
     convertError.value = t('subscription.trial.activationPending')
   } catch (cause: any) { convertError.value = t(refusalKey(refusalCode(cause)) ?? 'subscription.trial.convertFailed') } finally { converting.value = false }
 }
 const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
 const appLabel = (app: string) => (te(`subscription.apps.${app}`) ? t(`subscription.apps.${app}`) : humanizeId(app))
+const cancelBusy = ref(false); const cancelError = ref<string | undefined>()
+async function changeCancellation(action: 'cancel' | 'resume', reason?: string) {
+  if (!hydrated.value || cancelBusy.value || !can('subscription.manage')) return
+  cancelBusy.value = true; cancelError.value = undefined
+  try { await (action === 'cancel' ? api.cancelSubscription(reason) : api.resumeSubscription()); await refresh() }
+  catch (cause) { cancelError.value = t(refusalKey(refusalCode(cause)) ?? 'subscription.cancel.failed') } finally { cancelBusy.value = false }
+}
+const deletionBusy = ref(false); const deletionError = ref<string | undefined>()
+async function changeDeletion(action: 'request' | 'confirm' | 'withdraw', input?: { code: string; companyName: string }) {
+  if (!hydrated.value || deletionBusy.value || !can('tenant.delete')) return
+  deletionBusy.value = true; deletionError.value = undefined
+  try {
+    if (action === 'request') await api.requestDeletion()
+    else if (action === 'confirm' && input) await api.confirmDeletion(input)
+    else await api.withdrawDeletion()
+    await refresh()
+  } catch (cause) { deletionError.value = t(deletionErrorKey(refusalCode(cause))) } finally { deletionBusy.value = false }
+}
+const removeBusy = ref(false); const removeFailure = ref<'not_removed' | 'failed' | null>(null)
+// The provider could not delete the card (503): the card is still saved and renewals still charge it.
+async function removeCard() {
+  const card = data.value?.sub?.auto_renew.payment_method
+  if (!hydrated.value || removeBusy.value || !can('subscription.manage') || !card) return
+  removeBusy.value = true; removeFailure.value = null
+  try { await api.removeCard(card.id); await refresh() }
+  catch (cause: any) { removeFailure.value = (cause?.statusCode ?? cause?.status) === 503 || refusalCode(cause) === 'provider_unavailable' ? 'not_removed' : 'failed' } finally { removeBusy.value = false }
+}
 const arBusy = ref(false); const arError = ref<unknown>(null)
 async function setAutoRenew(enabled: boolean) {
   if (!hydrated.value || arBusy.value || !can('subscription.manage')) return
@@ -80,7 +108,7 @@ definePageMeta({ middleware: 'customer-commercial' })
 <template>
   <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.title')">
-      <template #actions><UButton v-if="can('subscription.manage') && !trialActions.blocked" to="/subscription/change" icon="i-lucide-repeat" :disabled="!hydrated">{{ t('subscription.summary.change') }}</UButton></template>
+      <template #actions><UButton v-if="can('subscription.manage') && !trialActions.blocked && !data?.sub?.cancellation" to="/subscription/change" icon="i-lucide-repeat" :disabled="!hydrated">{{ t('subscription.summary.change') }}</UButton></template>
     </SharedPageHeader>
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
@@ -148,9 +176,19 @@ definePageMeta({ middleware: 'customer-commercial' })
           <p v-else-if="!data.invoices.items.length" class="p-(--liwan-card-pad) text-sm text-muted">{{ t('subscription.invoices.empty') }}</p>
           <ul v-else class="divide-y divide-default"><li v-for="inv in data.invoices.items.slice(0, 3)" :key="inv.id" class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink><span class="tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></li></ul>
         </SharedRecordSection>
-        <SharedRecordSection variant="panel" :title="t('subscription.autoRenew.title')">
-          <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
-          <UAlert v-if="arError" class="mt-3" color="error" variant="subtle" :title="t('errors.generic')" />
+        <UAlert v-if="data.sub.cancellation" data-testid="cancelled-banner" color="warning" variant="subtle" icon="i-lucide-calendar-x" :title="t('subscription.cancel.endsTitle', { lastDay: formatDate(dayBefore(data.sub.cancellation.effective_on), 'Asia/Riyadh') })" :description="t('subscription.cancel.endsBody')" />
+        <SharedRecordSection v-if="data.sub.cancellation || data.sub.cancellable" variant="panel" :title="t('subscription.cancel.title')">
+          <SubscriptionCancelPanel :cancellation="data.sub.cancellation ?? null" :cancellable="data.sub.cancellable ?? false" :renewal-on="data.sub.renewal_at" :can-manage="can('subscription.manage')"
+            :pending="cancelBusy" :hydrated="hydrated" :error="cancelError" @cancel="changeCancellation('cancel', $event)" @resume="changeCancellation('resume')" />
+        </SharedRecordSection>
+        <SharedRecordSection variant="panel" :title="t('subscription.paymentMethod.title')" data-testid="payment-method">
+          <SubscriptionPaymentMethodPanel :card="data.sub.auto_renew.payment_method" :auto-renew="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="removeBusy" :hydrated="hydrated" :remove-failure="removeFailure" @remove="removeCard">
+            <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :needs-card="!data.sub.auto_renew.payment_method" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
+            <UAlert v-if="arError" color="error" variant="subtle" :title="t('errors.generic')" />
+          </SubscriptionPaymentMethodPanel>
+        </SharedRecordSection>
+        <SharedRecordSection v-if="can('tenant.delete')" id="delete-workspace" variant="panel" :title="t('subscription.deletion.title')" class="border-error/40" data-testid="delete-workspace">
+          <SubscriptionDeleteWorkspacePanel :deletion="data.sub.deletion ?? null" :pending="deletionBusy" :hydrated="hydrated" :error="deletionError" :can-export="canAccess('tenant.export') && me?.is_root_company !== false" @request="changeDeletion('request')" @confirm="changeDeletion('confirm', $event)" @withdraw="changeDeletion('withdraw')" />
         </SharedRecordSection>
       </div>
     </SharedPageState>

@@ -10,7 +10,7 @@ import { loadQuoteSources, pricingOf } from './quote-sources.js'
 import { planIssues, planRevision } from './plans.js'
 import { getPolicy } from './policies.js'
 import { assertDowngradeFitsUsage } from './usage.js'
-import { compilePurchasedEntitlement, unresolvedLapse } from './free-base.js'
+import { compilePurchasedEntitlement, unresolvedFreeBaseLock } from './free-base.js'
 import { resolveTopupAmount } from './ai-topup.js'
 
 const TTL_MS = 30 * 60 * 1000
@@ -112,7 +112,7 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     period = appliedPeriod(s, applied)
     if (s.state === 'trialing' && s.trial_ends_at)
       prorationCycleDays = daysBetween(period.end, addCadence(period.end, input.cadence, 1))
-    if (await unresolvedLapse(client, s)) throw bad('lock_pending', 'subscription_id', 409)
+    if (await unresolvedFreeBaseLock(client, s)) throw bad('lock_pending', 'subscription_id', 409)
     if (s.state === 'trialing' && s.trial_ends_at && new Date(s.trial_ends_at).getTime() <= now.getTime())
       throw bad('trial_ending', 'subscription_id', 409)
     if (s.manual_suspension) throw bad('subscription_suspended', 'subscription_id', 409)

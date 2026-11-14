@@ -118,15 +118,15 @@ class TestDmsBoundaries(DocumentCase):
     def test_storage_settlement_flags_a_document_attachment_for_an_ordinary_user(self):
         service = self.env['liwan.entitlement.service'].with_user(self.reader)
         attachment = self.attachment.with_user(self.reader)
-        service._liwan_apply_flags(attachment, {'liwan_storage_blocked': True})
-        self.assertTrue(self.attachment.liwan_storage_blocked)
-        service._liwan_apply_flags(attachment, {'liwan_storage_blocked': False})
-        self.assertFalse(self.attachment.liwan_storage_blocked)
+        service._liwan_apply_flags(attachment, {'liwan_over_storage_limit': True})
+        self.assertTrue(self.attachment.liwan_over_storage_limit)
+        service._liwan_apply_flags(attachment, {'liwan_over_storage_limit': False})
+        self.assertFalse(self.attachment.liwan_over_storage_limit)
         # The allowance is the settle's flag write only: the same sudo write of anything else stays refused.
         with self.assertRaises(AccessError):
             attachment.sudo().write({'name': 'renamed.txt'})
         with self.assertRaises(AccessError):
-            attachment.sudo().write({'liwan_storage_blocked': True})
+            attachment.sudo().write({'liwan_over_storage_limit': True})
 
     def test_customer_cannot_unlink_owned_resources(self):
         for record in (self.file, self.attachment, self.document.directory_id):

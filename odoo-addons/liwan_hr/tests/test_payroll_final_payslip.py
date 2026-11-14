@@ -1,13 +1,16 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date
+from unittest.mock import patch
 
 from odoo.tests import tagged
+from odoo.tools import config
 
 from .payroll_common import PayrollCase
 
 RUNS = '/api/v1/hr/payroll/runs'
 VALID_IBAN = 'SA0380000000608010167519'
 MONTH = '2026-12'
+SENDER = 'no-reply@liwanos.example'
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -17,6 +20,7 @@ class TestPayrollFinalPayslip(PayrollCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.env['ir.config_parameter'].set_param('mail.default.from', SENDER)
         cls.officer = cls.payroll_user(cls, 'final_officer', ['hr.payroll.read', 'hr.payroll.manage', 'hr.employees.read'])
         cls.approver = cls.payroll_user(cls, 'final_approver', ['hr.payroll.read', 'hr.payroll.approve', 'hr.employees.read'])
         cls.leaver = cls._paid('Final Leaver', 'leaver.personal@example.com', departure=date(2026, 12, 20))
@@ -56,6 +60,16 @@ class TestPayrollFinalPayslip(PayrollCase):
         self.assertEqual(len(mails), 1)
         self.assertIn(MONTH, mails.subject)
         self.assertIn('Final Leaver', mails.body_html)
+
+    def test_the_final_payslip_leaves_from_the_platform_sender(self):
+        self._approve_the_run()
+        self.assertEqual(self._mails_to('leaver.personal@example.com').email_from, SENDER)
+
+    def test_no_final_payslip_is_queued_without_a_configured_sender(self):
+        self.env['ir.config_parameter'].set_param('mail.default.from', '')
+        with patch.object(config, 'get', lambda *args: None):
+            self._approve_the_run()
+        self.assertFalse(self._mails_to('leaver.personal@example.com'))
 
     def test_nobody_else_is_mailed(self):
         self._approve_the_run()

@@ -6,6 +6,7 @@ from odoo.addons.liwan_ai.models.knowledge_chunker import record_chunks
 from odoo.addons.liwan_ai.models.knowledge_indexer import KNOWLEDGE_FEATURE
 from odoo.addons.liwan_ai.tests.common import PROBE_SOURCE, AiProbe
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 MODEL = 'res.partner'
 
@@ -302,3 +303,18 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
         self.assertEqual(indexer.group_ids, self.env.ref('liwan_ai.group_ai_indexer'))
         cron = self.env.ref('liwan_ai.ir_cron_ai_knowledge')
         self.assertEqual((cron.user_id, cron.interval_number, cron.interval_type), (indexer, 5, 'minutes'))
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestAiIndexerUnpaid(AiProbe, TransactionCase):
+
+    def test_the_tick_of_a_tenant_suspended_for_non_payment_skips_quietly(self):
+        self._install_probe()
+        self._install_knowledge()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({'status': 'suspended', 'suspension_reason': 'non_payment'})
+        indexer = self.env['liwan.ai.knowledge.indexer'].with_user(self.env.ref('liwan_ai.user_ai_indexer'))
+        self.assertFalse(indexer._liwan_cron_tick())
+        self.assertFalse(self.env['liwan.entitlement.service']._liwan_may_act_outward())
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({'status': 'active'})
+        self.assertTrue(self.env['liwan.entitlement.service']._liwan_may_act_outward())

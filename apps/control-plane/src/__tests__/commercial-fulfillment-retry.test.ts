@@ -5,6 +5,7 @@ import { url, setup, client } from './commercial-helpers.js'
 import { failEnqueueTerminally, failFulfillment, failFulfillmentOn, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { recoverPaidFulfillment } from '../commercial/paid-fulfillment-recovery.js'
 import { completeOutbox, deferOutbox, failOutbox } from '../commercial/outbox.js'
+import { attention } from '../commercial/attention.js'
 
 const suite = url ? describe : describe.skip
 suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
@@ -32,7 +33,8 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
   }
   // The outbox is shared by every suite on this database: claim the whole backlog so each test reaches its own order.
   const run = () => processFulfillmentOutbox(pool, { limit: 1000, enrollment })
-  const row = async (order: string) => (await pool.query('SELECT status,attempts,next_attempt_at > now() AS waiting,payload FROM commercial_outbox WHERE aggregate_id=$1', [order])).rows[0]
+  // The fulfillment row only: a failed order also gets a `reconcile.refund` row, and an unordered read may return either (heap or index order depends on table statistics).
+  const row = async (order: string) => (await pool.query("SELECT status,attempts,next_attempt_at > now() AS waiting,payload FROM commercial_outbox WHERE aggregate_id=$1 AND kind='fulfillment.enqueue' ORDER BY created_at,id", [order])).rows[0]
   const orderState = async (order: string) => (await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1', [order])).rows[0].fulfillment_state
   const notes = async (order: string) => (await pool.query("SELECT a.status FROM invoice_adjustments a JOIN invoices i ON i.id=a.invoice_id WHERE i.order_id=$1 AND a.kind='credit_note'", [order])).rows
   const invoiceStatus = async (order: string) => (await pool.query('SELECT status FROM invoices WHERE order_id=$1', [order])).rows[0].status
@@ -78,6 +80,50 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     expect(await invoiceStatus(s.order)).toBe('credit_pending')
     expect(await notes(s.order)).toHaveLength(1)
     expect(await row(s.order)).toMatchObject({ status: 'failed', attempts: 0 })
+  })
+
+  it('retries a first trial order with the paid backoff, then hourly for 72 hours, and never cancels it', async () => {
+    const s = await seed({ payment: 'not_required', invoice: false })
+    const stalled = async () => (await attention(pool, false)).counts.stalled
+    const stalledBefore = await stalled()
+    await pool.query('UPDATE commercial_outbox SET attempts=9 WHERE aggregate_id=$1', [s.order])
+    await run()
+    expect(await orderState(s.order)).toBe('failed')
+    expect(await stalled()).toBe(stalledBefore + 1)
+    const retries = async () => (await pool.query("SELECT dedupe_key FROM commercial_outbox WHERE aggregate_id=$1 AND dedupe_key LIKE 'retry:%' ORDER BY dedupe_key", [s.order])).rows.map(r => r.dedupe_key)
+    expect(await retries()).toEqual([])
+    // Not due yet: the first retry waits five minutes.
+    await recoverPaidFulfillment(pool, new Date())
+    expect(await retries()).toEqual([])
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 6 * 60_000))
+    expect(await retries()).toEqual(['retry:1'])
+    expect(await orderState(s.order)).not.toBe('failed')
+    // The retry fails the same way, twice more, then the order stays failed and visible instead of being cancelled.
+    for (const [n, minutes] of [[2, 20], [3, 90]] as const) {
+      await pool.query("UPDATE commercial_outbox SET attempts=9 WHERE aggregate_id=$1 AND dedupe_key=$2", [s.order, `retry:${n - 1}`])
+      await run()
+      await recoverPaidFulfillment(pool, new Date(Date.now() + minutes * 60_000))
+      expect(await retries()).toHaveLength(n)
+    }
+    // After the backoff it keeps retrying hourly: not due before the hour, one retry each time it is.
+    const failRetry = async (n: number) => { await pool.query('UPDATE commercial_outbox SET attempts=9 WHERE aggregate_id=$1 AND dedupe_key=$2', [s.order, `retry:${n}`]); await run() }
+    await failRetry(3)
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 30 * 60_000))
+    expect(await retries()).toHaveLength(3)
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 61 * 60_000))
+    expect(await retries()).toHaveLength(4)
+    await failRetry(4)
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 61 * 60_000))
+    expect(await retries()).toHaveLength(5)
+    // Past 72 hours from the order's creation it stops: failed, not cancelled, in the vendor's list.
+    await pool.query("UPDATE orders SET created_at=now()-interval '73 hours' WHERE id=$1", [s.order])
+    await failRetry(5)
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 200 * 60_000))
+    expect(await retries()).toHaveLength(5)
+    expect((await pool.query('SELECT fulfillment_state,cancelled FROM orders WHERE id=$1', [s.order])).rows[0]).toEqual({ fulfillment_state: 'failed', cancelled: false })
+    expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1', [s.subscription])).rows[0].target_revision_id).toBe(s.target)
+    // Out of retries, it is still the vendor's stalled activation to look at.
+    expect(await stalled()).toBe(stalledBefore + 1)
   })
 
   it('leaves an unreleased order alone and creates no credit note', async () => {
@@ -191,7 +237,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       expect(await processFulfillmentOutbox(refund, { enrollment })).toContainEqual({ order_id: s.order, reason: expect.any(String) })
-      expect(logged).toHaveBeenCalledWith(expect.stringContaining('failure handling failed'))
+      expect(logged).toHaveBeenCalledWith(expect.stringContaining('failure handling failed'), expect.any(String), expect.stringContaining('enrollment_base_catalog_missing'))
     } finally { logged.mockRestore() }
     const r = await row(s.order)
     expect(r.status).toBe('pending')

@@ -4,6 +4,8 @@ import { ar, en } from '@nuxt/ui/locale'
 import { createReusableTemplate } from '@vueuse/core'
 import { htmlAttrsFor } from '@/utils/appearance'
 import { firstAllowedPath } from '@/utils/accessPolicy'
+import { lockedApplicationView } from '@/utils/lockedApplication'
+import { useCustomerCapabilities } from '@/composables/useSubscription'
 import SessionQueryProvider from '@/components/shell/SessionQueryProvider'
 import { useSessionQueryScope } from '@/lib/sessionQueryScope'
 
@@ -33,6 +35,11 @@ const canRetry = computed(() => !forbidden.value && !notFound.value)
 const { me } = useMe()
 // This file replaces the app, so the shell's sidebar and top bar (which read counts through vue-query) need the session's query client here too.
 const queryOwner = useSessionQueryScope().current
+// A closed application names itself and the way forward; the view needs the identity and the failed route.
+const { can } = useCustomerCapabilities()
+const route = useRoute()
+const locked = computed(() => (planCode.value && me.value ? lockedApplicationView(me.value, route.path, planCode.value, can('subscription.manage')) : null))
+const lockedApplicationName = computed(() => (locked.value?.labelKey ? t(locked.value.labelKey) : null))
 const productName = computed(() => branding.value?.name ?? t('app.productName'))
 
 useHead(() => ({
@@ -62,7 +69,8 @@ function goBack() {
 <template>
   <UApp :locale="locale === 'ar' ? ar : en">
     <DefineBody v-slot="{ heading }">
-      <section class="mx-auto grid max-w-md justify-items-center gap-3 py-12 text-center" data-testid="app-error">
+      <SubscriptionLockedApplication v-if="locked" :application="lockedApplicationName" :cause="locked.cause" :audience="locked.audience" :data-path="locked.dataPath" :heading="heading" />
+      <section v-else class="mx-auto grid max-w-md justify-items-center gap-3 py-12 text-center" data-testid="app-error">
         <UIcon :name="icon" class="size-8 text-muted" aria-hidden="true" />
         <h1 v-if="heading" class="text-xl font-semibold text-highlighted">{{ title }}</h1>
         <p class="text-sm text-default">{{ description }}</p>

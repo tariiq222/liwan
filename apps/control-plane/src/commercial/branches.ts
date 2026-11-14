@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { branchBillingCounts, type Branch, type BranchSummary } from '@liwan/commercial-contracts'
 import { CommercialHttpError, iso } from './lifecycle.js'
-import { unresolvedLapse } from './free-base.js'
+import { unresolvedFreeBaseLock } from './free-base.js'
 
 type Db = Pool | PoolClient
 
@@ -55,7 +55,7 @@ export async function requestedExtraBranches(pool: Db, input: { subscription_id:
   // Between the lapse and the applied lock the customer's applied configuration is still the paid trial, which a branch change
   // would be priced and recorded against. It waits for the lock, whose zero-value order is already on its way.
   const sub = (await pool.query('SELECT s.id,s.applied_revision_id,r.snapshot FROM subscriptions s LEFT JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.id=$1', [input.subscription_id])).rows[0]
-  if (sub?.applied_revision_id && await unresolvedLapse(pool, sub)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
+  if (sub?.applied_revision_id && await unresolvedFreeBaseLock(pool, sub)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
   const rows = await subscriptionBranches(pool, input.subscription_id)
   const restoring = [...new Set(input.restore ?? [])]
   for (const id of restoring) {

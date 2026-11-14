@@ -8,4 +8,7 @@
     <record id="group_cap_customers_manage" model="res.groups"><field name="name">Capability: manage customers</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('group_customers_party_writer'))]"/></record>
     <record id="group_cap_customers_export" model="res.groups"><field name="name">Capability: export customers</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
     <record id="group_cap_customers_settings_manage" model="res.groups"><field name="name">Capability: manage customer settings</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <!-- The privacy capabilities. Erasing clears a party's identity through the service, so it implies the party writer. -->
+    <record id="group_cap_customers_erase" model="res.groups"><field name="name">Capability: erase a customer's data</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('group_customers_party_writer'))]"/></record>
+    <record id="group_cap_customers_privacy_export" model="res.groups"><field name="name">Capability: export a customer's data</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
 </odoo>

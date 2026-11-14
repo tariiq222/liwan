@@ -17,7 +17,7 @@ describe('settings pages', () => {
     expect(page('company').to).toBe('/settings/company')
     expect(page('company').parts.map(part => part.id)).toEqual(['profile', 'address', 'contact', 'tax', 'branding'])
     expect(page('system').to).toBe('/settings/system')
-    expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance', 'storage'])
+    expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance', 'storage', 'export'])
     expect(page('company').parts.every(part => part.to === undefined)).toBe(true)
     expect(page('team').to).toBe('/settings/team')
     expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/branches', undefined, '/settings/team/access-log'])

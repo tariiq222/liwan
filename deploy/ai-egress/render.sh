@@ -3,6 +3,8 @@
 #   sh render.sh [config path]        (default: $SQUID_CONF, then /run/squid/squid.conf)
 # AI_EGRESS_HOSTS is a comma-separated list; each item is
 #   host        allow CONNECT to port 443 only,
+#   .domain     the same for the domain and every subdomain of it (squid dstdomain semantics; for a provider that serves
+#               files from many names, such as a CDN),
 #   host:port   allow exactly that port, CONNECT and plain HTTP (a local model server such as ollama:11434).
 # An empty list is valid and denies everything. A malformed item fails before anything is written, so a bad
 # value never replaces a working configuration.
@@ -12,11 +14,19 @@
 # 443 only, and only while the destination is not a private, loopback, link-local, CGNAT, multicast or reserved address
 # (checked by squid when it connects, so a name that resolves privately later is refused too). The files are written
 # by another container, so a bad line is logged and skipped here, never a reason to fail: it must not take the proxy down.
+#
+# EGRESS_DENY_PRIVATE=yes (optional) refuses every private, loopback, link-local (cloud metadata), CGNAT, multicast or
+# reserved destination for the static hosts too, before any allow rule. The Odoo instance of this image sets it: its
+# hosts are public providers only, so a name that resolves into the host's networks is refused whatever it is called.
+# The ai instance leaves it off because it must reach a local model server (host:port items).
 set -eu
 
 conf="${1:-${SQUID_CONF:-/run/squid/squid.conf}}"
 hosts="${AI_EGRESS_HOSTS:-}"
 tenant_dir="${AI_TENANT_EGRESS_DIR:-}"
+deny_private="${EGRESS_DENY_PRIVATE:-no}"
+# An IPv4-mapped IPv6 address is matched by the IPv4 ranges: squid reads ::ffff:0:0/96 as 0.0.0.0/0, so it is not listed.
+private_ranges='0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.168.0.0/16 198.18.0.0/15 192.0.2.0/24 198.51.100.0/24 203.0.113.0/24 224.0.0.0/4 240.0.0.0/4 ::/128 ::1/128 64:ff9b::/96 64:ff9b:1::/48 100::/64 2001:db8::/32 2002::/16 fc00::/7 fe80::/10 ff00::/8'
 
 fail() {
   echo "ai-egress: $1" >&2
@@ -25,6 +35,11 @@ fail() {
 
 is_host() {
   printf '%s' "$1" | grep -Eqx '[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?'
+}
+
+# A listed item may also be `.domain`; tenant files may not (their hosts are exact names).
+is_listed_host() {
+  is_host "${1#.}"
 }
 
 is_port() {
@@ -81,7 +96,7 @@ while [ -n "$rest" ]; do
     *:*) host="${item%:*}"; port="${item##*:}" ;;
     *) host="$item"; port='' ;;
   esac
-  is_host "$host" || fail "AI_EGRESS_HOSTS item '$item' is not a lowercase hostname"
+  is_listed_host "$host" || fail "AI_EGRESS_HOSTS item '$item' is not a lowercase hostname"
   if [ -n "$port" ]; then
     is_port "$port" || fail "AI_EGRESS_HOSTS item '$item' has an invalid port"
   fi
@@ -122,6 +137,12 @@ trap 'rm -f "$tmp"' EXIT INT TERM
     '' \
     'acl egress_connect method CONNECT'
 
+  if [ "$deny_private" = yes ]; then
+    printf '\n# No destination inside a private, loopback, link-local or reserved range, whatever the name.\n'
+    printf 'acl egress_private dst %s\n' "$private_ranges"
+    printf 'http_access deny egress_private\n'
+  fi
+
   if [ -n "$entries" ]; then
     index=0
     while IFS= read -r item; do
@@ -132,7 +153,7 @@ trap 'rm -f "$tmp"' EXIT INT TERM
       esac
       index=$((index + 1))
       printf '\n# %s:%s\n' "$host" "$port"
-      printf 'acl egress_host_%s dstdomain %s\n' "$index" "$host"
+      printf 'acl egress_host_%s dstdomain -n %s\n' "$index" "$host"
       printf 'acl egress_port_%s port %s\n' "$index" "$port"
       if [ "$connect_only" = yes ]; then
         printf 'http_access allow egress_host_%s egress_port_%s egress_connect\n' "$index" "$index"
@@ -148,12 +169,11 @@ EOF
     printf '\n# Tenant provider hosts: CONNECT to port 443 only, and never to a private destination.\n'
     # One ACL line per host: lines of the same name are alternatives, and no line grows with the number of tenants.
     for host in $tenant_list; do
-      printf 'acl tenant_host dstdomain %s\n' "$host"
+      printf 'acl tenant_host dstdomain -n %s\n' "$host"
     done
-    # An IPv4-mapped IPv6 address is matched by the IPv4 ranges: squid reads ::ffff:0:0/96 as 0.0.0.0/0, so it is not listed.
+    printf 'acl tenant_port port 443\n'
+    printf 'acl tenant_private dst %s\n' "$private_ranges"
     printf '%s\n' \
-      'acl tenant_port port 443' \
-      'acl tenant_private dst 0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.168.0.0/16 198.18.0.0/15 192.0.2.0/24 198.51.100.0/24 203.0.113.0/24 224.0.0.0/4 240.0.0.0/4 ::/128 ::1/128 64:ff9b::/96 64:ff9b:1::/48 100::/64 2001:db8::/32 2002::/16 fc00::/7 fe80::/10 ff00::/8' \
       'http_access deny tenant_host tenant_private' \
       'http_access allow tenant_host tenant_port egress_connect'
   fi

@@ -2,10 +2,12 @@ import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { transaction } from '../db.js'
-import { riyadhDate } from '@liwan/commercial-contracts'
+import { bankTransferClaimRequestSchema, riyadhDate, type BankTransferClaim, type BankTransferClaimRequest } from '@liwan/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 import { closeOtherAttempts, settleAttemptIn } from './payments.js'
 import { enqueueOutbox } from './outbox.js'
+import { cancelIntentQuietly, closeFormAttemptIn } from './form-payments.js'
+import { claimView } from './invoices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { isPaidFirstOrder, requireReachableManager } from './orders.js'
 import type { ProviderEvent } from './payment-adapter.js'
@@ -86,7 +88,10 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
 
   // A3: one lock decides who settles this invoice — the order row — and the invoice is read inside the transaction,
   // after it, so its status cannot change between the check and the write.
+  const closedForms: Record<string, any>[] = []
   const settled = await transaction(pool, async client => {
+    // This function is the operator's recording (a vendor route): it alone sets the flag the retiring trigger lets a bank-transfer attempt through with, so money that reached the bank can still be recorded for a customer being deleted.
+    await client.query("SELECT set_config('liwan.bank_transfer_recording','on',true)")
     const head = (await client.query('SELECT order_id FROM invoices WHERE id=$1', [input.invoice_id])).rows[0]
     if (!head) throw new CommercialHttpError('not_found', 404)
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [head.order_id ?? '00000000-0000-4000-8000-000000000000'])).rows[0]
@@ -120,11 +125,15 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
     // leaves a `created`/`redirected` row behind. The transfer is reserved `pending`, so those stale attempts are closed
     // first — in this transaction, so a failure below puts them back.
     await client.query("UPDATE payment_attempts SET status='failed', updated_at=now() WHERE order_id=$1 AND status IN ('created','redirected','unknown')", [order.id])
+    // An embedded card form the customer opened is `pending` and also holds `payment_attempts_one_live`. The money is already in the bank, so
+    // the form is retired like any sibling of a paid order (no refusal): a card payment that still arrives on it is settled later as a duplicate charge.
+    const forms = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND kind='form' AND status='pending' FOR UPDATE", [order.id])).rows
+    for (const form of forms) if (await closeFormAttemptIn(client, form, 'order_paid', false)) closedForms.push(form)
     // The attempt is reserved NOT settled: apply (below) is what flips it to succeeded and pays the order.
     // succeeded_at is the value date: the day the money reached the account, not the day it was recorded. apply()
     // keeps the first value it finds, so this survives the settlement that follows.
-    const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at)
-      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8::date,${RIYADH_SUCCEEDED_AT('$8')}) RETURNING *`,
+    const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at,kind)
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8::date,${RIYADH_SUCCEEDED_AT('$8')},'bank_transfer') RETURNING *`,
     [randomUUID(), order.id, invoice.id, parsed.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), parsed.value_date])).rows[0]
     const outcome = await settleAttemptIn(client, transferEvent(row, order))
     if (outcome !== 'accepted') throw new CommercialHttpError('order_not_payable', 409)
@@ -136,6 +145,7 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
   })
   // After the commit: an open Moyasar attempt on the same order must not stay payable and later become an
   // unrefundable duplicate. This needs the provider, so it cannot live inside the transaction.
+  if (input.adapter) for (const form of closedForms) await cancelIntentQuietly(input.adapter, form.provider_intent_ref)
   if (!settled.replay && input.adapter && settled.attempt.status === 'succeeded') {
     try { await closeOtherAttempts(pool, input.adapter, transferEvent(settled.attempt, { id: settled.order_id })) } catch { /* the reconciler retries a closing it could not make */ }
   }
@@ -154,8 +164,8 @@ const isPaid = (order: Record<string, any>) => ['paid', 'refund_pending', 'refun
  */
 async function recordDuplicateTransfer(client: PoolClient, input: { invoice: Record<string, any>; order: Record<string, any>; parsed: BankTransferInput; operator: string }) {
   const { invoice, order, parsed, operator } = input
-  const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at)
-    VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,${RIYADH_SUCCEEDED_AT('$8')}) RETURNING *`,
+  const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at,kind)
+    VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,${RIYADH_SUCCEEDED_AT('$8')},'bank_transfer') RETURNING *`,
   [randomUUID(), order.id, invoice.id, parsed.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), parsed.value_date])).rows[0]
   const reason = `duplicate bank transfer — manual review (attempt ${row.id})`
   const eventId = `bank-transfer-duplicate:${row.id}`
@@ -195,7 +205,41 @@ function transferEvent(attempt: Record<string, any>, order: Record<string, any>)
   }
 }
 
-/** What a customer sees to make a transfer: the amount, the invoice reference and the vendor's own account. */
+/** `value_date` is a `date` column: node-postgres hands it back as a local-midnight Date, so it is read as text. */
+const CLAIM_COLUMNS = 'invoice_id,value_date::text AS value_date,sender_reference,claimed_at'
+
+export function parseBankTransferClaimInput(value: unknown): BankTransferClaimRequest {
+  const parsed = bankTransferClaimRequestSchema.safeParse(value)
+  if (parsed.success) return parsed.data
+  throw new CommercialHttpError(String(parsed.error.issues[0]?.path[0]) === 'sender_reference' ? 'invalid_sender_reference' : 'invalid_value_date', 422, String(parsed.error.issues[0]?.path[0] ?? 'body'))
+}
+
+/**
+ * A customer says it made the transfer for one of its own issued invoices. This only records the claim for the vendor
+ * to see: nothing is paid and the amount rule of `confirmBankTransfer` is untouched. One row per invoice, so a second
+ * claim while the invoice is open corrects the first (the original `claimed_at` stays: "waiting since" does not reset).
+ * The invoice row is locked, so a claim cannot slip in after the vendor confirmed the transfer.
+ */
+export async function claimBankTransfer(pool: Pool, input: { invoice_id: string; customer_id: string; body: unknown }): Promise<BankTransferClaim> {
+  const body = parseBankTransferClaimInput(input.body)
+  return transaction(pool, async client => {
+    const invoice = (await client.query('SELECT * FROM invoices WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.invoice_id, input.customer_id])).rows[0]
+    if (!invoice) throw new CommercialHttpError('not_found', 404)
+    if (invoice.status !== 'issued') throw new CommercialHttpError('invoice_not_payable', 409)
+    assertValueDateForInvoice(body.value_date, riyadhDate(new Date()), invoice)
+    const row = (await client.query(`INSERT INTO bank_transfer_claims(invoice_id,value_date,sender_reference) VALUES($1,$2::date,$3)
+      ON CONFLICT (invoice_id) DO UPDATE SET value_date=EXCLUDED.value_date,sender_reference=EXCLUDED.sender_reference,updated_at=now()
+      RETURNING ${CLAIM_COLUMNS}`, [invoice.id, body.value_date, body.sender_reference || null])).rows[0]
+    return claimView(row)!
+  })
+}
+
+/** The claim on one invoice, or null. */
+export async function claimOf(pool: Pick<Pool, 'query'>, invoiceId: string): Promise<BankTransferClaim | null> {
+  return claimView((await pool.query(`SELECT ${CLAIM_COLUMNS} FROM bank_transfer_claims WHERE invoice_id=$1`, [invoiceId])).rows[0])
+}
+
+/** What a customer sees to make a transfer: the amount, the invoice reference, the vendor's own account and its own claim, if any. */
 export async function bankTransferInstructions(pool: Pool, input: { invoice_id: string; customer_id?: string }) {
   const args: unknown[] = [input.invoice_id]
   let where = 'id=$1'
@@ -206,5 +250,5 @@ export async function bankTransferInstructions(pool: Pool, input: { invoice_id: 
   if (!account) throw new CommercialHttpError('bank_account_unavailable', 409)
   return { invoice_id: invoice.id as string, status: invoice.status as string, reference: (invoice.number ?? invoice.id) as string,
     amount_minor: Number(invoice.total_minor), currency: invoice.currency as string, exponent: Number(invoice.exponent),
-    bank: account }
+    bank: account, claim: await claimOf(pool, invoice.id) }
 }

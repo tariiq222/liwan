@@ -35,6 +35,7 @@
     "@vueuse/core": "^14.4.0",
     "@vueuse/nuxt": "^14.4.0",
     "h3": "^1.15.11",
+    "moyasar-payment-form": "2.3.0",
     "nuxt": "^4.6.4",
     "reka-ui": "^2.11.0",
     "tailwindcss": "^4.3.4",

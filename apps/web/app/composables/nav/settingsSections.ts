@@ -41,6 +41,8 @@ const SYSTEM: SettingsPage = {
     { id: 'integrations', labelKey: 'integrations.nav', icon: 'i-lucide-plug-zap', capability: 'integrations.read' },
     { id: 'maintenance', labelKey: 'settings.maintenance.title', icon: 'i-lucide-calendar-clock', capability: 'settings.maintenance.manage' },
     { id: 'storage', labelKey: 'settings.storage.title', icon: 'i-lucide-hard-drive', capability: 'settings.company.manage', within: '/settings/system/storage' },
+    // The export belongs to the root company: a branch session never sees the entry (`rootOnly`) and a direct link shows why.
+    { id: 'export', labelKey: 'settings.tenantExport.title', icon: 'i-lucide-archive', capability: 'tenant.export', within: '/settings/system/export', rootOnly: true },
   ],
 }
 // The customer's subscription lives at /subscription (the approved SaaS commercial spec, 2026-10-02): the settings shell

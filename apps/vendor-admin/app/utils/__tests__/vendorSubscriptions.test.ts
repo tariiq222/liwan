@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
   customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason,
-  type VendorCustomer, type VendorInvoice,
+  type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { sar } from '../vendorCommercial'
@@ -10,7 +10,7 @@ import { sar } from '../vendorCommercial'
 const now = new Date('2026-10-10T00:00:00Z')
 const order = (o: Partial<Order> = {}) => ({ id: 'o', payment_state: 'paid', fulfillment_state: 'applying', created_at: '2026-10-10T00:00:00Z', ...o }) as Order
 const sub = (o: Partial<SubscriptionView> = {}) => ({ id: 's', state: 'active', applied: { id: 'r1', cadence: { unit: 'month', count: 1 }, plan_revision_id: 'p', bundle_revision_ids: [], extra_branch_count: 1, entitlement: { features: { 'users.limit': 10, 'storage.limit_mb': 10240 } } }, target: null, pending_order: null, revision: 2, renewal_at: '2026-10-20', ...o }) as unknown as SubscriptionView
-const cust = (s: SubscriptionView | null, setup = false): VendorCustomer => ({ id: 'c', name: 'n', tenant_id: null, commercial_setup_required: setup, subscription: s })
+const cust = (s: SubscriptionView | null, setup = false): VendorCustomer => ({ id: 'c', name: 'n', tenant_id: null, admin_login: null, commercial_setup_required: setup, signup_acceptance: null, subscription: s })
 
 describe('queries', () => {
   it('maps invoice filters and paging, dropping "all"', () => {
@@ -127,7 +127,7 @@ describe('customer glance helpers', () => {
 })
 
 describe('refund request', () => {
-  const refund = (o: Partial<VendorInvoice['refund']> = {}) => ({ refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, ...o })
+  const refund = (o: Partial<VendorInvoice['refund']> = {}) => ({ refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false, ...o })
   const note = (o: Partial<Adjustment> = {}) => ({ id: 'n', kind: 'credit_note', origin: 'vendor', status: 'pending', ...o }) as Adjustment
   it('is open only for a refundable payment with no vendor note yet', () => {
     expect(refundRequestBlock({ refund: refund(), adjustments: [] })).toBeNull()
@@ -153,8 +153,8 @@ describe('refund request', () => {
 describe('bank transfer form values', () => {
   it('opens on the invoice total and on the Riyadh calendar day, not the UTC one', () => {
     const total = sar(12345)
-    expect(transferFormDefaults(total, new Date('2026-11-07T20:59:59Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-07' })
-    expect(transferFormDefaults(total, new Date('2026-11-07T21:00:00Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-08' })
+    expect(transferFormDefaults(total, new Date('2026-11-07T20:59:59Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-07', reference: '' })
+    expect(transferFormDefaults(total, new Date('2026-11-07T21:00:00Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-08', reference: '' })
     expect(transferFormDefaults(sar(10000), new Date('2026-11-07T12:00:00Z')).amount).toBe('100.00')
   })
   it('reads riyals exactly, with Arabic-Indic digits, and never rounds', () => {
@@ -165,5 +165,29 @@ describe('bank transfer form values', () => {
     expect(parseTransferAmount('123.456', 2)).toEqual({ issue: 'decimals' })
     expect(parseTransferAmount('١٢٣٫٤٥٦', 2)).toEqual({ issue: 'decimals' })
     for (const text of ['', 'abc', '-5', '1e3', '12.3.4']) expect(parseTransferAmount(text, 2), text).toEqual({ issue: 'invalid' })
+  })
+})
+
+describe('deletionErrorKey', () => {
+  it('names the closed window and leaves every other failure to the shared message', () => {
+    expect(deletionErrorKey({ status: 409, data: { code: 'deletion_in_progress' } })).toBe('vendor.customers.deletion.errors.deletion_in_progress')
+    expect(deletionErrorKey({ status: 404, data: { code: 'not_found' } })).toBe('vendor.pricing.errors.not_found')
+  })
+})
+
+describe('cardActionErrorKey', () => {
+  it('says the card stays when the provider cannot delete it, and falls back to the shared message otherwise', () => {
+    expect(cardActionErrorKey({ status: 503, data: { code: 'provider_unavailable' } })).toBe('vendor.customers.cardActions.errors.provider_unavailable')
+    expect(cardActionErrorKey({ status: 409, data: { code: 'provider_mismatch' } })).toBe('vendor.customers.cardActions.errors.provider_mismatch')
+    expect(cardActionErrorKey({ status: 403, data: { code: 'step_up_required' } })).toBe('vendor.pricing.errors.step_up_required')
+  })
+})
+
+describe('adminLoginErrorKey', () => {
+  it('names the refusals of an address change and leaves every other failure to the shared message', () => {
+    expect(adminLoginErrorKey({ status: 409, data: { code: 'admin_login_unchanged' } })).toBe('vendor.customers.adminLogin.errors.admin_login_unchanged')
+    expect(adminLoginErrorKey({ status: 409, data: { code: 'workspace_not_activated' } })).toBe('vendor.customers.adminLogin.errors.workspace_not_activated')
+    expect(adminLoginErrorKey({ status: 409, data: { code: 'no_workspace' } })).toBe('vendor.customers.adminLogin.errors.no_workspace')
+    expect(adminLoginErrorKey({ status: 404, data: { code: 'not_found' } })).toBe('vendor.pricing.errors.not_found')
   })
 })

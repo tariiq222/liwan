@@ -3,11 +3,12 @@ import { z } from 'zod'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, type Principal } from '@liwan/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { createCustomerTerms } from './customer-terms.js'
 import { createQuoteForCustomer } from './quotes.js'
+import { transaction } from '../db.js'
 import { getSubscription } from './subscriptions.js'
 import { acceptQuote, cancelOrder, cancelOrderBodySchema } from './orders.js'
 import { listCustomers, customerView } from './customers.js'
@@ -20,8 +21,16 @@ import { getUsage } from './usage.js'
 import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-http.js'
 import { endTrial, extendTrial, startTrial } from './trial.js'
 import { resumeSubscription, suspendSubscription } from './suspension.js'
+import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
+import { latestTenantDeletionRequest, listTenantDeletionRequests, tenantDeletionRunOf } from './tenant-deletion-read.js'
+import { tenantDeletionMode } from './tenant-deletion-run.js'
+import { withdrawDeletion } from './tenant-deletion.js'
+import { adminLoginChangeSchema, changeAdminLogin, previewAdminLogin } from './admin-login.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
+import { chargeSavedCards } from './saved-card-charges.js'
+import { removePaymentMethod } from './payment-method-removal.js'
+import { disableAutoRenew } from './auto-renew.js'
 import { SimulatorAdapter } from './payment-simulator.js'
 import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
 import { confirmBankTransfer, parseBankTransferInput } from './bank-transfer.js'
@@ -64,6 +73,42 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   }
   if(path==='/attention'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await attention(pool,input.capabilities.includes('vendor.billing.manage'))}}
   if(path==='/clients'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await listClients(pool,url)}}
+  // Workspace deletions are asked and confirmed only by the customer; the vendor sees every request and can withdraw one on the customer's behalf.
+  if(path==='/deletion-requests'&&m==='GET'){
+    need(input,'vendor.read')
+    const state=url.searchParams.get('state')
+    if(state!==null&&!tenantDeletionStateSchema.safeParse(state).success)throw new CommercialHttpError('invalid',422,'state')
+    return {status:200,data:await listTenantDeletionRequests(pool,state)}
+  }
+  // The run of a deletion (frozen plan, pre-checks, step ledger) is read-only: the vendor's only act on it is the withdrawal below, and only before the point of no return.
+  const deletionRun=/^\/customers\/([^/]+)\/deletion\/run$/.exec(path)
+  if(deletionRun&&m==='GET'){
+    need(input,'vendor.read')
+    if(!z.uuid().safeParse(deletionRun[1]).success||!(await pool.query('SELECT 1 FROM customers WHERE id=$1',[deletionRun[1]])).rowCount)throw new CommercialHttpError('not_found',404)
+    return {status:200,data:{run:await tenantDeletionRunOf(pool,deletionRun[1]!,tenantDeletionMode(process.env))}}
+  }
+  const deletion=/^\/customers\/([^/]+)\/deletion(\/withdraw)?$/.exec(path)
+  if(deletion&&((!deletion[2]&&m==='GET')||(deletion[2]&&m==='POST'))){
+    // The capability is checked before the customer is looked up, so a role without it learns nothing about any id.
+    if(deletion[2]){need(input,'vendor.subscriptions.manage');if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)}
+    else need(input,'vendor.read')
+    if(!z.uuid().safeParse(deletion[1]).success||!(await pool.query('SELECT 1 FROM customers WHERE id=$1',[deletion[1]])).rowCount)throw new CommercialHttpError('not_found',404)
+    if(!deletion[2])return {status:200,data:{deletion:await latestTenantDeletionRequest(pool,deletion[1]!)}}
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    await withdrawDeletion(pool,{customer_id:deletion[1]!,by:'vendor',actor:principal.actor_id,client_address:input.clientAddress??null,reason:body.reason})
+    return {status:200,data:{deletion:await latestTenantDeletionRequest(pool,deletion[1]!)}}
+  }
+  // The address on record receives every control-plane mail for the workspace, so only the vendor changes it, with a reason and a fresh step-up.
+  const adminLogin=/^\/customers\/([^/]+)\/admin-login$/.exec(path)
+  if(adminLogin&&m==='PATCH'){
+    need(input,'vendor.subscriptions.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(adminLogin[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,adminLoginChangeSchema)
+    if(body.dry_run)return {status:200,data:{preview:await previewAdminLogin(pool,adminLogin[1]!,body.admin_login)}}
+    const change=await changeAdminLogin(pool,{customer_id:adminLogin[1]!,admin_login:body.admin_login,reason:body.reason!,actor:principal.actor_id,client_address:input.clientAddress??null})
+    return {status:200,data:{change}}
+  }
   const customerDetail=/^\/customers\/([^/]+)$/.exec(path)
   if(m==='GET'&&customerDetail){need(input,'vendor.read');if(!z.uuid().safeParse(customerDetail[1]).success)throw new CommercialHttpError('not_found',404);const customer=(await pool.query('SELECT * FROM customers WHERE id=$1',[customerDetail[1]])).rows[0];if(!customer)throw new CommercialHttpError('not_found',404);return {status:200,data:await customerView(pool,customer)}}
   const subscription=/^\/subscriptions\/([^/]+)(?:\/(branches|usage))?$/.exec(path)
@@ -109,6 +154,40 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     const act=suspension[2]==='suspend'?suspendSubscription:resumeSubscription
     await act(pool,{subscription_id:suspension[1],reason:body.reason,actor:principal.actor_id})
     const owner=(await pool.query('SELECT customer_id FROM subscriptions WHERE id=$1',[suspension[1]])).rows[0]
+    return {status:200,data:await getSubscription(pool,owner.customer_id)}
+  }
+  const renewalCancel=/^\/subscriptions\/([^/]+)\/(cancel-renewal|resume-renewal)$/.exec(path)
+  if(m==='POST'&&renewalCancel){
+    need(input,'vendor.subscriptions.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(renewalCancel[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const act=renewalCancel[2]==='cancel-renewal'?cancelAtPeriodEnd:resumeCancelled
+    return {status:200,data:await act(pool,{subscription_id:renewalCancel[1],by:'vendor',actor:principal.actor_id,reason:body.reason,now:new Date()})}
+  }
+  const cardRemoval=/^\/subscriptions\/([^/]+)\/payment-methods\/([^/]+)\/remove$/.exec(path)
+  if(m==='POST'&&cardRemoval){
+    need(input,'vendor.subscriptions.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(cardRemoval[1]).success||!z.uuid().safeParse(cardRemoval[2]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const owner=(await pool.query('SELECT customer_id FROM subscriptions WHERE id=$1',[cardRemoval[1]])).rows[0]
+    if(!owner)throw new CommercialHttpError('not_found',404)
+    await removePaymentMethod(pool,needPayment(runtime).adapter,{by:'vendor',actor:principal.actor_id,reason:body.reason,customer_id:owner.customer_id,payment_method_id:cardRemoval[2]!})
+    return {status:200,data:await getSubscription(pool,owner.customer_id)}
+  }
+  const autoRenewOff=/^\/subscriptions\/([^/]+)\/disable-auto-renew$/.exec(path)
+  if(m==='POST'&&autoRenewOff){
+    need(input,'vendor.subscriptions.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(autoRenewOff[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const owner=await transaction(pool,async client=>{
+      const row=(await client.query('SELECT id,customer_id FROM subscriptions WHERE id=$1 FOR UPDATE',[autoRenewOff[1]])).rows[0]
+      if(!row)throw new CommercialHttpError('not_found',404)
+      await disableAutoRenew(client,row.id,{actor:principal.actor_id,reason:body.reason})
+      return row as {customer_id:string}
+    })
     return {status:200,data:await getSubscription(pool,owner.customer_id)}
   }
   if(m==='POST'&&path==='/customer-terms'){need(input,'vendor.pricing.manage','vendor.subscriptions.manage');return {status:201,data:await createCustomerTerms(pool,parseBody(input.raw,z.unknown()),principal)}}
@@ -226,7 +305,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(m==='POST'&&path==='/renewals/run'){
     need(input,'vendor.billing.manage');const body=parseBody(input.raw||'{}',z.strictObject({now:z.iso.datetime().optional()}));if(body.now&&process.env.NODE_ENV==='production')throw new CommercialHttpError('forbidden',403)
     const now=body.now?new Date(body.now):new Date(),paymentRuntime=needPayment(runtime)
-    const generated=await generateRenewals(pool,{now,...paymentRuntime});const dunning=await applyDunning(pool,{now});return {status:200,data:{generated,dunning}}
+    const generated=await generateRenewals(pool,{now,returnOrigin:paymentRuntime.returnOrigin});await chargeSavedCards(pool,{now,...paymentRuntime});const dunning=await applyDunning(pool,{now});return {status:200,data:{generated,dunning}}
   }
   return null
 }

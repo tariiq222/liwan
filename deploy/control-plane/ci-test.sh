@@ -69,7 +69,7 @@ vitest_group() {
 npm -w packages/commercial-contracts run test
 
 # Suites that require the payfinal database by name.
-PAYMENT_SUITES=(commercial-payment-events commercial-payment-simulator-settle commercial-renewals)
+PAYMENT_SUITES=(commercial-payment-events commercial-payment-simulator-settle commercial-renewals commercial-form-payments)
 
 # Group 1: every other suite. The restore suite swaps the database name itself.
 EXCLUDES=(--exclude '**/commercial-analytics.test.ts' --exclude '**/ai-provider.test.ts')

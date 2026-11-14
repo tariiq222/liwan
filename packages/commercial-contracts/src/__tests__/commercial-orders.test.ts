@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { acceptQuoteRequestSchema, initialOrderStates, nextOrderState, orderSchema, type EffectReceipt, type OrderStateInput } from '../commercial/index.js'
+import { acceptQuoteRequestSchema, initialOrderStates, nextOrderState, orderSchema, paymentStateSchema, type EffectReceipt, type OrderStateInput } from '../commercial/index.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -29,15 +29,19 @@ describe('nextOrderState', () => {
     const t = nextOrderState(st('awaiting_payment', 'not_started'), { type: 'payment_succeeded' })
     expect(t).toMatchObject({ payment_state: 'paid', fulfillment_state: 'queued', ignored: false, reconcile: false })
   })
-  it('duplicate success and late pending/failed stay paid', () => {
-    for (const e of ['payment_succeeded', 'payment_pending', 'payment_failed'] as const) {
+  it('duplicate success and late pending stay paid', () => {
+    for (const e of ['payment_succeeded', 'payment_pending'] as const) {
       const t = nextOrderState(st('paid', 'applying'), { type: e })
       expect(t).toMatchObject({ payment_state: 'paid', fulfillment_state: 'applying', ignored: true })
     }
   })
-  it('failed only from awaiting_payment', () => {
-    expect(nextOrderState(st('awaiting_payment', 'not_started'), { type: 'payment_failed' }).payment_state).toBe('failed')
-    expect(nextOrderState(st('not_required', 'queued'), { type: 'payment_failed' }).ignored).toBe(true)
+  it('a payment is never final for the order: there is no failed payment state, and a declined order stays payable', () => {
+    expect(paymentStateSchema.options).toEqual(['not_required', 'awaiting_payment', 'paid', 'refund_pending', 'refunded'])
+    const pending = nextOrderState(st('awaiting_payment', 'not_started'), { type: 'payment_pending' })
+    expect(pending).toMatchObject({ payment_state: 'awaiting_payment', ignored: true })
+    expect(nextOrderState(st('awaiting_payment', 'not_started'), { type: 'payment_succeeded' }).payment_state).toBe('paid')
+    // Only cancellation ends an unpaid order.
+    expect(nextOrderState(st('awaiting_payment', 'not_started'), { type: 'order_cancelled' }).cancelled).toBe(true)
   })
   it('paid after cancelled -> refund_pending + reconcile, no fulfillment', () => {
     const c = nextOrderState(st('awaiting_payment', 'not_started'), { type: 'order_cancelled' })
@@ -57,7 +61,7 @@ describe('nextOrderState', () => {
     expect(() => nextOrderState(st('paid', 'queued'), { type: 'fulfillment_applied', receipt, target_revision_id: id(1) })).toThrow()
   })
   it('fulfillment cannot start unless paid|not_required', () => {
-    for (const p of ['awaiting_payment', 'failed', 'refund_pending', 'refunded'] as const)
+    for (const p of ['awaiting_payment', 'refund_pending', 'refunded'] as const)
       expect(() => nextOrderState(st(p, 'queued'), { type: 'fulfillment_started' })).toThrow()
     expect(nextOrderState(st('not_required', 'queued'), { type: 'fulfillment_started' }).fulfillment_state).toBe('applying')
   })

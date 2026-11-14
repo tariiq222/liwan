@@ -107,6 +107,17 @@ describe('customer commercial BFF', () => {
     const forged = Buffer.from(JSON.stringify({ ...principal, tenant_id: 'tenant-other' })).toString('base64')
     expect(verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(forged, undefined), key: KEY, headers: h })).toBeNull()
   })
+  it.each([
+    ['GET', 'subscription', undefined],
+    ['GET', 'invoices', undefined],
+    ['POST', 'orders/abc/payment-attempts', '{}'],
+    ['POST', 'invoices/inv1/bank-transfer-claim', '{}'],
+  ] as const)('forwards %s %s for the manager of a tenant suspended for an unpaid invoice', async (method, rest, body) => {
+    const raw = setup({ method, url: `https://acme.example/api/commercial/v1/${rest}`, body })
+    vi.mocked($fetch).mockResolvedValueOnce({ ...me(['settings.branding.manage']), platform: { schema_version: 1, policy_revision: 3, state: 'payment_suspended', valid_until: null, read_only: true, readable_features: [], writable_features: [] } })
+    await forwardCustomerRequest({} as never)
+    expect(raw).toHaveBeenCalledOnce()
+  })
   it('does not forward commercial writes by a read-only account', async () => {
     const raw = setup({ method: 'POST', url: 'https://acme.example/api/commercial/v1/orders/abc/payment-attempts', body: '{}' })
     vi.mocked($fetch).mockResolvedValueOnce({ ...me(['settings.branding.manage']), read_only: true })
@@ -170,11 +181,18 @@ describe('customer commercial BFF', () => {
     expect(customerRoute('POST', 'orders/abc/payment-attempts')?.needs).toBe('subscription.manage')
     expect(customerRoute('POST', 'orders/abc/cancel')?.needs).toBe('subscription.manage')
     expect(customerRoute('GET', 'orders/abc/cancel')).toBeNull()
+    expect(customerRoute('GET', 'payment-methods')).toEqual({ upstream: '/v1/customer/payment-methods', needs: 'billing.read' })
+    expect(customerRoute('POST', 'payment-methods/abc/remove')).toEqual({ upstream: '/v1/customer/payment-methods/abc/remove', needs: 'subscription.manage' })
+    expect(customerRoute('GET', 'payment-methods/abc/remove')).toBeNull()
+    expect(customerRoute('POST', 'payment-methods')).toBeNull()
+    expect(customerRoute('POST', 'payment-methods/abc')).toBeNull()
     expect(customerRoute('GET', 'orders/abc')).toEqual({ upstream: '/v1/customer/orders/abc', needs: 'subscription.read' })
     expect(customerRoute('POST', 'orders/abc')).toBeNull()
     expect(customerRoute('GET', 'orders/abc/payment-attempts')).toBeNull()
     expect(customerRoute('GET', 'invoices/inv-1')?.needs).toBe('billing.read')
     // A2: a customer's own transfer instructions, under the same capability as the invoice read itself.
+    expect(customerRoute('POST', 'invoices/inv-1/bank-transfer-claim')).toEqual({ upstream: '/v1/customer/invoices/inv-1/bank-transfer-claim', needs: 'subscription.manage' })
+    expect(customerRoute('GET', 'invoices/inv-1/bank-transfer-claim')).toBeNull()
     expect(customerRoute('GET', 'invoices/inv-1/bank-transfer')).toEqual({ upstream: '/v1/customer/invoices/inv-1/bank-transfer', needs: 'billing.read' })
     expect(customerRoute('POST', 'invoices/inv-1/bank-transfer')).toBeNull()
     expect(customerRoute('GET', 'invoices/inv-1/bank-transfers')).toBeNull()
@@ -219,8 +237,8 @@ describe('mutation origin binding', () => {
 describe('payment return relay', () => {
   const ATTEMPT = '3f2b8c1e-5d4a-4b7e-9c10-2a6d8e0f1b34'
   const ORDER = '9a7c5e3b-1d2f-4a6b-8c0e-4f2a6b8d0c1e'
-  const returnSetup = (opts: { method?: string; attempt?: string; cfg?: Record<string, unknown> } = {}) => {
-    const raw = setup({ method: opts.method ?? 'GET', url: `https://acme.example/api/commercial/payment-callback?attempt=${opts.attempt ?? ATTEMPT}`, cookies: {}, headers: { cookie: '' }, cfg: opts.cfg })
+  const returnSetup = (opts: { method?: string; attempt?: string; query?: string; cfg?: Record<string, unknown> } = {}) => {
+    const raw = setup({ method: opts.method ?? 'GET', url: `https://acme.example/api/commercial/payment-callback?attempt=${opts.attempt ?? ATTEMPT}${opts.query ?? ''}`, cookies: {}, headers: { cookie: '' }, cfg: opts.cfg })
     raw.mockResolvedValue({ status: 200, _data: { order_id: ORDER, payment_state: 'paid', fulfillment_state: 'queued' } })
     const status = vi.fn(); const headers: Record<string, string> = {}
     vi.stubGlobal('setResponseStatus', status)
@@ -243,6 +261,41 @@ describe('payment return relay', () => {
     expect(verify(KEY, 'tenant-acme')).toMatchObject({ actor: 'anonymous', issuer: 'customer-web' })
     expect(verify(KEY, 'tenant-other')).toBeNull()
     expect(verify('x'.repeat(48), 'tenant-acme')).toBeNull()
+  })
+  describe('the provider return of a card form payment', () => {
+    const SECRET = 's'.repeat(32)
+    const PAYMENT = 'pay_8f3a1c2d-aaaa'
+    const card = (query: string) => {
+      const ctx = returnSetup({ query })
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      return { ...ctx, warn }
+    }
+    it('forwards the payment id as a signed hint, never the secret or the provider status, and drops every parameter from the redirect', async () => {
+      const { raw, headers, warn } = card(`&k=${SECRET}&id=${PAYMENT}&status=paid&message=x`)
+      await relayPaymentReturn({} as never)
+      const [url, init] = raw.mock.calls[0]!
+      expect(url).toBe(`https://control.example/v1/customer/payment-returns/${ATTEMPT}?payment=${PAYMENT}`)
+      expect(JSON.stringify([url, init])).not.toContain(SECRET)
+      const h = init.headers as Record<string, string>
+      expect(verifyServiceRequest({ method: 'POST', path: `/v1/customer/payment-returns/${ATTEMPT}?payment=${PAYMENT}`, body: 'liwan-payment-return:tenant-acme\n', key: KEY, headers: h, anonymous: true })).toMatchObject({ actor: 'anonymous' })
+      // The hint is part of what is signed: another one does not verify.
+      expect(verifyServiceRequest({ method: 'POST', path: `/v1/customer/payment-returns/${ATTEMPT}?payment=pay_other_1234`, body: 'liwan-payment-return:tenant-acme\n', key: KEY, headers: h, anonymous: true })).toBeNull()
+      expect(headers.location).toBe(`/subscription/status?order=${ORDER}`)
+      expect(headers['referrer-policy']).toBe('no-referrer')
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(SECRET)
+    })
+    it.each(['', '&id=', '&id=short', '&id=has%20space%20in%20it', `&id=${'x'.repeat(101)}`, '&id=a/b/c/d/e/f/g/h'])('forwards no hint for the id %j', async query => {
+      const { raw } = card(query)
+      await relayPaymentReturn({} as never)
+      expect(raw.mock.calls[0]![0]).toBe(`https://control.example/v1/customer/payment-returns/${ATTEMPT}`)
+    })
+    it('never logs the secret when the lookup fails', async () => {
+      const { raw, warn } = card(`&k=${SECRET}&id=${PAYMENT}`)
+      raw.mockRejectedValue(Object.assign(new Error(`down ${SECRET}`), { statusCode: 503 }))
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+      await relayPaymentReturn({} as never)
+      expect(JSON.stringify([warn.mock.calls, error.mock.calls])).not.toContain(SECRET)
+    })
   })
   describe('on the LiwanOS public host', () => {
     const TOKEN = 'p'.repeat(40)
@@ -267,7 +320,7 @@ describe('payment return relay', () => {
       expect(verifyServiceRequest({ method: 'POST', path: `/v1/customer/payment-returns/${ATTEMPT}`, body: 'liwan-payment-return:public\n', key: KEY, headers: h, anonymous: true })).toMatchObject({ actor: 'anonymous' })
       expect(tenantRequest).not.toHaveBeenCalled()
     })
-    it.each([['failed', '/payment-done?result=failed'], ['refunded', '/payment-done?result=failed'], ['awaiting_payment', '/payment-done']])('lands a %s order on %s', async (state, location) => {
+    it.each([['refunded', '/payment-done?result=failed'], ['awaiting_payment', '/payment-done']])('lands a %s order on %s', async (state, location) => {
       const { headers } = publicReturn(state)
       await relayPaymentReturn({} as never)
       expect(headers.location).toBe(location)
@@ -396,6 +449,18 @@ describe('signup relay', () => {
   it('passes a refused free-mail address through as its own code and status', async () => {
     signup({ status: 422, _data: { code: 'business_email_required' } })
     await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 422, data: { code: 'business_email_required' } })
+  })
+  it('passes the missing and the stale terms acceptance through with their own codes', async () => {
+    signup({ status: 422, _data: { code: 'terms_not_accepted' } })
+    await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 422, data: { code: 'terms_not_accepted' } })
+    signup({ status: 409, _data: { code: 'terms_changed' } })
+    await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 409, data: { code: 'terms_changed' } })
+  })
+  it('passes the bot-check refusal and outage through with their own codes', async () => {
+    for (const [status, code] of [[422, 'human_check_failed'], [503, 'human_check_unavailable']] as const) {
+      signup({ status, _data: { code } })
+      await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: status, data: { code } })
+    }
   })
   it('still hides a code outside the whitelist behind unavailable', async () => {
     signup({ status: 500, _data: { code: 'database_exploded' } })

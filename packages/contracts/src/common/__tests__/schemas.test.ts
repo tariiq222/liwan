@@ -61,6 +61,15 @@ describe('MeSchema', () => {
     expect(() => MeSchema.parse({ ...base, home_capabilities: 'hr.self.read' })).toThrow()
     expect(() => MeSchema.parse({ ...base, home_capabilities: [1] })).toThrow()
   })
+  it('says whether the working company is the tenant root, true when the server is silent', () => {
+    const base = {
+      id: 2, name: 'Sara', login: 'emp', email: '', lang: 'ar_001', tz: '', role: 'employee',
+      company: { id: 2, name: 'Branch B' }, companies: [{ id: 2, name: 'Branch B' }], home_company_id: 2, home_capabilities: [],
+    }
+    expect(MeSchema.parse(base).is_root_company).toBe(true)
+    expect(MeSchema.parse({ ...base, is_root_company: false }).is_root_company).toBe(false)
+    expect(() => MeSchema.parse({ ...base, is_root_company: 'no' })).toThrow()
+  })
   it('validates the body that switches the working company', () => {
     expect(MeCompanyInputSchema.parse({ company_id: 2 })).toEqual({ company_id: 2 })
     for (const body of [{}, { company_id: 0 }, { company_id: '2' }, { company_id: 2, other: 1 }]) {

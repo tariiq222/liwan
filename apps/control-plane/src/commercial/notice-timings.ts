@@ -2,3 +2,39 @@
 
 /** A trial's end notices: this many days before it ends (only thresholds below the trial's own length are sent). */
 export const TRIAL_NOTICE_DAYS = [3, 1] as const
+
+/** A renewal that owes money: this many days before it (only thresholds shorter than the billing cadence are sent). */
+export const RENEWAL_NOTICE_DAYS = [7, 3, 1] as const
+
+/** A past-due subscription whose plan suspends automatically: this many days before access stops (only thresholds shorter than the plan's grace period are sent). */
+export const SUSPENSION_NOTICE_DAYS = [3, 1] as const
+
+/** A cancelled subscription: the reminder goes this many days before the paid period ends. */
+export const CANCELLATION_REMINDER_DAYS = 3
+
+/** A confirmed workspace deletion: the reminders go this many days before it falls due (the nearest one not yet passed is sent after a worker outage). */
+export const TENANT_DELETION_REMINDER_DAYS = [60, 30, 14, 7, 1] as const
+
+/**
+ * A saved card is charged on the day the renewal invoice is issued (day 0) and, after a soft decline, again this many days after the
+ * issue date. A hard decline stops at once. The invoice's due date and the dunning that follows it do not depend on these.
+ */
+export const SAVED_CARD_CHARGE_DAYS = [0, 1, 3, 5] as const
+
+/** A saved-card charge whose answer was lost is looked up (by its attempt id) and, when the provider has none, sent again as the same attempt after this many minutes. */
+export const SAVED_CARD_REDRIVE_MINUTES = 5
+
+/** The default card's expiry: the notice goes this many days before its last valid day. */
+export const CARD_EXPIRY_NOTICE_DAYS = [30, 7] as const
+
+/** The day the n-th automatic charge of an invoice issued on `issuedOn` (counting from 0) is due, or null when the schedule has no more. */
+export function chargeDueOn(issuedOn: string, attemptsMade: number): string | null {
+  const days = SAVED_CARD_CHARGE_DAYS[attemptsMade]
+  return days === undefined ? null : new Date(Date.parse(`${issuedOn}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
+}
+
+/** A charge answer lost at the provider is looked at again, and a payment it never created is closed, only this long after it was sent. */
+export const SAVED_CARD_MISSING_MINUTES = 10
+
+/** A card form attempt closed while its payment may still arrive keeps the saved card from being charged for the same invoice this long. */
+export const FORM_PAYMENT_HOLD_HOURS = 24

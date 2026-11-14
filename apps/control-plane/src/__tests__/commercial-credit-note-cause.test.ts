@@ -29,8 +29,8 @@ suite('the kind of a credit note is its typed cause, never its wording (AUDIT-04
         VALUES($1,$2,$3,'new',$4,$5,'paid','applied',$6,'fixture',11500,'SAR',2)`, [order, customer, sub, randomUUID(), revision, randomUUID()])
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','paid','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [invoice, customer, sub, order])
-      await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at)
-        VALUES($1,$2,$3,'moyasar','live',$4,11500,'SAR',2,'succeeded',now())`, [attempt, order, invoice, `moy-${attempt}`])
+      await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at,kind)
+        VALUES($1,$2,$3,'moyasar','live',$4,11500,'SAR',2,'succeeded',now(),'hosted_invoice')`, [attempt, order, invoice, `moy-${attempt}`])
       await c.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [order, attempt])
     })
     return { customer, order, invoice, attempt }

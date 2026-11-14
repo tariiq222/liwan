@@ -91,9 +91,10 @@ class LiwanAiKnowledgeIndexer(models.AbstractModel):
     @api.model
     def _liwan_cron_tick(self):
         """Queue the next batch of every enabled source (cron, as the technical user ``liwan_ai.user_ai_indexer``)."""
-        if not self._liwan_indexing_enabled():
-            return
         entitlement = self.env['liwan.entitlement.service']
+        # Embedding spends the vendor's money and the indexer's writes are fenced: an unpaid tenant waits quietly.
+        if not self._liwan_indexing_enabled() or not entitlement._liwan_may_act_outward():
+            return
         for source in self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_map().values():
             if entitlement._liwan_feature_read(source['feature_key']):
                 self._liwan_scan_source(source, handled=self._liwan_index_pending(source))

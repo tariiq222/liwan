@@ -11,9 +11,9 @@ from odoo.addons.liwan_core.testing import skip_unless_vat_checked
 
 SAUDI_VAT = '300000000000003'
 ACTION = 'company.vat_registration_changed'
-MIGRATION_DIR = Path(__file__).parents[1] / 'migrations' / '19.0.1.17.0'
+MIGRATION_DIR = Path(__file__).parents[1] / 'migrations' / '19.0.1.18.0'
 MIGRATION = MIGRATION_DIR / 'post-establishment-vat.py'
-BEFORE = '19.0.1.16.0'
+BEFORE = '19.0.1.17.0'
 
 
 def load_migration():
@@ -386,7 +386,7 @@ class TestEstablishmentVatRegistration(TransactionCase):
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestVatRegistrationMigration(TransactionCase):
-    """19.0.1.17.0: a branch row is realigned to its root, and an ambiguous one stops the upgrade by name."""
+    """19.0.1.18.0: a branch row is realigned to its root, and an ambiguous one stops the upgrade by name."""
 
     @classmethod
     def setUpClass(cls):
@@ -404,7 +404,7 @@ class TestVatRegistrationMigration(TransactionCase):
     def setUp(self):
         super().setUp()
         self.root.write({'liwan_vat_registered': True})
-        # The old shape: a branch row that stored its own value, as versions before 19.0.1.17.0 allowed.
+        # The old shape: a branch row that stored its own value, as versions before 19.0.1.18.0 allowed.
         self.env.cr.execute(
             'UPDATE res_company SET liwan_vat_registered = TRUE WHERE id IN %s',
             [tuple((self.registered_branch | self.clean_branch).ids)],
