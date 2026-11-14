@@ -120,6 +120,16 @@ application's AI agent and tools.
   `crm` and OCA `crm_phonecall`, the `/api/v1/crm` routes, their serializers, `crm.enabled`, the `crm.*`
   capabilities and their groups, and the opportunity custom-field definition of the current company. It knows
   no other application; its AI tools live in the bridge `liwan_crm_ai`.
+- `odoo-addons/liwan_sales` (application, rank 4) owns staff quotations and orders on stock `sale.order`
+  (`sale_management`): the `/api/v1/sales` routes, their serializers, `sales.enabled`, the six `sales.*` capabilities
+  with the agent and manager roles, the tenant's sales settings (visibility, quotation validity, discount limit,
+  default terms) and the visibility rules per company. A customer comes from `liwan_customers`, a product and its
+  price from `liwan_products`, and the tax of a line from `liwan_orders`; an online order of `liwan_payments` is
+  listed read-only. It writes order lines through one documented elevated helper
+  (`tools/arch_documented_sudo.json`), because a branch session cannot write the root company's taxes. Pages are
+  under `/sales` in `apps/web`, its settings at `/settings/apps/sales`; its AI tool lives in the bridge
+  `liwan_sales_ai`. Its contract is `odoo-addons/liwan_sales/README.md`. Plan:
+  `docs/superpowers/plans/2026-11-14-liwan-sales.md`.
 - `odoo-addons/liwan_chat` (application, rank 4) owns member-private chat over the native `discuss.channel`:
   conversations, messages, reactions and the `/api/v1/chat` routes, `chat.enabled` and the `chat.*` capabilities.
 - `odoo-addons/liwan_document_service` (shared service, rank 3) owns document records, grants,
