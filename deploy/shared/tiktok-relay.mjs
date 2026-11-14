@@ -193,13 +193,18 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
 
   /** DELETE /internal/tiktok/tenants/<tenant id>: the control plane's workspace deletion removes every binding of a
    * tenant that may already be disabled or gone from the registry, which the bindings route refuses. The same relay
-   * token authenticates it, so the registry is not consulted. Idempotent: no binding is success. Answers counts only. */
+   * token authenticates it, and a tenant still ENABLED in the registry is refused (409), so the shared token cannot wipe an active tenant. Idempotent: no binding is success. Answers counts only. */
   async function purgeTenantRoute(req, res, tenantPath) {
     if (!holdsProxyToken(req.headers[BINDINGS_HEADER])) return send(res, 403, 'invalid_proxy_token')
     if (req.method !== 'DELETE') return send(res, 405, 'method_not_allowed')
     let tenantId
     try { tenantId = decodeURIComponent(tenantPath) } catch { return send(res, 400, 'invalid_tenant_id') }
     if (!TENANT_ID_PATTERN.test(tenantId)) return send(res, 400, 'invalid_tenant_id')
+    // The token is shared with every tenant's Odoo, so the purge refuses a tenant that is still enabled in the registry the relay already reads
+    // (the control plane disables the target in `stop_access` before it calls this). A tenant that is disabled, retired or gone is purged.
+    let registry
+    try { registry = currentRegistry() } catch { return send(res, 500, 'registry_unavailable') }
+    if (activeByTenantId(registry, tenantId) !== null) return send(res, 409, 'tenant_active')
     let stored
     try { stored = readBindings(bindingsPath) } catch { return send(res, 500, 'bindings_unavailable') }
     const remaining = Object.create(null)

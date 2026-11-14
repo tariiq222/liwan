@@ -19,7 +19,7 @@ import { sendBillingNotices } from './billing-notices.js'
 import { sendCancellationNotices } from './cancellation-notices.js'
 import { expireDeletionCodes, markDueDeletions } from './tenant-deletion.js'
 import { sendTenantDeletionNotices } from './tenant-deletion-notices.js'
-import { queueLastCalls, runTenantDeletions, tenantDeletionEnabled } from './tenant-deletion-run.js'
+import { queueLastCalls, runTenantDeletions, tenantDeletionMode } from './tenant-deletion-run.js'
 import type { DeletionEffects } from './tenant-deletion-effects.js'
 import { sendAdminLoginNotices } from './admin-login.js'
 import { processRefundOutbox } from './settlements.js'
@@ -139,7 +139,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       }
       if (o.tenantDeletionEffects && config.tenantRegistryPath) {
         const effects = o.tenantDeletionEffects, registryPath = config.tenantRegistryPath
-        await job('tenant-deletion-run', () => runTenantDeletions({ pool, config, effects, registryPath, enabled: tenantDeletionEnabled(env), paymentAdapter: o.paymentAdapter, signal: o.signal, log }))
+        await job('tenant-deletion-run', () => runTenantDeletions({ pool, config, effects, registryPath, enabled: tenantDeletionMode(env).enabled, paymentAdapter: o.paymentAdapter, signal: o.signal, log }))
       }
       await job('vendor-alerts', () => sendVendorAlerts(pool, { now: new Date(clock()), env, mail: o.mailAdapter, telegram, consoleOrigin: config.admin?.origin, signal: o.signal, log }))
       if (ticks % reconcileEvery === 0) {

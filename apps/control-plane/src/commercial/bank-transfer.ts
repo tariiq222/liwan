@@ -88,6 +88,8 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
   // A3: one lock decides who settles this invoice — the order row — and the invoice is read inside the transaction,
   // after it, so its status cannot change between the check and the write.
   const settled = await transaction(pool, async client => {
+    // This function is the operator's recording (a vendor route): it alone sets the flag the retiring trigger lets a bank-transfer attempt through with, so money that reached the bank can still be recorded for a customer being deleted.
+    await client.query("SELECT set_config('liwan.bank_transfer_recording','on',true)")
     const head = (await client.query('SELECT order_id FROM invoices WHERE id=$1', [input.invoice_id])).rows[0]
     if (!head) throw new CommercialHttpError('not_found', 404)
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [head.order_id ?? '00000000-0000-4000-8000-000000000000'])).rows[0]

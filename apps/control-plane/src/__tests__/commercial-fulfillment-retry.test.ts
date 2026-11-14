@@ -33,7 +33,8 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
   }
   // The outbox is shared by every suite on this database: claim the whole backlog so each test reaches its own order.
   const run = () => processFulfillmentOutbox(pool, { limit: 1000, enrollment })
-  const row = async (order: string) => (await pool.query('SELECT status,attempts,next_attempt_at > now() AS waiting,payload FROM commercial_outbox WHERE aggregate_id=$1', [order])).rows[0]
+  // The fulfillment row only: a failed order also gets a `reconcile.refund` row, and an unordered read may return either (heap or index order depends on table statistics).
+  const row = async (order: string) => (await pool.query("SELECT status,attempts,next_attempt_at > now() AS waiting,payload FROM commercial_outbox WHERE aggregate_id=$1 AND kind='fulfillment.enqueue' ORDER BY created_at,id", [order])).rows[0]
   const orderState = async (order: string) => (await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1', [order])).rows[0].fulfillment_state
   const notes = async (order: string) => (await pool.query("SELECT a.status FROM invoice_adjustments a JOIN invoices i ON i.id=a.invoice_id WHERE i.order_id=$1 AND a.kind='credit_note'", [order])).rows
   const invoiceStatus = async (order: string) => (await pool.query('SELECT status FROM invoices WHERE order_id=$1', [order])).rows[0].status

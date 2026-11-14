@@ -575,8 +575,18 @@ test('the purge route removes every binding of a tenant that is disabled or left
   } finally { await f.close() }
 })
 
+test('the purge route refuses a tenant that is still enabled in the registry and removes nothing', async () => {
+  const f = await fixture({ bindings: { schemaVersion: 1, bindings: { openid_a1: 'acme', openid_beta: 'beta' } } })
+  try {
+    assert.equal((await purge(f.port, 'acme')).status, 409)
+    assert.equal((await purge(f.port, 'beta')).status, 409)
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_a1: 'acme', openid_beta: 'beta' } })
+  } finally { await f.close() }
+})
+
 test('the purge route is idempotent and leaves the file alone when there is nothing to remove', async () => {
-  const f = await fixture({ bindings: false })
+  const disabled = targets.map(target => target.tenantId === 'acme' ? { ...target, enabled: false, retired: true } : target)
+  const f = await fixture({ bindings: false, registry: { schemaVersion: 1, snapshotRevision: 2, targets: disabled } })
   try {
     // No bindings file at all, then a tenant with no binding: both are success.
     assert.deepEqual(JSON.parse((await purge(f.port, 'acme')).body), { removed: 0 })

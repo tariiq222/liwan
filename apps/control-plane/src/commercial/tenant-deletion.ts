@@ -19,7 +19,7 @@ export const DELETION_CODE_HOURLY_LIMIT = 5
 export const DELETION_SYSTEM_ACTOR = 'system:tenant-deletion'
 
 export type DeletionNoticeType = 'requested' | 'confirmed' | 'reminder' | 'withdrawn' | 'due' | 'last_call' | 'hold_extended' | 'deleting' | 'deleted'
-export type DeletionNoticePayload = { type: DeletionNoticeType; request_id: string; seq?: number; days?: number; code?: string }
+export type DeletionNoticePayload = { type: DeletionNoticeType; request_id: string; seq?: number; days?: number; code?: string; /** Why a due notice is sent again: the control plane was restored. */ reason?: 'restore' }
 type Row = Record<string, any> & { id: string; customer_id: string; state: string }
 export type Who = { actor: string; client_address: string | null }
 

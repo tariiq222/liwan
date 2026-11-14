@@ -120,3 +120,11 @@ A clean dry run of all stages proves: the plan and its digest, every name guard,
 - Release-route admission (`effect_operation`) is not asked: a retiring tenant has no route. The runner must retire the route before calling the stages.
 - Backup artifacts the control plane writes as `<backupRoot>/<id>.json` (`shared-backup.ts`) are not under `<stateDir>/backups/` and are not removed here.
 - A capture that started before the retirement may still be running outside the settle wait.
+
+## Order of the steps and what the control plane gates (second review)
+
+The runner calls these stages in this order: the identity gate (`verify`, then a dry run of every destructive stage) in the preflight and again before `commit`; after `commit` the relay purge, then `drop_database`, then the provider card deletion, then `remove_filestore`, `remove_restore_copies`, `purge_local_backups`, the off-site purge and `remove_side_files`. The relay purge and the card deletion are irreversible, so neither precedes the commit and the cards never precede the identity checks of `drop_database`.
+
+`stamp_marker` is called by the runner only for a tenant created before `control_plane_state.marker_required_since` (written by the migration that introduced the marker requirement), only after its own dry run is clean, and its result and the plan digest are written to the audit trail and the step ledger. A newer tenant without a marker is a refusal (`marker_missing_needs_operator`) and nothing is written.
+
+The TikTok relay's purge route (`DELETE /internal/tiktok/tenants/<tenant id>`) refuses (409 `tenant_active`) a tenant that is still enabled in the registry it reads, because the same token is held by every shared Odoo; the runner disables the target in `stop_access` before calling it.

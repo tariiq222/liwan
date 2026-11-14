@@ -16,7 +16,8 @@ const dates = computed(() => [
 
 <template>
   <div class="space-y-4" data-testid="deletion-run">
-    <p class="text-sm text-muted" data-testid="deletion-runner-state">{{ t(run.enabled ? 'vendor.customers.deletion.run.runnerOn' : 'vendor.customers.deletion.run.runnerOff') }}</p>
+    <p class="text-sm text-muted" data-testid="deletion-runner-state">{{ t(run.enabled ? 'vendor.customers.deletion.run.runnerOn' : 'vendor.customers.deletion.run.runnerOff') }}<template v-if="!run.enabled && run.disabled_reason"> {{ t(`vendor.customers.deletion.run.runnerOffReasons.${run.disabled_reason}`) }}</template></p>
+    <UAlert v-if="run.restore_hold_until" color="warning" variant="subtle" icon="i-lucide-history" data-testid="deletion-restore-hold" :title="t('vendor.customers.deletion.run.restoreHold')" :description="dateTime(run.restore_hold_until)" />
     <UAlert v-if="stuck" color="error" variant="subtle" icon="i-lucide-octagon-alert" data-testid="deletion-stuck" :title="t('vendor.customers.deletion.run.stuck', { step: stuckStep, code: stuck.code })" />
     <SharedPropertiesPanel :title="t('vendor.customers.deletion.run.title')">
       <template v-for="[key, value] in dates" :key="key">

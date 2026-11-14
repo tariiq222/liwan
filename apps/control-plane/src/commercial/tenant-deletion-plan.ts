@@ -32,7 +32,9 @@ const CHECKS: { code: string; sql: string }[] = [
   { code: 'no_payment_in_flight', sql: `NOT EXISTS (SELECT 1 FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.customer_id=$1
       AND (a.status='unknown' OR (a.status IN ('created','redirected','pending') AND a.updated_at > now() - interval '24 hours') OR a.payment_hold_until > now()))` },
   { code: 'no_payment_after_due', sql: `NOT EXISTS (SELECT 1 FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.customer_id=$1 AND a.status='succeeded'
-      AND a.succeeded_at > $4::timestamptz AND o.payment_state <> 'refunded')` },
+      AND (a.succeeded_at > $4::timestamptz OR (a.kind='bank_transfer' AND a.created_at > $4::timestamptz)) AND o.payment_state <> 'refunded')` },
+  // A transfer the customer says it made and the operator has not recorded or rejected yet: money may be in the bank for an invoice that is still issued.
+  { code: 'no_transfer_pending', sql: `NOT EXISTS (SELECT 1 FROM bank_transfer_claims k JOIN invoices i ON i.id=k.invoice_id WHERE i.customer_id=$1 AND i.status='issued')` },
   { code: 'no_charging_renewal', sql: `NOT EXISTS (SELECT 1 FROM renewals r JOIN orders o ON o.id=r.order_id WHERE o.customer_id=$1 AND r.status='charging')` },
   { code: 'no_unfulfilled_order', sql: `NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id=$1 AND NOT o.cancelled AND o.payment_state='paid'
       AND o.fulfillment_state IN ('queued','applying','failed','needs_intervention'))` },
@@ -43,7 +45,7 @@ const CHECKS: { code: string; sql: string }[] = [
   { code: 'binding_found', sql: `EXISTS (SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$2)` },
 ]
 /** Deferrals that need the vendor at once (money moved after the window ended); every other deferral alerts only when it lasts 24 hours. */
-export const IMMEDIATE_ALERT_CHECKS: readonly string[] = ['no_payment_after_due']
+export const IMMEDIATE_ALERT_CHECKS: readonly string[] = ['no_payment_after_due', 'no_transfer_pending']
 
 export async function deletionPrechecks(client: Queryable, request: { id: string; customer_id: string; due_marked_at: Date }, tenantId: string | null): Promise<{ checks: Precheck[]; blocked_by: string | null }> {
   const checks: Precheck[] = []

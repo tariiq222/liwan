@@ -11,6 +11,7 @@ import { attention } from '../commercial/attention.js'
 import { customerHttp } from '../commercial/customer-http.js'
 import { getVendorInvoice } from '../commercial/invoices.js'
 import { enqueueOutbox, failOutbox, completeOutbox } from '../commercial/outbox.js'
+import { deletionPrechecks } from '../commercial/tenant-deletion-plan.js'
 
 const suite = url ? describe : describe.skip
 suite('live PostgreSQL bank transfer claims', () => {
@@ -123,5 +124,31 @@ suite('live PostgreSQL bank transfer claims', () => {
       await completeOutbox(pool, (await pool.query('SELECT id FROM commercial_outbox WHERE dedupe_key=$1', [`${kind}:2`])).rows[0].id)
     }
     expect(await items('notice_failed')).toHaveLength(0)
+  })
+
+  it('records a transfer for a customer whose deletion has started through the operator path only, and holds the deletion while a transfer is claimed or recorded', async () => {
+    const s = await unpaid(), other = await unpaid()
+    const request = randomUUID()
+    await pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,due_marked_at,hold_until,deleting_at,plan,plan_digest,renewal_outcome,renewal_refusal)
+      VALUES($1,$2,'deleting',now(),'t',now(),'t',now(),now() - interval '1 day',now(),now(),'{}'::jsonb,$3,'not_cancellable','no_subscription')`, [request, s.customer, 'a'.repeat(64)])
+    const pre = (due: Date) => deletionPrechecks(pool, { id: request, customer_id: s.customer, due_marked_at: due }, s.tenant)
+    // A claim the operator has not settled holds the deletion; nobody else's claim does.
+    await pool.query("INSERT INTO bank_transfer_claims(invoice_id,value_date,claimed_at) VALUES($1,$2,now())", [s.invoice.id, today]).catch(async () => { await claim(s, s.invoice.id, { value_date: today }) })
+    expect((await pre(new Date(Date.now() - 86_400_000))).checks.find(c => c.code === 'no_transfer_pending')!.ok).toBe(false)
+    // The customer's own paths are refused (the customer route and a plain insert), as for any payment.
+    await expect(claim(s, s.invoice.id, { value_date: today })).rejects.toMatchObject({ status: 409, code: 'tenant_retiring' })
+    const attempt = (provider: string, kind: string) => pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,kind,status) VALUES($1,$2,$3,$4,'live',100,'SAR',2,$5,'pending')`, [randomUUID(), s.order.id, s.invoice.id, provider, kind])
+    await expect(attempt('bank_transfer', 'bank_transfer')).rejects.toThrow('tenant_retiring')
+    await expect(attempt('simulator', 'hosted_invoice')).rejects.toThrow('tenant_retiring')
+    // The operator's recording is let through (it alone sets the transaction-local flag), and then counts as a payment after `due` that defers the deletion.
+    await confirmBankTransfer(pool, { invoice_id: s.invoice.id, operator: 'vendor:7', reference: 'TRF-RETIRING-1', amount: Number(s.invoice.total_minor), value_date: today })
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [s.order.id])).rows[0].payment_state).toBe('paid')
+    expect((await pre(new Date(Date.now() - 86_400_000))).checks.find(c => c.code === 'no_payment_after_due')!.ok).toBe(false)
+    // A duplicate transfer for the same, now paid, invoice is recorded the same way (and queued for the operator's refund).
+    await confirmBankTransfer(pool, { invoice_id: s.invoice.id, operator: 'vendor:7', reference: 'TRF-RETIRING-2', amount: Number(s.invoice.total_minor), value_date: today })
+    expect((await pool.query("SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1 AND kind='bank_transfer'", [s.order.id])).rows[0].n).toBe(2)
+    // The flag lives only inside that transaction: afterwards the same insert is refused again.
+    await expect(attempt('bank_transfer', 'bank_transfer')).rejects.toThrow('tenant_retiring')
+    expect(other.customer).not.toBe(s.customer)
   })
 })

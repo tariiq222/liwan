@@ -31,6 +31,13 @@ describe('DeletionRunPanel', () => {
     expect(html).toContain('data-testid="deletion-no-plan"'); expect(html).toContain('data-testid="deletion-no-steps"')
     expect(html).not.toContain('data-testid="deletion-point-of-no-return"')
   })
+  it('says why the runner is off (a local mail capture) and shows the restore hold when it applies', async () => {
+    const off = await sfc.html({ run: run({ enabled: false, disabled_reason: 'local_mail_capture' }) })
+    expect(off).toContain('vendor.customers.deletion.run.runnerOffReasons.local_mail_capture')
+    expect(off).not.toContain('vendor.customers.deletion.run.restoreHold')
+    const held = await sfc.html({ run: run({ restore_hold_until: '2027-04-07T09:00:00Z' }) })
+    expect(held).toContain('vendor.customers.deletion.run.restoreHold')
+  })
   it('names the stuck step and code, a failed step with its last error, and the passed point of no return', async () => {
     const html = await sfc.html({ run: run({ request: request({ committed_at: '2027-04-04T09:20:00Z', stuck_at: '2027-04-05T09:00:00Z', stuck_code: 'purge_offsite:offsite_not_empty' }), steps: [step('purge_offsite', { state: 'failed', failures: 5, attempts: 5, error_code: 'offsite_not_empty', next_attempt_at: '2027-04-05T15:00:00Z' })] }) })
     expect(html).toContain('vendor.customers.deletion.run.stuck {"step":"vendor.customers.deletion.run.stepNames.purge_offsite","code":"offsite_not_empty"}'.replaceAll('"', '&quot;'))

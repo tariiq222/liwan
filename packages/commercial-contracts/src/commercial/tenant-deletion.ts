@@ -11,7 +11,7 @@ export const TENANT_DELETION_HOLD_HOURS = 72
 /** The "last call" notice goes this long before the hold ends. */
 export const TENANT_DELETION_LAST_CALL_HOURS = 24
 /** The steps of the deletion in order (`reinstate` undoes the access stop of a request withdrawn before the point of no return). */
-export const tenantDeletionStepNames = ['preflight', 'stop_access', 'unbind_relay', 'commit', 'delete_cards', 'drop_database', 'remove_filestore', 'remove_restore_copies',
+export const tenantDeletionStepNames = ['preflight', 'stop_access', 'commit', 'unbind_relay', 'drop_database', 'delete_cards', 'remove_filestore', 'remove_restore_copies',
   'purge_local_backups', 'purge_offsite', 'remove_side_files', 'clean_registry_rows', 'finish', 'anonymise_contacts', 'reinstate'] as const
 export const tenantDeletionStepSchema = z.enum(tenantDeletionStepNames)
 /** The days between the confirmation and the day the deletion falls due: the window in which the request can be withdrawn. Owner decision 2026-11-13: 90, because a customer may come back at any time. Nobody can shorten it. */
@@ -51,8 +51,11 @@ export const tenantDeletionStepRowSchema = z.strictObject({
 /** What the vendor sees of the run: the frozen plan (names and counts), the pre-checks as they stand now, and the step ledger. Read-only. */
 export const tenantDeletionRunSchema = z.strictObject({
   request: tenantDeletionRequestSchema,
-  /** Whether the kill switch lets the runner delete anything. */
+  /** Whether the runner may delete anything, and if not why: the kill switch is off, or the mail host is unset or a local capture (a mail accepted there proves no delivery). */
   enabled: z.boolean(),
+  disabled_reason: z.enum(['kill_switch_off', 'mail_host_unset', 'local_mail_capture']).nullable().default(null),
+  /** While a control plane restored from a backup has not yet outlived its hold: no request leaves `due` before this moment. */
+  restore_hold_until: z.string().nullable().default(null),
   plan: z.strictObject({ digest: z.string(), database: z.string(), host: z.string(), backups: z.number().int().min(0), restore_copies: z.number().int().min(0), cards: z.number().int().min(0) }).nullable(),
   prechecks: z.strictObject({ blocked_by: z.string().nullable(), checks: z.array(z.strictObject({ code: z.string(), ok: z.boolean() })) }),
   steps: z.array(tenantDeletionStepRowSchema),

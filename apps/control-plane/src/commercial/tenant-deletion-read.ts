@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { tenantDeletionRequestSchema, tenantDeletionRunSchema, tenantDeletionSchema, type TenantDeletion, type TenantDeletionRequest, type TenantDeletionRun } from '@liwan/commercial-contracts'
+import { TENANT_DELETION_HOLD_HOURS, tenantDeletionRequestSchema, tenantDeletionRunSchema, tenantDeletionSchema, type TenantDeletion, type TenantDeletionRequest, type TenantDeletionRun } from '@liwan/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 import { deletionPrechecks, type DeletionPlan } from './tenant-deletion-plan.js'
 
@@ -50,15 +50,17 @@ export async function latestTenantDeletionRequest(pool: Pool, customerId: string
 
 
 /** The vendor's read-only view of the run for one customer: the frozen plan, the pre-checks as they stand now, the step ledger. Null when the customer never asked. */
-export async function tenantDeletionRunOf(pool: Pool, customerId: string, enabled: boolean): Promise<TenantDeletionRun | null> {
+export async function tenantDeletionRunOf(pool: Pool, customerId: string, mode: { enabled: boolean; reason: 'kill_switch_off' | 'mail_host_unset' | 'local_mail_capture' | null }): Promise<TenantDeletionRun | null> {
   const row = (await pool.query('SELECT * FROM tenant_deletion_requests WHERE customer_id=$1 ORDER BY requested_at DESC,id LIMIT 1', [customerId])).rows[0]
   if (!row) return null
   const tenantId = (await pool.query('SELECT tenant_id FROM customers WHERE id=$1', [customerId])).rows[0]?.tenant_id ?? null
   const plan = row.plan as DeletionPlan | null
   const prechecks = row.due_marked_at ? await deletionPrechecks(pool, row, tenantId) : { checks: [], blocked_by: null }
+  const restoreHoldUntil = (await pool.query("SELECT restored_at + make_interval(hours => $1) AS until FROM control_plane_state WHERE restored_at + make_interval(hours => $1) > now()", [TENANT_DELETION_HOLD_HOURS])).rows[0]?.until ?? null
   const steps = (await pool.query('SELECT * FROM tenant_deletion_steps WHERE request_id=$1 ORDER BY started_at NULLS LAST,step', [row.id])).rows
   return tenantDeletionRunSchema.parse({
-    request: viewOf(row), enabled,
+    request: viewOf(row), enabled: mode.enabled, disabled_reason: mode.reason,
+    restore_hold_until: iso(restoreHoldUntil),
     plan: plan ? { digest: row.plan_digest, database: plan.effect.database, host: plan.effect.host, backups: plan.effect.backupIds.length, restore_copies: plan.effect.restoreCopies.length, cards: plan.cardIds.length } : null,
     prechecks,
     steps: steps.map(step => ({ step: step.step, state: step.state, intent: step.intent, attempts: step.attempts, failures: step.failures, started_at: iso(step.started_at),

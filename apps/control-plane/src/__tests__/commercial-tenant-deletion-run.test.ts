@@ -13,7 +13,7 @@ import { migrate } from '../db.js'
 import { url } from './commercial-helpers.js'
 import { attention } from '../commercial/attention.js'
 import { withdrawDeletion, requestDeletion, markDueDeletions } from '../commercial/tenant-deletion.js'
-import { runTenantDeletions, queueLastCalls, tenantDeletionEnabled, type TenantDeletionDeps } from '../commercial/tenant-deletion-run.js'
+import { runTenantDeletions, queueLastCalls, tenantDeletionMode, type TenantDeletionDeps } from '../commercial/tenant-deletion-run.js'
 import { sendTenantDeletionNotices, tenantDeletionNotice } from '../commercial/tenant-deletion-notices.js'
 import { assertCustomerNotRetiring, tenantDeletionRunOf, deletionClockRunningSql } from '../commercial/tenant-deletion-read.js'
 import { planDigestOf, canonicalJson } from '../commercial/tenant-deletion-plan.js'
@@ -24,6 +24,7 @@ import { tenantDeletionActor } from '../shared/tenant-deletion-authority.js'
 import { lockTenantJobs } from '../shared/job-store.js'
 import { transaction } from '../db.js'
 import type { PaymentAdapter } from '../commercial/payment-adapter.js'
+import { removePaymentMethod } from '../commercial/payment-method-removal.js'
 
 const suite = url ? describe : describe.skip
 const config = { installationId: 'del-run', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'del-customer', customerCommercialServiceKey: 'customer-test-key-'.repeat(4), inventoryPath: '', repositoryRoot: '', python: 'python3', stateDir: '' } as any
@@ -34,6 +35,10 @@ class FakeEffects implements DeletionEffects {
   calls: string[] = []
   failures = new Map<string, string[]>()
   after?: (name: string) => Promise<void>
+  /** Holds a request in `deleting` before its commit: the first `verify` (the preflight's) is ok, the second (the commit's) is refused. */
+  holdAtCommit() { this.verdicts = [{ verdict: 'ok', fenced: false, checks: { company: true, marker: 'match' } }, { verdict: 'refused', code: 'identity_marker_mismatch', fenced: false, checks: { marker: 'mismatch' } }] }
+  /** Runs `fn` once, during the commit's verification (the second `dry:verify`), i.e. after the plan was frozen and access was stopped but before the commit is recorded. */
+  atCommit(fn: () => Promise<void>) { let n = 0; this.after = async name => { if (name === 'dry:verify' && ++n === 2) await fn() } }
   private async hit(name: string) {
     this.calls.push(name)
     const queue = this.failures.get(name)
@@ -46,7 +51,7 @@ class FakeEffects implements DeletionEffects {
     if (!input.dryRun) await input.assertOwned()
     await this.hit(input.dryRun ? `dry:${input.stage}` : input.stage)
     if (input.stage === 'verify') return (this.verdicts.length > 1 ? this.verdicts.shift() : this.verdicts[0]) ?? { verdict: 'ok', fenced: false, checks: { company: true, marker: 'match' } }
-    return { state: input.dryRun ? 'would' : 'done' }
+    return input.stage === 'stamp_marker' ? { state: input.dryRun ? 'would_stamp' : 'stamped', checks: { marker: 'match', company: true } } : { state: input.dryRun ? 'would' : 'done' }
   }
   purgeOffsite: DeletionEffects['purgeOffsite'] = async input => { await input.assertOwned(); await this.hit('purge_offsite'); return { state: 'empty' } }
   unbindRelay: DeletionEffects['unbindRelay'] = async () => { await this.hit('unbind_relay'); return { state: 'not_configured' } }
@@ -60,14 +65,14 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
   let effects: FakeEffects
   const cardCalls: string[] = []
   let cardFails = false
-  const adapter = { provider: 'simulator', mode: 'simulator', deleteToken: async (token: string) => { if (cardFails) throw new Error('provider down'); cardCalls.push(token) } } as unknown as PaymentAdapter
+  const adapter = { provider: 'simulator', mode: 'simulator', deleteToken: async (token: string) => { if (cardFails) throw new Error('provider down'); cardCalls.push(token); effects.calls.push('delete_card') } } as unknown as PaymentAdapter
   const deps = (over: Partial<TenantDeletionDeps> = {}): TenantDeletionDeps => ({ pool, config, effects, enabled: true, registryPath, paymentAdapter: adapter, log: (m, e) => console.error('RUNLOG %s', m, e instanceof Error ? e.stack : e), ...over })
   const run = (over: Partial<TenantDeletionDeps> = {}) => runTenantDeletions(deps(over))
   /** Passes every backoff and deferral wait, as if the time had come. */
   const settle = () => pool.query('UPDATE tenant_deletion_steps SET next_attempt_at=NULL WHERE next_attempt_at IS NOT NULL')
 
   beforeAll(async () => { await migrate(pool) })
-  beforeEach(async () => { effects = new FakeEffects(); cardFails = false; cardCalls.length = 0; await pool.query('TRUNCATE tenant_deletion_steps, tenant_deletion_requests'); await pool.query('TRUNCATE commercial_outbox'); await pool.query("UPDATE control_plane_state SET restored_at=NULL,deletion_enabled_since=now() - interval '10 days'") })
+  beforeEach(async () => { effects = new FakeEffects(); cardFails = false; cardCalls.length = 0; await pool.query('TRUNCATE tenant_deletion_steps, tenant_deletion_requests'); await pool.query('TRUNCATE commercial_outbox'); await pool.query("UPDATE control_plane_state SET restored_at=NULL,deletion_enabled_since=now() - interval '10 days',marker_required_since=now() - interval '1 day'") })
   afterAll(async () => { await pool.end() })
 
   /** A customer with a workspace whose request is `due` and whose hold has ended `holdEnded` minutes ago (negative: still running). */
@@ -115,7 +120,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     for (const [name, step] of Object.entries(ledger)) if (name !== 'unbind_relay' && name !== 'anonymise_contacts') expect(step, name).toMatchObject({ state: 'done', failures: 0 })
     expect(ledger.anonymise_contacts).toMatchObject({ state: 'pending', error_code: 'final_mail_pending' })
     // The database goes before any backup, and the off-site purge comes after the local one.
-    expect(effects.calls.filter(c => !c.startsWith('dry:'))).toEqual(['unbind_relay', 'drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_artifacts', 'purge_offsite', 'remove_side_files'])
+    expect(effects.calls.filter(c => !c.startsWith('dry:'))).toEqual(['unbind_relay', 'drop_database', 'delete_card', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_artifacts', 'purge_offsite', 'remove_side_files'])
     expect(cardCalls).toEqual([`tok_${f.card}`])
     expect((await pool.query('SELECT status,provider_token FROM payment_methods WHERE id=$1', [f.card])).rows[0]).toEqual({ status: 'removed', provider_token: null })
     expect(await binding(f)).toMatchObject({ enabled: false, retired: true })
@@ -128,7 +133,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     // Evidence is names and counts only.
     expect(JSON.stringify(ledger)).not.toContain(f.login)
     // The vendor's read-only view.
-    const view = await tenantDeletionRunOf(pool, f.customer, true)
+    const view = await tenantDeletionRunOf(pool, f.customer, { enabled: true, reason: null })
     expect(view).toMatchObject({ enabled: true, request: { state: 'deleted' }, plan: { database: f.database, backups: 1, cards: 1 } })
     expect(view!.steps.map(s => s.step)).toContain('purge_offsite')
   })
@@ -161,9 +166,12 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('with the kill switch off records the plan and would-do lines and runs nothing destructive, then deletes once it is on', async () => {
     const f = await fixture({ card: true })
-    expect(tenantDeletionEnabled({})).toBe(false)
-    expect(tenantDeletionEnabled({ LIWAN_TENANT_DELETION_ENABLED: '1' })).toBe(false)
-    expect(tenantDeletionEnabled({ LIWAN_TENANT_DELETION_ENABLED: 'true' })).toBe(true)
+    expect(tenantDeletionMode({})).toEqual({ enabled: false, reason: 'kill_switch_off' })
+    expect(tenantDeletionMode({ LIWAN_TENANT_DELETION_ENABLED: '1', LIWAN_MAIL_SMTP_HOST: 'smtp.example.com' })).toEqual({ enabled: false, reason: 'kill_switch_off' })
+    // A mail accepted by a local capture host (or no mail host at all) proves no customer was warned: the runner stays in dry-run mode.
+    expect(tenantDeletionMode({ LIWAN_TENANT_DELETION_ENABLED: 'true' })).toEqual({ enabled: false, reason: 'mail_host_unset' })
+    for (const host of ['localhost', 'mailpit', '127.0.0.1', '::1', 'LOCALHOST']) expect(tenantDeletionMode({ LIWAN_TENANT_DELETION_ENABLED: 'true', LIWAN_MAIL_SMTP_HOST: host }), host).toEqual({ enabled: false, reason: 'local_mail_capture' })
+    expect(tenantDeletionMode({ LIWAN_TENANT_DELETION_ENABLED: 'true', LIWAN_MAIL_SMTP_HOST: 'smtp.example.com' })).toEqual({ enabled: true, reason: null })
     await run({ enabled: false })
     expect((await req(f)).state).toBe('due')
     expect(effects.calls.every(c => c.startsWith('dry:'))).toBe(true)
@@ -209,7 +217,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(effects.calls).toEqual([])
     // Deleting, before the commit: the relay step fails once so the request waits there.
     const f = await fixture()
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     expect((await req(f))).toMatchObject({ state: 'deleting', committed_at: null })
     expect(await binding(f)).toMatchObject({ enabled: false, retired: true })
@@ -222,6 +230,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect((await steps(f)).reinstate).toMatchObject({ state: 'done' })
     expect(effects.calls.filter(c => c === 'drop_database')).toEqual([])
     // After the commit and after the deletion: 409 deletion_in_progress, for the vendor as well.
+    effects = new FakeEffects()
     const g = await fixture()
     await run()
     expect((await req(g)).state).toBe('deleted')
@@ -295,7 +304,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('refuses to run a plan whose digest no longer matches, and a commit when the registry binding differs from the plan', async () => {
     const tampered = await fixture()
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     await pool.query("UPDATE tenant_deletion_requests SET plan=jsonb_set(plan,'{effect,database}','\"liwan_other\"') WHERE id=$1", [tampered.request])
     await settle(); await run()
@@ -308,11 +317,12 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     // A binding re-enabled behind the runner's back stops the commit.
     effects = new FakeEffects()
     const g = await fixture()
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     await pool.query('ALTER TABLE shared_registry_bindings DISABLE TRIGGER shared_registry_identity')
     try { await pool.query('UPDATE shared_registry_bindings SET enabled=true,retired=false WHERE control_tenant_id=$1', [g.tenant]) }
     finally { await pool.query('ALTER TABLE shared_registry_bindings ENABLE TRIGGER shared_registry_identity') }
+    effects.verdicts = []
     await settle(); await run()
     expect((await steps(g)).commit).toMatchObject({ state: 'failed', error_code: 'binding_changed' })
     expect((await req(g)).committed_at).toBeNull()
@@ -320,7 +330,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('checks the deletion authority inside the registry publication: only the frozen digest, the right state and the exact mutation', async () => {
     const f = await fixture()
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     const row = await req(f)
     const mutation = (over: Record<string, unknown>) => ({ controlTenantId: f.tenant, expectedSnapshotRevision: 0, reason: 'authority test',
@@ -340,7 +350,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('refuses new shared jobs, restore approvals and restore publications for a deleting tenant, and keeps backup records permanent', async () => {
     const f = await fixture({ backup: true })
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     const job = () => pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,$3,'{}',$4,'x',1,'test')", [randomUUID(), f.tenant, randomUUID(), 'b'.repeat(64)])
     await expect(job()).rejects.toThrow('tenant_retiring')
@@ -404,7 +414,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
       effects = new FakeEffects()
       const f = await fixture()
       // Run to the commit boundary: the relay step fails once so the request waits as `deleting` before the commit.
-      effects.failures.set('unbind_relay', ['relay_down'])
+      effects.holdAtCommit()
       await run()
       await settle()
       const holder = await pool.connect()
@@ -440,12 +450,12 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('takes the stop-access, the guard and the status push out of reach of a retired tenant, and asks for no new request', async () => {
     const f = await fixture()
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     expect((await pool.query(`SELECT ${deletionClockRunningSql('$1')} AS running`, [f.customer])).rows[0].running).toBe(true)
     // The status push never selects it (its binding is disabled and retired) and the tenant row is deleting.
     expect((await pool.query("SELECT 1 FROM tenants WHERE id=$1 AND status='deleting' AND operations_enabled=false", [f.tenant])).rowCount).toBe(1)
-    const customerView = await tenantDeletionRunOf(pool, f.customer, true)
+    const customerView = await tenantDeletionRunOf(pool, f.customer, { enabled: true, reason: null })
     expect(customerView!.request.state).toBe('deleting')
     expect(customerView!.prechecks.checks.map(c => c.code)).toContain('no_shared_job')
   })
@@ -535,15 +545,41 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(row.state).toBe('due')
     expect((await pool.query("SELECT (hold_until = due_marked_at + interval '72 hours') AS ok FROM tenant_deletion_requests WHERE id=$1", [f.request])).rows[0].ok).toBe(true)
     expect(await run()).toBe(0)
-    // A control plane restored from a backup cannot commit until the hold has passed again.
+    // A control plane restored from a backup: a due request whose hold ended stays due, working and withdrawable, with a fresh hold and a notice that says why.
     await pool.query("UPDATE tenant_deletion_requests SET hold_until=now() - interval '1 minute' WHERE id=$1", [f.request])
     await pool.query("UPDATE control_plane_state SET restored_at=now() - interval '1 hour'")
     await run()
-    expect((await steps(f)).commit).toMatchObject({ state: 'pending', error_code: 'control_plane_restored' })
-    expect((await req(f)).committed_at).toBeNull()
+    const held = await req(f)
+    expect(held).toMatchObject({ state: 'due', hold_notice_seq: 2 })
+    expect(held.hold_until.getTime() - Date.now()).toBeGreaterThan(70 * 3600_000)
+    expect(await binding(f)).toMatchObject({ enabled: true, retired: false })
+    expect(noDestructive()).toEqual([])
+    const notice = (await pool.query("SELECT payload FROM commercial_outbox WHERE aggregate_id=$1 AND dedupe_key=$2", [f.request, `due:${f.request}:2`])).rows[0].payload
+    expect(notice).toMatchObject({ type: 'due', reason: 'restore' })
+    expect(tenantDeletionNotice(notice, { name: 'Acme', due_on: '2026-11-14', final_at: '2026-11-17 05:37', renewal_outcome: null, renewal_refusal: null }, 0).text).toContain('restored from a backup')
+    // The vendor's run view shows the restore hold.
+    expect((await tenantDeletionRunOf(pool, f.customer, { enabled: true, reason: null }))!.restore_hold_until).not.toBeNull()
+    // The customer can still withdraw during it.
+    await withdrawDeletion(pool, { ...who, customer_id: f.customer, by: 'customer', reason: null })
+    expect((await req(f)).state).toBe('withdrawn')
+    // A request already `deleting` and not committed when the backup was taken returns to `due` with the same fresh hold, and its workspace is reinstated.
     await pool.query('UPDATE control_plane_state SET restored_at=NULL')
+    effects = new FakeEffects(); effects.holdAtCommit()
+    const g = await fixture()
+    await run()
+    expect((await req(g))).toMatchObject({ state: 'deleting', committed_at: null })
+    expect(await binding(g)).toMatchObject({ enabled: false, retired: true })
+    await pool.query("UPDATE control_plane_state SET restored_at=now()")
     await settle(); await run()
-    expect((await req(f)).state).toBe('deleted')
+    expect((await req(g)).state).toBe('withdrawn')
+    const fresh = (await pool.query("SELECT * FROM tenant_deletion_requests WHERE customer_id=$1 AND state='due'", [g.customer])).rows[0]
+    expect(fresh.hold_until.getTime() - Date.now()).toBeGreaterThan(71 * 3600_000)
+    await run()
+    expect(await binding(g)).toMatchObject({ enabled: true, retired: false })
+    expect((await pool.query('SELECT status,operations_enabled FROM tenants WHERE id=$1', [g.tenant])).rows[0]).toEqual({ status: 'active', operations_enabled: true })
+    expect(noDestructive()).toEqual([])
+    // Once the restore hold has passed, the commit itself still refuses inside a hold (belt and braces) and the request is served normally.
+    await pool.query('UPDATE control_plane_state SET restored_at=NULL')
   })
 
   it('retries a card the provider will not delete, then goes on after 12 tries and tells the vendor which card', async () => {
@@ -552,7 +588,8 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     await run()
     expect((await steps(f)).delete_cards).toMatchObject({ state: 'failed', error_code: 'card_delete_failed', failures: 1 })
     expect((await req(f)).committed_at).toBeInstanceOf(Date)
-    expect(effects.calls.filter(c => c === 'drop_database')).toEqual([])
+    expect(effects.calls.filter(c => c === 'drop_database')).toEqual(['drop_database']) // the database goes first; the cards never precede it
+    expect(effects.calls.filter(c => c === 'remove_filestore')).toEqual([])
     for (let i = 0; i < 11; i++) { await settle(); await run() }
     expect((await steps(f)).delete_cards).toMatchObject({ state: 'done' })
     expect((await req(f)).stuck_code).toBe('delete_cards:card_not_deleted')
@@ -590,11 +627,25 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     effects = new FakeEffects(); effects.verdicts = [{ verdict: 'absent' }]
     await settle(); await run()
     expect((await steps(f)).preflight).toMatchObject({ error_code: 'database_absent' })
-    // A tenant with no marker is stamped once (a dry run, then for real), then verified again.
+    // A tenant created AFTER the marker requirement with no marker is a refusal for an operator: nothing is written.
+    const marker = { verdict: 'refused', code: 'identity_marker_missing', fenced: false, checks: { marker: 'missing' } }
+    effects = new FakeEffects(); effects.verdicts = [marker]
+    await settle(); await run()
+    expect((await steps(f)).preflight).toMatchObject({ error_code: 'marker_missing_needs_operator' })
+    expect((await req(f)).stuck_code).toBe('preflight:marker_missing_needs_operator')
+    expect(effects.calls.filter(c => c.includes('stamp_marker'))).toEqual([])
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='tenant_deletion.marker_stamped' AND subject=$1", [f.customer])).rowCount).toBe(0)
+    // A tenant created BEFORE it is stamped once (a dry run, then for real), audited with its database, the digest and the effect's checks, then verified again.
+    await pool.query("UPDATE control_plane_state SET marker_required_since = now() + interval '1 day'")
     effects = new FakeEffects(); effects.verdicts = [{ verdict: 'refused', code: 'identity_marker_missing', fenced: false, checks: { marker: 'missing' } }, { verdict: 'ok', fenced: false, checks: { company: true, marker: 'match' } }]
     await settle(); await run()
     expect(effects.calls.filter(c => c.includes('stamp_marker'))).toEqual(['dry:stamp_marker', 'stamp_marker'])
     expect((await req(f)).state).toBe('deleted')
+    const stamped = (await pool.query("SELECT metadata FROM audit_events WHERE action='tenant_deletion.marker_stamped' AND subject=$1", [f.customer])).rows
+    expect(stamped).toHaveLength(1)
+    expect(stamped[0].metadata).toMatchObject({ database: f.database, state: 'stamped', checks: { marker: 'match' } })
+    expect(stamped[0].metadata.plan_digest).toMatch(/^[0-9a-f]{64}$/)
+    expect((await steps(f)).preflight.evidence.stamped).toMatchObject({ state: 'stamped' })
   })
 
   it('refuses the commit when the second verification or a dry run of any destructive stage refuses, before a card is deleted', async () => {
@@ -627,8 +678,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
   it('re-derives the plan at the commit: a card and a backup created after the preflight are deleted too, a payment after it defers, any other change defers', async () => {
     const f = await fixture({ card: true, backup: true })
     let late = ''
-    effects.after = async name => {
-      if (name !== 'unbind_relay') return
+    effects.atCommit(async () => {
       late = randomUUID()
       // A path that does not come through the gated routes (the database trigger is switched off to model one).
       await pool.query('ALTER TABLE payment_methods DISABLE TRIGGER payment_methods_customer_retiring')
@@ -637,8 +687,11 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
       finally { await pool.query('ALTER TABLE payment_methods ENABLE TRIGGER payment_methods_customer_retiring') }
       await pool.query(`INSERT INTO shared_backups(id,control_tenant_id,tenant_id,database_name,filestore,snapshot,database_sha256,filestore_sha256,artifact_path,consistency,created_by)
         VALUES($1,$2,$3,$4,$4,'{"schemaVersion":1}',$5,$5,$6,'verified','test')`, [randomUUID(), f.tenant, f.slug, f.database, 'b'.repeat(64), `/tmp/late-${late}.json`])
-    }
+    })
     await run()
+    // The commit saw the plan change under it and deferred; the next attempt re-derives and re-freezes it.
+    expect((await req(f)).state).toBe('deleting')
+    await settle(); await run()
     expect((await req(f)).state).toBe('deleted')
     expect(cardCalls).toEqual(expect.arrayContaining([`tok_${f.card}`, `tok_${late}`]))
     expect((await pool.query('SELECT count(*)::int AS n FROM shared_backups WHERE control_tenant_id=$1 AND purged_at IS NOT NULL', [f.tenant])).rows[0].n).toBe(2)
@@ -646,21 +699,22 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     // A payment taken after the preflight defers the commit and alerts the vendor; nothing is deleted.
     effects = new FakeEffects()
     const g = await fixture()
-    effects.after = async name => { if (name === 'unbind_relay') await seedPayment(g, 'succeeded') }
+    effects.atCommit(() => seedPayment(g, 'succeeded'))
     await run()
     expect(await req(g)).toMatchObject({ state: 'deleting', committed_at: null, stuck_code: 'commit:no_payment_after_due' })
     expect(noDestructive()).toEqual([])
     // Any other difference from the plan (the company's name here) defers as a changed plan.
     effects = new FakeEffects()
     const h = await fixture()
-    effects.after = async name => { if (name === 'unbind_relay') await pool.query("UPDATE customers SET name='Another name' WHERE id=$1", [h.customer]) }
+    effects.atCommit(async () => { await pool.query("UPDATE customers SET name='Another name' WHERE id=$1", [h.customer]) })
     await run()
+    await settle(); await run()
     expect(await req(h)).toMatchObject({ state: 'deleting', committed_at: null, stuck_code: 'commit:plan_changed' })
   })
 
   it('refuses every creation for a deleting customer in the database and answers `tenant_retiring` to the customer routes, while a card removal still passes', async () => {
     const f = await fixture({ card: true })
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     expect((await req(f)).state).toBe('deleting')
     const order = () => pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,currency,exponent,due_now_minor,request_digest,idempotency_key)
@@ -688,7 +742,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('lists a withdrawn request whose reinstatement keeps failing, so a customer who withdrew in time is never left offline silently, and clears it when it succeeds', async () => {
     const f = await fixture()
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     await withdrawDeletion(pool, { ...who, customer_id: f.customer, by: 'vendor', reason: 'Mistake' })
     await run({ registryPath: join(registryDir, 'missing-dir', 'registry.json') })
@@ -709,7 +763,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     await pool.query('ALTER TABLE shared_registry_bindings DISABLE TRIGGER shared_registry_identity')
     try { await pool.query('UPDATE shared_registry_bindings SET enabled=false,registry_revision=registry_revision+1 WHERE control_tenant_id=$1', [f.tenant]) }
     finally { await pool.query('ALTER TABLE shared_registry_bindings ENABLE TRIGGER shared_registry_identity') }
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     expect(await binding(f)).toMatchObject({ enabled: false, retired: true })
     expect((await steps(f)).stop_access.evidence.prior).toEqual({ registry_enabled: false, operations_enabled: false, tenant_status: 'needs_intervention' })
@@ -721,7 +775,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     effects = new FakeEffects()
     const g = await fixture()
     await pool.query('UPDATE tenants SET operations_enabled=false WHERE id=$1', [g.tenant])
-    effects.failures.set('unbind_relay', ['relay_down'])
+    effects.holdAtCommit()
     await run()
     await withdrawDeletion(pool, { ...who, customer_id: g.customer, by: 'vendor', reason: 'Back' })
     await run()
@@ -820,7 +874,12 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('leaves in no table, after the deletion and the anonymisation, the administrator name, email, mobile or address of a fully seeded customer except what the owner keeps', async () => {
     const f = await fixture({ card: true, backup: true })
-    const needles = { email: f.login, name: `Zainab Seeded ${randomUUID().slice(0, 8)}`, mobile: `+9665${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`, address: `203.0.113.${1 + Math.floor(Math.random() * 250)}` }
+    // Needles that cannot occur anywhere else: long random tokens embedded in each value, so no other suite's rows can match and `LIKE` cannot match a prefix of another value.
+    const token = () => randomUUID().replaceAll('-', '')
+    const digits = () => String(Math.floor(Math.random() * 1e9)).padStart(9, '5')
+    const group = () => `f${token().slice(0, 3)}`
+    const needles = { email: `adm-${token()}@example.test`, name: `Zainab-${token()}`, mobile: `+966${digits()}${digits()}`, address: `2001:db8:${group()}:${group()}:${group()}::${group()}` }
+    await pool.query('UPDATE customers SET admin_login=$2 WHERE id=$1', [f.customer, needles.email])
     await pool.query('UPDATE customers SET admin_name=$2 WHERE id=$1', [f.customer, needles.name])
     await pool.query("UPDATE tenant_deletion_requests SET requested_from=$2,confirmed_from=$2 WHERE id=$1", [f.request, needles.address])
     await pool.query(`INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,host,tenant_slug,database_name)
@@ -828,23 +887,24 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     await pool.query("INSERT INTO admin_invitations(id,customer_id,tenant_id,admin_login,token_hash,expires_at) VALUES($1,$2,$3,$4,$5,now() + interval '1 day')", [randomUUID(), f.customer, f.tenant, needles.email, randomUUID()])
     await pool.query("INSERT INTO public_signups(id,company_name,admin_name,email,mobile,expires_at,sms_digest,sms_expires_at,terms_version,terms_accepted_at,terms_accepted_ip) VALUES($1,'Co',$2,$3,$4,now() + interval '1 day','\\x00',now(),'v1',now(),$5)", [randomUUID(), needles.name, needles.email, needles.mobile, needles.address])
     await pool.query('INSERT INTO public_signup_trials(customer_id,email,mobile) VALUES($1,$2,$3)', [f.customer, needles.email, needles.mobile])
-    await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status,processed_at) VALUES($1,'billing.notice',$2,'seed-1',$3::jsonb,'done',now())", [randomUUID(), f.customer, JSON.stringify({ to: needles.email, error: `550 ${needles.email} rejected`, client_address: needles.address })])
+    await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status,processed_at) VALUES($1,'billing.notice',$2,'seed-1',$3::jsonb,'done',now())", [randomUUID(), f.customer, JSON.stringify({ to: needles.email, error: `550 ${needles.email} rejected`, client_address: needles.address, meta: { deep: [{ recipient: needles.email, keep: 1 }], context: { admin_login: needles.email } } })])
     await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status) VALUES($1,'billing.notice',$2,'seed-2',$3::jsonb,'pending')", [randomUUID(), f.tenant, JSON.stringify({ to: needles.email, customer_id: f.customer })])
-    for (const [subject, meta] of [[f.customer, { admin_login: needles.email, client_address: needles.address }], [f.tenant, { address_hash: needles.address, error: needles.email }]] as const)
+    for (const [subject, meta] of [[f.customer, { admin_login: needles.email, client_address: needles.address, nested: { list: [{ email: needles.email }] } }], [f.tenant, { address_hash: needles.address, error: needles.email }]] as const)
       await pool.query("INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES(gen_random_uuid(),'x','seed',$1,'',$2::jsonb)", [subject, JSON.stringify(meta)])
     await run()
     const mails: { to: string; subject: string; text: string }[] = []
     await sendTenantDeletionNotices(pool, { mail: { send: async (m: any) => { mails.push(m); return { accepted: true, provider_message_id: 'p' } } } })
     await settle(); await run()
     expect((await steps(f)).anonymise_contacts).toMatchObject({ state: 'done' })
-    const columns = (await pool.query(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND data_type IN ('text','character varying','jsonb','json','inet','USER-DEFINED')
+    // Every column of every table (arrays and nested JSON included: the text form of the whole value is searched). A scan query that fails fails the test.
+    const columns = (await pool.query(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND data_type NOT IN ('bytea')
       AND table_name NOT IN (SELECT table_name FROM information_schema.views WHERE table_schema='public') ORDER BY 1,2`)).rows
+    const patterns = Object.values(needles).map(needle => `%${needle}%`)
     const hits: string[] = []
-    for (const { table_name: table, column_name: column } of columns)
-      for (const needle of Object.values(needles)) {
-        const found = await pool.query(`SELECT 1 FROM "${table}" WHERE "${column}"::text LIKE '%' || $1 || '%' AND ${table === 'tenant_deletion_requests' ? 'true' : 'true'} LIMIT 1`, [needle]).catch(() => ({ rowCount: 0 }))
-        if (found.rowCount) hits.push(`${table}.${column}`)
-      }
+    for (const { table_name: table, column_name: column } of columns) {
+      const found = await pool.query(`SELECT 1 FROM "${table}" WHERE "${column}"::text LIKE ANY($1::text[]) LIMIT 1`, [patterns])
+      if (found.rowCount) hits.push(`${table}.${column}`)
+    }
     // The explicit allow-list of what stays, and why.
     const kept = [
       // The trial claim: the owner keeps it so a trial cannot be reused; its whole content is the email and the mobile.
@@ -892,9 +952,9 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('stops quietly when a withdrawal lands between the relay call and the write that follows, keeps a commit already recorded in place, and leaves the tombstone of a deleted tenant', async () => {
     const f = await fixture()
-    effects.after = async name => { if (name === 'unbind_relay') await withdrawDeletion(pool, { ...who, customer_id: f.customer, by: 'vendor', reason: 'Late' }) }
+    effects.atCommit(() => withdrawDeletion(pool, { ...who, customer_id: f.customer, by: 'vendor', reason: 'Late' }))
     await run()
-    expect((await steps(f)).unbind_relay).toMatchObject({ state: 'running' })
+    expect((await steps(f)).commit).toMatchObject({ state: 'running' })
     expect((await req(f)).state).toBe('withdrawn')
     effects.after = undefined
     await run()
@@ -914,5 +974,46 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect((await req(g)).state).toBe('deleted')
     expect(await binding(g)).toMatchObject({ enabled: false, retired: true })
     expect(JSON.parse(readFileSync(registryPath, 'utf8')).targets.find((t: any) => t.tenantId === g.slug)).toMatchObject({ retired: true })
+  })
+
+  it('lets a customer remove a card after the plan was frozen without stalling the deletion: a removed card, a purged backup and a vanished copy re-freeze the plan, an unexplained change still defers', async () => {
+    const f = await fixture({ card: true, backup: true })
+    effects.atCommit(async () => {
+      await removePaymentMethod(pool, adapter, { by: 'customer', actor: 'customer:1', reason: null, customer_id: f.customer, payment_method_id: f.card! })
+      await pool.query("UPDATE shared_backups SET purged_at=now(),artifact_path=NULL,snapshot='{}'::jsonb WHERE id=$1", [f.backup]).catch(() => undefined)
+    })
+    await run()
+    await settle(); await run()
+    expect((await req(f)).state).toBe('deleted')
+    expect(cardCalls).toEqual([`tok_${f.card}`]) // removed once, by the customer, never again by the runner
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE subject=$1 AND action='tenant_deletion.plan_refrozen'", [f.customer])).rows[0].n).toBeGreaterThanOrEqual(1)
+  })
+
+  it('does not call the relay or delete a card before the commit, and goes relay, database, cards, then the rest after it', async () => {
+    const f = await fixture({ card: true })
+    effects.holdAtCommit()
+    await run()
+    expect(effects.calls).not.toContain('unbind_relay'); expect(cardCalls).toEqual([])
+    effects = new FakeEffects()
+    await pool.query("UPDATE tenant_deletion_steps SET next_attempt_at=NULL WHERE request_id=$1", [f.request])
+    await withdrawDeletion(pool, { ...who, customer_id: f.customer, by: 'vendor', reason: 'Back' })
+    await run()
+    expect(effects.calls).not.toContain('unbind_relay') // a withdrawal before the commit leaves TikTok connected: nothing was unbound
+    const g = await fixture({ card: true })
+    await run()
+    const order = effects.calls.filter(c => ['unbind_relay', 'drop_database', 'delete_card', 'remove_filestore'].includes(c))
+    expect(order).toEqual(['unbind_relay', 'drop_database', 'delete_card', 'remove_filestore'])
+    expect((await steps(g)).drop_database.finished_at).not.toBeNull()
+  })
+
+  it('does not let a stuck request starve the others: waiting requests are not picked and stuck ones go last', async () => {
+    for (let i = 0; i < 11; i++) {
+      const stuck = await fixture()
+      await pool.query("INSERT INTO tenant_deletion_steps(request_id,step,state,attempts,failures,started_at,next_attempt_at,error_code) VALUES($1,'preflight','failed',5,5,now() - interval '30 hours',now() + interval '5 hours','x_y')", [stuck.request])
+      await pool.query("UPDATE tenant_deletion_requests SET stuck_at=now(),stuck_code='preflight:x_y',hold_until=now() - interval '2 days' WHERE id=$1", [stuck.request])
+    }
+    const fresh = await fixture()
+    await run()
+    expect((await req(fresh)).state).toBe('deleted')
   })
 })

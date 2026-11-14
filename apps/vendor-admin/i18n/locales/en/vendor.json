@@ -1182,6 +1182,8 @@
           "title": "Deletion run",
           "runnerOn": "The deletion runner is on.",
           "runnerOff": "The deletion runner is off: it records its plan and carries nothing out.",
+          "runnerOffReasons": {"kill_switch_off": "The kill switch is off.", "mail_host_unset": "No mail host is configured, so no notice could be delivered.", "local_mail_capture": "The mail host is a local capture (localhost or mailpit): a mail accepted there reaches no customer."},
+          "restoreHold": "Restore hold: after a control plane restore no request leaves its final hold before this time.",
           "holdUntil": "Hold ends",
           "deletingAt": "Access stopped",
           "committedAt": "Point of no return passed",

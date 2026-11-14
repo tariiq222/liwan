@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { TENANT_DELETION_HOLD_HOURS, TENANT_DELETION_LAST_CALL_HOURS, type TenantDeletionStepName } from '@liwan/commercial-contracts'
 import type { Config } from '../config.js'
@@ -6,6 +7,7 @@ import { publishRegistryMutation } from '../shared/registry-store.js'
 import { tenantDeletionActor, type DeletionAuthorityMode } from '../shared/tenant-deletion-authority.js'
 import { lockTenantJobs } from '../shared/job-store.js'
 import { enqueueOutbox } from './outbox.js'
+import { isLocalCapture } from './mail-adapter.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { removePaymentMethod } from './payment-method-removal.js'
 import { audited, DELETION_SYSTEM_ACTOR, lockCustomerDeletion, TENANT_DELETION_NOTICE_KIND, type DeletionNoticePayload } from './tenant-deletion.js'
@@ -34,7 +36,18 @@ const DRY_RUN_EVERY_HOURS = 1
 const PERSONAL_KEYS = ['to', 'email', 'recipient', 'admin_login', 'admin_name', 'login', 'mobile', 'phone', 'code', 'token', 'client_address', 'address_hash', 'error']
 
 /** The kill switch: nothing destructive runs unless this is exactly `true`. */
-export const tenantDeletionEnabled = (env: Record<string, string | undefined>) => env.LIWAN_TENANT_DELETION_ENABLED === 'true'
+export type TenantDeletionDisabledReason = 'kill_switch_off' | 'mail_host_unset' | 'local_mail_capture'
+/**
+ * Whether the runner may run destructively, and if not why. Besides the kill switch, the mail host must be a real one: a local capture host (localhost, mailpit)
+ * accepts every mail, so "delivered" would prove nothing about the customer having been warned.
+ */
+export function tenantDeletionMode(env: Record<string, string | undefined>): { enabled: boolean; reason: TenantDeletionDisabledReason | null } {
+  if (env.LIWAN_TENANT_DELETION_ENABLED !== 'true') return { enabled: false, reason: 'kill_switch_off' }
+  const host = env.LIWAN_MAIL_SMTP_HOST?.trim()
+  if (!host) return { enabled: false, reason: 'mail_host_unset' }
+  if (isLocalCapture(host)) return { enabled: false, reason: 'local_mail_capture' }
+  return { enabled: true, reason: null }
+}
 
 export type TenantDeletionDeps = {
   pool: Pool; config: Config; effects: DeletionEffects
@@ -172,7 +185,7 @@ async function runStep(ctx: Ctx, name: TenantDeletionStepName, intent: string, b
   })
 }
 
-const dueNotice = (type: DeletionNoticePayload['type'], id: string, seq = 1) => ({ kind: TENANT_DELETION_NOTICE_KIND, aggregate_id: id, dedupe_key: noticeKey(type, id, seq), payload: { type, request_id: id, seq } satisfies DeletionNoticePayload })
+const dueNotice = (type: DeletionNoticePayload['type'], id: string, seq = 1, reason?: 'restore') => ({ kind: TENANT_DELETION_NOTICE_KIND, aggregate_id: id, dedupe_key: noticeKey(type, id, seq), payload: { type, request_id: id, seq, ...(reason ? { reason } : {}) } satisfies DeletionNoticePayload })
 const SYSTEM = { actor: DELETION_SYSTEM_ACTOR, client_address: null }
 const DESTRUCTIVE_STAGES = ['drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_side_files'] as const
 const LEASE_CODES = ['deletion_lease_lost', 'deletion_worker_stopping']
@@ -186,19 +199,30 @@ function leaseOwned(ctx: Ctx, states: string[]): AssertOwned {
   }
 }
 
+type Gate = { defer: string; alert: true; evidence?: Record<string, unknown> } | { evidence: Record<string, unknown> }
+
 /**
  * The gate that proves, before anything is stopped or committed, that the plan names this tenant's database and that every destructive stage would pass:
- * `verify` must answer `ok` (a missing marker is stamped once, then verified again), then a dry run of every destructive stage. Any refusal defers with its code and
- * alerts the vendor; the request stays withdrawable. `absent` is not acceptable here: a database already gone is expected only after the commit.
+ * `verify` must answer `ok`, then a dry run of every destructive stage. Any refusal defers with its code and alerts the vendor; the request stays withdrawable.
+ * `absent` is not acceptable here: a database already gone is expected only after the commit.
+ *
+ * A tenant with no marker is stamped only when it was created before the marker requirement (`control_plane_state.marker_required_since`, written by the migration that
+ * introduced it) and only after a clean dry run of the stamp; the real stamp is audited with the database, the plan digest and the effect's own checks, and returned
+ * as evidence for the step ledger. A newer tenant with no marker is a refusal for an operator, and nothing is written.
  */
-async function verifyIdentity(ctx: Ctx, effect: EffectPlan, assertOwned: AssertOwned): Promise<Outcome | null> {
+async function verifyIdentity(ctx: Ctx, effect: EffectPlan, assertOwned: AssertOwned): Promise<Gate> {
   const digest = planDigestOf(effect)
   const call = (stage: DropStage, dryRun: boolean) => ctx.effects.stage({ stage, plan: effect, planDigest: digest, dryRun, assertOwned })
+  const evidence: Record<string, unknown> = {}
   try {
     let verdict = await call('verify', true)
     if (verdict.verdict === 'refused' && verdict.code === 'identity_marker_missing') {
+      const eligible = (await ctx.pool.query('SELECT t.created_at < s.marker_required_since AS old FROM tenants t, control_plane_state s WHERE t.id=$1', [effect.controlTenantId])).rows[0]?.old === true
+      if (!eligible) return { defer: 'marker_missing_needs_operator', alert: true, evidence: { verdict: 'refused', code: 'identity_marker_missing' } }
       await call('stamp_marker', true)
-      await call('stamp_marker', false)
+      const stamped = await call('stamp_marker', false)
+      await transaction(ctx.pool, client => audited(client, SYSTEM, 'tenant_deletion.marker_stamped', ctx.customerId, '', { request_id: ctx.id, database: effect.database, plan_digest: digest, state: stamped.state ?? null, checks: stamped.checks ?? null }))
+      evidence.stamped = { state: stamped.state ?? null, checks: stamped.checks ?? null }
       verdict = await call('verify', true)
     }
     if (verdict.verdict !== 'ok') return { defer: verdict.verdict === 'absent' ? 'database_absent' : codeOf(Error(String(verdict.code))), alert: true, evidence: { verdict: verdict.verdict, checks: verdict.checks ?? null } }
@@ -207,7 +231,7 @@ async function verifyIdentity(ctx: Ctx, effect: EffectPlan, assertOwned: AssertO
     if (error instanceof LeaseLost || (error instanceof Error && LEASE_CODES.includes(error.message))) throw new LeaseLost()
     return { defer: codeOf(error), alert: true }
   }
-  return null
+  return { evidence }
 }
 
 /** Whether the customer has had the time: the due notice of this hold delivered at least the full hold ago and its last call at least 24 hours ago (both really delivered, never closed as stale). */
@@ -238,7 +262,7 @@ async function preflight(ctx: Ctx): Promise<Outcome> {
   let candidate: DeletionPlan
   try { candidate = await buildDeletionPlan(ctx.pool, peek) } catch { return { defer: 'binding_found' } }
   const gate = await verifyIdentity(ctx, candidate.effect, leaseOwned(ctx, ['due']))
-  if (gate) return gate
+  if ('defer' in gate) return gate
   return withTx(ctx, async (client, row, tenantId) => {
     if (row.state === 'deleting') return { evidence: { resumed: true, plan_digest: row.plan_digest } }
     if (row.state !== 'due' || row.withdrawn_at) throw new StateChanged()
@@ -264,7 +288,7 @@ async function preflight(ctx: Ctx): Promise<Outcome> {
     await client.query("UPDATE tenant_deletion_requests SET state='deleting',deleting_at=now(),plan=$2::jsonb,plan_digest=$3,stuck_at=NULL,stuck_code=NULL,revision=revision+1 WHERE id=$1", [ctx.id, JSON.stringify(plan), digest])
     await audited(client, SYSTEM, 'tenant_deletion.deleting', row.customer_id, '', { request_id: ctx.id, plan_digest: digest })
     await enqueueOutbox(client, dueNotice('deleting', ctx.id))
-    return { evidence: { plan_digest: digest, backups: plan.effect.backupIds.length, restore_copies: plan.effect.restoreCopies.length, cards: plan.cardIds.length } }
+    return { evidence: { plan_digest: digest, backups: plan.effect.backupIds.length, restore_copies: plan.effect.restoreCopies.length, cards: plan.cardIds.length, ...gate.evidence } }
   })
 }
 
@@ -273,6 +297,7 @@ async function preflight(ctx: Ctx): Promise<Outcome> {
  * pass re-arms a full hold with a new due notice instead of deleting a backlog at once.
  */
 async function rearmUnserved(ctx: Ctx): Promise<boolean> {
+  if (await holdAfterRestore(ctx)) return true
   return withTx(ctx, async (client, row) => {
     if (row.state !== 'due') return false
     const unserved = (await client.query('SELECT (hold_until < deletion_enabled_since) AS unserved FROM tenant_deletion_requests, control_plane_state WHERE id=$1', [ctx.id])).rows[0]?.unserved
@@ -281,6 +306,35 @@ async function rearmUnserved(ctx: Ctx): Promise<boolean> {
     await client.query("UPDATE tenant_deletion_steps SET state='pending',error_code=NULL,next_attempt_at=NULL WHERE request_id=$1 AND step='preflight' AND state<>'done'", [ctx.id])
     await enqueueOutbox(client, dueNotice('due', ctx.id, seq.hold_notice_seq))
     await audited(client, SYSTEM, 'tenant_deletion.hold_rearmed', row.customer_id, '', { request_id: ctx.id, hold_until: seq.hold_until.toISOString() })
+    return true
+  })
+}
+
+/**
+ * A control plane restored from a backup may have lost a withdrawal the customer made in the lost interval. Until `restored_at` plus the hold has passed, no request
+ * leaves `due` (it keeps working and stays withdrawable): a `due` request whose hold would end sooner gets a fresh hold to that moment and a notice that says why.
+ * A request already `deleting` and not committed when the backup was taken is returned to `due` the same way: it is withdrawn by the system (the reinstate pass restores
+ * the workspace) and replaced by a fresh `due` request with the same facts and the fresh hold. Returns true when it acted.
+ */
+async function holdAfterRestore(ctx: Ctx): Promise<boolean> {
+  return withTx(ctx, async (client, row) => {
+    const restore = (await client.query(`SELECT restored_at, restored_at + make_interval(hours => $1) AS until FROM control_plane_state WHERE singleton=true AND restored_at + make_interval(hours => $1) > now()`, [TENANT_DELETION_HOLD_HOURS])).rows[0]
+    if (!restore) return false
+    if (row.state === 'due') {
+      if (row.hold_until >= restore.until) return false
+      const seq = (await client.query('UPDATE tenant_deletion_requests SET hold_until=$2,hold_notice_seq=hold_notice_seq+1,stuck_at=NULL,stuck_code=NULL,revision=revision+1 WHERE id=$1 RETURNING hold_notice_seq', [ctx.id, restore.until])).rows[0].hold_notice_seq
+      await client.query("UPDATE tenant_deletion_steps SET state='pending',error_code=NULL,next_attempt_at=NULL WHERE request_id=$1 AND step='preflight' AND state<>'done'", [ctx.id])
+      await enqueueOutbox(client, dueNotice('due', ctx.id, seq, 'restore'))
+      await audited(client, SYSTEM, 'tenant_deletion.hold_rearmed_after_restore', row.customer_id, '', { request_id: ctx.id, hold_until: restore.until.toISOString() })
+      return true
+    }
+    if (row.state !== 'deleting' || row.committed_at || !(row.deleting_at < restore.restored_at)) return false
+    const fresh = randomUUID()
+    await client.query("UPDATE tenant_deletion_requests SET state='withdrawn',withdrawn_at=now(),withdrawn_by='vendor',withdrawn_actor=$2,withdraw_reason='The control plane was restored: the request returns to its final hold',revision=revision+1 WHERE id=$1", [ctx.id, DELETION_SYSTEM_ACTOR])
+    await client.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,requested_from,confirmed_at,confirmed_by,confirmed_from,due_at,due_marked_at,hold_until,renewal_outcome,renewal_refusal)
+      SELECT $2,customer_id,'due',requested_at,requested_by,requested_from,confirmed_at,confirmed_by,confirmed_from,due_at,now(),$3,renewal_outcome,renewal_refusal FROM tenant_deletion_requests WHERE id=$1`, [ctx.id, fresh, restore.until])
+    await enqueueOutbox(client, dueNotice('due', fresh, 1, 'restore'))
+    await audited(client, SYSTEM, 'tenant_deletion.returned_to_hold_after_restore', row.customer_id, '', { request_id: ctx.id, new_request_id: fresh, hold_until: restore.until.toISOString() })
     return true
   })
 }
@@ -347,17 +401,18 @@ async function unbindRelay(ctx: Ctx): Promise<Outcome> {
   return result.state === 'not_configured' ? { skip: 'relay_not_configured' } : { evidence: { state: result.state } }
 }
 
-/** Whether `fresh` only adds to `frozen` (a new card, backup or restore copy) and changes nothing else. */
-function onlyAdds(frozen: DeletionPlan, fresh: DeletionPlan): boolean {
-  const superset = (before: string[], after: string[]) => before.every(item => after.includes(item))
+/**
+ * Whether `fresh` differs from `frozen` only in what the plan lists: a card, backup or restore copy that appeared (added) or went (a card the customer removed, a
+ * backup already purged, a copy already gone) is an explainable difference. Anything else (a database, host, tenant id, name) is not.
+ */
+function onlyListsDiffer(frozen: DeletionPlan, fresh: DeletionPlan): boolean {
   const { restoreCopies: _rc, backupIds: _b, ...frozenEffect } = frozen.effect
   const { restoreCopies: _rc2, backupIds: _b2, ...freshEffect } = fresh.effect
-  return planDigestOf(frozenEffect) === planDigestOf(freshEffect) && superset(frozen.effect.restoreCopies, fresh.effect.restoreCopies) && superset(frozen.effect.backupIds, fresh.effect.backupIds)
-    && superset(frozen.cardIds, fresh.cardIds) && planDigestOf(frozen.relay) === planDigestOf(fresh.relay) && planDigestOf(frozen.offsite) === planDigestOf(fresh.offsite)
+  return planDigestOf(frozenEffect) === planDigestOf(freshEffect) && planDigestOf(frozen.relay) === planDigestOf(fresh.relay) && planDigestOf(frozen.offsite) === planDigestOf(fresh.offsite)
 }
 
 /**
- * The first half of the commit: what exists now is compared with what was frozen. A card, backup or restore copy created since is added (the plan and its digest are
+ * The first half of the commit: what exists now is compared with what was frozen. A card, backup or restore copy created or gone since is accounted for (the plan and its digest are
  * frozen again); any other difference defers. Every payment and order pre-check runs again; any failure defers with its code (money alerts at once).
  */
 async function refreshPlan(ctx: Ctx): Promise<{ row: Row } | { defer: string; alert?: boolean }> {
@@ -365,7 +420,7 @@ async function refreshPlan(ctx: Ctx): Promise<{ row: Row } | { defer: string; al
     if (row.state !== 'deleting' || row.withdrawn_at) throw new StateChanged()
     const fresh = await buildDeletionPlan(client, row)
     if (planDigestOf(fresh) !== row.plan_digest) {
-      if (!onlyAdds(planOf(row), fresh)) return { defer: 'plan_changed', alert: true }
+      if (!onlyListsDiffer(planOf(row), fresh)) return { defer: 'plan_changed', alert: true }
       const digest = planDigestOf(fresh)
       await client.query('UPDATE tenant_deletion_requests SET plan=$2::jsonb,plan_digest=$3,revision=revision+1 WHERE id=$1', [ctx.id, JSON.stringify(fresh), digest])
       await audited(client, SYSTEM, 'tenant_deletion.plan_refrozen', row.customer_id, '', { request_id: ctx.id, plan_digest: digest, cards: fresh.cardIds.length, backups: fresh.effect.backupIds.length })
@@ -386,7 +441,7 @@ async function commit(ctx: Ctx): Promise<Outcome> {
   const refreshed = await refreshPlan(ctx)
   if ('defer' in refreshed) return refreshed
   const gate = await verifyIdentity(ctx, planOf(refreshed.row).effect, ownership(ctx, refreshed.row.plan_digest, false))
-  if (gate) return gate
+  if ('defer' in gate) return gate
   return withTx(ctx, async (client, row, tenantId) => {
     if (row.state !== 'deleting' || row.withdrawn_at) throw new StateChanged()
     if (row.committed_at) return { evidence: { resumed: true } }
@@ -402,7 +457,7 @@ async function commit(ctx: Ctx): Promise<Outcome> {
     if (restored?.held === true) return { defer: 'control_plane_restored' }
     await client.query('UPDATE tenant_deletion_requests SET committed_at=COALESCE(committed_at,now()),revision=revision+1 WHERE id=$1', [ctx.id])
     await audited(client, SYSTEM, 'tenant_deletion.committed', row.customer_id, '', { request_id: ctx.id, plan_digest: row.plan_digest })
-    return { evidence: { committed: true, plan_digest: row.plan_digest } }
+    return { evidence: { committed: true, plan_digest: row.plan_digest, ...gate.evidence } }
   })
 }
 
@@ -520,7 +575,6 @@ async function anonymiseContacts(ctx: Ctx): Promise<Outcome> {
     const delivered = mail?.status === 'done' && mail.delivered === true
     if (!delivered && mail?.status === 'pending' && !mail.overdue) return { defer: 'final_mail_pending' }
     const ids = await ownedIds(client, row.customer_id)
-    const strip = PERSONAL_KEYS.map(key => `- '${key}'`).join(' ')
     const evidence = {
       closed: (await client.query(`UPDATE commercial_outbox SET status='failed',processed_at=now(),payload=payload || '{"error":"workspace_deleted"}'::jsonb WHERE status='pending' AND kind <> $3 AND kind <> $4
         AND (aggregate_id=ANY($1::text[]) OR payload->>'customer_id'=$2)`, [ids, row.customer_id, TENANT_DELETION_NOTICE_KIND, TOKEN_DELETE_KIND])).rowCount,
@@ -529,8 +583,8 @@ async function anonymiseContacts(ctx: Ctx): Promise<Outcome> {
       customers: (await client.query('UPDATE customers SET admin_name=NULL,admin_login=NULL WHERE id=$1', [row.customer_id])).rowCount,
       onboardings: (await client.query('UPDATE shared_onboardings SET admin_name=NULL,admin_login=NULL WHERE control_tenant_id=$1', [tenantId])).rowCount,
       invitations: (await client.query('UPDATE admin_invitations SET admin_login=NULL WHERE tenant_id=$1', [tenantId])).rowCount,
-      outbox: (await client.query(`UPDATE commercial_outbox SET payload = payload ${strip} WHERE status IN ('done','failed') AND (aggregate_id=ANY($1::text[]) OR payload->>'customer_id'=$2)`, [ids, row.customer_id])).rowCount,
-      audit: (await client.query(`UPDATE audit_events SET metadata = metadata ${strip} WHERE subject=ANY($1::text[]) OR metadata->>'customer_id'=$2`, [ids, row.customer_id])).rowCount,
+      outbox: (await client.query(`UPDATE commercial_outbox SET payload = jsonb_strip_keys(payload, $3::text[]) WHERE status IN ('done','failed') AND (aggregate_id=ANY($1::text[]) OR payload->>'customer_id'=$2)`, [ids, row.customer_id, PERSONAL_KEYS])).rowCount,
+      audit: (await client.query(`UPDATE audit_events SET metadata = jsonb_strip_keys(metadata, $3::text[]) WHERE subject=ANY($1::text[]) OR metadata->>'customer_id'=$2`, [ids, row.customer_id, PERSONAL_KEYS])).rowCount,
     }
     if (!delivered) await markStuck(client, row, 'anonymise_contacts', 'final_mail_unsent')
     return { evidence: { ...evidence, final_mail_delivered: delivered }, keepAlert: !delivered }
@@ -580,12 +634,14 @@ async function recordDryRun(ctx: Ctx): Promise<void> {
 
 const BEFORE_COMMIT: [TenantDeletionStepName, string, (ctx: Ctx, info: StepInfo) => Promise<Outcome>][] = [
   ['stop_access', 'publish the registry target disabled and retired, switch operations off', stopAccess],
-  ['unbind_relay', 'remove the tenant bindings from the shared relay', unbindRelay],
   ['commit', 'cross the point of no return', commit],
 ]
+// Everything irreversible comes after the commit. The relay purge goes first (access is stopped, the relay ignores a disabled tenant); the database is dropped, with its own
+// identity gate, BEFORE the provider cards are deleted: a refusal inside `drop_database` must never find the cards already gone.
 const AFTER_COMMIT: [TenantDeletionStepName, string, (ctx: Ctx, info: StepInfo) => Promise<Outcome>][] = [
-  ['delete_cards', 'delete the saved cards at the provider, then mark them removed', deleteCards],
+  ['unbind_relay', 'remove the tenant bindings from the shared relay', unbindRelay],
   ['drop_database', 'drop the tenant database', ctx => dropStage(ctx, 'drop_database')],
+  ['delete_cards', 'delete the saved cards at the provider, then mark them removed', deleteCards],
   ['remove_filestore', 'remove the tenant filestore', ctx => dropStage(ctx, 'remove_filestore')],
   ['remove_restore_copies', 'remove the restore copies named by the plan', ctx => dropStage(ctx, 'remove_restore_copies')],
   ['purge_local_backups', 'remove the local backups named by the plan', purgeLocalBackups],
@@ -639,9 +695,11 @@ export async function runTenantDeletions(deps: TenantDeletionDeps, options: { li
   await deps.pool.query(deps.enabled ? 'UPDATE control_plane_state SET deletion_enabled_since=COALESCE(deletion_enabled_since,now())' : 'UPDATE control_plane_state SET deletion_enabled_since=NULL WHERE deletion_enabled_since IS NOT NULL')
   await clearResolvedCardAlerts(deps.pool)
   await reinstateWithdrawn(deps)
-  const ids = (await deps.pool.query(`SELECT id FROM tenant_deletion_requests WHERE (state='due' AND hold_until <= now()) OR state='deleting'
-    OR (state='deleted' AND NOT EXISTS (SELECT 1 FROM tenant_deletion_steps s WHERE s.request_id=tenant_deletion_requests.id AND s.step='anonymise_contacts' AND s.state='done'))
-    ORDER BY (state = 'deleted'),hold_until,id LIMIT $1`, [options.limit ?? 10])).rows
+  const ids = (await deps.pool.query(`SELECT id FROM tenant_deletion_requests WHERE ((state='due' AND hold_until <= now()) OR state='deleting'
+    OR (state='deleted' AND NOT EXISTS (SELECT 1 FROM tenant_deletion_steps s WHERE s.request_id=tenant_deletion_requests.id AND s.step='anonymise_contacts' AND s.state='done')))
+    -- A request waiting out a backoff or a deferral is not looked at again before its time, so a stuck one never takes the places of the others.
+    AND NOT EXISTS (SELECT 1 FROM tenant_deletion_steps w WHERE w.request_id=tenant_deletion_requests.id AND w.next_attempt_at > now())
+    ORDER BY (state = 'deleted'),(stuck_at IS NOT NULL),hold_until,id LIMIT $1`, [options.limit ?? 10])).rows
   let touched = 0
   for (const { id } of ids) {
     if (deps.signal?.aborted) break
