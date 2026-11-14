@@ -15,6 +15,7 @@ from odoo.addons.liwan_document_service.controllers.common import (
     file_download,
     files_page,
     page_args,
+    update_document_access,
     upload_document_file,
 )
 from odoo.addons.liwan_document_service.serializers.document import (
@@ -23,6 +24,7 @@ from odoo.addons.liwan_document_service.serializers.document import (
     parse_values,
     strict,
 )
+from odoo.addons.liwan_document_service.serializers.document_access import dump_access
 
 
 def context(kind, subject_id, *, write=False):
@@ -116,6 +118,35 @@ class HrContextDocuments(http.Controller):
     def upload_context_file(self, kind, subject_id, document_id, **payload):
         document = document_for(kind, subject_id, document_id, write=True)
         return upload_document_file(document, payload)
+
+    @http.route('/api/v1/hr/documents/<string:kind>/<int:subject_id>/<int:document_id>/access', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    @requires_capability('documents.access.manage')
+    def context_access(self, kind, subject_id, document_id, **_):
+        return dump_access(document_for(kind, subject_id, document_id))
+
+    @http.route('/api/v1/hr/documents/<string:kind>/<int:subject_id>/<int:document_id>/access', type='json2', auth='user', methods=['PUT'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled')
+    @requires_capability('documents.access.manage')
+    def set_context_access(self, kind, subject_id, document_id, **payload):
+        return update_document_access(document_for(kind, subject_id, document_id, write=True), payload)
+
+    @http.route('/api/v1/hr/documents/<string:kind>/<int:subject_id>/<int:document_id>/access/people', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    @requires_capability('documents.access.manage')
+    def context_access_people(self, kind, subject_id, document_id, **_):
+        document = document_for(kind, subject_id, document_id)
+        document._liwan_require('access')
+        args = request.httprequest.args
+        limit, offset = page_args(args)
+        domain = document._liwan_grant_user_domain()
+        if args.get('q'):
+            domain.append(('name', 'ilike', args['q'][:200]))
+        users = request.env['res.users'].search(domain, limit=min(limit, 50), offset=offset, order='name,id')
+        return [{'id': user.id, 'name': user.name, 'user_id': user.id} for user in users]
 
     @http.route('/api/v1/hr/documents/employee/<int:subject_id>/<int:document_id>/employee-access', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

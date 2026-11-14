@@ -1,17 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import api_handler, requires_feature
 from odoo.addons.liwan_document_service.controllers.common import (
     current_document,
     require,
+    update_document_access,
 )
-from odoo.addons.liwan_document_service.serializers.document import parse_revision
 from odoo.addons.liwan_document_service.serializers.document_access import (
     dump_access,
-    dump_grants,
-    parse_access,
 )
 
 
@@ -40,12 +37,4 @@ class Access(http.Controller):
     @requires_feature('documents.enabled', operation='write')
     def set_access(self, document_id, **payload):
         require('documents.access.manage')
-        revision = parse_revision(payload)
-        visibility, grants = parse_access(payload)
-        document = current_document(document_id)
-        document._liwan_require('access')
-        # This operation may revoke the caller itself. Return only the approved
-        # access proposal, never try to reread revoked document content afterwards.
-        proposed = dump_grants(request.env, grants)
-        document._liwan_set_access(visibility, grants, revision)
-        return {'visibility': visibility, 'grants': proposed, 'revision': revision + 1}
+        return update_document_access(current_document(document_id), payload)

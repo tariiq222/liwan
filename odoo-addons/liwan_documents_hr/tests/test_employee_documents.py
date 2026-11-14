@@ -267,6 +267,38 @@ class TestEmployeeDocuments(DocumentHttpCase):
         self.authenticate('docs_reader', 'docs_reader')
         self.assertEqual(self.api('GET', f'/api/v1/documents/employee/me/{body["id"]}').status_code, 200)
 
+    def test_context_access_updates_participants_when_library_is_disabled(self):
+        document = self.linked(self.own_employee)
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'documents.enabled': False},
+            'retained_read_features': [key for key in profile.retained_read_features if key != 'documents.enabled'],
+        })
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        path = f'/api/v1/hr/documents/employee/{self.own_employee.id}/{document.id}/access'
+        access = self.api('GET', path)
+        self.assertEqual(access.status_code, 200, access.text)
+        picker = self.api('GET', f'{path}/people?q={self.reader.name}')
+        self.assertEqual(picker.status_code, 200, picker.text)
+        self.assertIn(self.reader.id, [person['user_id'] for person in picker.json()])
+        payload = {
+            'expected_revision': access.json()['revision'], 'visibility': 'restricted',
+            'grants': [
+                {'user_id': self.linker.id, 'access': 'editor'},
+                {'user_id': self.reader.id, 'access': 'reader'},
+            ],
+        }
+        update = self.api('PUT', path, payload)
+        self.assertEqual(update.status_code, 200, update.text)
+        self.assertEqual(len(update.json()['grants']), 2)
+        self.assertEqual(self.api('PUT', path, payload).status_code, 409)
+        payload['expected_revision'] = update.json()['revision']
+        payload['visibility'] = 'company'
+        self.assertEqual(self.api('PUT', path, payload).status_code, 403)
+        self.authenticate('docs_reader', 'docs_reader')
+        self.assertEqual(self.api('GET', path).status_code, 403)
+        self.assertEqual(self.api('GET', f'/api/v1/documents/employee/me/{document.id}').status_code, 200)
+
     def test_employee_provider_options_require_hr_management(self):
         self.assertIn('employee_id', self.env['liwan.document']._fields)
         self.authenticate('employee_docs_linker', 'employee_docs_linker')

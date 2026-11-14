@@ -19,6 +19,10 @@ from odoo.addons.liwan_document_service.serializers.document import (
     parse_revision,
     strict,
 )
+from odoo.addons.liwan_document_service.serializers.document_access import (
+    dump_grants,
+    parse_access,
+)
 
 
 def require(capability):
@@ -144,3 +148,14 @@ def document_page(model, domain, limit, offset):
         ['directory_id'], ['__count'],
     )}
     return {'items': dump_summaries(documents, counts), 'total': model.search_count(domain)}
+
+
+def update_document_access(document, payload):
+    revision = parse_revision(payload)
+    visibility, grants = parse_access(payload)
+    document._liwan_require('access')
+    # This operation may revoke the caller itself. Return only the approved
+    # access proposal, never try to reread revoked document content afterwards.
+    proposed = dump_grants(document.env, grants)
+    document._liwan_set_access(visibility, grants, revision)
+    return {'visibility': visibility, 'grants': proposed, 'revision': revision + 1}

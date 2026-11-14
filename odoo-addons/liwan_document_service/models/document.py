@@ -454,11 +454,12 @@ class Document(models.Model):
         return self
 
     @api.model
+    def _liwan_grant_user_domain(self):
+        return [('active', '=', True), ('share', '=', False), ('company_ids', 'in', [self.env.company.id])]
+
+    @api.model
     def _liwan_grant_users(self, user_ids):
-        return self.env['res.users'].search([
-            ('id', 'in', user_ids), ('active', '=', True),
-            ('share', '=', False), ('company_ids', 'in', [self.env.company.id]),
-        ])
+        return self.env['res.users'].search([*self._liwan_grant_user_domain(), ('id', 'in', user_ids)])
 
     def _liwan_set_access(self, visibility, grants, expected_revision):
         if visibility not in ('company', 'restricted') or not isinstance(grants, list):

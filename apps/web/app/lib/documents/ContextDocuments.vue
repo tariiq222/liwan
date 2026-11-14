@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { useQuery } from '@tanstack/vue-query'
-import { DocumentAccessSchema, DocumentDetailSchema, DocumentFileListSchema, DocumentListSchema, type DocumentCreate, type DocumentFile } from '@liwan/contracts'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { DocumentAccessSchema, DocumentDetailSchema, DocumentFileListSchema, DocumentListSchema, type DocumentAccessUpdate, type DocumentCreate, type DocumentFile } from '@liwan/contracts'
+import DocumentAccessForm from '@/components/documents/DocumentAccessForm.vue'
 import DocumentCreateForm from '@/components/documents/DocumentCreateForm.vue'
 import DocumentEditor from '@/components/documents/DocumentEditor.vue'
 import DocumentFiles from '@/components/documents/DocumentFiles.vue'
@@ -45,6 +46,20 @@ const files = useQuery({
   enabled: computed(() => !!detail.data.value),
   queryFn: () => $api(`${selectedPath.value}/files`, { query: { limit: 25, offset: fileOffset.value, revision: detail.data.value?.revision }, schema: DocumentFileListSchema }),
 })
+const cache = useQueryClient()
+const managingAccess = computed(() => route.query.access === '1' && !!detail.data.value?.allowed_actions.manage_access)
+const accessEndpoint = computed(() => `${selectedPath.value}/access`)
+const accessKey = computed(() => ['hr', me.value?.company.id, accessEndpoint.value] as const)
+const access = useQuery({
+  queryKey: accessKey,
+  enabled: managingAccess,
+  queryFn: ({ queryKey, signal }) => {
+    if (queryKey[1] !== me.value?.company.id) throw new ApiError(409, 'company_changed', t('errors.generic'))
+    return $api(queryKey[2], { schema: DocumentAccessSchema, signal })
+  },
+})
+const accessConflict = ref(false)
+const accessFormKey = ref(0)
 const creating = ref(false)
 const editing = ref(false)
 const name = ref('')
@@ -52,7 +67,7 @@ const body = ref('')
 const pending = ref(false)
 const error = ref('')
 const duplicate = ref<File | null>(null)
-watch([endpoint, selectedId, () => me.value?.company.id], () => { editing.value = false; fileOffset.value = 0; duplicate.value = null; error.value = '' })
+watch([endpoint, selectedId, () => me.value?.company.id], () => { editing.value = false; accessConflict.value = false; accessFormKey.value++; fileOffset.value = 0; duplicate.value = null; error.value = '' })
 function recordHref(id: number) { return { path: route.path, query: { ...route.query, document: id } } }
 function edit() {
   if (!detail.data.value) return
@@ -127,6 +142,32 @@ async function documentAction(action: 'archive' | 'restore') {
   }))
   confirmArchive.value = false
 }
+const closeAccess = computed(() => {
+  const { access: _access, ...query } = route.query
+  return { path: route.path, query }
+})
+async function reloadAccess() {
+  const result = await access.refetch()
+  if (!result.data || result.error) return
+  error.value = ''
+  accessConflict.value = false
+  accessFormKey.value++
+}
+async function saveAccess(payload: DocumentAccessUpdate) {
+  if (accessConflict.value) return
+  const key = accessKey.value
+  await perform(async () => {
+    try {
+      const saved = await $api(key[2], { method: 'PUT', body: payload, schema: DocumentAccessSchema })
+      if (key[2] !== accessEndpoint.value || key[1] !== me.value?.company.id) return
+      cache.setQueryData(key, saved)
+      accessFormKey.value++
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 409) accessConflict.value = true
+      throw cause
+    }
+  })
+}
 async function shareWithEmployee() {
   const document = detail.data.value
   if (kind.value !== 'employee' || !document?.allowed_actions.manage_access) return
@@ -141,14 +182,23 @@ async function shareWithEmployee() {
       <template #actions>
         <UButton v-if="canCreate && !selectedId && !creating" :label="t('documents.new')" :disabled="!hydrated" @click="creating = true" />
         <UButton v-if="canArchive && !selectedId && !creating" variant="outline" :label="t(archived ? 'documents.title' : 'documents.archived')" @click="archived = !archived" />
-        <UButton v-if="detail.data.value?.allowed_actions.update && !editing" :label="t('documents.edit')" :disabled="!hydrated" @click="edit" />
-        <UButton v-if="kind === 'employee' && detail.data.value?.allowed_actions.manage_access" color="neutral" variant="outline" :label="t('documents.shareWithEmployee')" :disabled="pending" @click="shareWithEmployee" />
-        <UButton v-if="detail.data.value?.allowed_actions.archive" color="neutral" variant="outline" :label="t('documents.archive')" :disabled="pending" @click="confirmArchive = true" />
-        <UButton v-if="detail.data.value?.allowed_actions.restore" color="neutral" variant="outline" :label="t('documents.restore')" :disabled="pending" @click="documentAction('restore')" />
+        <UButton v-if="detail.data.value?.allowed_actions.update && !editing && !managingAccess" :label="t('documents.edit')" :disabled="!hydrated" @click="edit" />
+        <UButton v-if="detail.data.value?.allowed_actions.manage_access && !editing && !managingAccess"
+          color="neutral" variant="outline" :label="t('documents.access')"
+          :to="{ path: route.path, query: { ...route.query, access: '1' } }" :disabled="pending" />
+        <UButton v-if="kind === 'employee' && detail.data.value?.allowed_actions.manage_access && !managingAccess" color="neutral" variant="outline" :label="t('documents.shareWithEmployee')" :disabled="pending" @click="shareWithEmployee" />
+        <UButton v-if="detail.data.value?.allowed_actions.archive && !managingAccess" color="neutral" variant="outline" :label="t('documents.archive')" :disabled="pending" @click="confirmArchive = true" />
+        <UButton v-if="detail.data.value?.allowed_actions.restore && !managingAccess" color="neutral" variant="outline" :label="t('documents.restore')" :disabled="pending" @click="documentAction('restore')" />
       </template>
     </SharedPageHeader>
     <SharedNotFoundState v-if="!validSubject" />
     <DocumentCreateForm v-else-if="creating" :back-to="backTo" :contextual-save="create" @saved="openCreated" />
+    <SharedPageState v-else-if="managingAccess" :loading="access.isPending.value" :error="access.error.value" @retry="access.refetch()">
+      <DocumentAccessForm v-if="access.data.value" :key="accessFormKey" :access="access.data.value"
+        :people-endpoint="`${accessEndpoint}/people`" :restrict-visibility="kind === 'employee'"
+        :back-to="closeAccess" :pending="pending" :conflict="accessConflict" :error="error"
+        @save="saveAccess" @reload="reloadAccess" />
+    </SharedPageState>
     <SharedPageState v-else-if="selectedId" :loading="detail.isPending.value" :error="detail.error.value" @retry="detail.refetch()">
       <SharedInlineConfirm v-if="confirmArchive" :title="t('documents.archive')" :confirm-label="t('documents.archive')" :pending="pending" @confirm="documentAction('archive')" @cancel="confirmArchive = false" />
       <UAlert v-if="error"  color="error" :title="error" />

@@ -11,7 +11,7 @@ from odoo.addons.liwan_api.tests.common import (
 )
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
-EXPECTED_GET_RECORD_ROUTES = 7
+EXPECTED_GET_RECORD_ROUTES = 9
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -91,7 +91,7 @@ class DocumentsHrCompanyIsolationCase(CompanyIsolationCase):
             for response in self.api_forged('GET', subject, other.id):
                 self.assertIn(response.status_code, (403, 404), response.text)
             path = f'{subject}/{record.id}'
-            for suffix in ('', '/files', f'/files/{self.files[other.id].id}/download'):
+            for suffix in ('', '/access', '/access/people', '/files', f'/files/{self.files[other.id].id}/download'):
                 for response in self.api_forged('GET', path + suffix, other.id):
                     self.assertIn(response.status_code, (403, 404), response.text)
 
@@ -103,6 +103,8 @@ cover_isolation_routes(
     (
         '/api/v1/hr/documents/<string:kind>/<int:subject_id>',
         '/api/v1/hr/documents/<string:kind>/<int:subject_id>/<int:document_id>',
+        '/api/v1/hr/documents/<string:kind>/<int:subject_id>/<int:document_id>/access',
+        '/api/v1/hr/documents/<string:kind>/<int:subject_id>/<int:document_id>/access/people',
         '/api/v1/hr/documents/<string:kind>/<int:subject_id>/<int:document_id>/files',
         '/api/v1/hr/documents/<string:kind>/<int:subject_id>/<int:document_id>/files/<int:file_id>/download',
         '/api/v1/documents/employee/me/<int:document_id>',
