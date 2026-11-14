@@ -231,6 +231,13 @@ describe('why a closed page is closed', () => {
     expect(canReachPath(readOnly, '/account/leave/new')).toBe(false)
     expect(planDenialCode(readOnly, '/account/leave/new')).toBe('tenant_read_only')
   })
+  it('keeps the subscription pages open to the manager of a tenant suspended for an unpaid invoice', () => {
+    const unpaid = { capabilities: ['settings.branding.manage'], platform: { state: 'payment_suspended', readable_features: ['hr.enabled'], writable_features: [], read_only: true } }
+    for (const path of ['/subscription', '/subscription/invoices', '/subscription/status', '/subscription/change']) {
+      expect(canReachPath(unpaid, path), path).toBe(true)
+    }
+    expect(canReachPath(unpaid, '/account/leave/new')).toBe(false)
+  })
   it('stays silent when the user simply lacks the permission', () => {
     const on = { capabilities: ['hr.employees.read'], platform: { readable_features: ['hr.enabled'], writable_features: ['hr.enabled'] } }
     expect(canReachPath(on, '/hr/leave')).toBe(false)

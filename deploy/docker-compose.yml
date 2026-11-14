@@ -64,6 +64,10 @@ services:
       USER: odoo
       PASSWORD: "${DB_PASSWORD}"
       LIWAN_INBOX_SECRET_KEY: "${LIWAN_INBOX_SECRET_KEY:-}"
+      # Sign-in SMS through Authentica (operator configuration, never per tenant). Both unset means the sign-in
+      # screen offers email only. See deploy/shared/README.md, "Sign-in SMS (Authentica)".
+      LIWAN_AUTHENTICA_API_KEY: "${LIWAN_AUTHENTICA_API_KEY:-}"
+      LIWAN_AUTHENTICA_TEMPLATE_ID: "${LIWAN_AUTHENTICA_TEMPLATE_ID:-}"
       # The TikTok app (D1), direct-webhook topology: unset means the channel reports
       # `inbox_tiktok_not_configured` and no shared relay is involved.
       LIWAN_TIKTOK_CLIENT_KEY: "${LIWAN_TIKTOK_CLIENT_KEY:-}"

@@ -32,6 +32,8 @@ def dump_tax(tax):
         'amount_type': tax.amount_type,
         'amount': tax.amount,
         'price_include': tax.price_include,
+        # A sale tax follows the company's price-include mode; only a purchase tax carries its own answer.
+        'price_include_editable': tax.type_tax_use == 'purchase',
         'tax_account': dump_ref(tax_account_of(tax)),
         'active': tax.active,
         'used': tax.is_used,

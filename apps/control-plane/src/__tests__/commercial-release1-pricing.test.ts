@@ -310,7 +310,7 @@ suite('a plan whose total is zero', () => {
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',renewal_at='2026-11-01',revision=revision+1 WHERE customer_id=$1", [id])
     const adapter = new SimulatorAdapter()
     const subscriptionId = (await pool.query('SELECT id FROM subscriptions WHERE customer_id=$1', [id])).rows[0].id
-    const generated = await generateRenewals(pool, { now, adapter, returnOrigin: fixedReturnOrigin('https://liwan.test'), subscription_id: subscriptionId })
+    const generated = await generateRenewals(pool, { now, returnOrigin: fixedReturnOrigin('https://liwan.test'), subscription_id: subscriptionId })
     expect(generated).toHaveLength(1)
     expect(generated[0]!.payment_state).toBe('not_required')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE subscription_id=$1', [subscriptionId])).rows[0].n).toBe(0)

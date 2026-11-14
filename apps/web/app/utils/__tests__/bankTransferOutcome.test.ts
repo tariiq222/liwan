@@ -4,7 +4,7 @@ import * as Vue from 'vue'
 import { renderToString } from '@vue/server-renderer'
 import { DEFAULT_STUBS, loadShared } from '@liwan/ui/test/helpers/renderShared'
 import * as subscription from '../subscription'
-import { bankTransferOutcome, invoiceWantsTransfer, transferNotice } from '../subscription'
+import { bankTransferOutcome, invoiceWantsTransfer, refusalKey, transferClaimState, transferNotice } from '../subscription'
 
 /**
  * The customer invoice page asks the control plane where to transfer while an invoice is unpaid. Three answers must
@@ -120,5 +120,41 @@ describe('the invoice page shows the transfer notice from the server payload alo
     expect(client.html).toContain('INV-1001')
     expect(client.html).not.toContain('data-testid="bank-transfer-unavailable"')
     expect(client.html).not.toContain('data-testid="bank-transfer-error"')
+  })
+})
+
+describe('the customer claim on the invoice page', () => {
+  const claim = { value_date: '2026-11-10', sender_reference: 'Ahmed', claimed_at: '2026-11-11T09:00:00.000Z' }
+
+  it('shows the instructions alone until a claim exists, then "awaiting confirmation since" the first claim', () => {
+    expect(transferClaimState(null, 'en')).toEqual({ stage: 'instructions' })
+    expect(transferClaimState(claim, 'en')).toEqual({ stage: 'awaiting', since: 'Nov 11, 2026', valueDate: 'Nov 10, 2026', reference: 'Ahmed' })
+    expect(transferClaimState({ ...claim, sender_reference: null }, 'en')).toMatchObject({ reference: null })
+  })
+
+  it('explains the refusals of a claim with its own messages', () => {
+    for (const code of ['value_date_in_future', 'value_date_before_invoice', 'invalid_value_date', 'invoice_not_payable'])
+      expect(refusalKey(code)).toBe(`subscription.bankTransfer.claim.${code}`)
+  })
+
+  it('renders the awaiting section, and the claim form only for a manager', async () => {
+    const messages = { 'subscription.bankTransfer.claim.awaiting': 'awaiting {date}' }
+    const render = async (can: boolean) => {
+      const api = { invoice: vi.fn(async () => invoice), bankTransfer: vi.fn(async () => ({ ...instructions, claim })), claimBankTransfer: vi.fn() }
+      const asyncData = async (key: string | (() => string), fetcher: () => Promise<unknown>) => ({ data: Vue.ref(await fetcher()), error: Vue.ref(undefined), pending: Vue.ref(false), refresh: () => {} })
+      const component = loadShared(page, { messages, globals: { useAsyncData: asyncData, useRoute: () => ({ path: '/subscription/invoices/inv-1', params: { id: 'inv-1' } }), definePageMeta: () => {} },
+        modules: { '@/composables/useSubscription': { useSubscriptionApi: () => api, useCustomerCapabilities: () => ({ can: (capability: string) => capability === 'billing.read' || can }) }, '@/utils/subscription': subscription } })
+      const slotted = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', attrs, slots.default?.()) })
+      const app = Vue.createSSRApp(component)
+      app.config.warnHandler = () => {}
+      for (const [tag, stub] of Object.entries({ ...DEFAULT_STUBS, SharedRecordPage: slotted, SharedRecordSection: slotted, SharedInvoiceLines: slotted, SharedForbiddenState: slotted })) app.component(tag, stub)
+      return renderToString(app)
+    }
+    const manager = await render(true)
+    expect(manager).toContain('data-testid="bank-transfer-awaiting"')
+    expect(manager).toContain('data-testid="bank-transfer-claim"')
+    const reader = await render(false)
+    expect(reader).toContain('data-testid="bank-transfer-awaiting"')
+    expect(reader).not.toContain('data-testid="bank-transfer-claim"')
   })
 })

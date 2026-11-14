@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CUSTOMER_CAPABILITIES = ['subscription.read', 'subscription.manage', 'branches.manage', 'billing.read'] as const
+export const CUSTOMER_CAPABILITIES = ['subscription.read', 'subscription.manage', 'branches.manage', 'billing.read', 'tenant.delete'] as const
 export const VENDOR_COMMERCIAL_CAPABILITIES = ['vendor.subscriptions.manage', 'vendor.pricing.manage', 'vendor.billing.manage'] as const
 export const customerCapabilitySchema = z.enum(CUSTOMER_CAPABILITIES)
 export type CustomerCapability = z.infer<typeof customerCapabilitySchema>

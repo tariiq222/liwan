@@ -13,4 +13,5 @@ from . import (
     order_line,
     product,
     sale_order,
+    tenant_export,
 )

@@ -34,7 +34,7 @@ SCRIPT_ERRORS = frozenset({
 BRANCH_LIMIT = 'branches.extra_limit'
 TRIAL_POLICY_KEYS = ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest')
 EXCESS_LIMITS = frozenset({'users.limit', 'storage.limit_mb', BRANCH_LIMIT})
-OPTIONAL_OBSERVATION_KEYS = frozenset({'post_trial_supported', 'excess_supported', 'excess_settled', 'excess', 'storage_bytes', 'blocked_storage_bytes', *TRIAL_POLICY_KEYS})
+OPTIONAL_OBSERVATION_KEYS = frozenset({'post_trial_supported', 'excess_supported', 'excess_settled', 'excess', 'storage_bytes', 'over_limit_storage_bytes', *TRIAL_POLICY_KEYS})
 BRANCH_ITEM_KEYS = frozenset({'branch_id', 'state', 'odoo_company_id', 'active', 'parent_is_root'})
 
 
@@ -257,8 +257,8 @@ def collect(profile):
     result['excess_settled'] = result['excess_supported'] and service._liwan_excess_is_settled()
     if hasattr(service, '_liwan_count_storage_bytes'):
         result['storage_bytes'] = int(service._liwan_count_storage_bytes())
-    if hasattr(service, '_liwan_blocked_storage_bytes'):
-        result['blocked_storage_bytes'] = int(service._liwan_blocked_storage_bytes())
+    if hasattr(service, '_liwan_over_limit_storage_bytes'):
+        result['over_limit_storage_bytes'] = int(service._liwan_over_limit_storage_bytes())
     if result['post_trial_supported']:
         from odoo import fields
         result.update({key: getattr(profile, key) for key in trial_keys})
@@ -452,7 +452,7 @@ def validate_observation(value):
     for flag in ('post_trial_supported', 'excess_supported', 'excess_settled'):
         if flag in value and type(value[flag]) is not bool:
             raise EffectError('observation_invalid')
-    for key in ('storage_bytes', 'blocked_storage_bytes'):
+    for key in ('storage_bytes', 'over_limit_storage_bytes'):
         if key in value and (type(value[key]) is not int or not 0 <= value[key] <= 9007199254740991):
             raise EffectError('observation_invalid')
     trial_policy = {key: value[key] for key in TRIAL_POLICY_KEYS if key in value}
@@ -723,7 +723,7 @@ class SubscriptionEffect:
     def receipt(self, request, observed, installed, not_granted=None):
         by_id = {b['branch_id']: b for b in observed['branches']}
         extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
-        extra.update({key: observed[key] for key in ('post_trial_supported', 'excess_supported', 'excess', 'storage_bytes', 'blocked_storage_bytes') if key in observed})
+        extra.update({key: observed[key] for key in ('post_trial_supported', 'excess_supported', 'excess', 'storage_bytes', 'over_limit_storage_bytes') if key in observed})
         if observed.get('excess_supported') is True:
             extra['branch_read_only'] = [{'branch_id': branch['branch_id'], 'read_only': branch['read_only']}
                                        for branch in observed['branches'] if 'read_only' in branch]

@@ -14,6 +14,8 @@ The acting identity is ``env.uid``:
   comes from its own company field or an owning record (including parents of attachments and messages).
 * Applications register what a read has to write (own bookkeeping rows, defaults seeded on first read) through
   ``liwan.entitlement.service._liwan_read_only_allowances``; the platform names none of their models.
+* A tenant suspended for non-payment (``payment_suspended``) refuses every write from every non-superuser identity,
+  except the plumbing and registered allowances above and the inbound events below.
 * Inbound events from outside (a gateway callback) are recorded whatever the branch's state: the route sets
   ``INBOUND_EVENT_CONTEXT`` to ``INBOUND_EVENT_TOKEN`` for its own request, which lifts only the branch fence.
 """
@@ -31,7 +33,7 @@ SETTLE_MARKER = 'liwan_platform.settle_excess'
 SETTLE_FIELDS = {
     'res.users': frozenset({'liwan_read_only', 'liwan_seat_choice'}),
     'liwan.tenant.branch': frozenset({'read_only', 'seat_choice'}),
-    'ir.attachment': frozenset({'liwan_storage_blocked'}),
+    'ir.attachment': frozenset({'liwan_over_storage_limit'}),
 }
 
 # Rows the system writes about the session itself or about a sign-in: a plain read triggers them, and the
@@ -227,6 +229,15 @@ def assert_writable(records, operation, vals=None, vals_list=None):
     # A create checks the identity before the insert; the second call, with the new rows, only asks about the company.
     identity_checked = operation == 'create' and bool(records)
     service = env['liwan.entitlement.service']
+    # A tenant suspended for non-payment signs in and reads, but nobody writes until it is paid.
+    # An inbound event from outside (money already paid, a customer's message) is recorded, as it is for an expired tenant.
+    if (
+        not (operation == 'create' and records)
+        and env.context.get(INBOUND_EVENT_CONTEXT) is not INBOUND_EVENT_TOKEN
+        and service._liwan_effective_state() == 'payment_suspended'
+        and not _registered_allowance(records, vals, vals_list)
+    ):
+        _refuse('tenant_read_only')
     due = service._liwan_post_trial_due()
     if not identity_checked and service._liwan_actor_read_only(env.user, trial_due=due):
         if not _registered_allowance(records, vals, vals_list):

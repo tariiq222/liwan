@@ -8,10 +8,11 @@ describe('free-mail refusal', () => {
     expect(isFreeMailAddress(email)).toBe(true)
   })
 
-  it('compares case-insensitively on the exact domain', () => {
+  it('compares case-insensitively on the registrable domain', () => {
     expect(isFreeMailAddress('Someone@GMAIL.COM')).toBe(true)
     expect(isFreeMailAddress('owner@acme.com.sa')).toBe(false)
-    expect(isFreeMailAddress('owner@mail.gmail.com')).toBe(false)
+    expect(isFreeMailAddress('owner@mail.gmail.com')).toBe(true)
+    expect(isFreeMailAddress('owner@eu.mail.yahoo.co.uk')).toBe(true)
     expect(isFreeMailAddress('owner@notgmail.com')).toBe(false)
     expect(isFreeMailAddress('gmail.com@acme.sa')).toBe(false)
   })

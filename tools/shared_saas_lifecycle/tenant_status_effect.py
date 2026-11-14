@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Tenant status effect: a suspended subscription stops the tenant's users, a resumed one lets them back in.
+"""Tenant status effect: a vendor suspension stops the tenant's users, a non-payment suspension leaves them read-only, a resumed one lets them back in.
 
 Same transport as the admin password effect: the Compose process runs a static bootstrap through the guarded
 Odoo launcher and injects the parsed stdin into the shell's locals, never its source, argv or environment.
@@ -21,6 +21,7 @@ from tools.shared_saas_lifecycle.subscription_effect import ComposeRunner as Sub
 SENTINEL = 'LIWAN_TENANT_STATUS:'
 ERROR_CODES = frozenset({'database_invalid', 'profile_invalid', 'script_failed'})
 STATUSES = ('active', 'suspended')
+SUSPENSION_REASONS = ('non_payment', 'vendor')
 
 
 def validate_request(request):
@@ -35,6 +36,13 @@ def validate_request(request):
     except EffectError:
         raise EffectError('script_failed') from None
     if request.get('status') not in STATUSES:
+        raise EffectError('script_failed')
+    # A suspension names its reason; an active tenant has none.
+    if request['status'] == 'active':
+        valid_reason = request.get('reason') is None
+    else:
+        valid_reason = request.get('reason') in SUSPENSION_REASONS
+    if not valid_reason:
         raise EffectError('script_failed')
     return request
 
@@ -53,19 +61,21 @@ try:
         raise Refusal('script_failed')
     if values['status'] not in ('active', 'suspended'):
         raise Refusal('script_failed')
+    if values['reason'] not in ((None,) if values['status'] == 'active' else ('non_payment', 'vendor')):
+        raise Refusal('script_failed')
     profile = env['liwan.tenant.profile'].search([], limit=2)
     if len(profile) != 1 or profile.commercial_mode != 'saas' or profile.entitlement_source != 'control_plane':
         raise Refusal('profile_invalid')
     profile = profile._liwan_lock()
     operator = profile.with_context(**{OPERATOR_CONTEXT: True})
     operator.env['liwan.entitlement.service']._liwan_assert_operator()
-    if profile.status != values['status']:
-        operator.write({'status': values['status']})
+    if profile.status != values['status'] or (profile.suspension_reason or None) != values['reason']:
+        operator.write({'status': values['status'], 'suspension_reason': values['reason'] or False})
         env.flush_all()
         env.cr.commit()
         # odoo shell never signals cache invalidation: the running workers must see the new status at once.
         env.registry.signal_changes()
-    result = {'status': values['status']}
+    result = {'status': values['status'], 'suspension_reason': values['reason']}
 except Refusal as exc:
     env.cr.rollback()
     result = {'error_code': str(exc)}
@@ -98,7 +108,7 @@ cli_main()
 '''
 
 
-def parse_output(stdout, status):
+def parse_output(stdout, status, reason=None):
     try:
         if not isinstance(stdout, str) or len(stdout.encode('utf-8')) > MAX_OUTPUT:
             raise ValueError()
@@ -111,7 +121,7 @@ def parse_output(stdout, status):
         if set(value) == {'error_code'}:
             code = value['error_code']
             raise EffectError(code if isinstance(code, str) and code in ERROR_CODES else 'script_failed')
-        if set(value) != {'status'} or value['status'] != status:
+        if set(value) != {'status', 'suspension_reason'} or value['status'] != status or value['suspension_reason'] != reason:
             raise ValueError()
         return value
     except EffectError:
@@ -139,11 +149,11 @@ class ComposeRunner(SubscriptionComposeRunner):
 def execute(request, runner=None):
     validate_request(request)
     runner = runner or ComposeRunner(request)
-    data = {'database': request['tenant']['database'], 'status': request['status']}
+    data = {'database': request['tenant']['database'], 'status': request['status'], 'reason': request.get('reason')}
     try:
         with effect_operation(request, 'tenant_status'):
             output = runner.run_script(build_script(), stdin=json.dumps(data, ensure_ascii=True))
-        return parse_output(output, request['status'])
+        return parse_output(output, request['status'], request.get('reason'))
     except EffectError as exc:
         code = str(exc)
         raise EffectError(code if code in ERROR_CODES else 'script_failed') from None

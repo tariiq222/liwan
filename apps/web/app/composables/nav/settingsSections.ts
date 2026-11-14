@@ -19,6 +19,8 @@ const COMPANY: SettingsPage = {
     { id: 'profile', labelKey: 'settings.sections.company.profile', icon: 'i-lucide-building-2', capability: 'settings.company.read' },
     { id: 'address', labelKey: 'settings.sections.company.address', icon: 'i-lucide-map-pin', capability: 'settings.company.read' },
     { id: 'contact', labelKey: 'settings.sections.company.contact', icon: 'i-lucide-phone', capability: 'settings.company.read' },
+    // Present only while the server addon carries `company_tax.enabled`; without that key the profile keeps its VAT switch.
+    { id: 'tax', labelKey: 'settings.sections.company.tax', icon: 'i-lucide-percent', capability: 'settings.company.read', feature: 'company_tax.enabled' },
     { id: 'branding', labelKey: 'settings.sections.company.branding', icon: 'i-lucide-palette', capability: 'settings.branding.manage' },
   ],
 }
@@ -39,6 +41,8 @@ const SYSTEM: SettingsPage = {
     { id: 'integrations', labelKey: 'integrations.nav', icon: 'i-lucide-plug-zap', capability: 'integrations.read' },
     { id: 'maintenance', labelKey: 'settings.maintenance.title', icon: 'i-lucide-calendar-clock', capability: 'settings.maintenance.manage' },
     { id: 'storage', labelKey: 'settings.storage.title', icon: 'i-lucide-hard-drive', capability: 'settings.company.manage', within: '/settings/system/storage' },
+    // The export belongs to the root company: a branch session never sees the entry (`rootOnly`) and a direct link shows why.
+    { id: 'export', labelKey: 'settings.tenantExport.title', icon: 'i-lucide-archive', capability: 'tenant.export', within: '/settings/system/export', rootOnly: true },
   ],
 }
 // The customer's subscription lives at /subscription (the approved SaaS commercial spec, 2026-10-02): the settings shell

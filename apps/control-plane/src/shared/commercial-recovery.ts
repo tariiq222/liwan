@@ -7,36 +7,36 @@ export const PRE_WRITE_REFUSALS = ['stale_target', 'order_not_released', 'tenant
 
 type TrialPredecessor = { revision_id: string; digest: string }
 
-/** Exact host predecessor identities for the active lapse lock, without transferring any paid entitlement. */
+/** Exact host predecessor identities for the active free-base lock, without transferring any paid entitlement. */
 export async function recoverableTrialPredecessors(client: Pick<PoolClient, 'query'>, orderId: string): Promise<TrialPredecessor[]> {
-  return (await client.query<TrialPredecessor>(`WITH lapse AS (
+  return (await client.query<TrialPredecessor>(`WITH lock_order AS (
     SELECT current.id,current.subscription_id,current.customer_id,current.expected_applied_revision_id,current.effective_at,
-      s.tenant_id,l.ended_at,l.trial_revision_id
+      s.tenant_id,l.trial_ended_at,l.pre_lock_revision_id
     FROM orders current JOIN subscriptions s ON s.id=current.subscription_id
-    JOIN trial_lapses l ON l.subscription_id=s.id AND l.state='ordered' AND l.order_id=current.id
+    JOIN free_base_locks l ON l.subscription_id=s.id AND l.state='ordered' AND l.order_id=current.id
     WHERE current.id=$1 AND current.kind='change' AND NOT current.cancelled
-      AND current.idempotency_key LIKE 'trial-lapse:'||s.id::text||':%'
+      AND current.idempotency_key LIKE 'free-base-lock:'||s.id::text||':%'
       AND s.target_revision_id=current.target_revision_id
   ), abandoned AS (
-    SELECT previous.*,lapse.ended_at,lapse.trial_revision_id,j.payload,j.journal
-    FROM lapse JOIN orders previous ON previous.subscription_id=lapse.subscription_id AND previous.id<>lapse.id
-      AND previous.customer_id=lapse.customer_id AND previous.expected_applied_revision_id=lapse.expected_applied_revision_id
+    SELECT previous.*,lock_order.trial_ended_at,lock_order.pre_lock_revision_id,j.payload,j.journal
+    FROM lock_order JOIN orders previous ON previous.subscription_id=lock_order.subscription_id AND previous.id<>lock_order.id
+      AND previous.customer_id=lock_order.customer_id AND previous.expected_applied_revision_id=lock_order.expected_applied_revision_id
       AND previous.kind='change' AND previous.cancelled AND previous.fulfillment_state='failed'
-    JOIN subscription_revisions r ON r.id=previous.target_revision_id AND r.subscription_id=lapse.subscription_id
+    JOIN subscription_revisions r ON r.id=previous.target_revision_id AND r.subscription_id=lock_order.subscription_id
     JOIN fulfillment_effects e ON e.order_id=previous.id
-    JOIN shared_jobs j ON j.id=e.job_id AND j.control_tenant_id=lapse.tenant_id
+    JOIN shared_jobs j ON j.id=e.job_id AND j.control_tenant_id=lock_order.tenant_id
     WHERE j.state='failed' AND j.payload->>'operation'='reconfigure' AND COALESCE(j.payload->>'restore','false')='false'
       AND NOT (j.payload ? 'restoreId') AND COALESCE(j.payload#>>'{authority,ai_push}','false')='false'
       AND j.payload#>>'{authority,order_id}'=previous.id::text
       AND j.payload#>>'{authority,target_revision_id}'=previous.target_revision_id::text
-      AND j.payload#>>'{authority,previous_revision_id}'=lapse.expected_applied_revision_id::text
+      AND j.payload#>>'{authority,previous_revision_id}'=lock_order.expected_applied_revision_id::text
       AND j.payload#>>'{authority,operation_id}'=e.operation_id
       AND j.payload#>>'{authority,entitlement,digest}'=r.snapshot#>>'{entitlement,digest}'
   ), proven AS (
     SELECT b.target_revision_id AS revision_id,b.payload#>>'{authority,entitlement,digest}' AS digest
-    FROM abandoned b,lapse
-    WHERE b.idempotency_key LIKE 'trial-lapse:'||lapse.subscription_id::text||':%'
-      AND b.effective_at=lapse.effective_at AND b.payload->>'origin'='trial-end'
+    FROM abandoned b,lock_order
+    WHERE b.idempotency_key LIKE 'free-base-lock:'||lock_order.subscription_id::text||':%'
+      AND b.effective_at=lock_order.effective_at AND b.payload->>'origin'='trial-end'
       AND (b.journal->>'may_have_written'='true' OR b.journal->>'stage'='started' OR b.journal->>'error_code' <> ALL($2::text[]))
     UNION ALL
     SELECT b.target_revision_id,d.digest FROM abandoned b
@@ -45,8 +45,8 @@ export async function recoverableTrialPredecessors(client: Pick<PoolClient, 'que
       AND refund.dedupe_key='fulfillment-undelivered' AND refund.payload->>'attempt_id'=a.id::text
       AND refund.payload->'automatic'='true'::jsonb
     CROSS JOIN LATERAL (VALUES (b.payload#>>'{authority,entitlement,digest}'), (b.payload#>>'{authority,post_trial_digest}')) d(digest)
-    WHERE b.payment_state IN ('refund_pending','refunded') AND b.created_at<b.ended_at
-      AND b.expected_applied_revision_id=b.trial_revision_id
+    WHERE b.payment_state IN ('refund_pending','refunded') AND b.created_at<b.trial_ended_at
+      AND b.expected_applied_revision_id=b.pre_lock_revision_id
       AND b.payload#>>'{authority,trial_ends_at}' IS NOT NULL
       AND b.journal->>'operation_id'=b.payload#>>'{authority,operation_id}'
       AND (b.journal->>'may_have_written'='true' OR b.journal->>'stage'='started')
@@ -79,7 +79,7 @@ export async function recoverCommercialSystemJobs(pool: Pool, now = new Date()) 
       const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [orderId])).rows[0]
       if (exhausted || permanent) {
         await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1", [id])
-        if (order && String(order.idempotency_key).startsWith('trial-lapse:'))
+        if (order && String(order.idempotency_key).startsWith('free-base-lock:'))
           await client.query("UPDATE orders SET fulfillment_state='failed' WHERE id=$1 AND fulfillment_state<>'applied'", [orderId])
         return
       }

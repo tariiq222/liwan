@@ -27,14 +27,15 @@ def _dump_document(document, status, options):
         'merchant': document.company_id.name,
         'number': document.name,
         'currency': document.currency_id.name,
-        # What the document was issued with: a company that is not registered for VAT issues untaxed ones, and a
-        # document issued earlier keeps what it was issued with.
+        # What the document was issued with: an establishment that is not registered for VAT issues untaxed ones, and
+        # a document issued earlier keeps what it was issued with. The registration is the establishment's, stored on
+        # its root company, and ``_liwan_vat_registered()`` answers it for a branch's document too.
         'amount_untaxed': document.amount_untaxed,
         'amount_tax': document.amount_tax,
         'amount_total': document.amount_total,
-        # Whether the page shows its tax rows: a registered company's zero-rated document still does, and a
-        # document issued with tax before the company deregistered keeps them. Only an untaxed document of an
-        # unregistered company shows none.
+        # Whether the page shows its tax rows: a registered establishment's zero-rated document still does, and a
+        # document issued with tax before the establishment deregistered keeps them. Only an untaxed document of an
+        # unregistered establishment shows none.
         'tax_applies': document.company_id._liwan_vat_registered() or not document.currency_id.is_zero(document.amount_tax),
         # A document nobody can pay (cancelled, expired) owes nothing; the payer is told so, not shown a stale amount.
         'amount_due': 0.0 if status == 'not_payable' else document._liwan_pay_amount(),

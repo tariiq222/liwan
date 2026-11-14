@@ -91,6 +91,16 @@ describe("tokens", () => {
     expect(t.text.indexOf("دعوتك")).toBeLessThan(t.text.indexOf("invited"));
     expect(t.subject).toContain("Invitation");
   });
+
+  it("names the workspace in both languages only when its origin is known", () => {
+    const named = renderInvitationEmail({ companyName: "Acme", url: "https://a.test/x", origin: "https://a.test" });
+    expect(named.text).toContain("مساحة عملك: https://a.test");
+    expect(named.text).toContain("Your workspace: https://a.test");
+    expect(named.html).toContain("Your workspace: https://a.test");
+    const plain = renderInvitationEmail({ companyName: "Acme", url: "https://a.test/x" });
+    expect(plain.text).not.toContain("Your workspace");
+    expect(plain.html).not.toContain("Your workspace");
+  });
 });
 
 describe("env factory", () => {

@@ -16,4 +16,4 @@ type Story = StoryObj<typeof meta>
 const at = (path: string) => async () => { await __getRouter()!.replace(path); return {} }
 const render = () => ({ components: { AppTopBar, SlideOverHost }, template: '<div class="liwan-shell" style="min-height: 320px"><AppTopBar /><SlideOverHost /></div>' })
 
-export const Default: Story = { name: 'البحث والأدوات الشخصية وزر المساعد', parameters: storyContext('apps/web/app/layouts/default.vue:66'), loaders: [at('/tasks')], render }
+export const Default: Story = { name: 'البحث والأدوات الشخصية وزر المساعد', parameters: storyContext('apps/web/app/layouts/default.vue:75'), loaders: [at('/tasks')], render }

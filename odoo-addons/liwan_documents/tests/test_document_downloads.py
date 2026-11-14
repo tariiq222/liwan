@@ -112,7 +112,7 @@ class TestDocumentDownloads(DocumentHttpCase):
         self.assertEqual(response.headers.get('X-Content-Type-Options'), 'nosniff')
         self.assertIn('attachment;', response.headers.get('Content-Disposition', ''))
 
-    def test_storage_excess_denies_dms_download_while_metadata_stays_readable(self):
+    def test_storage_excess_keeps_dms_download_and_metadata_readable(self):
         self.authenticate('docs_manager', 'docs_manager')
         profile = self.env.ref('liwan_platform.tenant_profile')
         profile.with_context(**{OPERATOR_CONTEXT: True}).write({
@@ -123,8 +123,8 @@ class TestDocumentDownloads(DocumentHttpCase):
         self.assertEqual(listing.status_code, 200)
         self.assertIn('download.txt', listing.text)
         response = self.url_open(f'{root}/{self.file.id}/download')
-        self.assertEqual((response.status_code, response.json().get('code')), (403, 'storage_excess_blocked'))
-        self.assertNotIn(b'private download bytes', response.content)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b'private download bytes')
 
     def test_storage_inventory_returns_only_readable_canonical_documents_as_owner_refs(self):
         group = self.env.ref('liwan_core.group_access_admin')

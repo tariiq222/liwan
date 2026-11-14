@@ -151,8 +151,9 @@ test('a session without the customers feature has no rail entry and is refused t
   await expect(page.locator('a[href="/customers"]')).toHaveCount(0)
   await page.goto('/customers')
   await expect(page.getByTestId('customers-search')).toHaveCount(0)
-  await expect(page.getByText('هذه الصفحة غير متاحة في باقتك')).toBeVisible()
-  await expect(page.getByText('هذه الميزة غير مشمولة في باقتك.')).toBeVisible()
+  // The locked-application page names the closed application and the plan cause.
+  await expect(page.locator('main h1')).toHaveText('دليل العملاء غير مشمول في باقتك')
+  await expect(page.getByTestId('locked-cause')).toContainText('باقتك لا تشمل دليل العملاء')
 })
 
 test('a reader without customers.manage sees the directory and the record but no create and no edit action', async ({ page, baseURL }) => {
@@ -186,8 +187,9 @@ test('archive then restore from the record', async ({ page }) => {
   await page.getByRole('menuitem', { name: 'أرشفة' }).click()
   await page.getByTestId('inline-confirm-action').click()
   await expect(page.getByText('مؤرشف').first()).toBeVisible()
-  // An archived customer has one action, so the row-actions button runs it directly instead of opening a menu.
-  await page.getByRole('button', { name: /^استعادة.*منى العتيبي/ }).click()
+  // The privacy page adds a second action, so the row-actions button opens a menu again.
+  await page.getByRole('button', { name: 'إجراءات العميل منى العتيبي' }).click()
+  await page.getByRole('menuitem', { name: 'استعادة' }).click()
   await page.getByTestId('inline-confirm-action').click()
   await expect(page.getByText('نشط').first()).toBeVisible()
   expect((await (await page.request.get('/api/v1/customers/1')).json()).active).toBe(true)

@@ -8,8 +8,6 @@ import { buildQuoteOn } from './quotes.js'
 import { trialEndsAt } from './renewals.js'
 import { endTrialOn } from './trial-expiry.js'
 import { generateRenewals } from './renewals.js'
-import { paymentAttemptView } from './payments.js'
-import type { PaymentAdapter } from './payment-adapter.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { getSubscription } from './subscriptions.js'
 import { reopenTrialOn } from './trial-reopen.js'
@@ -61,8 +59,8 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
   return accepted
 }
 
-/** Customer conversion: end the trial now, in one transaction, and return the first invoice's hosted attempt. */
-export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin }) {
+/** Customer conversion: end the trial now, in one transaction, and return the first invoice's order; the customer pays it through the card form. */
+export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; returnOrigin: ReturnOrigin }) {
   await input.returnOrigin(input.customer_id) // an unusable origin refuses before any write
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
   if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
@@ -80,14 +78,13 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
     return converted.period_start as string
   })
   // The first invoice is generated after the commit; a crash before it leaves a past_due subscription the renewal run picks up.
-  await generateRenewals(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id })
+  await generateRenewals(pool, { now: input.now, returnOrigin: input.returnOrigin, subscription_id: sub.id })
   // The renewal run may also create other due renewals: read this subscription's own first order, never index 0.
   const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
     WHERE r.subscription_id=$1 AND r.period_start=$2 AND r.kind='renewal' AND r.status<>'superseded' AND NOT o.cancelled
     LIMIT 1`, [sub.id, periodStart])).rows[0]
   const order = row ? orderView(row) : null
-  const attempt = order ? (await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1', [order.id])).rows[0] : null
-  return { order, attempt: attempt ? paymentAttemptView(attempt) : null, pending: !order }
+  return { order, pending: !order }
 }
 
 /** Vendor-only trial controls; each write is audited and only applies to a trialing subscription. */

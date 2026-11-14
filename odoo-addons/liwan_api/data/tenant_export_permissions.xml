@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_tenant_export" model="liwan.access.permission">
+        <field name="key">tenant.export</field><field name="domain">tenant</field>
+        <field name="resource">tenant</field><field name="action">export</field>
+        <field name="name_ar">تصدير بيانات المنشأة كاملة</field><field name="name_en">Export the tenant's data</field>
+        <field name="description_ar">تنزيل أرشيف واحد بكل بيانات المنشأة وملفاتها مع قائمة بما لا يتضمنه، بطلب موثّق في السجل</field><field name="description_en">Download one archive with the tenant's data and files, with a list of what it does not contain, with a logged request</field>
+        <field name="group_xmlid">liwan_api.group_cap_tenant_export</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
+    </record>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grant on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

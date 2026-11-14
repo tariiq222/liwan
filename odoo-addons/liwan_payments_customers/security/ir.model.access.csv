@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_sale_order_customers_erase,sale.order customers erase,sale.model_sale_order,liwan_customers.group_cap_customers_erase,1,0,0,0
+access_sale_order_customers_privacy_export,sale.order customers privacy export,sale.model_sale_order,liwan_customers.group_cap_customers_privacy_export,1,0,0,0
+access_sale_order_line_customers_erase,sale.order.line customers erase,sale.model_sale_order_line,liwan_customers.group_cap_customers_erase,1,0,0,0
+access_sale_order_line_customers_privacy_export,sale.order.line customers privacy export,sale.model_sale_order_line,liwan_customers.group_cap_customers_privacy_export,1,0,0,0
+access_payment_transaction_customers_erase,payment.transaction customers erase,payment.model_payment_transaction,liwan_customers.group_cap_customers_erase,1,1,0,0
+access_payment_transaction_customers_privacy_export,payment.transaction customers privacy export,payment.model_payment_transaction,liwan_customers.group_cap_customers_privacy_export,1,0,0,0
+access_payment_token_customers_erase,payment.token customers erase,payment.model_payment_token,liwan_customers.group_cap_customers_erase,1,1,0,0

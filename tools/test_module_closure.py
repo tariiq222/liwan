@@ -205,6 +205,12 @@ class RealManifestClosureTest(unittest.TestCase):
             with self.subTest(alone=alone):
                 self.assertNotIn('liwan_inbox_payments', module_closure.install_closure([ADDONS], BASE + [alone]))
 
+    def test_the_real_api_account_bridge_joins_only_when_stock_account_is_installed(self):
+        # liwan_api_account's other side is stock `account`, not a LiwanOS module: it joins a closure that holds
+        # liwan_api and account (liwan_finance depends on both) and stays out of the foundation alone.
+        self.assertIn('liwan_api_account', module_closure.install_closure([ADDONS], BASE + ['liwan_finance']))
+        self.assertNotIn('liwan_api_account', module_closure.install_closure([ADDONS], BASE))
+
     def test_the_real_meetings_bridge_joins_only_with_both_applications(self):
         shared = {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_notify', 'liwan_directory'}
         self.assertEqual(

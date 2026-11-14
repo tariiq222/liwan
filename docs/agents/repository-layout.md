@@ -33,6 +33,15 @@ application's AI agent and tools.
 - `odoo-addons/liwan_api` owns shared `/api/v1` plumbing, common serializers,
   authentication, branding, and the shared test fixture. It does not import a
   pillar.
+- `odoo-addons/liwan_api_account` (bridge, rank 5, `auto_install` on `liwan_api` and stock `account`) owns the
+  establishment's one tax choice: whether it is VAT-registered and whether a typed price includes the tax, at
+  `/api/v1/admin/company/tax` (`GET`/`PATCH`; reads need `settings.company.read`, writes
+  `settings.company.vat.manage` in the root company and a root-company session). Stock
+  `res.company.account_price_include` is the stored fact, declared a root-delegated company field so base copies
+  the root's value to its active branches and refuses a branch that differs; the route answers
+  `409 tax_mode_locked` once stock would refuse the change. A new establishment starts at "price includes tax",
+  and every purchase tax without an override is set to "tax added" at install and after a chart is loaded. It has
+  no `sudo()`.
 - `odoo-addons/liwan_notify` (shared service, rank 3) owns the notification bell:
   the generic `mail.message` columns `liwan_notification`, `liwan_notification_kind`
   and `liwan_notification_key` with its unique index, the `liwan.notify.registry`
@@ -158,6 +167,11 @@ application's AI agent and tools.
   of catalog-made products, the implementations of the neutral commerce hooks of `liwan_inbox`, and the carts that
   become online orders of `liwan.payments.service` (checkout, pay link, paid and cancelled notes). Feature
   `inbox.catalog`; capabilities `inbox.catalog.manage` and `inbox.orders.manage`.
+- `odoo-addons/liwan_payments_customers` (bridge, rank 5, `auto_install` on the shared services `liwan_payments` and
+  `liwan_customers`, which are both rank 3 and may not depend on each other) owns what online payments hold about a
+  customer in the privacy export and erase: online orders and their lines (kept), payment transactions (the payer's
+  copy of the name, e-mail, phone and address is cleared) and saved payment tokens (archived and neutralised), plus the
+  access rows the two privacy capabilities need on those models.
 - `packages/contracts/src/<namespace>` holds the Zod wire contracts (current namespaces: `access`, `ai`,
   `appointments`, `chat`, `common`, `crm`, `documents`, `finance`, `hr`, `inbox`, `integrations`,
   `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `tasks`); each has a barrel re-exported

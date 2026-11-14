@@ -12,10 +12,14 @@
 //  - `is_company=true|false` on the list is a strict filter; `parent_id` must name a company customer (422 on `parent_id`);
 //  - the settings countries (`/api/v1/customers/settings/countries`, `customers.settings.manage`) are a fixed list, and
 //    `phone_country_id: null` means the main company's country (Saudi Arabia here);
-//  - the cookie `mock_customers=branch` is a session of a branch manager: the settings answer `can_manage: false`.
+//  - the cookie `mock_customers=branch` is a session of a branch manager: the settings answer `can_manage: false`;
+//  - the privacy routes (`customers.erase`, `customers.privacy.export`): the preview mints a one-time token, the erase
+//    needs it and the customer's exact name and renames the customer like the server, and the export is a small .xlsx
+//    named by the server. The cookie `mock_customers_privacy` shapes the preview: `session` (the session does not cover
+//    every branch), `records` (records the caller cannot reach) or `nohook` (an application without a hook).
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
 
-export const CUSTOMERS_CAPABILITIES = ['customers.read', 'customers.manage', 'customers.export', 'customers.settings.manage']
+export const CUSTOMERS_CAPABILITIES = ['customers.read', 'customers.manage', 'customers.export', 'customers.settings.manage', 'customers.erase', 'customers.privacy.export']
 
 const RESET_PATH = '/api/v1/__mock/reset-customers'
 const SETTINGS_PATH = '/api/v1/customers/settings'
@@ -30,6 +34,18 @@ const LIST_PATH = '/api/v1/customers'
 const EXPORT_PATH = '/api/v1/customers/export'
 const E164 = /^\+[1-9]\d{6,14}$/
 const COMPANY = { id: 1, name: 'ليوان' }
+const PRIVACY_PATH = /^\/api\/v1\/customers\/(\d+)\/privacy\/(erase-preview|erase|export)$/
+const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+const TOKEN_TTL_SECONDS = 600
+const NOT_COVERED = ['chatter_history', 'free_text_notes', 'stored_documents', 'backups', 'accounting_name_copies', 'inbox_provider_events']
+const PRIVACY_ITEMS = [
+  { key: 'customer', owner: 'liwan_customers', action: 'erase', count: 1 },
+  { key: 'bank_accounts', owner: 'liwan_customers', action: 'erase', count: 1 },
+  { key: 'crm_leads', owner: 'liwan_crm', action: 'erase', count: 3 },
+  { key: 'inbox_messages', owner: 'liwan_inbox', action: 'erase', count: 12 },
+  { key: 'finance_documents', owner: 'liwan_finance', action: 'retain', count: 4 },
+  { key: 'inbox_consent', owner: 'liwan_inbox', action: 'retain', count: 1 },
+]
 const LIMITS = { max_properties: 20, max_options: 50, max_label: 100 }
 
 const freshSettings = () => ({
@@ -53,6 +69,7 @@ const freshCustomers = () => [
 let settings = freshSettings()
 let customers = freshCustomers()
 let nextId = 10
+let privacyTokens = new Map()
 
 const refusal = (status, code, message, extra = {}) => ({ status, body: { code, message, ...extra } })
 
@@ -158,6 +175,49 @@ function clearOption(customer, entry) {
   else if (value === entry.key) delete customer.values[entry.field_key]
 }
 
+const isErased = customer => customer.name === `Erased customer ${customer.id}`
+
+/** The blockers the cookie asks for; none by default. */
+function privacyBlockers(cookie) {
+  const mode = /(?:^|;\s*)mock_customers_privacy=(session|records|nohook)(?:;|$)/.exec(cookie ?? '')?.[1]
+  if (mode === 'session') return { reach: { shared: true, covers_all: false }, incomplete: [{ key: 'crm_leads', owner: 'liwan_crm', reason: 'session_does_not_cover_every_company' }, { key: 'inbox_messages', owner: 'liwan_inbox', reason: 'session_does_not_cover_every_company' }], extra: [] }
+  if (mode === 'records') return { reach: { shared: false, covers_all: true }, incomplete: [{ key: 'crm_leads', owner: 'liwan_crm', reason: 'caller_cannot_reach_all_records' }], extra: [] }
+  if (mode === 'nohook') return { reach: { shared: false, covers_all: true }, incomplete: [{ key: 'sale.order', owner: 'sale', reason: 'application_has_no_hook' }], extra: [{ key: 'sale.order', owner: 'sale', action: 'unhandled', count: 2, complete: false }] }
+  return { reach: { shared: false, covers_all: true }, incomplete: [], extra: [] }
+}
+
+function privacyPreview(customer, cookie) {
+  const blocked = privacyBlockers(cookie)
+  const flagged = new Set(blocked.incomplete.map(entry => entry.key))
+  const token = `mock-token-${customer.id}-${privacyTokens.size + 1}`
+  privacyTokens.set(token, customer.id)
+  return {
+    status: 200,
+    body: {
+      customer: { id: customer.id, erased: isErased(customer) },
+      items: [...PRIVACY_ITEMS.map(item => ({ ...item, complete: !flagged.has(item.key) })), ...blocked.extra],
+      incomplete: blocked.incomplete,
+      empty_models: [],
+      not_covered: NOT_COVERED,
+      reach: blocked.reach,
+      token,
+      expires_in: TOKEN_TTL_SECONDS,
+    },
+  }
+}
+
+function privacyErase(customer, body, cookie) {
+  if (isErased(customer)) return { status: 200, body: { customer_id: customer.id, erased: false, request_id: null, items: [] } }
+  const blocked = privacyBlockers(cookie)
+  if (blocked.incomplete.length) return refusal(409, 'erase_incomplete', 'the caller cannot reach every record to erase', { details: { incomplete: blocked.incomplete } })
+  if (privacyTokens.get(body.token) !== customer.id) return refusal(422, 'invalid_token', 'the token is not valid: preview the erase again')
+  if (body.confirmation !== customer.name) return refusal(422, 'invalid', 'the confirmation must be the customer name', { field: 'confirmation' })
+  if (typeof body.reason !== 'string' || !body.reason.trim() || body.reason.length > 500) return refusal(422, 'invalid', 'reason is required', { field: 'reason' })
+  privacyTokens.delete(body.token)
+  Object.assign(customer, { name: `Erased customer ${customer.id}`, phone: null, email: null, values: {} })
+  return { status: 200, body: { customer_id: customer.id, erased: true, request_id: customer.id, items: PRIVACY_ITEMS.filter(item => item.action === 'erase').map(({ key, count }) => ({ key, count })) } }
+}
+
 function updateSettings(body, manage) {
   if (!manage) return refusal(403, 'forbidden', 'only the main company manages these settings')
   if (body.revision !== settings.revision) return refusal(409, 'conflict', 'Customer settings changed; reload before saving')
@@ -194,11 +254,13 @@ export async function handleCustomers(req, res, path, url, { json, readBody }) {
     settings = freshSettings()
     customers = freshCustomers()
     nextId = 10
+    privacyTokens = new Map()
     json(res, 200, {})
     return true
   }
   const record = path.match(/^\/api\/v1\/customers\/(\d+)(?:\/(archive|restore))?$/)
-  const known = path === LIST_PATH || path === COUNTRIES_PATH || path === EXPORT_PATH || path === SETTINGS_PATH || record
+  const privacy = path.match(PRIVACY_PATH)
+  const known = privacy || path === LIST_PATH || path === COUNTRIES_PATH || path === EXPORT_PATH || path === SETTINGS_PATH || record
   if (!known) return false
   const caps = capabilitiesForRequest(req.headers.cookie, CUSTOMERS_CAPABILITIES)
   const branchManager = /(?:^|;\s*)mock_customers=branch(?:;|$)/.test(req.headers.cookie ?? '')
@@ -212,6 +274,22 @@ export async function handleCustomers(req, res, path, url, { json, readBody }) {
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
   }
   const send = result => json(res, result.status, result.body)
+
+  if (privacy) {
+    const [, privacyId, route] = privacy
+    const subject = customers.find(candidate => candidate.id === Number(privacyId))
+    if (req.method !== 'POST') return false
+    if (!need(route === 'export' ? 'customers.privacy.export' : 'customers.erase')) return true
+    if (!subject) send(refusal(404, 'not_found', 'not found'))
+    else if (route === 'erase-preview') send(privacyPreview(subject, req.headers.cookie))
+    else if (route === 'erase') send(privacyErase(subject, body, req.headers.cookie))
+    else if (typeof body.reason !== 'string' || !body.reason.trim()) send(refusal(422, 'invalid', 'reason is required', { field: 'reason' }))
+    else {
+      res.writeHead(200, { 'content-type': XLSX_TYPE, 'content-disposition': `attachment; filename="customer-${subject.id}-personal-data.xlsx"`, 'cache-control': 'private, no-store' })
+      res.end(Buffer.from('PK mock workbook'))
+    }
+    return true
+  }
 
   if (path === SETTINGS_PATH) {
     if (req.method === 'GET') {

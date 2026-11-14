@@ -11,6 +11,12 @@ import { readdirSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyDocumentHeaders } from './securityHeaders.mjs'
 
+// The one tenant-host route that carries the visitor's address: the edge sets it from the socket peer (deploy/shared/Caddyfile)
+// and it is trusted only there, so the control plane can rate-limit "send me a new invitation" per real visitor.
+const CLIENT_ADDRESS_HEADER = 'x-liwan-client-ip'
+// The routes whose visitor address the edge sets and the guard passes to Nuxt: the new-invitation request and the workspace-deletion steps (the web server signs the address with the request).
+const clientAddressPaths = new Set(['/api/invitations/reissue', '/api/commercial/v1/deletion/request', '/api/commercial/v1/deletion/confirm', '/api/commercial/v1/deletion/withdraw'])
+const clientAddressRoute = url => clientAddressPaths.has(url?.split('?')[0])
 const forbidden = /^(x-odoo-|x-openerp-|x-liwan-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
 const browserHeaders = new Set(['x-liwan-csrf'])
@@ -53,9 +59,12 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
  * The prospect origin belongs to no tenant. Only the listed public flows and built assets reach Nuxt.
  * Caddy replaces the signup client address with the socket peer. The guard is on the private network.
  */
-const signupApi = /^\/api\/commercial\/signup\/(?:start|verify-sms|send-email|verify-email)$/
+const signupApi = /^\/api\/commercial\/signup\/(?:terms|start|verify-sms|send-email|verify-email)$/
+// "Find my workspace" (the page, the common host's /login that leads to it, and its relay, which needs the visitor address).
+const findWorkspaceApi = '/api/invitations/find-workspace'
 const prospectRoutes = [
-  [/^\/(?:payment-done|register)\/?$/, ['GET', 'HEAD']],
+  [/^\/(?:payment-done|register|find-workspace|login)\/?$/, ['GET', 'HEAD']],
+  [/^\/api\/invitations\/find-workspace$/, ['POST']],
   [/^\/api\/commercial\/payment-callback$/, ['GET', 'POST']],
   [signupApi, ['POST']],
   [/^\/_nuxt\/[A-Za-z0-9._\-/]+$/, ['GET', 'HEAD']],
@@ -76,6 +85,11 @@ export function prospectPlan(req, prospectHost, token) {
     const ip = req.headers['x-liwan-signup-client']
     if (url.search || typeof ip !== 'string' || !isIP(ip)) throw Error('forbidden_route')
     headers['x-liwan-signup-client'] = ip
+  }
+  if (url.pathname === findWorkspaceApi) {
+    const ip = req.headers[CLIENT_ADDRESS_HEADER]
+    if (url.search || typeof ip !== 'string' || !isIP(ip)) throw Error('forbidden_route')
+    headers[CLIENT_ADDRESS_HEADER] = ip
   }
   delete headers.authorization
   delete headers.cookie
@@ -122,7 +136,7 @@ export function requestPlan(req, registry, token, codec) {
   const internal = equal(req.headers['x-liwan-proxy-token'], token)
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
   for (const name of Object.keys(req.headers)) {
-    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && name === UI_LOCALE_HEADER && uiLocale(req.headers[name])) && !(EXPECTED_ID_HEADERS.has(name) && expectedId(req.headers[name])) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
+    if (forbidden.test(name) && !browserHeaders.has(name) && !(name === CLIENT_ADDRESS_HEADER && clientAddressRoute(req.url) && isIP(req.headers[name])) && !(internal && name === UI_LOCALE_HEADER && uiLocale(req.headers[name])) && !(EXPECTED_ID_HEADERS.has(name) && expectedId(req.headers[name])) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
   }
   if (internal && req.headers['x-liwan-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
   if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url)) throw Error('invalid_path')
@@ -201,6 +215,7 @@ export function requestPlan(req, registry, token, codec) {
       !(clearSession && value.startsWith('session_id=')) && (device || !value.startsWith(deviceCookieName))).join('; ')
   }
   headers.host = odoo ? tenant.database : host
+  if (!odoo && clientAddressRoute(req.url) && isIP(req.headers[CLIENT_ADDRESS_HEADER])) headers[CLIENT_ADDRESS_HEADER] = req.headers[CLIENT_ADDRESS_HEADER]
   if (!odoo) {
     headers['x-liwan-proxy-token'] = token
     headers['x-liwan-tenant-revision'] = String(tenant.registryRevision)
@@ -319,7 +334,7 @@ export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken
     let releaseBody = () => {}
     // H3/radix accepts one trailing slash on these BFF routes. Bound the same aliases.
     const publicPath = p.path.split('?')[0].replace(/\/$/, '')
-    const publicBodyLimit = p.prospect && signupApi.test(publicPath) ? 2048 : !p.internal ? publicAuthBodyLimits[publicPath] : undefined
+    const publicBodyLimit = p.prospect && signupApi.test(publicPath) ? 4096 : !p.internal ? publicAuthBodyLimits[publicPath] : undefined
     if ((p.odoo || publicBodyLimit !== undefined || p.path.startsWith('/api/auth/')) && !['GET', 'HEAD'].includes(req.method)) {
       try {
         releaseBody = await (p.internal ? acquireInternalBody : acquireExternalBody)(req, res)
@@ -353,7 +368,7 @@ export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken
       const headers = { ...reply.headers }
       // A browser document from Nuxt gets the shared edge's security headers; Odoo's JSON,
       // reports and downloads do not, exactly as on the dedicated edge (issue #480).
-      if (!p.odoo) applyDocumentHeaders(headers)
+      if (!p.odoo) applyDocumentHeaders(headers, p.path)
       if (headers['set-cookie']) {
         headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant, p)
       }

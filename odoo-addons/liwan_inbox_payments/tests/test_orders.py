@@ -13,6 +13,7 @@ from .common import BASE_URL, CATALOG_ID, LiwanCatalogCase
 from odoo.addons.liwan_inbox.tests import whatsapp_payloads as wa
 from odoo.addons.liwan_inbox.tests.test_outbox import response as provider_response
 from odoo.addons.liwan_payments.models.order_service import NotPayable
+from odoo.addons.liwan_payments.tests.common import TAX_INCLUDED
 
 
 def cart_line(retailer_id, quantity=1, price=1.0, currency='SAR'):
@@ -296,7 +297,7 @@ class TestCheckoutCustomer(OrderCase):
 
     def test_the_customer_keys_are_validated(self):
         contact, order = self.unlinked_order()
-        elsewhere = self.env['res.company'].create({'name': 'Elsewhere'})
+        elsewhere = self.catalog_company('Elsewhere', price_mode=TAX_INCLUDED)
         hidden = self.party('Hidden', '+966511112222', company_id=elsewhere.id)
         for payload in (
             {'customer_id': 'x'}, {'customer_id': 0}, {'customer_id': True}, {'create_new': 'yes'}, {'create_new': 1},

@@ -12,7 +12,7 @@ import { STEP_UP_CAPABILITIES } from '../admin-auth/roles.js'
 import { createPlan, getPlan, listPlans, mutatePlan } from './plans.js'
 
 type Act = 'edit' | 'delete' | 'validate' | 'publish' | 'withdraw' | 'restore' | 'revisions'
-export type CommercialInput = { method: string; pathname: string; search?: string; raw: string; issuer: string; actor: number; capabilities: VendorCapability[]; stepUpFresh?: boolean }
+export type CommercialInput = { method: string; pathname: string; search?: string; raw: string; issuer: string; actor: number; capabilities: VendorCapability[]; stepUpFresh?: boolean; clientAddress?: string }
 type Extra = (pool: Pool, input: CommercialInput, url: URL) => Promise<{ status: number; data: unknown } | null>
 const extras: Extra[] = []
 /** Later stages (plans, policies, quotes) register route handlers here. */

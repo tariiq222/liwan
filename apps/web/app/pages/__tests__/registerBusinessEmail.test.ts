@@ -21,12 +21,15 @@ function mount(failure: unknown) {
   const bindings = {
     errorCode, errorSeconds, normalizeCode, normalizeMobileInput,
     ForgotPasswordInputSchema: { safeParse: () => ({ success: true }) },
-    _defineComponent: Vue.defineComponent, computed: Vue.computed, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
+    _defineComponent: Vue.defineComponent, computed: Vue.computed, onMounted: () => {}, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
     definePageMeta: () => {}, useHydrated: () => Vue.ref(true),
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar'), setLocale: () => {} }),
     useResendWait: () => ({ seconds: Vue.ref(0), waiting: Vue.ref(false), start: () => {}, stop: () => {} }),
   }
   const state = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings)).setup({}, { expose: () => {} })
+  state.legal.value = { legal_base_url: 'https://legal.example.test', terms_version: '2026-11-01' }
+  state.humanToken.value = 'tok'
+  state.details.accept_terms = true
   return state
 }
 
@@ -47,7 +50,26 @@ describe('register page, free-mail refusal', () => {
     expect(state.errorKey.value).toBe('signup.errors.rateLimited')
     expect(state.emailErrorKey.value).toBeUndefined()
   })
+  it('says the company already used its trial when the server refuses the claim, in both locales', async () => {
+    const state = mount({ data: { code: 'trial_already_used' } })
+    await state.startSignup()
+    expect(state.errorKey.value).toBe('signup.errors.trialAlreadyUsed')
+    expect(state.emailErrorKey.value).toBeUndefined()
+    for (const locale of [ar, en]) {
+      expect(locale.signup.errors.trialAlreadyUsed.length).toBeGreaterThan(80)
+      expect(locale.signup.errors.trialAlreadyUsed).not.toContain('{')
+    }
+  })
   it('has the message in both locales, in plain words', () => {
     for (const locale of [ar, en]) expect(locale.signup.errors.businessEmailRequired.length).toBeGreaterThan(20)
+  })
+  it('the done step names the address, promises minutes, and says what to do when the invitation is late', () => {
+    for (const locale of [ar, en]) {
+      expect(locale.signup.invitation).toContain('{email}')
+      expect(locale.signup.invitationLate.length).toBeGreaterThan(60)
+    }
+    const page = readFileSync(resolve(import.meta.dirname, '../register.vue'), 'utf8')
+    expect(page).toContain("t('signup.invitation', { email: details.email.trim() })")
+    expect(page).toContain("t('signup.invitationLate')")
   })
 })

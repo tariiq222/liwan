@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { bundleViewSchema, invoiceSchema, orderSchema, packageRevisionSchema, paymentAttemptSchema, planViewSchema, quoteSchema } from '@liwan/commercial-contracts'
+import { bundleViewSchema, paymentMethodViewSchema, invoiceSchema, orderSchema, packageRevisionSchema, paymentAttemptSchema, planViewSchema, quoteSchema } from '@liwan/commercial-contracts'
 import { handleCommercial } from '../../e2e/commercial-mock-routes.mjs'
 
 // The stub control plane serves these records to the mock e2e. They must be valid wire shapes, or a
@@ -18,6 +18,10 @@ describe('commercial e2e fixtures', () => {
     for (const pkg of fixtures.catalog.items) expect(() => packageRevisionSchema.parse(pkg), pkg.id).not.toThrow()
     for (const attempt of fixtures.paymentAttempts['order-beta'].items) expect(() => paymentAttemptSchema.parse(attempt)).not.toThrow()
     expect(() => orderSchema.parse(fixtures.customers.items.find((c: { id: string }) => c.id === 'cust-beta').subscription.pending_order)).not.toThrow()
+  })
+
+  it('the saved card parses with the contract schema', () => {
+    expect(() => paymentMethodViewSchema.parse(fixtures.savedCard)).not.toThrow()
   })
 
   it('carries the fixed counts the page specs rely on', () => {

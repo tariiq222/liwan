@@ -89,7 +89,8 @@ describe('commercial scheduler', () => {
             return { rows: [{ id: 'row-1', created_at: new Date(1000), payload: { subscription_id: 'sub-1' }, attempts }], rowCount: 1 }
           }
           if (text.includes('FROM subscriptions s JOIN customers c')) throw new Error('database_hiccup')
-          if (text.startsWith('UPDATE commercial_outbox')) writes.push(text.replace(/\s+/g, ' ').trim())
+          // The deletion-code sweep is its own job and is not an invitation write.
+          if (text.startsWith('UPDATE commercial_outbox') && !text.includes('tenant_deletion_requests')) writes.push(text.replace(/\s+/g, ' ').trim())
           return { rows: [], rowCount: 0 }
         },
       }

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
-import { safePaymentRedirect, forgetIdempotencyKey, idempotencyKey, QUOTE_IS_EXPIRED, safeIdemAction, sanitizeBody, usageFigure, usageMetricLabel } from '../../utils/subscription'
+import { forgetIdempotencyKey, idempotencyKey, QUOTE_IS_EXPIRED, safeIdemAction, sanitizeBody, usageFigure, usageMetricLabel } from '../../utils/subscription'
 import { deriveCustomerCapabilities } from '../../utils/customerCapabilities'
 
 const root = resolve(import.meta.dirname, '../../..')
@@ -57,13 +57,14 @@ describe('permission gating', () => {
   it('status page never creates orders or payments on load', () => {
     const s = page('status.vue')
     expect(s).toContain('api.subscription()'); expect(s).not.toMatch(/api\.accept|api\.quote/)
-    expect(s).toMatch(/continuePayment/)
+    // Paying is a link to the pay page: the status page itself never opens a card form session.
+    expect(s).toContain('payPath(order.id)'); expect(s).not.toMatch(/startCardPayment|redirect_url/)
   })
   it('status page treats a closed order as settled, not missing, and reports payment errors', () => {
     const s = page('status.vue')
     expect(s).toContain('api.order(orderId.value)'); expect(s).toContain('order-settled'); expect(s).toContain('order-empty'); expect(s).toContain('orderOutcome')
     expect(s).not.toContain('status.missing')
-    expect(s).toMatch(/catch \{ payError/); expect(s).toContain('else payError.value')
+    expect(s).toContain('cameBackUnpaid')
   })
   it('subscription page formats dates and reports failed sections', () => {
     const s = page('index.vue')
@@ -85,12 +86,9 @@ describe('idempotency and quote handling', () => {
     expect(safeIdemAction('change', 's', 1, 'a')).toBe(safeIdemAction('change', 's', 1, 'a'))
     expect(safeIdemAction('change', 's', 2, 'a')).not.toBe(safeIdemAction('change', 's', 1, 'a'))
   })
-  it('expired quotes are detected; bodies are stripped of identity; payment redirects are restricted', () => {
+  it('expired quotes are detected; bodies are stripped of identity', () => {
     expect(QUOTE_IS_EXPIRED({ expires_at: '2000-01-01T00:00:00Z' })).toBe(true)
     expect(sanitizeBody({ a: 1, tenant_id: 't', customer_id: 'c', capabilities: [] })).toEqual({ a: 1 })
-    expect(safePaymentRedirect('https://pay.example/x', 'https://acme.example')).toBe('https://pay.example/x')
-    expect(safePaymentRedirect('http://pay.example/x', 'https://acme.example')).toBeNull()
-    expect(safePaymentRedirect('javascript:alert(1)', 'https://acme.example')).toBeNull()
     const c = page('change.vue'); expect(c).toContain("'conflict'"); expect(c).toContain("'expired'")
   })
   it('labels usage by limit key, then unit, then a readable id', () => {

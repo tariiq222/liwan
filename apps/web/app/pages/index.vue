@@ -4,6 +4,7 @@ import HomeAssistantBanner from '@/components/home/HomeAssistantBanner.vue'
 import HomeFocus from '@/components/home/HomeFocus.vue'
 import HomeGreeting from '@/components/home/HomeGreeting.vue'
 import HomeIndicators from '@/components/home/HomeIndicators.vue'
+import SetupHomeCard from '@/components/setup/SetupHomeCard.vue'
 import { useAppCards } from '@/composables/useAppCards'
 import { postLoginPath } from '@/utils/accessPolicy'
 
@@ -19,6 +20,7 @@ const { cards } = useAppCards({ assistant: false })
 <template>
   <SharedPageContainer data-testid="foundation-home">
     <HomeGreeting />
+    <SetupHomeCard />
     <HomeAssistantBanner :apps="cards" />
     <HomeIndicators />
     <HomeFocus />

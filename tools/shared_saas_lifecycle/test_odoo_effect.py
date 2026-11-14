@@ -71,11 +71,13 @@ class PackageAdministratorScriptTests(unittest.TestCase):
     actual quota semantics; the parent owns fresh isolated Odoo acceptance.
     """
     HOST = 't' + 'c' * 32 + '.example.test'
+    CONTROL_TENANT = '3f2b8c1e-5d4a-4e6f-9a7b-0c1d2e3f4a5b'
 
-    def run_script(self, *, package=True, snapshot=False, support=True, count=None, limit=None, origin=None):
+    def run_script(self, *, package=True, snapshot=False, support=True, count=None, limit=None, origin=None, marker=CONTROL_TENANT):
         writes = []
-        # A snapshot reads what an earlier apply pinned; `origin` states another value on purpose.
-        params = {'web.base.url': origin or 'https://' + self.HOST, 'web.base.url.freeze': 'True'} if snapshot else {}
+        # A snapshot reads what an earlier apply pinned; `origin` and `marker` state other values on purpose.
+        params = ({'web.base.url': origin or 'https://' + self.HOST, 'web.base.url.freeze': 'True',
+                   **({} if marker is None else {odoo_effect.TENANT_MARKER_PARAMETER: marker})} if snapshot else {})
         roles = {'existing_customer_role'}
         company = SimpleNamespace(id=1, name='Company')
         company.write = lambda values: (writes.append(('company', values)), setattr(company, 'name', values['name']))
@@ -162,7 +164,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                 if model == 'liwan.access.role':
                     return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
                 if model == 'ir.config_parameter':
-                    return SimpleNamespace(get_param=params.get)
+                    return SimpleNamespace(get_param=params.get, set_param=lambda key, value: (writes.append(('param', key, value)), params.update({key: value})))
                 raise AssertionError(model)
             def ref(self, xmlid):
                 if xmlid == 'base.user_admin':
@@ -179,7 +181,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         runner.database = Cursor.dbname
         runner.request = {'admin': {'name': 'Customer administrator', 'login': 'customer@example.test'},
                           'companyName': 'Company', 'host': self.HOST,
-                          'job': {'policy': {'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_hr']}}}
+                          'controlTenantId': self.CONTROL_TENANT, 'job': {'policy': {'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_hr']}}}
         if package:
             runner.request['job']['packageAuthority'] = {'schemaVersion': 2}
         output = io.StringIO()
@@ -194,7 +196,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         script = object.__new__(odoo_effect.Runner)
         script.database = 'liwan_scratch_' + 'a' * 32
         script.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'host': 'a.example.test',
-                          'job': {'policy': {'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_hr']}}}
+                          'controlTenantId': self.CONTROL_TENANT, 'job': {'policy': {'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_hr']}}}
         text = script.admin_script('known-secret', snapshot=False)
         self.assertIn('_liwan_entitled_admin_roles()', text)
         self.assertNotIn("'liwan_pmo' in values['modules']", text)
@@ -228,6 +230,34 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         self.assertLess(writes.index(('origin', self.HOST)), writes.index(('commit',)))
         # A running shared server rereads the pinned origin after the commit.
         self.assertLess(writes.index(('commit',)), writes.index(('signal',)))
+
+    def test_apply_binds_the_database_to_its_control_tenant_once_and_before_the_commit(self):
+        result, writes, _admin, _roles = self.run_script()
+        self.assertEqual(result, {'verified': True, 'uid': 2})
+        marker = ('param', odoo_effect.TENANT_MARKER_PARAMETER, self.CONTROL_TENANT)
+        self.assertEqual(writes.count(marker), 1)
+        self.assertLess(writes.index(marker), writes.index(('commit',)))
+
+    def test_snapshot_needs_the_marker_of_the_expected_control_tenant(self):
+        for marker in (None, '', '00000000-0000-4000-8000-000000000000'):
+            with self.subTest(marker=marker):
+                result, writes, _admin, _roles = self.run_script(snapshot=True, support=False, count=1, marker=marker)
+                self.assertEqual(result, {'verified': False})
+                self.assertEqual(writes, [])
+        result, _writes, _admin, _roles = self.run_script(snapshot=True, support=False, count=1)
+        self.assertEqual(result, {'verified': True, 'uid': 2})
+
+    def test_a_provision_request_needs_a_control_tenant_id(self):
+        for value in (None, '', 'not-a-uuid', 7, '3F2B8C1E-5D4A-4E6F-9A7B-0C1D2E3F4A5B'):
+            with self.subTest(value=value):
+                runner = object.__new__(odoo_effect.Runner)
+                request = {'controlTenantId': value, 'job': {'operation': 'provision', 'binding': {'database': 'liwan_scratch_' + 'a' * 32,
+                           'filestore': 'liwan_scratch_' + 'a' * 32}, 'policy': {'modules': ['liwan_core']}}, 'host': 'a.example.test',
+                           'config': {'schemaVersion': 1, 'projectName': 'liwan-shared-marker', 'composeFile': '/synthetic/c.yml',
+                                      'envFile': '/synthetic/e.env', 'stateDir': '/synthetic/s', 'domainSuffix': 'example.test'}}
+                with unittest.mock.patch.object(odoo_effect, 'no_symlink', side_effect=Path), \
+                        self.assertRaisesRegex(odoo_effect.EffectError, '^input_invalid$'):
+                    odoo_effect.Runner.__init__(runner, request)
 
     def test_snapshot_refuses_a_public_origin_that_is_not_the_routed_host(self):
         for origin in ('https://' + self.HOST + '.other.test', 'http://' + self.HOST, 'https://liwan_scratch_' + 'a' * 32):
@@ -275,7 +305,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
     def test_admin_script_has_no_package_branch(self):
         runner = object.__new__(odoo_effect.Runner)
         runner.database = 'liwan_scratch_' + 'a' * 32
-        runner.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'host': 'a.example.test', 'job': {'policy': {}}}
+        runner.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'host': 'a.example.test', 'controlTenantId': self.CONTROL_TENANT, 'job': {'policy': {}}}
         text = runner.admin_script('known-secret', snapshot=False)
         self.assertNotIn('packageAdmin', text)
 
@@ -294,7 +324,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
         database = 'liwan_scratch_' + 'a' * 32
         digest = 'b' * 64
         request = {'action': 'observe', 'config': config, 'host': 'tenant.example.test',
-                   'job': {'operation': 'provision',
+                   'controlTenantId': '3f2b8c1e-5d4a-4e6f-9a7b-0c1d2e3f4a5b', 'job': {'operation': 'provision',
                            'binding': {'database': database, 'filestore': database},
                            'policy': {'schema_version': 1, 'channel': 'control_plane',
                                       'modules': ['liwan_core', 'liwan_platform', 'liwan_api'],

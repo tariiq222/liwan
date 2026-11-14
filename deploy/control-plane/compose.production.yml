@@ -1,0 +1,202 @@
+# Production definition of the control plane (API, ordinary worker, migrate, admin CLI, PostgreSQL) and the vendor console.
+# NOT deployment authorization: nothing here has been started on a real host. Runbook: docs/operations/control-plane-deployment.md.
+#
+#   docker compose -f deploy/control-plane/compose.production.yml \
+#     -f deploy/control-plane/compose.host-link.yml --env-file <private compose env> config
+#
+# The SHARED WORKER is not a service here, on purpose. It is the only process that runs the commercial scheduler, and it
+# drives Docker (tools/shared_saas_lifecycle effects), so it is the systemd unit deploy/control-plane/liwan-shared-worker.service
+# next to the Docker socket. A second copy here would run two schedulers: renewals, notices and refunds twice.
+# There is no scheduler in any service below; deploy/control-plane/test_production_compose.py fails if one appears.
+#
+# Processes in this file:
+#   control-db      PostgreSQL 16, own volume, internal network only (no published port in this file).
+#   control-migrate one-shot schema migration (profile `migrate`): run it first on every deployment and upgrade.
+#   control-api     HTTPS API of the control plane, one instance.
+#   control-worker  ordinary operator-job worker (profile `operator-jobs`); idle when LIWAN_TENANCY_MODE=shared, so it is off by default.
+#   control-admin   admin CLI (profile `admin`): bootstrap-owner, reset-account, catalog-import, approve-restore.
+#   vendor-console  the vendor console (apps/vendor-admin), on its own origin behind the edge.
+#
+# Networks (all internal except egress): the API, the web tier and the edge meet on `control_api_web`; the console reaches the
+# API on `control_api_admin`; the edge reaches the console on `admin_edge`. The shared stack joins `web` and `proxy` to the
+# networks named by LIWAN_COMMERCIAL_CONTROL_NETWORK and LIWAN_ADMIN_EDGE_NETWORK (see the runbook for the exact overlay).
+name: liwan-control
+
+x-hardening: &hardening
+  restart: unless-stopped
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  read_only: true
+  tmpfs: ["/tmp"]
+  pids_limit: 256
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+# The same account as the host's shared worker (liwan-worker): both write the registry and the state directory.
+x-control-user: &control-user
+  user: "${LIWAN_CONTROL_UID:?set LIWAN_CONTROL_UID to the uid of the liwan-worker account}:${LIWAN_CONTROL_GID:?set LIWAN_CONTROL_GID to its gid}"
+
+x-control-process: &control-process
+  <<: [*hardening, *control-user]
+  image: liwan-control-plane:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
+  build:
+    context: ../..
+    dockerfile: deploy/control-plane/Dockerfile
+  # Secrets live only in this private file (mode 0600, outside the repository); see env.production.example.
+  env_file: ${LIWAN_CONTROL_ENV_FILE:?set LIWAN_CONTROL_ENV_FILE}
+  environment:
+    LIWAN_TENANCY_MODE: shared
+    LIWAN_REPOSITORY_ROOT: /app
+    LIWAN_CLI_INVENTORY: ${LIWAN_CONTROL_CONFIG_DIR:?set LIWAN_CONTROL_CONFIG_DIR}/inventory-v2.json
+    LIWAN_CLI_STATE_DIR: ${LIWAN_CONTROL_STATE_DIR:?set LIWAN_CONTROL_STATE_DIR}
+    LIWAN_SHARED_RUNTIME_CONFIG: ${LIWAN_CONTROL_CONFIG_DIR}/shared-runtime.json
+    LIWAN_TENANT_REGISTRY_PATH: ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}/registry.json
+    CONTROL_HOST: 0.0.0.0
+    CONTROL_PORT: "4187"
+    CONTROL_TLS_KEY: /run/secrets/control_tls_key
+    CONTROL_TLS_CERT: /run/secrets/control_tls_cert
+  secrets:
+    - control_tls_key
+    - control_tls_cert
+  # The runtime config names absolute host paths; the API sees them at the same paths. The API writes the registry and the
+  # state directory (restore routes, the AI provider file), reads the config, and only checks that the two shared-stack files exist.
+  volumes:
+    - ${LIWAN_CONTROL_CONFIG_DIR}:${LIWAN_CONTROL_CONFIG_DIR}:ro
+    - ${LIWAN_CONTROL_STATE_DIR}:${LIWAN_CONTROL_STATE_DIR}
+    - ${LIWAN_TENANT_REGISTRY_DIR}:${LIWAN_TENANT_REGISTRY_DIR}
+    - ./shared-path-placeholder:${LIWAN_SHARED_COMPOSE_FILE:?set LIWAN_SHARED_COMPOSE_FILE to composeFile of shared-runtime.json}:ro
+    - ./shared-path-placeholder:${LIWAN_SHARED_ENV_FILE:?set LIWAN_SHARED_ENV_FILE to envFile of shared-runtime.json}:ro
+  networks: [control_data]
+
+services:
+  control-db:
+    <<: *hardening
+    # Same image identity the local harness uses (deploy/control-plane/compose.yml). Re-resolve and record it before production.
+    image: postgres:16@sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5
+    user: postgres
+    tmpfs: ["/tmp", "/var/run/postgresql:uid=999,gid=999"]
+    environment:
+      POSTGRES_DB: liwan_control
+      POSTGRES_USER: liwan_control
+      POSTGRES_PASSWORD_FILE: /run/secrets/control_db_password
+    secrets:
+      - control_db_password
+    volumes:
+      - control_db_data:/var/lib/postgresql/data
+    expose: ["5432"]
+    mem_limit: 1536m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U liwan_control -d liwan_control"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [control_data]
+
+  control-migrate:
+    <<: *control-process
+    profiles: [migrate]
+    restart: "no"
+    command: ["node", "--import", "tsx", "src/migrate.ts"]
+    mem_limit: 512m
+    depends_on:
+      control-db: { condition: service_healthy }
+
+  control-api:
+    <<: *control-process
+    command: ["node", "--import", "tsx", "src/main.ts"]
+    # TLS is not optional outside loopback (getConfig); the probe trusts the local listener only.
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('https').get({host:'127.0.0.1',port:4187,path:'/healthz',rejectUnauthorized:false,timeout:3000},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    expose: ["4187"]
+    mem_limit: 768m
+    cpus: 1.0
+    # Egress: SMTP, Moyasar, Authentica, Cloudflare Turnstile, Telegram. The pinned subnet makes the gateway address stable: the
+    # host's shared worker listens for the internal effect channel on it (INTERNAL_EFFECT_HOST), and the API reaches it by name.
+    extra_hosts: ["control-host.internal:172.29.40.1"]
+    networks: [control_data, control_egress, control_api_web, control_api_admin]
+    depends_on:
+      control-db: { condition: service_healthy }
+    stop_grace_period: 30s
+
+  control-worker:
+    <<: *control-process
+    profiles: [operator-jobs]
+    command: ["node", "--import", "tsx", "src/worker-main.ts"]
+    mem_limit: 512m
+    # A running operation is never interrupted (up to 2 hours); the worker finishes it after SIGTERM.
+    stop_grace_period: 2h
+    depends_on:
+      control-db: { condition: service_healthy }
+
+  control-admin:
+    <<: *control-process
+    profiles: [admin]
+    restart: "no"
+    # `docker compose run --rm control-admin <command> ...`; the command and its arguments are the operator's.
+    entrypoint: ["node", "--import", "tsx", "src/admin.ts"]
+    mem_limit: 512m
+    depends_on:
+      control-db: { condition: service_healthy }
+
+  vendor-console:
+    <<: *hardening
+    image: liwan-vendor-admin:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
+    build:
+      context: ../..
+      dockerfile: apps/vendor-admin/Dockerfile
+    user: "10001:10001"
+    env_file: ${LIWAN_VENDOR_ADMIN_ENV_FILE:?set LIWAN_VENDOR_ADMIN_ENV_FILE}
+    environment:
+      # The control API certificate is signed by the operator's private CA; Node trusts it only through this file.
+      NODE_EXTRA_CA_CERTS: /run/secrets/control_ca
+    secrets:
+      - control_ca
+    expose: ["3100"]
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/robots.txt',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.status===200?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks: [control_api_admin, admin_edge]
+    depends_on:
+      control-api: { condition: service_healthy }
+
+secrets:
+  control_db_password:
+    file: ${LIWAN_CONTROL_PRIVATE_DIR:?set LIWAN_CONTROL_PRIVATE_DIR}/control-db-password
+  control_tls_key:
+    file: ${LIWAN_CONTROL_PRIVATE_DIR}/control-tls.key
+  control_tls_cert:
+    file: ${LIWAN_CONTROL_PRIVATE_DIR}/control-tls.crt
+  control_ca:
+    file: ${LIWAN_CONTROL_PRIVATE_DIR}/control-ca.pem
+
+volumes:
+  control_db_data: {}
+
+networks:
+  control_data: { internal: true }
+  # The only network with a route off the host. Only the API joins it. The fixed subnet is part of the design (see extra_hosts).
+  control_egress:
+    ipam:
+      config:
+        - subnet: 172.29.40.0/24
+          gateway: 172.29.40.1
+  # Names shared with the shared stack: docker-compose.shared-commercial.yml joins `web` to LIWAN_COMMERCIAL_CONTROL_NETWORK.
+  control_api_web:
+    internal: true
+    name: ${LIWAN_COMMERCIAL_CONTROL_NETWORK:?set LIWAN_COMMERCIAL_CONTROL_NETWORK}
+  control_api_admin: { internal: true }
+  admin_edge:
+    internal: true
+    name: ${LIWAN_ADMIN_EDGE_NETWORK:?set LIWAN_ADMIN_EDGE_NETWORK}

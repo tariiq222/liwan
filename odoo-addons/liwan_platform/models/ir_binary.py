@@ -19,14 +19,14 @@ class LiwanPlatformIrBinary(models.AbstractModel):
             raise AccessError(msg)
         if (
             access_token
-            and service._liwan_effective_state() == 'suspended'
+            and service._liwan_effective_state() in ('suspended', 'payment_suspended')
             and not service._liwan_support_login_allowed(user)
             and not self._liwan_public_branding_record(record)
         ):
             msg = 'tenant_suspended'
             raise AccessError(msg)
         if record._name == 'ir.attachment':
-            record._liwan_assert_storage_readable()
+            record._liwan_assert_no_url_bytes()
         return record
 
     def _liwan_public_branding_record(self, record):

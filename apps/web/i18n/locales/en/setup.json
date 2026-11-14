@@ -1,0 +1,65 @@
+{
+  "setup": {
+    "title": "LiwanOS setup",
+    "description": "Five short steps to get your company ready. Open the right page, then mark the step done or skip it.",
+    "progress": "{done} of {total}",
+    "progressLabel": "Setup progress",
+    "state": {
+      "todo": "To do",
+      "done": "Done",
+      "skipped": "Skipped"
+    },
+    "steps": {
+      "company": {
+        "title": "Company details",
+        "purpose": "Your company name, logo and address appear on invoices and messages.",
+        "action": "Open company details"
+      },
+      "sector": {
+        "title": "Company activity",
+        "purpose": "Note what fits your activity before you adjust the apps."
+      },
+      "channels": {
+        "title": "Contact channels",
+        "purpose": "Connect a WhatsApp number or another channel so customers can reach your team.",
+        "action": "Open channels"
+      },
+      "team": {
+        "title": "Team",
+        "purpose": "Add your colleagues and choose what each of them can do.",
+        "action": "Open users"
+      },
+      "contacts": {
+        "title": "Contacts",
+        "purpose": "Add your existing customers so they are ready in every app.",
+        "action": "Open customers"
+      }
+    },
+    "notes": {
+      "none": "This step has no page yet. Mark it done or skip it.",
+      "feature": "This app is not included in your plan. You can skip the step.",
+      "permission": "You do not have permission to open this page. You can skip the step."
+    },
+    "actions": {
+      "done": "Mark done",
+      "skip": "Skip",
+      "reopen": "Back to to do",
+      "finish": "Finish setup",
+      "reopenWizard": "Reopen setup"
+    },
+    "closed": {
+      "title": "Setup is finished",
+      "description": "The setup card no longer shows on the home page. You can reopen it any time."
+    },
+    "branch": {
+      "title": "Setup is not available in a branch",
+      "description": "The setup checklist belongs to the main company. Switch to the main company to continue it."
+    },
+    "failed": "The change could not be saved. Try again.",
+    "home": {
+      "title": "Finish setting up your company",
+      "description": "A few steps are left to get LiwanOS ready for your team.",
+      "open": "Continue setup"
+    }
+  }
+}

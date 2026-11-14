@@ -116,7 +116,10 @@
         "amount": "Amount",
         "taxAccount": "Tax account",
         "taxAccountHelp": "Where the tax amount is booked, for example the VAT payable or recoverable account.",
-        "priceInclude": "The price already includes this tax"
+        "priceInclude": "The price already includes this tax",
+        "priceIncludeOn": "Prices include this tax",
+        "priceIncludeOff": "The tax is added to the price",
+        "priceIncludeFollowsEstablishment": "A sale tax follows the establishment's tax setting in the company settings, so it is not set per tax."
       },
       "confirm": {
         "archiveTitle": "Archive the tax \"{name}\"?",

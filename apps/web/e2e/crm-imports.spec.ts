@@ -214,9 +214,9 @@ test('without the crm.import feature the nav entry and the create command are hi
 
   for (const path of ['/crm/imports', '/crm/imports/new']) {
     await page.goto(path)
-    // The route middleware refuses in place: the address stays and the page is the plan-denied 403 instead of the import screen.
-    await expect(page.locator('main h1'), path).toHaveText('هذه الصفحة غير متاحة في باقتك')
-    await expect(page.getByText('رمز الخطأ 403'), path).toBeVisible()
+    // The route middleware refuses in place: the address stays and the page is the locked-application page (names the application and the plan cause) instead of the import screen.
+    await expect(page.locator('main h1'), path).toHaveText('إدارة العملاء غير مشمول في باقتك')
+    await expect(page.getByTestId('locked-cause'), path).toBeVisible()
     await expect(page.locator('input[type=file]'), path).toHaveCount(0)
   }
 })

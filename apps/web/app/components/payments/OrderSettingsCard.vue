@@ -8,7 +8,8 @@ import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 
 // The payments settings of the online orders customers pay: how long an unpaid order waits before it is cancelled (this
 // company) and whether a paid order is invoiced at once (the whole account). A save carries the revision of the latest
-// settings; when another session saved first the server answers 409 and the card locks until the manager reloads.
+// settings; when another session saved first the server answers 409 and the card locks until the manager reloads. The
+// tax does not belong here: one establishment-wide choice lives in the company settings.
 const props = defineProps<{ settings: PaymentSettings; canEdit: boolean; reloadSettings: () => Promise<PaymentSettings> }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -42,10 +43,6 @@ const validExpiry = computed(() => isValidExpiry(draft.value.unpaid_order_expiry
 const expiryError = computed(() => expiryRefusal.value ?? (validExpiry.value ? undefined : t('payments.orders.expiry.invalid', PAYMENT_ORDER_EXPIRY_MINUTES)))
 // A refusal belongs to the value that was sent; typing another value clears it.
 watch(() => draft.value.unpaid_order_expiry_minutes, () => { expiryRefusal.value = null })
-const taxModes = computed(() => (['included', 'added'] as const).map(value => ({ value, label: t(`payments.orders.taxMode.${value}`) })))
-// The company decides the tax only while it is registered for VAT: an unregistered one charges no tax at all, so the
-// card offers no mode and says why instead of showing a control that changes nothing.
-const vatRegistered = computed(() => props.settings.vat_registered)
 const submit = () => { if (validExpiry.value) return save() }
 </script>
 
@@ -61,12 +58,6 @@ const submit = () => { if (validExpiry.value) return save() }
         :disabled="locked"
       />
     </UFormField>
-    <UFormField v-if="vatRegistered" orientation="horizontal" :label="t('payments.orders.taxMode.label')" name="tax_mode" :description="t('payments.orders.taxMode.hint')">
-      <USelect id="payments-order-tax-mode" v-model="draft.tax_mode" class="w-full" :items="taxModes" :disabled="locked" :aria-label="t('payments.orders.taxMode.label')" />
-    </UFormField>
-    <SharedSettingRow v-else  :label="t('payments.orders.taxMode.label')" name="tax_mode" :description="t('payments.orders.taxMode.unregistered')">
-      <p class="text-sm text-muted" data-testid="payments-order-tax-mode-unregistered">{{ t('payments.orders.taxMode.unregistered') }}</p>
-    </SharedSettingRow>
     <SharedSettingRow :label="t('payments.orders.systemAdminLinks.label')" :description="t('payments.orders.systemAdminLinks.hint')">
       <USwitch id="payments-system-admin-links" v-model="draft.system_admin_links" :disabled="locked" :aria-label="t('payments.orders.systemAdminLinks.label')" />
     </SharedSettingRow>

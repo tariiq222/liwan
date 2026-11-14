@@ -13,7 +13,7 @@ function facts(profile: Partial<CompanyProfile>) {
   const base = { _defineComponent: Vue.defineComponent, computed: Vue.computed, useI18n: () => ({ t: (key: string) => key }), avatarProps: () => ({}) }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(base), code)(...Object.values(base))
-  const full = { id: 1, name: 'ليوان', logo_url: null, company_registry: '1010', vat_registered: true, vat: '300000000000003', completeness: { done: 1, total: 2 }, ...profile }
+  const full = { id: 1, name: 'ليوان', logo_url: null, company_registry: '1010', vat_registered: true, vat_registration_editable: true, is_root_company: true, vat: '300000000000003', completeness: { done: 1, total: 2 }, ...profile }
   return Vue.proxyRefs(Vue.effectScope().run(() => component.setup({ profile: full }, { expose: () => {}, emit: () => {} }))).facts
 }
 

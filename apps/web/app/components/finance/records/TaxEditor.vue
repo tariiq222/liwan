@@ -3,10 +3,12 @@ import type { FinanceAccount, FinanceTax } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import AccountPicker from '../AccountPicker.vue'
 import { useCreateSetupTax, usePatchSetupTax } from '@/composables/finance/useFinanceRecords'
-import { taxCreate, taxDraft, taxPatch, taxValid } from './recordForms'
+import { priceIncludeEditable, taxCreate, taxDraft, taxPatch, taxValid } from './recordForms'
 
 // The inline form of the taxes: a new sale or purchase tax, or an existing one. Once journal items use a tax only its name can
-// change: its kind, rate, price-include setting and tax account are what the posted entries were computed with.
+// change: its kind, rate, price-include setting and tax account are what the posted entries were computed with. The price
+// mode is the accountant's own for a purchase tax only: a sale tax follows the establishment's tax setting, so it shows
+// the computed answer read-only and never sends it.
 const props = defineProps<{ tax?: FinanceTax }>()
 const emit = defineEmits<{ done: []; cancel: [] }>()
 const { t } = useI18n()
@@ -18,6 +20,7 @@ const { mutateAsync: patch, isPending: patching } = usePatchSetupTax()
 const pending = computed(() => creating.value || patching.value)
 const valid = computed(() => taxValid(draft))
 const locked = computed(() => !!props.tax?.used)
+const canEditPriceInclude = computed(() => priceIncludeEditable(props.tax, draft))
 const fixedAtCreation = computed(() => !!props.tax)
 const useItems = computed(() => (['sale', 'purchase'] as const).map(value => ({ value, label: t(`financeRecords.taxes.uses.${value}`) })))
 const typeItems = computed(() => (['percent', 'fixed'] as const).map(value => ({ value, label: t(`financeRecords.taxes.amountTypes.${value}`) })))
@@ -58,7 +61,13 @@ async function submit() {
       <UFormField :label="t('financeRecords.taxes.form.taxAccount')" name="finance-record-tax-account" :help="t('financeRecords.taxes.form.taxAccountHelp')" required>
         <AccountPicker id="finance-record-tax-account" v-model="draft.taxAccountId" :allow="taxAccount" :disabled="locked" :aria-label="t('financeRecords.taxes.form.taxAccount')" />
       </UFormField>
-      <USwitch v-model="draft.priceInclude" :label="t('financeRecords.taxes.form.priceInclude')" :disabled="!hydrated || locked" />
+      <div class="flex flex-col gap-1">
+        <USwitch v-if="canEditPriceInclude" v-model="draft.priceInclude" :label="t('financeRecords.taxes.form.priceInclude')" :disabled="!hydrated || locked" data-testid="finance-record-tax-price-include" />
+        <template v-else>
+          <p v-if="props.tax" class="text-sm text-highlighted" data-testid="finance-record-tax-price-include-fixed">{{ t(props.tax.price_include ? 'financeRecords.taxes.form.priceIncludeOn' : 'financeRecords.taxes.form.priceIncludeOff') }}</p>
+          <p class="text-xs text-muted" data-testid="finance-record-tax-price-include-note">{{ t('financeRecords.taxes.form.priceIncludeFollowsEstablishment') }}</p>
+        </template>
+      </div>
     </div>
     <div class="flex flex-wrap justify-end gap-2">
       <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />

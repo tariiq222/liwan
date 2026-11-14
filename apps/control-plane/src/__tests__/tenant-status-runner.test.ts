@@ -20,13 +20,13 @@ describe('tenant status runner', () => {
     const child = fakeChild(); const spawnChild = vi.fn(() => child); const pool = poolWith([binding])
     const stdin: string[] = []; child.stdin.on('data', c => stdin.push(String(c)))
     const run = createTenantStatusRunner(pool, config, { runtime: true }, new AbortController().signal, spawnChild as never)
-    const result = run({ tenant_id, status: 'suspended' })
+    const result = run({ tenant_id, status: 'suspended', suspension_reason: 'non_payment' })
     await vi.waitFor(() => expect(spawnChild).toHaveBeenCalled())
     expect(spawnChild.mock.calls[0]).toMatchObject({ 0: 'python3', 1: ['-B', '-m', 'tools.shared_saas_lifecycle.tenant_status_effect'] })
     child.stdout.emit('data', JSON.stringify({ result: { status: 'suspended' } })); child.emit('close', 0)
     expect(await result).toEqual({ status: 'suspended' })
     expect(JSON.parse(stdin.join(''))).toEqual({ action: 'set_tenant_status', tenant: { database: binding.database_name, host: binding.host },
-      releaseBinding: { tenantId: 'acme', database: binding.database_name, filestore: 'acme', registryRevision: 4 }, status: 'suspended', config: { runtime: true } })
+      releaseBinding: { tenantId: 'acme', database: binding.database_name, filestore: 'acme', registryRevision: 4 }, status: 'suspended', reason: 'non_payment', config: { runtime: true } })
     // The tenant comes from the control tenant id, enabled binding and saas mode only.
     expect(pool.query.mock.calls[0]![1]).toEqual([tenant_id])
     expect(String(pool.query.mock.calls[0]![0])).toMatch(/b\.enabled=true AND t\.commercial_mode='saas'/)
@@ -35,7 +35,7 @@ describe('tenant status runner', () => {
     for (const rows of [[], [binding, binding]]) {
       const spawnChild = vi.fn()
       const run = createTenantStatusRunner(poolWith(rows), config, {}, new AbortController().signal, spawnChild as never)
-      await expect(run({ tenant_id, status: 'active' })).rejects.toThrow('tenant_binding_mismatch')
+      await expect(run({ tenant_id, status: 'active', suspension_reason: null })).rejects.toThrow('tenant_binding_mismatch')
       expect(spawnChild).not.toHaveBeenCalled()
     }
   })
@@ -43,7 +43,7 @@ describe('tenant status runner', () => {
     for (const [code, expected] of [['profile_invalid', 'profile_invalid'], ['private /var/lib detail', 'script_failed']] as const) {
       const child = fakeChild()
       const run = createTenantStatusRunner(poolWith([binding]), config, {}, new AbortController().signal, vi.fn(() => child) as never)
-      const result = run({ tenant_id, status: 'active' }).then(() => null, e => e as Error)
+      const result = run({ tenant_id, status: 'active', suspension_reason: null }).then(() => null, e => e as Error)
       await vi.waitFor(() => expect(child.stdin.writableEnded).toBe(true))
       child.stdout.emit('data', JSON.stringify({ error_code: code })); child.emit('close', 1)
       expect((await result)?.message).toBe(expected)

@@ -4,6 +4,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import LiwanCatalogCase, upload
+from odoo.addons.liwan_payments.tests.common import TAX_INCLUDED
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -112,14 +113,14 @@ class TestCatalogItems(LiwanCatalogCase):
         made = self.api('POST', self.items, {'product': self.new_product()}).json()
         product = self.env['product.product'].browse(made['product']['id'])
         self.assertEqual(product.company_id, self.catalog.company_id)
-        other = self.env['res.company'].create({'name': 'Other'})
+        other = self.catalog_company('Other', price_mode=TAX_INCLUDED)
         self.manager.company_ids = [Command.link(other.id)]
         elsewhere = self.env['product.product'].with_user(self.manager).with_context(allowed_company_ids=[other.id])
         self.assertFalse(elsewhere.search([('id', '=', product.id)]))
 
     def test_the_products_route_lists_saleable_products_of_the_company(self):
         self.make_item(self.catalog)
-        other = self.env['res.company'].create({'name': 'Other'})
+        other = self.catalog_company('Other', price_mode=TAX_INCLUDED)
         foreign = self.env['product.product'].create({'name': 'Foreign hat', 'type': 'consu', 'company_id': other.id})
         self.env['product.product'].create({'name': 'Bare hat', 'type': 'consu'})
         unsaleable = self.env['product.product'].create({'name': 'Internal hat', 'type': 'consu', 'sale_ok': False})

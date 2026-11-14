@@ -2,33 +2,51 @@ import type { Pool } from 'pg'
 import type { Config } from '../config.js'
 import { processFulfillmentOutbox } from './fulfillment.js'
 import { claimOutbox, completeOutbox, releaseOutbox } from './outbox.js'
-import { onSubscriptionActivated, sendInvitationOutbox, settleFailedInvitationOutbox } from './invitations.js'
+import { onSubscriptionActivated, processReissueRequests, sendInvitationOutbox, settleFailedInvitationOutbox } from './invitations.js'
+import { runWorkspaceLookups } from './workspace-lookup.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
+import { chargeSavedCards } from './saved-card-charges.js'
 import { expireTrials } from './trial-expiry.js'
-import { processTrialLapses } from './trial-lapse.js'
+import { processFreeBaseLocks } from './free-base-lock.js'
 import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
+import { sendWorkspaceDelayNotices } from './workspace-delay-notice.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
+import { sendBillingNotices } from './billing-notices.js'
+import { sendCancellationNotices } from './cancellation-notices.js'
+import { expireDeletionCodes, markDueDeletions } from './tenant-deletion.js'
+import { sendTenantDeletionNotices } from './tenant-deletion-notices.js'
+import { queueLastCalls, runTenantDeletions, tenantDeletionMode } from './tenant-deletion-run.js'
+import type { DeletionEffects } from './tenant-deletion-effects.js'
+import { sendAdminLoginNotices } from './admin-login.js'
 import { processRefundOutbox } from './settlements.js'
+import { processTokenDeletions } from './form-payments.js'
 import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
+import { telegramSenderFromEnv, type TelegramSender } from './telegram-adapter.js'
+import { sendVendorAlerts } from './vendor-alerts.js'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadSharedRuntimeConfig } from '../shared/runtime-config.js'
 import { collectUsage, FRESH_MS, type UsageObserveRunner } from './usage-collector.js'
+import { logText } from '../log-text.js'
 
 type Env = Record<string, string | undefined>
 export type CommercialSchedulerOptions = {
   pool: Pool; config: Config; env: Env; clock?: () => number
   paymentAdapter?: PaymentAdapter; mailAdapter?: MailAdapter
+  /** Owner alert channel; without it the one named by LIWAN_ALERT_TELEGRAM_* is used, and none when those are unset. */
+  telegramSender?: TelegramSender
   subscriptionRunner?: Parameters<typeof recoverInterrupted>[1] extends infer O ? (O extends { runner?: infer R } ? R : never) : never
   usageRunner?: UsageObserveRunner
   /** Pushes a tenant's suspended or active status to Odoo; without it a suspension changes the control plane only. */
   tenantStatusRunner?: TenantStatusRunner
+  /** Carries out the final deletion of a workspace (needs the shared runtime and the registry); without it a request waits at the end of its hold. The kill switch is `LIWAN_TENANT_DELETION_ENABLED=true`. */
+  tenantDeletionEffects?: DeletionEffects
   /** Worker shutdown: stops the background usage run before its next target, and starts no further job or mail in a tick. */
   signal?: AbortSignal
   log?: (message: string, err?: unknown) => void
@@ -61,7 +79,7 @@ export function sharedRuntimeBusy(pool: Pool, config: Config, log?: (message: st
 export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const { pool, config, env } = o
   const clock = o.clock ?? Date.now
-  const log = o.log ?? ((m: string, e?: unknown) => console.error(`[commercial-scheduler] ${m}`, e instanceof Error ? e.message : e ?? ''))
+  const log = o.log ?? ((m: string, e?: unknown) => console.error('[commercial-scheduler] %s %s', logText(m), logText(e ?? '')))
   const reconcileEvery = posInt(env.LIWAN_COMMERCIAL_RECONCILE_EVERY, 10)
   // Downgrade checks need a sample younger than 15 minutes (usage.ts): the interval defaults to 5 minutes and is capped at USAGE_MAX_INTERVAL_MS.
   const usageMs = Math.min(posInt(env.LIWAN_COMMERCIAL_USAGE_INTERVAL_SEC, 300) * 1000, USAGE_MAX_INTERVAL_MS)
@@ -72,6 +90,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const billingMs = posInt(env.LIWAN_COMMERCIAL_BILLING_INTERVAL_SEC, 300) * 1000
   // Payment returns and invitation links both resolve one origin per customer (the tenant's own host in shared mode).
   const returnOrigin = returnOriginFromEnv(pool, env) ?? unusableReturnOrigin
+  let telegram = o.telegramSender
+  if (!telegram) { try { telegram = telegramSenderFromEnv(env) ?? undefined } catch (e) { try { log('telegram alert channel unavailable', e) } catch { /* never throw */ } } }
   let ticks = 0
   let lastBilling: number | undefined
   let jobCounts: Record<string, { runs: number; failures: number }> = {}
@@ -103,12 +123,25 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
           }
         }
       })
+      await job('invitation.reissue', () => processReissueRequests(pool, { signal: o.signal, log }))
+      await job('tenant-deletion-due', async () => { await expireDeletionCodes(pool); await markDueDeletions(pool); await queueLastCalls(pool) })
       if (o.mailAdapter) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
-        await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
-        await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, signal: o.signal }))
+        await job('workspace-lookup', () => runWorkspaceLookups(pool, { key: config.key, mail, returnOrigin, signal: o.signal, log }))
+        await job('workspace-delay-notices', () => sendWorkspaceDelayNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
+        await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
+        await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, chargeTarget: o.paymentAdapter ? { provider: o.paymentAdapter.provider, mode: o.paymentAdapter.mode } : undefined, signal: o.signal }))
+        await job('cancellation-notices', () => sendCancellationNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
+        await job('tenant-deletion-notices', () => sendTenantDeletionNotices(pool, { mail, returnOrigin, signal: o.signal }))
+        await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, returnOrigin, signal: o.signal }))
+        await job('admin-login-notices', () => sendAdminLoginNotices(pool, { mail, returnOrigin, signal: o.signal }))
       }
+      if (o.tenantDeletionEffects && config.tenantRegistryPath) {
+        const effects = o.tenantDeletionEffects, registryPath = config.tenantRegistryPath
+        await job('tenant-deletion-run', () => runTenantDeletions({ pool, config, effects, registryPath, enabled: tenantDeletionMode(env).enabled, paymentAdapter: o.paymentAdapter, signal: o.signal, log }))
+      }
+      await job('vendor-alerts', () => sendVendorAlerts(pool, { now: new Date(clock()), env, mail: o.mailAdapter, telegram, consoleOrigin: config.admin?.origin, signal: o.signal, log }))
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) {
           const adapter = o.paymentAdapter
@@ -145,10 +178,12 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         lastBilling = now
         await job('trial-expiry', () => expireTrials(pool, { now: new Date(now) }))
         const adapter = o.paymentAdapter
-        await job('trial-lapse', () => processTrialLapses(pool, { now: new Date(now), adapter }))
-        if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
+        await job('free-base-lock', () => processFreeBaseLocks(pool, { now: new Date(now), adapter }))
+        await job('renewals', () => generateRenewals(pool, { now: new Date(now), returnOrigin }))
+        if (adapter) await job('saved-card-charges', () => chargeSavedCards(pool, { now: new Date(now), adapter, returnOrigin }))
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
+        await job('payment-tokens', () => processTokenDeletions(pool, o.paymentAdapter))
       }
       console.debug(JSON.stringify({ event: 'commercial_scheduler_tick', tick: ticks, jobs: jobCounts }))
     },

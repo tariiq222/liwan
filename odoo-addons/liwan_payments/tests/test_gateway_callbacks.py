@@ -8,6 +8,7 @@ from odoo.tests import tagged
 from odoo.tools import mute_logger
 
 from .common import PAYMOB_CREDENTIALS, LiwanPayerCase
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 from odoo.addons.payment_paymob.controllers.main import PaymobController
 
 HOOK = '/api/v1/public/payments/hooks/paymob/%s'
@@ -65,6 +66,16 @@ class TestGatewayCallbacks(LiwanPayerCase):
             'branch_uid': 'pay-ro', 'company_id': self.invoice.company_id.id, 'operation_id': 'op-pay', 'read_only': True,
         })
         self.assertTrue(self.invoice.company_id.liwan_read_only)
+        payload = self.payload()
+        self.assertEqual(self.post_webhook(payload, self.signature(payload)).status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual((self.tx.state, self.tx.is_post_processed), ('done', True))
+        self.assertTrue(self.tx.payment_id)
+
+    def test_a_tenant_suspended_for_non_payment_still_records_a_signed_callback(self):
+        """Money an end customer already paid is a fact: it is recorded while the tenant is read-only for an unpaid invoice."""
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({'status': 'suspended', 'suspension_reason': 'non_payment'})
         payload = self.payload()
         self.assertEqual(self.post_webhook(payload, self.signature(payload)).status_code, 200)
         self.env.invalidate_all()

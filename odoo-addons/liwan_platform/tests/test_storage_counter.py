@@ -99,14 +99,14 @@ class TestStorageCounter(TransactionCase):
         record.write({'raw': content})
         self.assertEqual(self._used(), self.service._liwan_count_storage_bytes())
 
-    def test_the_blocked_flag_index_serves_the_orm_predicate(self):
+    def test_the_over_limit_flag_index_serves_the_orm_predicate(self):
         attachments = self.Attachment.sudo()
-        query = attachments._search([('liwan_storage_blocked', '=', True)], limit=1)
+        query = attachments._search([('liwan_over_storage_limit', '=', True)], limit=1)
         self.env.flush_all()
         self.cr.execute('SET LOCAL enable_seqscan = off')
         self.cr.execute(SQL('EXPLAIN %s', query.select('ir_attachment.id')))
         plan = '\n'.join(row[0] for row in self.cr.fetchall())
-        self.assertIn('liwan_storage_blocked_idx', plan)
+        self.assertIn('liwan_over_storage_limit_idx', plan)
 
     def test_a_negative_claim_that_underflows_recounts(self):
         self.Attachment.create({'name': 'a.txt', 'raw': b'x' * 100, 'mimetype': 'text/plain'})
@@ -138,18 +138,33 @@ class TestStorageCounter(TransactionCase):
         self._limit_above_usage()
         self.assertEqual(self._used(), self.service._liwan_count_storage_bytes())
 
-    def test_blocked_attachments_still_trigger_the_full_plan(self):
+    def test_over_limit_attachments_still_trigger_the_full_plan(self):
         record = self.Attachment.create({'name': 'a.txt', 'raw': b'x' * (2 * MIB), 'mimetype': 'text/plain'})
         self._limit_above_usage(headroom_mib=0)
-        self.assertFalse(record.liwan_storage_blocked)
+        self.assertFalse(record.liwan_over_storage_limit)
         self.profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
             'features': {**self.profile.features, 'storage.limit_mb': 1},
         })
-        self.assertTrue(record.liwan_storage_blocked)
-        self.assertGreater(self.service._liwan_blocked_storage_bytes(), 0)
+        self.assertTrue(record.liwan_over_storage_limit)
+        self.assertGreater(self.service._liwan_over_limit_storage_bytes(), 0)
         self._limit_above_usage()
-        self.assertFalse(record.liwan_storage_blocked)
-        self.assertEqual(self.service._liwan_blocked_storage_bytes(), 0)
+        self.assertFalse(record.liwan_over_storage_limit)
+        self.assertEqual(self.service._liwan_over_limit_storage_bytes(), 0)
+
+    def test_over_the_limit_files_stay_readable_uploads_stay_refused_and_deleting_reopens_uploads(self):
+        big = self.Attachment.create({'name': 'big.txt', 'raw': b'x' * (2 * MIB), 'mimetype': 'text/plain'})
+        self.profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**self.profile.features, 'storage.limit_mb': 1},
+        })
+        self.assertTrue(big.liwan_over_storage_limit)
+        self.assertEqual(len(big.raw), 2 * MIB)
+        with self.assertRaises(LiwanAccessRule) as caught:
+            self.Attachment.create({'name': 'new.txt', 'raw': b'y', 'mimetype': 'text/plain'})
+        self.assertEqual(caught.exception.code, 'feature_not_included')
+        big.write({'raw': b'z' * 10})
+        self._limit_above_usage()
+        big.unlink()
+        self.Attachment.create({'name': 'new.txt', 'raw': b'y', 'mimetype': 'text/plain'})
 
 
 @tagged('post_install', '-at_install', 'liwan')

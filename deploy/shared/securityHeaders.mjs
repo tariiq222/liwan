@@ -22,17 +22,44 @@ export const DOCUMENT_SECURITY_HEADERS = Object.freeze({
   'permissions-policy': 'camera=(), microphone=(), display-capture=(), geolocation=(self), fullscreen=(self)',
 })
 
+/** Cloudflare Turnstile on the public sign-up page and the find-workspace page (`/register` and `/find-workspace`, the only pages that show the widget). The script, the
+ * challenge iframe and its calls all come from one origin; every other document keeps `frame-src 'none'` and no
+ * third-party script or connect origin. Customer-hosted (non-SaaS) edges do not use this file and never load it. */
+const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
+const REGISTER_PATH = /^\/(?:register|find-workspace)\/?$/
+const registerPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
+  .replace("script-src 'self'", `script-src 'self' ${TURNSTILE_ORIGIN}`)
+  .replace("connect-src 'self'", `connect-src 'self' ${TURNSTILE_ORIGIN}`)
+  .replace("frame-src 'none'", `frame-src ${TURNSTILE_ORIGIN}`)
+
+/** The card payment page (`/subscription/pay/<order>`, the only page that mounts the Moyasar card form). The form package is
+ * bundled with our own scripts and styles and its card-brand images are data URIs, so the page needs one extra origin and only
+ * for `connect-src`: the provider's API, where the form fulfils the payment intent with the publishable key. Its error reporter
+ * would call a second origin (`appsignal-endpoint.net`); that stays blocked on purpose. The 3-D Secure pages open by navigating
+ * the whole window, which no directive here governs. */
+export const MOYASAR_API_ORIGIN = 'https://api.moyasar.com'
+// Case-sensitive on purpose: the app redirects any other spelling of the path to this one. `deploy/Caddyfile` carries the same
+// expression in its `map` and `deploy/shared/securityHeaders.test.mjs` pins the two together.
+export const PAY_PATH = /^\/subscription\/pay\/[A-Za-z0-9_-]+\/?$/
+const payPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
+  .replace("connect-src 'self'", `connect-src 'self' ${MOYASAR_API_ORIGIN}`)
+
 /** The referrer policy is a default: an upstream value that is already set survives. */
 export const DEFAULT_ONLY_HEADERS = Object.freeze(new Set(['referrer-policy']))
+
+function policyFor(path, defaultPolicy) {
+  if (REGISTER_PATH.test(path)) return registerPolicy
+  return PAY_PATH.test(path) ? payPolicy : defaultPolicy
+}
 
 /** Apply the document headers to one outgoing response's header map, in place.
  * A fixed header always wins over an upstream value (`defer` on the dedicated edge);
  * a default-only header never overwrites one the app already sent.
  */
-export function applyDocumentHeaders(headers) {
+export function applyDocumentHeaders(headers, path = '') {
   for (const [name, value] of Object.entries(DOCUMENT_SECURITY_HEADERS)) {
     if (DEFAULT_ONLY_HEADERS.has(name) && headers[name] !== undefined) continue
-    headers[name] = value
+    headers[name] = name === 'content-security-policy' ? policyFor(path.split('?')[0], value) : value
   }
   return headers
 }

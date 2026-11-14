@@ -14,8 +14,11 @@ class TestCatalogSync(LiwanCatalogCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.tax = cls.env['account.tax'].create({'name': 'VAT 15', 'amount': 15, 'amount_type': 'percent', 'type_tax_use': 'sale'})
-        cls.taxed = cls.image_product('Taxed', 100.0, taxes_id=[Command.set(cls.tax.ids)])
-        # A catalog price carries a tax only while the company is registered for VAT (test_vat_registered covers the other case).
+        # Typed 115 with a 15% tax. The shared fixture company computes under "price includes tax" (stated by the payments
+        # case), so the customer pays the typed 115.00; test_vat_registered covers "tax added" (132.25) and the
+        # unregistered case (115.00) on companies whose mode can still change.
+        cls.taxed = cls.image_product('Taxed', 115.0, taxes_id=[Command.set(cls.tax.ids)])
+        # A catalog price carries a tax only while the establishment is registered for VAT.
         cls.env.company.write({'vat': '300000000000003', 'liwan_vat_registered': True})
 
     def setUp(self):
@@ -43,11 +46,11 @@ class TestCatalogSync(LiwanCatalogCase):
             'brand': 'Acme',
         })
 
-    def test_prices_without_tax_and_a_catalog_link(self):
-        self.catalog.write({'prices_include_tax': False, 'default_link': 'https://shop.example.test'})
+    def test_the_price_is_the_taxed_total_and_the_catalog_link_is_used(self):
+        self.catalog.write({'default_link': 'https://shop.example.test'})
         self.make_item(self.catalog, self.taxed, link_override='https://shop.example.test/taxed')
         data = self.run_sync().bodies('items_batch')[0]['requests'][0]['data']
-        self.assertEqual((data['price'].split()[0], data['link']), ('100.00', 'https://shop.example.test/taxed'))
+        self.assertEqual((data['price'].split()[0], data['link']), ('115.00', 'https://shop.example.test/taxed'))
 
     def test_variants_share_an_item_group(self):
         size = self.env['product.attribute'].create({

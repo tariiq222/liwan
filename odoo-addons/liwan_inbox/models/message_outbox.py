@@ -24,6 +24,9 @@ class LiwanInboxMessageOutbox(models.Model):
 
     @api.model
     def _liwan_run_outbox(self):
+        # Queued replies and campaign messages wait while the tenant is not paid up and go out after payment.
+        if not self.env['liwan.entitlement.service']._liwan_may_act_outward():
+            return
         self._liwan_settle_interrupted_sends()
         # Agent and automation messages always leave before campaign messages; a full batch asks for another run at once.
         # `answered` remembers, within this run, which messages the provider already took (see `_liwan_unexpected_failure`).

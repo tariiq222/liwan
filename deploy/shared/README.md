@@ -81,9 +81,36 @@ bytes (`openssl rand -hex 32`), keep them distinct, and never reuse one for anot
 | --- | --- | --- |
 | `LIWAN_SHARED_PROXY_TOKEN` | guard, web | The guard treats its holder as internal: identity headers and `/api/v1` pass straight to Odoo for any tenant in the registry. |
 | `LIWAN_TIKTOK_RELAY_TOKEN` | odoo, tiktok-relay (`tiktok` profile only) | Register or remove a TikTok account binding for a tenant on the relay. It opens nothing on the guard. Leave it empty when the stack runs no TikTok app; a relay with an app secret refuses to start without it. |
+| `LIWAN_AUTHENTICA_API_KEY` | odoo | Send sign-in SMS through the operator's Authentica account, billed to it. Not the sign-up key (`LIWAN_SIGNUP_AUTHENTICA_KEY`, control API only). See "Sign-in SMS (Authentica)". |
 | `AI_SERVICE_TOKEN` | web, ai | Call ai-service for any tenant: the tenant and user travel as plain `x-liwan-tenant` / `x-liwan-user` headers. |
 | `CUSTOMER_COMMERCIAL_SERVICE_KEY` | web, control-api | Sign a commercial principal (tenant and capabilities) that the control plane accepts. |
 | `AI_DB_PASSWORD` (role `liwan_ai`) | ai | Connect to its own `liwan_ai` database and to each tenant database that `ai/tenant_schema.sql` opened to it; `PUBLIC` keeps no `CONNECT`. |
+
+## Sign-in SMS (Authentica)
+
+Two-step sign-in sends its code by SMS or email. SMS goes through Authentica when Odoo has both operator
+variables below; without them the sign-in screen offers email only and nothing fails.
+
+| Variable | Meaning |
+| --- | --- |
+| `LIWAN_AUTHENTICA_API_KEY` | The Authentica account key (sent as `X-Authorization`). One account serves every tenant on shared hosting; a customer-hosted deployment sets its own. |
+| `LIWAN_AUTHENTICA_TEMPLATE_ID` | The numeric id of the approved SMS template. |
+
+Both go in `deploy/.env` (Compose passes them to `odoo` only) or, on shared hosting, in the Compose environment
+of the `odoo` service. They are read from the Odoo process environment, never from a tenant database row, and are
+neither returned by an API nor logged. The optional database parameter `liwan.login.sms.provider` overrides the
+choice (`authentica`, or `simulator` for development only; the simulator is refused outside a test run). Empty
+means Authentica whenever both variables are set.
+
+Template: Odoo generates and verifies the 6-digit code itself and passes it in the `otp` field of
+`send-otp` (the same call the sign-up code uses), so the approved template must accept a caller-supplied OTP and
+the Authentica application must allow SMS delivery. The call has a 3 s connect and 5 s read timeout and is made
+once; a refusal or timeout tells the user the channel is unavailable so they can pick email. At most 5 codes per
+user or per number per hour, 10 per user per day and 50 per tenant per day (SMS and email together).
+
+Odoo needs an outbound HTTPS route to `api.authentica.sa:443`. The shared Compose overlay attaches `odoo` to
+internal-only networks, so this route must be provided by the operator (for example an egress proxy set as
+`HTTPS_PROXY` in the `odoo` environment) before the variables take effect.
 
 Odoo and `restore-odoo` never receive `LIWAN_SHARED_PROXY_TOKEN`, and `restore-odoo` receives no relay token
 either. The last three rows still reach every tenant: narrowing them needs a per-tenant signature from Nuxt that
@@ -389,6 +416,17 @@ Internal route (reached only from the `relay_odoo` network, never through the ed
   `{"schemaVersion":1,"bindings":{"<user_openid>":"<tenant id>"}}`, written atomically
   (temporary sibling, fsync, rename) and read on every request.
 
+- `DELETE /internal/tiktok/tenants/<tenant id>` (no body): removes every binding of the tenant,
+  whether it is enabled, disabled or gone from the registry. The control plane's workspace
+  deletion calls it (step `unbind_relay`), because the bindings route above refuses a tenant that
+  is no longer active. The same `X-Liwan-Proxy-Token`, compared in constant time; a missing or
+  wrong token answers 403, another method 405, and an id outside the registry format
+  (`^[a-z][a-z0-9_-]{0,62}$`) 400. It does not consult the registry. Idempotent: a tenant with no
+  binding answers 200. The answer carries a count only: `{"removed": <n>}`. The control plane
+  needs `LIWAN_TIKTOK_RELAY_URL` and `LIWAN_TIKTOK_RELAY_TOKEN` in its worker environment, so the
+  operator publishes the relay's internal port to the host loopback for it (see
+  `docs/operations/saas-commercial-runbook.md` 4.4); without them the step is recorded `skipped`.
+
 Configuration (all operator-owned, never in Git):
 
 - `LIWAN_TIKTOK_RELAY_HOST`: the platform's TikTok delivery host; its DNS name and TLS
@@ -451,6 +489,19 @@ invitation. The control API and web BFF share the customer-commercial signing
 key. Keep the Authentica key on the control API only. The delivery cap defaults
 to 100 per channel per rolling day and is configurable with
 `LIWAN_SIGNUP_DAILY_LIMIT`.
+
+Set `LIWAN_SIGNUP_LEGAL_BASE_URL` (an https URL, the site that hosts `/terms` and `/privacy`) and
+`LIWAN_SIGNUP_TERMS_VERSION` on the control API as well; sign-up stays off without them. The form requires
+the visitor to accept both pages, and the control API stores the accepted version, the time and the client
+address on the new customer. Change the version whenever the texts change: a form opened before the change
+asks the visitor to review and accept again.
+
+Create a Cloudflare Turnstile widget (managed mode, hostname of the app domain) and set
+`LIWAN_SIGNUP_TURNSTILE_SITE_KEY` and `LIWAN_SIGNUP_TURNSTILE_SECRET_KEY` on the control API; sign-up stays off
+without both. The form must pass the check before the SMS code is sent, and the control API verifies the token
+against Cloudflare with the secret and the visitor's address; if Cloudflare cannot be reached it refuses the
+request (no SMS). The guard's CSP for `/register` alone allows `https://challenges.cloudflare.com` for scripts,
+frames and connections (`deploy/shared/securityHeaders.mjs`).
 
 The workspace follows normal commercial worker fulfillment and invitation
 delivery. Verify SMS arrival and email delivery with test recipients on an

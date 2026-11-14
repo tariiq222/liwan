@@ -9,7 +9,7 @@ const statesSql = `WITH customer_states AS (
   SELECT c.*, CASE
     WHEN c.commercial_setup_required OR s.id IS NULL THEN 'setup_required'
     WHEN o.fulfillment_state IN ('failed','needs_intervention') THEN 'failed'
-    WHEN o.payment_state IN ('awaiting_payment','failed') THEN 'awaiting_payment'
+    WHEN o.payment_state='awaiting_payment' THEN 'awaiting_payment'
     WHEN o.payment_state IN ('refund_pending','refunded') THEN 'failed'
     WHEN o.id IS NOT NULL THEN 'activating'
     WHEN s.state IN ('suspended','cancelled') THEN 'inactive'
@@ -41,7 +41,11 @@ export async function customerView(pool: Pool, customer: Record<string, any>) {
     if (e instanceof CommercialHttpError && e.status === 404) return null
     throw e
   })
-  return { ...customer, subscription }
+  // Only a customer created by public sign-up has a claim row, so only it has an acceptance (the client address stays here).
+  const accepted = (await pool.query<{ terms_version: string; accepted_at: Date }>(
+    'SELECT terms_version,terms_accepted_at AS accepted_at FROM public_signup_trials WHERE customer_id=$1 AND terms_version IS NOT NULL', [customer.id])).rows[0]
+  const signup_acceptance = accepted ? { terms_version: accepted.terms_version, accepted_at: accepted.accepted_at.toISOString() } : null
+  return { ...customer, subscription, signup_acceptance }
 }
 
 export async function listCustomers(pool: Pool, url: URL) {

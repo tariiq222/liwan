@@ -1,4 +1,4 @@
-import { isSignupEndpoint, signupFromEnv, signupHttp } from './signup/http.js'
+import { isSignupEndpoint, SIGNUP_BODY_LIMIT, signupFromEnv, signupHttp } from './signup/http.js'
 import {requestRestorePublication,restorePublication} from './shared/restore-publication.js'
 import { accountCapabilities, vendorActorIssuer } from './admin-auth/grants.js'
 import { packageHttp } from './package-http.js'
@@ -9,7 +9,9 @@ import { returnOriginFromEnv } from './commercial/return-origin.js'
 import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
 import { CommercialHttpError } from './commercial/lifecycle.js'
-import { invitationPublicHttp, invitationVendorHttp } from './commercial/invitation-http.js'
+import { invitationPublicHttp, invitationVendorHttp, REISSUE_PATH, verifiedReissueContext } from './commercial/invitation-http.js'
+import { FIND_WORKSPACE_BODY_LIMIT, FIND_WORKSPACE_PATH, workspaceLookupHandler } from './commercial/workspace-lookup-http.js'
+import { humanCheckFromEnv, type HumanCheck } from './signup/human-check.js'
 import { odooSetPassword } from './commercial/invitation-odoo.js'
 import type { SetPassword } from './commercial/invitations.js'
 import { internalEffectPasswordAdapter } from './commercial/invitation-effect-client.js'
@@ -34,7 +36,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { requirePublishableSource } from './shared/catalog-source.js'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
 import { isIP } from 'node:net'
@@ -46,6 +48,7 @@ import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from './config.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
 import { publishRegistryMutation, recoverRegistry, RegistryError, registryMutationSchema } from './shared/registry-store.js'
+import { logText } from './log-text.js'
 
 const exec = promisify(execFile)
 // No shared durable publisher/fenced adapter is wired. Never fall back to the
@@ -69,6 +72,13 @@ function operationSource(url: URL, allowed: string[]): string {
   const values = url.searchParams.getAll('source')
   if (values.length > 1 || (values.length === 1 && !allowed.includes(values[0]))) throw new ApiError(422, 'invalid', 'Invalid operation source', 'source')
   return values[0] ?? 'legacy'
+}
+
+/** Per client address: accept and check 10 a minute each; a new-invitation request 5 every ten minutes. */
+const INVITATION_LIMITS: Record<string, { max: number; windowMs: number }> = {
+  '/v1/invitations/accept': { max: 10, windowMs: 60000 },
+  '/v1/invitations/check': { max: 10, windowMs: 60000 },
+  [REISSUE_PATH]: { max: 5, windowMs: 600000 },
 }
 
 const INVITATION_MESSAGES = {
@@ -322,11 +332,17 @@ function invitationClientAddress(req: IncomingMessage, pathname: string, service
   return req.socket.remoteAddress ?? 'unknown'
 }
 
-export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
+/** The address the vendor BFF observed for the signed-in vendor (it always sets the header, apps/vendor-admin/server/utils/control.ts); not an address when malformed. */
+function vendorClientAddress(headers: IncomingHttpHeaders): string | undefined {
+  const claimed = headers['x-liwan-client-ip']
+  return typeof claimed === 'string' && isIP(claimed) ? claimed : undefined
+}
+
+export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib; humanCheck?: HumanCheck }) {
   // Dedicated: the first LIWAN_PAYMENT_RETURN_ORIGINS entry. Shared: each customer's own tenant host, checked against that allowlist.
   const paymentRuntime: PaymentRuntime = {adapter:null,returnOrigin:returnOriginFromEnv(pool,process.env)}
   // Payment routes fail closed without an adapter; the other routes stay available. The reason is logged, never the secret.
-  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch (e) { console.error('commercial payment adapter unavailable:', e instanceof Error ? e.message : e) }
+  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch (e) { console.error('commercial payment adapter unavailable: %s', logText(e)) }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
   const effect = config.internalEffect
   const setPassword: SetPassword | undefined = process.env.LIWAN_TENANCY_MODE === 'shared' && effect?.url && effect.ca
@@ -341,6 +357,24 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
   let invitationsInFlight = 0
   const invitationAttempts = new Map<string, { count: number; expiresAt: number }>()
   let invitationCleanupAt = 0
+  /** Counts one more attempt under `key` and says whether the budget is spent; the table forgets a window once it has passed. */
+  const overLimit = (key: string, limit: { max: number; windowMs: number }) => {
+    const now = Date.now()
+    if (now >= invitationCleanupAt) {
+      for (const [k, attempt] of invitationAttempts) if (attempt.expiresAt <= now) invitationAttempts.delete(k)
+      invitationCleanupAt = now + 60000
+    }
+    let attempt = invitationAttempts.get(key)
+    if (!attempt || attempt.expiresAt <= now) {
+      attempt = { count: 0, expiresAt: now + limit.windowMs }
+      invitationAttempts.set(key, attempt)
+    }
+    return ++attempt.count > limit.max
+  }
+  // The "find my workspace" check shares the sign-up human check: it exists only where public sign-up is configured.
+  let lookupHumanCheck = deps?.humanCheck
+  if (!lookupHumanCheck && signup) { try { lookupHumanCheck = humanCheckFromEnv(process.env).verify } catch { /* signup already reported its configuration */ } }
+  const workspaceLookup = workspaceLookupHandler(pool, { service: bffService, humanCheck: lookupHumanCheck, overLimit, bucket: clientAddressBucket })
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
     try {
       const method = req.method ?? ''
@@ -352,26 +386,22 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (!path.startsWith('/v1/')) throw new ApiError(404, 'not_found', 'Endpoint not found')
       const url = new URL(path, 'http://localhost')
       const pathname = url.pathname
-      if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check') {
+      if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check' || pathname === REISSUE_PATH) {
         if (method !== 'POST') return respond(res, 404, { code: 'not_found', message: 'Endpoint not found' })
-        const now = Date.now()
-        if (now >= invitationCleanupAt) {
-          for (const [ip, attempt] of invitationAttempts) if (attempt.expiresAt <= now) invitationAttempts.delete(ip)
-          invitationCleanupAt = now + 60000
-        }
+        // The tenant and visitor address of a reissue are trusted only as signed by the Nuxt server; the tenant is never read from the body.
+        const reissue = pathname === REISSUE_PATH ? verifiedReissueContext(req.headers, bffService) ?? undefined : undefined
+        if (pathname === REISSUE_PATH && !reissue) return respond(res, 403, { code: 'forbidden', message: 'Request not accepted' })
         // Unsigned forwarding headers are never trusted for this public limit.
         // accept and check count separately so a page-load check never uses up the accept budget.
-        const ip = `${pathname}|${clientAddressBucket(invitationClientAddress(req, pathname, bffService))}`
-        let attempt = invitationAttempts.get(ip)
-        if (!attempt || attempt.expiresAt <= now) {
-          attempt = { count: 0, expiresAt: now + 60000 }
-          invitationAttempts.set(ip, attempt)
-        }
-        if (++attempt.count > 10) return respond(res, 429, { code: 'rate_limited', message: 'Too many requests' })
+        const limit = INVITATION_LIMITS[pathname]!
+        // A reissue is budgeted per workspace and per signed visitor address, so one visitor cannot spend another's.
+        const visitor = reissue ? `${reissue.tenant_id}|${clientAddressBucket(reissue.client_address)}` : clientAddressBucket(invitationClientAddress(req, pathname, bffService))
+        const ip = `${pathname}|${visitor}`
+        if (overLimit(ip, limit)) return respond(res, 429, { code: 'rate_limited', message: 'Too many requests' })
         if (invitationsInFlight >= 4) return respond(res, 503, { code: 'unavailable', message: INVITATION_MESSAGES.unavailable })
         invitationsInFlight++
         try {
-          const response = await invitationPublicHttp(pool, { method, pathname, raw: await bodyBytes(req), setPassword })
+          const response = await invitationPublicHttp(pool, { method, pathname, raw: await bodyBytes(req, pathname === REISSUE_PATH ? 1024 : undefined), setPassword, reissue })
           return respond(res, response!.status, response!.data)
         } catch (error) {
           // Fixed table only: never error text, which could carry request material.
@@ -381,9 +411,13 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
           return respond(res, status, { code, message: INVITATION_MESSAGES[code] })
         } finally { invitationsInFlight-- }
       }
+      if (pathname === FIND_WORKSPACE_PATH) {
+        const answer = await workspaceLookup(method, await bodyBytes(req, FIND_WORKSPACE_BODY_LIMIT), req.headers)
+        return respond(res, answer.status, answer.data)
+      }
       if (isSignupEndpoint(pathname)) {
         const result = await signupHttp(pool, { issuer: signupIssuer, key: signupKey }, {
-          method, path, raw: signup ? await bodyBytes(req, 2048) : '', headers: req.headers,
+          method, path, raw: signup ? await bodyBytes(req, SIGNUP_BODY_LIMIT) : '', headers: req.headers,
         }, signup)
         return respond(res, result.status, result.data)
       }
@@ -409,7 +443,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (aiProviderResponse) return respond(res, aiProviderResponse.status, aiProviderResponse.data)
       const packageResponse = await packageHttp(pool,{method,pathname,raw,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,repositoryRoot:config.repositoryRoot})
       if(packageResponse)return respond(res,packageResponse.status,packageResponse.data)
-      const commercialInput={method,pathname,search:url.search,raw,issuer:vendorActorIssuer(config.installationId),actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh}
+      const commercialInput={method,pathname,search:url.search,raw,issuer:vendorActorIssuer(config.installationId),actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,clientAddress:vendorClientAddress(req.headers)}
       const invitationResponse = await invitationVendorHttp(pool, commercialInput)
       if (invitationResponse) return respond(res, invitationResponse.status, invitationResponse.data)
       let commercialResponse
@@ -567,8 +601,12 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         requireCapability(auth, 'vendor.tenants.manage')
         const input = parseJson(raw, operationsGrantSchema)
         const result = await transaction(pool, async (client) => {
-          const row = await client.query(`UPDATE tenants SET operations_enabled=$1 WHERE id=$2 RETURNING ${TENANT_FIELDS}`, [input.enabled, grantMatch[1]])
-          if (!row.rowCount) throw new ApiError(404, 'not_found', 'Installation not found')
+          const row = await client.query(`UPDATE tenants SET operations_enabled=$1 WHERE id=$2 AND status NOT IN ('deleting','deleted') RETURNING ${TENANT_FIELDS}`, [input.enabled, grantMatch[1]])
+          if (!row.rowCount) {
+            // A workspace that is being or has been deleted never gets its operations back through this route.
+            if ((await client.query('SELECT 1 FROM tenants WHERE id=$1', [grantMatch[1]])).rowCount) throw new ApiError(409, 'tenant_retiring', 'The workspace is being deleted')
+            throw new ApiError(404, 'not_found', 'Installation not found')
+          }
           await audit(client, auth.actor, input.enabled ? 'tenant.operations.enabled' : 'tenant.operations.disabled', grantMatch[1], input.reason)
           return row.rows[0]
         })

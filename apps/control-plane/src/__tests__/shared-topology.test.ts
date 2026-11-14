@@ -35,7 +35,7 @@ it.skipIf(!hasDocker)('renders the TikTok relay on its own internal network when
   expect(Object.keys(relay.networks)).not.toContain('guard_odoo')
   expect(Object.keys(relay.networks)).not.toContain('database')
   expect(model.networks.relay_odoo.internal).toBe(true)
-  expect(Object.keys(model.services.odoo.networks).sort()).toEqual(['database', 'guard_odoo', 'relay_odoo'])
+  expect(Object.keys(model.services.odoo.networks).sort()).toEqual(['database', 'guard_odoo', 'odoo_egress', 'odoo_mail', 'relay_odoo'])
 })
 it.skipIf(!hasDocker)('renders dedicated defaults without shared services or build mode', () => {
   const s = rendered(false).services
@@ -56,7 +56,7 @@ it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mo
   // `relay_odoo` carries the TikTok relay's binding calls (D13). A stack without the `tiktok` profile
   // runs no relay, so the network stays unused; with the profile the relay joins it and reaches
   // neither `guard_odoo` nor `database`.
-  expect(Object.keys(s.odoo.networks).sort()).toEqual(['database', 'guard_odoo', 'relay_odoo'])
+  expect(Object.keys(s.odoo.networks).sort()).toEqual(['database', 'guard_odoo', 'odoo_egress', 'odoo_mail', 'relay_odoo'])
   expect(model.networks.relay_odoo.internal).toBe(true)
   expect(s['tiktok-relay']).toBeUndefined()
   expect(s.web.build.args.LIWAN_TENANCY_MODE).toBe('shared')

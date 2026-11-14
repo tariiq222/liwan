@@ -35,6 +35,10 @@ MODULE_ID = re.compile(r'(?:liwan|customer)_[a-z0-9_]+')
 TENANT_HOST = re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+')
 MAX_OUTPUT = 65536
 TENANT_DB_ROLE = 'odoo'  # db_user of deploy/shared/odoo.conf
+# System parameter that binds a tenant database to its control-plane tenant. The final deletion of a workspace
+# refuses any database whose marker differs from the tenant it was asked to delete.
+TENANT_MARKER_PARAMETER = 'liwan.control.tenant_id'
+CONTROL_TENANT_ID = re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}')
 
 class EffectError(ValueError):
     pass
@@ -232,6 +236,9 @@ class Runner:
         if request['job']['operation'] not in ('provision', 'backup', 'restore') or request['job']['binding']['filestore'] != self.database:
             raise EffectError('operation_unavailable')
         if request['job']['operation'] == 'provision':
+            # Top level beside `host` and `companyName`: the provision job schema itself does not carry the control tenant.
+            if not isinstance(request.get('controlTenantId'), str) or not CONTROL_TENANT_ID.fullmatch(request['controlTenantId']):
+                raise EffectError('input_invalid')
             validate_modules(request['job']['policy']['modules'])
             validate_host(request.get('host'), config['domainSuffix'])
         self.root = Path(config['stateDir'])
@@ -432,7 +439,8 @@ class Runner:
 
     def admin_script(self, secret, *, snapshot):
         values = {'database': self.database, 'name': self.request['admin']['name'], 'login': self.request['admin']['login'],
-                  'companyName': self.request['companyName'], 'host': self.request['host']}
+                  'companyName': self.request['companyName'], 'host': self.request['host'],
+                  'controlTenantId': self.request['controlTenantId'], 'markerParameter': TENANT_MARKER_PARAMETER}
         prefix = 'import json\nvalues = json.loads(' + repr(json.dumps(values)) + ')\nsecret = ' + repr(secret) + '\nsnapshot = ' + repr(snapshot) + '\n'
         return prefix + '''
 result = {'verified': False}
@@ -455,6 +463,8 @@ try:
         profile.root_company_id.write({'name': values['companyName']})
         # Stock builds payment return/webhook and mail links from web.base.url: pin it to the routed host.
         profile.with_context(**{OPERATOR_CONTEXT: True})._liwan_set_public_origin(values['host'])
+        # Binds this database to its control-plane tenant; idempotent for the same tenant, so a resumed run is safe.
+        env['ir.config_parameter'].set_param(values['markerParameter'], values['controlTenantId'])
         for key in keys:
             role = env['liwan.access.role'].search([('key', '=', key)], limit=1)
             assert role
@@ -484,6 +494,7 @@ try:
     assert profile.root_company_id.name == values['companyName']
     params = env['ir.config_parameter']
     assert params.get_param('web.base.url') == 'https://' + values['host'] and params.get_param('web.base.url.freeze')
+    assert params.get_param(values['markerParameter']) == values['controlTenantId']
     assigned = env['liwan.access.assignment'].search([('user_id', '=', admin.id), ('company_id', '=', profile.root_company_id.id)]).mapped('role_id.key')
     assert set(keys) <= set(assigned)
     env.cr.execute('SELECT password FROM res_users WHERE id=%s', [admin.id])

@@ -105,10 +105,10 @@ suite('live PostgreSQL vendor analytics', () => {
     const r = data.current.revenue
     expect([minor(r.mrr), minor(r.arr), minor(r.new_mrr), minor(r.expansion_mrr), minor(r.contraction_mrr), minor(r.arpc)])
       .toEqual([45100, 541200, 10000, 20000, 5200, 11275])
-    expect(r.churned_mrr).toEqual({ available: false, reason: 'no_cancellation_date' })
+    expect(r.churned_mrr).toMatchObject({ available: true, value: { minor: 0 } })
     expect(data.current.customers.active).toEqual({ available: true, value: 4 })
     expect(data.current.customers.new).toEqual({ available: true, value: 1 })
-    expect(data.current.customers.churn_rate_by_count.available).toBe(false)
+    expect(data.current.customers.churned).toEqual({ available: true, value: 0 })
     expect(data.trend).toHaveLength(12)
     expect(data.trend[11]).toMatchObject({ month: '2026-10', customers: { available: true, value: 4 } })
     expect(minor(data.trend[11]!.mrr)).toBe(45100)
@@ -152,8 +152,8 @@ suite('live PostgreSQL vendor analytics', () => {
         { at: '2026-09-25T09:00:00Z', plan_revision_id: p1, base_minor: 2900, bundle_minor: { trialed: 19900 } },
         { at: '2026-10-09T09:00:00Z', plan_revision_id: p1, base_minor: 2900 }] })
       const trialRevision = (await solo.query('SELECT target_revision_id FROM orders WHERE id=$1', [lapsed.orders[0]!.id])).rows[0].target_revision_id
-      await solo.query(`INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,lapsed_at,ended_at,state)
-        VALUES($1,$2,'2026-10-05','2026-10-05T00:05:00Z','2026-10-05T00:00:00Z','done')`, [lapsed.subscription_id, trialRevision])
+      await solo.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,trial_ended_at,cause,state)
+        VALUES($1,$2,'2026-10-05','2026-10-05T00:05:00Z','2026-10-05T00:00:00Z','trial_end','done')`, [lapsed.subscription_id, trialRevision])
       const after = await getAnalytics(solo, period, now)
       // Only the lock's 2,900 is recurring, and it is booked at the trial boundary (October 5), inside the period, as new revenue.
       expect(minor(after.current.revenue.mrr) - minor(before.current.revenue.mrr)).toBe(2900)
@@ -163,6 +163,44 @@ suite('live PostgreSQL vendor analytics', () => {
       // Nothing was booked on the upgrade date (September 25) from the unpaid bundle.
       expect(minor(after.previous.revenue.new_mrr)).toBe(minor(before.previous.revenue.new_mrr))
       expect(minor(after.trend[11]!.mrr) - minor(before.trend[11]!.mrr)).toBe(2900)
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('takes a refunded order out of MRR from the moment its free-base lock was armed', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const before = await getAnalytics(solo, period, now)
+      const paid = await seedCustomer(solo, { name: 'M refunded', state: 'active', steps: [{ at: '2026-10-02T09:00:00Z', plan_revision_id: p1, base_minor: 5000 }] })
+      const booked = await getAnalytics(solo, period, now)
+      expect(minor(booked.current.revenue.mrr) - minor(before.current.revenue.mrr)).toBe(5000)
+      const revision = (await solo.query('SELECT target_revision_id FROM orders WHERE id=$1', [paid.orders[0]!.id])).rows[0].target_revision_id
+      await solo.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,state)
+        VALUES($1,$2,'2026-10-02','2026-10-08T09:00:00Z','refund','pending')`, [paid.subscription_id, revision])
+      const after = await getAnalytics(solo, period, now)
+      expect(minor(after.current.revenue.mrr)).toBe(minor(before.current.revenue.mrr))
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('counts neither the conversion nor the money of a converted trial whose payment was refunded in full', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const before = await getAnalytics(solo, period, now)
+      const refunded = await seedCustomer(solo, { name: 'L refunded', state: 'active', trial_ends_at: '2026-10-06T00:00:00Z' })
+      const invoice = await seedInvoice(solo, { customer_id: refunded.customer_id, subscription_id: refunded.subscription_id, status: 'paid', total_minor: 8000,
+        issued_at: '2026-10-06T00:00:00Z', due_at: '2026-10-13T00:00:00Z', paid_at: '2026-10-07T00:00:00Z' })
+      const counted = await getAnalytics(solo, period, now)
+      expect(minor(counted.current.collection.collected) - minor(before.current.collection.collected)).toBe(8000)
+      await solo.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause,refund_reference,refunded_at,refunded_by)
+        VALUES($1,$2,$3,'credit_note','Customer asked within 14 days',8000,'SAR',2,'refunded','vendor-test','vendor','vendor_refund','MOY-L-1',now(),'vendor-test')`,
+      [randomUUID(), invoice, refunded.customer_id])
+      const after = await getAnalytics(solo, period, now)
+      expect(minor(after.current.collection.collected)).toBe(minor(before.current.collection.collected))
+      // One more ended trial and no more paid ones: the refunded conversion lowers the rate instead of raising it.
+      expect(after.current.customers.trial_conversion_rate).toEqual({ available: true, value: 1 / 3 })
       await solo.query('ROLLBACK')
     } finally { await solo.end() }
   })
@@ -225,5 +263,39 @@ suite('live PostgreSQL vendor analytics', () => {
       expect(data.trend.every(point => minor(point.mrr) === 0)).toBe(true)
       await empty.query('ROLLBACK')
     } finally { await empty.end() }
+  })
+
+  it('counts a cancelled subscription that dropped to the free base as churn on its effective date, and keeps the paid history it dropped from', async () => {
+    const before = await getAnalytics(pool, period, now)
+    const k = await seedCustomer(pool, { name: 'K cancelled', state: 'active', renewal_at: '2026-11-12', steps: [
+      { at: '2026-09-10T09:00:00Z', plan_revision_id: p1, base_minor: 30000, paid_at: '2026-09-10T08:00:00Z' },
+      { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] })
+    const first = (await pool.query('SELECT id FROM subscription_revisions WHERE subscription_id=$1 ORDER BY revision LIMIT 1', [k.subscription_id])).rows[0].id
+    await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,state,order_id,next_attempt_at)
+      VALUES($1,$2,'2026-10-12','2026-10-12T00:00:00Z','cancelled','done',$3,'2026-10-12T00:00:00Z')`, [k.subscription_id, first, k.orders[1]!.id])
+    const after = await getAnalytics(pool, period, now)
+    expect(minor(after.current.revenue.churned_mrr)).toBe(minor(before.current.revenue.churned_mrr) + 30000)
+    expect(minor(after.current.revenue.contraction_mrr)).toBe(minor(before.current.revenue.contraction_mrr))
+    expect(after.current.customers.churned).toEqual({ available: true, value: 1 })
+    expect(after.current.customers.churn_rate_by_count).toMatchObject({ available: true })
+    expect(minor(after.current.revenue.mrr)).toBe(minor(before.current.revenue.mrr))
+  })
+
+  it('keeps the history a trial-end lock excluded after the same row is rewritten for a cancellation', async () => {
+    const august = { from: '2026-08-01', to: '2026-08-15' }
+    const before = await getAnalytics(pool, august, now)
+    const l = await seedCustomer(pool, { name: 'L trialled then cancelled', state: 'active', renewal_at: '2026-11-12', steps: [
+      { at: '2026-08-01T09:00:00Z', plan_revision_id: p1, base_minor: 20000 },
+      { at: '2026-08-12T09:00:00Z', plan_revision_id: p1, base_minor: 0 },
+      { at: '2026-09-05T09:00:00Z', plan_revision_id: p1, base_minor: 10000, paid_at: '2026-09-05T08:00:00Z' },
+      { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] })
+    const first = (await pool.query('SELECT id FROM subscription_revisions WHERE subscription_id=$1 ORDER BY revision LIMIT 1', [l.subscription_id])).rows[0].id
+    await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,state,order_id,next_attempt_at,excluded_until)
+      VALUES($1,$2,'2026-10-12','2026-10-12T00:00:00Z','cancelled','done',$3,'2026-10-12T00:00:00Z','2026-08-10T00:00:00Z')`, [l.subscription_id, first, l.orders[3]!.id])
+    const after = await getAnalytics(pool, august, now)
+    // The unbilled trial-era order (20000, before the trial-end cutoff) is still not revenue.
+    expect(minor(after.current.revenue.new_mrr)).toBe(minor(before.current.revenue.new_mrr))
+    const autumn = await getAnalytics(pool, { from: '2026-10-01', to: '2026-10-15' }, now)
+    expect(minor(autumn.current.revenue.churned_mrr)).toBeGreaterThanOrEqual(10000)
   })
 })

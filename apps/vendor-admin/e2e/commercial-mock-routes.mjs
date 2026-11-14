@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const fixtures = JSON.parse(readFileSync(resolve(import.meta.dirname, 'commercial-fixtures.json'), 'utf8'))
+// LIWAN_MOCK_SAVED_CARD=1 serves every subscription with the saved card and auto-renew on, to see that state; unset, no card is saved.
+const withSavedCard = subscription => (subscription && process.env.LIWAN_MOCK_SAVED_CARD === '1'
+  ? { ...subscription, auto_renew: { enabled: true, consent_at: '2026-10-01T08:00:00.000Z', payment_method: fixtures.savedCard } }
+  : subscription)
 const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
 const notFound = res => json(res, 404, { code: 'not_found', message: 'Not found' })
 
@@ -37,7 +41,7 @@ function vendorInvoice(invoice) {
   if (!invoice) return invoice
   const paid = invoice.status === 'paid' && invoice.paid_at
   const until = paid ? `${new Date(Date.parse(invoice.paid_at) + REFUND_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)}T23:59:59+03:00` : null
-  return { ...invoice, adjustments: [], refund: { refundable: Boolean(paid), first_payment: Boolean(paid), until, window_days: REFUND_WINDOW_DAYS } }
+  return { ...invoice, adjustments: [], refund: { refundable: Boolean(paid), first_payment: Boolean(paid), until, window_days: REFUND_WINDOW_DAYS, locks_subscription: false } }
 }
 
 /** Workspace name and owning customer, resolved for display the way the control plane does. */
@@ -128,7 +132,7 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
     send({ items: items.slice(from, from + 25), total: items.length })
   } else if (path === '/v1/commercial/customers') send(page(fixtures.customers, url, c => (!q(url, 'q') || c.name.includes(q(url, 'q'))) && (!q(url, 'tenant_id') || c.tenant_id === q(url, 'tenant_id'))))
   else if ((m = /^\/v1\/commercial\/customers\/([^/]+)$/.exec(path))) send(byId(fixtures.customers, m[1]))
-  else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)$/.exec(path))) send(fixtures.subscriptions[m[1]])
+  else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)$/.exec(path))) send(withSavedCard(fixtures.subscriptions[m[1]]))
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)\/(branches|usage)$/.exec(path))) send(fixtures.subscriptionParts[`${m[1]}:${m[2]}`])
   else if (path === '/v1/commercial/invoices') { const listed = page(fixtures.invoices, url, i => (!q(url, 'status') || i.status === q(url, 'status')) && (!q(url, 'customer_id') || i.customer_id === q(url, 'customer_id'))); send({ ...listed, items: listed.items.map(vendorInvoice), summary: invoiceSummary(q(url, 'customer_id')) }) }
   else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(vendorInvoice(byId(fixtures.invoices, m[1])))

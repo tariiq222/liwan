@@ -51,6 +51,14 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     const response=await call(`/v1/customer/invoices/${ownInvoice}`)
     expect(response.status).toBe(200);expect(await response.json()).toMatchObject({id:ownInvoice})
   })
+  it('cancels or resumes the renewal only for a subscription manager, and answers a refusal with its code',async()=>{
+    expect((await call('/v1/customer/subscription/cancel',{body:{},capabilities:['billing.read']})).status).toBe(403)
+    const refused=await call('/v1/customer/subscription/cancel',{body:{},capabilities:['subscription.manage']})
+    expect(refused.status).toBe(409);expect(await refused.json()).toMatchObject({code:'subscription_required'})
+    expect((await call('/v1/customer/subscription/cancel',{body:{reason:'x',other:1},capabilities:['subscription.manage']})).status).toBeGreaterThanOrEqual(400)
+    const resumed=await call('/v1/customer/subscription/resume',{body:{},capabilities:['subscription.manage']})
+    expect(resumed.status).toBe(200);expect(await resumed.json()).toMatchObject({id:ownSubscription,cancellation:null,cancellable:false})
+  })
   it('rejects a bad signature',async()=>{expect((await call('/v1/customer/invoices',{badSignature:true})).status).toBe(401)})
   it('rejects an otherwise valid signature from the wrong issuer',async()=>{expect((await call('/v1/customer/invoices',{issuer:'wrong-issuer'})).status).toBe(401)})
   it('binds the principal header into the signature',async()=>{expect((await call('/v1/customer/invoices',{tamperPrincipal:true})).status).toBe(401)})
@@ -104,12 +112,28 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     expect((await call('/v1/customer/orders/not-a-uuid',{capabilities:['subscription.read']})).status).toBe(404)
     expect((await call(`/v1/customer/orders/${order}`,{capabilities:['billing.read']})).status).toBe(403)
   })
-  it('creates a payment attempt from the idempotency key alone and refuses a caller-chosen return path',async()=>{
-    const order=await awaitingOrder()
-    expect((await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{return_path:'/subscription',idempotency_key:randomUUID()},capabilities:['subscription.manage']})).status).toBe(422)
-    const response=await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})
+  /** The card form session the customer route opens: the browser's attempt id, with the intent and the publishable key. */
+  async function formAttempt(order:string){
+    const response=await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{},capabilities:['subscription.manage']})
     expect(response.status).toBe(201)
-    expect(await response.json()).toMatchObject({order_id:order,status:'redirected',amount:{minor:11500}})
+    const session=await response.json() as {attempt_id:string}
+    return {id:session.attempt_id}
+  }
+  it('opens the card form for a customer and refuses the hosted link, a caller-chosen return path and an unconsented save',async()=>{
+    const order=await awaitingOrder()
+    expect((await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{return_path:'/subscription'},capabilities:['subscription.manage']})).status).toBe(422)
+    expect((await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})).status).toBe(422)
+    const hosted=await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{method:'hosted_invoice'},capabilities:['subscription.manage']})
+    expect(hosted.status).toBe(422);expect(await hosted.json()).toMatchObject({code:'invalid',field:'method'})
+    expect((await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{method:'form',save_card:true},capabilities:['subscription.manage']})).status).toBe(422)
+    expect((await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{},capabilities:['subscription.read']})).status).toBe(403)
+    expect((await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{},capabilities:['subscription.manage'],tenantId:otherTenant})).status).toBe(404)
+    const response=await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{method:'form'},capabilities:['subscription.manage']})
+    expect(response.status).toBe(201)
+    const session=await response.json() as Record<string,any>
+    expect(session).toMatchObject({amount:{minor:11500},publishable_key:expect.any(String),intent:{id:expect.any(String),client_secret:expect.any(String)}})
+    expect(JSON.stringify(session)).not.toContain('redirect_url')
+    expect(await pool.query("SELECT 1 FROM payment_attempts WHERE order_id=$1 AND kind<>'form'",[order])).toMatchObject({rowCount:0})
   })
   it('lets a customer cancel only its own unpaid first order',async()=>{
     const order=await awaitingOrder()
@@ -133,14 +157,14 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
   }
   it('accepts an anonymous signed payment return and reveals only the order state',async()=>{
     const order=await awaitingOrder()
-    const created=await (await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})).json() as {id:string}
+    const created=await formAttempt(order)
     const {response}=await paymentReturn(created.id)
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({order_id:order,payment_state:'awaiting_payment',fulfillment_state:'not_started'})
   })
   it('resolves a prospect payment return from the attempt alone when the public web signs it for tenant "public"',async()=>{
     const order=await awaitingOrder()
-    const created=await (await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})).json() as {id:string}
+    const created=await formAttempt(order)
     const returned=await paymentReturn(created.id,{tenantId:'public'})
     expect(returned.response.status).toBe(200)
     expect(await returned.response.json()).toEqual({order_id:order,payment_state:'awaiting_payment',fulfillment_state:'not_started'})
@@ -149,9 +173,22 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     // The public signature binds the sentinel too: it cannot be replayed as a tenant return.
     expect((await paymentReturn(created.id,{tenantId:'public',headerTenant:tenant})).response.status).toBe(401)
   })
+  it('accepts the payment id hint only as part of what is signed, and ignores a malformed one',async()=>{
+    const order=await awaitingOrder()
+    const created=await formAttempt(order)
+    const path=`/v1/customer/payment-returns/${created.id}?payment=pay_8f3a1c2d-aaaa`
+    const sign=(p:string)=>({...signServiceRequest({method:'POST',path:p,body:`liwan-payment-return:${tenant}\n`,actor:'anonymous',anonymous:true,issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey}),'x-liwan-tenant':tenant})
+    const ok=await fetch(origin+path,{method:'POST',headers:sign(path)})
+    expect(ok.status).toBe(200);expect(await ok.json()).toMatchObject({order_id:order})
+    // The hint is covered by the signature: a path signed without it, or with another one, does not verify.
+    expect((await fetch(origin+path,{method:'POST',headers:sign(`/v1/customer/payment-returns/${created.id}`)})).status).toBe(401)
+    expect((await fetch(origin+path,{method:'POST',headers:sign(`/v1/customer/payment-returns/${created.id}?payment=pay_other_12345`)})).status).toBe(401)
+    const odd=`/v1/customer/payment-returns/${created.id}?payment=a%20b`
+    expect((await fetch(origin+odd,{method:'POST',headers:sign(odd)})).status).toBe(200)
+  })
   it('refuses a payment return signed with the vendor key, a replayed nonce, or a principal signature',async()=>{
     const order=await awaitingOrder()
-    const created=await (await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})).json() as {id:string}
+    const created=await formAttempt(order)
     expect((await paymentReturn(created.id,{key:config.key})).response.status).toBe(401)
     // Signed for tenant A but sent as tenant B: the signed body no longer matches the header.
     expect((await paymentReturn(created.id,{tenantId:tenant,headerTenant:otherTenant})).response.status).toBe(401)
@@ -165,7 +202,7 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
   })
   it('answers 404 for another customer attempt, an unknown tenant, a malformed id or a wrong method',async()=>{
     const order=await awaitingOrder()
-    const created=await (await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})).json() as {id:string}
+    const created=await formAttempt(order)
     expect((await paymentReturn(created.id,{tenantId:otherTenant})).response.status).toBe(404)
     expect((await paymentReturn(created.id,{tenantId:randomUUID()})).response.status).toBe(404)
     expect((await paymentReturn(randomUUID())).response.status).toBe(404)

@@ -7,7 +7,7 @@ const StorageItemSchema = z.object({
   name: z.string(),
   size_bytes: CountSchema,
   created_at: z.iso.datetime().nullable(),
-  blocked: z.boolean(),
+  over_limit: z.boolean(),
   record: z.object({ kind: z.string().min(1), id: z.number().int().positive() }).strict().nullable(),
 }).strict()
 
@@ -18,7 +18,7 @@ export const StorageInventorySchema = z.object({
   summary: z.object({
     limit_mb: CountSchema.nullable(),
     used_bytes: CountSchema,
-    blocked_bytes: CountSchema,
+    over_limit_bytes: CountSchema,
   }).strict().nullable(),
 }).strict()
 

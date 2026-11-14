@@ -36,7 +36,7 @@ function aliasedFeature(capability: string): string | undefined {
   return undefined
 }
 // Any unknown dotted prefix is gated by `<prefix>.enabled`, so a new foundation-like prefix must be added here.
-const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'liwan', 'subscription', 'billing', 'branches'])
+const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'liwan', 'subscription', 'billing', 'branches', 'tenant'])
 
 export function featureGateActive(identity: TenantIdentity): boolean {
   return Boolean(identity && (identity.modules || identity.entitlements || identity.platform))

@@ -12,7 +12,7 @@ const CUSTOMER_MAP = entries(CUSTOMER, value => `vendor.customers.display.${valu
 export const customerDisplayBadge = (state: string): StatusBadgeEntry => statusBadgeEntry(CUSTOMER_MAP, state)
 
 const OPERATION: Record<string, StatusTone> = {
-  registered: 'neutral', queued: 'neutral', provisioning: 'info', running: 'info',
+  registered: 'neutral', deleting: 'warning', deleted: 'neutral', queued: 'neutral', provisioning: 'info', running: 'info',
   active: 'success', succeeded: 'success', verified: 'success', needs_intervention: 'warning', failed: 'destructive',
 }
 const OPERATION_MAP = entries(OPERATION, value => `vendor.status.${value}`)

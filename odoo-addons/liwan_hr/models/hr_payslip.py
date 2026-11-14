@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
 from decimal import Decimal
 
 from markupsafe import Markup
@@ -9,6 +10,8 @@ from odoo.tools.misc import format_amount
 
 from .payroll_math import money
 from odoo.addons.liwan_hr.rules import LiwanHrRule
+
+_logger = logging.getLogger(__name__)
 
 # Line codes of the Saudi structure (data/hr_payroll_structure_data.xml) that make up the figures
 # a payslip shows. Deductions are negative lines, the employer share is a positive statistical line.
@@ -210,6 +213,10 @@ class HrPayslip(models.Model):
 
     def _liwan_queue_payslip_mail(self, address):
         self.ensure_one()
+        sender = self.env['liwan.outbound.mail']._liwan_sender()
+        if not sender:
+            _logger.warning('final payslip email skipped: no sender address is configured (mail.default.from)')
+            return
         amounts = self._liwan_amounts()[self.id]
         currency = self.company_id.currency_id
         lines = self.line_ids.filtered(
@@ -228,6 +235,7 @@ class HrPayslip(models.Model):
         self.env['mail.mail'].sudo().create({
             'subject': self.env._('Your final payslip for %(month)s', month=self.date_from.strftime('%Y-%m')),
             'body_html': body,
+            'email_from': sender,
             'email_to': address,
             'author_id': self.env.user.partner_id.id,
             'auto_delete': True,

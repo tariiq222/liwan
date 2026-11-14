@@ -8,7 +8,7 @@ import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
 import { requireCapability } from './authorization.js'
 import { appliedPeriod } from './quotes.js'
 import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
-import { compilePurchasedEntitlement, unresolvedLapse } from './free-base.js'
+import { compilePurchasedEntitlement, unresolvedFreeBaseLock } from './free-base.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
 import { lookup } from './payments.js'
@@ -67,7 +67,7 @@ export const cancelOrderBodySchema = z.strictObject({ reason: z.string().max(100
 
 const LIVE_ATTEMPT = ['created','redirected','pending','unknown']
 const cancellable = (order: Record<string, any>) => order.kind !== 'renewal' && !order.cancelled
-  && ['awaiting_payment','failed'].includes(order.payment_state) && order.fulfillment_state === 'not_started'
+  && order.payment_state === 'awaiting_payment' && order.fulfillment_state === 'not_started'
 
 /** Locks the customer, subscription and order in the one order every payment path uses, and re-checks scope. */
 async function lockOrder(client: PoolClient, input: { order_id: string; principal: Principal }) {
@@ -83,7 +83,7 @@ async function lockOrder(client: PoolClient, input: { order_id: string; principa
 }
 
 async function settleCancellation(client: PoolClient, order: Record<string, any>, principal: Principal, reason: string) {
-  const updated = (await client.query('UPDATE orders SET cancelled=true,automatic_refund=$2 WHERE id=$1 RETURNING *', [order.id, principal.actor_id === 'system:trial-expiry'])).rows[0]
+  const updated = (await client.query('UPDATE orders SET cancelled=true,automatic_refund=$2 WHERE id=$1 RETURNING *', [order.id, principal.actor_id === 'system:free-base-lock'])).rows[0]
   await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [order.subscription_id,order.target_revision_id])
   // Retain immutable purchase evidence while releasing unfulfilled reservations
   // and preventing dunning from collecting the canceled purchase invoice.
@@ -196,7 +196,10 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   // priced for the free-base period and then collide with the lock (or with a conversion that bills the same period again). The
   // customer upgrades right after the lock, which is minutes in the normal case and visible to the vendor when it is blocked.
   if (subscription.manual_suspension) throw new CommercialHttpError('subscription_suspended', 409)
-  if (subscription.applied_revision_id && await unresolvedLapse(client, subscription)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
+  if (subscription.applied_revision_id && await unresolvedFreeBaseLock(client, subscription)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
+  // A cancelled subscription takes no paid change: it would be prorated for a period the customer is leaving and dropped, unrefunded, at the
+  // period end. Refusing keeps the customer from paying for something that ends; resuming the subscription reopens changes.
+  if (subscription.cancel_requested_at) throw new CommercialHttpError('subscription_cancelling', 409)
   if (subscription.state === 'trialing' && subscription.trial_ends_at && subscription.applied_revision_id && new Date(subscription.trial_ends_at).getTime() <= now.getTime()) throw new CommercialHttpError('trial_ending', 409)
   if (subscription.revision !== input.expected_subscription_revision || quote.expected_subscription_revision !== subscription.revision || (quote.subscription_id && quote.subscription_id !== subscription.id)) throw new CommercialHttpError('revision_conflict', 409)
   // A hosted attempt may settle later. Keep its accepted target authoritative
