@@ -16,6 +16,10 @@ const footerTarget = ref<HTMLElement | null>(null)
 const footerActions = ref(0)
 provide(FORM_ACTIONS_HOST, { target: footerTarget, active: footerActions })
 usePageHeader(() => props.title)
+// Mount-time, not setup-time: the server and the first client render keep the page's <h1>, then it steps down.
+let unregisterPanel: (() => void) | undefined
+onMounted(() => { unregisterPanel = registerCreatePanel() })
+onBeforeUnmount(() => unregisterPanel?.())
 
 // The #header slot below replaces USlideover's DialogTitle, so reka's aria-labelledby would point at
 // nothing and the dialog would have no name. reka merges these content attributes after its own.

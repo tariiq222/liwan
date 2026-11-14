@@ -9,7 +9,7 @@ const EXTRA_CONTACTS = [
   [11, 'عبدالله المطيري', '+966500000011'], [12, 'هند الزهراني', '+966500000012'], [13, 'سلطان الحربي', '+966500000013'],
   [14, 'ريم العنزي', '+966500000014'], [15, 'ماجد القرني', '+966500000015'], [16, 'لمى السبيعي', '+966500000016'],
   [17, 'بدر الغامدي', '+966500000017'], [18, 'أمل الشهري', '+966500000018'],
-].map(([id, name, phone]) => ({ id, name, phone, email: null }))
+].map(([id, name, phone]) => ({ id, name, phone, email: null, erased: false }))
 const CONTACT_TAGS = [[1, [2]], [2, [3]], [3, [1, 3]], [4, []], [11, [2]], [12, [2, 3]], [13, [3]], [14, [2]], [15, []], [16, [2]], [17, [3]], [18, [2, 3]]]
 const STOP_KEYWORDS = ['إيقاف', 'إلغاء الاشتراك', 'إيقاف العروض', 'stop', 'unsubscribe', 'stop promotions']
 const START_KEYWORDS = ['اشتراك', 'start', 'subscribe']
@@ -104,7 +104,7 @@ export function campaignsRoute(ctx, method, parts, url, body) {
       const wanted = url.searchParams.get('consent')
       const rows = membersOf(audience)
         .filter(person => (!q || person.name.includes(q) || (person.phone ?? '').includes(q)) && (!wanted || consentOf(person.id) === wanted))
-        .map(person => ({ id: person.id, name: person.name, phone: person.phone, consent: consentOf(person.id), tags: tagRefs(tagsOf(person.id)) }))
+        .map(person => ({ id: person.id, name: person.name, phone: person.phone, consent: consentOf(person.id), tags: tagRefs(tagsOf(person.id)), erased: person.erased }))
       return ok(page(rows, url))
     }
     if (method === 'GET') return ok(audienceOut(audience))
@@ -159,7 +159,7 @@ export function campaignsRoute(ctx, method, parts, url, body) {
       let person = people().find(item => item.phone === phone)
       if (person) result.updated += 1
       else {
-        person = { id: 100 + data.extraContacts.length, name: row.name || phone, phone, email: null }
+        person = { id: 100 + data.extraContacts.length, name: row.name || phone, phone, email: null, erased: false }
         data.extraContacts.push(person)
         result.created += 1
       }
@@ -354,7 +354,7 @@ export function campaignsRoute(ctx, method, parts, url, body) {
     }
     const fill = (text, location) => text.replace(/\{\{(\d+)\}\}/g, (_, index) => valueOf(location, Number(index)) || `{{${index}}}`)
     return ok({
-      contact: person ? { id: person.id, name: person.name } : null,
+      contact: person ? { id: person.id, name: person.name, erased: person.erased } : null,
       header_text: template.header?.type === 'text' ? fill(template.header.text, 'header') : null,
       body: fill(template.body, 'body'), footer: template.footer,
       buttons: template.buttons.map((button, index) => {
@@ -367,7 +367,7 @@ export function campaignsRoute(ctx, method, parts, url, body) {
 
   function recipient(recipientId, person, skip, rest = {}) {
     return {
-      id: recipientId, contact: { id: person.id, name: person.name, phone: person.phone }, state: skip ? 'skipped' : 'pending', skip_reason: skip, failure: null, error_code: null, error: null,
+      id: recipientId, contact: { id: person.id, name: person.name, erased: person.erased, phone: person.phone }, state: skip ? 'skipped' : 'pending', skip_reason: skip, failure: null, error_code: null, error: null,
       conversation_id: state.conversations.find(item => item.contact.id === person.id)?.id ?? null, sent_at: null, replied_at: null, unsubscribed_at: null, can_retry: false, ...rest,
     }
   }
@@ -393,7 +393,7 @@ export function seedCampaignRecords(ctx, ago) {
   const row = (recipientId, contactId, rest) => {
     const contact = person(contactId)
     return {
-      id: recipientId, contact: { id: contact.id, name: contact.name, phone: contact.phone }, state: 'pending', skip_reason: null, failure: null, error_code: null, error: null,
+      id: recipientId, contact: { id: contact.id, name: contact.name, erased: contact.erased, phone: contact.phone }, state: 'pending', skip_reason: null, failure: null, error_code: null, error: null,
       conversation_id: ctx.state.conversations.find(item => item.contact.id === contactId)?.id ?? null, sent_at: null, replied_at: null, unsubscribed_at: null, can_retry: false, ...rest,
     }
   }

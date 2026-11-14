@@ -44,8 +44,10 @@ const titleClass = computed(() => props.compact
   ? 'font-display text-(length:--liwan-fs-title)/[1.3] font-bold tracking-[-0.01em] text-highlighted'
   : 'font-display text-(length:--liwan-fs-display)/[1.3] font-bold tracking-[-0.01em] text-highlighted')
 const tagline = computed(() => (props.compact ? undefined : props.description ?? pageApp.value?.tagline))
-// Inside the project workspace the frame is already the page's <h1>.
+// Inside the project workspace the frame is already the page's <h1>, and so is an open create panel.
 const frameOwnsHeading = useFrameOwnsHeading()
+const createPanelOpen = useCreatePanelOpen()
+const demoted = computed(() => frameOwnsHeading.value || createPanelOpen.value)
 
 // The trail (DESIGN.md §3) sits above the page title: the ancestors the shell published, then the page's
 // own back target as the nearest step. The current page is the title right above, so it is never repeated
@@ -103,8 +105,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
         <div class="min-w-0 flex-1 basis-60">
           <!-- The tags sit beside the title when they fit; otherwise the whole group wraps under it. The title keeps its own line(s) and never shrinks to a word per line. -->
           <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-2">
-            <h2 v-if="frameOwnsHeading" :class="titleClass" class="max-w-full min-w-0"><slot name="title">{{ props.title }}</slot></h2>
-            <h1 v-else :class="titleClass" class="max-w-full min-w-0"><slot name="title">{{ props.title }}</slot></h1>
+            <component :is="demoted ? 'h2' : 'h1'" :class="titleClass" class="max-w-full min-w-0"><slot name="title">{{ props.title }}</slot></component>
             <div data-slot="page-header-tags" class="flex min-w-0 max-w-full flex-wrap items-center gap-2">
               <slot name="tags">
                 <SharedHeaderTags :tags="props.tags" />

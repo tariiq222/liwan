@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { InboxOrder } from '@liwan/contracts'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { orderBadge } from '@/composables/inbox/inboxCommerce'
 import { formatCurrency } from '@/utils/formatCurrency'
 
@@ -15,7 +16,7 @@ const day = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'm
     <li v-for="order in props.orders" :key="order.id">
       <NuxtLink :to="`/inbox/${order.conversation_id}/orders`" class="flex flex-wrap items-center justify-between gap-3 px-(--liwan-card-pad) py-3 text-start transition-colors hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :data-testid="`inbox-orders-row-${order.id}`">
         <span class="min-w-0">
-          <span class="block truncate text-sm font-medium text-highlighted"><bdi v-if="order.reference" dir="ltr">{{ order.reference }}</bdi><template v-else>{{ t('inbox.orders.cartTitle') }}</template> · {{ order.contact.name }}</span>
+          <span class="block truncate text-sm font-medium text-highlighted"><bdi v-if="order.reference" dir="ltr">{{ order.reference }}</bdi><template v-else>{{ t('inbox.orders.cartTitle') }}</template> · {{ inboxContactName(order.contact, t) }}</span>
           <span class="block truncate text-xs text-muted">{{ order.channel.name }} · {{ t('inbox.orders.lineCount', { n: order.lines.length }) }} · <time :datetime="order.created_at">{{ day.format(new Date(order.created_at)) }}</time></span>
         </span>
         <span class="flex items-center gap-3">

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { InboxContactRefSchema } from './refs'
 
 // Wire shapes of the WhatsApp Flows routes of /api/v1/inbox: in-chat forms built in LiwanOS, published to Meta,
 // sent in a conversation and answered by the customer. Every schema mirrors one serializer in
@@ -267,7 +268,7 @@ export const InboxFlowSubmissionSchema = z.object({
   id: Id,
   flow: Ref.nullable(),
   conversation_id: Id,
-  contact: Ref,
+  contact: InboxContactRefSchema,
   // The outbound message that carried the form, and the inbound message of the answer.
   request_message_id: Id.nullable(),
   message_id: Id,

@@ -40,7 +40,7 @@ describe('InboxProductPicker', () => {
 
 describe('InboxOrderCard', () => {
   const order = (overrides: Partial<InboxOrder> = {}): InboxOrder => ({
-    id: 1, conversation_id: 3, channel: { id: 1, name: 'قناة' }, contact: { id: 2, name: 'ليلى' }, message_id: 9, state: 'cart', reference: null,
+    id: 1, conversation_id: 3, channel: { id: 1, name: 'قناة' }, contact: { id: 2, name: 'ليلى', erased: false }, message_id: 9, state: 'cart', reference: null,
     lines: [{ id: 1, product_retailer_id: 'wv-1', catalog_item_id: 1, name: 'قهوة', quantity: 2, cart_price: 45, unit_price: 50, currency: 'SAR', availability: 'in_stock' }],
     cart_total: 90, cart_currency: 'SAR', total: 100, currency: 'SAR', price_changed: true, payment: null, pay_link_sent_at: null, created_by: null, created_at: '2026-10-29T08:00:00Z', ...overrides,
   })

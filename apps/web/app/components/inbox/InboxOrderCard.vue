@@ -2,6 +2,7 @@
 import type { InboxOrder } from '@liwan/contracts'
 import InboxOrderActions from '@/components/inbox/InboxOrderActions.vue'
 import InboxOrderLines from '@/components/inbox/InboxOrderLines.vue'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { expiryCountdown, orderBadge, orderLineRows } from '@/composables/inbox/inboxCommerce'
 import { formatCurrency } from '@/utils/formatCurrency'
 
@@ -25,7 +26,7 @@ const sentAt = computed(() => (props.order.pay_link_sent_at ? new Intl.DateTimeF
       <SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" data-testid="inbox-order-badge" />
     </div>
     <p v-if="props.showContext" class="text-xs text-muted">
-      <NuxtLink :to="`/inbox/${props.order.conversation_id}`" class="text-brand-link underline" data-testid="inbox-order-conversation">{{ props.order.contact.name }}</NuxtLink> · {{ props.order.channel.name }}
+      <NuxtLink :to="`/inbox/${props.order.conversation_id}`" class="text-brand-link underline" data-testid="inbox-order-conversation">{{ inboxContactName(props.order.contact, t) }}</NuxtLink> · {{ props.order.channel.name }}
     </p>
     <InboxOrderLines :rows="rows" :currency="props.order.currency" />
     <UAlert v-if="props.order.price_changed && props.order.state === 'cart'" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :description="t('inbox.orders.priceChanged', { cart: formatCurrency(props.order.cart_total ?? 0, props.order.cart_currency ?? props.order.currency, locale), now: formatCurrency(props.order.total, props.order.currency, locale) })" data-testid="inbox-order-price-changed" />

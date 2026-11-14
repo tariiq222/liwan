@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Wire shapes of audiences, campaigns, recipients, consent and sending health (packages/contracts/src/inbox/campaigns.ts)."""
 from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_inbox.models.privacy_hooks import is_erased_contact
 from odoo.addons.liwan_inbox.serializers.conversation import dump_attachment, dump_ref
+from odoo.addons.liwan_inbox.serializers.refs import dump_contact_ref
 
 
 def dump_consent_event(event):
@@ -36,7 +38,7 @@ def dump_audience(audience):
 def dump_audience_member(contact):
     return {
         'id': contact.id, 'name': contact.name, 'phone': contact.phone or None, 'consent': contact.marketing_consent,
-        'tags': [dump_ref(tag) for tag in contact.tag_ids],
+        'tags': [dump_ref(tag) for tag in contact.tag_ids], 'erased': is_erased_contact(contact),
     }
 
 
@@ -108,7 +110,7 @@ def dump_recipient(recipient):
     sent = recipient.state in ('sent', 'delivered', 'read', 'failed')
     return {
         'id': recipient.id,
-        'contact': {'id': recipient.contact_id.id, 'name': recipient.contact_id.name, 'phone': recipient.contact_id.phone or None},
+        'contact': {**dump_contact_ref(recipient.contact_id), 'phone': recipient.contact_id.phone or None},
         'state': recipient.state,
         'skip_reason': recipient.skip_reason or None,
         'failure': recipient.failure or None,

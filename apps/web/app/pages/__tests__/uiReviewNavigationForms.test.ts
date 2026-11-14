@@ -48,7 +48,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }),
     useToast: () => ({ add: vi.fn() }), usePageHeader: () => undefined,
     projectRecordBack, archivedTags, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection, activePlanningSection, projectActionPage, isProjectRecordPath, projectSectionLocation,
-    provideFrameOwnsHeading: () => undefined, provideFrameOwnsActions: () => undefined, useListOpening: () => Vue.ref(false),
+    provideFrameOwnsHeading: () => undefined, provideFrameOwnsActions: () => undefined, useCreatePanelOpen: () => Vue.ref(false), useListOpening: () => Vue.ref(false),
     useProjectArchive: () => ({ archive: async () => false, pending: Vue.ref(false) }),
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),

@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Wire shapes of WhatsApp forms and their answers (packages/contracts/src/inbox/flows.ts)."""
 from odoo.addons.liwan_api.serializers.common import iso
-from odoo.addons.liwan_inbox.serializers.refs import dump_ref
+from odoo.addons.liwan_inbox.serializers.refs import dump_contact_ref, dump_ref
 
 CHOICE_KINDS = ('dropdown', 'radio', 'checkbox')
 
@@ -94,7 +94,7 @@ def dump_submission(submission):
         'id': submission.id,
         'flow': dump_ref(submission.flow_id),
         'conversation_id': submission.conversation_id.id,
-        'contact': dump_ref(submission.conversation_id.contact_id),
+        'contact': dump_contact_ref(submission.conversation_id.contact_id),
         'request_message_id': submission.request_message_id.id or None,
         'message_id': submission.message_id.id,
         'submitted_at': iso(submission.submitted_at),

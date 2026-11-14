@@ -59,6 +59,30 @@ export function useFrameOwnsHeading(): Readonly<Ref<boolean>> {
   return inject(FRAME_OWNS_HEADING, NO_FRAME_HEADING)
 }
 
+const CREATE_PANELS_OPEN_KEY = 'liwan-create-panels-open'
+
+function useCreatePanelCount() {
+  return useState<number>(CREATE_PANELS_OPEN_KEY, () => 0)
+}
+
+/**
+ * The create panel (DESIGN.md section 5) draws the route's `<h1>` over a page that is not its ancestor, so
+ * provide/inject cannot tell that page's header. The panel counts itself here from `onMounted` to
+ * `onBeforeUnmount` (a counter, so two panels overlapping during navigation stay correct). Registering at
+ * mount time keeps the server markup and the first client render identical on a direct link.
+ */
+export function registerCreatePanel() {
+  const count = useCreatePanelCount()
+  count.value += 1
+  return () => { count.value = Math.max(0, count.value - 1) }
+}
+
+/** True while a create panel is open: a page heading under it steps down to `<h2>`. */
+export function useCreatePanelOpen(): Readonly<Ref<boolean>> {
+  const count = useCreatePanelCount()
+  return computed(() => count.value > 0)
+}
+
 const FRAME_OWNS_ACTIONS = Symbol('liwan-frame-owns-actions') as InjectionKey<Readonly<Ref<boolean>>>
 const NO_FRAME_ACTIONS = readonly(ref(false))
 
