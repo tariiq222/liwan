@@ -6,7 +6,7 @@ import { quietWorkHandlers, workHandlers } from '../work/workStoryData'
 
 const meta = {
   title: 'Home/Today',
-  parameters: { layout: 'padded', a11y: { test: 'error' }, msw: { handlers: { api: workHandlers } }, ...storyContext('apps/web/app/pages/index.vue', 'مؤشرات «يومي» الثلاثة وسكة «ابدأ بالأهم» ببطاقاتها من الصفوف نفسها التي تعرضها «مهامي»؛ تُخفى لمن لا يصل إلى «مهامي».') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, msw: { handlers: { api: workHandlers } }, ...storyContext('apps/web/app/pages/index.vue', 'مؤشرات «يومي» الثلاثة وقائمة «ابدأ بالأهم» بصفوفها من الصفوف نفسها التي تعرضها «مهامي»؛ تُخفى لمن لا يصل إلى «مهامي».') },
   render: () => ({ components: { HomeIndicators, HomeFocus }, template: '<div class="mx-auto flex max-w-5xl flex-col gap-4"><HomeIndicators /><HomeFocus /></div>' }),
 } satisfies Meta
 export default meta
