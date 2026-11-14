@@ -89,11 +89,10 @@ describe('payment attempt request', () => {
     expect(paymentAttemptRequestSchema.safeParse({ method: 'hosted_invoice', save_card: true, consent_text_version: 'v1' }).success).toBe(false)
     expect(paymentAttemptRequestSchema.safeParse({ method: 'form', consent_text_version: 'v1' }).success).toBe(false)
   })
-  it('refuses a consent time from the caller, an unknown method and a bad idempotency key', () => {
+  it('refuses a consent time from the caller, an unknown method and an idempotency key (the live attempt makes a repeat safe)', () => {
     expect(paymentAttemptRequestSchema.safeParse({ method: 'form', consent_at: '2026-01-01T00:00:00Z' }).success).toBe(false)
     expect(paymentAttemptRequestSchema.safeParse({ method: 'saved_card' }).success).toBe(false)
-    expect(paymentAttemptRequestSchema.safeParse({ idempotency_key: 'not-a-uuid' }).success).toBe(false)
-    expect(paymentAttemptRequestSchema.safeParse({ idempotency_key: id(1) }).success).toBe(true)
+    expect(paymentAttemptRequestSchema.safeParse({ idempotency_key: id(1) }).success).toBe(false)
   })
 })
 

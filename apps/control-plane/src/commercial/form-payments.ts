@@ -2,11 +2,11 @@
 // says counts: a payment settles only when it was fetched from the provider with the secret key and every check in `checkFormPayment`
 // holds. The payment id reaches the control plane as an untrusted hint (the callback, a webhook), never as proof.
 // How the provider behaves is recorded in docs/operations/moyasar-form-spike.md.
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
+import type { FormPaymentSession } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
-import type { FormPaymentSession } from '@liwan/commercial-contracts'
 import { PaymentError, type PaymentAdapter, type PaymentIntent, type PaymentRecord, type ProviderEvent, type TokenInfo } from './payment-adapter.js'
 import { claimOutbox, deferOutbox, enqueueOutbox, releaseOutbox } from './outbox.js'
 
@@ -20,6 +20,14 @@ const MIN_INTENT_REMAINING_MS = 60_000
 /** The statuses in which an attempt blocks a new one for the same order (the `payment_attempts_one_live` index). */
 export const LIVE_ATTEMPT_STATUSES = ['created', 'redirected', 'pending', 'unknown'] as const
 export const TOKEN_DELETE_KIND = 'payment_token.delete'
+/** A token the provider keeps refusing to delete is given up on after this many tries or this long, and left to the operator. */
+const TOKEN_DELETE_MAX_ATTEMPTS = 12
+const TOKEN_DELETE_MAX_AGE_HOURS = 24
+/** A rejected payment id is answered from the audit log, without asking the provider again, for this long. */
+const REJECTION_MEMORY_MINUTES = 5
+/** More webhook rejections than this in an hour are shed without a provider call or an audit row. */
+const REJECTION_HOURLY_BUDGET = 200
+const CALLBACK_SECRET_PARAM = 'k'
 
 /** What a payment id from a browser may look like: an opaque provider id, never a place for anything else. */
 const PAYMENT_HINT = /^[A-Za-z0-9_-]{8,100}$/
@@ -27,8 +35,10 @@ export const isPaymentHint = (value: unknown): value is string => typeof value =
 
 export type FormRejection =
   | 'bad_shape' | 'payment_not_found' | 'description_unrecognized' | 'attempt_unknown' | 'attempt_mismatch' | 'not_form_attempt' | 'mode_mismatch'
-  | 'amount_mismatch' | 'intent_missing' | 'callback_mismatch' | 'payment_bound_elsewhere' | 'settlement_mismatch'
+  | 'amount_mismatch' | 'intent_missing' | 'intent_not_fulfilled' | 'callback_mismatch' | 'payment_bound_elsewhere' | 'attempt_has_other_payment'
+  | 'settlement_mismatch' | 'refunded_unclaimed' | 'rate_limited'
 export type FormSource = 'hint' | 'webhook'
+const REJECTION_ACTION: Record<FormSource, string> = { hint: 'payment.form_hint_rejected', webhook: 'payment.form_payment_rejected' }
 
 const logCode = (error: unknown) => (error as { code?: string } | null)?.code ?? (error as Error | null)?.constructor?.name ?? 'error'
 
@@ -36,34 +46,64 @@ async function writeAudit(db: Queryable, action: string, subject: string, reason
   await db.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [randomUUID(), 'system', action, subject, reason, JSON.stringify(metadata)])
 }
 
+/** A secret for one intent's callback: 192 random bits, never shown to any view, session or log. */
+export const newCallbackSecret = () => randomBytes(24).toString('base64url')
+/** The callback URL of an intent: the attempt's own URL plus the intent's secret. */
+export function callbackWithSecret(attemptUrl: string, secret: string): string {
+  const url = new URL(attemptUrl)
+  url.searchParams.set(CALLBACK_SECRET_PARAM, secret)
+  return url.toString()
+}
+
 /**
- * A payment that could not be tied to its attempt changes nothing. The audit event names the attempt and the payment so the operator can
- * find money that arrived and settled nothing; `form_hint_rejected` is the browser's hint, `form_payment_rejected` a payment the provider
- * itself reported. No untrusted text goes into the row: only the reason code and ids of a bounded shape.
+ * A payment that could not be tied to its attempt changes nothing. The audit event names the attempt, the order and the payment so the
+ * operator can find money that arrived and settled nothing; `form_hint_rejected` is the browser's hint, `form_payment_rejected` a payment
+ * the provider itself reported. A repeat (same action, payment and reason) adds no row, and the webhook source stops adding rows at an
+ * hourly budget. No untrusted text goes into the row: only the reason code and ids of a bounded shape.
  */
 export async function rejectFormPayment(db: Queryable, source: FormSource, reason: FormRejection, ids: { attempt_id?: string; order_id?: string; payment_id?: string }) {
-  const subject = ids.order_id ?? ids.attempt_id ?? ids.payment_id ?? 'unknown'
-  await writeAudit(db, source === 'hint' ? 'payment.form_hint_rejected' : 'payment.form_payment_rejected', subject, `Card form payment not accepted: ${reason}`,
-    { reason, attempt_id: ids.attempt_id ?? null, payment_id: ids.payment_id && PAYMENT_HINT.test(ids.payment_id) ? ids.payment_id : null })
+  const paymentId = ids.payment_id && PAYMENT_HINT.test(ids.payment_id) ? ids.payment_id : null
+  const action = REJECTION_ACTION[source]
+  await db.query(`INSERT INTO audit_events(id,actor,action,subject,reason,metadata)
+    SELECT $1,'system',$2,$3,$4,$5::jsonb
+    WHERE NOT EXISTS (SELECT 1 FROM audit_events WHERE action=$2 AND metadata->>'payment_id' IS NOT DISTINCT FROM $6 AND metadata->>'reason'=$7 AND metadata->>'attempt_id' IS NOT DISTINCT FROM $8)
+      AND (SELECT count(*) FROM audit_events WHERE action=$2 AND created_at > now() - interval '1 hour') < $9`,
+  [randomUUID(), action, ids.order_id ?? ids.attempt_id ?? paymentId ?? 'unknown', `Card form payment not accepted: ${reason}`,
+    JSON.stringify({ reason, attempt_id: ids.attempt_id ?? null, payment_id: paymentId }), paymentId, reason, ids.attempt_id ?? null, REJECTION_HOURLY_BUDGET])
   return { outcome: 'rejected' as const, reason }
 }
 
-/** The callback URL of an attempt names the attempt and nothing else in its query. */
-function callbackNamesAttempt(callbackUrl: string, attemptId: string): boolean {
-  try {
-    const url = new URL(callbackUrl)
-    return url.pathname === '/api/commercial/payment-callback' && [...url.searchParams.keys()].join() === 'attempt' && url.searchParams.get('attempt') === attemptId
-  } catch { return false }
+/** True when this payment id was rejected a moment ago, or the source has spent its hourly budget: the provider is not asked again. */
+async function rejectionMemory(db: Queryable, source: FormSource, paymentId: string): Promise<boolean> {
+  const action = REJECTION_ACTION[source]
+  const remembered = await db.query(`SELECT 1 FROM audit_events WHERE action=$1 AND metadata->>'payment_id'=$2 AND created_at > now() - make_interval(mins => $3) LIMIT 1`, [action, paymentId, REJECTION_MEMORY_MINUTES])
+  if (remembered.rowCount) return true
+  if (source !== 'webhook') return false
+  return Number((await db.query("SELECT count(*) AS n FROM audit_events WHERE action=$1 AND created_at > now() - interval '1 hour'", [action])).rows[0].n) >= REJECTION_HOURLY_BUDGET
+}
+
+/** The callback URL a payment must carry: the one the provider locked into this attempt's current intent, which holds this attempt's current secret. */
+function callbackMatches(callbackUrl: string | null, intentCallback: string, attempt: Row): boolean {
+  if (callbackUrl === null || !attempt.callback_secret || callbackUrl !== intentCallback) return false
+  let url: URL
+  try { url = new URL(callbackUrl) } catch { return false }
+  if (url.pathname !== '/api/commercial/payment-callback' || [...url.searchParams.keys()].sort().join() !== ['attempt', CALLBACK_SECRET_PARAM].sort().join()) return false
+  if (url.searchParams.get('attempt') !== attempt.id) return false
+  const given = Buffer.from(url.searchParams.get(CALLBACK_SECRET_PARAM) ?? ''), want = Buffer.from(attempt.callback_secret)
+  return given.length === want.length && timingSafeEqual(given, want)
 }
 
 /**
- * Every check a fetched payment must pass before it may settle an attempt. It returns the first failing reason, or null.
+ * Every check a fetched payment must pass before it may settle (or decline) an attempt. It returns the first failing reason, or null.
  * - the attempt is a form attempt of this provider and mode, and the payment was read with this mode's key;
- * - the locked description names this attempt (the only field the browser cannot choose on an intent payment);
- * - amount, currency and exponent equal the attempt's own;
- * - the callback URL is the one the provider locked into this attempt's intent, read back with the secret key, and names this attempt;
+ * - the locked description names this attempt;
+ * - amount, currency and exponent equal the row;
+ * - the attempt's current intent, read back with the secret key, is fulfilled (an intent nobody fulfilled has no payment);
+ * - the payment's callback URL is exactly the intent's and holds this attempt's current secret. The description and the plain callback
+ *   are derivable by anyone who knows the attempt id, and a payment made straight with the public key may carry anything; the secret
+ *   reaches only the payer's browser, so a payment made another way cannot reproduce it;
  * - the payment is not already the reference of another attempt.
- * The paid status is the caller's, because only a paid payment is worth checking.
+ * Paid status is the caller's, because only a paid or failed payment is worth checking.
  */
 export async function checkFormPayment(db: Queryable, adapter: PaymentAdapter, attempt: Row, record: PaymentRecord): Promise<FormRejection | null> {
   if (attempt.kind !== 'form') return 'not_form_attempt'
@@ -71,30 +111,24 @@ export async function checkFormPayment(db: Queryable, adapter: PaymentAdapter, a
   if (record.attempt_id !== attempt.id) return 'attempt_mismatch'
   const same = (m: { minor: number; currency: string; exponent: number }) => m.minor === Number(attempt.amount_minor) && m.currency === attempt.currency && m.exponent === attempt.exponent
   if (!same(record.amount)) return 'amount_mismatch'
-  if (!attempt.provider_intent_ref) return 'intent_missing'
-  let intent: PaymentIntent
-  try { intent = await adapter.getIntent(attempt.provider_intent_ref) } catch (error) {
-    if (error instanceof PaymentError && error.code === 'not_found') return 'intent_missing'
-    throw error
-  }
+  const intent = await readIntent(adapter, attempt.provider_intent_ref)
+  if (!intent) return 'intent_missing'
   if (!same(intent.amount)) return 'amount_mismatch'
-  if (record.callback_url === null || record.callback_url !== intent.callback_url || !callbackNamesAttempt(intent.callback_url, attempt.id)) return 'callback_mismatch'
+  if (intent.status !== 'fulfilled') return 'intent_not_fulfilled'
+  if (!callbackMatches(record.callback_url, intent.callback_url, attempt)) return 'callback_mismatch'
   const elsewhere = await db.query('SELECT 1 FROM payment_attempts WHERE provider=$1 AND provider_ref=$2 AND id<>$3', [attempt.provider, record.payment_id, attempt.id])
   return elsewhere.rowCount ? 'payment_bound_elsewhere' : null
 }
 
-/** What to do with the card token of a settled payment. It is decided before the settlement transaction, because reading a token is a provider call. */
+/** What to do with the card token of a payment, read before the settlement transaction because reading a token is a provider call. */
 export type CardPlan =
   | { kind: 'none' }
   /** The attempt asked to keep the card and the token is active with complete display facts. */
   | { kind: 'save'; token: string; brand: string; last_four: string; exp_month: number; exp_year: number; funding: string | null }
-  /** The payment carries a token that must not be kept: it was not asked for, or it is unusable. The reason is for the audit. */
+  /** The payment carries a token that must not be kept: it was not asked for, or it is unusable. */
   | { kind: 'discard'; token: string; reason: 'not_requested' | 'token_not_active' | 'token_read_failed' | 'token_details_incomplete' }
   /** The attempt asked to keep the card but the payment has no token. */
   | { kind: 'missing_token' }
-
-/** What the settlement carries in and out: the card decision, and whether the settlement acted on it. */
-export type FormSettlement = { plan: CardPlan; authenticated: boolean | null; handled: boolean }
 
 export async function planCard(adapter: PaymentAdapter, attempt: Row, record: PaymentRecord): Promise<CardPlan> {
   if (!record.token) return attempt.save_card ? { kind: 'missing_token' } : { kind: 'none' }
@@ -110,63 +144,83 @@ export async function planCard(adapter: PaymentAdapter, attempt: Row, record: Pa
   return { kind: 'save', token: record.token, brand: info.brand, last_four: info.last_four, exp_month: info.exp_month, exp_year: info.exp_year, funding: info.funding }
 }
 
-/** A durable request to delete a card token at the provider. The token is kept only until the deletion succeeds. */
-async function enqueueTokenDeletion(client: PoolClient, attempt: Row, token: string, aggregateId: string, dedupe: string) {
-  await enqueueOutbox(client, { kind: TOKEN_DELETE_KIND, aggregate_id: aggregateId, dedupe_key: dedupe, payload: { provider: attempt.provider, mode: attempt.mode, token } })
+/** What the settlement does with the card: the single decision that the audit trail, the token deletion and the saved card all follow. */
+export type CardDecision =
+  | { kind: 'save'; card: Extract<CardPlan, { kind: 'save' }> }
+  | { kind: 'discard'; token: string; reason: string }
+  | { kind: 'nothing'; reason: string | null }
+
+/** `keep` is whether this payment is the one that paid the order: a duplicate, a payment being returned or a replay keeps no card. */
+export function decideCard(plan: CardPlan, keep: boolean): CardDecision {
+  if (plan.kind === 'none') return { kind: 'nothing', reason: null }
+  if (plan.kind === 'missing_token') return { kind: 'nothing', reason: keep ? 'token_missing' : null }
+  if (plan.kind === 'discard') return { kind: 'discard', token: plan.token, reason: plan.reason }
+  return keep ? { kind: 'save', card: plan } : { kind: 'discard', token: plan.token, reason: 'payment_not_kept' }
 }
 
-/** The settlement audit event: what was settled and whether the payer's 3-D Secure result is known (the provider does not say, so it is usually null). */
-async function recordFormSettlement(client: PoolClient, order: Row, attempt: Row, event: ProviderEvent, form: FormSettlement) {
-  await writeAudit(client, 'payment.form_settled', order.id, 'Card form payment settled',
-    { attempt_id: attempt.id, payment_id: event.payment_id, authenticated: form.authenticated, card: form.plan.kind })
+type TokenOwner = { customer_id: string; payment_method_id?: string; card?: { brand: string; last_four: string } }
+
+/** A durable request to delete a card token at the provider. The token stays on the row only until the deletion is done or given up. */
+async function enqueueTokenDeletion(client: PoolClient, attempt: Row, token: string, aggregateId: string, dedupe: string, owner: TokenOwner) {
+  await enqueueOutbox(client, { kind: TOKEN_DELETE_KIND, aggregate_id: aggregateId, dedupe_key: dedupe, payload: { provider: attempt.provider, mode: attempt.mode, token, ...owner } })
 }
 
-/** The card of a payment that does not keep it (a duplicate, a payment returned to the customer, a payment that did not ask): deleted at the provider, durably. */
-export async function discardCard(client: PoolClient, order: Row, attempt: Row, event: ProviderEvent, form: FormSettlement) {
-  form.handled = true
-  await recordFormSettlement(client, order, attempt, event, form)
-  const { plan } = form
-  if (plan.kind === 'save' || plan.kind === 'discard') {
-    await enqueueTokenDeletion(client, attempt, plan.token, attempt.id, 'discarded')
-    const orphan = plan.kind === 'discard' && plan.reason === 'not_requested'
-    await writeAudit(client, orphan ? 'payment.token_orphan_deleted' : 'payment.card_not_saved', order.id,
-      orphan ? 'The payment carried a card token that was not asked for; it is being deleted' : 'The card was not saved',
-      { attempt_id: attempt.id, reason: plan.kind === 'discard' ? plan.reason : 'payment_not_kept' })
-  } else if (plan.kind === 'missing_token') {
-    await writeAudit(client, 'payment.card_not_saved', order.id, 'The card was not saved', { attempt_id: attempt.id, reason: 'token_missing' })
-  }
-}
-
-/**
- * The settled payment keeps its card when the attempt asked for it: the card becomes the customer's default (the previous default is
- * removed and its token deleted at the provider), and auto-renew is switched on with the consent the attempt recorded. The subscription
- * row already exists when an order is placed, so this runs in the settlement transaction itself.
- */
-export async function settleCard(client: PoolClient, order: Row, attempt: Row, event: ProviderEvent, form: FormSettlement) {
-  const { plan } = form
-  if (plan.kind !== 'save') return discardCard(client, order, attempt, event, form)
-  form.handled = true
-  await recordFormSettlement(client, order, attempt, event, form)
-  const previous = (await client.query("SELECT id,provider_token FROM payment_methods WHERE customer_id=$1 AND is_default AND status='active' FOR UPDATE", [order.customer_id])).rows[0]
-  if (previous?.provider_token === plan.token) return
+/** Keeps the card: it becomes the customer's default (the previous default is removed and its token queued for deletion) and auto-renew is switched on with the attempt's consent. */
+async function saveCard(client: PoolClient, order: Row, attempt: Row, card: Extract<CardPlan, { kind: 'save' }>): Promise<'saved' | 'token_already_saved'> {
+  const previous = (await client.query("SELECT id,provider_token,brand,last_four FROM payment_methods WHERE customer_id=$1 AND is_default AND status='active' FOR UPDATE", [order.customer_id])).rows[0]
+  if (previous?.provider_token === card.token) return 'token_already_saved'
   if (previous) {
     await client.query("UPDATE payment_methods SET status='removed',is_default=false,removed_at=now(),removed_by='system' WHERE id=$1", [previous.id])
-    await enqueueTokenDeletion(client, attempt, previous.provider_token, previous.id, 'replaced')
+    await enqueueTokenDeletion(client, attempt, previous.provider_token, previous.id, 'replaced',
+      { customer_id: order.customer_id, payment_method_id: previous.id, card: { brand: previous.brand, last_four: previous.last_four } })
   }
   const saved = await client.query(`INSERT INTO payment_methods(id,customer_id,provider,mode,provider_token,brand,last_four,exp_month,exp_year,funding,status,is_default,
       consent_at,consent_text_version,source_attempt_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'active',true,$11,$12,$13,'customer')
       ON CONFLICT ON CONSTRAINT payment_methods_token_unique DO NOTHING RETURNING id`,
-  [randomUUID(), order.customer_id, attempt.provider, attempt.mode, plan.token, plan.brand, plan.last_four, plan.exp_month, plan.exp_year, plan.funding, attempt.consent_at, attempt.consent_text_version, attempt.id])
-  if (!saved.rowCount) {
-    await writeAudit(client, 'payment.card_not_saved', order.id, 'The card was not saved', { attempt_id: attempt.id, reason: 'token_already_saved' })
-    return
-  }
+  [randomUUID(), order.customer_id, attempt.provider, attempt.mode, card.token, card.brand, card.last_four, card.exp_month, card.exp_year, card.funding, attempt.consent_at, attempt.consent_text_version, attempt.id])
+  if (!saved.rowCount) return 'token_already_saved'
   await writeAudit(client, 'payment_method.saved', order.customer_id, 'Card saved from a card form payment',
-    { payment_method_id: saved.rows[0].id, attempt_id: attempt.id, brand: plan.brand, last_four: plan.last_four })
+    { payment_method_id: saved.rows[0].id, attempt_id: attempt.id, brand: card.brand, last_four: card.last_four })
   const enabled = await client.query(`UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1
     WHERE id=$1 AND NOT auto_renew_enabled RETURNING id`, [order.subscription_id, attempt.consent_at])
   if (enabled.rowCount) await writeAudit(client, 'auto_renew.enabled', order.subscription_id, 'Auto-renew enabled with the card saved at payment',
     { attempt_id: attempt.id, consent_text_version: attempt.consent_text_version })
+  return 'saved'
+}
+
+/**
+ * Carries out the card decision of a payment inside its settlement transaction. Saving the card runs under a savepoint: whatever goes
+ * wrong with it (a constraint, a concurrent default) rolls back to the savepoint, the payment still settles, the card is not kept, and its
+ * token is queued for deletion. The caller has already locked the order, the attempt and the customer, in that order.
+ */
+export async function applyCardDecision(client: PoolClient, order: Row, attempt: Row, event: ProviderEvent, decision: CardDecision, settled: boolean, authenticated: boolean | null) {
+  if (settled) await writeAudit(client, 'payment.form_settled', order.id, 'Card form payment settled', { attempt_id: attempt.id, payment_id: event.payment_id, authenticated, card: decision.kind })
+  const owner: TokenOwner = { customer_id: order.customer_id }
+  const discard = async (token: string, reason: string, action = 'payment.card_not_saved', words = 'The card was not saved') => {
+    await enqueueTokenDeletion(client, attempt, token, attempt.id, 'discarded', owner)
+    await writeAudit(client, action, order.id, words, { attempt_id: attempt.id, reason })
+  }
+  if (decision.kind === 'nothing') {
+    if (decision.reason) await writeAudit(client, 'payment.card_not_saved', order.id, 'The card was not saved', { attempt_id: attempt.id, reason: decision.reason })
+  } else if (decision.kind === 'discard') {
+    if (decision.reason === 'not_requested') await discard(decision.token, decision.reason, 'payment.token_orphan_deleted', 'The payment carried a card token that was not asked for; it is being deleted')
+    else await discard(decision.token, decision.reason)
+  } else {
+    await client.query('SAVEPOINT card_save')
+    let outcome: 'saved' | 'token_already_saved' | 'failed'
+    try {
+      outcome = await saveCard(client, order, attempt, decision.card)
+      await client.query('RELEASE SAVEPOINT card_save')
+    } catch (error) {
+      await client.query('ROLLBACK TO SAVEPOINT card_save')
+      await client.query('RELEASE SAVEPOINT card_save')
+      console.error('[payments] the card of attempt %s could not be saved (%s)', attempt.id, logCode(error))
+      outcome = 'failed'
+    }
+    if (outcome === 'failed') await discard(decision.card.token, 'card_save_failed')
+    // The same token is already a saved card: it must not be deleted, only reported.
+    else if (outcome === 'token_already_saved') await writeAudit(client, 'payment.card_not_saved', order.id, 'The card was not saved', { attempt_id: attempt.id, reason: 'token_already_saved' })
+  }
 }
 
 /** The plan flag that lets a customer keep a card for renewal: read from the plan the order's target revision was sold under. */
@@ -177,66 +231,88 @@ export async function assertAutoRenewAllowed(client: Queryable, order: Row) {
 }
 
 export type FormResolution =
-  | { outcome: 'settled' | 'ignored' }
+  | { outcome: 'settled' | 'ignored' | 'declined' }
   | { outcome: 'not_paid'; status: PaymentRecord['status'] }
   | { outcome: 'rejected'; reason: FormRejection }
 
 /** The settlement the caller owns (`apply` in payments.ts), given so that this module stays below it. */
-export type SettleInTransaction = (client: PoolClient, event: ProviderEvent, form: FormSettlement) => Promise<'accepted' | 'ignored' | 'rejected'>
-
-class SettlementMismatch extends Error {}
+export type SettleInTransaction = (client: PoolClient, event: ProviderEvent) => Promise<'accepted' | 'ignored' | 'rejected'>
 
 /**
- * Turns a payment id that nothing vouches for into a settled attempt, or into nothing. The payment is fetched with the secret key and
- * must name an existing form attempt (`expect`, when the caller knows which, is the only one it may name) and pass `checkFormPayment`.
- * Binding the payment to the attempt and settling it is one transaction under the order and attempt locks, so a callback and a webhook
- * racing for the same payment settle it once. A payment on an attempt that already has another payment becomes a sibling attempt row
- * that settles as a duplicate charge; a payment on a closed attempt settles as a late payment. Neither is lost.
+ * Turns a payment id that nothing vouches for into a settled attempt, a recorded decline, or nothing. The payment is fetched with the
+ * secret key and must name an existing form attempt (`expect`, when the caller knows which, is the only one it may name) and pass
+ * `checkFormPayment`. Binding the payment to the attempt and settling it is one transaction under the order, attempt and customer
+ * locks, so a callback and a webhook racing for the same payment settle it once. A payment on a closed attempt settles as a late
+ * payment, or as a duplicate charge when the order was paid meanwhile; a second payment on an attempt that already has one is refused.
+ * Only paid payments are audited when refused (they are money); a failed or pending payment that does not belong changes nothing.
  */
 export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, input: { payment_id: string; source: FormSource; expect?: Row; event_id?: string; settle: SettleInTransaction }): Promise<FormResolution> {
-  const reject = (reason: FormRejection, ids: { attempt_id?: string; order_id?: string } = {}) =>
-    rejectFormPayment(pool, input.source, reason, { ...ids, payment_id: input.payment_id })
+  const reject = (reason: FormRejection, ids: { attempt_id?: string; order_id?: string } = {}) => rejectFormPayment(pool, input.source, reason, { ...ids, payment_id: input.payment_id })
+  if (!isPaymentHint(input.payment_id)) return reject('bad_shape', { attempt_id: input.expect?.id, order_id: input.expect?.order_id })
+  if (await rejectionMemory(pool, input.source, input.payment_id)) return { outcome: 'rejected', reason: 'rate_limited' }
   let record: PaymentRecord
   try { record = await adapter.readPayment(input.payment_id) } catch (error) {
-    if (error instanceof PaymentError && error.code === 'not_found') return reject('payment_not_found', { attempt_id: input.expect?.id })
+    if (error instanceof PaymentError && error.code === 'not_found') return reject('payment_not_found', { attempt_id: input.expect?.id, order_id: input.expect?.order_id })
     throw error
   }
-  if (!record.attempt_id) return reject('description_unrecognized', { attempt_id: input.expect?.id })
-  if (input.expect && record.attempt_id !== input.expect.id) return reject('attempt_mismatch', { attempt_id: input.expect.id })
-  if (record.status !== 'succeeded') return { outcome: 'not_paid', status: record.status }
+  if (record.status === 'refunded') {
+    // A payment nobody claimed that was refunded in full has returned its money and owes nothing. One refunded in part still holds money the
+    // control plane has no order for, so it is audited like any other unmatched payment.
+    const kept = record.amount.minor - (record.refunded?.minor ?? record.amount.minor)
+    if (kept <= 0) return { outcome: 'not_paid', status: record.status }
+    const owner = record.attempt_id ? (await pool.query('SELECT id,order_id FROM payment_attempts WHERE id=$1', [record.attempt_id])).rows[0] : undefined
+    return reject('refunded_unclaimed', { attempt_id: owner?.id, order_id: owner?.order_id })
+  }
+  if (record.status !== 'succeeded' && record.status !== 'failed') return { outcome: 'not_paid', status: record.status }
+  // A refusal of a payment that is not paid costs nothing, so it leaves no trace; a paid one is money and is audited.
+  const refuse = (reason: FormRejection, ids: { attempt_id?: string; order_id?: string } = {}): FormResolution | Promise<FormResolution> =>
+    record.status === 'succeeded' ? reject(reason, ids) : { outcome: 'not_paid', status: record.status }
+  if (!record.attempt_id) return refuse('description_unrecognized', { attempt_id: input.expect?.id, order_id: input.expect?.order_id })
+  if (input.expect && record.attempt_id !== input.expect.id) return refuse('attempt_mismatch', { attempt_id: input.expect.id, order_id: input.expect.order_id })
   const attempt = (await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [record.attempt_id])).rows[0]
-  if (!attempt) return reject('attempt_unknown')
+  if (!attempt) return refuse('attempt_unknown')
   const reason = await checkFormPayment(pool, adapter, attempt, record)
-  if (reason) return reject(reason, { attempt_id: attempt.id, order_id: attempt.order_id })
-  const form: FormSettlement = { plan: await planCard(adapter, attempt, record), authenticated: record.authenticated, handled: false }
-  let result: FormResolution
+  if (reason) return refuse(reason, { attempt_id: attempt.id, order_id: attempt.order_id })
+  if (record.status === 'failed') return recordDecline(pool, attempt, record)
+  const plan = await planCard(adapter, attempt, record)
+  let result: FormResolution | { outcome: 'refused'; reason: FormRejection }
   try {
     result = await transaction(pool, async client => {
       const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [attempt.order_id])).rows[0]
       const current = (await client.query('SELECT * FROM payment_attempts WHERE id=$1 FOR UPDATE', [attempt.id])).rows[0]
+      if (plan.kind === 'save') await client.query('SELECT id FROM customers WHERE id=$1 FOR UPDATE', [order.customer_id])
       if (current.provider_ref === record.payment_id) return { outcome: 'ignored' as const }
-      let target = current
-      if (current.provider_ref) {
-        target = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,merchant_ref,amount_minor,currency,exponent,status,kind)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'canceled','form') RETURNING *`,
-        [randomUUID(), current.order_id, current.invoice_id, current.provider, current.mode, record.payment_id, current.merchant_ref, current.amount_minor, current.currency, current.exponent])).rows[0]
-      } else {
-        await client.query('UPDATE payment_attempts SET provider_ref=$2,updated_at=now() WHERE id=$1', [current.id, record.payment_id])
-        target = { ...current, provider_ref: record.payment_id }
-      }
+      if (current.provider_ref) return { outcome: 'refused' as const, reason: 'attempt_has_other_payment' as const }
+      await client.query('UPDATE payment_attempts SET provider_ref=$2,updated_at=now() WHERE id=$1', [current.id, record.payment_id])
+      const target = { ...current, provider_ref: record.payment_id }
       const event = formPaymentEvent(adapter, record, target.id, input.event_id)
-      const outcome = await input.settle(client, event, form)
-      if (outcome === 'rejected') throw new SettlementMismatch()
-      if (!form.handled && (form.plan.kind === 'save' || form.plan.kind === 'discard')) await discardCard(client, order, target, event, form)
+      const outcome = await input.settle(client, event)
+      if (outcome === 'rejected') return { outcome: 'refused' as const, reason: 'settlement_mismatch' as const }
+      const after = (await client.query('SELECT payment_state,paid_attempt_id FROM orders WHERE id=$1', [order.id])).rows[0]
+      const keep = outcome === 'accepted' && after.paid_attempt_id === target.id && after.payment_state === 'paid'
+      const decision = decideCard(plan, keep)
+      if (outcome === 'accepted' || decision.kind === 'discard') await applyCardDecision(client, order, target, event, decision, outcome === 'accepted', record.authenticated)
       return { outcome: outcome === 'accepted' ? 'settled' as const : 'ignored' as const }
     })
   } catch (error) {
-    if (error instanceof SettlementMismatch) return reject('settlement_mismatch', { attempt_id: attempt.id, order_id: attempt.order_id })
-    throw error
+    // Another settlement took this payment id between the check and the update: the same refusal, typed.
+    if ((error as { code?: string }).code === '23505' && (error as { constraint?: string }).constraint === 'payment_attempts_provider_ref') result = { outcome: 'refused', reason: 'payment_bound_elsewhere' }
+    else throw error
   }
+  if (result.outcome === 'refused') return reject(result.reason, { attempt_id: attempt.id, order_id: attempt.order_id })
   // After the commit, never inside it: the provider call that deletes a replaced or unwanted token holds no lock. A failure stays queued.
   if (result.outcome === 'settled') await processTokenDeletions(pool, adapter)
   return result
+}
+
+/** A failed payment of the attempt's current intent: the intent is consumed and nothing was charged, so the attempt may open a fresh one at once. */
+async function recordDecline(pool: Pool, attempt: Row, record: PaymentRecord): Promise<FormResolution> {
+  await transaction(pool, async client => {
+    const marked = await client.query(`UPDATE payment_attempts SET declined_payment_ref=$2,updated_at=now()
+      WHERE id=$1 AND provider_ref IS NULL AND declined_payment_ref IS DISTINCT FROM $2 RETURNING order_id`, [attempt.id, record.payment_id])
+    if (marked.rowCount) await writeAudit(client, 'payment.form_declined', attempt.order_id, 'Card form payment declined', { attempt_id: attempt.id, payment_id: record.payment_id })
+  })
+  return { outcome: 'declined' }
 }
 
 /** The event the settlement machine takes, built from the payment the provider reported: its id is the provider reference of a form attempt. */
@@ -248,7 +324,7 @@ export function formPaymentEvent(adapter: PaymentAdapter, record: PaymentRecord,
   }
 }
 
-/** What the browser is given to open the card form. The client secret is read from the provider each time; it is never stored. */
+/** What the browser is given to open the card form. The client secret is read from the provider each time; it is never stored. The callback secret is never part of it. */
 export function formSession(adapter: PaymentAdapter, row: Row, intent: PaymentIntent): FormPaymentSession {
   const lifetimeEnd = new Date(row.created_at).getTime() + FORM_ATTEMPT_LIFETIME_MS
   return {
@@ -261,6 +337,14 @@ export function formSession(adapter: PaymentAdapter, row: Row, intent: PaymentIn
 /** An intent a browser may still fulfil, with time to do it. */
 export function intentUsable(intent: PaymentIntent): boolean {
   return intent.status === 'created' && new Date(intent.expires_at).getTime() - Date.now() > MIN_INTENT_REMAINING_MS
+}
+
+/**
+ * An intent that was fulfilled (or is in a state nobody recognises) may hold a payment, paid or still being authenticated, that nothing can
+ * look up from the attempt alone. Only a decline the provider reported for this intent's payment (`declined_payment_ref`) says it does not.
+ */
+export function intentMayHoldPayment(row: Row, intent: PaymentIntent | null): boolean {
+  return !!intent && intent.status !== 'created' && intent.status !== 'canceled' && !row.declined_payment_ref
 }
 
 export async function readIntent(adapter: PaymentAdapter, ref: string | null): Promise<PaymentIntent | null> {
@@ -281,51 +365,68 @@ export async function cancelIntentQuietly(adapter: PaymentAdapter, ref: string |
 }
 
 /**
- * Closes a form attempt nobody paid, locally and at the provider. The order stays payable. A payment that shows up afterwards is
- * still found by its description and settled as a late payment, so closing never loses money.
+ * Closes a form attempt nobody paid, locally and at the provider. The order stays payable. A payment that shows up afterwards is still
+ * found by its description and secret and settled as a late payment, so closing never loses money. At the end of its lifetime the intent
+ * is read first: one that was fulfilled with no payment ever reported (no webhook, no return) may hold money, so the attempt is closed
+ * with `payment.form_attempt_needs_review` and the vendor looks the payment up at the provider.
  */
 export async function closeUnpaidFormAttempt(pool: Pool, adapter: PaymentAdapter, row: Row, reason: 'expired' | 'method_changed' | 'order_paid') {
-  await cancelIntentQuietly(adapter, row.provider_intent_ref)
+  const intent = reason === 'expired' ? await readIntent(adapter, row.provider_intent_ref) : null
+  const review = reason === 'expired' && intentMayHoldPayment(row, intent)
+  if (!review) await cancelIntentQuietly(adapter, row.provider_intent_ref)
   await transaction(pool, async client => {
     const closed = await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND provider_ref IS NULL AND status = ANY($2::text[]) RETURNING order_id", [row.id, LIVE_ATTEMPT_STATUSES])
-    if (closed.rowCount) await writeAudit(client, 'payment.form_attempt_closed', row.order_id, `Unpaid card form attempt closed: ${reason}`, { attempt_id: row.id, reason })
+    if (!closed.rowCount) return
+    await writeAudit(client, 'payment.form_attempt_closed', row.order_id, `Unpaid card form attempt closed: ${reason}`, { attempt_id: row.id, reason })
+    if (review) await writeAudit(client, 'payment.form_attempt_needs_review', row.order_id, 'The card form was used but no payment was reported: look the payment up at the provider',
+      { attempt_id: row.id, intent_status: intent?.status ?? null })
   })
 }
 
 /**
  * The customer asks for another way to pay while a form attempt is open. It is closed only when no payment can exist for it: the intent
- * was never fulfilled (it is cancelled here, and a refusal means it was fulfilled in the meantime) or never created. A consumed intent may
- * hold a payment, paid or still being authenticated, that nothing can look up, so it is not closed until the attempt's own lifetime ends.
+ * was never fulfilled (it is cancelled here, and a refusal means it was fulfilled in the meantime), never created, or its payment is
+ * known to have been declined.
  */
 export async function retireLiveFormAttempt(pool: Pool, adapter: PaymentAdapter, row: Row) {
   if (row.provider_ref) throw new CommercialHttpError('payment_in_progress', 409)
-  if (row.provider_intent_ref) {
-    const intent = await readIntent(adapter, row.provider_intent_ref)
-    if (intent && intent.status !== 'canceled' && intent.status !== 'created') throw new CommercialHttpError('payment_in_progress', 409)
-    // An intent past its expiry was never fulfilled (a fulfilled one reads `fulfilled`), so cancelling it cannot meet a payment.
-    if (intent?.status === 'created' && new Date(intent.expires_at).getTime() > Date.now() && await adapter.cancelIntent(intent.id) === 'not_cancelable')
-      throw new CommercialHttpError('payment_in_progress', 409)
-  }
+  const intent = await readIntent(adapter, row.provider_intent_ref)
+  if (intentMayHoldPayment(row, intent)) throw new CommercialHttpError('payment_in_progress', 409)
+  // An intent past its expiry was never fulfilled (a fulfilled one reads `fulfilled`), so cancelling it cannot meet a payment.
+  if (intent?.status === 'created' && new Date(intent.expires_at).getTime() > Date.now() && await adapter.cancelIntent(intent.id) === 'not_cancelable')
+    throw new CommercialHttpError('payment_in_progress', 409)
   await closeUnpaidFormAttempt(pool, adapter, row, 'method_changed')
 }
 
 /**
  * Deletes card tokens at the provider: the default card a new card replaced, and a token that came with a payment that did not keep it.
- * A failure is logged by code, leaves the row pending and is retried with backoff; the token leaves the row once the deletion is done.
+ * A failure is logged by code, leaves the row pending and is retried with backoff. A deletion that keeps failing (a day, or twelve tries)
+ * is given up: the row fails with the token stripped, the removed card forgets its token, and the vendor sees the card (brand and last four).
  */
 export async function processTokenDeletions(pool: Pool, adapter: PaymentAdapter | undefined, limit = 20): Promise<number> {
   let deleted = 0
   for (const row of await claimOutbox(pool, [TOKEN_DELETE_KIND], limit)) {
-    const payload = row.payload as { provider: string; mode: string; token: string }
+    const payload = row.payload as { provider: string; mode: string; token: string; payment_method_id?: string }
     if (!adapter || adapter.provider !== payload.provider || adapter.mode !== payload.mode) { await releaseOutbox(pool, row.id); continue }
+    const forgetToken = (db: Queryable) => payload.payment_method_id
+      ? db.query("UPDATE payment_methods SET provider_token=NULL WHERE id=$1 AND status='removed'", [payload.payment_method_id]) : Promise.resolve()
     try {
       await adapter.deleteToken(payload.token)
-      await pool.query("UPDATE commercial_outbox SET status='done',processed_at=now(),payload=payload-'token' WHERE id=$1 AND status='pending'", [row.id])
+      await transaction(pool, async client => {
+        await client.query("UPDATE commercial_outbox SET status='done',processed_at=now(),payload=payload-'token' WHERE id=$1 AND status='pending'", [row.id])
+        await forgetToken(client)
+      })
       deleted++
     } catch (error) {
       const code = logCode(error)
       console.error(JSON.stringify({ event: 'payment_token_delete_failed', outbox_id: row.id, code }))
-      await deferOutbox(pool, row.id, code)
+      const tooOld = Date.now() - new Date(row.created_at).getTime() > TOKEN_DELETE_MAX_AGE_HOURS * 3_600_000
+      if (row.attempts + 1 >= TOKEN_DELETE_MAX_ATTEMPTS || tooOld) {
+        await transaction(pool, async client => {
+          await client.query("UPDATE commercial_outbox SET status='failed',processed_at=now(),payload=(payload-'token')||jsonb_build_object('error',$2::text) WHERE id=$1 AND status='pending'", [row.id, code])
+          await forgetToken(client)
+        })
+      } else await deferOutbox(pool, row.id, code)
     }
   }
   return deleted

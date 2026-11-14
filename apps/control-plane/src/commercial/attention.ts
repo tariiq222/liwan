@@ -141,6 +141,22 @@ const subjectsSql = `WITH latest AS (
 ), deletion_due AS (
   -- A customer's own deletion request whose withdrawal window has ended. Nothing carries it out yet, so it waits here for the vendor until the drop stage handles it.
   SELECT c.id AS customer_id, c.name, c.tenant_id, r.due_at FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE r.state='due'
+), form_payment_review AS (
+  -- A card form payment the vendor must look up at the provider: a form attempt used with no payment ever reported, a paid payment that
+  -- could not be tied to its attempt (money with nothing settled), or a card token the provider would not delete. One item per customer,
+  -- dated by the latest, for two weeks.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, e.at, e.detail FROM (
+    SELECT a.created_at AS at, o.customer_id, 'attempt_needs_review' AS detail FROM audit_events a JOIN orders o ON o.id::text = a.subject
+      WHERE a.action = 'payment.form_attempt_needs_review' AND a.created_at > now() - interval '14 days'
+    UNION ALL
+    SELECT a.created_at, o.customer_id, a.metadata->>'reason' FROM audit_events a JOIN orders o ON o.id::text = a.subject
+      WHERE a.action IN ('payment.form_hint_rejected', 'payment.form_payment_rejected') AND a.created_at > now() - interval '14 days'
+        AND a.metadata->>'reason' NOT IN ('bad_shape', 'payment_not_found', 'rate_limited')
+    UNION ALL
+    SELECT ob.processed_at, (ob.payload->>'customer_id')::uuid, 'token_not_deleted: ' || COALESCE(ob.payload#>>'{card,brand}', 'card') || ' ' || COALESCE(ob.payload#>>'{card,last_four}', '')
+      FROM commercial_outbox ob WHERE ob.kind = 'payment_token.delete' AND ob.status = 'failed' AND ob.processed_at > now() - interval '14 days' AND ob.payload->>'customer_id' IS NOT NULL
+  ) e JOIN customers c ON c.id = e.customer_id
+  ORDER BY c.id, e.at DESC
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
@@ -149,6 +165,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
   UNION ALL SELECT 2,'tenant_deletion_due', customer_id, tenant_id, NULL, NULL, name, ${iso('due_at')}, NULL, due_at FROM deletion_due
+  UNION ALL SELECT 2,'form_payment_review', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM form_payment_review
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('armed_at')}, reason, armed_at FROM lock_blocked
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue

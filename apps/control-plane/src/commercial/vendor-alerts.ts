@@ -67,6 +67,7 @@ const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 
   operation_failed: 'عملية تشغيل فاشلة',
   setup_required: 'الإعداد التجاري لم يكتمل',
   renewal_missed: 'تجديد فات موعده',
+  form_payment_review: 'دفعة بطاقة تحتاج مراجعة عند المزود',
 }
 
 const UNSAFE_TEXT = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g

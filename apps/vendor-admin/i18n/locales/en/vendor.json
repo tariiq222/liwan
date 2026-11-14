@@ -81,7 +81,8 @@
         "setup_required": "Needs commercial setup",
         "renewal_missed": "Renewal date passed {duration} ago and not renewed",
         "renewal_soon": "Renews within {duration}",
-        "tenant_deletion_due": "The customer's deletion request is due. Nothing carries it out yet: check the request before it is handled"
+        "tenant_deletion_due": "The customer's deletion request is due. Nothing carries it out yet: check the request before it is handled",
+        "form_payment_review": "A card payment needs checking at the payment provider ({operation}): money may have been taken that nothing settled, or a card token was not deleted"
       },
       "refundReasons": {
         "refund_exceeds_payment": "refunded more than was paid",
@@ -107,7 +108,8 @@
         "setup_required": "Open the subscription",
         "renewal_missed": "Open the subscription",
         "renewal_soon": "Open the subscription",
-        "tenant_deletion_due": "Open the request"
+        "tenant_deletion_due": "Open the request",
+        "form_payment_review": "Open the invoices"
       },
       "statusTitle": "Overall status",
       "statusLabel": "Overall status counts",

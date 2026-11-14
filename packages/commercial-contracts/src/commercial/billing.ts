@@ -119,7 +119,6 @@ export const paymentAttemptRequestSchema = z.strictObject({
   method: paymentMethodChoiceSchema.default('hosted_invoice'),
   save_card: z.boolean().default(false),
   consent_text_version: CONSENT_TEXT_VERSION.optional(),
-  idempotency_key: z.uuid().optional(),
 }).superRefine((request, ctx) => {
   if (request.save_card && request.method !== 'form') ctx.addIssue({ code: 'custom', path: ['save_card'], message: 'Only a card form payment can save the card' })
   if (request.save_card && !request.consent_text_version) ctx.addIssue({ code: 'custom', path: ['consent_text_version'], message: 'Saving the card needs the consent text version' })

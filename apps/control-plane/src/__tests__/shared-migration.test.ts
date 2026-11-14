@@ -205,6 +205,17 @@ it('registers version sixty-one once and gives a form attempt its intent and car
   await migrate(g.pool)
   expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(61)')
 })
+it('registers version sixty-two once and adds the callback secret and the removed-card token rule', async () => {
+  const applied = Array.from({ length: 61 }, (_, i) => i + 1)
+  const f = fixture(applied)
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(62)')
+  expect(sql.some((s) => s.includes('ADD COLUMN callback_secret text') && s.includes('payment_methods_token_present_check'))).toBe(true)
+  const g = fixture([...applied, 62])
+  await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(62)')
+})
 it('registers immutable branch quotes and revision guard in versions fifteen and sixteen once', async () => {
   const applied = Array.from({length:14}, (_, i) => i+1)
   const f=fixture(applied)

@@ -81,7 +81,8 @@
         "setup_required": "يحتاج إعدادًا تجاريًا",
         "renewal_missed": "تاريخ التجديد مضى منذ {duration} ولم يتجدد",
         "renewal_soon": "يتجدد خلال {duration}",
-        "tenant_deletion_due": "طلب حذف مساحة العميل استحق. لا شيء ينفّذه بعد، فتحقق من الطلب قبل معالجته"
+        "tenant_deletion_due": "طلب حذف مساحة العميل استحق. لا شيء ينفّذه بعد، فتحقق من الطلب قبل معالجته",
+        "form_payment_review": "دفعة بطاقة تحتاج فحصًا عند مزود الدفع ({operation}): قد يكون مال سُحب ولم يُسوَّ شيء، أو لم يُحذف رمز بطاقة"
       },
       "refundReasons": {
         "refund_exceeds_payment": "المبلغ المسترد أكبر من المدفوع",
@@ -107,7 +108,8 @@
         "setup_required": "افتح الاشتراك",
         "renewal_missed": "افتح الاشتراك",
         "renewal_soon": "افتح الاشتراك",
-        "tenant_deletion_due": "افتح الطلب"
+        "tenant_deletion_due": "افتح الطلب",
+        "form_payment_review": "افتح الفواتير"
       },
       "statusTitle": "الحالة العامة",
       "statusLabel": "أعداد الحالة العامة",

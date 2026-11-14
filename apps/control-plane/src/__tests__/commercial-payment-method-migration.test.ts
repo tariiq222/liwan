@@ -75,6 +75,20 @@ suite('schema_058 carries a database that ran schema_001..057', () => {
     await pool.query("UPDATE payment_attempts SET kind='saved_card',provider_intent_ref=NULL,save_card=false,consent_at=NULL,consent_text_version=NULL WHERE id=$1", [ids.direct])
   })
 
+  it('schema_062 keeps the callback secret with its intent, and lets only a removed card have no token', async () => {
+    await expect(pool.query("UPDATE payment_attempts SET callback_secret=repeat('a',32) WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_callback_secret_check' })
+    await expect(pool.query("UPDATE payment_attempts SET declined_payment_ref='pay_1' WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_declined_check' })
+    await pool.query("UPDATE payment_attempts SET kind='form',provider_intent_ref='intent_62',callback_secret=repeat('a',32),declined_payment_ref='pay_1' WHERE id=$1", [ids.direct])
+    await expect(pool.query("UPDATE payment_attempts SET callback_secret='short' WHERE id=$1", [ids.direct])).rejects.toMatchObject({ constraint: 'payment_attempts_callback_secret_check' })
+    await pool.query("UPDATE payment_attempts SET kind='saved_card',provider_intent_ref=NULL,callback_secret=NULL,declined_payment_ref=NULL WHERE id=$1", [ids.direct])
+    await expect(insert({ provider_token: null })).rejects.toMatchObject({ constraint: 'payment_methods_token_present_check' })
+    await expect(insert({ provider_token: '' })).rejects.toMatchObject({ constraint: 'payment_methods_token_present_check' })
+    await insert({ provider_token: null, status: 'removed', removed_at: new Date(), removed_by: 'system' })
+    await insert({ provider_token: 'tok_active_62', status: 'inactive' })
+    await expect(pool.query("UPDATE payment_methods SET provider_token=NULL WHERE provider_token='tok_active_62'")).rejects.toMatchObject({ constraint: 'payment_methods_token_present_check' })
+    await pool.query("UPDATE payment_methods SET status='removed',removed_at=now(),removed_by='system',provider_token=NULL WHERE provider_token='tok_active_62'")
+  })
+
   it('drops the subscription token and keeps the auto-renew consent check', async () => {
     expect(await columns('subscriptions')).not.toContain('provider_token_ref')
     await expect(pool.query('UPDATE subscriptions SET auto_renew_consent_at=NULL,revision=revision+1 WHERE id=$1', [ids.subscription])).rejects.toBeTruthy()

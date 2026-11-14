@@ -28,6 +28,10 @@ describe('attentionPresentation', () => {
     expect(attentionPresentation(item({ kind: 'tenant_deletion_due' }))).toMatchObject({ tone: 'destructive', actionKey: 'vendor.today.actions.tenant_deletion_due' })
     expect(attentionMessage(item({ kind: 'tenant_deletion_due' }), now)).toEqual({ key: 'tenant_deletion_due', days: null, operation: null })
   })
+  it('sends a card payment that needs checking to the customer\'s invoices with the machine reason', () => {
+    expect(attentionPresentation(item({ kind: 'form_payment_review' }))).toMatchObject({ to: { path: '/customers/c1', query: { tab: 'invoices' } }, tone: 'destructive', actionKey: 'vendor.today.actions.form_payment_review' })
+    expect(attentionMessage(item({ kind: 'form_payment_review', detail: 'amount_mismatch' }), now)).toEqual({ key: 'form_payment_review', days: null, operation: 'amount_mismatch' })
+  })
   it('links nowhere rather than to a guessed page when the record is missing', () => {
     expect(attentionPresentation(item({ kind: 'setup_required', customer_id: null })).to).toBeNull()
     expect(attentionPresentation(item({ kind: 'operation_failed', operation_id: null })).to).toBeNull()

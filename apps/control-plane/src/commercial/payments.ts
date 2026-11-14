@@ -14,8 +14,8 @@ import { recordFulfillmentFailure } from './settlements.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
 import { isPaidFirstOrder, requireReachableManager } from './orders.js'
-import { FORM_ATTEMPT_LIFETIME_MS, LIVE_ATTEMPT_STATUSES, assertAutoRenewAllowed, cancelIntentQuietly, closeUnpaidFormAttempt, discardCard, formSession, intentUsable,
-  isPaymentHint, processTokenDeletions, readIntent, rejectFormPayment, resolveFormPayment, retireLiveFormAttempt, settleCard, type FormSettlement } from './form-payments.js'
+import { FORM_ATTEMPT_LIFETIME_MS, LIVE_ATTEMPT_STATUSES, assertAutoRenewAllowed, callbackWithSecret, cancelIntentQuietly, closeUnpaidFormAttempt, formSession, intentMayHoldPayment,
+  intentUsable, isPaymentHint, newCallbackSecret, readIntent, rejectFormPayment, resolveFormPayment, retireLiveFormAttempt } from './form-payments.js'
 import type { FormPaymentSession, PaymentAttemptRequest } from '@liwan/commercial-contracts'
 
 export function paymentAttemptView(row: any) {
@@ -45,8 +45,7 @@ const matches = (a: any, e: ProviderEvent) => a.provider === e.provider && a.pro
   && (!e.attempt_id || e.attempt_id === a.id) && Number(a.amount_minor) === e.amount.minor
   && a.currency === e.amount.currency && a.exponent === e.amount.exponent && (a.mode === 'live') === e.live
 
-/** `form` carries the card decision of a card form payment; it is acted on in the same transaction that settles the payment, once. */
-async function apply(client: PoolClient, event: ProviderEvent, form?: FormSettlement): Promise<'accepted' | 'ignored' | 'rejected'> {
+async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepted' | 'ignored' | 'rejected'> {
   const found = (await client.query('SELECT order_id FROM payment_attempts WHERE provider=$1 AND provider_ref=$2', [event.provider, event.provider_ref])).rows[0]
   if (!found) return 'rejected'
   // Order-first lock order matches attempt creation and serializes separate attempts.
@@ -90,8 +89,6 @@ async function apply(client: PoolClient, event: ProviderEvent, form?: FormSettle
         payload: { order_id: order.id, attempt_id: attempt.id, payment_id: event.payment_id, event_id: event.event_id, duplicate: true } })
       if (inserted) await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
         [randomUUID(),'system','payment.duplicate_charge',order.id,reason,JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id, payment_id: event.payment_id })])
-      // The duplicate is returned to the customer, so the card it came with is not kept.
-      if (form) await discardCard(client, order, attempt, event, form)
       return 'accepted'
     }
     return 'ignored'
@@ -124,8 +121,6 @@ async function apply(client: PoolClient, event: ProviderEvent, form?: FormSettle
           invoice_id: attempt.invoice_id, amount: { minor: Number(attempt.amount_minor), currency: attempt.currency, exponent: attempt.exponent } })
       }
     }
-    // A payment that is being returned (it arrived after the order was cancelled) keeps no card and turns no auto-renew on.
-    if (form) await (next.reconcile ? discardCard : settleCard)(client, order, attempt, event, form)
   } else if (event.status === 'refunded') {
     // A refund or chargeback of a top-up order takes the balance back, whole: a provider refund is not reported per purchase.
     await markTopupRefunded(client, order.id, 'system', 'payment refunded at the provider')
@@ -194,10 +189,14 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
   const known = (await pool.query('SELECT kind,status FROM payment_attempts WHERE provider=$1 AND provider_ref=$2', [event.provider, event.provider_ref])).rows[0]
   // A payment no attempt has claimed yet, named by its description, may be a card form payment: it is fetched and judged in full, and
   // the webhook body decides nothing. A payment that matches no attempt is not recorded as a final event, so the provider's retry finds it later.
-  if (!known && event.attempt_id) {
+  // Only an unclaimed payment that names a form attempt (or no attempt at all) goes to the form resolver: a hosted invoice's payment that
+  // arrives before its reference is saved keeps the hosted path.
+  const owner = !known && event.attempt_id && z.uuid().safeParse(event.attempt_id).success
+    ? (await pool.query('SELECT kind FROM payment_attempts WHERE id=$1', [event.attempt_id])).rows[0] : undefined
+  if (!known && event.attempt_id && z.uuid().safeParse(event.attempt_id).success && (!owner || owner.kind === 'form')) {
     const resolved = await resolveFormPayment(pool, input.adapter, { payment_id: event.payment_id ?? event.provider_ref, source: 'webhook', event_id: event.event_id, settle: apply })
     if (resolved.outcome === 'rejected') return { status: 409, outcome: 'unmatched' as const }
-    if (resolved.outcome === 'not_paid') return { status: 200, outcome: 'ignored' as const }
+    if (resolved.outcome === 'not_paid' || resolved.outcome === 'declined') return { status: 200, outcome: 'ignored' as const }
     if (resolved.outcome === 'settled') await closeSiblingAttempts(pool, input.adapter, event)
     await pool.query(`INSERT INTO payment_events(id,provider,provider_event_id,attempt_id,status,amount_minor,currency,exponent,verified,confirmed,outcome)
       VALUES($1,$2,$3,(SELECT id FROM payment_attempts WHERE provider=$2 AND provider_ref=$7),$4,$5,$6,$8,true,true,'accepted') ON CONFLICT DO NOTHING`,
@@ -409,7 +408,11 @@ async function createFormAttempt(pool: Pool, input: AttemptInput, request: Attem
     const attemptId = randomUUID()
     await callbackFor(attemptId) // an unusable origin fails before any write
     const reservation = await reserveAttempt(pool, input, attemptId, spec)
-    if (reservation.fresh) return openFormIntent(pool, input, reservation.row, await callbackFor(attemptId), null)
+    if (reservation.fresh) {
+      const session = await openFormIntent(pool, input, reservation.row, await callbackFor(attemptId), null)
+      if (session) return session
+      continue
+    }
     const live = reservation.row
     if (live.kind === 'hosted_invoice') { await retireLiveHostedAttempt(pool, adapter, live); continue }
     if (live.kind !== 'form') throw new CommercialHttpError('payment_in_progress', 409)
@@ -420,25 +423,34 @@ async function createFormAttempt(pool: Pool, input: AttemptInput, request: Attem
 }
 
 /**
- * Creates the intent for an attempt row and stores its id, once: a request that lost a race to another one cancels its own intent
- * and hands back the winner's, so two simultaneous requests never leave two usable intents behind.
+ * Creates the intent for an attempt row and stores its id and its callback secret, once and only while the attempt is still open: a
+ * request that lost a race to another one (or to the attempt's expiry) cancels its own intent. It returns the winner's form, or null
+ * when the attempt was closed meanwhile and the caller starts again. Every intent has a secret of its own, in the callback URL the
+ * provider locks into it; opening a new intent clears the decline of the one before.
  */
-async function openFormIntent(pool: Pool, input: AttemptInput, row: any, callbackUrl: string, previousRef: string | null): Promise<FormPaymentSession> {
+async function openFormIntent(pool: Pool, input: AttemptInput, row: any, attemptUrl: string, previousRef: string | null): Promise<FormPaymentSession | null> {
+  const secret = newCallbackSecret()
   let intent
   try {
-    intent = await input.adapter.createIntent({ attempt_id: row.id, amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent }, callback_url: callbackUrl })
+    intent = await input.adapter.createIntent({ attempt_id: row.id, amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent }, callback_url: callbackWithSecret(attemptUrl, secret) })
   } catch { throw new CommercialHttpError('payment_unknown', 503) }
-  const stored = (await pool.query(`UPDATE payment_attempts SET provider_intent_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now()
-    WHERE id=$1 AND provider_ref IS NULL AND provider_intent_ref IS NOT DISTINCT FROM $3 RETURNING *`, [row.id, intent.id, previousRef])).rows[0]
+  const stored = (await pool.query(`UPDATE payment_attempts SET provider_intent_ref=$2,callback_secret=$4,declined_payment_ref=NULL,
+      status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now()
+    WHERE id=$1 AND provider_ref IS NULL AND status = ANY($5::text[]) AND provider_intent_ref IS NOT DISTINCT FROM $3 RETURNING *`, [row.id, intent.id, previousRef, secret, LIVE_ATTEMPT_STATUSES])).rows[0]
   if (stored) return formSession(input.adapter, stored, intent)
   await cancelIntentQuietly(input.adapter, intent.id)
   const current = (await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [row.id])).rows[0]
-  const winner = await readIntent(input.adapter, current?.provider_intent_ref ?? null)
-  if (!current || !winner || !intentUsable(winner)) throw new CommercialHttpError('payment_unknown', 503)
+  if (!current || !LIVE_ATTEMPT_STATUSES.includes(current.status)) return null
+  const winner = await readIntent(input.adapter, current.provider_intent_ref)
+  if (!winner || !intentUsable(winner)) throw new CommercialHttpError('payment_unknown', 503)
   return formSession(input.adapter, current, winner)
 }
 
-/** The form for an attempt that is already open, or null when the attempt had to be closed and the caller starts again. */
+/**
+ * The form for an attempt that is already open, or null when the attempt had to be closed and the caller starts again. An intent that
+ * was fulfilled may hold a payment nobody has seen, so it is replaced only when its payment is known to have been declined; otherwise
+ * the customer is told a payment is in progress, and the callback or webhook settles it.
+ */
 async function reenterFormAttempt(pool: Pool, input: AttemptInput, live: any, spec: Extract<NewAttempt, { kind: 'form' }>, callbackUrl: string): Promise<FormPaymentSession | null> {
   if (Date.now() - new Date(live.created_at).getTime() >= FORM_ATTEMPT_LIFETIME_MS) {
     await closeUnpaidFormAttempt(pool, input.adapter, live, 'expired')
@@ -456,7 +468,12 @@ async function reenterFormAttempt(pool: Pool, input: AttemptInput, live: any, sp
   }
   const intent = await readIntent(input.adapter, row.provider_intent_ref)
   if (intent && intentUsable(intent)) return formSession(input.adapter, row, intent)
-  if (intent?.status === 'created') await cancelIntentQuietly(input.adapter, intent.id)
+  if (intentMayHoldPayment(row, intent)) throw new CommercialHttpError('payment_in_progress', 409)
+  if (intent?.status === 'created') {
+    const cancelled = await cancelIntentQuietly(input.adapter, intent.id)
+    if (cancelled === 'not_cancelable') throw new CommercialHttpError('payment_in_progress', 409)
+    if (cancelled === 'failed') throw new CommercialHttpError('payment_unknown', 503)
+  }
   return openFormIntent(pool, input, row, callbackUrl, row.provider_intent_ref)
 }
 
@@ -482,7 +499,9 @@ async function retireLiveHostedAttempt(pool: Pool, adapter: PaymentAdapter, live
 export async function verifyReturnedAttempt(pool: Pool, input: { attempt_id: string; customer_id: string; adapter: PaymentAdapter; payment_hint?: string }) {
   const owned = await pool.query('SELECT 1 FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE a.id=$1 AND o.customer_id=$2', [input.attempt_id, input.customer_id])
   if (!owned.rowCount) throw new CommercialHttpError('not_found', 404)
-  const claimed = (await pool.query(`UPDATE payment_attempts SET updated_at=now() WHERE id=$1 AND status IN ('redirected','pending','unknown')
+  // A card form attempt that was closed unpaid may still be paid (the payer was in the middle of 3-D Secure): its return is looked at too.
+  const claimed = (await pool.query(`UPDATE payment_attempts SET updated_at=now() WHERE id=$1
+    AND (status IN ('redirected','pending','unknown') OR (kind='form' AND status='canceled' AND provider_ref IS NULL))
     AND updated_at < now() - interval '5 seconds' RETURNING *`, [input.attempt_id])).rows[0]
   if (claimed) {
     try {
