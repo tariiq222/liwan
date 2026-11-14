@@ -28,8 +28,11 @@ const leave = computed(() => query.value.data.value)
 const approvalQuery = useHrLeaveApproval(computed(() => leave.value ? id.value : null), () => !!props.personal)
 // Invalid ids have no record to load and use the same not-found state as an unknown positive id.
 const pageError = computed(() => query.value.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
-// A reviewer who holds only hr.leave.read cannot open the administrative list, so the record returns to the personal one.
-const sourcePaths = computed(() => props.personal || !canReachPath(me.value, '/hr/leave') ? ['/account/leave'] : ['/hr/leave'])
+// A reviewer who holds only hr.leave.read cannot open the administrative list, and the personal list follows the home
+// company's capabilities, so the record returns to the nearest list its viewer may open, then to the self-service home.
+const sourcePaths = computed(() => props.personal
+  ? ['/account/leave']
+  : [['/hr/leave', '/account/leave'].find(path => canReachPath(me.value, path)) ?? '/account'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 
 // The stages of the workflow that decides this leave. The route answers 404 when no workflow governs it, and the section stays out.
