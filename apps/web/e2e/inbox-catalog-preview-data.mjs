@@ -287,7 +287,7 @@ function orderOut(state, order) {
   const conv = state.conversations.find(item => item.id === order.conversation_id)
   const payment = order.payment ? { ...order.payment, amount_total: total, amount_due: order.payment.status === 'paid' ? 0 : total } : null
   return {
-    id: order.id, conversation_id: order.conversation_id, channel: { id: conv.channel.id, name: conv.channel.name }, contact: { id: conv.contact.id, name: conv.contact.name },
+    id: order.id, conversation_id: order.conversation_id, channel: { id: conv.channel.id, name: conv.channel.name }, contact: { id: conv.contact.id, name: conv.contact.name, erased: conv.contact.erased },
     message_id: order.message_id, state: order.state, reference: order.reference, lines, cart_total: cartTotal, cart_currency: cartTotal === null ? null : 'SAR', total, currency: 'SAR',
     price_changed: cartTotal !== null && cartTotal !== total, payment, pay_link_sent_at: order.pay_link_sent_at, created_by: order.created_by, created_at: order.created_at,
   }

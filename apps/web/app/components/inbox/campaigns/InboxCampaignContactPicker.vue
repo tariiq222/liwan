@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { useInboxAudienceMembers } from '@/composables/inbox/useInboxCampaigns'
 
 // Picks one contact of an audience by name or number: the sample a preview is rendered for, and the recipient of a test
 // send. The list is searched on the server, so a large audience is never loaded whole.
 const model = defineModel<number | null>({ required: true })
 const props = defineProps<{ audienceId: number | null; disabled?: boolean; placeholder: string; label: string }>()
+const { t } = useI18n()
 const search = ref('')
 const q = refDebounced(search, 250)
 const members = useInboxAudienceMembers(() => props.audienceId, () => ({ consent: '' as const, q: q.value, offset: 0 }))
-const items = computed(() => (members.data.value?.items ?? []).map(member => ({ id: member.id, label: member.phone ? `${member.name} · ${member.phone}` : member.name })))
+const items = computed(() => (members.data.value?.items ?? []).map((member) => {
+  const name = inboxContactName(member, t)
+  return { id: member.id, label: member.phone ? `${name} · ${member.phone}` : name }
+}))
 </script>
 
 <template>

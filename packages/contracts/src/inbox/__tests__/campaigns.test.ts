@@ -146,7 +146,7 @@ describe('campaign contracts', () => {
     expect(InboxCampaignTestSendSchema.safeParse({}).success).toBe(false)
     const recipient = {
       id: 1,
-      contact: { id: 4, name: 'Sara', phone: null },
+      contact: { id: 4, name: 'Sara', erased: false, phone: null },
       state: 'failed',
       skip_reason: null,
       failure: 'frequency_capped',

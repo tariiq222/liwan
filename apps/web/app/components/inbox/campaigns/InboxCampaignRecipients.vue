@@ -2,6 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { InboxCampaignRecipient } from '@liwan/contracts'
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { RECIPIENT_STATE_TONE, RECIPIENT_STATES } from '@/composables/inbox/inboxCampaignPresentation'
 import {
   CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseRecipientRoute, serializeRecipientRoute, type RecipientRoute,
@@ -76,7 +77,7 @@ const detailOf = (row: InboxCampaignRecipient) => row.skip_reason
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :loading="list.isLoading.value" :caption="t('inbox.campaigns.recipients.title')">
         <template #contact-cell="{ row }">
           <span class="flex min-w-0 flex-col">
-            <span class="truncate font-medium text-highlighted">{{ row.original.contact.name }}</span>
+            <span class="truncate font-medium text-highlighted">{{ inboxContactName(row.original.contact, t) }}</span>
             <bdi v-if="row.original.contact.phone" dir="ltr" class="text-xs text-muted">{{ row.original.contact.phone }}</bdi>
           </span>
         </template>
@@ -99,7 +100,7 @@ const detailOf = (row: InboxCampaignRecipient) => row.skip_reason
         </template>
         <template #mobile-row="{ row }">
           <div class="flex items-center justify-between gap-2">
-            <span class="font-medium text-highlighted">{{ row.contact.name }}</span>
+            <span class="font-medium text-highlighted">{{ inboxContactName(row.contact, t) }}</span>
             <SharedStatusBadge size="sm" :tone="RECIPIENT_STATE_TONE[row.state]" :label="t(`inbox.campaigns.recipients.states.${row.state}`)" />
           </div>
           <p class="mt-1 text-sm text-muted">{{ detailOf(row) }}</p>

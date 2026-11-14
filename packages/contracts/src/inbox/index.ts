@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { InboxFlowInteractiveSchema, InboxFlowSubmissionSchema, InboxTemplateFlowButtonSchema, InboxTemplateFlowButtonWriteSchema } from './flows'
 import { InboxCommerceContentSchema, InboxMessageCommerceSchema } from './catalog'
 
+export * from './refs'
 export * from './flows'
 export * from './catalog'
 export * from './tiktok'
@@ -42,6 +43,8 @@ export const InboxContactSchema = z.object({
   name: z.string(),
   phone: z.string().nullable(),
   email: z.string().nullable(),
+  // True once the customer's erase replaced the name with a stored marker; the screen shows a translated name.
+  erased: z.boolean(),
 }).strict()
 
 export const InboxConversationSchema = z.object({

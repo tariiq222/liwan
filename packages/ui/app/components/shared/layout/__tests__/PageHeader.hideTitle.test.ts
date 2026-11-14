@@ -5,12 +5,13 @@ import { renderShared, type SharedRenderOptions } from '../../../../../test/help
 
 const registerTitle = vi.fn()
 const escapeTarget = vi.fn()
-function options(frameOwnsHeading = false): SharedRenderOptions {
+function options(frameOwnsHeading = false, createPanelOpen = false): SharedRenderOptions {
   return {
     globals: {
       usePageHeader: registerTitle,
       useEscapeBack: escapeTarget,
       useFrameOwnsHeading: () => Vue.ref(frameOwnsHeading),
+      useCreatePanelOpen: () => Vue.ref(createPanelOpen),
     },
   }
 }
@@ -29,6 +30,14 @@ describe('SharedPageHeader hideTitle', () => {
     const html = clean(await renderShared('PageHeader', { title: 'Tasks' }, actions, options(true)))
     expect(html).toMatch(/<h2[^>]*>Tasks<\/h2>/)
     expect(html).not.toContain('<h1')
+  })
+
+  it('steps down to h2 while a create panel is open and keeps the same look', async () => {
+    const open = clean(await renderShared('PageHeader', { title: 'Tasks' }, actions, options(false, true)))
+    const closed = clean(await renderShared('PageHeader', { title: 'Tasks' }, actions, options()))
+    expect(open).toMatch(/<h2[^>]*>Tasks<\/h2>/)
+    expect(open).not.toContain('<h1')
+    expect(open.match(/<h2([^>]*)>/)![1]).toBe(closed.match(/<h1([^>]*)>/)![1])
   })
 
   it('draws the actions alone when the title is hidden', async () => {

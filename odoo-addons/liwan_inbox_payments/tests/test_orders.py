@@ -10,8 +10,10 @@ from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import BASE_URL, CATALOG_ID, LiwanCatalogCase
+from odoo.addons.liwan_inbox.models.privacy_hooks import ERASED_CONTACT
 from odoo.addons.liwan_inbox.tests import whatsapp_payloads as wa
 from odoo.addons.liwan_inbox.tests.test_outbox import response as provider_response
+from odoo.addons.liwan_inbox_payments.serializers.order import dump_order
 from odoo.addons.liwan_payments.models.order_service import NotPayable
 from odoo.addons.liwan_payments.tests.common import TAX_INCLUDED
 
@@ -71,6 +73,13 @@ class TestOrderIngest(OrderCase):
         resolved, unknown = order.line_ids
         self.assertEqual((resolved.catalog_item_id, resolved.product_id, resolved.quantity), (self.item, self.product, 2))
         self.assertEqual((unknown.catalog_item_id.id, unknown.product_id.id), (False, False))
+
+    def test_an_order_says_whether_its_contact_was_erased(self):
+        order = self.deliver_cart([cart_line('SHIRT-1')])
+        contact = self.conversation.contact_id
+        self.assertEqual(dump_order(order)['contact'], {'id': contact.id, 'name': contact.name, 'erased': False})
+        contact.name = ERASED_CONTACT % contact.id
+        self.assertTrue(dump_order(order)['contact']['erased'])
 
     def test_an_unlisted_or_rejected_item_is_flagged_not_matched(self):
         self.item2.review_status = 'rejected'

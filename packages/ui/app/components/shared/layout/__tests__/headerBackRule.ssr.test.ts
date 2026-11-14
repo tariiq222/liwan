@@ -10,6 +10,7 @@ import {
   createElementBlock,
   createElementVNode,
   createSSRApp,
+  resolveDynamicComponent,
   createTextVNode,
   createVNode,
   defineComponent,
@@ -57,6 +58,7 @@ function loadPageHeader() {
     _createTextVNode: createTextVNode,
     _toDisplayString: toDisplayString,
     _resolveComponent: resolveComponent,
+    _resolveDynamicComponent: resolveDynamicComponent,
     _withCtx: withCtx,
     _openBlock: openBlock,
     _createElementBlock: createElementBlock,
@@ -67,12 +69,13 @@ function loadPageHeader() {
     _normalizeClass: normalizeClass,
     _normalizeStyle: normalizeStyle,
   }
-  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading', 'usePageTrail', 'usePageApp', 'useI18n', 'useRoute']
+  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading', 'useCreatePanelOpen', 'usePageTrail', 'usePageApp', 'useI18n', 'useRoute']
   const values = [
     ...Object.values(runtimeBindings), computed,
     () => undefined,
     () => undefined,
     () => ref(frameOwnsHeading),
+    () => ref(false),
     // No published trail in this harness: the page's own target is the whole trail here.
     () => ref([]),
     // No shell publishes an application here, so no chip.

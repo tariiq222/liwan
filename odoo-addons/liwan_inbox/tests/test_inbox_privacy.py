@@ -13,7 +13,13 @@ from .common import LiwanInboxCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_customers.models import privacy_hooks
 from odoo.addons.liwan_inbox.models import privacy_hooks as inbox_hooks
-from odoo.addons.liwan_inbox.serializers.conversation import dump_messages
+from odoo.addons.liwan_inbox.serializers.campaigns import dump_audience_member
+from odoo.addons.liwan_inbox.serializers.conversation import (
+    dump_conversation,
+    dump_messages,
+)
+from odoo.addons.liwan_inbox.serializers.flows import dump_submission
+from odoo.addons.liwan_inbox.serializers.refs import dump_contact_ref
 
 WA_ID = '966501110001'
 NAME = 'Sara Alqahtani'
@@ -119,6 +125,20 @@ class TestInboxPrivacy(LiwanInboxCase):
         self.assertEqual(self.conversation.last_message_preview, inbox_hooks.ERASED_MESSAGE)
         self.assertEqual(self.env['mail.message'].search_count([('model', 'like', 'liwan.inbox%')]), messages)
         self.assertEqual(self.customer.with_context(active_test=False).name, privacy_hooks.ERASED_NAME % self.customer.id)
+
+    def test_every_shape_naming_the_contact_says_whether_it_is_erased(self):
+        def flags():
+            self.env.invalidate_all()
+            submission = self.env['liwan.inbox.flow.submission'].search([('conversation_id', '=', self.conversation.id)])
+            return [
+                dump_conversation(self.conversation)['contact']['erased'], dump_contact_ref(self.contact)['erased'],
+                dump_audience_member(self.contact)['erased'], dump_submission(submission)['contact']['erased'],
+            ]
+
+        self.assertEqual(flags(), [False] * 4)
+        self.erase()
+        self.assertEqual(flags(), [True] * 4)
+        self.assertEqual(dump_contact_ref(self.contact), {'id': self.contact.id, 'name': inbox_hooks.ERASED_CONTACT % self.contact.id, 'erased': True})
 
     def test_an_erase_removes_the_template_button_values_and_the_interactive_options_from_the_thread(self):
         interactive = self.env['liwan.inbox.message'].create({

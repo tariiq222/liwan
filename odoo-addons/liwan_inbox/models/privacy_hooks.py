@@ -38,6 +38,11 @@ MESSAGE_CLEARED_VALUES = {
 }
 
 
+def is_erased_contact(contact):
+    """Whether the contact carries the stable marker name an erase writes; the screens show a translated name instead."""
+    return contact.name == ERASED_CONTACT % contact.id
+
+
 def contact_domain(partners):
     return [('partner_id', 'in', partners.ids)]
 

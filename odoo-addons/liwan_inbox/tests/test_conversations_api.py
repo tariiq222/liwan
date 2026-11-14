@@ -36,7 +36,7 @@ class TestConversationsApi(LiwanInboxCase):
         self.assertGreaterEqual(body['total'], 1)
         item = next(row for row in body['items'] if row['id'] == self.conversation.id)
         self.assertEqual(set(item), CONVERSATION_KEYS)
-        self.assertEqual(set(item['contact']), {'id', 'name', 'phone', 'email'})
+        self.assertEqual(set(item['contact']), {'id', 'name', 'phone', 'email', 'erased'})
         self.assertEqual(item['last_message_preview'], self.conversation.last_message_preview)
         closed = self.get('/api/v1/inbox/conversations?state=closed').json()
         self.assertNotIn(self.conversation.id, [row['id'] for row in closed['items']])

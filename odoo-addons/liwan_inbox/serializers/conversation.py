@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_inbox.models.abstract_interactive import COMMERCE_TYPES
+from odoo.addons.liwan_inbox.models.privacy_hooks import is_erased_contact
 from odoo.addons.liwan_inbox.serializers.flows import dump_submission
 from odoo.addons.liwan_inbox.serializers.refs import dump_ref
 
@@ -11,6 +12,7 @@ from odoo.addons.liwan_inbox.serializers.refs import dump_ref
 def dump_contact(contact):
     return {
         'id': contact.id, 'name': contact.name, 'phone': contact.phone or None, 'email': contact.email or None,
+        'erased': is_erased_contact(contact),
     }
 
 

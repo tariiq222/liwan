@@ -139,7 +139,7 @@ describe('campaign draft', () => {
 
 describe('campaign preview', () => {
   const rendered: InboxCampaignPreview = {
-    contact: { id: 3, name: 'منى' }, header_text: 'أهلًا منى', body: 'مرحبًا منى، موعدك الخميس.', footer: 'عيادة',
+    contact: { id: 3, name: 'منى', erased: false }, header_text: 'أهلًا منى', body: 'مرحبًا منى، موعدك الخميس.', footer: 'عيادة',
     buttons: [{ type: 'url', text: 'إدارة' }, { type: 'weird', text: 'ما' }], missing: [],
   }
 
