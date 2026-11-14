@@ -3,11 +3,14 @@
 import importlib.util
 from pathlib import Path
 
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import tagged
 
 from .common import LiwanPaidBookingCase
 from odoo.addons.liwan_api.tests.common import MembershipCase
+from odoo.addons.liwan_appointments_payments.models.resource_booking_type import (
+    PriceRequired,
+)
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 MODES = ('saas', 'non_saas')
@@ -130,6 +133,73 @@ class TestBookingProductCapabilities(BookingProductsCase):
                 self.assertEqual((linked.status_code, linked.json()['price']), (200, 40.0), linked.text)
                 self.assertRefused(self.patch(self.fresh_type, {'price': 60}), 403, 'forbidden')
                 self.assertEqual(existing.list_price, 40.0)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestBookingProductPrice(BookingProductsCase):
+    """A product priced 0 sells nothing: it is as good as no product, wherever the type takes online payment."""
+
+    def unpriced_product(self, name='No price'):
+        """A shared service product created without ``list_price``: the service stores 0."""
+        product = self.products()._liwan_create({'name': name, 'type': 'service'})
+        self.assertEqual(product.list_price, 0.0)
+        return product
+
+    def test_a_zero_priced_product_never_turns_online_payment_on(self):
+        for mode in MODES:
+            for payment in ('full', 'deposit'):
+                with self.subTest(mode=mode, payment=payment), self.undone():
+                    self.set_mode(mode)
+                    self.authenticate('appointments_manager', 'appointments_manager_pass_123')
+                    free = self.unpriced_product()
+                    refused = self.patch(self.fresh_type, {'product_id': free.id, 'online_payment': payment})
+                    self.assertRefused(refused, 422, 'invalid')
+                    self.assertEqual(refused.json()['field'], 'price')
+                    self.assertEqual(self.fresh_type.liwan_online_payment, 'none')
+                    # Linking alone is allowed (a free type), and so is a priced one afterwards.
+                    self.assertEqual(self.patch(self.fresh_type, {'product_id': free.id}).status_code, 200)
+                    refused = self.patch(self.fresh_type, {'online_payment': payment})
+                    self.assertRefused(refused, 422, 'invalid')
+                    self.assertEqual(refused.json()['field'], 'price')
+                    self.assertEqual(self.fresh_type.liwan_online_payment, 'none')
+                    accepted = self.patch(self.fresh_type, {'online_payment': payment, 'price': 60})
+                    self.assertEqual(accepted.status_code, 200, accepted.text)
+                    self.assertEqual((self.fresh_type.liwan_online_payment, free.list_price), (payment, 60.0))
+
+    def test_a_zero_priced_product_gets_no_refund_rules(self):
+        free = self.unpriced_product()
+        self.fresh_type.with_user(self.manager)._liwan_set_payment(product_id=free.id)
+        with self.assertRaises(PriceRequired):
+            self.fresh_type.with_user(self.manager)._liwan_set_payment(
+                refund_rules={'refund_policy': 'none'},
+            )
+
+    def test_a_price_set_to_zero_later_is_the_unpriced_case(self):
+        template = self.paid_type._liwan_product().product_tmpl_id
+        before = self.env['sale.order'].sudo().search_count([])
+        self.products()._liwan_update(template, {'list_price': 0})
+        with self.assertRaisesRegex(UserError, 'needs a priced type'):
+            self.book()
+        self.assertEqual(self.env['sale.order'].sudo().search_count([]), before)
+        # The same refusal as a type with no product at all.
+        with self.assertRaises(PriceRequired):
+            self.paid_type.with_user(self.manager)._liwan_set_payment(online_payment='deposit')
+        # Priced again, the type takes its orders as before.
+        self.products()._liwan_update(template, {'list_price': 115})
+        self.price_in_sar(self.paid_type)
+        booking = self.book()
+        self.assertGreater(self.order_of(booking).amount_total, 0)
+
+    def test_the_normal_paths_still_pass(self):
+        for mode in MODES:
+            with self.subTest(mode=mode), self.undone():
+                self.set_mode(mode)
+                self.authenticate('appointments_manager', 'appointments_manager_pass_123')
+                priced = self.service_product('Priced')
+                accepted = self.patch(self.fresh_type, {'product_id': priced.id, 'online_payment': 'full'})
+                self.assertEqual((accepted.status_code, accepted.json()['price']), (200, 40.0), accepted.text)
+                self.assertEqual(self.patch(self.paid_type, {'online_payment': 'none'}).status_code, 200)
+                self.assertEqual(self.patch(self.paid_type, {'online_payment': 'deposit', 'deposit_percent': 25}).status_code, 200)
 
 
 @tagged('post_install', '-at_install', 'liwan')

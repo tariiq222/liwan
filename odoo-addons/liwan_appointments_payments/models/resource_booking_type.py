@@ -41,6 +41,11 @@ class ResourceBookingType(models.Model):
             [('resource_booking_type_id', '=', self.id)], limit=1,
         )
 
+    def _liwan_is_priced(self, product):
+        """Whether ``product`` (this type's variant, possibly empty) sells the type for money: a product at 0 is as
+        good as none, because an order of total 0 never gets paid."""
+        return bool(product) and product.list_price > 0
+
     def _liwan_takes_payment(self):
         """Whether a new booking of this type is held by an online order now.
 
@@ -64,7 +69,7 @@ class ResourceBookingType(models.Model):
         The product is picked, created and priced through ``liwan.products.service`` as the caller, who needs its
         capabilities (``products.manage``, ``products.prices.manage``) and, for a shared product, the root company.
 
-        :raise PriceRequired: when the type would take online payment, or get refund rules, without a product.
+        :raise PriceRequired: when the type would take online payment, or get refund rules, without a product priced above 0.
         """
         self.ensure_one()
         if not self.env['liwan.access.service']._liwan_has_capability(
@@ -77,10 +82,10 @@ class ResourceBookingType(models.Model):
         mode = online_payment or self.liwan_online_payment
         if price is not None:
             product = self._liwan_price_product(product, price)
-        elif mode != 'none' and not product:
+        if mode != 'none' and not self._liwan_is_priced(product):
             raise PriceRequired(self.env._("Set the price of this booking type before it takes online payment."))
         if refund_rules:
-            if not product:
+            if not self._liwan_is_priced(product):
                 raise PriceRequired(self.env._("Set the price of this booking type before its refund rules."))
             self.env['liwan.payments.service']._liwan_set_refund_rules(product, **refund_rules)
         values = {'liwan_online_payment': mode}
