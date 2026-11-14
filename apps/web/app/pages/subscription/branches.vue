@@ -5,9 +5,6 @@ import { latestOnly, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction }
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
-// The create panel over this page is the route's one <h1>; the list heading steps down while it is open.
-const route = useRoute()
-const isCreateRoute = computed(() => route.path.replace(/\/+$/, '') === '/subscription/branches/new')
 const { data, error, pending, refresh } = await useAsyncData('subscription:branches', () => api.branches(), { immediate: allowed.value })
 definePageMeta({ middleware: 'customer-commercial' })
 
@@ -55,7 +52,7 @@ async function archiveBranch() {
 </script>
 <template>
   <SharedSettingsPage>
-    <SharedPageHeader :title="t('subscription.branches.title')" back-to="/subscription" :hide-title="isCreateRoute">
+    <SharedPageHeader :title="t('subscription.branches.title')" back-to="/subscription">
       <template #actions><UButton v-if="can('branches.manage')" to="/subscription/branches/new" icon="i-lucide-plus" :disabled="!hydrated">{{ t('subscription.branches.add') }}</UButton></template>
     </SharedPageHeader>
     <SharedForbiddenState v-if="!allowed" />

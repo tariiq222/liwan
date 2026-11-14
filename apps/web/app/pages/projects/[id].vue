@@ -115,6 +115,8 @@ const { archive, pending: archivePending } = useProjectArchive(project)
 async function archiveProject() {
   if (await archive()) confirmingArchive.value = false
 }
+// An open create panel (the route's /new form) is the page's <h1>, so the frame's name steps down like a page header does.
+const createPanelOpen = useCreatePanelOpen()
 provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)))
 </script>
 
@@ -135,7 +137,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
               <span aria-hidden="true" class="liwan-app-tile liwan-app-tile-lg grid shrink-0 place-items-center" data-app="projects"><UIcon name="i-lucide-folder-kanban" class="size-[46%]!" /></span>
               <div class="min-w-0 flex-1 basis-60">
                 <div class="flex min-w-0 items-baseline gap-x-3">
-                  <h1 class="min-w-0 font-display text-(length:--liwan-fs-display)/[1.3] font-bold tracking-[-0.01em] text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
+                  <component :is="createPanelOpen ? 'h2' : 'h1'" class="min-w-0 font-display text-(length:--liwan-fs-display)/[1.3] font-bold tracking-[-0.01em] text-highlighted" data-testid="project-workspace-name">{{ project.name }}</component>
                   <div class="shrink-0"><SharedHeaderTags :tags="tags" /></div>
                 </div>
                 <p v-if="project.manager || dates" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-(length:--liwan-fs-small-label)/5 text-muted" data-testid="project-workspace-meta">
