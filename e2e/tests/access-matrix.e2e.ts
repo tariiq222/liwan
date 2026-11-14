@@ -40,8 +40,8 @@ const PAGES: PageRule[] = [
   // settingsCardsOpeningPage), never for one named capability.
   { path: '/settings/apps/finance', any: ['finance.accounts.read', 'finance.journals.read', 'finance.taxes.read', 'finance.setup.read', 'finance.payment_terms.read'] },
   { path: '/hr/payroll', capability: 'hr.payroll.read' },
-  // A leave reader opens the HR leave list and the API scopes its rows (route gate since 2026-11-14).
-  { path: '/hr/leave', capability: 'hr.leave.read' },
+  // The list is an administration page; a leave reader opens a record, not the list.
+  { path: '/hr/leave', any: ['hr.leave.approve', 'hr.leave.manage'] },
   { path: '/hr/employees/new', capability: 'hr.employees.manage' },
   { path: '/hr/recruitment', capability: 'hr.recruitment.read' },
   { path: '/hr/assets', capability: 'hr.assets.read' },

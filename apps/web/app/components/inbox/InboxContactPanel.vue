@@ -5,6 +5,7 @@ import InboxContactMarketing from '@/components/inbox/campaigns/InboxContactMark
 import { useInboxCampaignsEnabled } from '@/composables/inbox/useInboxCampaigns'
 import { useInboxAgents, usePatchInboxContact, usePatchInboxConversation, useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
+import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { CONVERSATION_STATES, PRIORITIES } from '@/composables/inbox/inboxPresentation'
 
 // The contact and the conversation controls. Assignment and department need the assign capability (`can_assign`), the
@@ -48,15 +49,19 @@ function assign(value: number | number[] | null) {
 }
 
 // The contact's name and email are edited together and saved once.
-const name = ref(props.conversation.contact.name)
+// An erased contact shows its translated name and cannot be edited.
+const erased = computed(() => props.conversation.contact.erased)
+const contactName = computed(() => inboxContactName(props.conversation.contact, t))
+const lockedContact = computed(() => lockedReply.value || savingContact.value || erased.value)
+const name = ref(contactName.value)
 const email = ref(props.conversation.contact.email ?? '')
 watch(() => props.conversation.contact, (contact) => {
-  name.value = contact.name
+  name.value = contactName.value
   email.value = contact.email ?? ''
 })
-const contactDirty = computed(() => name.value.trim() !== props.conversation.contact.name || email.value.trim() !== (props.conversation.contact.email ?? ''))
+const contactDirty = computed(() => name.value.trim() !== contactName.value || email.value.trim() !== (props.conversation.contact.email ?? ''))
 function saveContact() {
-  if (!contactDirty.value || !name.value.trim()) return
+  if (erased.value || !contactDirty.value || !name.value.trim()) return
   patchContact(
     { name: name.value.trim(), email: email.value.trim() || null },
     { onError: e => toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' }) },
@@ -69,16 +74,17 @@ function saveContact() {
     <SharedRecordSection variant="panel" :title="t('inbox.panel.contact')">
       <form class="liwan-form" @submit.prevent="saveContact">
         <UFormField :label="t('inbox.panel.name')">
-          <UInput v-model="name" class="w-full" :disabled="lockedReply || savingContact" />
+          <UInput v-model="name" class="w-full" :disabled="lockedContact" />
         </UFormField>
         <dl class="divide-y divide-default">
           <SharedPropertyRow :label="t('inbox.panel.phone')"><bdi v-if="props.conversation.contact.phone" dir="ltr" class="whitespace-nowrap">{{ props.conversation.contact.phone }}</bdi></SharedPropertyRow>
           <SharedPropertyRow :label="t('inbox.panel.channel')" :value="props.conversation.channel.name" />
         </dl>
         <UFormField :label="t('inbox.panel.email')">
-          <UInput v-model="email" type="email" class="w-full" dir="ltr" :disabled="lockedReply || savingContact" />
+          <UInput v-model="email" type="email" class="w-full" dir="ltr" :disabled="lockedContact" />
         </UFormField>
-        <UButton v-if="props.conversation.can_reply" type="submit" color="neutral" variant="outline" class="self-start" :disabled="!hydrated || !contactDirty || !name.trim()" :loading="savingContact" :label="t('inbox.panel.saveContact')" />
+        <p v-if="erased" class="text-sm text-muted" data-testid="inbox-contact-erased">{{ t('inbox.panel.contactErased') }}</p>
+        <UButton v-if="props.conversation.can_reply && !erased" type="submit" color="neutral" variant="outline" class="self-start" :disabled="!hydrated || !contactDirty || !name.trim()" :loading="savingContact" :label="t('inbox.panel.saveContact')" />
       </form>
     </SharedRecordSection>
 

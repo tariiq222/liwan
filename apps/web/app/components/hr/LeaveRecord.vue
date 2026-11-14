@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
+import { canReachPath } from '@/utils/accessPolicy'
 import { ApiError } from '@/composables/useApi'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 import { joinList } from '@/utils/listFormat'
@@ -12,6 +13,7 @@ const props = defineProps<{ personal?: boolean }>()
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
+const { me } = useMe()
 const hydrated = useHydrated()
 const { period, days } = useHrLeaveFormat()
 
@@ -26,7 +28,11 @@ const leave = computed(() => query.value.data.value)
 const approvalQuery = useHrLeaveApproval(computed(() => leave.value ? id.value : null), () => !!props.personal)
 // Invalid ids have no record to load and use the same not-found state as an unknown positive id.
 const pageError = computed(() => query.value.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
-const sourcePaths = computed(() => props.personal ? ['/account/leave'] : ['/hr/leave'])
+// A reviewer who holds only hr.leave.read cannot open the administrative list, and the personal list follows the home
+// company's capabilities, so the record returns to the nearest list its viewer may open, then to the self-service home.
+const sourcePaths = computed(() => props.personal
+  ? ['/account/leave']
+  : [['/hr/leave', '/account/leave'].find(path => canReachPath(me.value, path)) ?? '/account'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 
 // The stages of the workflow that decides this leave. The route answers 404 when no workflow governs it, and the section stays out.

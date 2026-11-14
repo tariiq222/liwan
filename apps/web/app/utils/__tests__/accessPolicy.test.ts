@@ -189,15 +189,16 @@ describe('access policy navigation', () => {
 
 
 describe('personal and HR management route boundaries', () => {
-  it('lets leave readers open the HR queue and lets the API scope its records', () => {
+  it('lets leave readers open the record but keeps the HR list for approvers and managers', () => {
     const employee = { capabilities: ['hr.employees.read', 'hr.leave.read'] }
     expect(canReachPath(employee, '/account/leave')).toBe(true)
-    expect(canReachPath(employee, '/hr/leave')).toBe(true)
     expect(canReachPath(employee, '/hr/leave/7')).toBe(true)
+    expect(canReachPath(employee, '/hr/leave')).toBe(false)
+    expect(canReachPath(employee, '/hr/leave/')).toBe(false)
     for (const role of ['hr.leave.manage', 'hr.leave.approve']) {
       expect(canReachPath({ capabilities: [...employee.capabilities, role] }, '/hr/leave')).toBe(true)
     }
-    expect(firstAllowedPath({ capabilities: ['hr.leave.read'] })).toBe('/hr/leave')
+    expect(firstAllowedPath({ capabilities: ['hr.leave.read'] })).toBe('/account')
   })
   it('retains administrative read access in a read-only tenant without enabling a new own request', () => {
     const identity = { capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.manage', 'hr.leave.request'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }

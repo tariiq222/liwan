@@ -6,6 +6,7 @@ from odoo.tests import tagged
 
 from .common import MESSAGE_KEYS, TEMPLATE_KEYS, LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_inbox.models.privacy_hooks import ERASED_CONTACT
 
 CONVERSATION_KEYS = {
     'id', 'contact', 'channel', 'department', 'assignee', 'state', 'priority', 'tags', 'revision', 'last_message_at',
@@ -253,6 +254,20 @@ class TestConversationsApi(LiwanInboxCase):
         self.assertEqual((result.status_code, result.json()['name'], result.json()['email']), (200, 'Renamed', 'sara@example.com'))
         self.assertError(self.api('PATCH', f'/api/v1/inbox/contacts/{contact.id}', {'email': 'not-an-email'}), 422, 'invalid')
         self.assertError(self.get('/api/v1/inbox/contacts/999999999'), 404, 'not_found')
+
+    def test_an_erased_contact_cannot_be_edited(self):
+        contact = self.conversation.contact_id
+        contact.write({'name': ERASED_CONTACT % contact.id})
+        self.login(self.agent)
+        self.assertError(self.api('PATCH', f'/api/v1/inbox/contacts/{contact.id}', {'name': 'Renamed'}), 409, 'contact_erased')
+        self.assertEqual(contact.name, ERASED_CONTACT % contact.id)
+
+    def test_a_contact_cannot_be_renamed_to_the_erased_marker(self):
+        contact = self.conversation.contact_id
+        name = contact.name
+        self.login(self.agent)
+        self.assertError(self.api('PATCH', f'/api/v1/inbox/contacts/{contact.id}', {'name': ERASED_CONTACT % contact.id}), 422, 'invalid')
+        self.assertEqual(contact.name, name)
 
     def test_only_a_file_kind_treats_its_name_in_brackets_as_a_placeholder(self):
         message = self.conversation.message_ids[0]

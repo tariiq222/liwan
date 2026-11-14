@@ -35,6 +35,10 @@ from odoo.addons.liwan_inbox.models.access_service import (
     READ,
     REPLY,
 )
+from odoo.addons.liwan_inbox.models.privacy_hooks import (
+    ERASED_CONTACT,
+    is_erased_contact,
+)
 from odoo.addons.liwan_inbox.serializers.conversation import (
     dump_contact,
     dump_conversation,
@@ -240,10 +244,15 @@ class ConversationController(http.Controller):
     @requires_capability(REPLY)
     def patch_contact(self, contact_id, **payload):
         contact = self._visible_contact(contact_id)
+        if is_erased_contact(contact):
+            raise ApiError(409, 'contact_erased', 'an erased contact cannot be edited')
         check_fields(payload, {'name', 'email'})
         values = {}
         if 'name' in payload:
             values['name'] = parse_text(payload, 'name', 128)
+            # The marker is what marks a contact as erased: only the erase writes it.
+            if values['name'] == ERASED_CONTACT % contact.id:
+                reject('this name is reserved', 'name')
         if 'email' in payload:
             email = payload['email']
             if email is not None and not (isinstance(email, str) and email_normalize(email)):
