@@ -23,10 +23,9 @@ added; this addon has no field pointing at any application.
 
 A line keeps the taxes stock computed for the product in the order's company, so stock's one establishment-wide
 tax mode (`res.company.account_price_include`) decides whether the price the seller typed is charged whole or has
-the tax added on top; the order service creates no tax and rewrites none. The one LiwanOS rule is an establishment
-that is not registered for VAT: its lines carry no tax at all. The registration is one decision for the
-establishment, stored on its root company (`liwan_vat_registered` there) and read through
-`res.company._liwan_vat_registered()`, which a branch answers from the root.
+the tax added on top; the order service creates no tax and rewrites none. The one LiwanOS rule, that a line of an
+establishment not registered for VAT carries no tax, lives in `liwan_orders` on the stock tax compute of
+`sale.order.line`, not here; it installs itself with `liwan_api` and `sale`.
 
 An order still unpaid at its deadline (the company's unpaid-order expiry, 60 minutes by default) is
 cancelled by a cron every five minutes through stock `_action_cancel`; an order with a payment on its

@@ -66,10 +66,8 @@ class LiwanPaymentsService(models.AbstractModel):
         """Add ``quantity`` of ``product`` at its own price to an open online order; the new line, unelevated.
 
         The line keeps the taxes stock computed for the product in the order's company, so it is priced under that
-        company's own tax mode (``res.company.account_price_include``). The one LiwanOS rule is an establishment that
-        is not registered for VAT: its line carries no tax at all, whatever taxes its products keep. The registration
-        is one decision for the establishment, stored on its root company, so ``_liwan_vat_registered()`` answers the
-        same for the root's orders and a branch's.
+        company's own tax mode (``res.company.account_price_include``). A line of an establishment that is not
+        registered for VAT is left untaxed by ``liwan_orders`` on the stock tax compute.
         """
         order = order.sudo()
         if not order.liwan_payment_deadline or order.state not in OPEN_STATES:
@@ -79,8 +77,6 @@ class LiwanPaymentsService(models.AbstractModel):
             'product_id': product.id,
             'product_uom_qty': quantity,
         })
-        if not order.company_id._liwan_vat_registered():
-            line.tax_ids = [Command.clear()]
         return self.env['sale.order.line'].browse(line.id)
 
     @api.model
