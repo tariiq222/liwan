@@ -48,6 +48,9 @@ services:
       LIWAN_GUARD_WEB_URL: http://web:3000
       LIWAN_GUARD_WS_URL: http://odoo:8072
       LIWAN_GUARD_RESTORE_ODOO_URL: http://restore-odoo:8069
+      # The guard buffers request bodies through the same `session` pool module as web, so both are sized together.
+      NUXT_ODOO_POOL_SESSION_ACTIVE: "${NUXT_ODOO_POOL_SESSION_ACTIVE:-}"
+      NUXT_ODOO_POOL_SESSION_QUEUED: "${NUXT_ODOO_POOL_SESSION_QUEUED:-}"
       LIWAN_GUARD_RESTORE_WS_URL: http://restore-odoo:8072
       LIWAN_GUARD_PORT: "8080"
     volumes:

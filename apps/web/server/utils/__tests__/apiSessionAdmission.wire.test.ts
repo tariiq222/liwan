@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createApp, defineEventHandler, toNodeListener } from 'h3'
 import { ApiErrorSchema } from '../../../../../packages/contracts/src/common/error'
 
-afterEach(() => vi.resetModules())
+afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 
 async function fixture() {
   vi.resetModules()
@@ -286,4 +286,65 @@ it.each([
     // Each unavailable burst probes twice (the one quick retry).
     expect(wire.probes).toEqual(Array(4).fill('session_id=forged-same'))
   } finally { await wire.close(); await Promise.allSettled(attached) }
+})
+
+it('probes a verified session once inside the default cache lifetime', async () => {
+  const wire = await fixture()
+  try {
+    for (let call = 0; call < 3; call++) expect(await (await wire.call('verified-warm')).text()).toBe('application')
+    expect(wire.probes).toEqual(['session_id=verified-warm'])
+  } finally { await wire.close() }
+})
+
+it('probes a verified session again once the configured cache lifetime has passed', async () => {
+  vi.stubEnv('NUXT_SESSION_CHECK_TTL_MS', '1000')
+  const wire = await fixture()
+  try {
+    expect(await (await wire.call('verified-short')).text()).toBe('application')
+    expect(await (await wire.call('verified-short')).text()).toBe('application')
+    expect(wire.probes).toHaveLength(1)
+    await new Promise(resolve => setTimeout(resolve, 1_050))
+    expect(await (await wire.call('verified-short')).text()).toBe('application')
+    expect(wire.probes).toHaveLength(2)
+  } finally { await wire.close() }
+})
+
+it('runs as many probes at once as the configured concurrency', async () => {
+  vi.stubEnv('NUXT_SESSION_CHECK_CONCURRENCY', '2')
+  const wire = await fixture()
+  const pending: Array<Promise<Response>> = []
+  try {
+    wire.hold()
+    pending.push(wire.call('forged-a'), wire.call('forged-b'))
+    // With the default single lane the second probe would wait behind the first.
+    await vi.waitFor(() => expect(wire.held).toHaveLength(2))
+    wire.release()
+    expect((await Promise.all(pending)).map(response => response.status)).toEqual([401, 401])
+  } finally { await wire.close(); await Promise.allSettled(pending) }
+})
+
+it('keeps as many verified sessions as the configured cache size and evicts the oldest beyond it', async () => {
+  const CACHE_SIZE = 64
+  vi.stubEnv('NUXT_SESSION_CHECK_CACHE_SIZE', String(CACHE_SIZE))
+  const wire = await fixture()
+  try {
+    for (let index = 0; index < CACHE_SIZE; index++) await (await wire.call(`verified-${index}`)).text()
+    await (await wire.call('verified-0')).text()
+    expect(wire.probes).toHaveLength(CACHE_SIZE)
+    // One more session evicts the oldest entry, so that session is probed again.
+    await (await wire.call('verified-extra')).text()
+    await (await wire.call('verified-0')).text()
+    expect(wire.probes).toHaveLength(CACHE_SIZE + 2)
+  } finally { await wire.close() }
+})
+
+it.each([
+  ['NUXT_SESSION_CHECK_CACHE_SIZE', '63', '64 to 65536'], ['NUXT_SESSION_CHECK_CACHE_SIZE', '65537', '64 to 65536'],
+  ['NUXT_SESSION_CHECK_CONCURRENCY', '0', '1 to 16'], ['NUXT_SESSION_CHECK_CONCURRENCY', '17', '1 to 16'], ['NUXT_SESSION_CHECK_CONCURRENCY', '-1', '1 to 16'],
+  ['NUXT_SESSION_CHECK_TTL_MS', '999', '1000 to 60000'], ['NUXT_SESSION_CHECK_TTL_MS', '60001', '1000 to 60000'], ['NUXT_SESSION_CHECK_TTL_MS', '1500.5', '1000 to 60000'],
+  ['NUXT_SESSION_CHECK_TTL_MS', 'fifteen', '1000 to 60000'],
+] as const)('refuses to load with %s set to "%s"', async (name, value, range) => {
+  vi.stubEnv(name, value)
+  vi.resetModules()
+  await expect(import('../apiSessionAdmission')).rejects.toThrow(`${name} must be an integer from ${range}`)
 })

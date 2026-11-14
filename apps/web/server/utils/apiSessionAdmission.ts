@@ -2,6 +2,7 @@ import http from 'node:http'
 import https from 'node:https'
 import { createHash } from 'node:crypto'
 import { createError, getCookie, type H3Event } from 'h3'
+import { readBoundedInteger } from './bufferAdmission.mjs'
 
 // Session IDs are opaque, not proof of authentication. Validate unknown IDs with a
 // fixed, body-free identity request in a separate bounded lane. Forged slow uploads
@@ -13,13 +14,16 @@ const pending = new Map<string, { check: Promise<void>, consumers: number }>()
 // key per window instead of one per request. Unavailable outcomes are never recorded. A suspension
 // keeps its reason for the window, so requests racing the first refusal still name it.
 const rejected = new Map<string, { until: number, suspended: boolean }>()
-const MAX_VERIFIED = 512
+// The cache only spares a probe: it stores no identity and grants nothing, because every admitted request
+// is forwarded with the caller's own cookie and Odoo authenticates it again. Its size and lifetime, and the
+// number of probes at once, are sized per deployment; unset variables keep these defaults.
+const MAX_VERIFIED = readBoundedInteger(process.env, { name: 'NUXT_SESSION_CHECK_CACHE_SIZE', fallback: 512, min: 64, max: 65_536 })
 const MAX_REJECTED = 128
-const TTL_MS = 15_000
+const TTL_MS = readBoundedInteger(process.env, { name: 'NUXT_SESSION_CHECK_TTL_MS', fallback: 15_000, min: 1_000, max: 60_000 })
 const REJECTED_TTL_MS = 5_000
-// Both deployed Odoo topologies have two HTTP workers. Keep one available
-// for verified application work even while an unknown session probe stalls.
-const MAX_CHECKS = 1
+// The default assumes two Odoo HTTP workers: one stays available for verified application
+// work even while an unknown session probe stalls. Raise it only below the worker count.
+const MAX_CHECKS = readBoundedInteger(process.env, { name: 'NUXT_SESSION_CHECK_CONCURRENCY', fallback: 1, min: 1, max: 16 })
 // Probes beyond the lane wait in a bounded FIFO queue instead of failing at once, so
 // concurrent honest re-validations and a forged-cookie flood cannot starve each other.
 const MAX_WAITERS = 32

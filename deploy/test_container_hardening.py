@@ -27,6 +27,12 @@ STACKS = {
     'staging': ('staging/docker-compose.staging.yml',),
     'staging classification': ('staging/docker-compose.staging.yml', 'docker-compose.classification.yml'),
 }
+PROXY_ADMISSION_SETTINGS = {
+    'NUXT_ODOO_MAX_CONCURRENCY', 'NUXT_SESSION_CHECK_CACHE_SIZE', 'NUXT_SESSION_CHECK_CONCURRENCY',
+    'NUXT_SESSION_CHECK_TTL_MS',
+    *(f'NUXT_ODOO_POOL_{pool}_{limit}' for pool in ('SESSION', 'PUBLIC', 'BOOKING', 'HEAVY')
+      for limit in ('ACTIVE', 'QUEUED')),
+}
 
 
 def services(compose_text):
@@ -130,6 +136,30 @@ class TestDedicatedCompose(unittest.TestCase):
 
     def test_database_does_not_start_as_root(self):
         self.assertRegex(self.services['db'], r'user:\s*postgres')
+
+
+class TestProxyAdmissionSettings(unittest.TestCase):
+    """A ceiling the proxy reads from its environment is useless unless the stack passes it to the container."""
+
+    def passed(self, compose, service):
+        block = services((ROOT / 'deploy' / compose).read_text())[service]
+        return set(re.findall(r'^      (NUXT_[A-Z_]+): "\$\{\1:-\}"$', block, re.M))
+
+    def test_web_receives_every_admission_setting(self):
+        self.assertLessEqual(PROXY_ADMISSION_SETTINGS, self.passed('docker-compose.yml', 'web'))
+
+    def test_guard_receives_the_pool_it_shares_with_web(self):
+        self.assertEqual(self.passed('docker-compose.shared.yml', 'guard'),
+                         {'NUXT_ODOO_POOL_SESSION_ACTIVE', 'NUXT_ODOO_POOL_SESSION_QUEUED'})
+
+    def test_the_listed_settings_are_the_ones_the_proxy_reads(self):
+        sources = ''.join((ROOT / 'apps/web/server/utils' / name).read_text()
+                          for name in ('tenantTransport.ts', 'bufferAdmission.mjs', 'apiSessionAdmission.ts'))
+        fixed = set(re.findall(r'NUXT_(?:ODOO_MAX_CONCURRENCY|SESSION_CHECK_[A-Z_]+)', sources))
+        pools = set(re.findall(r'^  (\w+): \{ active: \d+, queued: \d+ \},$', sources, re.M))
+        self.assertIn('`NUXT_ODOO_POOL_${pool.toUpperCase()}`', sources)
+        self.assertEqual(PROXY_ADMISSION_SETTINGS, fixed | {
+            f'NUXT_ODOO_POOL_{pool.upper()}_{limit}' for pool in pools for limit in ('ACTIVE', 'QUEUED')})
 
 
 class TestBoundedLogs(unittest.TestCase):

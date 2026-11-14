@@ -1,19 +1,53 @@
 import { ServerResponse } from 'node:http'
 
+/** Reads an optional integer setting. Unset or empty means `fallback`; any other value outside
+ * `min..max`, or not a plain integer, stops the process at start instead of being ignored.
+ * @param {Record<string, string | undefined>} env
+ * @param {{ name: string, fallback: number, min: number, max: number }} setting
+ * @returns {number}
+ */
+export function readBoundedInteger(env, { name, fallback, min, max }) {
+  const raw = env[name]?.trim()
+  if (!raw) return fallback
+  const value = /^\d+$/.test(raw) ? Number(raw) : NaN
+  if (!(value >= min && value <= max)) throw new RangeError(`${name} must be an integer from ${min} to ${max}; received "${raw}".`)
+  return value
+}
+
 /**
- * Fixed operator memory budget, independent of tenant count and Odoo workers.
+ * Operator memory budget of this process, independent of tenant count. The defaults assume a
+ * dedicated tenant with two Odoo workers; a deployment on shared workers sizes each pool with
+ * NUXT_ODOO_POOL_<POOL>_ACTIVE and NUXT_ODOO_POOL_<POOL>_QUEUED.
  * Unauthenticated traffic (login, MFA, branding) has its own small pool so it can never
  * consume the credits that verified sessions depend on. Allowlisted heavy routes (reports,
  * payroll, PDFs) hold credits far longer, so they get a third small pool for the same reason.
  * The invited requester's booking-link routes get a fourth: they are the one public surface a
  * visitor can reach on a page that retries, so they must not starve sign-in.
  */
-export const POOL_LIMITS = {
+const DEFAULT_POOL_LIMITS = {
   session: { active: 4, queued: 64 },
   public: { active: 2, queued: 16 },
   booking: { active: 2, queued: 16 },
   heavy: { active: 2, queued: 8 },
 }
+const ACTIVE_BOUNDS = { min: 1, max: 256 }
+const QUEUED_BOUNDS = { min: 0, max: 4096 }
+
+/** @param {Record<string, string | undefined>} env
+ * @returns {typeof DEFAULT_POOL_LIMITS} */
+export function readPoolLimits(env) {
+  /** @param {keyof typeof DEFAULT_POOL_LIMITS} pool */
+  const limits = (pool) => {
+    const prefix = `NUXT_ODOO_POOL_${pool.toUpperCase()}`
+    return {
+      active: readBoundedInteger(env, { name: `${prefix}_ACTIVE`, fallback: DEFAULT_POOL_LIMITS[pool].active, ...ACTIVE_BOUNDS }),
+      queued: readBoundedInteger(env, { name: `${prefix}_QUEUED`, fallback: DEFAULT_POOL_LIMITS[pool].queued, ...QUEUED_BOUNDS }),
+    }
+  }
+  return { session: limits('session'), public: limits('public'), booking: limits('booking'), heavy: limits('heavy') }
+}
+
+export const POOL_LIMITS = readPoolLimits(process.env)
 /** Credits that can be held at once by heavy work; it bounds how many heavy requests can run or wait for a gate. */
 export const HEAVY_CREDITS = POOL_LIMITS.heavy.active
 
