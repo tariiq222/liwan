@@ -19,7 +19,7 @@ class LiwanPaymentsIntegrationRegistry(models.AbstractModel):
         return super()._liwan_provider_definitions() + tuple(
             {
                 'code': code, 'owner': OWNER, 'auth': 'external',
-                'secrets': (), 'generated_secrets': (), 'attributes': (), 'settings_path': PAYMENTS_SETTINGS_PATH,
+                'secrets': (), 'generated_secrets': (), 'attributes': (), 'webhook_secrets': (), 'settings_path': PAYMENTS_SETTINGS_PATH,
                 'exclusive': False,
             }
             for code in self._liwan_payment_gateway_codes()
