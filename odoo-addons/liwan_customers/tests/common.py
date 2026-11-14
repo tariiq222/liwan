@@ -8,6 +8,7 @@ from odoo.addons.liwan_api.tests.common import (
 
 CUSTOMERS = '/api/v1/customers'
 CANDIDATES = f'{CUSTOMERS}/candidates'
+PICK = f'{CUSTOMERS}/pick'
 SETTINGS = f'{CUSTOMERS}/settings'
 EXPORT = f'{CUSTOMERS}/export'
 COUNTRIES = f'{SETTINGS}/countries'

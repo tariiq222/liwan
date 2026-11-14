@@ -42,6 +42,12 @@ def dump_customers(partners, total):
     return {'items': [dump_customer(partner) for partner in partners], 'total': total}
 
 
+def dump_picks(service, partners, total):
+    """What a pick holder sees of a party: its name, its kind and the last four digits of its phone, nothing else."""
+    items = [{**service._liwan_candidate_ref(partner), 'is_company': partner.is_company} for partner in partners]
+    return {'items': items, 'total': total}
+
+
 def _identity_values(payload, keys):
     unknown = sorted(set(payload) - keys)
     if unknown:
