@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => { await login(page) })
 
 test('subscription settings keep plan usage branches invoices and explicit auto renew consent', async ({ page }) => {
  await open(page,'/subscription'); await expectNoSecondH1(page)
- await expect(page.locator('[data-slot="record-section"]')).toHaveCount(7)
+ await expect(page.locator('[data-slot="record-section"]')).toHaveCount(8)
  await expect(page.getByTestId('usage-metric')).toHaveCount(2); await expect(page.getByTestId('usage-metric').filter({has:page.locator('[data-known="false"]')})).toHaveCount(0)
  await expect(page.locator('[data-testid="usage-metric"][data-known="false"]')).toHaveCount(1)
  await expect(page.getByTestId('branch-row')).toHaveCount(1); await expect(page.locator('a[href^="/subscription/invoices/inv-"]')).toHaveCount(2)
@@ -15,8 +15,10 @@ test('subscription settings keep plan usage branches invoices and explicit auto 
 })
 test('a saved card shows masked beside the auto-renew control and never prints its id', async ({ page }) => {
  const { subscription, savedCard } = JSON.parse(readFileSync(new URL('./commercial-fixtures.json', import.meta.url), 'utf8')) as { subscription: SubscriptionView; savedCard: { id: string } }
+ // The page reads the subscription during the server render, which a browser route cannot answer: load another page first, then reach /subscription through the shell link so the browser makes the read.
+ await open(page,'/subscription/branches')
  await page.route('**/api/commercial/v1/subscription', route => route.fulfill({ json: { ...subscription, auto_renew: { enabled: true, consent_at: '2026-10-01T08:00:00.000Z', payment_method: savedCard } } }))
- await open(page,'/subscription')
+ await page.getByTestId('context-link-subscription').click()
  const panel=page.getByTestId('payment-method')
  await expect(panel.locator('[data-slot="card-number"]')).toHaveText('•••• 4242'); await expect(panel.locator('[data-slot="card-expiry"]')).toHaveText('03/30')
  await expect(panel.locator('[data-slot="card-state"]')).toHaveAttribute('data-state','active'); await expect(panel.locator('[data-slot="auto-renew"]')).toBeVisible()

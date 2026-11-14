@@ -4,13 +4,23 @@ import { expect, test } from '@playwright/test'
 test.describe('Plan 6d: accepting an invitation', () => {
   test.use({ viewport: { width: 1280, height: 800 } })
 
-  test('a missing token shows the invalid alert under one heading in a standalone card', async ({ page }) => {
+  test('a missing token offers a new invitation under one heading in a standalone card', async ({ page }) => {
     await page.goto('/invite/accept')
     await expect(page.locator('main')).toHaveCount(1)
     await expect(page.locator('[data-template="standalone-page"][data-variant="card"]')).toHaveCount(1)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    // Without a link the page is the request-a-new-invitation form (note 17), not the password form.
+    await expect(page.getByRole('button', { name: 'أرسل لي دعوة جديدة' })).toBeVisible()
+    await expect(page.locator('#password')).toHaveCount(0)
+  })
+
+  test('an unusable token shows the invalid alert above the same request form', async ({ page }) => {
+    await page.route('**/api/invitations/check', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"usable":false}' }))
+    await page.goto('/invite/accept?token=expired')
     await expect(page.getByRole('alert')).toBeVisible()
-    await expect(page.locator('form')).toHaveCount(0)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    await expect(page.getByRole('button', { name: 'أرسل لي دعوة جديدة' })).toBeVisible()
+    await expect(page.locator('#password')).toHaveCount(0)
   })
 
   test('the form disables submit until the rules pass, then shows success with a sign-in link', async ({ page }) => {
