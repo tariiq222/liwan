@@ -340,7 +340,7 @@ class TestAccessAdminRoles(LiwanApiCase):
         body = response.json()
         installed = {
             module.name for module in self.env['ir.module.module'].search([
-                ('name', 'in', ['liwan_hr', 'liwan_documents', 'liwan_pmo', 'liwan_meetings']),
+                ('name', 'in', ['liwan_hr', 'liwan_document_service', 'liwan_pmo', 'liwan_meetings']),
                 ('state', '=', 'installed'),
             ])
         }
@@ -352,12 +352,12 @@ class TestAccessAdminRoles(LiwanApiCase):
         # onboarding, offboarding, assets, warnings and insurance) and 6 for payroll (its four keys, the audit
         # reader of owner decision D-7 and the finance mapping).
         total = (
-            12 + 31 * ('liwan_hr' in installed) + 5 * ('liwan_documents' in installed)
+            12 + 31 * ('liwan_hr' in installed) + 5 * ('liwan_document_service' in installed)
             + 9 * ('liwan_pmo' in installed) + 4 * ('liwan_meetings' in installed)
         )
         # An application added later adds capabilities; today's are exact.
         owners = self.env['liwan.access.service']._liwan_capability_map()
-        release = {'liwan_core', 'liwan_hr', 'liwan_documents', 'liwan_pmo', 'liwan_meetings'}
+        release = {'liwan_core', 'liwan_hr', 'liwan_document_service', 'liwan_pmo', 'liwan_meetings'}
         items = [item for item in body['items'] if owners[item['key']]['owner'] in release]
         extra = len(body['items']) - len(items)
         self.assertEqual((len(items), body['total'] - extra), (total, total))
@@ -373,7 +373,7 @@ class TestAccessAdminRoles(LiwanApiCase):
             {
                 'documents.items.read', 'documents.items.manage', 'documents.items.archive',
                 'documents.access.manage', 'documents.library.manage',
-            } if 'liwan_documents' in installed else set(),
+            } if 'liwan_document_service' in installed else set(),
         )
         permission = next(item for item in body['items'] if item['key'] == 'access.users.assign_roles')
         self.assertFalse(permission['custom_role_allowed'])

@@ -5,6 +5,7 @@ from odoo.addons.liwan_api.serializers.properties import (
     filter_domain,
 )
 from odoo.addons.liwan_customers.models.customers_settings import PROPERTIES_FIELD
+from odoo.addons.liwan_customers.models.privacy_hooks import is_erased
 
 CREATE_KEYS = frozenset({'name', 'phone', 'email', 'is_company', 'parent_id', 'properties', 'create_new'})
 PATCH_KEYS = CREATE_KEYS - {'create_new'}
@@ -20,10 +21,13 @@ def _ref(record):
 
 def dump_customer(partner):
     """A party on the wire: its identity, its parent company customer and its owning branch (null when shared), and
-    the tenant's customer fields in their order with the party's value. Only a party is ever dumped."""
+    the tenant's customer fields in their order with the party's value. ``erased`` is true for a party whose personal data
+    was erased: its stored ``name`` is then a language-neutral marker, and the client shows a translated one. Only a
+    party is ever dumped."""
     return {
         'id': partner.id,
         'name': partner.name,
+        'erased': is_erased(partner),
         'phone': partner.phone or None,
         'email': partner.email or None,
         'is_company': partner.is_company,

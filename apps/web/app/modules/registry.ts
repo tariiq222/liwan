@@ -36,7 +36,7 @@ function aliasedFeature(capability: string): string | undefined {
   return undefined
 }
 // Any unknown dotted prefix is gated by `<prefix>.enabled`, so a new foundation-like prefix must be added here.
-const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'liwan', 'subscription', 'billing', 'branches', 'tenant'])
+const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'liwan', 'subscription', 'billing', 'branches', 'tenant', 'documents', 'operations'])
 
 export function featureGateActive(identity: TenantIdentity): boolean {
   return Boolean(identity && (identity.modules || identity.entitlements || identity.platform))
@@ -119,6 +119,7 @@ export function capabilityAllowed(
   write: boolean,
   subFeatures: Record<string, string> = declaredSubFeatures(),
 ): boolean {
+  if (write && identity?.platform?.read_only && /^(documents|operations)\./.test(capability)) return false
   return hasFeature(identity, featureForCapability(capability), write)
     && hasFeature(identity, subFeatureForCapability(capability, subFeatures), write)
 }

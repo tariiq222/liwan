@@ -2,15 +2,16 @@
 from odoo.exceptions import AccessError, LockError, ValidationError
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.liwan_api.tests.common import LiwanApiCase, set_probe_feature
-from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-from odoo.addons.liwan_operations.models.operation_request import (
+from odoo.addons.liwan_api.tests.common import LiwanApiCase
+from odoo.addons.liwan_approval_service.models.operation_request import (
     OperationExecutionError,
 )
-from odoo.addons.liwan_operations.serializers.operations import (
+from odoo.addons.liwan_approval_service.serializers.operations import (
     dump_process,
     dump_request,
 )
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -297,9 +298,12 @@ class TestOperationsWorkflow(LiwanApiCase):
         response = self.api('GET', '/api/v1/operations/requests?scope=monitoring')
         self.assertEqual(response.status_code, 403)
 
-    def test_feature_closure_blocks_orm_and_http_decisions(self):
+    def test_read_only_lifecycle_blocks_orm_and_http_decisions(self):
         record = self._pending()
-        set_probe_feature(self, key='operations.enabled', enabled=False)
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        if profile.commercial_mode != 'saas':
+            return
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'valid_until': '2000-01-01'})
         with self.assertRaises(LiwanAccessRule):
             record.with_user(self.reviewers[0]).action_approve(1)
         self.authenticate('ops_reviewer_1', 'ops_reviewer_1_test_123')

@@ -15,6 +15,8 @@ The scenario register and personas are in [e2e/scenarios](../e2e/scenarios/READM
 - `npm run e2e:odoo` uses the isolated Odoo stack and the fixed disposable database `liwan_scratch_e2e`.
 - Preferred ports are mock `43388`, Nuxt `43300`, and Odoo `43369`; occupied defaults fall back to free ports.
 - The wrapper rejects `E2E_BASE_URL` on ports `3000` and `8069`. `npm run e2e:dev` deliberately bypasses the wrapper and uses the direct configuration (`E2E_TELEMETRY_DISABLED=1 e2e run`), which defaults to `http://localhost:3000` and can reuse an existing server.
+- The wrapper starts Nuxt with `--host 127.0.0.1`: with no host set, Nuxt 4.6 resolves `devServer.host` to an empty object and @nuxt/cli 4.0.1 fails with `options.hostname.toLowerCase is not a function`.
+- Sign-in has a second step (an emailed code) that the scratch stack cannot deliver. `tools/e2e_seed.py` issues one remembered device per login through `liwan.login.device._liwan_issue` and writes the tokens to the git-ignored `.e2e/devices.json` (mode 0600; the wrapper passes its path as `E2E_DEVICE_FILE` and re-seeds when the file is missing). `e2e/tests/personas.setup.e2e.ts` sets the `liwan_device` cookie before the login form, so the login page finishes the second step the way a returning browser does. Sign-in in the product is unchanged. CI `e2e-odoo` uses the same mechanism through `apps/web/e2e/fixtures/real-odoo-acceptance.py`.
 - Inspect collected tests with `npx e2e list`. The coding-agent skill is in `.claude/skills/e2e/`. `npx e2e mcp` exposes the framework MCP server; the repository ships no `.mcp.json`.
 
 **العربية**
@@ -24,6 +26,7 @@ The scenario register and personas are in [e2e/scenarios](../e2e/scenarios/READM
 - يستخدم `npm run e2e:odoo` قاعدة الاختبار المؤقتة الثابتة `liwan_scratch_e2e`.
 - المنافذ المفضلة هي `43388` للواجهة الوهمية و`43300` لـNuxt و`43369` لـOdoo؛ يختار الغلاف منافذ حرة إن كانت مشغولة.
 - يرفض الغلاف توجيه الاختبارات إلى `3000` أو `8069`. الأمر `npm run e2e:dev` يتجاوز الغلاف صراحةً ويستخدم الإعداد المباشر (`E2E_TELEMETRY_DISABLED=1 e2e run`)، الذي يبدأ افتراضيًا من `http://localhost:3000` ويمكنه إعادة استخدام خادم قائم.
+- يشغّل الغلاف Nuxt مع `--host 127.0.0.1` لتفادي خطأ `options.hostname.toLowerCase`. وللدخول بخطوتين تصدر البذرة جهازًا موثوقًا لكل حساب في `.e2e/devices.json` (مستبعد من Git)، ويضعه `personas.setup.e2e.ts` كـ cookie باسم `liwan_device` قبل نموذج الدخول.
 - استعرض الاختبارات بـ `npx e2e list`، ومهارة وكلاء البرمجة في `.claude/skills/e2e/`.
 
 ## Agents / الوكلاء

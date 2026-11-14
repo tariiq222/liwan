@@ -62,6 +62,33 @@ describe('selectNotice rules', () => {
   })
 })
 
+describe('workspace deletion notice', () => {
+  const confirmed = sub({ deletion: { state: 'confirmed', due_at: '2027-02-11T21:30:00Z', hold_until: null } })
+  const hold = sub({ deletion: { state: 'due', due_at: '2027-02-11T21:30:00Z', hold_until: '2027-02-14T08:00:00Z' } })
+  it('shows the dated, dismissible warning for a confirmed request, on the Riyadh day', () => {
+    expect(selectNotice(inputs({ subscription: confirmed }))).toMatchObject({
+      key: 'workspace_deletion', level: 'scheduled', severity: 'warning', dismissible: { hours: 24 }, params: { date: '2027-02-12' },
+      action: { to: '/subscription#delete-workspace' },
+    })
+  })
+  it('shows an undismissable error for the final hold', () => {
+    expect(selectNotice(inputs({ subscription: hold }))).toMatchObject({ key: 'workspace_deletion', level: 'hold', severity: 'error', dismissible: false, params: { date: '2027-02-14' } })
+  })
+  it('shows nothing for an unconfirmed request, for deleting, for a plain member or when withdrawn', () => {
+    for (const state of ['requested', 'deleting']) expect(key({ subscription: sub({ deletion: { state, due_at: '2027-02-12T00:00:00Z', hold_until: null } }) })).toBeNull()
+    expect(key({ canManage: false, subscription: confirmed })).toBeNull()
+    expect(key({ subscription: sub({ deletion: null }) })).toBeNull()
+  })
+  it('outranks the trial and cancellation notices but not payment suspension, read-only or an overdue payment', () => {
+    const trialing = { state: 'trialing', trial_ends_at: day(2), cancellation: { effective_on: '2026-12-12' } }
+    expect(key({ subscription: sub({ ...trialing, deletion: confirmed.deletion }) })).toBe('workspace_deletion')
+    expect(key({ platformState: 'payment_suspended', subscription: confirmed })).toBe('payment_suspended')
+    expect(key({ userReadOnly: true, subscription: confirmed })).toBe('user_read_only')
+    expect(key({ subscription: sub({ state: 'past_due', grace_ends_at: day(2), deletion: confirmed.deletion }) })).toBe('payment_overdue')
+    expect(key({ subscription: confirmed, isDismissed: n => n.key === 'workspace_deletion' })).toBeNull()
+  })
+})
+
 describe('selectNotice priority and audience', () => {
   const everything = sub({ state: 'past_due', grace_ends_at: day(2), cancellation: { effective_on: '2026-12-12' }, pending_free_base_lock: 'refund' })
   it('returns the highest-priority notice only', () => {

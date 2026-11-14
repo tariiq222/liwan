@@ -665,42 +665,6 @@ def run_matrix(args):
         check("reader", "restored-file-read", download, body=raw, private=True)
 
     def policy_matrix():
-        try:
-            set_profile(
-                {
-                    "features": {**original_features, "documents.enabled": False},
-                    "retained_read_features": [],
-                },
-            )
-            check("manager", "feature-disabled-read", path, 403)
-            check(
-                "manager",
-                "feature-disabled-write",
-                path,
-                403,
-                method="PATCH",
-                payload={"expected_revision": 1, "name": "denied"},
-            )
-            check(
-                "manager", "feature-disabled-native-bytes", native, 404, forbidden=raw,
-            )
-            set_profile(
-                {
-                    "features": {**original_features, "documents.enabled": False},
-                    "retained_read_features": ["documents.enabled"],
-                },
-            )
-            check("manager", "retained-read-only", download, body=raw, private=True)
-            check(
-                "manager",
-                "retained-write-denied",
-                path,
-                403,
-                method="PATCH",
-                payload={"expected_revision": 1, "name": "denied"},
-            )
-        finally:
-            reset()
         if args.mode == "saas":
             try:
                 set_profile({"valid_until": "2000-01-01"})

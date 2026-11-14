@@ -4,7 +4,7 @@ import { joinList } from '@/utils/listFormat'
 import { createOperationSubmitGuard, operationErrorKey, processFormErrors, processStepBody } from '@/composables/operations/forms'
 import { useOperationExecutionKinds, useOperationReviewerResolvers } from '@/composables/operations/useOperations'
 
-const props = defineProps<{ process?: OperationProcess; disabled?: boolean; backTo: string; refresh?: () => Promise<OperationProcess>; save: (body: OperationProcessBody) => Promise<OperationProcess> }>()
+const props = defineProps<{ process?: OperationProcess; lockedKind?: { key: string; label: string }; resolversPath?: string; disabled?: boolean; backTo: string; refresh?: () => Promise<OperationProcess>; save: (body: OperationProcessBody) => Promise<OperationProcess> }>()
 const emit = defineEmits<{ saved: [process: OperationProcess] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -26,8 +26,8 @@ function ineligibleHint(step: StageState) {
   const people = step.reviewers.filter(person => step.reviewer_ids.includes(person.user_id) && ineligibleIds.value.has(person.user_id))
   return people.length ? t('operations.ineligibleReviewers', { names: joinList(people.map(person => person.name), t) }) : undefined
 }
-const kinds = useOperationExecutionKinds()
-const resolvers = useOperationReviewerResolvers(() => executionKind.value)
+const kinds = useOperationExecutionKinds(() => !props.lockedKind)
+const resolvers = useOperationReviewerResolvers(() => executionKind.value, props.resolversPath)
 // A stage names its reviewers or hands them to a rule the server offers for this result; a stage already on a rule the list no longer offers keeps showing it.
 function sourceItems(step: StageState) {
   const offered = (resolvers.data.value?.items ?? []).map(item => ({ value: item.key, label: item.label }))
@@ -51,6 +51,7 @@ function fieldError(field: string) {
   return client ? t(`operations.errors.${client}`) : server?.field === field ? server.message : undefined
 }
 const disabled = computed(() => !hydrated.value || pending.value || props.disabled)
+const kindUnavailable = computed(() => !props.lockedKind && (kinds.isPending.value || !!kinds.error.value))
 const kindItems = computed(() => (kinds.data.value?.items ?? []).map(kind => ({ value: kind.key, label: kind.label })))
 function move(index: number, delta: number) {
   if (disabled.value) return
@@ -62,7 +63,7 @@ function move(index: number, delta: number) {
 }
 function setReviewers(index: number, value: number | number[] | null) { if (!disabled.value) steps.value[index]!.reviewer_ids = Array.isArray(value) ? value : [] }
 async function submit() {
-  if (disabled.value || kinds.isPending.value || kinds.error.value) return
+  if (disabled.value || kindUnavailable.value) return
   attempted.value = true
   if (Object.keys(errors.value).length) return
   await gate.run(async () => {
@@ -102,7 +103,7 @@ async function reload() {
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="process?.state === 'published'" color="warning" :title="t('operations.editPublishedNotice')" />
     <SharedFormSection panel :title="t('operations.processInformation')">
-      <div class="grid gap-4"><UFormField name="name" :label="t('operations.name')" required :error="fieldError('name')"><UInput v-model="name" class="w-full" :disabled="disabled" required /></UFormField><UFormField name="description" :label="t('operations.description')" :error="fieldError('description')"><UTextarea v-model="description" class="w-full" :rows="4" :disabled="disabled" /></UFormField><UFormField name="purpose" :label="t('operations.purpose')" :description="t('operations.purposeHint')" :error="fieldError('purpose')"><USelect v-model="purpose" :items="purposeItems" class="w-full" :disabled="disabled" /></UFormField><UFormField name="execution_kind" :label="t('operations.result')" :error="fieldError('execution_kind')"><USelect v-model="executionKind" :items="kindItems" class="w-full" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" /></UFormField></div>
+      <div class="grid gap-4"><UFormField name="name" :label="t('operations.name')" required :error="fieldError('name')"><UInput v-model="name" class="w-full" :disabled="disabled" required /></UFormField><UFormField name="description" :label="t('operations.description')" :error="fieldError('description')"><UTextarea v-model="description" class="w-full" :rows="4" :disabled="disabled" /></UFormField><UFormField v-if="!lockedKind" name="purpose" :label="t('operations.purpose')" :description="t('operations.purposeHint')" :error="fieldError('purpose')"><USelect v-model="purpose" :items="purposeItems" class="w-full" :disabled="disabled" /></UFormField><UFormField v-if="!lockedKind" name="execution_kind" :label="t('operations.result')" :error="fieldError('execution_kind')"><USelect v-model="executionKind" :items="kindItems" class="w-full" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" /></UFormField></div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('operations.stages')" :description="t('operations.stageOrderHelp')">
       <div class="space-y-3">
@@ -117,8 +118,8 @@ async function reload() {
       <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="disabled" :label="t('operations.addStage')" @click="steps.push(blankStage())" />
       </div>
     </SharedFormSection>
-    <UAlert v-if="error || kinds.error.value" role="alert" color="error" variant="subtle" :title="t(`operations.errors.${operationErrorKey(error ?? kinds.error.value)}`)"><template v-if="refresh && operationErrorKey(error) === 'conflict'" #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="requestReload" /></template></UAlert>
+    <UAlert v-if="error || (!lockedKind && kinds.error.value)" role="alert" color="error" variant="subtle" :title="t(`operations.errors.${operationErrorKey(error ?? kinds.error.value)}`)"><template v-if="refresh && operationErrorKey(error) === 'conflict'" #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="requestReload" /></template></UAlert>
     <SharedInlineConfirm v-if="reloadRequested" :title="t('operations.reloadDraft')" :description="t('operations.reloadDraftHelp')" :confirm-label="t('operations.refresh')" color="warning" :disabled="disabled" :pending="pending" @confirm="reload" @cancel="reloadRequested = false" />
-    <SharedFormActions><div class="ms-auto flex flex-wrap gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :disabled="disabled" :label="t('operations.cancel')" /><UButton type="submit" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" :loading="pending" :label="t(process ? 'operations.save' : 'operations.create')" /></div></SharedFormActions>
+    <SharedFormActions><div class="ms-auto flex flex-wrap gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :disabled="disabled" :label="t('operations.cancel')" /><UButton type="submit" :disabled="disabled || kindUnavailable" :loading="pending" :label="t(process ? 'operations.save' : 'operations.create')" /></div></SharedFormActions>
   </form>
 </template>

@@ -2,6 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import type { Customer } from '@liwan/contracts'
+import { customerName } from '@/composables/customers/customerName'
 
 // The rows of the customers directory. The page owns the query, filters and paging; this renders the loaded page.
 const props = defineProps<{ rows: Customer[]; loading: boolean; error: unknown; recordTo: (customer: Customer) => RouteLocationRaw }>()
@@ -27,7 +28,7 @@ const scope = (customer: Customer) => customer.company?.name ?? t('customers.sha
   <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,864px)] [&_table]:table-fixed">
     <SharedDataTable bare :rows="props.rows" :columns="columns" row-key="id" :row-to="props.recordTo" :loading="props.loading" :error="props.error" :caption="t('customers.title')" @retry="emit('retry')">
       <template #name-cell="{ row }">
-        <NuxtLink :to="props.recordTo(row.original)" :class="NAME_LINK" data-testid="customer-name-link">{{ row.original.name }}</NuxtLink>
+        <NuxtLink :to="props.recordTo(row.original)" :class="NAME_LINK" data-testid="customer-name-link">{{ customerName(row.original, t) }}</NuxtLink>
         <p v-if="row.original.parent" class="truncate text-xs text-muted">{{ row.original.parent.name }}</p>
       </template>
       <template #phone-cell="{ row }"><bdi v-if="row.original.phone" dir="ltr">{{ row.original.phone }}</bdi><template v-else><span aria-hidden="true" class="text-muted">—</span><span class="sr-only">{{ t('states.noValue') }}</span></template></template>
@@ -37,7 +38,7 @@ const scope = (customer: Customer) => customer.company?.name ?? t('customers.sha
       <template #mobile-row="{ row }">
         <NuxtLink :to="props.recordTo(row)" class="flex min-w-0 flex-col gap-1">
           <span class="flex min-w-0 items-center gap-2">
-            <span class="min-w-0 truncate font-semibold text-highlighted">{{ row.name }}</span>
+            <span class="min-w-0 truncate font-semibold text-highlighted">{{ customerName(row, t) }}</span>
             <SharedStatusBadge size="sm" :tone="row.active ? 'success' : 'neutral'" :label="t(row.active ? 'customers.status.active' : 'customers.status.archived')" />
           </span>
           <span v-if="row.phone" class="truncate text-sm text-muted"><bdi dir="ltr">{{ row.phone }}</bdi></span>

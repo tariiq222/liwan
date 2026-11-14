@@ -6,12 +6,17 @@ import type { SetupTargetAccess } from '@/composables/setup/setupSteps'
 // (or a plain note and no link when that page is not available), then done, skip, or back to to do.
 const props = defineProps<{ stepKey: SetupStepKey; outcome: SetupOutcome | null; access: SetupTargetAccess; busy: boolean }>()
 const emit = defineEmits<{ change: [outcome: SetupOutcome | null] }>()
-const { t } = useI18n()
+const { t, te } = useI18n()
 const hydrated = useHydrated()
 const state = computed(() => props.outcome ?? 'todo')
 const TONES = { todo: 'neutral', done: 'success', skipped: 'warning' } as const
 const ICONS = { todo: 'i-lucide-circle', done: 'i-lucide-circle-check', skipped: 'i-lucide-circle-slash' } as const
-const note = computed(() => (props.access.kind === 'open' ? null : t(`setup.notes.${props.access.kind}`)))
+// A step the viewer lacks the capability for names who holds it (the system administrator is never given an application's capabilities), and stays skippable.
+const note = computed(() => {
+  if (props.access.kind === 'open') return null
+  const holder = `setup.steps.${props.stepKey}.holder`
+  return props.access.kind === 'permission' && te(holder) ? t('setup.notes.permissionHolder', { holder: t(holder) }) : t(`setup.notes.${props.access.kind}`)
+})
 </script>
 
 <template>

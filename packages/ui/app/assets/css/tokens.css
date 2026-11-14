@@ -127,6 +127,8 @@
   --ui-text-toned: #374151;
   --ui-text-muted: #646b79;
   --ui-text-dimmed: #646b79;
+  /* Error text and fills: Nuxt UI's red-500 is 3.76:1 on white. red-700 is 6.47:1 on white and 5.32:1 on --ui-bg-accented, and white on it is 6.47:1 (guarded in tokens.test.ts). */
+  --ui-error: #b91c1c;
   --liwan-sand: #eadfc8;
   --liwan-whatsapp: #25d366;
   --liwan-table-head: var(--ui-bg-muted);
@@ -255,6 +257,7 @@
 /* Dark mode: charcoal surfaces (page #1c1e24, sidebar #21242b, cards #262a33), light ink text and a light solid primary. */
 .dark {
   color-scheme: dark;
+  --ui-error: var(--ui-color-error-400);
   --ui-bg: #262a33;
   --ui-bg-muted: #2e323c;
   --ui-bg-elevated: #2e323c;

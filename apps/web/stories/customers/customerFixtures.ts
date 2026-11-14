@@ -16,7 +16,7 @@ export const settings: CustomerSettings = {
 }
 
 export const customers: Customer[] = [
-  { id: 1, name: 'منى العتيبي', phone: '+966500000001', email: 'mona@example.com', is_company: false, parent: null, active: true, company: { id: 1, name: 'فرع الرياض' }, properties: [{ key: 'city', label: 'المدينة', type: 'char', value: 'الرياض' }] },
-  { id: 2, name: 'مؤسسة النخيل للتجارة', phone: '+966500000002', email: null, is_company: true, parent: null, active: true, company: null, properties: [] },
-  { id: 3, name: 'سارة الحربي', phone: null, email: 'sara@example.com', is_company: false, parent: { id: 2, name: 'مؤسسة النخيل للتجارة' }, active: false, company: { id: 1, name: 'فرع الرياض' }, properties: [] },
+  { id: 1, name: 'منى العتيبي', erased: false, phone: '+966500000001', email: 'mona@example.com', is_company: false, parent: null, active: true, company: { id: 1, name: 'فرع الرياض' }, properties: [{ key: 'city', label: 'المدينة', type: 'char', value: 'الرياض' }] },
+  { id: 2, name: 'مؤسسة النخيل للتجارة', erased: false, phone: '+966500000002', email: null, is_company: true, parent: null, active: true, company: null, properties: [] },
+  { id: 3, name: 'سارة الحربي', erased: false, phone: null, email: 'sara@example.com', is_company: false, parent: { id: 2, name: 'مؤسسة النخيل للتجارة' }, active: false, company: { id: 1, name: 'فرع الرياض' }, properties: [] },
 ]

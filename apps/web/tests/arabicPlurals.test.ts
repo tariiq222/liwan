@@ -26,6 +26,17 @@ function leaves(node: unknown, path = ''): Array<[string, string]> {
 }
 
 describe('Arabic plural forms', () => {
+  it('says the days left in a subscription notice in the right form', () => {
+    const named = (n: number) => ({ days: n })
+    const key = 'subscription.notice.trialEnding'
+    expect(t(key, 0, named(0))).toContain('تنتهي التجربة اليوم')
+    expect(t(key, 1, named(1))).toContain('بعد يوم واحد')
+    expect(t(key, 2, named(2))).toContain('بعد يومين')
+    expect(t(key, 3, named(3))).toContain('بعد 3 أيام')
+    expect(t(key, 11, named(11))).toContain('بعد 11 يومًا')
+    expect(t(key, 100, named(100))).toContain('بعد 100 يوم')
+    expect(t('subscription.notice.paymentOverdue', 2, { days: 2, date: 'x' })).toContain('باقي يومان')
+  })
   it('renders zero, one, two, few, many and other forms for tasks', () => {
     const key = 'myTasks.list.total'
     expect(t(key, 0)).toBe('لا مهام')

@@ -19,7 +19,7 @@ class ResCompany(models.Model):
     def _hr_leave_seed_default_process(self):
         """Publish the default leave approval process for companies that have none."""
         service = self.env['liwan.entitlement.service']
-        if not (service._liwan_feature_write('hr.enabled') and service._liwan_feature_write('operations.enabled')):
+        if not (service._liwan_feature_write('hr.enabled')):
             return
         processes = self.env['liwan.operation.process']
         values, steps = processes._hr_leave_default_process()

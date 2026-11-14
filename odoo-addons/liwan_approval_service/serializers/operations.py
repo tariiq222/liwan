@@ -33,13 +33,24 @@ def step_status(record, step, review):
     return review.status if review and record.state in STAGES_IN_EFFECT else 'waiting'
 
 
-def dump_request(record):
+def dump_request_steps(record, *, include_resolver=False):
     reviews = {r.sequence: r for r in record.review_ids}
     steps = []
     for step in record.stage_snapshot or []:
         review = reviews.get(step['sequence'])
         users = record.env['res.users'].browse(step['reviewer_ids'])
-        resolver = record.env['liwan.operation.process']._operations_reviewer_resolver(record.execution_kind, step['resolver']) if step['resolver'] else None
-        steps.append({'sequence': step['sequence'], 'name': step['name'], 'resolver': step['resolver'], 'resolver_label': resolver['label'] if resolver else None, 'reviewers': [person(user) for user in users], 'status': step_status(record, step, review)})
+        row = {
+            'sequence': step['sequence'], 'name': step['name'], 'reviewers': [person(user) for user in users],
+            'status': step_status(record, step, review),
+        }
+        if include_resolver:
+            resolver_key = step['resolver']
+            resolver = record.env['liwan.operation.process']._operations_reviewer_resolver(record.execution_kind, resolver_key) if resolver_key else None
+            row.update(resolver=resolver_key, resolver_label=resolver['label'] if resolver else None)
+        steps.append(row)
+    return steps
+
+
+def dump_request(record):
     attachments = record.env['ir.attachment'].search([('res_model', '=', record._name), ('res_id', '=', record.id), ('type', '=', 'binary')], order='id')
-    return {**dump_summary(record), 'description': record.description or '', 'target': record._operations_target(), 'steps': steps, 'events': [{'id': event.id, 'kind': event.kind, 'actor': person(event.actor_id), 'comment': event.comment or '', 'cycle': event.cycle, 'created_at': iso(event.create_date)} for event in record.event_ids], 'attachments': [dump_attachment(a, f'/api/v1/operations/requests/{record.id}/attachments') for a in attachments], 'allowed_actions': record._operations_allowed_actions()}
+    return {**dump_summary(record), 'description': record.description or '', 'target': record._operations_target(), 'steps': dump_request_steps(record, include_resolver=True), 'events': [{'id': event.id, 'kind': event.kind, 'actor': person(event.actor_id), 'comment': event.comment or '', 'cycle': event.cycle, 'created_at': iso(event.create_date)} for event in record.event_ids], 'attachments': [dump_attachment(a, f'/api/v1/operations/requests/{record.id}/attachments') for a in attachments], 'allowed_actions': record._operations_allowed_actions()}

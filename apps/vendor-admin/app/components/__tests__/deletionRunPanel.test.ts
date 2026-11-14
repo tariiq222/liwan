@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
-import { deletionWithdrawable, isDeletionShown, stuckParts } from '../../utils/vendorDeletion'
+import { deletionCheckKey, deletionCodeText, deletionWithdrawable, isDeletionShown, stuckParts } from '../../utils/vendorDeletion'
 import type { TenantDeletionRequest } from '@liwan/commercial-contracts'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { loadSfc } from './sfc'
 
 const request = (over: Partial<TenantDeletionRequest> = {}): TenantDeletionRequest => ({
@@ -11,7 +13,7 @@ const request = (over: Partial<TenantDeletionRequest> = {}): TenantDeletionReque
 })
 const step = (name: string, over: Record<string, unknown> = {}) => ({ step: name, state: 'done', intent: null, attempts: 1, failures: 0, started_at: null, finished_at: null, next_attempt_at: null, error_code: null, evidence: {}, ...over })
 const run = (over: Record<string, unknown> = {}) => ({ request: request(), enabled: true, plan: { digest: 'd', database: 'liwan_acme', host: 'acme.example.sa', backups: 3, restore_copies: 1, cards: 2 }, prechecks: { blocked_by: null, checks: [{ code: 'no_open_invoice', ok: true }] }, steps: [step('preflight'), step('stop_access')], ...over })
-const sfc = loadSfc('components/vendor/DeletionRunPanel.vue', { useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key} ${JSON.stringify(params)}` : key) }), formatLiwanDateTime: (value: string) => `@${value}`, stuckParts })
+const sfc = loadSfc('components/vendor/DeletionRunPanel.vue', { useI18n: () => ({ t: (key: string, params?: Record<string, unknown>, plural?: number) => (params && Object.keys(params).length ? `${key}[${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')}]${plural === undefined ? '' : `#${plural}`}` : key) }), formatLiwanDateTime: (value: string) => `@${value}`, stuckParts, deletionCodeText, deletionCheckKey })
 
 describe('DeletionRunPanel', () => {
   it('shows the runner state, the dates, the frozen plan, the checks and the ledger, read-only', async () => {
@@ -40,14 +42,45 @@ describe('DeletionRunPanel', () => {
   })
   it('names the stuck step and code, a failed step with its last error, and the passed point of no return', async () => {
     const html = await sfc.html({ run: run({ request: request({ committed_at: '2027-04-04T09:20:00Z', stuck_at: '2027-04-05T09:00:00Z', stuck_code: 'purge_offsite:offsite_not_empty' }), steps: [step('purge_offsite', { state: 'failed', failures: 5, attempts: 5, error_code: 'offsite_not_empty', next_attempt_at: '2027-04-05T15:00:00Z' })] }) })
-    expect(html).toContain('vendor.customers.deletion.run.stuck {"step":"vendor.customers.deletion.run.stepNames.purge_offsite","code":"offsite_not_empty"}'.replaceAll('"', '&quot;'))
+    expect(html).toContain('vendor.customers.deletion.run.stuck[step=vendor.customers.deletion.run.stepNames.purge_offsite,reason=vendor.customers.deletion.run.codes.offsite_not_empty]')
+    expect(html).not.toContain('code=offsite_not_empty')
     expect(html).toContain('vendor.customers.deletion.run.committed')
     expect(html).toContain('data-testid="deletion-step-error"')
     expect(html).toContain('data-state="failed"')
   })
 })
 
+describe('DeletionRunPanel codes', () => {
+  it('translates a stuck code and the last error of a step, never showing them raw, and counts attempts with the plural form', async () => {
+    const html = await sfc.html({ run: run({ request: request({ stuck_at: '2027-04-05T09:00:00Z', stuck_code: 'anonymise_contacts:final_mail_unsent' }), steps: [step('delete_cards', { state: 'failed', attempts: 1, failures: 0, error_code: 'card_not_deleted' })] }) })
+    expect(html).toContain('codes.final_mail_unsent'); expect(html).toContain('codes.card_not_deleted')
+    expect(html).not.toContain('code=final_mail_unsent'); expect(html).not.toContain('code=card_not_deleted')
+    expect(html).toContain('run.attempts[count=1]#1'); expect(html).toContain('run.failures[count=0]#0')
+  })
+  it('falls back to one generic sentence that keeps the raw code of an unknown cause', async () => {
+    const html = await sfc.html({ run: run({ request: request({ stuck_code: 'purge_offsite:brand_new_code' }) }) })
+    expect(html).toContain('vendor.customers.deletion.run.codeUnknown[code=brand_new_code]')
+  })
+  it('names a pre-check that blocks the deletion', async () => {
+    const html = await sfc.html({ run: run({ prechecks: { blocked_by: 'no_payment_in_flight', checks: [{ code: 'no_payment_in_flight', ok: false }] } }) })
+    expect(html).toContain('checkUnmet[check=vendor.customers.deletion.run.checks.no_payment_in_flight]')
+    expect(html).toContain('<span>vendor.customers.deletion.run.checks.no_payment_in_flight</span>')
+  })
+})
+
 describe('vendorDeletion', () => {
+  it('has a sentence in both locales for every code and pre-check it knows, and for nothing else', () => {
+    for (const lang of ['ar', 'en']) {
+      const run = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${lang}/vendor.json`), 'utf8')).vendor.customers.deletion.run
+      for (const code of Object.keys(run.codes)) expect(deletionCodeText(code).key, `${lang} ${code}`).toBe(`vendor.customers.deletion.run.codes.${code}`)
+      for (const code of Object.keys(run.checks)) expect(deletionCheckKey(code), `${lang} ${code}`).toBe(`vendor.customers.deletion.run.checks.${code}`)
+    }
+  })
+  it('knows the codes the runner and the effect script emit', () => {
+    for (const code of ['final_mail_unsent', 'card_not_deleted', 'step_failed', 'offsite_not_empty', 'identity_marker_missing', 'tenant_drop_failed', 'effect_timeout']) expect(deletionCodeText(code).code, code).toBeUndefined()
+    expect(deletionCodeText('no_payment_after_due').check).toBe('vendor.customers.deletion.run.checks.no_payment_after_due')
+    expect(deletionCodeText('nope')).toEqual({ key: 'vendor.customers.deletion.run.codeUnknown', code: 'nope' })
+  })
   it('lets the vendor withdraw until the point of no return and no later', () => {
     for (const state of ['requested', 'confirmed', 'due']) expect(deletionWithdrawable(request({ state: state as TenantDeletionRequest['state'] })), state).toBe(true)
     expect(deletionWithdrawable(request({ state: 'deleting', committed_at: null }))).toBe(true)

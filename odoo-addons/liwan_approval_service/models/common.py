@@ -14,15 +14,16 @@ def trusted(env):
     return env.su or env.context.get('_operations_write') is TOKEN
 
 
-def require(env, key=None, write=True):
-    """The operations feature must be on; ``key`` (when given) is the capability the caller must hold too."""
-    service = env['liwan.entitlement.service']
-    if write:
-        service.require('operations.enabled')
+def require(env, key=None, *, feature):
+    if feature is None:
+        msg = 'No installed application owns this approval.'
+        raise AccessError(env._(msg))
+    entitlement = env['liwan.entitlement.service']
+    if feature is False:
+        entitlement._liwan_assert_lifecycle(write=True)
     else:
-        service._liwan_assert_lifecycle()
-        if not service._liwan_feature_read('operations.enabled'):
-            raise AccessError(env._('Operations is not enabled.'))
+        entitlement.require(feature)
+
     if key:
         env['liwan.access.service']._liwan_require_capability(key)
 

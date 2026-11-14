@@ -189,14 +189,15 @@ describe('access policy navigation', () => {
 
 
 describe('personal and HR management route boundaries', () => {
-  it('lets staff see their own leave while requiring an administrative role for the HR queue', () => {
+  it('lets leave readers open the HR queue and lets the API scope its records', () => {
     const employee = { capabilities: ['hr.employees.read', 'hr.leave.read'] }
     expect(canReachPath(employee, '/account/leave')).toBe(true)
-    expect(canReachPath(employee, '/hr/leave')).toBe(false)
+    expect(canReachPath(employee, '/hr/leave')).toBe(true)
+    expect(canReachPath(employee, '/hr/leave/7')).toBe(true)
     for (const role of ['hr.leave.manage', 'hr.leave.approve']) {
       expect(canReachPath({ capabilities: [...employee.capabilities, role] }, '/hr/leave')).toBe(true)
     }
-    expect(firstAllowedPath({ capabilities: ['hr.leave.read'] })).toBe('/account')
+    expect(firstAllowedPath({ capabilities: ['hr.leave.read'] })).toBe('/hr/leave')
   })
   it('retains administrative read access in a read-only tenant without enabling a new own request', () => {
     const identity = { capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.manage', 'hr.leave.request'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
@@ -275,7 +276,7 @@ describe('personal pages follow the home company', () => {
     expect(canReachPath(home, '/account/leave')).toBe(canReachPath({ capabilities: HR, platform }, '/account/leave'))
   })
   it('leaves the pages the server serves from the working company on its capabilities', () => {
-    const operations = { capabilities: ['operations.requests.read', 'operations.requests.create'], home_capabilities: [], platform: { readable_features: ['operations.enabled'], writable_features: ['operations.enabled'] } }
+    const operations = { capabilities: ['operations.requests.read', 'operations.requests.create'], home_capabilities: [], platform: { readable_features: [], writable_features: [] } }
     const homeOnly = { capabilities: [], home_capabilities: operations.capabilities, platform: operations.platform }
     for (const path of ['/account/requests', '/account/requests/new', '/account/requests/7']) {
       expect(canReachPath(operations, path)).toBe(true)
@@ -284,8 +285,31 @@ describe('personal pages follow the home company', () => {
     expect(canReachPath({ ...homeOnly, capabilities: ['liwan.reader'] }, '/account')).toBe(true)
     expect(canReachPath({ ...homeOnly, capabilities: ['liwan.reader'] }, '/account/settings')).toBe(true)
   })
+  it('opens scoped personal documents and the base library without a commercial flag', () => {
+    const features = ['hr.enabled']
+    const account = {
+      capabilities: ['documents.items.read'],
+      home_capabilities: ['documents.items.read', 'hr.employees.read'],
+      platform: { readable_features: features, writable_features: features },
+    }
+    expect(canReachPath(account, '/account/documents')).toBe(true)
+    expect(canReachPath(account, '/account/documents/7')).toBe(true)
+    expect(canReachPath(account, '/documents')).toBe(true)
+    expect(canReachPath({ ...account, home_capabilities: ['hr.employees.read'] }, '/account/documents')).toBe(false)
+  })
+  it('opens both base applications for authorized readers and blocks read-only writes', () => {
+    const platform = { readable_features: [], writable_features: [], read_only: true }
+    const capabilities = ['documents.items.read', 'documents.items.manage', 'operations.requests.read', 'operations.requests.create']
+    const identity = { platform, capabilities }
+    expect(canReachPath(identity, '/documents')).toBe(true)
+    expect(canReachPath(identity, '/operations')).toBe(true)
+    expect(canReachPath(identity, '/documents/new')).toBe(false)
+    expect(canReachPath(identity, '/operations/new')).toBe(false)
+    expect(canReachPath({ platform, capabilities: [] }, '/documents')).toBe(false)
+    expect(canReachPath({ platform, capabilities: [] }, '/operations')).toBe(false)
+  })
   it('follows the home company for every HR personal route and the personal documents', () => {
-    const features = ['hr.enabled', 'hr.payroll', 'hr.assets', 'hr.shifts', 'hr.warnings', 'hr.insurance', 'hr.onboarding', 'documents.enabled']
+    const features = ['hr.enabled', 'hr.payroll', 'hr.assets', 'hr.shifts', 'hr.warnings', 'hr.insurance', 'hr.onboarding']
     const home = { capabilities: [], home_capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request', 'documents.items.read'], platform: { readable_features: features, writable_features: features } }
     for (const path of ['/account/profile', '/account/leave', '/account/leave/new', '/account/leave/7', '/account/pay', '/account/pay/7', '/account/assets', '/account/schedule', '/account/warnings', '/account/insurance', '/account/onboarding', '/account/documents', '/account/documents/7']) {
       expect(canReachPath(home, path), path).toBe(true)

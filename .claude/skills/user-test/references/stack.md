@@ -3,7 +3,8 @@
 Build or reuse the database once: `E2E_STACK=odoo npm run e2e:odoo -- e2e/tests/smoke.e2e.ts`
 (creates `liwan_scratch_e2e`, installs every release module and runs `tools/e2e_seed.py`; the
 smoke test itself may fail without a model, that does not matter). Re-seed after seed changes with
-`E2E_ODOO_SEED=1`.
+`E2E_ODOO_SEED=1`. The seed also writes `.e2e/devices.json` (a remembered device per login, git-ignored)
+that personas use to pass the second sign-in step; the wrapper re-seeds by itself when it is missing.
 
 Then keep one stack up for all agents, from the lane root:
 
@@ -14,10 +15,11 @@ nohup /Users/tariq/code/odoo/.venv/bin/python /Users/tariq/code/odoo/odoo-bin \
 cd apps/web && nohup env NODE_OPTIONS=--max-old-space-size=8192 \
   NUXT_ODOO_URL=http://127.0.0.1:43369 NUXT_ODOO_DB=liwan_scratch_e2e \
   NUXT_PUBLIC_WS_URL=ws://127.0.0.1:43369/websocket \
-  npx nuxt dev --port 43300 > ../../.e2e/logs/shared-nuxt.log 2>&1 &
+  npx nuxt dev --port 43300 --host 127.0.0.1 > ../../.e2e/logs/shared-nuxt.log 2>&1 &
 ```
 
-Ready when `http://localhost:43300/login` answers 200. Stop with
+`--host 127.0.0.1` is required: without it Nuxt 4.6 with @nuxt/cli 4.0.1 stops with
+`options.hostname.toLowerCase is not a function`. Ready when `http://localhost:43300/login` answers 200. Stop with
 `pkill -f "odoo-bin -c .e2e/odoo/odoo.conf"` and `pkill -f "nuxt dev --port 43300"`.
 
 Odoo shell (cron runner, tenant state, data fixtures):

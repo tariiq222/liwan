@@ -4,7 +4,7 @@ import type { Customer, CustomFieldWithValue } from '@liwan/contracts'
 import { ApiError } from '../../useApi'
 import { shouldResetCustomerDraft, topAlertVisible, useCustomerFormFields, useShownCustomerFields } from '../customerFormState'
 
-const customer: Customer = { id: 4, name: 'منى', phone: null, email: null, is_company: false, parent: null, active: true, company: null, properties: [] }
+const customer: Customer = { id: 4, name: 'منى', erased: false, phone: null, email: null, is_company: false, parent: null, active: true, company: null, properties: [] }
 
 describe('shouldResetCustomerDraft', () => {
   it('keeps what the user typed when a refetch hands the form the same customer again', () => {

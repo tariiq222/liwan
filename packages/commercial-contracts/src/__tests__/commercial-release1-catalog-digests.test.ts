@@ -32,7 +32,7 @@ describe('release 1 leaves every earlier catalog digest untouched', () => {
       expect(applications.every(app => !Object.hasOwn(normalizeRelease(releaseOf(name)).applications.find(a => a.id === app.id)!, 'sellable')), name).toBe(true)
     }
     // The current release names what it sells, so the flag reaches the artifact there.
-    expect(releaseOf('platform_v4.json').applications.filter(app => app.sellable).map(app => app.id)).toEqual(['crm', 'inbox'])
+    expect(releaseOf('platform_v4.json').applications.filter(app => app.sellable).map(app => app.id)).toEqual(['crm', 'inbox', 'projects', 'people', 'finance'])
   })
 
   it('treats a tier that declares nothing as not for sale', () => {

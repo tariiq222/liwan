@@ -108,7 +108,7 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
   const autoImports: Record<string, unknown> = {
     ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, shallowRef: Vue.shallowRef, nextTick: Vue.nextTick,
     toRef: Vue.toRef, provide: Vue.provide, inject: Vue.inject, useId: Vue.useId, useSlots: Vue.useSlots, onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, useTemplateRef: Vue.useTemplateRef,
-    useI18n: () => ({ t, locale: Vue.ref('ar'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
+    useI18n: () => ({ t, te: (key: string) => options.messages !== undefined && key in options.messages, locale: Vue.ref('ar'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHydrated: () => Vue.ref(options.hydrated ?? true),
     useRoute: () => ({ path: options.routePath ?? '/current' }),
     // Outside a shell there is no published trail; a test that wants one passes it in `globals`.

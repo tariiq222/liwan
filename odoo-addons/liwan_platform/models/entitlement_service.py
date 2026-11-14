@@ -7,7 +7,10 @@ from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import AccessDenied, AccessError, UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_core.models.access_service import (
+    SYSTEM_PERMISSIONS,
+    LiwanAccessRule,
+)
 
 TRIAL_POLICY_FIELDS = frozenset({'trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest'})
 POLICY_FIELDS = TRIAL_POLICY_FIELDS | frozenset({
@@ -699,13 +702,13 @@ class LiwanEntitlementService(models.AbstractModel):
     def _liwan_entitled_admin_roles(self):
         """Administrator role keys the current policy opens.
 
-        A role holding any platform permission (a permission domain without a
-        registered ``<domain>.enabled`` boolean, such as access or settings) is
-        always open, including a mixed role like ``system_admin`` that also holds
-        meetings permissions. A role made only
-        of application permissions opens when every one of those applications'
-        ``<domain>.enabled`` is granted. Installed modules never decide it: every
-        application of the release is installed in every tenant.
+        A role holding a liwan_core system permission (a ``SYSTEM_PERMISSIONS`` key)
+        is always open, including a mixed role like ``system_admin`` that also holds
+        meetings permissions. Any other role opens when every registered
+        ``<domain>.enabled`` boolean among its permission domains is granted. A domain
+        without a registered boolean (a base application or a shared service such as
+        documents or operations) neither opens nor closes a role. Installed modules
+        never decide it: every application of the release is installed in every tenant.
         """
         registry = self._liwan_registry()._liwan_feature_map()
         payload = self._liwan_features_payload()
@@ -715,11 +718,13 @@ class LiwanEntitlementService(models.AbstractModel):
             role = roles.search([('key', '=', key)], limit=1)
             if not role:
                 continue
-            gates = {f'{domain}.enabled' for domain in role.permission_ids.mapped('domain')}
-            application = {gate for gate in gates if registry.get(gate, {}).get('type') == 'boolean'}
-            if application == gates and not all(payload.get(gate) is True for gate in gates):
+            if not SYSTEM_PERMISSIONS.isdisjoint(role.permission_ids.mapped('key')):
+                keys.append(key)
                 continue
-            keys.append(key)
+            gates = {f'{domain}.enabled' for domain in role.permission_ids.mapped('domain')}
+            registered = {gate for gate in gates if registry.get(gate, {}).get('type') == 'boolean'}
+            if all(payload.get(gate) is True for gate in registered):
+                keys.append(key)
         return keys
 
     @api.model

@@ -132,6 +132,16 @@ export function useHrLeaveApproval(id: MaybeRefOrGetter<number | null>, mine: Ma
   })
 }
 
+export function useLeaveApprovalDecision() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, action, revision, comment }: { id: number; action: 'approve' | 'reject'; revision: number; comment?: string }) =>
+      $api(`/api/v1/hr/leave/requests/${id}/approval`, { method: 'POST', body: { action, revision, comment }, schema: HrLeaveApprovalSchema }),
+    onSuccess: () => refreshLeave(qc),
+  })
+}
+
 /** The company's leave approval process; a 404 (no bridge) or 403 means the settings page shows no card. */
 export function useHrLeaveApprovalProcess(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
@@ -150,6 +160,15 @@ export function useCreateDefaultLeaveApprovalProcess() {
   const { $api } = useApi()
   return useMutation({
     mutationFn: () => $api('/api/v1/hr/leave/approval-process/default', { method: 'POST', body: {}, schema: HrLeaveApprovalProcessSchema }),
+    onSuccess: () => refreshLeave(qc),
+  })
+}
+
+export function useArchiveLeaveApprovalProcess() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (revision: number) => $api('/api/v1/hr/leave/approval-process', { method: 'DELETE', body: { revision }, schema: HrLeaveApprovalProcessSchema }),
     onSuccess: () => refreshLeave(qc),
   })
 }

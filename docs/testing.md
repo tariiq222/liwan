@@ -518,7 +518,7 @@ database), point Nuxt at the wrapper port, and open Nuxt on `localhost`, not `12
 MOCK_PORT=4501 node apps/web/e2e/my-tasks-mock.mjs   # wrapper 4501, upstream 5501
 cd apps/web
 NUXT_ODOO_URL=http://127.0.0.1:4501 NUXT_ODOO_DB=liwan_ui_mock_only \
-  NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4501/websocket npx nuxt dev --port 4401
+  NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4501/websocket npx nuxt dev --port 4401 --host 127.0.0.1
 E2E_MY_TASKS=1 E2E_BASE_URL=http://localhost:4401 npx playwright test e2e/my-tasks-*.spec.ts
 ```
 

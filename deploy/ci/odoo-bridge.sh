@@ -9,10 +9,8 @@
 # side's routes keep answering (a shared-service side's routes only must not fail), the switched-off side's
 # routes refuse with feature_not_included (nothing leaks), and the bridge's routes fail with no server error.
 # There is nothing to switch off for a stock side, so it takes no probe of its own.
-# A shared service gates its routes on the keys the applications register. A bridge whose LiwanOS sides are all
-# shared services (two of them, or one with a stock side, as liwan_products_account on liwan_products and stock
-# account) has no application to open those routes: require the services and the bridge to answer without a
-# server error.
+# Two LiwanOS shared services have no application to open routes gated on registered keys. For those bridges,
+# require the services and their bridge to answer without a server error.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 BRIDGE="${1:?usage: odoo-bridge.sh <bridge>}"
@@ -41,19 +39,28 @@ fi
 isolation_setup "$BRIDGE"
 isolation_install_and_test "$(IFS=,; echo "${SIDES[*]}")" "/$BRIDGE"
 isolation_check "$BRIDGE"
-liwan_sides="$(IFS=,; echo "${LIWAN_SIDES[*]}")"
-only_shared_services=1
-for rank in "${LIWAN_RANKS[@]}"; do
-  [ "$rank" = 3 ] || only_shared_services=0
+applications=()
+services=()
+for index in "${!LIWAN_SIDES[@]}"; do
+  if [ "${LIWAN_RANKS[$index]}" = 4 ]; then
+    applications+=("${LIWAN_SIDES[$index]}")
+  else
+    services+=("${LIWAN_SIDES[$index]}")
+  fi
 done
-if [ "$only_shared_services" = 1 ]; then
-  LIWAN_PROBE_CALM="$liwan_sides,$BRIDGE" isolation_probe "$BRIDGE: shared services only, no application"
+if [ "${#applications[@]}" -eq 0 ]; then
+  LIWAN_PROBE_CALM="$(IFS=,; echo "${LIWAN_SIDES[*]}"),$BRIDGE" isolation_probe "$BRIDGE: no application side"
 else
-  LIWAN_PROBE_ANSWER="$liwan_sides" LIWAN_PROBE_ALSO_ANSWER="$BRIDGE" \
+  LIWAN_PROBE_ANSWER="$(IFS=,; echo "${applications[*]}")" \
+    LIWAN_PROBE_ALSO_ANSWER="$BRIDGE" \
+    LIWAN_PROBE_CALM="$(IFS=,; echo "${services[*]}")" \
     isolation_probe "$BRIDGE with both sides on"
 fi
 for index in "${!LIWAN_SIDES[@]}"; do
   off="${LIWAN_SIDES[$index]}"
+  case "$off" in
+    liwan_documents|liwan_operations) continue ;;
+  esac
   other=""
   other_rank=""
   if [ "${#LIWAN_SIDES[@]}" -eq 2 ]; then

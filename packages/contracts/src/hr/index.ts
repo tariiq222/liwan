@@ -263,7 +263,8 @@ export const HrLeaveAllocationListSchema = z.object({ items: z.array(HrLeaveAllo
 export const HrLeaveApprovalSchema = z.object({
   request_id: z.number().int().positive(),
   state: z.enum(['draft', 'pending', 'returned', 'rejected', 'withdrawn', 'done']),
-  href: z.string(),
+  revision: z.number().int().nonnegative(),
+  can_review: z.boolean(),
   steps: z.array(z.object({
     sequence: z.number().int().positive(),
     name: z.string(),
@@ -283,7 +284,7 @@ export const HrLeaveApprovalProcessSchema = z.object({
       reviewers: z.array(PersonRefSchema),
     }).strict()),
   }).strict().nullable(),
-  href: z.string(),
+  href: z.string().nullable(),
   can_manage: z.boolean(),
 }).strict()
 

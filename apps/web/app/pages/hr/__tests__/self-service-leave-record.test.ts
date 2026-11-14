@@ -7,7 +7,7 @@ import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
 const person = (id: number, name: string) => ({ id, user_id: id, name })
-const approval = { request_id: 15, state: 'pending' as 'pending' | 'done', href: '/operations/15', steps: [
+const approval = { request_id: 15, state: 'pending' as 'pending' | 'done', revision: 2, can_review: false, steps: [
   { sequence: 1, name: 'Direct manager', reviewers: [person(3, 'Manager')], status: 'approved' as const },
   { sequence: 2, name: 'HR', reviewers: [person(9, 'Officer')], status: 'pending' as const },
 ] as { sequence: number; name: string; reviewers: ReturnType<typeof person>[]; status: 'waiting' | 'pending' | 'approved' | 'rejected' | 'cancel' }[] }
@@ -25,7 +25,7 @@ async function render(personal: boolean, cancellationState?: 'approved' | 'refus
     useRoute:() => ({params:{leaveId:'7'},query:{},hash:''}),useI18n:() => ({t:(key:string) => key}),
     useAccess:() => ({can:() => true}),useMe:() => ({me:Vue.ref({id:stages.viewer ?? 2})}),joinList:(items:string[]) => items.join(', '),
     useHrLeaveApproval:() => ({data:Vue.ref(stages.data),error:Vue.ref(stages.error ?? null)}),useHydrated:() => Vue.ref(true),useHrLeaveFormat:() => ({period:() => '',days:String}),
-    useMyHrLeaveRequest:query,useHrLeaveRequest:query,useCancellationDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useLeaveDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useWithdrawLeaveRequest:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),
+    useLeaveApprovalDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useMyHrLeaveRequest:query,useHrLeaveRequest:query,useCancellationDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useLeaveDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useWithdrawLeaveRequest:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),
     owningListBack:() => '/account/leave',hrLeaveBadge:() => ({tone:'success',labelKey:'approved'}),statusTag:() => ({}),ApiError:Error,
   }
   const component = new Function(...Object.keys(bindings),transpile(script))(...Object.values(bindings))
@@ -83,10 +83,12 @@ describe('leave approval stages', () => {
     expect(html).toContain('data-tone="success"')
     expect(html).toContain('hr.leave.approval.status.pending')
   })
-  it('offers the workflow page only to a reviewer of the stage awaiting a decision', async () => {
-    expect(await render(false, undefined, false, { data: approval, viewer: 9 })).toContain('data-to="/operations/15"')
-    expect(await render(false, undefined, false, { data: approval, viewer: 3 })).not.toContain('hr-leave-approval-open')
-    expect(await render(false, undefined, false, { data: { ...approval, state: 'done' }, viewer: 9 })).not.toContain('hr-leave-approval-open')
+  it('offers the inline decision when the server authorizes the reviewer', async () => {
+    const stages = { ...approval, can_review: true }
+    const manager = await render(false, undefined, false, { data: stages })
+    expect(manager).toContain('hr-leave-record-approve')
+    expect(manager).not.toContain('/operations/15')
+    expect(await render(true, undefined, false, { data: stages })).not.toContain('hr-leave-record-approve')
   })
   it('hides the section on a 404 and says so on any other failure', async () => {
     const missing = Object.assign(new Error('not found'), { status: 404 })

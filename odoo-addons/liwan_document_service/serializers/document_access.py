@@ -29,7 +29,7 @@ def parse_access(payload):
 
 
 def dump_grants(env, grants):
-    users = env['liwan.directory']._liwan_people([item['user_id'] for item in grants])
+    users = env['liwan.document']._liwan_grant_users([item['user_id'] for item in grants])
     names = {user.id: user.name for user in users}
     return [
         {

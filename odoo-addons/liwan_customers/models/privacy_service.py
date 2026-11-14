@@ -7,9 +7,9 @@ from odoo.exceptions import AccessError, LockError
 from .privacy_hooks import (
     ACTION_UNHANDLED,
     CORE_OWNER,
-    ERASED_NAME,
     NO_CUSTOMER_DATA,
     NO_CUSTOMER_DATA_PREFIXES,
+    is_erased,
 )
 from .privacy_request import KIND_ERASE, KIND_EXPORT
 from .privacy_token import token_hash
@@ -48,7 +48,7 @@ class LiwanCustomersPrivacyService(models.AbstractModel):
 
     @api.model
     def _liwan_is_erased(self, customer):
-        return customer.name == ERASED_NAME % customer.id
+        return is_erased(customer)
 
     # ---- erase ----
 

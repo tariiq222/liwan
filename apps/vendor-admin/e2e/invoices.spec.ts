@@ -44,3 +44,7 @@ test('on a 390px phone the invoice rows retain periods and keyboard navigation w
  expect(await fitsWidth(page)).toBe(true); await page.getByRole('heading',{level:1}).click(); await page.keyboard.press('j')
  await expect(mobileRows(page).first()).toBeFocused()
 })
+test('on a 390px phone the invoice record scrolls its lines table inside its own box, never the page', async ({ page }) => {
+ await page.setViewportSize({width:390,height:844})
+ for (const id of ['inv-1', 'inv-2', 'inv-3']) { await open(page, `/invoices/${id}`); expect(await fitsWidth(page), id).toBe(true) }
+})

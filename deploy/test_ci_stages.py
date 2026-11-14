@@ -144,7 +144,7 @@ elif "SELECT state" in ' '.join(args): print('installed')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         # liwan_products gates its routes on keys the applications register, and no application is installed here:
         # the one probe only requires that the service and the bridge do not fail.
-        self.assertIn('liwan_products_account: shared services only, no application', process.stdout)
+        self.assertIn('liwan_products_account: no application side', process.stdout)
         self.assertNotIn('with both sides on', process.stdout)
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
         self.assertEqual(len([x for x in calls if x[0] == 'odoo-python' and 'shell' in x]), 1)

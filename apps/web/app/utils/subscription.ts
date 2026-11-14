@@ -329,6 +329,8 @@ export function invoiceWantsTransfer(allowed: boolean, invoice: { status: string
 
 /** Today's calendar day in Riyadh, the latest date a transfer can carry. */
 export const riyadhToday = (): string => riyadhDate(new Date())
+/** The Riyadh calendar day (`YYYY-MM-DD`) an instant falls on. */
+export const riyadhDay = (instant: string): string => riyadhDate(instant)
 
 /** The customer's own "I made the transfer", as the control plane answers it with the instructions. */
 export type BankTransferClaimLike = { value_date: string; sender_reference: string | null; claimed_at: string }

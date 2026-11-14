@@ -11,7 +11,3 @@ BRIDGE = object()
 # ``(BRIDGE, request id)`` while that request's rejection refuses its leave: the request is already
 # ``rejected`` then, but the deciding reviewer still reads the leave for that one step.
 REJECTING_CONTEXT = 'hr_leave_operations_rejecting'
-
-
-def operations_enabled(env):
-    return env['liwan.entitlement.service']._liwan_feature_write('operations.enabled')

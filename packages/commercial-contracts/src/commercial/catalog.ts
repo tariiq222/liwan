@@ -11,6 +11,9 @@ const NAMES: Record<string, [string, string]> = {
   projects: ['المشاريع', 'Projects'],
   people: ['الموارد البشرية', 'People'],
   messaging: ['المحادثات', 'Messaging'],
+  crm: ['إدارة العملاء', 'CRM'],
+  inbox: ['رسائل العملاء', 'Customer Messages'],
+  finance: ['المالية', 'Finance'],
 }
 const ENFORCEMENT: Record<string, string[]> = {
   'users.limit': ['liwan_platform.res_users.users.limit'],

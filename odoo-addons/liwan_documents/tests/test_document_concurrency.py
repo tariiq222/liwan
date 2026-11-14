@@ -8,8 +8,8 @@ from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, tagged
 from odoo.tools import mute_logger
 
-from .common import CommittedDocumentFixtures
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_document_service.tests.common import CommittedDocumentFixtures
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 
@@ -38,7 +38,7 @@ class TestDocumentConcurrency(CommittedDocumentFixtures, TransactionCase):
                     cleanup.commit()
             self.cleanup(fixture)
 
-    def test_feature_revoke_invalidates_a_preexisting_writer_snapshot(self):
+    def test_tenant_suspension_invalidates_a_preexisting_writer_snapshot(self):
         fixture = self.fixture()
         try:
             with self.registry.cursor() as stale:
@@ -47,7 +47,7 @@ class TestDocumentConcurrency(CommittedDocumentFixtures, TransactionCase):
                 with self.registry.cursor() as revoke:
                     root = api.Environment(revoke, SUPERUSER_ID, {OPERATOR_CONTEXT: True})
                     profile = root.ref('liwan_platform.tenant_profile')._liwan_lock()
-                    profile.write({'features': {**profile.features, 'documents.enabled': False}})
+                    profile.write({'status': 'suspended', 'suspension_reason': 'vendor'})
                     revoke.commit()
                 with self.assertRaises(SerializationFailure), mute_logger('odoo.sql_db'):
                     document._liwan_update_document({'name': 'Must not persist'}, 1)
@@ -59,9 +59,9 @@ class TestDocumentConcurrency(CommittedDocumentFixtures, TransactionCase):
         finally:
             self.cleanup(fixture)
 
-    def test_feature_revoke_invalidates_a_preexisting_document_create_snapshot(self):
+    def test_tenant_suspension_invalidates_a_preexisting_document_create_snapshot(self):
         fixture = self.fixture()
-        name = 'Must not persist after feature revoke'
+        name = 'Must not persist after tenant suspension'
         try:
             with self.registry.cursor() as before:
                 root = api.Environment(before, SUPERUSER_ID, {})
@@ -74,7 +74,7 @@ class TestDocumentConcurrency(CommittedDocumentFixtures, TransactionCase):
                 with self.registry.cursor() as revoke:
                     root = api.Environment(revoke, SUPERUSER_ID, {OPERATOR_CONTEXT: True})
                     profile = root.ref('liwan_platform.tenant_profile')._liwan_lock()
-                    profile.write({'features': {**profile.features, 'documents.enabled': False}})
+                    profile.write({'status': 'suspended', 'suspension_reason': 'vendor'})
                     revoke.commit()
                 with self.assertRaises(SerializationFailure), mute_logger('odoo.sql_db'):
                     documents.create({'name': name})
