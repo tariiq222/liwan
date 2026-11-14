@@ -62,7 +62,7 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-166 | Sponsor cannot see the project any more | ceo | Approve and return answer 403/404 rather than succeeding; the dashboard card drops the project | `POST /api/v1/projects/<id>/charter/approve` | planned | not reachable: the sponsor is protected from losing access (follower removal 409, PMO-171; private switch adds the sponsor, PMO-172), so approve/return cannot be refused for sight |
+| PMO-166 | Sponsor cannot see the project any more | ceo | Approve and return answer 403/404 rather than succeeding; the dashboard card drops the project | `POST /api/v1/projects/<id>/charter/approve` | dropped | owner dropped it 2026-11-15: a waiting sponsor cannot lose access, removal is refused and a private switch subscribes the sponsor, so the refusal has no reachable case; the protection is covered by `test_cannot_unsubscribe_waiting_sponsor_on_private_project` in liwan_pmo; earlier note; not reachable: the sponsor is protected from losing access (follower removal 409, PMO-171; private switch adds the sponsor, PMO-172), so approve/return cannot be refused for sight |
 
 ## Phases
 
@@ -85,7 +85,7 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | PMO-214 | Schedule scale switch | staff1 | «أسبوعي» / «شهري»; a long project groups columns and says so | `page /projects/[id]/schedule` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: calendar months, grouped columns on a long project, the scale stays in the URL; the timeline now lives at `/projects/[id]/tasks?view=timeline`); earlier note; #243; see findings: «شهري» columns step 30 days (1 أكتوبر, 31 أكتوبر, 30 نوفمبر ...) |
-| PMO-217 | Schedule shows only visible dependencies | staff1 | Dependency ids the caller cannot read are left out | `GET /api/v1/projects/<id>/schedule` | planned | same as PMO-259: no dependency id is hidden from a reader of the project, schedule showed the task for staff2 |
+| PMO-217 | Schedule shows only visible dependencies | staff1 | Dependency ids the caller cannot read are left out | `GET /api/v1/projects/<id>/schedule` | dropped | owner dropped it 2026-11-15: dependencies link tasks of one project and a project reader reads all its tasks, so no unreadable dependency exists from the UI; `test_schedule_http_hides_invisible_dependency_and_rejects_foreign_project` in liwan_pmo builds the case through the ORM; earlier note; same as PMO-259: no dependency id is hidden from a reader of the project, schedule showed the task for staff2 |
 | PMO-220 | Schedule start after end, or outside milestone and project bounds | pm (own) | 422 `invalid` with the matching message | `PATCH /api/v1/projects/<id>/schedule/tasks/<id>` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: each range refusal answers 422 with its message); earlier note; #195; API run as the persona (pm on own project, project created by e2e_admin with pm as manager): start after end 422 works, but an end date far after the project end (2030 vs 2027-03-31) is accepted with 200; see findings |
 
 ## Updates
@@ -102,7 +102,7 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PMO-259 | RACI hides tasks the caller cannot read | staff2 | Rows for unreadable tasks are not listed and not counted | `GET /api/v1/projects/<id>/raci` | planned | not buildable: tasks of a project follow the project; a follower of a followers-only project (staff2) reads every task, so no unreadable task row can be linked on this stack |
+| PMO-259 | RACI hides tasks the caller cannot read | staff2 | Rows for unreadable tasks are not listed and not counted | `GET /api/v1/projects/<id>/raci` | dropped | owner dropped it 2026-11-15: a reader of the project reads every task, so no unreadable task row can be linked; the nearest case, an archived task, is covered by `test_archived_task_hides_linked_governance_but_preserves_unlinked_items` in liwan_pmo; earlier note; not buildable: tasks of a project follow the project; a follower of a followers-only project (staff2) reads every task, so no unreadable task row can be linked on this stack |
 
 ## Risk and issue register
 
@@ -111,7 +111,7 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 | PMO-262 | Register order puts critical items first | staff1 | Items sort by severity: critical, high, normal, low, then due date | `GET /api/v1/projects/<id>/register` | gap | #156; The model orders by the priority text, which sorts critical, high, low, normal |
 | PMO-266 | Create an issue | pm (own) | 201; `score`, `probability` and `impact` are all null (the stored score of an issue stays 0 inside Odoo and is never returned) | `POST /api/v1/projects/<id>/register` | automated | `liwan_pmo` tests `test_an_issue_has_no_score_like_its_probability_and_impact` and `test_project_governance`; #196: the row text said score 0, the contract says null |
 | PMO-273 | Jump straight from closed back to open, or open to closed | pm (own) | Accepted: the route has no transition rules | `PATCH /api/v1/projects/<id>/register/<id>` | decision | #164; Owner to decide whether the register needs a status machine |
-| PMO-276 | Linked task the reader cannot see | staff2 | The item is listed without the task link | `GET /api/v1/projects/<id>/register` | planned | same as PMO-259: the register item with a linked task is shown with the task to a reader who follows the project |
+| PMO-276 | Linked task the reader cannot see | staff2 | The item is listed without the task link | `GET /api/v1/projects/<id>/register` | dropped | owner dropped it 2026-11-15: an archived linked task hides the whole register item, so an item listed without its task link never happens; same Odoo test as PMO-259; earlier note; same as PMO-259: the register item with a linked task is shown with the task to a reader who follows the project |
 | PMO-277 | Governance routes for a hidden project | staff2 | 404 `not_found` on every governance read and write | `GET /api/v1/projects/<id>/register/<id>` | automated | `e2e/tests/projects-register.e2e.ts` (2026-11-15 pass: every governance read and write answers 404 to a non-follower); earlier note; #197; fixed in code: governance reads and writes of a hidden project answer 404 `not_found` through the same helper; not yet re-run as staff2; private security advisory GHSA-9xq5-v9r4-xfxc |
 
 ## Project tasks list and board
