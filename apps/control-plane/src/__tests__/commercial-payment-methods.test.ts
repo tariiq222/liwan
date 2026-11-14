@@ -157,6 +157,32 @@ suite('live PostgreSQL default payment method', () => {
     await expect(route(tenant, 'POST', `/v1/customer/payment-methods/${id}/remove`, {}, ['billing.read'])).rejects.toMatchObject({ status: 403 })
   })
 
+  it('removing a stale inactive row still flagged default leaves auto-renew on while a newer active default exists', async () => {
+    const { customer, tenant } = await customerWithSubscription(); scope = customer
+    const stale = await seedPaymentMethod(pool, customer, 'tok_stale', { status: 'inactive' })
+    adapter.addToken('tok_stale')
+    await seedPaymentMethod(pool, customer, 'tok_active_default')
+    await autoRenew(tenant, CONSENT)
+    const done = await route(tenant, 'POST', `/v1/customer/payment-methods/${stale}/remove`, {})
+    expect(done.data.auto_renew.enabled).toBe(true)
+    expect(await audits('auto_renew.disabled')).toEqual([])
+  })
+
+  it('removes a card of another provider or mode locally, without a provider call, and queues its token for deletion where that provider is configured', async () => {
+    const { customer, tenant } = await customerWithSubscription(); scope = customer
+    const foreign = await seedPaymentMethod(pool, customer, 'tok_foreign', { provider: 'moyasar', mode: 'live' })
+    const del = vi.spyOn(adapter, 'deleteToken'); del.mockClear()
+    const done = await route(tenant, 'POST', `/v1/customer/payment-methods/${foreign}/remove`, { reason: 'Old provider' })
+    expect(done.data.auto_renew.payment_method).toBeNull()
+    expect(del).not.toHaveBeenCalled()
+    expect((await pool.query('SELECT status,is_default FROM payment_methods WHERE id=$1', [foreign])).rows[0]).toEqual({ status: 'removed', is_default: false })
+    expect(await audits('payment_method.removed')).toEqual([expect.objectContaining({ metadata: expect.objectContaining({ provider_deleted: false }) })])
+    const queued = (await pool.query("SELECT payload FROM commercial_outbox WHERE kind='payment_token.delete' AND aggregate_id=$1", [foreign])).rows
+    expect(queued).toHaveLength(1)
+    expect(queued[0].payload).toMatchObject({ provider: 'moyasar', mode: 'live', token: 'tok_foreign' })
+    expect(JSON.stringify(await audits('payment_method.removed'))).not.toContain('tok_foreign')
+  })
+
   it('removing a card that is not the default leaves auto-renew on', async () => {
     const { customer, tenant } = await customerWithSubscription(); scope = customer
     const old = await seedPaymentMethod(pool, customer, 'tok_old_remove', { status: 'inactive', is_default: false })

@@ -1,3 +1,4 @@
+import { disableAutoRenewIfPlanForbids } from './auto-renew.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
@@ -97,6 +98,8 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
       trial_ends_at=CASE WHEN $3='renewal' THEN NULL ELSE trial_ends_at END,
       renewal_at=CASE WHEN applied_revision_id IS NULL OR $3='renewal' THEN COALESCE((SELECT period_end FROM renewals WHERE order_id=$5),$4::date,renewal_at) ELSE renewal_at END,
       revision=revision+1 WHERE id=$1`, [order.subscription_id, order.target_revision_id, order.kind, order.snapshot.period_end??null, order.id])
+    // A plan that does not allow automatic renewal ends it the moment it is applied; the saved card stays.
+    await disableAutoRenewIfPlanForbids(client, order.subscription_id)
     if(!order.applied_revision_id){
       // The HQ branch is the tenant's root company; a first activation without it is an incomplete observation.
       if(!Number.isSafeInteger(receipt.root_company_id) || receipt.root_company_id!<1)throw Error('observed_mismatch')

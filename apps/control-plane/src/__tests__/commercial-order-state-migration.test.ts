@@ -17,7 +17,7 @@ suite('schema_062, schema_063 and schema_064 carry rows created under schema_058
   const withDb = (name: string) => { const u = new URL(url!); u.pathname = `/${name}`; return u.toString() }
   let pool: Pool
   let created = false
-  const ids = { customer: randomUUID(), subscription: randomUUID(), revision: randomUUID(), declined: randomUUID(), paid: randomUUID(), invoice: randomUUID(), form: randomUUID(),
+  const ids = { customer: randomUUID(), subscription: randomUUID(), revision: randomUUID(), declined: randomUUID(), current: randomUUID(), olderInvoice: randomUUID(), paid: randomUUID(), invoice: randomUUID(), form: randomUUID(),
     activeCard: randomUUID(), removedCard: randomUUID() }
 
   const order = (client: { query: (sql: string, values: unknown[]) => Promise<unknown> }, id: string, state: string) => client.query(
@@ -42,11 +42,14 @@ suite('schema_062, schema_063 and schema_064 carry rows created under schema_058
       await client.query('INSERT INTO subscriptions(id,customer_id,auto_renew_enabled,auto_renew_consent_at) VALUES($1,$2,true,now())', [ids.subscription, ids.customer])
       await client.query("INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,'{}',$3)", [ids.revision, ids.subscription, randomUUID()])
       await order(client, ids.declined, 'failed')
+      await client.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
+        VALUES($1,$2,$3,$4,'initial','issued','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [ids.olderInvoice, ids.customer, ids.subscription, ids.declined])
       await order(client, ids.paid, 'paid')
       await client.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','paid','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [ids.invoice, ids.customer, ids.subscription, ids.paid])
       await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status,kind,provider_intent_ref,save_card,consent_at,consent_text_version)
         VALUES($1,$2,$3,'moyasar','live',11500,'SAR',2,'pending','form','intent_061',true,now(),'v1')`, [ids.form, ids.paid, ids.invoice])
+      await order(client, ids.current, 'failed')
       await card(client, ids.activeCard, 'tok_active_061', 'active', true)
       await card(client, ids.removedCard, 'tok_removed_061', 'removed', false)
     } finally { client.release() }
@@ -80,9 +83,16 @@ suite('schema_062, schema_063 and schema_064 carry rows created under schema_058
   })
 
   it('schema_063 puts a declined order back to awaiting payment and leaves no failed payment state', async () => {
-    expect((await pool.query('SELECT id,payment_state FROM orders ORDER BY payment_state')).rows).toEqual([{ id: ids.declined, payment_state: 'awaiting_payment' }, { id: ids.paid, payment_state: 'paid' }])
-    await expect(pool.query("UPDATE orders SET payment_state='failed' WHERE id=$1", [ids.declined])).rejects.toMatchObject({ constraint: 'orders_payment_state_check' })
-    await pool.query("UPDATE orders SET payment_state='paid' WHERE id=$1", [ids.declined])
+    expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE payment_state NOT IN (\'awaiting_payment\',\'paid\')')).rows[0].n).toBe(0)
+    await expect(pool.query("UPDATE orders SET payment_state='failed' WHERE id=$1", [ids.current])).rejects.toMatchObject({ constraint: 'orders_payment_state_check' })
+  })
+
+  it('schema_063 cancels an older declined order with its unpaid invoice and keeps only the latest one payable', async () => {
+    const state = async (id: string) => (await pool.query('SELECT payment_state,cancelled FROM orders WHERE id=$1', [id])).rows[0]
+    expect(await state(ids.declined)).toEqual({ payment_state: 'awaiting_payment', cancelled: true }) // superseded: never charged or dunned
+    expect((await pool.query('SELECT status FROM invoices WHERE id=$1', [ids.olderInvoice])).rows[0].status).toBe('void')
+    expect(await state(ids.current)).toEqual({ payment_state: 'awaiting_payment', cancelled: false }) // the latest one stays payable
+    expect(await state(ids.paid)).toEqual({ payment_state: 'paid', cancelled: false })
   })
 
   it('schema_063 keeps the guard that a paid order never goes back to awaiting payment, and the immutable identity', async () => {

@@ -126,7 +126,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('workspace-lookup', () => runWorkspaceLookups(pool, { key: config.key, mail, returnOrigin, signal: o.signal, log }))
         await job('workspace-delay-notices', () => sendWorkspaceDelayNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
-        await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
+        await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, chargeTarget: o.paymentAdapter ? { provider: o.paymentAdapter.provider, mode: o.paymentAdapter.mode } : undefined, signal: o.signal }))
         await job('cancellation-notices', () => sendCancellationNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
         await job('tenant-deletion-notices', () => sendTenantDeletionNotices(pool, { mail, returnOrigin, signal: o.signal }))
         await job('over-limit-notices', () => sendOverLimitNotices(pool, { mail, returnOrigin, signal: o.signal }))

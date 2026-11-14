@@ -26,3 +26,15 @@ export const SAVED_CARD_REDRIVE_MINUTES = 5
 
 /** The default card's expiry: the notice goes this many days before its last valid day. */
 export const CARD_EXPIRY_NOTICE_DAYS = [30, 7] as const
+
+/** The day the n-th automatic charge of an invoice issued on `issuedOn` (counting from 0) is due, or null when the schedule has no more. */
+export function chargeDueOn(issuedOn: string, attemptsMade: number): string | null {
+  const days = SAVED_CARD_CHARGE_DAYS[attemptsMade]
+  return days === undefined ? null : new Date(Date.parse(`${issuedOn}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
+}
+
+/** A charge answer lost at the provider is looked at again, and a payment it never created is closed, only this long after it was sent. */
+export const SAVED_CARD_MISSING_MINUTES = 10
+
+/** A card form attempt closed while its payment may still arrive keeps the saved card from being charged for the same invoice this long. */
+export const FORM_PAYMENT_HOLD_HOURS = 24

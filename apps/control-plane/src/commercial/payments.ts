@@ -8,13 +8,15 @@ import { PaymentError, assertReturnUrl, isDirectPayment, refundedAmount, toBytes
 import { confirmEvent } from './moyasar-adapter.js'
 import { recordWebhookVerification } from './payment-webhook-verification.js'
 import { enqueueOutbox } from './outbox.js'
+import { SAVED_CARD_MISSING_MINUTES } from './notice-timings.js'
 import { enqueueBillingNotice } from './billing-notices.js'
 import { markTopupRefunded, recordPaidTopup } from './ai-ledger.js'
 import { recordFulfillmentFailure } from './settlements.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
+import { failSavedCardAttempt } from './saved-card-failure.js'
 import { isPaidFirstOrder, requireReachableManager } from './orders.js'
-import { FORM_ATTEMPT_LIFETIME_MS, LIVE_ATTEMPT_STATUSES, assertAutoRenewAllowed, callbackWithSecret, cancelIntentQuietly, closeUnpaidFormAttempt, formSession, intentMayHoldPayment,
+import { FORM_ATTEMPT_LIFETIME_MS, LIVE_ATTEMPT_STATUSES, lockSettlement, assertAutoRenewAllowed, callbackWithSecret, cancelIntentQuietly, closeUnpaidFormAttempt, formSession, intentMayHoldPayment,
   intentUsable, isPaymentHint, newCallbackSecret, readIntent, rejectFormPayment, resolveFormPayment, retireLiveFormAttempt } from './form-payments.js'
 import type { FormPaymentSession, PaymentAttemptRequest } from '@liwan/commercial-contracts'
 
@@ -54,6 +56,9 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   if (!matches(attempt, event)) return 'rejected'
   // A provider cancel, expiry or decline closes the attempt and nothing else: nobody was charged, so the order stays `awaiting_payment`
   // and the customer can pay another way. A late decline of an attempt that already paid is not live and changes nothing.
+  // A failed saved-card charge, however it was learned (a lookup, the reconciler, a webhook), ends through the one failure function: the decline
+  // is classified, a hard one deactivates the card, the renewal goes back to invoiced and the customer is told once.
+  if (event.status === 'failed' && attempt.kind === 'saved_card') return await failSavedCardAttempt(client, { attempt_id: attempt.id, message: event.decline_message }) ? 'accepted' : 'ignored'
   if (event.status === 'canceled' || event.status === 'failed') {
     const closed = await client.query("UPDATE payment_attempts SET status=$2,updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')",
       [attempt.id, event.status === 'failed' ? 'failed' : 'canceled'])
@@ -146,7 +151,13 @@ async function flagRefundAfterFulfillment(client: PoolClient, order: any, attemp
 
 /** Only authoritative adapter-fetched events may enter this settlement boundary. */
 export async function applyConfirmedEvent(pool: Pool, event: ProviderEvent) {
-  return transaction(pool, client => apply(client, event))
+  return transaction(pool, async client => { await lockSettlementOf(client, event); return apply(client, event) })
+}
+
+/** The customer and the subscription of the event's order are locked before the order, as every other writer takes them (see `lockSettlement`). */
+async function lockSettlementOf(client: PoolClient, event: Pick<ProviderEvent, 'provider' | 'provider_ref'>) {
+  const found = (await client.query('SELECT order_id FROM payment_attempts WHERE provider=$1 AND provider_ref=$2', [event.provider, event.provider_ref])).rows[0]
+  if (found) await lockSettlement(client, found.order_id)
 }
 
 /**
@@ -215,6 +226,7 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
     if (!inserted.rowCount) return { status: 200, outcome: 'duplicate' as const }
     if (!confirmed) return { status: 200, outcome: 'rejected' as const }
     // apply() re-reads and locks the order and the attempt, so what it applies is judged against their state now.
+    await lockSettlementOf(client, confirmed)
     const outcome = await apply(client, { ...confirmed, event_id: event.event_id })
     await client.query(`UPDATE payment_events SET outcome=$2,reason=$3,
       attempt_id=(SELECT id FROM payment_attempts WHERE provider=$4 AND provider_ref=$5) WHERE id=$1`,
@@ -289,16 +301,23 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   return outcome
 }
 
-/** A direct payment the provider says does not exist never charged anyone, so it no longer blocks a new attempt. */
+/**
+ * A direct payment the provider says does not exist never charged anyone, so it no longer blocks a new attempt. A saved-card charge is
+ * created at the provider while the call is made, so it is declared missing a short while after it was last sent; a form payment has
+ * more ways to be late and keeps the longer grace.
+ */
 const MISSING_CHARGE_GRACE_MS = 60 * 60_000
 async function closeMissingDirectPayment(pool: Pool, row: any): Promise<boolean> {
   // Before the charge response arrived the reference is only our own attempt id, which proves nothing by itself:
   // wait out a grace period (the response may simply have been lost) before declaring it missing.
   const unproven = !row.provider_ref || row.provider_ref === row.id
-  if (unproven && Date.now() - new Date(row.created_at).getTime() < MISSING_CHARGE_GRACE_MS) return false
+  const sentAt = new Date(row.kind === 'saved_card' ? row.charge_sent_at ?? row.created_at : row.created_at).getTime()
+  const grace = row.kind === 'saved_card' ? SAVED_CARD_MISSING_MINUTES * 60_000 : MISSING_CHARGE_GRACE_MS
+  if (unproven && Date.now() - sentAt < grace) return false
   return transaction(pool, async client => {
     const closed = await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown') RETURNING id", [row.id])
     if (!closed.rowCount) return false
+    if (row.kind === 'saved_card') await client.query("UPDATE renewals SET status='invoiced' WHERE order_id=$1 AND status='charging'", [row.order_id])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(),'system','payment.direct_payment_missing',row.order_id,'The provider has no such payment; the attempt was closed',JSON.stringify({ attempt_id: row.id, provider_ref: row.provider_ref })])
     return true

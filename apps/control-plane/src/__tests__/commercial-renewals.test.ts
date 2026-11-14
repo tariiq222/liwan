@@ -11,7 +11,12 @@ import { classifyDecline } from '../commercial/payment-decline.js'
 import { armRefundLock } from '../commercial/free-base-lock.js'
 import { transaction } from '../db.js'
 import { riyadhDate } from '@liwan/commercial-contracts'
-import { createPaymentAttempt, verifyReturnedAttempt } from '../commercial/payments.js'
+import { createPaymentAttempt, handleProviderEvent, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
+import { PaymentError } from '../commercial/payment-adapter.js'
+import { disableAutoRenew, disableAutoRenewIfPlanForbids } from '../commercial/auto-renew.js'
+import { removePaymentMethod } from '../commercial/payment-method-removal.js'
+import { attention } from '../commercial/attention.js'
+import { buildAttemptDescription } from '../commercial/payment-description.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
@@ -20,9 +25,9 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   const pool=new Pool({connectionString:url,max:8}),api=client(pool)
   const vendor:any={actor_id:'7',kind:'vendor',customer_id:null,tenant_id:null,capabilities:['vendor.subscriptions.manage']}
   const now=new Date('2026-10-02T08:00:00Z')
-  let suspend:any,keep:any
-  async function plan(auto_suspend:boolean,price=10000){
-    const c=await api('POST','/plans',{name:`Renewal ${randomUUID()}`,audience:{kind:'public'},term_months:12,currency:'SAR',prices:[{cadence:monthly,amount:money(price)}],platform_limits: {},included_bundle_revision_ids:[],optional_bundle_revision_ids:[],included_extra_branches:1,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:null,included_users:1,included_storage_mb:0,storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices:[{cadence:monthly,amount:money(0)}],storage_prices:[{cadence:monthly,amount:money(0)}],policy_revision_id:'6f1c3d8e-0000-4000-8000-000000000001',trial_days:0,grace_days:2,auto_suspend,auto_renew_allowed:true})
+  let suspend:any,keep:any,noRenew:any,tiny:any
+  async function plan(auto_suspend:boolean,price=10000,autoRenew=true){
+    const c=await api('POST','/plans',{name:`Renewal ${randomUUID()}`,audience:{kind:'public'},term_months:12,currency:'SAR',prices:[{cadence:monthly,amount:money(price)}],platform_limits: {},included_bundle_revision_ids:[],optional_bundle_revision_ids:[],included_extra_branches:1,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:null,included_users:1,included_storage_mb:0,storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices:[{cadence:monthly,amount:money(0)}],storage_prices:[{cadence:monthly,amount:money(0)}],policy_revision_id:'6f1c3d8e-0000-4000-8000-000000000001',trial_days:0,grace_days:2,auto_suspend,auto_renew_allowed:autoRenew})
     expect(c.status).toBe(201)
     const v=await api('POST',`/plans/${c.body.id}/validate`,{edit_revision:1,reason:'Renewal acceptance'})
     const p=await api('POST',`/plans/${c.body.id}/publish`,{edit_revision:v.body.edit_revision,reason:'Renewal acceptance'})
@@ -31,7 +36,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   beforeAll(async()=>{
     const {version}=await setup(pool)
     await api('POST','/catalog/releases',{catalog_version:version,reason:'Renewal acceptance'})
-    suspend=await plan(true);keep=await plan(false)
+    suspend=await plan(true);keep=await plan(false);noRenew=await plan(true,10000,false);tiny=await plan(true,50)
   })
   beforeEach(async()=>{await pool.query('TRUNCATE customers CASCADE');await pool.query('TRUNCATE commercial_outbox')})
   afterAll(async()=>{await pool.end()})
@@ -82,8 +87,8 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   /** `plus` whole Riyadh days after the day the invoice was really issued (invoices take the database clock, not the test clock). */
   const dayOf=(issued:string,plus:number)=>new Date(Date.parse(`${issued}T09:00:00+03:00`)+plus*86_400_000)
   /** A renewal invoiced for a customer with a saved card and automatic renewal on; nothing is charged yet. */
-  async function invoiced(card:{provider?:string;mode?:string}={}){
-    const s=await subscription()
+  async function invoiced(card:{provider?:string;mode?:string}={},p=suspend){
+    const s=await subscription(p)
     const token=`token_secret_${randomUUID()}`
     const method=await seedPaymentMethod(pool,s.customer,token,card)
     await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1 WHERE id=$1',[s.id,now])
@@ -149,7 +154,8 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     expect(attempts).toHaveLength(4)
     expect(new Set(attempts.map(a=>a.id)).size).toBe(4) // each try has an attempt of its own, and its id is the given id
     expect(f.charge.mock.calls.map(c=>c[0].given_id)).toEqual(attempts.map(a=>a.id))
-    expect((await noticesOf(f.s.id,'card_charge_failed')).map(n=>n.retry_on)).toEqual([dayOf(f.issued,1),dayOf(f.issued,3),dayOf(f.issued,5)].map(d=>riyadhDate(d)).flatMap((d,i,all)=>i===all.length-1?[d,undefined]:[d]))
+    // One notice per failed try; what it says about the next try is worked out from live state when it is sent.
+    expect((await noticesOf(f.s.id,'card_charge_failed')).map(n=>n.decline)).toEqual(['soft','soft','soft','soft'])
     expect(await methodStatus(f.method)).toBe('active')
   })
   it.each(['DECLINED: LOST CARD','DECLINED: STOLEN CARD','DECLINED: EXPIRED CARD','3DS: Card authentication declined.'])('a hard decline (%s) stops at once, marks the card inactive and says no retry will follow',async message=>{
@@ -170,8 +176,11 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     expect(await methodStatus(f.method)).toBe('active')
   })
   it('classifies every message recorded in the spike, and an unknown or missing one as soft',()=>{
-    expect(['DECLINED: LOST CARD','DECLINED: STOLEN CARD','DECLINED: EXPIRED CARD','declined: lost card ','3DS: service error occurred.'].map(classifyDecline)).toEqual(Array(5).fill('hard'))
-    expect(['INSUFFICIENT FUNDS','DECLINED','DECLINED: EXCEEDS WITHDRAWAL LIMIT','UNSPECIFIED FAILURE','??',null,undefined].map(classifyDecline)).toEqual(Array(7).fill('soft'))
+    expect(['DECLINED: LOST CARD','DECLINED: STOLEN CARD','DECLINED: EXPIRED CARD','declined: lost card ','3DS: service error occurred.','3DS: Card authentication declined.',
+      'DECLINED: RESTRICTED CARD','DECLINED: SUSPECTED FRAUD','DECLINED: CARD NOT PERMITTED','DECLINED: INVALID CARD NUMBER','DECLINED: CLOSED ACCOUNT'].map(classifyDecline)).toEqual(Array(11).fill('hard'))
+    // The issuer's own outage and the ambiguous holds are soft; an unknown message is soft.
+    expect(['INSUFFICIENT FUNDS','DECLINED','DECLINED: EXCEEDS WITHDRAWAL LIMIT','UNSPECIFIED FAILURE','??',null,undefined,'DECLINED: DO NOT HONOR','DECLINED: PICK UP CARD',
+      '3DS: The authentication is unavailable, please try again later or contact issuer bank if problem persisted.'].map(classifyDecline)).toEqual(Array(10).fill('soft'))
   })
   it.each([['needs_customer_action'],['token_unusable']] as const)('a charge that is %s closes the attempt, deactivates the card, offers no hosted link and stops',async outcome=>{
     const f=await invoiced()
@@ -193,7 +202,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     // Too soon: nothing happens (the reconciler owns the first minutes).
     await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
     expect(f.charge).toHaveBeenCalledTimes(1)
-    await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 minutes' WHERE id=$1",[first.id])
+    await pool.query("UPDATE payment_attempts SET charge_sent_at=now()-interval '6 minutes' WHERE id=$1",[first.id])
     f.adapter.scriptTokenCharge(f.token,{outcome:'paid'})
     const lookup=vi.spyOn(f.adapter,'lookupPayment')
     await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
@@ -311,5 +320,229 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   it('trial duration is computed from the supplied instant',()=>{
     expect(trialEndsAt(2,'2026-10-01T21:00:00Z')).toBe('2026-10-03T21:00:00.000Z')
     expect(()=>trialEndsAt(-1,now)).toThrow('invalid_trial')
+  })
+
+  describe('review fixes of the charging step',()=>{
+    const savedAttempt=async(order:string)=>(await pool.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND kind='saved_card' ORDER BY created_at,id",[order])).rows
+    const hold=(f:Invoiced)=>pool.query("SELECT payment_hold_until FROM payment_attempts WHERE order_id=$1 AND kind='form' AND payment_hold_until IS NOT NULL",[f.order]).then(r=>r.rows[0]?.payment_hold_until as Date|null)
+    /** The failed payment the provider holds under the attempt's id, as a lost answer leaves it. */
+    const failedAtProvider=(f:Invoiced,attempt:any,message:string)=>f.adapter.directPayment({payment_id:attempt.id,status:'failed',amount:{minor:Number(attempt.amount_minor),currency:attempt.currency,exponent:attempt.exponent},
+      description:`LiwanOS renewal ${f.order}`,callback_url:'https://liwan.test/x',decline_message:message} as any)
+    const stale=(id:string)=>pool.query("UPDATE payment_attempts SET charge_sent_at=now()-interval '6 minutes',updated_at=now() WHERE id=$1",[id])
+
+    it('does not charge while a closed card form attempt may still hold a payment, and ends the hold when it is settled, declined, expired or the order is gone',async()=>{
+      const f=await invoiced()
+      const origin=fixedReturnOrigin('https://liwan.test')
+      const session=await createPaymentAttempt(pool,{order_id:f.order,customer_id:f.s.customer,adapter:f.adapter,returnOrigin:origin,actor:'7',request:{method:'form',save_card:false}})
+      f.adapter.fulfilIntent(session.intent.id,{clientSecret:session.intent.client_secret}) // the payer paid; no payment was ever reported
+      await pool.query("UPDATE payment_attempts SET created_at=now()-interval '56 minutes' WHERE id=$1",[session.attempt_id])
+      await createPaymentAttempt(pool,{order_id:f.order,customer_id:f.s.customer,adapter:f.adapter,returnOrigin:origin,actor:'7',request:{method:'form',save_card:false}})
+      expect(await hold(f)).toBeInstanceOf(Date)
+      // The customer's fresh form (opened by that re-entry) is not what is under test: only the closed attempt's hold is.
+      await pool.query("UPDATE payment_attempts SET status='canceled' WHERE order_id=$1 AND kind='form' AND payment_hold_until IS NULL",[f.order])
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+      expect(f.charge).not.toHaveBeenCalled()
+      // The hold has a bound: after it, nothing says a payment is still coming.
+      await pool.query("UPDATE payment_attempts SET payment_hold_until=now()-interval '1 minute' WHERE order_id=$1 AND kind='form'",[f.order])
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+      expect(f.charge).toHaveBeenCalledTimes(1)
+    })
+    it.each([['its decline is recorded',"declined_payment_ref='pay_declined_1'"],['a payment is bound to it',"provider_ref='pay_bound_1'"]])('a closed form attempt stops holding the invoice when %s',async(_name,set)=>{
+      const f=await invoiced()
+      const session=await createPaymentAttempt(pool,{order_id:f.order,customer_id:f.s.customer,adapter:f.adapter,returnOrigin:fixedReturnOrigin('https://liwan.test'),actor:'7',request:{method:'form',save_card:false}})
+      await pool.query(`UPDATE payment_attempts SET status='canceled',payment_hold_until=now()+interval '5 hours' WHERE id=$1`,[session.attempt_id])
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+      expect(f.charge).not.toHaveBeenCalled()
+      await pool.query(`UPDATE payment_attempts SET ${set} WHERE id=$1`,[session.attempt_id])
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+      expect(f.charge).toHaveBeenCalledTimes(1)
+    })
+    it('a plan that forbids automatic renewal is never charged, the customer is told once, and applying such a plan switches it off with an audit row',async()=>{
+      const f=await invoiced({},noRenew)
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)));await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,1)))
+      expect(f.charge).not.toHaveBeenCalled()
+      expect((await noticesOf(f.s.id,'card_charge_skipped')).map(n=>n.skip_reason)).toEqual(['plan_not_allowed'])
+      await transaction(pool,async c=>{expect(await disableAutoRenewIfPlanForbids(c,f.s.id)).toBe(true);expect(await disableAutoRenewIfPlanForbids(c,f.s.id)).toBe(false)})
+      expect((await pool.query('SELECT auto_renew_enabled FROM subscriptions WHERE id=$1',[f.s.id])).rows[0].auto_renew_enabled).toBe(false)
+      expect((await pool.query("SELECT reason FROM audit_events WHERE subject=$1 AND action='auto_renew.disabled'",[f.s.id])).rows).toEqual([{reason:'The applied plan does not allow automatic renewal'}])
+      const ok=await invoiced()
+      await transaction(pool,async c=>expect(await disableAutoRenewIfPlanForbids(c,ok.s.id)).toBe(false))
+      expect((await pool.query('SELECT auto_renew_enabled FROM subscriptions WHERE id=$1',[ok.s.id])).rows[0].auto_renew_enabled).toBe(true)
+    })
+    describe('a failed saved-card payment ends one way, however it is learned',()=>{
+      const expectHard=async(f:Invoiced,attempt:any)=>{
+        expect((await savedAttempt(f.order)).map(a=>a.status)).toEqual(['failed'])
+        expect(await methodStatus(f.method)).toBe('inactive')
+        expect((await pool.query('SELECT status FROM renewals WHERE order_id=$1',[f.order])).rows[0].status).toBe('invoiced')
+        expect(await noticesOf(f.s.id,'card_charge_failed')).toEqual([{type:'card_charge_failed',subscription_id:f.s.id,invoice_id:expect.any(String),decline:'hard'}])
+        expect((await pool.query("SELECT metadata FROM audit_events WHERE subject=$1 AND action='payment.saved_card_declined'",[f.order])).rows.map(r=>[r.metadata.attempt_id,r.metadata.decline])).toEqual([[attempt.id,'hard']])
+      }
+      it('a lost answer, then the lookup of the redrive shows a stolen card',async()=>{
+        const f=await invoiced()
+        f.adapter.scriptTokenCharge(f.token,{outcome:'unknown'})
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        const [attempt]=await savedAttempt(f.order)
+        failedAtProvider(f,attempt,'DECLINED: STOLEN CARD')
+        await stale(attempt.id)
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        expect(f.charge).toHaveBeenCalledTimes(1)
+        await expectHard(f,attempt)
+      })
+      it('the reconciler finds it',async()=>{
+        const f=await invoiced()
+        f.adapter.scriptTokenCharge(f.token,{outcome:'unknown'})
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        const [attempt]=await savedAttempt(f.order)
+        failedAtProvider(f,attempt,'DECLINED: STOLEN CARD')
+        await reconcileUnknownAttempts(pool,f.adapter)
+        await expectHard(f,attempt)
+        await reconcileUnknownAttempts(pool,f.adapter) // a replay changes nothing
+        expect(await noticesOf(f.s.id,'card_charge_failed')).toHaveLength(1)
+      })
+      it('a webhook reports the failure',async()=>{
+        const f=await invoiced()
+        f.adapter.scriptTokenCharge(f.token,{outcome:'unknown'})
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        const [attempt]=await savedAttempt(f.order)
+        const payment=failedAtProvider(f,attempt,'DECLINED: STOLEN CARD')
+        await handleProviderEvent(pool,{provider:'simulator',adapter:f.adapter,rawBody:f.adapter.paymentWebhookBody(payment.payment_id),headers:{}})
+        await expectHard(f,attempt)
+      })
+      it('a payment that was pending later fails',async()=>{
+        const f=await invoiced()
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        const [attempt]=await savedAttempt(f.order)
+        expect(attempt.status).toBe('pending')
+        f.adapter.setPaymentStatus(attempt.id,'failed','DECLINED: STOLEN CARD')
+        await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[attempt.id])
+        await verifyReturnedAttempt(pool,{attempt_id:attempt.id,customer_id:f.s.customer,adapter:f.adapter})
+        await expectHard(f,attempt)
+      })
+      it('a soft decline found by lookup keeps the card and the schedule',async()=>{
+        const f=await invoiced()
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        const [attempt]=await savedAttempt(f.order)
+        f.adapter.setPaymentStatus(attempt.id,'failed','INSUFFICIENT FUNDS')
+        await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[attempt.id])
+        await verifyReturnedAttempt(pool,{attempt_id:attempt.id,customer_id:f.s.customer,adapter:f.adapter})
+        expect(await methodStatus(f.method)).toBe('active')
+        expect(await noticesOf(f.s.id,'card_charge_failed')).toEqual([expect.objectContaining({decline:'soft'})])
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,1)))
+        expect(f.charge).toHaveBeenCalledTimes(2)
+      })
+    })
+    describe('errors thrown by the charge',()=>{
+      it.each([new PaymentError('timeout'),new PaymentError('provider_unreachable'),new PaymentError('provider_error','busy',503),new PaymentError('provider_error','slow down',429)])('a transient error (%s) parks the attempt for the lookup',async error=>{
+        const f=await invoiced()
+        f.charge.mockRejectedValueOnce(error)
+        vi.spyOn(console,'error').mockImplementation(()=>{})
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        expect((await savedAttempt(f.order)).map(a=>a.status)).toEqual(['unknown'])
+      })
+      it.each([new PaymentError('provider_error','bad request',400),new PaymentError('provider_forbidden','nope',401),new PaymentError('invalid_amount'),new Error('bug')])('a permanent error (%s) closes the attempt, shows on the vendor list and tells the customer to pay by hand',async error=>{
+        const f=await invoiced()
+        f.charge.mockRejectedValueOnce(error)
+        vi.spyOn(console,'error').mockImplementation(()=>{})
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        expect((await savedAttempt(f.order)).map(a=>a.status)).toEqual(['failed'])
+        expect(await methodStatus(f.method)).toBe('active')
+        expect((await pool.query('SELECT status FROM renewals WHERE order_id=$1',[f.order])).rows[0].status).toBe('invoiced')
+        expect((await noticesOf(f.s.id,'card_charge_skipped')).map(n=>n.skip_reason)).toEqual(['charge_refused'])
+        expect((await attention(pool,true)).items.filter(i=>i.kind==='renewal_failed'&&i.customer_id===f.s.customer)).toEqual([expect.objectContaining({detail:expect.stringContaining('card_charge_refused')})])
+        // The schedule still bounds the tries: the next day tries again, four tries at most.
+        f.charge.mockRejectedValue(error)
+        for(const d of [1,3,5,9])await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,d)))
+        expect(await savedAttempt(f.order)).toHaveLength(4)
+      })
+      it('an invoice below the provider minimum is not charged by card and the customer is told',async()=>{
+        const f=await invoiced({},tiny)
+        expect(Number((await pool.query('SELECT total_minor FROM invoices WHERE order_id=$1',[f.order])).rows[0].total_minor)).toBeLessThan(100)
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        expect(f.charge).not.toHaveBeenCalled()
+        expect((await noticesOf(f.s.id,'card_charge_skipped')).map(n=>n.skip_reason)).toEqual(['amount_below_minimum'])
+      })
+      it('a charge that never reached the provider is closed shortly after it was sent, so it cannot block the customer\'s own form for an hour',async()=>{
+        const f=await invoiced()
+        f.adapter.scriptTokenCharge(f.token,{outcome:'unknown'})
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        const [attempt]=await savedAttempt(f.order)
+        const form=()=>createPaymentAttempt(pool,{order_id:f.order,customer_id:f.s.customer,adapter:f.adapter,returnOrigin:fixedReturnOrigin('https://liwan.test'),actor:'7',request:{method:'form',save_card:false}})
+        await expect(form()).rejects.toMatchObject({code:'payment_in_progress'})
+        await reconcileUnknownAttempts(pool,f.adapter)
+        expect((await savedAttempt(f.order)).map(a=>a.status)).toEqual(['unknown']) // the provider has no such payment, but the short wait is not over
+        await pool.query("UPDATE payment_attempts SET charge_sent_at=now()-interval '11 minutes' WHERE id=$1",[attempt.id])
+        await reconcileUnknownAttempts(pool,f.adapter)
+        expect((await savedAttempt(f.order)).map(a=>a.status)).toEqual(['failed'])
+        expect((await pool.query('SELECT status FROM renewals WHERE order_id=$1',[f.order])).rows[0].status).toBe('invoiced')
+        expect((await form()).intent.id).toBeTruthy()
+      })
+      it('a lost answer sent again with a changed callback finds the payment the provider already holds',async()=>{
+        const f=await invoiced()
+        f.adapter.scriptTokenCharge(f.token,{outcome:'unknown'})
+        await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+        const [attempt]=await savedAttempt(f.order)
+        await stale(attempt.id)
+        f.adapter.scriptTokenCharge(f.token,{outcome:'used_given_id'}) // the provider refuses the second body (another origin) and holds the first payment
+        await chargeSavedCards(pool,{...chargeArgs(f.adapter,dayOf(f.issued,0)),returnOrigin:fixedReturnOrigin('https://other.liwan.test')})
+        expect((await savedAttempt(f.order)).map(a=>a.status)).toEqual(['succeeded'])
+        expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1',[f.order])).rows[0].payment_state).toBe('paid')
+      })
+    })
+    it('an unusable return origin flags the customer to the vendor when a charge is due, and never stops a pending payment from settling',async()=>{
+      const f=await invoiced()
+      const broken=async()=>{throw new CommercialHttpError('return_url_forbidden',422)}
+      await chargeSavedCards(pool,{...chargeArgs(f.adapter,dayOf(f.issued,0)),returnOrigin:broken})
+      expect(f.charge).not.toHaveBeenCalled()
+      expect((await pool.query('SELECT billing_blocked_at FROM subscriptions WHERE id=$1',[f.s.id])).rows[0].billing_blocked_at).toBeInstanceOf(Date)
+      expect((await attention(pool,true)).items.filter(i=>i.kind==='billing_blocked'&&i.customer_id===f.s.customer)).toHaveLength(1)
+      // A charge that was already sent settles without asking for an origin.
+      const g=await invoiced()
+      await chargeSavedCards(pool,{...chargeArgs(g.adapter,dayOf(g.issued,0)),subscription_id:g.s.id})
+      const lookup=vi.spyOn(g.adapter,'lookupPayment')
+      await chargeSavedCards(pool,{...chargeArgs(g.adapter,dayOf(g.issued,0)),returnOrigin:broken,subscription_id:g.s.id})
+      expect(lookup).toHaveBeenCalledTimes(1)
+      expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1',[g.order])).rows[0].payment_state).toBe('paid')
+    })
+    it('a token that becomes unusable after a soft decline gives the customer one notice: no more automatic tries',async()=>{
+      const f=await invoiced()
+      f.adapter.scriptTokenCharge(f.token,{outcome:'declined',message:'INSUFFICIENT FUNDS'})
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+      f.adapter.scriptTokenCharge(f.token,{outcome:'token_unusable'})
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,1)))
+      const notices=(await pool.query("SELECT status,payload FROM commercial_outbox WHERE kind='billing.notice' AND payload->>'type'='card_charge_failed' ORDER BY created_at")).rows
+      expect(notices.map(n=>[n.status,n.payload.decline])).toEqual([['done','soft'],['pending','hard']])
+    })
+    it('uses an allow-list of renewal statuses, and does not plan an exhausted renewal again',async()=>{
+      const f=await invoiced()
+      await pool.query("UPDATE renewals SET status='superseded' WHERE order_id=$1",[f.order])
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))
+      expect(f.charge).not.toHaveBeenCalled()
+      await pool.query("UPDATE renewals SET status='invoiced' WHERE order_id=$1",[f.order])
+      f.adapter.scriptTokenCharge(f.token,{outcome:'declined',message:'INSUFFICIENT FUNDS'})
+      for(const d of [0,1,3,5])await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,d)))
+      expect(f.charge).toHaveBeenCalledTimes(4)
+      const query=vi.spyOn(pool,'query')
+      await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,9)))
+      expect(query).toHaveBeenCalledTimes(1) // only the candidate scan: no transaction, no subscription lock for it
+    })
+    it('two concurrent charging runs on one subscription send one charge',async()=>{
+      const f=await invoiced()
+      await Promise.all([chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0))),chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,0)))])
+      expect(f.charge).toHaveBeenCalledTimes(1)
+      expect(await savedAttempt(f.order)).toHaveLength(1)
+    })
+    it('a charge in flight against a card removal or against switching auto-renew off loses no money and deadlocks nothing',async()=>{
+      for(let round=0;round<6;round++){
+        const f=await invoiced()
+        const remove=()=>removePaymentMethod(pool,f.adapter,{by:'customer',actor:'7',reason:null,customer_id:f.s.customer,payment_method_id:f.method})
+        const off=()=>pool.connect().then(async c=>{try{await c.query('BEGIN');await c.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE',[f.s.id]);await disableAutoRenew(c,f.s.id,{actor:'7',reason:'x'});await c.query('COMMIT')}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}})
+        const results=await Promise.allSettled([chargeSavedCards(pool,{...chargeArgs(f.adapter,dayOf(f.issued,0)),subscription_id:f.s.id}),round%2?remove():off()])
+        for(const r of results)if(r.status==='rejected')expect((r.reason as {code?:string}).code).not.toBe('40P01')
+        const attempts=await savedAttempt(f.order)
+        // Either the charge went first (a payment is pending or paid) or the card was gone first (no charge, or one the provider refused): the invoice is never charged twice.
+        expect(attempts.length).toBeLessThanOrEqual(1)
+        expect(f.charge.mock.calls.length).toBeLessThanOrEqual(1)
+      }
+    })
   })
 })

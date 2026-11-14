@@ -85,6 +85,13 @@ const subjectsSql = `WITH latest AS (
   -- A renewal that failed for this subscription alone (the others kept renewing): the machine reason of the last failure.
   SELECT c.id AS customer_id, c.name, c.tenant_id, s.renewal_failed_at, s.renewal_failure FROM subscriptions s JOIN customers c ON c.id=s.customer_id
   WHERE s.renewal_failure IS NOT NULL
+), charge_refusals AS (
+  -- A saved-card charge the provider refused as a request (not a decline): it is retried only by the schedule, so the vendor must see it
+  -- until the invoice is paid or its order is cancelled.
+  SELECT DISTINCT ON (c.id) c.id AS customer_id, c.name, c.tenant_id, a.created_at AS at, 'card_charge_refused: ' || COALESCE(a.metadata->>'code', '') AS detail
+  FROM audit_events a JOIN orders o ON o.id::text = a.subject JOIN customers c ON c.id = o.customer_id
+  WHERE a.action = 'payment.saved_card_charge_refused' AND o.payment_state = 'awaiting_payment' AND NOT o.cancelled
+  ORDER BY c.id, a.created_at DESC
 ), trial_overdue AS (
   -- A trial whose end date is older than one scheduler interval and whose end has not run: new orders are closed
   -- (trial_ending) until it does, and the paid applications are still writable, so it must not wait unseen.
@@ -185,6 +192,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('armed_at')}, reason, armed_at FROM lock_blocked
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
+  UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM charge_refusals
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 4,'invitation_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM invitation_failures
   UNION ALL SELECT 4,'notice_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('processed_at')}, reason, processed_at FROM failed_notices

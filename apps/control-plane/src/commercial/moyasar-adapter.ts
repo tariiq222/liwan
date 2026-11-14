@@ -4,7 +4,7 @@
 // behaves is recorded in docs/operations/moyasar-form-spike.md.
 import { timingSafeEqual } from 'node:crypto'
 import {
-  MIN_REFUND_MINOR, PROVIDER_ERROR_TYPES, PaymentError, assertReturnUrl,
+  MIN_CHARGE_MINOR, MIN_REFUND_MINOR, PROVIDER_ERROR_TYPES, PaymentError, assertReturnUrl,
   type AdapterHeaders, type ChargeTokenInput, type ChargeTokenOutcome, type CreateAttemptInput, type CreateAttemptResult, type CreateIntentInput,
   intentStatusAt, type IntentCancelOutcome, type IntentStatus, type Money, type PaymentAdapter, type PaymentErrorCode, type PaymentIntent, type PaymentRecord,
   type ProviderErrorType, type ProviderEvent, type ProviderEventStatus, type RefundOutcome, type TokenInfo, type TokenStatus, type WebhookVerification,
@@ -151,7 +151,7 @@ export class MoyasarAdapter implements PaymentAdapter {
     const success_url = assertReturnUrl(i.success_url, origins)
     const back_url = assertReturnUrl(i.back_url, origins)
     const callback_url = assertReturnUrl(i.callback_url, origins)
-    if (!Number.isInteger(i.amount.minor) || i.amount.minor < 100) throw new PaymentError('invalid_amount', 'minimum 100 minor units')
+    if (!Number.isInteger(i.amount.minor) || i.amount.minor < MIN_CHARGE_MINOR) throw new PaymentError('invalid_amount', 'minimum 100 minor units')
     const inv = await this.call('POST', '/invoices', {
       amount: i.amount.minor, currency: i.amount.currency.toUpperCase(), description: i.description,
       callback_url, success_url, back_url,
@@ -174,7 +174,7 @@ export class MoyasarAdapter implements PaymentAdapter {
   async createIntent(i: CreateIntentInput): Promise<PaymentIntent> {
     if (!this.cfg.publishableKey) throw new PaymentError('provider_not_configured', 'MOYASAR_PUBLISHABLE_KEY is needed for card payments through the form')
     const callback_url = assertReturnUrl(i.callback_url, this.cfg.allowedReturnOrigins)
-    if (!Number.isInteger(i.amount.minor) || i.amount.minor < 100) throw new PaymentError('invalid_amount', 'minimum 100 minor units')
+    if (!Number.isInteger(i.amount.minor) || i.amount.minor < MIN_CHARGE_MINOR) throw new PaymentError('invalid_amount', 'minimum 100 minor units')
     return this.intentOf(await this.call('POST', '/payment_intents', {
       amount: i.amount.minor, currency: i.amount.currency.toUpperCase(), description: buildAttemptDescription(i.attempt_id), callback_url,
     }))
@@ -283,7 +283,7 @@ export class MoyasarAdapter implements PaymentAdapter {
       merchant_account: this.cfg.merchantAccount, live: r.live, status: r.status,
       amount: r.amount, ...(r.refunded ? { refunded: r.refunded } : {}),
       occurred_at: String(p.updated_at ?? p.created_at ?? new Date().toISOString()),
-      raw_type: `payment_${p.status}`,
+      raw_type: `payment_${p.status}`, decline_message: r.decline_message,
     }
   }
 

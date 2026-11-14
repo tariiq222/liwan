@@ -9,6 +9,9 @@ import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { PaymentError, type PaymentAdapter, type PaymentIntent, type PaymentRecord, type ProviderEvent, type TokenInfo } from './payment-adapter.js'
 import { claimOutbox, deferOutbox, enqueueOutbox, releaseOutbox } from './outbox.js'
+import { FORM_PAYMENT_HOLD_HOURS } from './notice-timings.js'
+import { holdsFreeBaseLockSql } from './free-base.js'
+import { deletionClockRunningSql } from './tenant-deletion-read.js'
 
 type Queryable = Pick<Pool | PoolClient, 'query'>
 type Row = Record<string, any>
@@ -52,6 +55,19 @@ const REJECTION_ACTION: Record<FormSource, string> = { hint: 'payment.form_hint_
 /** Thrown inside the settlement transaction to roll it back; the caller turns it into the refusal it names. */
 class SettlementRefused extends Error {
   constructor(readonly reason: FormRejection) { super(reason) }
+}
+
+/**
+ * The one lock order of every writer that touches an order, its subscription or a saved card: customer, subscription, order, attempt,
+ * payment method (`lockOrder` in orders.ts and fulfilment take them so; a card removal takes the subscription before the card).
+ * A settlement takes the first two up front, before the order, because it can reach the subscription later (a saved card turns
+ * auto-renew on, a paid renewal moves the subscription) and the card row after it.
+ */
+export async function lockSettlement(client: PoolClient, orderId: string) {
+  const owner = (await client.query('SELECT customer_id,subscription_id FROM orders WHERE id=$1', [orderId])).rows[0]
+  if (!owner) return
+  await client.query('SELECT id FROM customers WHERE id=$1 FOR UPDATE', [owner.customer_id])
+  await client.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE', [owner.subscription_id])
 }
 
 const logCode = (error: unknown) => (error as { code?: string } | null)?.code ?? (error as Error | null)?.constructor?.name ?? 'error'
@@ -221,6 +237,13 @@ async function saveCard(client: PoolClient, order: Row, attempt: Row, card: Extr
   if (!saved.rowCount) return 'token_already_saved'
   await writeAudit(client, 'payment_method.saved', order.customer_id, 'Card saved from a card form payment',
     { payment_method_id: saved.rows[0].id, attempt_id: attempt.id, brand: card.brand, last_four: card.last_four })
+  // Auto-renew is switched on only where nothing will charge the card against the customer's will: not while the subscription is being dropped to the free base or deleted.
+  const held = (await client.query(`SELECT ${holdsFreeBaseLockSql('s')} AS lock,${deletionClockRunningSql('s.customer_id')} AS deleting FROM subscriptions s WHERE s.id=$1`, [order.subscription_id])).rows[0]
+  if (held.lock || held.deleting) {
+    await writeAudit(client, 'auto_renew.not_enabled', order.subscription_id, 'The card was saved but automatic renewal stays off',
+      { attempt_id: attempt.id, reason: held.deleting ? 'workspace_deletion' : 'free_base_lock' })
+    return 'saved'
+  }
   const enabled = await client.query(`UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1
     WHERE id=$1 AND NOT auto_renew_enabled RETURNING id`, [order.subscription_id, attempt.consent_at])
   if (enabled.rowCount) await writeAudit(client, 'auto_renew.enabled', order.subscription_id, 'Auto-renew enabled with the card saved at payment',
@@ -320,13 +343,10 @@ export async function resolveFormPayment(pool: Pool, adapter: PaymentAdapter, in
   if (reason) return refuse(reason, { attempt_id: attempt.id, order_id: attempt.order_id })
   if (record.status === 'failed') return recordDecline(pool, attempt, record)
   const plan = await planCard(adapter, attempt, record)
-  // One lock order everywhere: customer, subscription, order, attempt (`lockOrder` and fulfilment take them so). A card may be saved
-  // only for this order's customer, who is read first because it never changes.
-  const owner = plan.kind === 'save' ? (await pool.query('SELECT customer_id FROM orders WHERE id=$1', [attempt.order_id])).rows[0]?.customer_id as string | undefined : undefined
   let result: FormResolution | { outcome: 'refused'; reason: FormRejection }
   try {
     result = await transaction(pool, async client => {
-      if (owner) await client.query('SELECT id FROM customers WHERE id=$1 FOR UPDATE', [owner])
+      await lockSettlement(client, attempt.order_id)
       const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [attempt.order_id])).rows[0]
       const current = (await client.query('SELECT * FROM payment_attempts WHERE id=$1 FOR UPDATE', [attempt.id])).rows[0]
       if (current.provider_ref === record.payment_id) return { outcome: 'ignored' as const }
@@ -426,7 +446,10 @@ export async function closeUnpaidFormAttempt(pool: Pool, adapter: PaymentAdapter
   const review = reason === 'expired' && intentMayHoldPayment(row, intent)
   if (!review) await cancelIntentQuietly(adapter, row.provider_intent_ref)
   await transaction(pool, async client => {
-    const closed = await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND provider_ref IS NULL AND status = ANY($2::text[]) RETURNING order_id", [row.id, LIVE_ATTEMPT_STATUSES])
+    // A closed attempt whose intent may hold a payment keeps the saved card from being charged for the same invoice while that payment may still arrive.
+    const closed = await client.query(`UPDATE payment_attempts SET status='canceled',updated_at=now(),
+        payment_hold_until=CASE WHEN $3 THEN now() + make_interval(hours => $4) END WHERE id=$1 AND provider_ref IS NULL AND status = ANY($2::text[]) RETURNING order_id`,
+    [row.id, LIVE_ATTEMPT_STATUSES, review, FORM_PAYMENT_HOLD_HOURS])
     if (!closed.rowCount) return
     await writeAudit(client, 'payment.form_attempt_closed', row.order_id, `Unpaid card form attempt closed: ${reason}`, { attempt_id: row.id, reason })
     if (review) await writeAudit(client, 'payment.form_attempt_needs_review', row.order_id, 'The card form was used but no payment was reported: look the payment up at the provider',

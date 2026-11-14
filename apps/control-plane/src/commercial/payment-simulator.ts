@@ -191,6 +191,7 @@ export class SimulatorAdapter implements PaymentAdapter {
       provider: 'simulator', event_id: `sim_lookup_${r.payment_id}_${r.status}`, provider_ref: r.payment_id, payment_id: r.payment_id,
       attempt_id: r.attempt_id, merchant_account: this.merchantAccount, live: false, status: r.status, amount: r.amount,
       ...(r.refunded ? { refunded: r.refunded } : {}), occurred_at: new Date(0).toISOString(), raw_type: `payment_${r.provider_status}`, simulated: true,
+      decline_message: r.decline_message,
     }
   }
   async lookupByAttemptId(attemptId: string): Promise<ProviderEvent | null> {
@@ -285,6 +286,13 @@ export class SimulatorAdapter implements PaymentAdapter {
     }
     return { ...this.newPayment({ payment_id: paymentId, status, amount: intent.amount, description: intent.description, callback_url: intent.callback_url, token,
       decline_message: card.outcome === 'declined' ? card.message : null }) }
+  }
+
+  /** Test helper: a direct payment changes state at the provider after it was created (a pending payment that later fails, say). */
+  setPaymentStatus(paymentId: string, status: 'succeeded' | 'failed' | 'pending', message: string | null = null): void {
+    const record = this.payments.get(paymentId)
+    if (!record) throw new PaymentError('not_found', paymentId)
+    this.payments.set(paymentId, { ...record, status, provider_status: status === 'succeeded' ? 'paid' : status === 'failed' ? 'failed' : 'initiated', decline_message: status === 'failed' ? message : null })
   }
 
   /**

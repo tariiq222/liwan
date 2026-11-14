@@ -9,3 +9,15 @@ export async function disableAutoRenew(client: Pick<PoolClient, 'query'>, subscr
     [randomUUID(), who.actor, 'auto_renew.disabled', subscriptionId, who.reason, '{}'])
   return true
 }
+
+/**
+ * Switches automatic renewal off when the plan of the subscription's applied revision does not allow it (a plan change, or a renewal that
+ * applied a new revision): the card stays, nothing is charged. Called inside the transaction that applies the revision, which holds the
+ * subscription row.
+ */
+export async function disableAutoRenewIfPlanForbids(client: Pick<PoolClient, 'query'>, subscriptionId: string): Promise<boolean> {
+  const plan = (await client.query(`SELECT p.auto_renew_allowed FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
+    LEFT JOIN plan_revisions p ON p.id::text = r.snapshot->>'plan_revision_id' WHERE s.id=$1`, [subscriptionId])).rows[0]
+  if (!plan || plan.auto_renew_allowed) return false
+  return disableAutoRenew(client, subscriptionId, { actor: 'system', reason: 'The applied plan does not allow automatic renewal' })
+}

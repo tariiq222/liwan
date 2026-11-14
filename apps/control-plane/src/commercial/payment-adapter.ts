@@ -46,6 +46,8 @@ export type ProviderEvent = {
   occurred_at: string
   raw_type: string
   simulated?: boolean
+  /** The provider's reason for a failed payment (`source.message`), when it gave one: what classifies a decline learned through a lookup or a webhook. */
+  decline_message?: string | null
 }
 
 /** What a `refunded` event refunded: the provider's cumulative figure, or null when it gave none (never assumed to be the whole payment). */
@@ -65,6 +67,8 @@ export type CreateAttemptResult = { provider_ref: string; redirect_url: string; 
 
 /** The smallest refund the provider accepts, in minor units (1.00 SAR; sandbox finding, unverified on a live account). */
 export const MIN_REFUND_MINOR = 100
+/** The provider's published minimum for any payment: a smaller invoice is never sent to the card (the adapter's `createAttempt` and `createIntent` refuse it too). */
+export const MIN_CHARGE_MINOR = 100
 /**
  * What a refund call came to. The provider accepts ONE refund per payment: a partial refund already moves the payment to
  * `refunded`, and any later call is refused (`already_refunded`). `refunded` is the provider's cumulative figure.

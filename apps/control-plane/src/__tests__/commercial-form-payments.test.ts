@@ -11,6 +11,7 @@ import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { buildAttemptDescription } from '../commercial/payment-description.js'
 import { createPaymentAttempt, handleProviderEvent, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
 import { cancelOrder } from '../commercial/orders.js'
+import { removePaymentMethod } from '../commercial/payment-method-removal.js'
 import { processTokenDeletions, resolveFormPayment, REJECTION_SUPPRESSED_ACTION } from '../commercial/form-payments.js'
 import { allAttentionItems } from '../commercial/attention.js'
 import { sendVendorAlerts } from '../commercial/vendor-alerts.js'
@@ -958,7 +959,38 @@ suite('card form payments on PostgreSQL', () => {
       })
     })
 
+    describe('a card kept only where renewal can charge it', () => {
+      it.each([['an armed free-base lock','lock'],['a confirmed workspace deletion','deletion']])('saves the card but leaves auto-renew off during %s, and says why', async (_name, kind) => {
+        const f = await order()
+        const sub = await subscription(f)
+        if (kind === 'lock') await pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,trial_ended_at,cause,next_attempt_at)
+          SELECT id,target_revision_id,'2026-10-01',now(),NULL,'refund',now() FROM subscriptions WHERE id=$1`, [sub.id])
+        else await pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,renewal_outcome) VALUES($1,$2,'confirmed',now(),'7',now(),'7',now()+interval '30 days','cancelled')`, [randomUUID(), f.customer])
+        const s = await form(f, saving)
+        await webhook(f, fulfil(f, s, { saveCard: true }).payment_id)
+        expect((await methods(f)).map(m => [m.status, m.is_default])).toEqual([['active', true]])
+        expect((await subscription(f)).auto_renew_enabled).toBe(false)
+        expect((await audits('auto_renew.not_enabled', f.subscription)).map(a => a.metadata.reason)).toEqual([kind === 'lock' ? 'free_base_lock' : 'workspace_deletion'])
+      })
+    })
+
     describe('one lock order', () => {
+      it('removing the default card while a payment saves another neither deadlocks nor loses a payment', async () => {
+        for (let round = 0; round < 12; round++) {
+          const f = await order()
+          const old = await seedPaymentMethod(pool, f.customer, `sim_old_${round}`)
+          f.adapter.addToken(`sim_old_${round}`)
+          const s = await form(f, saving)
+          const p = fulfil(f, s, { saveCard: true })
+          const results = await Promise.allSettled([webhook(f, p.payment_id), removePaymentMethod(pool, f.adapter, { by: 'customer', actor: '7', reason: null, customer_id: f.customer, payment_method_id: old })])
+          for (const r of results) if (r.status === 'rejected') expect((r.reason as { code?: string }).code).not.toBe('40P01')
+          expect(await orderRow(f)).toMatchObject({ payment_state: 'paid' })
+          const rows = await methods(f)
+          expect(rows.filter(m => m.status === 'active' && m.is_default)).toHaveLength(1)
+          expect(rows.find(m => m.id === old)).toMatchObject({ status: 'removed' })
+        }
+      })
+
       it('a cancellation racing a card-saving settlement neither deadlocks nor loses money', async () => {
         for (let round = 0; round < 12; round++) {
           const f = await order()

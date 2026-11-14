@@ -17,19 +17,19 @@ suite('live PostgreSQL billing notices', () => {
   const pool = new Pool({ connectionString: url, max: 6 }), api = client(pool)
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage'] }
   const now = new Date('2026-10-02T08:00:00Z')
-  let suspend: any, free: any
-  async function plan(auto_suspend: boolean, grace_days: number, price = 10000) {
+  let suspend: any, free: any, noRenew: any, shortGrace: any
+  async function plan(auto_suspend: boolean, grace_days: number, price = 10000, autoRenew = true) {
     const c = await api('POST', '/plans', { name: `Notice ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(price) }], platform_limits: {},
       included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: null,
       included_users: 1, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }],
-      storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days, auto_suspend, auto_renew_allowed: true })
+      storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days, auto_suspend, auto_renew_allowed: autoRenew })
     const v = await api('POST', `/plans/${c.body.id}/validate`, { edit_revision: 1, reason: 'Notice acceptance' })
     return (await api('POST', `/plans/${c.body.id}/publish`, { edit_revision: v.body.edit_revision, reason: 'Notice acceptance' })).body
   }
   beforeAll(async () => {
     const { version } = await setup(pool)
     await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Notice acceptance' })
-    suspend = await plan(true, 7); free = await plan(true, 7, 0)
+    suspend = await plan(true, 7); free = await plan(true, 7, 0); noRenew = await plan(true, 7, 10000, false); shortGrace = await plan(true, 1)
   })
   beforeEach(async () => { await pool.query('TRUNCATE customers CASCADE'); await pool.query('TRUNCATE commercial_outbox') })
   afterAll(async () => { await pool.end() })
@@ -202,7 +202,7 @@ suite('live PostgreSQL billing notices', () => {
     const { sent, mail } = mailbox()
     await sendBillingNotices(pool, { now: new Date('2026-11-02T08:00:00Z'), mail, returnOrigin })
     const text = sent.find(m => m.to.startsWith(expired.customer))!.text
-    expect(text).toContain('Automatic renewal is off')
+    expect(text).toContain('We will not charge the renewal automatically because your saved card cannot be charged')
   })
   it('tells the customer a charge failed, with the next try or that there will be none, never more than the brand and last four', async () => {
     const soft = await withCard('2026-10-01')
@@ -267,5 +267,79 @@ suite('live PostgreSQL billing notices', () => {
     const { sent, mail } = mailbox()
     await sendBillingNotices(pool, { now, mail, returnOrigin })
     expect(sent.filter(m => m.to.startsWith(s.customer))).toEqual([])
+  })
+
+  describe('what a notice promises is judged on live state', () => {
+    const origin = fixedReturnOrigin('https://liwan.test')
+    const target = { provider: 'simulator', mode: 'simulator' }
+    async function declined(p = suspend, message = 'INSUFFICIENT FUNDS') {
+      const s = await subscription('2026-10-01', p)
+      const token = `token_secret_${randomUUID()}`
+      const method = await seedPaymentMethod(pool, s.customer, token)
+      await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1 WHERE id=$1', [s.id, now])
+      const adapter = new SimulatorAdapter().addToken(token)
+      adapter.scriptTokenCharge(token, { outcome: 'declined', message })
+      await generateRenewals(pool, { now, returnOrigin: origin })
+      const issued = riyadhDate((await pool.query('SELECT created_at FROM invoices WHERE subscription_id=$1', [s.id])).rows[0].created_at)
+      const at = (plus: number) => new Date(Date.parse(`${issued}T09:00:00+03:00`) + plus * 86_400_000)
+      await chargeSavedCards(pool, { now: at(0), adapter, returnOrigin: origin })
+      return { ...s, token, method, adapter, issued, at }
+    }
+    const failedMail = (sent: any[], customer: string) => sent.filter(m => m.to.startsWith(customer) && m.subject.includes('تعذّر خصم'))
+
+    it('promises the next try while it can happen, and not when automatic renewal was switched off or the card became unusable after the decline', async () => {
+      const keep = await declined(), off = await declined(), gone = await declined()
+      await pool.query('UPDATE subscriptions SET auto_renew_enabled=false,revision=revision+1 WHERE id=$1', [off.id])
+      await pool.query("UPDATE payment_methods SET status='inactive' WHERE id=$1", [gone.method])
+      const { sent, mail } = mailbox()
+      await sendBillingNotices(pool, { now: keep.at(0), mail, returnOrigin, chargeTarget: target })
+      expect(failedMail(sent, keep.customer)[0]!.text).toContain(`We try again automatically on ${riyadhDate(keep.at(1))}`)
+      for (const f of [off, gone]) expect(failedMail(sent, f.customer)[0]!.text).toContain('We will not try again automatically')
+    })
+    it('does not promise a try that dunning would pre-empt by suspending the subscription', async () => {
+      process.env.LIWAN_INVOICE_DUE_DAYS = '0'
+      try {
+        const f = await declined(shortGrace) // due the day it is issued, one day of grace: suspended on the day of the next try
+        const { sent, mail } = mailbox()
+        await sendBillingNotices(pool, { now: f.at(0), mail, returnOrigin, chargeTarget: target })
+        expect(failedMail(sent, f.customer)[0]!.text).toContain('We will not try again automatically')
+      } finally { delete process.env.LIWAN_INVOICE_DUE_DAYS }
+    })
+    it('a card the provider cannot charge any more: one notice, no contradictory retry date', async () => {
+      const f = await declined()
+      f.adapter.scriptTokenCharge(f.token, { outcome: 'token_unusable' })
+      await chargeSavedCards(pool, { now: f.at(1), adapter: f.adapter, returnOrigin })
+      const { sent, mail } = mailbox()
+      await sendBillingNotices(pool, { now: f.at(1), mail, returnOrigin, chargeTarget: target })
+      const mails = failedMail(sent, f.customer)
+      expect(mails).toHaveLength(1)
+      expect(mails[0]!.text).toContain('We will not try again automatically')
+      expect(mails[0]!.text).not.toContain('We try again')
+    })
+    it('says the renewal is paid by hand, and why, when the promised automatic charge is impossible', async () => {
+      const wrongPlan = await withCard('2026-10-05'), other = await withCard('2026-10-05')
+      await pool.query("UPDATE payment_methods SET provider='moyasar',mode='live' WHERE id=$1", [other.method])
+      const forbidden = await subscription('2026-10-05', noRenew)
+      await seedPaymentMethod(pool, forbidden.customer, `token_secret_${randomUUID()}`)
+      await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,revision=revision+1 WHERE id=$1', [forbidden.id, now])
+      const { sent, mail } = mailbox()
+      await sendBillingNotices(pool, { now, mail, returnOrigin, chargeTarget: target })
+      const text = (customer: string) => sent.find(m => m.to.startsWith(customer))!.text
+      expect(text(forbidden.customer)).toContain('does not allow automatic renewal')
+      expect(text(other.customer)).toContain('We will not charge the renewal automatically because your saved card cannot be charged')
+      expect(text(wrongPlan.customer)).toContain('is charged automatically')
+    })
+    it('tells the customer once, when the charge is due, that the invoice is paid by hand and why', async () => {
+      const f = await withCard('2026-10-01')
+      await pool.query("UPDATE payment_methods SET provider='moyasar',mode='live' WHERE id=$1", [f.method])
+      await generateRenewals(pool, { now, returnOrigin })
+      const issued = riyadhDate((await pool.query('SELECT created_at FROM invoices WHERE subscription_id=$1', [f.id])).rows[0].created_at)
+      for (const plus of [0, 0, 1]) await chargeSavedCards(pool, { now: new Date(Date.parse(`${issued}T09:00:00+03:00`) + plus * 86_400_000), adapter: f.adapter, returnOrigin })
+      const { sent, mail } = mailbox()
+      await sendBillingNotices(pool, { now: new Date(`${issued}T09:00:00+03:00`), mail, returnOrigin, chargeTarget: target })
+      const skipped = sent.filter(m => m.to.startsWith(f.customer) && m.subject.includes('بنفسك'))
+      expect(skipped).toHaveLength(1)
+      expect(skipped[0]!.text).toContain('your saved card cannot be charged')
+    })
   })
 })
