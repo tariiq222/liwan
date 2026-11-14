@@ -61,8 +61,8 @@ const ME = {
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'company_tax.enabled', 'crm.enabled', 'crm.export', 'crm.import', 'customers.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -78,7 +78,8 @@ const BRANDING = {
 const COMPANY_COUNTRY = { id: 192, name: 'المملكة العربية السعودية', code: 'SA' }
 const COMPANY_STATES = { 192: [{ id: 1, name: 'الرياض', code: 'RUH' }, { id: 2, name: 'مكة المكرمة', code: 'MAK' }], 229: [{ id: 3, name: 'دبي', code: 'DU' }] }
 const COMPANY = {
-  id: 1, name: 'ليوان', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat_registered: true, vat: '300000000000003',
+  id: 1, name: 'ليوان', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000',
+  vat_registered: true, vat_registration_editable: true, is_root_company: true, vat: '300000000000003',
   address: {
     street: 'طريق الملك فهد', street2: 'العليا', city: 'الرياض', zip: '12211', state: { id: 1, name: 'الرياض' },
     country: COMPANY_COUNTRY,
@@ -91,6 +92,20 @@ const COMPANY = {
     { name: 'id_scheme', section: 'identity', kind: 'selection', label: 'نوع المعرّف الإضافي', value: 'CRN', options: [{ value: 'CRN', label: 'السجل التجاري' }, { value: 'MOM', label: 'رخصة البلدية' }] },
   ],
 }
+// The establishment's one tax choice (GET/PATCH /api/v1/admin/company/tax), kept beside the profile it shares its
+// registration with: a saved registration change updates both, so the profile's VAT number field follows the card.
+const COMPANY_TAX = { registered: true, price_mode: 'included' }
+function companyTax() {
+  return {
+    registered: COMPANY_TAX.registered,
+    price_mode: COMPANY_TAX.price_mode,
+    choice: COMPANY_TAX.registered ? COMPANY_TAX.price_mode : 'none',
+    locked: false,
+    can_change: true,
+    is_root_session: true,
+  }
+}
+
 const COMPANY_ADDRESS_FIELDS = ['street', 'street2', 'city', 'zip']
 const COMPANY_COMPLETENESS = [company => company.name, company => company.logo_url, company => company.address.country, ...['company_registry', 'vat', 'email', 'phone'].map(key => company => company[key]), ...['street', 'city', 'zip'].map(key => company => company.address[key])]
 
@@ -106,6 +121,8 @@ function patchCompany(patch) {
     else if (COMPANY.extensions.some(extension => extension.name === key)) COMPANY.extensions.find(extension => extension.name === key).value = value
     else COMPANY[key] = value
   }
+  // The registration is one establishment fact: the profile and the tax card answer it alike.
+  if (Object.hasOwn(patch, 'vat_registered')) COMPANY_TAX.registered = Boolean(patch.vat_registered)
 }
 
 const CHARTER = {
@@ -720,6 +737,23 @@ async function handle(req, res) {
   if (method === 'POST' && path === '/api/v1/admin/company/logo') {
     COMPANY.logo_url = BRANDING.logo_url
     return json(res, 200, companyProfile())
+  }
+  if (method === 'GET' && path === '/api/v1/admin/company/tax') return json(res, 200, companyTax())
+  if (method === 'PATCH' && path === '/api/v1/admin/company/tax') {
+    let patch = {}
+    try { patch = JSON.parse(await readBody(req) || '{}') } catch { patch = {} }
+    const unknown = Object.keys(patch).find(key => !['registered', 'price_mode'].includes(key))
+    if (unknown) return json(res, 422, { code: 'invalid', message: 'field is not accepted', field: unknown })
+    if (!Object.keys(patch).length) return json(res, 422, { code: 'invalid', message: 'no fields to update' })
+    if (Object.hasOwn(patch, 'registered') && typeof patch.registered !== 'boolean') return json(res, 422, { code: 'invalid', message: 'registered must be a boolean', field: 'registered' })
+    if (Object.hasOwn(patch, 'price_mode') && !['included', 'added'].includes(patch.price_mode)) return json(res, 422, { code: 'invalid', message: 'price_mode must be included or added', field: 'price_mode' })
+    if (Object.hasOwn(patch, 'price_mode')) COMPANY_TAX.price_mode = patch.price_mode
+    if (Object.hasOwn(patch, 'registered') && patch.registered !== COMPANY_TAX.registered) {
+      COMPANY_TAX.registered = patch.registered
+      // The registration lives on the same establishment fact the profile reports.
+      COMPANY.vat_registered = patch.registered
+    }
+    return json(res, 200, companyTax())
   }
   const states = match(path, '/api/v1/admin/company/countries/:id/states')
   if (method === 'GET' && states) return json(res, 200, { items: COMPANY_STATES[states.id] ?? [], total: (COMPANY_STATES[states.id] ?? []).length })

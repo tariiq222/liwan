@@ -526,12 +526,12 @@ describe('inbox audit mock: catalog and orders', () => {
     expect(items('sync_state=error')).toEqual([5])
     expect(items('review_status=rejected')).toEqual([6])
     expect(items('q=قهوة')).toEqual([1])
-    expect(call('POST', '/api/v1/inbox/catalogs', { channel_id: 1, meta_catalog_id: '1234567', connect: true, brand: 'x', default_link: null, prices_include_tax: true }).status).toBe(409)
+    expect(call('POST', '/api/v1/inbox/catalogs', { channel_id: 1, meta_catalog_id: '1234567', connect: true, brand: 'x', default_link: null }).status).toBe(409)
   })
 
   it('connects a checked catalog and maps provider refusals', () => {
     call('DELETE', '/api/v1/inbox/catalogs/1')
-    const body = { channel_id: 1, connect: true, brand: 'متجر', default_link: null, prices_include_tax: true }
+    const body = { channel_id: 1, connect: true, brand: 'متجر', default_link: null }
     expect(call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234000' }).body).toMatchObject({ field: 'meta_catalog_id' })
     expect(call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234999' }).body).toMatchObject({ code: 'provider_permission' })
     const created = call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234567' })

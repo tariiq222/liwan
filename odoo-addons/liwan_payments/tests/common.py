@@ -17,6 +17,26 @@ PAYMOB_CREDENTIALS = {
     'paymob_api_key': 'api_never_returned',
 }
 
+# The two values of stock's ``res.company.account_price_include``. Every test states the one its expected figures are
+# computed under: stock's own default is ``tax_excluded`` and ``liwan_api_account`` makes a new root start
+# ``tax_included``, so relying on either default makes a figure pass in one installation and fail in the other.
+TAX_EXCLUDED = 'tax_excluded'
+TAX_INCLUDED = 'tax_included'
+
+
+def company_values(name, price_mode=TAX_EXCLUDED, **values):
+    """Values for a company that states the price mode its expected figures are computed under.
+
+    A branch states its root's own value: base copies the root-delegated field on ``create`` and
+    ``_check_root_delegated_fields`` refuses a branch that differs.
+    """
+    return {'name': name, 'account_price_include': price_mode, **values}
+
+
+def branch_values(name, root, **values):
+    """Values for a branch of ``root`` that states the root's own price mode, as base's delegation requires."""
+    return company_values(name, price_mode=root.account_price_include, parent_id=root.id, **values)
+
 
 class LiwanPaymentsCase(LiwanApiCase):
     """The shared liwan_api fixture plus a system administrator and the company's stock Paymob provider."""
@@ -24,6 +44,11 @@ class LiwanPaymentsCase(LiwanApiCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # Every figure below is computed under ``tax_included``: 115 with a 15% tax is 100 + 15, never 115 + 17.25.
+        # Stating it here, before the fixture posts any journal item (stock refuses the change afterwards), keeps
+        # those figures independent of the installation's default: stock's own is ``tax_excluded`` and
+        # ``liwan_api_account`` makes a new root start ``tax_included``.
+        cls.env.company.write({'account_price_include': TAX_INCLUDED})
         if not os.environ.get(KEY_ENV):  # a class that also derives from an inbox case already has its key
             env_patch = patch.dict(os.environ, {KEY_ENV: base64.urlsafe_b64encode(os.urandom(32)).decode()})
             env_patch.start()
@@ -42,6 +67,17 @@ class LiwanPaymentsCase(LiwanApiCase):
 
     def login_admin(self):
         self.authenticate('payments_admin', 'payments_admin_pass_123')
+
+    def set_price_mode(self, root, mode):
+        """State the price mode of a whole establishment before any journal item exists (stock refuses it afterwards).
+
+        The root and every branch, archived ones included, are written together: with ``liwan_api_account`` installed
+        base's root delegation would copy the value anyway, and without it nothing does, so the helper does not depend on
+        which of the two installations runs. A branch never carries a mode different from its root's.
+        """
+        establishment = self.env['res.company'].with_context(active_test=False).search([('id', 'child_of', root.id)])
+        establishment.write({'account_price_include': mode})
+        return root
 
 
 class LiwanPayerCase(LiwanPaymentsCase):
@@ -133,10 +169,10 @@ class LiwanOrderCase(LiwanPayerCase):
         })
 
     @classmethod
-    def online_order(cls, prepayment_percent=1.0):
+    def online_order(cls, prepayment_percent=1.0, company=None, quantity=1, product=None):
         service = cls.env['liwan.payments.service']
-        order = service._liwan_new_order(cls.env.company, cls.customer, prepayment_percent)
-        service._liwan_add_line(order, cls.service)
+        order = service._liwan_new_order(company or cls.env.company, cls.customer, prepayment_percent)
+        service._liwan_add_line(order, product or cls.service, quantity=quantity)
         return cls.env['sale.order'].browse(order.id)
 
     def pay(self, order, amount):

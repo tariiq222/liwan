@@ -200,9 +200,19 @@ code is unique per company (422 `invalid` on `code`). Odoo refuses to archive a 
 A tax is a single `sale` or `purchase` tax, `percent` or `fixed`, with the default repartition (100% base, 100% tax).
 `tax_account_id` is required on creation and is where the tax amount is booked, on both the invoice and the credit-note
 distribution (a tax without one would book its amount on the line's expense or income account, and a receivable or payable
-account is refused by Odoo); group taxes, cash-basis settings and tax tags are not edited here. Once journal items use
-a tax (`used`), its kind, rate, price-include setting and tax account are fixed (422 `tax_in_use`); it can still be renamed or
-archived. A payment term is `{name, note?, lines: [{value: percent|fixed, value_amount, nb_days, delay_type?}]}`; the
+account is refused by Odoo); group taxes, cash-basis settings and tax tags are not edited here. A sale tax follows the
+establishment's one tax mode, stock's `res.company.account_price_include`: it carries no override, and `price_include` in a
+create or patch body is refused (422 `invalid` on that field). A purchase tax always carries its own answer, "tax added"
+unless the accountant sends `price_include: true`, so a vendor bill stays outside the sale mode. The answer is read back as
+`price_include`, the computed value, with `price_include_editable` true only for a purchase tax. A tax that changes its
+`type_tax_use` loses its override when it becomes a sale tax and takes `tax_excluded` when it becomes a purchase tax.
+Once journal items use a tax (`used`), its kind, rate, price-include setting and tax account are fixed (422 `tax_in_use`); it
+can still be renamed or archived. Reactivating an unused archived sale tax clears its old override only when it agrees
+with the company mode. Reactivating a used tax with an override or a tax with a conflicting override returns
+`tax_in_use`; create a new sale tax for new documents.
+The 19.0.1.8.0 migration lists and refuses any open sales documents whose calculation would change. Restore the
+pre-upgrade database and filestore, resolve those documents in the old version, and retry the upgrade from there.
+A payment term is `{name, note?, lines: [{value: percent|fixed, value_amount, nb_days, delay_type?}]}`; the
 percent lines must add up to 100 and a `PATCH` with `lines` replaces them. Terms without a company come with the chart
 and are shared: listed and readable, but 422 `shared_record` on every write. Both resources are archived, never deleted,
 and each write leaves an audit event with field names only.

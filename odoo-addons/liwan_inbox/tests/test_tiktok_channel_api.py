@@ -21,7 +21,7 @@ API = '/api/v1/inbox'
 CATALOG_BUSINESS_ACCOUNT_ID = '600000000001'
 CATALOG_ID = '300000000001'
 CATALOG_CREATE = {
-    'meta_catalog_id': CATALOG_ID, 'connect': False, 'brand': 'Acme', 'default_link': None, 'prices_include_tax': True,
+    'meta_catalog_id': CATALOG_ID, 'connect': False, 'brand': 'Acme', 'default_link': None,
 }
 # What a create needs so the body passes the field check and the channel kind is what refuses it.
 CAMPAIGN_CREATE = {

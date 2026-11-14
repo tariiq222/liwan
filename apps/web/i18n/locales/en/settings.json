@@ -96,6 +96,40 @@
         "logoSize": "The logo must not exceed 2 MB",
         "logoRead": "Could not read the logo image",
         "vatRequired": "Enter the VAT number before registering the company for VAT"
+      },
+      "tax": {
+        "title": "Establishment tax",
+        "hint": "One choice for every branch of the establishment: whether it is registered for VAT, and what the price typed on a product means.",
+        "changedFromRoot": "The establishment tax is changed from the main company only, not from a branch session.",
+        "lockNotice": "You cannot switch between \"price includes tax\" and \"tax added to the price\" after the establishment or any branch records its first accounting entry (an invoice, a payment or a bank line). VAT registration can always be changed.",
+        "lockedOption": "This option is fixed after the first accounting entry.",
+        "saved": "The establishment tax was saved",
+        "question": "Is the establishment registered for VAT, and what does a price typed on a product mean?",
+        "choices": {
+          "none": {
+            "label": "No tax",
+            "hint": "The establishment is not registered for VAT, so no tax is charged on product prices."
+          },
+          "included": {
+            "label": "Price includes tax",
+            "hint": "The price typed for the product is what the customer pays. Example: 100 = 86.96 before tax + 13.04 tax."
+          },
+          "added": {
+            "label": "Tax added to the price",
+            "hint": "The tax is added on top of the price typed for the product. Example: 100 + 15 = 115 that the customer pays."
+          }
+        },
+        "futureMode": {
+          "question": "After registering, what does the price you type for a product mean?",
+          "hint": "Choose now what the price typed on a product will mean if the establishment registers for VAT. This choice is fixed after the first accounting entry, and cannot be changed then."
+        },
+        "errors": {
+          "locked": "The price mode cannot change after the first accounting entry in the establishment or any branch.",
+          "forbidden": "You do not have the right to change the establishment tax, or you are working in a branch. It is changed from the main company with the VAT administration right.",
+          "invalid": "The tax choice could not be saved; check the values and try again.",
+          "invalidVat": "The VAT number is not valid for the country of the company. Check it and try again.",
+          "vatUnchecked": "The VAT number cannot be checked in this installation, so the establishment cannot be registered for VAT."
+        }
       }
     },
     "projects": {
@@ -342,7 +376,8 @@
         "profile": "Company profile",
         "address": "National address",
         "contact": "Contact",
-        "branding": "Identity and documents"
+        "branding": "Identity and documents",
+        "tax": "Establishment tax"
       },
       "team": {
         "title": "Team and permissions"

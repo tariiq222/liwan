@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { ApiErrorSchema, CustomerConflictDetailsSchema } from '../../index'
 import {
+  InboxCatalogCreateSchema,
   InboxCatalogItemCreateSchema,
   InboxCatalogItemPatchSchema,
+  InboxCatalogPatchSchema,
+  InboxCatalogSchema,
   InboxCommerceContentSchema,
   InboxMessageCommerceSchema,
   InboxOrderCheckoutSchema,
@@ -56,6 +59,40 @@ describe('message commerce block', () => {
       lines: [{ product_retailer_id: 'sku', product: null, quantity: 1, item_price: 7.99, currency: 'SAR' }],
       order: null,
     }).success).toBe(true)
+  })
+})
+
+const CATALOG = {
+  id: 1,
+  business_account_id: '200000000001',
+  meta_catalog_id: '300000000001',
+  name: 'Shop',
+  state: 'connected' as const,
+  last_error: null,
+  brand: 'Acme',
+  default_link: null,
+  currency: 'SAR',
+  channels: [{ id: 2, name: 'Main', cart_enabled: true, catalog_visible: false }],
+  counts: { items: 0, synced: 0, pending: 0, error: 0, rejected: 0 },
+  last_sync_at: null,
+  created_at: '2026-01-01T00:00:00Z',
+}
+
+describe('catalog tax option', () => {
+  it('has no per-catalog tax option: one tax mode lives on the company', () => {
+    expect(InboxCatalogSchema.parse(CATALOG)).toEqual(CATALOG)
+    expect(InboxCatalogSchema.safeParse({ ...CATALOG, prices_include_tax: true }).success).toBe(false)
+    // Nothing reads the establishment's registration from the catalog answer: it is the company tax choice's.
+    expect(InboxCatalogSchema.safeParse({ ...CATALOG, vat_registered: true }).success).toBe(false)
+    expect(InboxCatalogCreateSchema.safeParse({
+      channel_id: 1, meta_catalog_id: '300000000001', connect: true, brand: 'Acme', default_link: null,
+    }).success).toBe(true)
+    expect(InboxCatalogCreateSchema.safeParse({
+      channel_id: 1, meta_catalog_id: '300000000001', connect: true, brand: 'Acme', default_link: null,
+      prices_include_tax: true,
+    }).success).toBe(false)
+    expect(InboxCatalogPatchSchema.safeParse({ brand: 'Acme' }).success).toBe(true)
+    expect(InboxCatalogPatchSchema.safeParse({ prices_include_tax: true }).success).toBe(false)
   })
 })
 

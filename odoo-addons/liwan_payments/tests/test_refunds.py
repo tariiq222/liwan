@@ -5,7 +5,7 @@ from odoo import Command, fields
 from odoo.exceptions import AccessError, LockError
 from odoo.tests import new_test_user, tagged
 
-from .common import LiwanOrderCase
+from .common import LiwanOrderCase, branch_values, company_values
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_payments.models.order_service import (
     RefundConflict,
@@ -265,20 +265,21 @@ class TestRecordedRefunds(LiwanRefundCase):
         self.assertEqual(credit_note.l10n_sa_reason, 'BR-KSA-17-reason-1')
 
     def registered(self):
-        """Only a company registered for VAT charges a tax on what it sells (test_vat_registered covers the other case)."""
+        """Only an establishment registered for VAT charges a tax on what it sells (test_vat_registered covers the other case)."""
         self.env.company.write({'vat': '300000000000003', 'liwan_vat_registered': True})
 
     def test_a_partial_credit_note_with_a_fixed_tax_credits_its_share(self):
         self.registered()
         fixed = self.env['account.tax'].create({'name': 'Fixed 10', 'amount_type': 'fixed', 'amount': 10, 'type_tax_use': 'sale'})
         product = self.env['product.product'].create({
-            'name': 'Fixed tax service', 'type': 'service', 'list_price': 100.0, 'taxes_id': [Command.set(fixed.ids)],
+            'name': 'Fixed tax service', 'type': 'service', 'list_price': 110.0, 'taxes_id': [Command.set(fixed.ids)],
         })
         self.rules(product=product, refund_amounts='any')
-        # A fixed tax is added to the price here; the company default (price includes tax) is covered in test_online_orders.
-        self.env['liwan.payments.settings'].create({'company_id': self.env.company.id, 'tax_mode': 'added'})
+        # The company's stock tax mode decides where the fixed tax sits; the price here is the total under either
+        # mode (110 with the 10 inside it, or 100 plus 10), and the share credits half of each.
         order = self.service_api._liwan_new_order(self.env.company, self.customer)
         self.service_api._liwan_add_line(order, product)
+        self.assertEqual((order.order_line.tax_ids, order.amount_total), (fixed, 110.0))
         self.pay(order, order.amount_total)
         self.service_api._liwan_request_cancel(order)
         self.assertEqual(order.amount_total, 110.0)
@@ -364,7 +365,7 @@ class TestOrderRoutes(LiwanRefundCase):
                 self.assertEqual((response.status_code, response.json()['field']), (422, field))
 
     def test_another_company_order_and_a_plain_order_are_not_found(self):
-        other = self.env['res.company'].create({'name': 'Other payments company'})
+        other = self.env['res.company'].create(company_values('Other payments company'))
         foreign = self.service_api._liwan_new_order(other, self.customer)
         plain = self.env['sale.order'].create({'partner_id': self.customer.id})
         self.login_admin()
@@ -374,13 +375,13 @@ class TestOrderRoutes(LiwanRefundCase):
         self.assertNotIn(foreign.id, [item['id'] for item in self.api('GET', ORDERS).json()['items']])
 
     def test_a_refund_of_another_company_order_is_not_found(self):
-        other = self.env['res.company'].create({'name': 'Refund other company'})
+        other = self.env['res.company'].create(company_values('Refund other company'))
         foreign = self.service_api._liwan_new_order(other, self.customer)
         self.authenticate('payments_refunder', 'payments_refunder_pass_123')
         self.assertEqual(self.refund(foreign, amount=115.0, reference='PMB-R-16').status_code, 404)
 
     def test_capabilities_held_in_a_branch_open_nothing_of_the_parent(self):
-        branch = self.env['res.company'].create({'name': 'Refund branch', 'parent_id': self.env.company.id})
+        branch = self.env['res.company'].create(branch_values('Refund branch', self.env.company))
         user = self.payments_user(
             'payments_branch_refunder', ('payments.orders.read', 'payments.refund'), branch,
             companies=self.env.company | branch,

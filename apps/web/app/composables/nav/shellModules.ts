@@ -44,6 +44,7 @@ function settingsNavItems(): NavItem[] {
       to: part.navTo ?? to,
       labelKey: part.labelKey, icon: part.icon, capability: part.capability,
       ...(part.anyCapabilities ? { anyCapabilities: part.anyCapabilities } : {}),
+      ...(part.feature ? { feature: part.feature } : {}),
       shortcut: keys?.shortcut ?? '', ...(keys?.goKey ? { goKey: keys.goKey } : {}), group: 'settings', module: 'settings',
     }
   }))
@@ -162,7 +163,17 @@ const partNavPath = (page: SettingsPage, part: AppSettingsPart) => part.to ?? pa
 
 export function visibleSettingsPages(identity?: AccessIdentity): { page: SettingsPage; parts: AppSettingsPart[] }[] {
   return settingsPages()
-    .map(page => ({ page, parts: page.parts.filter(part => !(part.rootOnly && identity?.is_root_company === false)).filter(part => identity === undefined || navAllowed(identity, part.capability, partNavPath(page, part)) || (part.anyCapabilities ?? []).some(key => navAllowed(identity, key, partNavPath(page, part)))) }))
+    .map(page => ({
+      page,
+      parts: page.parts
+        .filter(part => !(part.rootOnly && identity?.is_root_company === false))
+        .filter(part => {
+          if (identity === undefined) return true
+          const path = partNavPath(page, part)
+          return navAllowed(identity, part.capability, path, part.feature)
+            || (part.anyCapabilities ?? []).some(key => navAllowed(identity, key, path, part.feature))
+        }),
+    }))
     .filter(({ parts }) => parts.length > 0)
 }
 
@@ -174,6 +185,7 @@ function partLinks({ page, parts }: { page: SettingsPage; parts: AppSettingsPart
   return parts.map((part): ShellContextLink => ({
     id: part.id, labelKey: part.labelKey, icon: part.icon, to: settingsPartTarget(page, part), capability: part.capability,
     section: page.labelKey,
+    ...(part.feature ? { feature: part.feature } : {}),
     ...(part.within ? { within: part.within } : {}), ...(partIsExact(part, parts) ? { exact: true } : {}),
   }))
 }
@@ -185,8 +197,8 @@ function partLinks({ page, parts }: { page: SettingsPage; parts: AppSettingsPart
  */
 function openingCapability(identity: AccessIdentity | undefined, page: SettingsPage, part: AppSettingsPart): string {
   const path = partNavPath(page, part)
-  if (!identity || navAllowed(identity, part.capability, path)) return part.capability
-  return (part.anyCapabilities ?? []).find(key => navAllowed(identity, key, path)) ?? part.capability
+  if (!identity || navAllowed(identity, part.capability, path, part.feature)) return part.capability
+  return (part.anyCapabilities ?? []).find(key => navAllowed(identity, key, path, part.feature)) ?? part.capability
 }
 
 /**

@@ -7,6 +7,7 @@ from odoo import SUPERUSER_ID, Command, api, sql_db
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests import new_test_user, tagged
 
+from .common import company_values
 from .write_common import PASSWORD, LiwanFinanceWriteCase
 from odoo.addons.liwan_finance.models.zatca_runtime import (
     STOCK_JOURNAL_LOGGER,
@@ -72,7 +73,7 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
             with self.subTest(mode=mode), self.assertRaises(ValidationError), self.env.cr.savepoint():
                 self.company.sudo().write({'l10n_sa_api_mode': mode})
         with self.assertRaises(ValidationError), self.env.cr.savepoint():
-            self.env['res.company'].with_context(default_l10n_sa_api_mode='prod').create({'name': 'Refused'})
+            self.env['res.company'].with_context(default_l10n_sa_api_mode='prod').create(company_values('Refused'))
 
     def test_native_sandbox_post_callback_delegates_and_other_operations_are_preserved(self):
         move = self.env['account.move'].browse(self.create_invoice()['id'])

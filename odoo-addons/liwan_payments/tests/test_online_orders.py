@@ -6,7 +6,13 @@ from odoo.exceptions import LockError, UserError
 from odoo.tests import tagged
 from odoo.tools import mute_logger
 
-from .common import LiwanOrderCase
+from .common import (
+    TAX_EXCLUDED,
+    TAX_INCLUDED,
+    LiwanOrderCase,
+    branch_values,
+    company_values,
+)
 from .test_payer import CHECKOUT, OPTION_KEYS
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_payments.models.order_service import (
@@ -264,106 +270,136 @@ class TestOnlineOrderMoney(LiwanOrderCase):
 
 
 @tagged('post_install', '-at_install', 'liwan')
-class TestOnlineOrderTaxMode(LiwanOrderCase):
-    """A VAT-registered company decides whether the price of a product contains its tax (the default) or has it added (issue #288)."""
+class TestOnlineOrderTaxFromStock(LiwanOrderCase):
+    """An online order line keeps the taxes stock computed for it: one tax mode per establishment, in stock.
+
+    ``res.company.account_price_include`` decides whether a typed price is charged whole or has its tax added. A
+    test needs its own establishment: once a company has a journal item, stock locks that setting, and the shared
+    fixture posts an invoice. An establishment that is not registered for VAT charges no tax at all
+    (test_vat_registered covers that rule on the shared fixture).
+    """
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.vat = cls.env['account.tax'].create({
-            'name': 'Order VAT 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
-            'company_id': cls.env.company.id,
-        })
-        cls.service.taxes_id = [Command.set(cls.vat.ids)]
-        # Only a company registered for VAT charges one; test_vat_registered covers the unregistered case.
-        cls.env.company.write({'vat': '300000000000003', 'liwan_vat_registered': True})
+        cls.root = cls.company_established('Tax establishment')
+        cls.branch = cls.company_established('Tax branch', parent=cls.root)
+        cls.root_vat, cls.branch_vat = cls.root_tax(), cls.branch_tax()
+        cls.root_product = cls.taxed_product('Root taxed consultation', cls.root_vat)
+        cls.branch_product = cls.taxed_product('Branch taxed consultation', cls.branch_vat)
+        # No pricelist: the line takes the product's own 115 in the company's currency.
+        cls.tax_customer = cls.env['res.partner'].create({'name': 'Tax customer'})
 
-    def set_mode(self, mode):
-        self.env['liwan.payments.settings'].search([('company_id', '=', self.env.company.id)]).unlink()
-        self.env['liwan.payments.settings'].create({'company_id': self.env.company.id, 'tax_mode': mode})
+    @classmethod
+    def company_established(cls, name, parent=None):
+        """A company of its own, so its stock tax mode can still be chosen.
+
+        The establishment's VAT registration is one decision, stored on the root: the root is created registered and a
+        branch answers ``_liwan_vat_registered()`` through the root, with no registration stored on its own row. The
+        price mode is stated (the root's, a branch's alike) instead of taking the installation's default.
+        """
+        country = {'country_id': cls.env.ref('base.sa').id, 'currency_id': cls.env.ref('base.SAR').id}
+        if parent:
+            return cls.env['res.company'].create(branch_values(name, parent, **country))
+        return cls.env['res.company'].create(company_values(
+            name, price_mode=TAX_INCLUDED, **country, vat='300000000000003', liwan_vat_registered=True,
+        ))
+
+    @classmethod
+    def taxed_product(cls, name, tax):
+        return cls.env['product.product'].create({
+            'name': name, 'type': 'service', 'list_price': 115.0, 'taxes_id': [Command.set(tax.ids)],
+        })
+
+    @classmethod
+    def root_tax(cls):
+        group = cls.env['account.tax.group'].create({'name': 'Tax group', 'company_id': cls.root.id})
+        return cls.env['account.tax'].create({
+            'name': 'Order VAT 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.root.id, 'tax_group_id': group.id,
+        })
+
+    @classmethod
+    def branch_tax(cls):
+        group = cls.env['account.tax.group'].create({'name': 'Branch tax group', 'company_id': cls.branch.id})
+        return cls.env['account.tax'].create({
+            'name': 'Branch VAT 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.branch.id, 'tax_group_id': group.id,
+        })
+
+    def establishment_mode(self, mode):
+        """One mode for the whole establishment; stock reads the value of the company that owns the tax.
+
+        Written on the root alone: base copies the root-delegated field to the active branch.
+        """
+        self.set_price_mode(self.root, mode)
+
+    def order(self, company, product, quantity=1):
+        service = self.env['liwan.payments.service']
+        order = service._liwan_new_order(company, self.tax_customer)
+        service._liwan_add_line(order, product, quantity=quantity)
+        return self.env['sale.order'].browse(order.id)
 
     def payable(self, order):
         response = self.api('GET', f'/api/v1/public/payments/orders/{order.id}?access_token={order._portal_ensure_token()}')
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
 
-    def test_the_default_is_a_price_that_contains_its_tax_and_the_tax_is_a_line(self):
-        order = self.online_order()
-        self.assertEqual((order.amount_total, order.amount_untaxed, order.amount_tax), (115.0, 100.0, 15.0))
-        body = self.payable(order)
-        self.assertEqual((body['amount_total'], body['amount_untaxed'], body['amount_tax'], body['amount_due']), (115.0, 100.0, 15.0, 115.0))
+    def test_a_price_that_includes_the_tax_is_charged_whole_for_one_and_three(self):
+        self.establishment_mode(TAX_INCLUDED)
+        for quantity, untaxed, tax in ((1, 100.0, 15.0), (3, 300.0, 45.0)):
+            with self.subTest(quantity=quantity):
+                order = self.order(self.root, self.root_product, quantity)
+                self.assertEqual((order.amount_untaxed, order.amount_tax, order.amount_total), (untaxed, tax, untaxed + tax))
+                self.assertEqual(order.amount_total, 115.0 * quantity)
+                self.assertEqual(order.order_line.tax_ids, self.root_vat)
+                self.assertEqual(self.payable(order)['amount_total'], 115.0 * quantity)
+
+    def test_a_tax_added_to_the_price_is_charged_on_top_for_one_and_three(self):
+        self.establishment_mode(TAX_EXCLUDED)
+        for quantity, untaxed, tax in ((1, 115.0, 17.25), (3, 345.0, 51.75)):
+            with self.subTest(quantity=quantity):
+                order = self.order(self.root, self.root_product, quantity)
+                self.assertEqual((order.amount_untaxed, order.amount_tax, order.amount_total), (untaxed, tax, untaxed + tax))
+                self.assertEqual(order.amount_total, 132.25 * quantity)
+                self.assertEqual(order.order_line.tax_ids, self.root_vat)
+                self.assertEqual(self.payable(order)['amount_total'], 132.25 * quantity)
 
     def test_an_odd_price_is_charged_to_the_cent(self):
-        self.service.list_price = 150.0
-        self.customer.property_product_pricelist.item_ids.fixed_price = 150.0
-        order = self.online_order()
-        self.assertEqual(order.amount_total, 150.0)
-        self.assertEqual(order.amount_untaxed + order.amount_tax, 150.0)
+        # A price that would not survive an inclusive tax (an odd cent) is charged whole, with the tax inside it.
+        self.establishment_mode(TAX_INCLUDED)
+        self.root_product.list_price = 99.99
+        order = self.order(self.root, self.root_product)
+        self.assertEqual(order.currency_id.compare_amounts(order.amount_total, 99.99), 0)
+        self.assertEqual(order.currency_id.compare_amounts(order.amount_untaxed + order.amount_tax, 99.99), 0)
 
-    def test_a_tax_added_company_charges_the_price_plus_the_tax(self):
-        self.set_mode('added')
-        order = self.online_order()
-        self.assertEqual((order.amount_total, order.amount_untaxed, order.amount_tax), (132.25, 115.0, 17.25))
-        body = self.payable(order)
-        self.assertEqual((body['amount_total'], body['amount_tax'], body['amount_due']), (132.25, 17.25, 132.25))
+    def test_a_branch_order_follows_a_sale_tax_its_root_owns(self):
+        for mode, total_one, total_three in ((TAX_INCLUDED, 115.0, 345.0), (TAX_EXCLUDED, 132.25, 396.75)):
+            with self.subTest(mode=mode):
+                self.establishment_mode(mode)
+                for quantity, total in ((1, total_one), (3, total_three)):
+                    with self.subTest(quantity=quantity):
+                        order = self.order(self.branch, self.root_product, quantity)
+                        self.assertEqual(order.company_id, self.branch)
+                        self.assertEqual(order.order_line.tax_ids, self.root_vat)
+                        self.assertEqual(order.amount_total, total)
 
-    def test_the_price_included_twin_is_made_once_and_the_original_tax_is_untouched(self):
-        self.online_order()
-        self.online_order()
-        twins = self.env['account.tax'].with_context(active_test=False).search([
-            ('company_id', '=', self.env.company.id), ('type_tax_use', '=', 'sale'), ('amount', '=', 15.0),
-            ('price_include_override', '=', 'tax_included'),
-        ])
-        self.assertEqual(len(twins), 1)
-        self.assertFalse(self.vat.price_include)
-        self.assertEqual(self.service.taxes_id, self.vat)
+    def test_a_branch_order_follows_a_sale_tax_the_branch_owns(self):
+        for mode, total_one, total_three in ((TAX_INCLUDED, 115.0, 345.0), (TAX_EXCLUDED, 132.25, 396.75)):
+            with self.subTest(mode=mode):
+                self.establishment_mode(mode)
+                for quantity, total in ((1, total_one), (3, total_three)):
+                    with self.subTest(quantity=quantity):
+                        order = self.order(self.branch, self.branch_product, quantity)
+                        self.assertEqual(order.order_line.tax_ids, self.branch_vat)
+                        self.assertEqual(order.amount_total, total)
 
-    def test_a_changed_tax_gets_a_new_included_copy_and_the_old_one_is_archived(self):
-        self.online_order()
-        first = self.env['account.tax'].search([('liwan_copy_of_id', '=', self.vat.id)])
-        self.assertEqual(len(first), 1)
-        self.vat.amount = 10.0
-        order = self.online_order()
-        second = self.env['account.tax'].search([('liwan_copy_of_id', '=', self.vat.id)])
-        self.assertEqual((len(second), second.amount, first.active), (1, 10.0, False))
-        self.assertEqual(order.amount_total, 115.0)
-
-    def test_a_price_included_product_tax_is_added_on_top_when_the_company_adds_tax(self):
-        included = self.env['account.tax'].create({
-            'name': 'Order VAT included 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
-            'company_id': self.env.company.id, 'price_include_override': 'tax_included',
-        })
-        self.service.taxes_id = [Command.set(included.ids)]
-        self.set_mode('added')
-        order = self.online_order()
-        self.assertEqual((order.amount_untaxed, order.amount_tax, order.amount_total), (115.0, 17.25, 132.25))
-        copies = self.env['account.tax'].search([('liwan_copy_of_id', '=', included.id)])
-        self.assertEqual((len(copies), copies.price_include_override), (1, 'tax_excluded'))
-        # The original tax is what every other document keeps using.
-        self.assertTrue(included.price_include)
-        self.assertEqual(self.service.taxes_id, included)
-        self.set_mode('included')
-        self.assertEqual(self.online_order().amount_total, 115.0)
-
-    def test_a_group_tax_is_charged_through_its_children_inside_the_price(self):
-        other = self.env['account.tax'].create({
-            'name': 'Order second 5%', 'amount': 5.0, 'amount_type': 'percent', 'type_tax_use': 'sale', 'company_id': self.env.company.id,
-        })
-        group = self.env['account.tax'].create({
-            'name': 'Order group', 'amount_type': 'group', 'type_tax_use': 'sale', 'company_id': self.env.company.id,
-            'children_tax_ids': [Command.set((self.vat | other).ids)],
-        })
-        self.service.taxes_id = [Command.set(group.ids)]
-        order = self.online_order()
-        self.assertEqual(order.amount_total, 115.0)
-        self.assertEqual(order.order_line.tax_ids.mapped('amount_type'), ['percent', 'percent'])
-        self.assertTrue(all(tax.price_include for tax in order.order_line.tax_ids))
-
-    def test_the_setting_is_read_and_changed_through_the_api(self):
-        self.login_admin()
-        self.assertEqual(self.api('GET', '/api/v1/payments/settings').json()['tax_mode'], 'included')
-        changed = self.api('PATCH', '/api/v1/payments/settings', json={'revision': 0, 'tax_mode': 'added'})
-        self.assertEqual((changed.status_code, changed.json()['tax_mode']), (200, 'added'))
-        self.assertEqual(self.env['liwan.payments.settings']._liwan_tax_mode(self.env.company), 'added')
-        refused = self.api('PATCH', '/api/v1/payments/settings', json={'revision': 1, 'tax_mode': 'maybe'})
-        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'tax_mode'))
+    def test_adding_an_order_line_creates_no_tax_and_leaves_the_original_untouched(self):
+        # The tax copies the order service made are gone: a line never writes to the tax catalog.
+        before = self.env['account.tax'].with_context(active_test=False).search_count([])
+        order = self.order(self.root, self.root_product, 3)
+        after = self.env['account.tax'].with_context(active_test=False).search_count([])
+        self.assertEqual(after, before)
+        self.assertFalse(self.root_vat.price_include_override)
+        self.assertEqual(self.root_product.taxes_id, self.root_vat)
+        self.assertEqual(order.order_line.tax_ids, self.root_vat)
