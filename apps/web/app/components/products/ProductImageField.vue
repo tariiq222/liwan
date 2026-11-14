@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PRODUCT_LIMITS } from '@liwan/contracts'
+import { PRODUCT_LIMITS, type ProductImage } from '@liwan/contracts'
 import { PRODUCT_IMAGE_ACCEPT, productImageBody, productImageProblem, type ProductImageProblem } from '@/composables/products/productImage'
 import type { ProductImageChange } from '@/composables/products/productPayload'
 
@@ -10,7 +10,7 @@ const props = defineProps<{ modelValue: ProductImageChange; stored: boolean; dis
 const emit = defineEmits<{ 'update:modelValue': [value: ProductImageChange] }>()
 const { t, n } = useI18n()
 const picker = ref<{ reset: () => void } | null>(null)
-const problem = ref<ProductImageProblem | null>(null)
+const problem = ref<ProductImageProblem | 'unreadable' | null>(null)
 const preview = ref<string | null>(null)
 const fileName = ref('')
 
@@ -21,17 +21,30 @@ function dropPreview() {
 watch(() => props.modelValue.kind, (kind) => { if (kind !== 'set') dropPreview() })
 onBeforeUnmount(dropPreview)
 
+// Each choice is read on its own turn: a file still being read when the user picks another is dropped.
+let turn = 0
 async function choose(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
   problem.value = productImageProblem(file)
   if (problem.value) { picker.value?.reset(); return }
+  const mine = ++turn
+  let image: ProductImage
+  try {
+    image = await productImageBody(file)
+  } catch {
+    // The browser could not read the file (it was moved or deleted after it was chosen): nothing is chosen.
+    if (mine === turn) { problem.value = 'unreadable'; picker.value?.reset() }
+    return
+  }
+  if (mine !== turn) return
   dropPreview()
   preview.value = URL.createObjectURL(file)
   fileName.value = file.name
-  emit('update:modelValue', { kind: 'set', image: await productImageBody(file) })
+  emit('update:modelValue', { kind: 'set', image })
 }
 function setChange(change: ProductImageChange) {
+  turn += 1
   problem.value = null
   picker.value?.reset()
   emit('update:modelValue', change)
@@ -46,6 +59,7 @@ const problemText = computed(() => {
   if (problem.value === 'type') return t('products.form.image.badType')
   if (problem.value === 'empty') return t('products.form.image.empty')
   if (problem.value === 'tooLarge') return t('products.form.image.tooLarge', { size: n(PRODUCT_LIMITS.imageBytes / (1024 * 1024)) })
+  if (problem.value === 'unreadable') return t('products.form.image.unreadable')
   return props.error
 })
 </script>

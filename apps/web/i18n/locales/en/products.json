@@ -85,7 +85,8 @@
         "previewAlt": "The new product image",
         "badType": "Choose a JPEG or PNG image",
         "empty": "The file is empty",
-        "tooLarge": "The image is larger than {size} MB"
+        "tooLarge": "The image is larger than {size} MB",
+        "unreadable": "The file could not be read. Choose the image again."
       },
       "errors": {
         "name": "The product name is not valid",
