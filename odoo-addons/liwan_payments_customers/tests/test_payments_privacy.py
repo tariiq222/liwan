@@ -5,7 +5,7 @@ import io
 import openpyxl
 
 from odoo import Command
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_customers.models import privacy_hooks
@@ -103,3 +103,26 @@ class TestPaymentsPrivacy(LiwanPaymentsCase):
         self.assertEqual((caught.exception.status, caught.exception.code), (409, 'erase_incomplete'))
         self.env.invalidate_all()
         self.assertEqual((self.customer.name, self.tx.partner_email, self.token.active), (NAME, EMAIL, True))
+
+    def test_a_privacy_holder_who_is_also_a_salesman_sees_every_order_of_the_subject(self):
+        """Stock limits a salesman to own or unassigned orders; the privacy groups read every order of the subject."""
+        seller = new_test_user(self.env, login='privacy_seller', groups='base.group_user')
+        self.order.user_id = seller
+        officer = new_test_user(
+            self.env, login='privacy_officer_seller',
+            groups='base.group_user,sales_team.group_sale_salesman,liwan_customers.group_cap_customers_privacy_export',
+        )
+        hooks = self.env['liwan.customers.privacy.hooks'].with_user(officer)
+        domain = payments_hooks.order_domain(self.customer)
+        self.assertEqual(hooks._liwan_payments_search('sale.order', domain), self.order)
+        line_domain = payments_hooks.order_line_domain(self.customer)
+        self.assertEqual(hooks._liwan_payments_search('sale.order.line', line_domain), self.order.order_line)
+
+    def test_a_salesman_without_a_privacy_capability_still_does_not_see_the_order_of_another_seller(self):
+        seller = new_test_user(self.env, login='privacy_other_seller', groups='base.group_user')
+        self.order.user_id = seller
+        salesman = new_test_user(
+            self.env, login='privacy_plain_salesman', groups='base.group_user,sales_team.group_sale_salesman',
+        )
+        hooks = self.env['liwan.customers.privacy.hooks'].with_user(salesman)
+        self.assertFalse(hooks._liwan_payments_search('sale.order', payments_hooks.order_domain(self.customer)))
