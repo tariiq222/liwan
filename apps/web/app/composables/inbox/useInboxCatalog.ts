@@ -5,7 +5,6 @@ import {
   InboxCatalogItemSchema,
   InboxCatalogListSchema,
   InboxCatalogPickItemListSchema,
-  InboxCatalogProductOptionListSchema,
   InboxCatalogSchema,
   InboxChannelCommerceSchema,
   type InboxCatalogCreate,
@@ -17,7 +16,7 @@ import {
 } from '@liwan/contracts'
 import { hasFeature } from '../../modules/registry'
 
-// Catalogs, their items, a channel's commerce settings and the product picker. Every key starts with 'inbox', so the
+// Catalogs, their items, a channel's commerce settings and the message product picker. Every key starts with 'inbox', so the
 // bus handler's invalidation of ['inbox'] refreshes them with the rest of the inbox.
 export const CATALOG_FEATURE = 'inbox.catalog'
 
@@ -26,7 +25,6 @@ export const inboxCatalogKeys = {
   catalog: (id: number) => ['inbox', 'catalog', id] as const,
   items: (catalogId: number, filters: object) => ['inbox', 'catalog-items', catalogId, filters] as const,
   item: (id: number) => ['inbox', 'catalog-item', id] as const,
-  products: (catalogId: number, q: string) => ['inbox', 'catalog-products', catalogId, q] as const,
   commerce: (channelId: number) => ['inbox', 'channel-commerce', channelId] as const,
   pick: (source: PickSource, q: string) => ['inbox', 'catalog-pick', source, q] as const,
 }
@@ -116,18 +114,6 @@ export function useInboxCatalogItems(catalogId: MaybeRefOrGetter<number | null>,
     placeholderData: keepPreviousData,
     retry: false,
     queryFn: () => $api(`/api/v1/inbox/catalogs/${toValue(catalogId)}/items`, { query: cleanFilters(toValue(filters)), schema: InboxCatalogItemListSchema }),
-  })
-}
-
-/** The company's products that may be listed (search by name); rows say whether they have an image and are already listed. */
-export function useInboxCatalogProducts(catalogId: MaybeRefOrGetter<number | null>, q: MaybeRefOrGetter<string>) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => inboxCatalogKeys.products(toValue(catalogId) ?? 0, toValue(q).trim())),
-    enabled: computed(() => !!toValue(catalogId)),
-    placeholderData: keepPreviousData,
-    retry: false,
-    queryFn: () => $api(`/api/v1/inbox/catalogs/${toValue(catalogId)}/products`, { query: { q: toValue(q).trim() || undefined, limit: 50 }, schema: InboxCatalogProductOptionListSchema }),
   })
 }
 

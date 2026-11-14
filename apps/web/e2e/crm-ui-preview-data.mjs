@@ -1,6 +1,8 @@
 // Synthetic CRM for the isolated mock (MODULE_UI_PREVIEW=1): the settings, the terms and the five settings lists.
 // Shapes follow packages/contracts/src/crm. It keeps state, so the settings page can save against it; POST
 // /api/v1/__mock/reset-crm restores the seeds between spec runs. Revision conflicts answer 409 like the server.
+import { findMockProduct } from './products-mock-routes.mjs'
+
 const SEED_PROPERTIES = [
   { key: 'sector', label: 'القطاع', type: 'selection', options: [{ key: 'retail', label: 'تجزئة' }, { key: 'services', label: 'خدمات' }] },
   { key: 'city', label: 'المدينة', type: 'char' },
@@ -83,6 +85,7 @@ const seedLists = () => ({
     { id: 1, name: 'الموقع', active: true },
     { id: 2, name: 'معرض', active: true },
   ],
+  // The company's packages are products of the products service (products-mock-routes.mjs): the unit price as typed on the product.
   packages: [
     { id: 1, name: 'باقة أساسية', price: 120, description: 'مكالمات محدودة', active: true },
     { id: 2, name: 'باقة متقدمة', price: 280, description: 'مكالمات غير محدودة', active: true },
@@ -214,6 +217,28 @@ export function crmPreviewData(path, url) {
   return undefined
 }
 
+// A package is a product the company adds by its id (POST) and drops from its list (DELETE); there is no PATCH, and a
+// product that cannot be picked answers 404 like the products service.
+function packageWrite(method, id, rows, body) {
+  if (method === 'POST' && !id) {
+    const product = findMockProduct(body.product_id)
+    if (!Number.isInteger(body.product_id) || Object.keys(body).length !== 1) return invalid('product_id', 'must be a product id')
+    if (!product) return { status: 404, body: { code: 'not_found', message: 'Record does not exist' } }
+    let created = rows.find(item => item.id === product.id)
+    if (!created) {
+      created = { id: product.id, name: product.name, price: product.unit_price, description: '', active: true }
+      rows.push(created)
+    }
+    return { status: 200, body: created }
+  }
+  const target = rows.find(item => item.id === id)
+  if (method === 'DELETE' && target) {
+    rows.splice(rows.indexOf(target), 1)
+    return { status: 200, body: target }
+  }
+  return method === 'DELETE' ? { status: 404, body: { code: 'not_found', message: 'Record does not exist' } } : undefined
+}
+
 export function crmPreviewWrite(method, path, body) {
   if (path === '/api/v1/__mock/reset-crm') {
     settings = seedSettings()
@@ -254,8 +279,9 @@ export function crmPreviewWrite(method, path, body) {
   const row = path.match(/^\/api\/v1\/crm\/(stages|outcomes|lost-reasons|sources|packages)(?:\/(\d+))?$/)
   if (!row) return undefined
   const rows = lists[row[1]]
+  if (row[1] === 'packages') return packageWrite(method, row[2] && Number(row[2]), rows, body)
   if (method === 'POST' && !row[2]) {
-    const created = { id: Math.max(0, ...rows.map(item => item.id)) + 1, active: true, ...(row[1] === 'stages' ? { sequence: (rows.length + 1) * 10, is_won: false } : {}), ...(row[1] === 'outcomes' ? { lost_reason_id: null } : {}), ...(row[1] === 'lost-reasons' ? { protected: false } : {}), ...(row[1] === 'packages' ? { description: '' } : {}), ...body }
+    const created = { id: Math.max(0, ...rows.map(item => item.id)) + 1, active: true, ...(row[1] === 'stages' ? { sequence: (rows.length + 1) * 10, is_won: false } : {}), ...(row[1] === 'outcomes' ? { lost_reason_id: null } : {}), ...(row[1] === 'lost-reasons' ? { protected: false } : {}), ...body }
     rows.push(created)
     return { status: 200, body: created }
   }

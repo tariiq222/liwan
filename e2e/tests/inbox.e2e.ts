@@ -256,8 +256,8 @@ test('a manager adds a product, sends a product list, and a customer cart is pai
   await expect(screen.getByText('قهوة مختصة 250 غ')).toBeVisible(slow);
   await screen.getByTestId('inbox-catalog-item-add').tap();
   await expect(browser).toHaveURL(/\/items\/new/, slow);
-  await screen.getByTestId('inbox-item-product-search').fill('شاي');
-  await screen.getByTestId('inbox-item-product-201').tap();
+  await screen.getByTestId('product-picker-search').fill('شاي');
+  await screen.getByTestId('product-picker-option-201').tap();
   await screen.getByTestId('inbox-item-submit').tap();
   await expect(browser).toHaveURL(/\/items\/\d+$/, slow);
   await expect(screen.getByText('شاي أخضر').first()).toBeVisible(slow);

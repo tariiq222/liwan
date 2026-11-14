@@ -15,6 +15,7 @@ import { baselineGateCheck, handleBaselines } from './pmo-baseline-mock-routes.m
 import { handleChanges } from './pmo-change-mock-routes.mjs'
 import { handleEvm } from './pmo-evm-mock-routes.mjs'
 import { CUSTOMERS_CAPABILITIES, handleCustomers } from './customers-mock-routes.mjs'
+import { PRODUCT_PICK_PATH, productPickPage } from './products-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import { handleSsrFixtures, hasFixtureSession } from './ssr-fixture-sessions.mjs'
 import crypto from 'node:crypto'
@@ -495,6 +496,7 @@ async function handle(req, res) {
   if (method === 'GET' && EXPORT_PATHS.has(path) && /(?:^|;\s*)mock_export=too_large(?:;|$)/.test(req.headers.cookie ?? '')) return json(res, 422, EXPORT_TOO_LARGE)
   if (await handlePayments(req, res, path, { json, readBody })) return
   if (await handleCustomers(req, res, path, url, { json, readBody })) return
+  if (method === 'GET' && path === PRODUCT_PICK_PATH) return json(res, 200, productPickPage(url))
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleChanges(req, res, path, url, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleBaselines(req, res, path, url, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleEvm(req, res, path, url, { json, readBody })) return

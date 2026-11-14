@@ -97,10 +97,18 @@ describe('catalog tax option', () => {
 })
 
 describe('catalog item and order bodies', () => {
-  it('lists an existing or a new product, never both', () => {
+  it('lists a product of the products service by its pick-list id', () => {
     expect(InboxCatalogItemCreateSchema.safeParse({ product_id: 3 }).success).toBe(true)
+    expect(InboxCatalogItemCreateSchema.safeParse({ product_id: 3, availability: 'out_of_stock', listed: false }).success).toBe(true)
+    expect(InboxCatalogItemCreateSchema.safeParse({}).success).toBe(false)
+    expect(InboxCatalogItemCreateSchema.safeParse({ product: { name: 'x' } }).success).toBe(false)
     expect(InboxCatalogItemCreateSchema.safeParse({ product_id: 3, product: {} }).success).toBe(false)
+  })
+
+  it('edits only the listing of an item, never its product', () => {
     expect(InboxCatalogItemPatchSchema.safeParse({}).success).toBe(false)
+    expect(InboxCatalogItemPatchSchema.safeParse({ listed: false, link_override: null }).success).toBe(true)
+    expect(InboxCatalogItemPatchSchema.safeParse({ product: { name: 'x' } }).success).toBe(false)
   })
 
   it('edits a cart by line id or catalog item', () => {

@@ -1,6 +1,11 @@
 {
   "app": {
     "selectPerson": "Select a person",
+    "productPicker": {
+      "search": "Search products",
+      "listLabel": "Products",
+      "empty": "There are no products yet. Products are added from the products list."
+    },
     "actions": "Actions",
     "edit": "Edit",
     "productName": "LiwanOS",

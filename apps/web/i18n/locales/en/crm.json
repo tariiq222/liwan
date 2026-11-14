@@ -122,10 +122,13 @@
       },
       "packages": {
         "title": "Plans",
-        "hint": "What can be sold. The opportunity's value comes from the chosen plan.",
+        "hint": "The products you sell as plans. Add one from the products list; the opportunity's value comes from the chosen plan.",
         "count": "{count} {term}",
         "price": "Price",
-        "description": "Short description"
+        "pick": "Add a product as a plan",
+        "archived": "Product archived",
+        "remove": "Remove",
+        "removeNamed": "Remove {name} from the list"
       },
       "stages": {
         "title": "Stages",

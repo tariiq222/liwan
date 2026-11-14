@@ -8,7 +8,7 @@ import {
   InboxFlowPreviewSchema, InboxFlowSchema, InboxFlowSubmissionListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema,
   InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema,
   InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema, InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema,
-  InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxCatalogProductOptionListSchema,
+  InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema,
   InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
   InboxTikTokConnectResponseSchema, InboxTikTokShortcutEnableResultSchema, InboxTikTokShortcutListSchema, InboxTikTokSyncAnswerSchema,
   InboxEventListSchema, InboxEventSchema, ApiErrorSchema, CustomerConflictDetailsSchema,
@@ -504,14 +504,6 @@ describe('inbox audit mock', () => {
 
 describe('inbox audit mock: catalog and orders', () => {
   beforeEach(() => resetInboxPreview())
-  const png = (width: number, height: number) => {
-    const bytes = Buffer.alloc(32)
-    Buffer.from([0x89, 0x50, 0x4e, 0x47]).copy(bytes)
-    bytes.writeUInt32BE(width, 16)
-    bytes.writeUInt32BE(height, 20)
-    return { name: 'a.png', mimetype: 'image/png', data: bytes.toString('base64') }
-  }
-
   it('serves contract-valid catalogs, items, channel commerce and the picker', () => {
     expect(InboxCatalogListSchema.parse(call('GET', '/api/v1/inbox/catalogs').body).items[0]!.counts.items).toBe(6)
     expect(InboxCatalogSchema.parse(call('GET', '/api/v1/inbox/catalogs/1').body).channels).toHaveLength(1)
@@ -540,30 +532,23 @@ describe('inbox audit mock: catalog and orders', () => {
     expect(call('GET', '/api/v1/inbox/conversations/1/catalog-items').status).toBe(200)
   })
 
-  it('adds an existing product, and a new one only with a big enough picture', () => {
+  it('lists a product of the products service, and refuses what the server refuses', () => {
     expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 204 }).body).toMatchObject({ field: 'product_id' })
-    expect(InboxCatalogItemSchema.parse(call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 }).body).product_retailer_id).toBe('wv-201')
-    const made = { name: 'منتج', description: null, list_price: 10 }
-    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: png(499, 500) } }).body).toMatchObject({ field: 'product.image' })
-    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: { ...png(600, 600), mimetype: 'image/gif' } } }).status).toBe(422)
-    const created = call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: png(600, 600) } })
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 999 }).status).toBe(404)
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', {}).body).toMatchObject({ field: 'product_id' })
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product: { name: 'منتج' } }).body).toMatchObject({ field: 'product' })
+    const created = call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 })
     expect(created.status).toBe(201)
-    expect(InboxCatalogItemSchema.parse(created.body).sync_state).toBe('pending')
+    expect(InboxCatalogItemSchema.parse(created.body)).toMatchObject({ product_retailer_id: 'wv-201', product: { id: 201 }, sync_state: 'pending', list_price: 22, price: 25.3 })
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 }).status).toBe(409)
   })
 
   it('keeps the retailer id once synced and deletes an item', () => {
     expect(call('PATCH', '/api/v1/inbox/catalog-items/1', { product_retailer_id: 'other' }).status).toBe(422)
     expect(call('PATCH', '/api/v1/inbox/catalog-items/3', { product_retailer_id: 'other' }).status).toBe(200)
+    expect(call('PATCH', '/api/v1/inbox/catalog-items/3', { product: { name: 'x' } }).body).toMatchObject({ field: 'product' })
     expect(call('DELETE', '/api/v1/inbox/catalog-items/3').status).toBe(204)
     expect(call('GET', '/api/v1/inbox/catalog-items/3').status).toBe(404)
-  })
-
-  it('lists the company products that may be listed, with image and listed flags', () => {
-    const options = InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products').body)
-    expect(options.items.map(item => [item.id, item.has_image, item.listed])).toEqual([[201, true, false], [202, true, false], [203, true, false], [204, false, false]])
-    expect(InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products?q=عسل').body).items.map(item => item.id)).toEqual([202])
-    call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 })
-    expect(InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products').body).items[0]).toMatchObject({ id: 201, listed: true })
   })
 
   it('keeps the paid notice on the channel and refuses an empty or too long text', () => {

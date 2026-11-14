@@ -1653,30 +1653,12 @@
         "deleteDescription": "Customers will no longer see it."
       },
       "itemForm": {
-        "source": "Product source",
-        "tabs": {
-          "existing": "Existing product",
-          "new": "New product"
-        },
         "productId": "Product",
-        "productIdHint": "Pick a product that has an image and is not listed yet.",
+        "productIdHint": "Pick a product from the products list. It needs an image to be listed.",
         "invalid": {
-          "productId": "Enter a valid product id",
+          "productId": "Pick a product",
           "retailerId": "English letters, digits and . _ - only"
         },
-        "name": "Product name",
-        "description": "Description",
-        "price": "Price",
-        "priceHint": "The sales price as you type it for the product. Whether it includes the tax or has the tax added is set by the \"Establishment tax\" setting in the company settings.",
-        "image": "Image",
-        "imageHint": "JPEG or PNG, at least {min}×{min} pixels, up to {mb} MB.",
-        "pickImage": "Choose an image",
-        "imageProblems": {
-          "type": "The image must be JPEG or PNG.",
-          "tooLarge": "The image is larger than {mb} MB.",
-          "tooSmall": "The image is smaller than {min}×{min} pixels."
-        },
-        "imageRequired": "A new product needs an image.",
         "preview": "Preview in WhatsApp",
         "retailerId": "Meta product id",
         "retailerIdHint": "Leave empty to use the product's internal reference.",
@@ -1686,13 +1668,10 @@
         "linkOverrideHint": "Optional; replaces the default link.",
         "listed": "Listed in the catalog",
         "add": "Add",
-        "createHint": "Pick an existing product or create a new one with its image.",
         "syncError": "The product could not be sent to Meta",
         "searchProducts": "Search products by name",
-        "noProducts": "No matching products",
-        "productList": "Company products",
-        "alreadyListed": "Already in the catalog",
-        "noImage": "No image: add an image to the product first"
+        "productManaged": "The product's name, description, price and image come from the products list. Change them there.",
+        "createHint": "Pick a product from the products list to list it in the catalog."
       },
       "channelBlock": {
         "title": "WhatsApp commerce",
