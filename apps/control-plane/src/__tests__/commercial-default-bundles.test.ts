@@ -9,15 +9,21 @@ suite('default bundles for a catalog release', () => {
   const pool = new Pool({ connectionString: url, max: 5 })
   const api = client(pool)
   const reason = 'Seed the default bundle set'
-  let release: any
+  // The engine fixture sells every application, some of which have no seed price: `release` keeps only the priced ones sellable.
+  const PRICED = ['crm', 'inbox', 'people', 'finance', 'projects']
+  let release: any, unpriced: any
   beforeAll(async () => {
-    const { version } = await setup(pool)
-    release = (await api('POST', '/catalog/releases', { catalog_version: version, reason })).body
+    const { version, solution } = await setup(pool)
+    unpriced = (await api('POST', '/catalog/releases', { catalog_version: version, reason })).body
+    const pricedVersion = `commercial-${randomUUID()}`
+    const priced = { ...solution, tiers: solution.tiers.map((t: any) => t.sellable ? { ...t, sellable: PRICED.includes(t.id) } : t) }
+    await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)", [randomUUID(), pricedVersion, priced, createHash('sha256').update(JSON.stringify(priced)).digest('hex')])
+    release = (await api('POST', '/catalog/releases', { catalog_version: pricedVersion, reason })).body
   })
   afterAll(async () => { await pool.end() })
 
-  it('publishes one bundle per selectable application and lists them on a new LiwanOS plan revision, once', async () => {
-    const apps = release.applications.filter((a: any) => a.selectable)
+  it('publishes one bundle per sellable application and lists them on a new LiwanOS plan revision, once', async () => {
+    const apps = release.applications.filter((a: any) => a.sellable)
     expect(apps.length).toBeGreaterThan(0)
     const first = await api('POST', `/catalog/releases/${release.id}/default-bundles`, { reason })
     expect(first.status).toBe(200)
@@ -33,6 +39,13 @@ suite('default bundles for a catalog release', () => {
     expect(again.status).toBe(200)
     expect(again.body).toMatchObject({ created: [], plan_created: false, plan_revision_id: first.body.plan_revision_id })
     expect([...again.body.bundles].sort()).toEqual([...first.body.bundles].sort())
+  })
+  it('refuses to publish a sellable application that has no seed price, before publishing any bundle', async () => {
+    const before = (await pool.query('SELECT count(*)::int AS n FROM bundle_revisions WHERE catalog_release_id=$1', [unpriced.id])).rows[0].n
+    const refused = await api('POST', `/catalog/releases/${unpriced.id}/default-bundles`, { reason })
+    expect(refused.status).toBe(422)
+    expect(refused.body).toMatchObject({ code: 'seed_price_missing' })
+    expect((await pool.query('SELECT count(*)::int AS n FROM bundle_revisions WHERE catalog_release_id=$1', [unpriced.id])).rows[0].n).toBe(before)
   })
   it('starts every platform limit the release adds (the AI limits) unlimited, except the free assistant budget at its catalog ceiling, on the new plan revision', async () => {
     const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))
