@@ -43,7 +43,7 @@ class LiwanAiKnowledgeRegistry(models.AbstractModel):
             self._liwan_ai_error(model_name, 'fields must be a non-empty list')
         capabilities = item.get('indexer_capabilities')
         # Only well-formed here: a source names what its application asks of a reader, and a capability of an application
-        # that is not installed (a bridge installed without liwan_pmo) is simply not registered and not held.
+        # that is not installed is simply not registered and not held.
         if (not isinstance(capabilities, (list, tuple)) or not capabilities
                 or not all(isinstance(key, str) and CAPABILITY_KEY.match(key) for key in capabilities)):
             self._liwan_ai_error(model_name, 'indexer_capabilities must be a list of capability keys')
