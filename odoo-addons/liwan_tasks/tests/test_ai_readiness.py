@@ -1,17 +1,20 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import TransactionCase, tagged
 
+from odoo.addons.liwan_api.tests.common import skip_without_ai_engine
+
 
 @tagged('post_install', '-at_install', 'liwan')
-class TestMeetingsAiReadiness(TransactionCase):
+class TestTasksAiReadiness(TransactionCase):
 
     def test_the_application_declares_its_main_record_for_the_readiness_check(self):
-        check = self.env['liwan.ai.readiness']._liwan_ai_check_map()['meetings.meetings']
-        self.assertEqual((check['owner'], check['model']), ('liwan_meetings', 'liwan.meeting.event'))
+        check = self.env['liwan.ai.readiness']._liwan_ai_check_map()['tasks.tasks']
+        self.assertEqual((check['owner'], check['model']), ('liwan_tasks', 'project.task'))
 
     def test_an_application_with_no_main_record_is_listed_as_not_yet_in_use(self):
+        skip_without_ai_engine(self, 'the check was registered, the readiness listing was not run')
         readiness = self.env['liwan.ai.readiness']
-        check = readiness._liwan_ai_check_map()['meetings.meetings']
+        check = readiness._liwan_ai_check_map()['tasks.tasks']
         # Narrow the check to no record at all: whatever the demo data holds, the application then looks unused.
         self.patch(type(readiness), '_liwan_ai_record_checks', lambda model: ({**check, 'domain': [('id', '=', 0)]},))
         # The tenant has the application and the reader (the test's superuser, who needs no ACL) holds the capability it asks.
@@ -23,5 +26,5 @@ class TestMeetingsAiReadiness(TransactionCase):
         self.patch(access, '_liwan_has_capability', lambda model, user, key, record=None, company=None: (
             key == check['capability'] or original(model, user, key, record=record, company=company)))
         items = {item['key']: item for item in readiness._liwan_ai_record_items()}
-        self.assertEqual(items['records.meetings.meetings']['page'], check['page'])
-        self.assertEqual(items['records.meetings.meetings']['severity'], 'optional')
+        self.assertEqual(items['records.tasks.tasks']['page'], check['page'])
+        self.assertEqual(items['records.tasks.tasks']['severity'], 'optional')

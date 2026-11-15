@@ -5,7 +5,7 @@ from odoo import api, fields, models
 class LiwanAiKnowledgePending(models.Model):
     """A record of a knowledge source that changed and is waiting for the indexer.
 
-    The bridge of a source marks the record in the transaction that changes it, so a transaction that commits late
+    The application that declares a source marks the record in the transaction that changes it, so a transaction that commits late
     still leaves its row behind (a ``write_date`` cursor would have passed it). One row per record: marking it again
     only refreshes its company. The indexer claims the rows, deleting them in its own transaction, and builds the
     record's text from its state at that moment.

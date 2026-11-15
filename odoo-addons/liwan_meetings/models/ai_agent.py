@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The meetings agent of the LiwanOS AI and its tools: read tools over existing liwan_meetings routes, each with the
-capability its route already checks. Fields that are sensitive never appear in a result summary."""
+capability its route already checks. Fields that are sensitive never appear in a result summary. The registries belong
+to liwan_api, so meetings declares its agent without depending on liwan_ai, which offers and runs the tools when it is
+installed."""
 from odoo import api, models
 
 from odoo.addons.liwan_api.models.ai_tool_registry import (

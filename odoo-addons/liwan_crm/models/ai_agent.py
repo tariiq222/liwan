@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The CRM agent of the LiwanOS AI and its tools: read tools over existing liwan_crm routes, each with the
-capability its route already checks. Fields that are sensitive never appear in a result summary."""
+"""The CRM agent of the LiwanOS AI, its tools and the CRM policies the setup agent may propose. The registries belong to
+liwan_api, so CRM declares them without depending on liwan_ai, which offers and runs them when it is installed. The read
+tools go over existing liwan_crm routes, each with the capability its route already checks; fields that are sensitive
+never appear in a result summary."""
 from odoo import api, models
 
 from odoo.addons.liwan_api.models.ai_tool_registry import (

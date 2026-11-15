@@ -163,7 +163,7 @@ class AiProbe:
         self.settings_managers |= user
 
     def _install_knowledge(self, queue=True, sources=(PROBE_SOURCE,)):
-        """Declare ``sources`` (none: keep the installed bridges' own) and turn the knowledge on: the queue table, a signed
+        """Declare ``sources`` (none: keep the installed applications' own) and turn the knowledge on: the queue table, a signed
         acknowledgement, the setting and the feature."""
         if sources is not None:
             self.patch(type(self.env['liwan.ai.knowledge.registry']), '_liwan_ai_knowledge_sources', lambda model: list(sources))
@@ -208,3 +208,12 @@ class AiProbe:
         self.patch(access, '_liwan_has_capability', has_capability)
         register_probe_feature(self)
         set_probe_feature(self)
+
+
+def lend_probe(case):
+    """Give ``case`` the helpers of ``AiProbe`` without inheriting it.
+
+    A test module of an application must import without liwan_ai, so it cannot name ``AiProbe`` as a base class. Its
+    knowledge tests skip without the engine first, then import this function and call it in ``setUp``."""
+    for name in ('_grant_ai_use', '_install_knowledge', '_queue', '_install_probe'):
+        setattr(case, name, getattr(AiProbe, name).__get__(case))

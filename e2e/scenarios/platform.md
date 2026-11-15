@@ -90,7 +90,7 @@ Kinds registered in `liwan.notify.registry`: `tasks.assigned` (feature `tasks.en
 ## Assistant: catalog, limits, audit
 
 Tools registered today: one agent per application (`liwan_pmo` with six `pmo.*` tools, and read tools in
-`liwan_hr`, `liwan_sales`, `liwan_operations`, `liwan_finance`, and the bridges `liwan_crm_ai`, `liwan_meetings_ai`, `liwan_tasks_ai`); one
+`liwan_hr`, `liwan_sales`, `liwan_operations`, `liwan_finance`, `liwan_crm`, `liwan_meetings`, `liwan_tasks`); one
 conversation routes each request to the agent that owns it. Capability `ai.use` is granted by the built-in
 employee role (`liwan_ai/models/access_service.py`); entitlements `ai.enabled` (flag), `ai.messages.monthly` and
 `ai.tool_calls.per_run` (limits).

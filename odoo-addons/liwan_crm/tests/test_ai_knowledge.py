@@ -1,20 +1,46 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import importlib
+
 from odoo import api
 from odoo.exceptions import AccessError
-from odoo.tests import tagged
+from odoo.tests import TransactionCase, tagged
 
-from odoo.addons.liwan_ai.models.access_service import AI_USE
-from odoo.addons.liwan_ai.tests.common import AiProbe
+from odoo.addons.liwan_api.tests.common import skip_without_ai_engine
 from odoo.addons.liwan_crm.tests.common import LiwanCrmCase
 
 MODEL = 'crm.lead'
 
 
 @tagged('post_install', '-at_install', 'liwan')
-class TestCrmAiKnowledge(AiProbe, LiwanCrmCase):
+class TestCrmAiKnowledgeSource(TransactionCase):
+    """What CRM declares for the index, checked with or without liwan_ai."""
+
+    def test_the_source_is_declared_and_valid_and_names_no_contact_data(self):
+        source = self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_map()[MODEL]
+        self.assertEqual((source['owner'], source['feature_key'], source['title_field']), ('liwan_crm', 'crm.enabled', 'name'))
+        self.assertFalse({'phone', 'mobile', 'email_from', 'email'} & set(source['fields']))
+
+    def test_the_indexer_may_read_an_opportunity_and_its_stage_but_nothing_to_write(self):
+        indexer = self.env.ref('liwan_api.group_ai_indexer')
+        for model in ('crm.lead', 'crm.stage'):
+            acls = self.env['ir.model.access'].search([('model_id.model', '=', model), ('group_id', '=', indexer.id)])
+            self.assertEqual(
+                [(acl.perm_read, acl.perm_write, acl.perm_create, acl.perm_unlink) for acl in acls],
+                [(True, False, False, False)], model,
+            )
+            self.assertEqual(set(acls.get_external_id().values()), {f'liwan_crm.access_{model.replace(".", "_")}_ai_indexer'})
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestCrmAiKnowledge(LiwanCrmCase):
+    """The index built by liwan_ai over the opportunities, as the technical indexer user."""
 
     def setUp(self):
         super().setUp()
+        skip_without_ai_engine(self, 'the CRM source and its access rows were checked, the index was not built')
+        # liwan_ai is optional for CRM: its test helpers are imported once the engine is known to be installed.
+        importlib.import_module('odoo.addons.liwan_ai.tests.common').lend_probe(self)
+        ai_use = importlib.import_module('odoo.addons.liwan_ai.models.access_service').AI_USE
         self._install_probe()
         self._install_knowledge(sources=None)
         self.indexer_user = self.env.ref('liwan_ai.user_ai_indexer')
@@ -23,23 +49,8 @@ class TestCrmAiKnowledge(AiProbe, LiwanCrmCase):
         original = access._liwan_has_capability
         # The CRM roles carry no assistant capability of their own; the visibility under test is the opportunity's.
         self.patch(access, '_liwan_has_capability', lambda model, user, key, record=None, company=None: (
-            key == AI_USE or original(model, user, key, record=record, company=company)
+            key == ai_use or original(model, user, key, record=record, company=company)
         ))
-
-    def test_the_source_is_declared_and_valid_and_names_no_contact_data(self):
-        source = self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_map()[MODEL]
-        self.assertEqual((source['owner'], source['feature_key'], source['title_field']), ('liwan_crm', 'crm.enabled', 'name'))
-        self.assertFalse({'phone', 'mobile', 'email_from', 'email'} & set(source['fields']))
-
-    def test_the_indexer_may_read_an_opportunity_and_its_stage_but_nothing_to_write(self):
-        indexer = self.env.ref('liwan_ai.group_ai_indexer')
-        for model in ('crm.lead', 'crm.stage'):
-            self.env.cr.execute(
-                'SELECT perm_read, perm_write, perm_create, perm_unlink FROM ir_model_access acl'
-                ' JOIN ir_model model ON model.id = acl.model_id WHERE model.model = %s AND acl.group_id = %s',
-                [model, indexer.id],
-            )
-            self.assertEqual(self.env.cr.fetchall(), [(True, False, False, False)], model)
 
     def test_deleting_an_opportunity_queues_its_removal_from_the_index(self):
         lead = self.make_lead(self.agent)
@@ -99,7 +110,7 @@ class TestCrmAiKnowledge(AiProbe, LiwanCrmCase):
 
     def test_the_technical_user_reads_only_what_a_source_declares(self):
         as_indexer = self.env(user=self.indexer_user)
-        # Models no source declares, whichever of them this database has (HR is not installed beside every bridge).
+        # Models no source declares, whichever of them this database has (HR is not always installed beside CRM).
         for model in ('hr.employee', 'mail.mail', 'res.partner'):
             if model in self.env:
                 with self.subTest(model=model), self.assertRaises(AccessError):
