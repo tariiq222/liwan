@@ -19,6 +19,20 @@
 3. لا تغيير بيانات؟ ضع `migrations/<version>/README.md` بجملة تشرح السبب. الحارس يقبله.
 4. الترحيل idempotent ولا يخمّن: حالة غامضة ⇒ `raise` برسالة تحدد المطلوب من المشغّل.
 
+## حذف addon
+
+addon محذوف من الشجرة يترك في قاعدة مثبّتة سابقًا صف الوحدة (يبقى `to upgrade` ويعدّه Odoo حالة غير متسقة)
+وصفوف `ir.model.data` الخاصة به، ومنها `base.module_<addon>`. تُنسى كلها هكذا:
+
+1. أضف اسمه إلى `REMOVED_ADDONS` في `odoo-addons/liwan_api/models/removed_addons.py`.
+2. ارفع إصدار `liwan_api` وأنشئ `migrations/<version>/end-forget_removed_addons.py` يستدعي
+   `forget_removed_addons`. لكل حذف لاحق إصدار `liwan_api` جديد بترحيله الخاص: القاعدة التي بلغت الإصدار الحالي
+   لا تعيد تشغيل السكربت القديم.
+3. `forget_removed_addons` تنسى الوحدة وxml ids ولا تحذف أي سجل، فهي لـaddon لا يملك سجلات بيانات
+   (لا ACL ولا rule ولا view ولا cron ولا ملف بيانات). الـaddon الذي يملكها يسلّم xml ids إلى مالكها الجديد
+   قبل نسيانه (`ir.model.data.write({'module': ...})` في ترحيل أبكر)، وإلا ترفض الدالة وتسمّي الـaddon والموديلات.
+   صفوف `ir.model` و`ir.model.fields` وما يشبهها التي يكتبها Odoo لـaddon يوسّع موديلات فقط لا تمنع.
+
 ## ما لا نفعله
 
 - لا downgrade migrations. التراجع = استرجاع DB + filestore (`deploy/restore_verify.py`).

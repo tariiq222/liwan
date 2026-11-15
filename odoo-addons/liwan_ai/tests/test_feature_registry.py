@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import TransactionCase, tagged
 
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 AI_BALANCE_KEYS = ('ai.balance.granted', 'ai.allowance.trial', 'ai.allowance.monthly')
@@ -16,6 +17,10 @@ class TestAiFeatureRegistry(TransactionCase):
         self.assertEqual(features['ai.messages.monthly']['type'], 'limit')
         self.assertEqual(features['ai.tool_calls.per_run']['type'], 'limit')
         self.assertIn('liwan_ai', self.env['liwan.feature.registry']._liwan_module_map())
+
+    def test_the_literal_ai_feature_key_equals_the_service_constant(self):
+        self.assertIn(AI_SERVICE_FEATURE, self.env['liwan.feature.registry']._liwan_feature_map())
+        self.assertEqual(AI_SERVICE_FEATURE, 'ai.enabled')
 
     def test_fresh_tenant_policy_enables_ai(self):
         profile = self.env.ref('liwan_platform.tenant_profile')
