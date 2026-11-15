@@ -13,3 +13,5 @@ access_liwan_crm_view_log_auditor,liwan.crm.view.log.auditor,model_liwan_crm_vie
 access_liwan_crm_view_log_reader,liwan.crm.view.log.reader,model_liwan_crm_view_log,group_cap_crm_leads_read,0,0,1,0
 access_liwan_crm_import_batch_importer,liwan.crm.import.batch.importer,model_liwan_crm_import_batch,group_cap_crm_leads_import,1,1,1,0
 access_liwan_crm_import_mapping_importer,liwan.crm.import.mapping.importer,model_liwan_crm_import_mapping,group_cap_crm_leads_import,1,0,1,1
+access_crm_lead_ai_indexer,crm.lead ai indexer,crm.model_crm_lead,liwan_api.group_ai_indexer,1,0,0,0
+access_crm_stage_ai_indexer,crm.stage ai indexer,crm.model_crm_stage,liwan_api.group_ai_indexer,1,0,0,0

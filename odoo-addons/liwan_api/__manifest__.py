@@ -2,7 +2,7 @@
 {
     'name': 'liwan API',
     'summary': 'liwan platform: shared /api/v1 plumbing — auth, branding, me',
-    'version': '19.0.1.4.0',
+    'version': '19.0.1.5.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -15,6 +15,7 @@
     'external_dependencies': {'python': ['xlsxwriter']},
     'data': [
         'security/tenant_export_groups.xml',
+        'security/ai_indexer_group.xml',
         'security/ir.model.access.csv',
         'security/branding_rules.xml',
         'data/tenant_export_permissions.xml',
