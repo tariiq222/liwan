@@ -66,6 +66,6 @@ describe('customers manifest', () => {
     expect(canReachPath(reader, '/settings/apps/customers')).toBe(false)
     expect(visibleSettingsPages(settingsManager).map(({ page }) => page.id)).toContain('customers')
     expect(visibleSettingsPages(reader).map(({ page }) => page.id)).not.toContain('customers')
-    expect(manifest.settings?.parts.map(part => part.id)).toEqual(['sharing', 'partyKinds', 'phoneCountry', 'fields'])
+    expect(manifest.settings?.parts.map(part => part.id)).toEqual(['sharing', 'partyKinds', 'phoneCountry', 'autoLink', 'fields'])
   })
 })

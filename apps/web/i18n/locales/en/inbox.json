@@ -381,7 +381,8 @@
       "state": "Status",
       "priority": "Priority",
       "tags": "Tags",
-      "noTags": "No tags"
+      "noTags": "No tags",
+      "customerAlreadyLinked": "The contact is already linked to a customer, which cannot be changed here."
     },
     "settings": {
       "name": "Name",

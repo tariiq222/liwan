@@ -1,5 +1,7 @@
 import {
   CrmOpportunityCreateSchema,
+  CrmOpportunityMeetingCreateSchema,
+  CrmOpportunityTaskCreateSchema,
   CrmOpportunityFiltersSchema,
   CrmOpportunityListSchema,
   CrmOpportunityPatchSchema,
@@ -17,6 +19,7 @@ const opportunity = {
   stage: { id: 1, name: 'New' },
   user: { id: 3, name: 'Agent' },
   source: null,
+  customer: null,
   package: null,
   lost_reason: null,
   status: 'pending',
@@ -100,5 +103,33 @@ describe('CrmOpportunityWriteReasonSchema', () => {
   it('filters the list by status: open, won, lost or all', () => {
     for (const status of ['open', 'won', 'lost', 'all']) expect(CrmOpportunityFiltersSchema.parse({ status })).toEqual({ status })
     expect(() => CrmOpportunityFiltersSchema.parse({ status: 'pending' })).toThrow()
+  })
+})
+
+describe('the linked customer', () => {
+  it('is a ref or null, and nothing more', () => {
+    expect(CrmOpportunitySchema.parse({ ...opportunity, customer: { id: 4, name: 'Mona' } }).customer).toEqual({ id: 4, name: 'Mona' })
+    expect(() => CrmOpportunitySchema.parse({ ...opportunity, customer: { id: 4, name: 'Mona', phone: '+966501234567' } })).toThrow()
+    const { customer: _customer, ...without } = opportunity
+    expect(() => CrmOpportunitySchema.parse(without)).toThrow()
+  })
+})
+
+describe('the bridge write bodies', () => {
+  it('needs a name and a UTC deadline for a follow-up task and takes the optional fields', () => {
+    const body = { name: 'Call back', date_deadline: '2026-11-20T09:00:00Z' }
+    expect(CrmOpportunityTaskCreateSchema.parse({ ...body, description: 'x', priority: 'high', assignees: [3] }).assignees).toEqual([3])
+    expect(() => CrmOpportunityTaskCreateSchema.parse({ name: 'Call back' })).toThrow()
+    expect(CrmOpportunityTaskCreateSchema.parse({ ...body, date_deadline: '2026-11-20' }).date_deadline).toBe('2026-11-20')
+    expect(() => CrmOpportunityTaskCreateSchema.parse({ ...body, date_deadline: 'tomorrow' })).toThrow()
+    expect(() => CrmOpportunityTaskCreateSchema.parse({ ...body, date_deadline: null })).toThrow()
+    expect(() => CrmOpportunityTaskCreateSchema.parse({ ...body, parent_id: 2 })).toThrow()
+  })
+
+  it('takes a meeting body without the series, the project and the minutes form', () => {
+    expect(CrmOpportunityMeetingCreateSchema.parse({ name: 'Demo', attendee_ids: [3], location: 'HQ' }).attendee_ids).toEqual([3])
+    expect(() => CrmOpportunityMeetingCreateSchema.parse({ name: 'Demo', series_id: 1 })).toThrow()
+    expect(() => CrmOpportunityMeetingCreateSchema.parse({ name: 'Demo', project_id: 1 })).toThrow()
+    expect(() => CrmOpportunityMeetingCreateSchema.parse({ attendee_ids: [3] })).toThrow()
   })
 })

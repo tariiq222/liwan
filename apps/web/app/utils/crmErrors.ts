@@ -16,7 +16,8 @@ const WRITE_REASON_KEYS = {
  * discount above the ceiling when `sale` is set (every other 403 is a missing capability).
  */
 export function crmErrorMessage(error: unknown, t: Translate, options: { sale?: boolean } = {}): string {
-  const { status, field, details } = (error ?? {}) as { status?: number; field?: string; details?: Record<string, unknown> }
+  const { status, code, field, details } = (error ?? {}) as { status?: number; code?: string; field?: string; details?: Record<string, unknown> }
+  if (status === 409 && code === 'already_linked') return t('crm.opportunities.errors.alreadyLinked')
   if (status === 409) return t('crm.opportunities.errors.conflict')
   const reason = status === 422 ? CrmOpportunityWriteReasonSchema.safeParse(details?.reason) : null
   if (reason?.success) return t(`crm.opportunities.errors.${WRITE_REASON_KEYS[reason.data]}`)

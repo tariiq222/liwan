@@ -1,4 +1,5 @@
 import {
+  InboxContactDetailSchema,
   InboxChannelPatchSchema,
   InboxChannelSchema,
   InboxChannelWorkListSchema,
@@ -270,5 +271,16 @@ describe('automation schemas', () => {
   it('carries the assignment policy in settings', () => {
     const settings = { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'round_robin', first_response_alert_minutes: 15, report_retention_months: 36 }
     expect(InboxSettingsSchema.parse(settings)).toEqual(settings)
+  })
+})
+
+describe('InboxContactDetailSchema', () => {
+  const contact = { id: 5, name: 'Mona', phone: '+966501234567', email: null, erased: false }
+
+  it('is the contact with its linked customer, or null', () => {
+    expect(InboxContactDetailSchema.parse({ ...contact, customer: null }).customer).toBeNull()
+    expect(InboxContactDetailSchema.parse({ ...contact, customer: { id: 9, name: 'Mona Co' } }).customer).toEqual({ id: 9, name: 'Mona Co' })
+    expect(() => InboxContactDetailSchema.parse(contact)).toThrow()
+    expect(() => InboxContactDetailSchema.parse({ ...contact, customer: { id: 9, name: 'x', phone: '1' } })).toThrow()
   })
 })

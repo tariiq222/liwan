@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import type { InboxConversationDetail, InboxConversationPatch } from '@liwan/contracts'
+import type { CustomerLink, InboxConversationDetail, InboxConversationPatch } from '@liwan/contracts'
+import CustomerLinkBlock from '@/components/customers/CustomerLinkBlock.vue'
 import InboxFlowSubmissionsSection from '@/components/inbox/InboxFlowSubmissionsSection.vue'
 import InboxContactMarketing from '@/components/inbox/campaigns/InboxContactMarketing.vue'
 import { useInboxCampaignsEnabled } from '@/composables/inbox/useInboxCampaigns'
-import { useInboxAgents, usePatchInboxContact, usePatchInboxConversation, useInboxTags } from '@/composables/inbox/useInbox'
+import { useCustomerConflict } from '@/composables/customers/useCustomerConflict'
+import { isCustomerAlreadyLinked } from '@/composables/customers/customerErrors'
+import { useInboxAgents, useInboxContact, useLinkInboxContactCustomer, usePatchInboxContact, usePatchInboxConversation, useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { CONVERSATION_STATES, PRIORITIES } from '@/composables/inbox/inboxPresentation'
@@ -15,10 +18,14 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
+const { can } = useAccess()
 const id = computed(() => props.conversation.id)
 const campaignsOn = useInboxCampaignsEnabled()
 const { mutate: patch, isPending: patching } = usePatchInboxConversation(id)
 const { mutate: patchContact, isPending: savingContact } = usePatchInboxContact(() => props.conversation.contact.id)
+const contactId = computed(() => props.conversation.contact.id)
+const contactDetail = useInboxContact(contactId)
+const { mutateAsync: linkContact, isPending: linking } = useLinkInboxContactCustomer(contactId)
 const departments = useInboxDepartments()
 const tags = useInboxTags()
 const agents = useInboxAgents(() => props.conversation.can_assign)
@@ -47,6 +54,27 @@ function assign(value: number | number[] | null) {
   const next = Array.isArray(value) ? (value[0] ?? null) : value
   if (next !== (props.conversation.assignee?.id ?? null)) save({ assignee_id: next })
 }
+
+// The customer the contact is linked to. Linking asks for a customer made from the contact's data; customers that share
+// its phone are offered first (never a silent merge). Only a replier links, and an erased contact cannot be linked.
+const conflict = useCustomerConflict()
+const linkError = ref('')
+function linkMessage(error: unknown) {
+  if (isCustomerAlreadyLinked(error)) return t('inbox.panel.customerAlreadyLinked')
+  return (error as { status?: number } | null)?.status === 403 ? t('errors.forbidden') : t('errors.generic')
+}
+async function linkCustomer(choice: CustomerLink) {
+  linkError.value = ''
+  try {
+    await linkContact(choice)
+    conflict.clear()
+  } catch (error) {
+    if (conflict.offer(error, linkCustomer)) return
+    conflict.clear()
+    linkError.value = linkMessage(error)
+  }
+}
+const onLink = (choice: CustomerLink) => (conflict.candidates.value ? conflict.choose(choice) : linkCustomer(choice))
 
 // The contact's name and email are edited together and saved once.
 // An erased contact shows its translated name and cannot be edited.
@@ -86,6 +114,19 @@ function saveContact() {
         <p v-if="erased" class="text-sm text-muted" data-testid="inbox-contact-erased">{{ t('inbox.panel.contactErased') }}</p>
         <UButton v-if="props.conversation.can_reply && !erased" type="submit" color="neutral" variant="outline" class="self-start" :disabled="!hydrated || !contactDirty || !name.trim()" :loading="savingContact" :label="t('inbox.panel.saveContact')" />
       </form>
+    </SharedRecordSection>
+
+    <SharedRecordSection v-if="contactDetail.data.value" variant="panel" :title="t('customers.link.title')">
+      <CustomerLinkBlock
+        :customer="contactDetail.data.value.customer"
+        :can-link="props.conversation.can_reply && !erased"
+        :can-open="can('customers.read')"
+        :candidates="conflict.candidates.value"
+        :pending="linking"
+        :error="linkError"
+        @link="onLink"
+        @dismiss="conflict.clear()"
+      />
     </SharedRecordSection>
 
     <InboxContactMarketing v-if="campaignsOn" :contact-id="props.conversation.contact.id" :can-write="props.conversation.can_reply" />

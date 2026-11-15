@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CustomerAlreadyLinkedErrorSchema,
   CustomerCandidateListSchema,
+  CustomerLinkConflictErrorSchema,
+  CustomerLinkSchema,
   CustomerPickListSchema,
   CustomerConflictDetailsSchema,
   CustomerCountryListSchema,
@@ -82,7 +85,7 @@ describe('customer writes', () => {
 describe('CustomerSettingsSchema', () => {
   const FIELD = { key: 'tier', label: 'Tier', type: 'selection', options: [{ key: 'gold', label: 'Gold' }] }
   const settings = {
-    sharing: 'establishment', party_kinds: 'both', phone_country: null, fields: [FIELD],
+    sharing: 'establishment', party_kinds: 'both', auto_link_single_match: false, phone_country: null, fields: [FIELD],
     field_limits: { max_properties: 50, max_options: 100, max_label: 64 }, can_manage: true, revision: 1,
   }
 
@@ -100,6 +103,9 @@ describe('CustomerSettingsSchema', () => {
     expect(CustomerSettingsPatchSchema.parse({ sharing: 'branch', revision: 2 }).sharing).toBe('branch')
     expect(CustomerSettingsPatchSchema.parse({ party_kinds: 'companies', revision: 2 }).party_kinds).toBe('companies')
     expect(CustomerSettingsPatchSchema.parse({ phone_country_id: null, revision: 2 }).phone_country_id).toBeNull()
+    expect(CustomerSettingsPatchSchema.parse({ auto_link_single_match: true, revision: 2 }).auto_link_single_match).toBe(true)
+    expect(() => CustomerSettingsPatchSchema.parse({ auto_link_single_match: 'yes', revision: 2 })).toThrow()
+    expect(() => CustomerSettingsSchema.parse({ ...settings, auto_link_single_match: undefined })).toThrow()
     expect(() => CustomerSettingsPatchSchema.parse({ revision: 2 })).toThrow()
     expect(() => CustomerSettingsPatchSchema.parse({ sharing: 'branch' })).toThrow()
     expect(() => CustomerSettingsPatchSchema.parse({ sharing: 'branch', revision: 2, extra: 1 })).toThrow()
@@ -138,5 +144,26 @@ describe('CustomerPickListSchema', () => {
     expect(() => CustomerPickListSchema.parse({ items: [{ ...pick, phone: '+966501234567' }], total: 1 })).toThrow()
     expect(() => CustomerPickListSchema.parse({ items: [{ id: 5, name: 'Acme', phone_last4: null }], total: 1 })).toThrow()
     expect(() => CustomerPickListSchema.parse({ items: [{ ...pick, phone_last4: '45' }], total: 1 })).toThrow()
+  })
+})
+
+describe('linking a record to a customer', () => {
+  it('takes a customer, a new one, or neither, never both', () => {
+    expect(CustomerLinkSchema.parse({})).toEqual({})
+    expect(CustomerLinkSchema.parse({ customer_id: 7 }).customer_id).toBe(7)
+    expect(CustomerLinkSchema.parse({ create_new: true }).create_new).toBe(true)
+    expect(CustomerLinkSchema.parse({ customer_id: 7, create_new: false }).customer_id).toBe(7)
+    expect(() => CustomerLinkSchema.parse({ customer_id: 7, create_new: true })).toThrow()
+    expect(() => CustomerLinkSchema.parse({ customer_id: 0 })).toThrow()
+    expect(() => CustomerLinkSchema.parse({ company_id: 1 })).toThrow()
+  })
+
+  it('reads the 409 conflict with its candidates and the 409 already_linked', () => {
+    const conflict = { code: 'conflict', message: 'customers share the phone', details: { candidates: [CANDIDATE] } }
+    expect(CustomerLinkConflictErrorSchema.parse(conflict).details.candidates).toHaveLength(1)
+    expect(() => CustomerLinkConflictErrorSchema.parse({ ...conflict, details: { candidates: [] } })).toThrow()
+    expect(() => CustomerLinkConflictErrorSchema.parse({ code: 'conflict', message: 'the opportunity is closed' })).toThrow()
+    expect(CustomerAlreadyLinkedErrorSchema.parse({ code: 'already_linked', message: 'linked' }).code).toBe('already_linked')
+    expect(() => CustomerAlreadyLinkedErrorSchema.parse({ code: 'conflict', message: 'x' })).toThrow()
   })
 })

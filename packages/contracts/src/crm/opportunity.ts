@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { CustomerLinkRefSchema } from '../customers'
 import { CustomFieldValuesSchema, CustomFieldWithValueSchema } from '../common/customFields'
 
 const NAME_MAX = 200
@@ -25,6 +26,8 @@ export const CrmOpportunitySchema = z.strictObject({
   stage: RefSchema.nullable(),
   user: RefSchema.nullable(),
   source: RefSchema.nullable(),
+  // The customer the opportunity is linked to; null when unlinked or when the caller cannot see it.
+  customer: CustomerLinkRefSchema.nullable(),
   package: RefSchema.nullable(),
   lost_reason: RefSchema.nullable(),
   status: CrmOpportunityStatusSchema,

@@ -1135,6 +1135,10 @@ export function inboxPreviewData(method, path, url, body = {}) {
   const id = parts[4] && /^\d+$/.test(parts[4]) ? Number(parts[4]) : undefined
 
   if (resource === 'audiences' || resource === 'campaigns' || (resource === 'contacts' && (parts[4] === 'import' || parts[5] === 'marketing'))) return campaignsRoute(mockContext(), method, parts, url, body)
+  if (resource === 'contacts' && id !== undefined && method === 'GET' && parts.length === 5) {
+    const contact = state.contacts.find(item => item.id === id)
+    return contact ? ok({ ...contact, customer: null }) : fail(404, 'not_found', 'not found')
+  }
   // Catalog, product-message and order routes first: the conversation and channel branches below answer any sub-path.
   const catalogAnswer = catalogPreviewRoute(state, method, parts, url, body, { me: ME, appendMessage, appendInbound })
   if (catalogAnswer) return catalogAnswer

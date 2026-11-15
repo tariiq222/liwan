@@ -172,6 +172,7 @@ describe('CRM opportunity probability', () => {
     stage: { id: 1, name: 'New' },
     user: null,
     source: null,
+    customer: null,
     package: null,
     lost_reason: null,
     status: 'pending',

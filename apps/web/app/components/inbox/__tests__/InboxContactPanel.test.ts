@@ -16,7 +16,7 @@ function conversation(contact: Record<string, unknown>) {
 }
 
 // The component is compiled and run against stubbed composables and form controls, as the other component tests do.
-async function mountPanel(contact: Record<string, unknown>) {
+async function mountPanel(contact: Record<string, unknown>, detail: Record<string, unknown> | null = null) {
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'inbox-contact-panel' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
@@ -30,6 +30,9 @@ async function mountPanel(contact: Record<string, unknown>) {
     useInboxCampaignsEnabled: () => Vue.ref(false), usePatchInboxContact: () => ({ mutate: patchContact, isPending: Vue.ref(false) }),
     usePatchInboxConversation: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }), useInboxAgents: () => query, useInboxDepartments: () => query, useInboxTags: () => query,
     inboxContactName: (c: { id: number; name: string; erased: boolean }, t: (key: string, values?: object) => string) => c.erased ? t('inbox.erasedContact', { id: c.id }) : c.name,
+    useAccess: () => ({ can: () => true }), useInboxContact: () => ({ data: Vue.ref(detail) }),
+    useLinkInboxContactCustomer: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
+    useCustomerConflict: () => ({ candidates: Vue.ref(null), offer: () => false, choose: vi.fn(), clear: vi.fn() }), isCustomerAlreadyLinked: () => false, CustomerLinkBlock: null,
     CONVERSATION_STATES: [], PRIORITIES: [], InboxFlowSubmissionsSection: null, InboxContactMarketing: null,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
@@ -39,6 +42,8 @@ async function mountPanel(contact: Record<string, unknown>) {
   const render = new Function('Vue', transpile(template.code))(Vue)
   const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, props: { conversation: conversation(contact) } }), render }))
   const pass = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('div', [slots.default?.()]) })
+  const linkBlock = Vue.defineComponent({ props: ['customer', 'canLink', 'canOpen'], setup: props => () => Vue.h('div', { 'data-testid': 'link-block', 'data-customer': (props.customer as { name: string } | null)?.name ?? 'none', 'data-can-link': String(props.canLink) }) })
+  app.component('CustomerLinkBlock', linkBlock)
   for (const name of ['SharedRecordSection', 'SharedPropertyRow', 'UFormField', 'InboxFlowSubmissionsSection', 'InboxContactMarketing', 'SharedPersonPicker', 'USelect', 'USelectMenu']) app.component(name, pass)
   app.component('UInput', Vue.defineComponent({ inheritAttrs: false, props: ['modelValue'], setup: (props, { attrs }) => () => Vue.h('input', { value: props.modelValue, disabled: attrs.disabled === true || undefined, 'data-type': attrs.type ?? 'text' }) }))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', { type: attrs.type as string }, String(attrs.label)) }))
@@ -64,5 +69,25 @@ describe('InboxContactPanel contact fields', () => {
     state.name = 'Renamed'
     state.saveContact()
     expect(patchContact).not.toHaveBeenCalled()
+  })
+})
+
+describe('InboxContactPanel customer link', () => {
+  it('waits for the contact detail before showing the customer section', async () => {
+    const { html } = await mountPanel({ name: 'Sara', erased: false })
+    expect(html).not.toContain('link-block')
+  })
+
+  it('shows the linked customer and lets a replier link an unlinked contact', async () => {
+    const linked = await mountPanel({ name: 'Sara', erased: false }, { id: 9, customer: { id: 4, name: 'Sara Co' } })
+    expect(linked.html).toContain('data-customer="Sara Co"')
+    const unlinked = await mountPanel({ name: 'Sara', erased: false }, { id: 9, customer: null })
+    expect(unlinked.html).toContain('data-customer="none"')
+    expect(unlinked.html).toContain('data-can-link="true"')
+  })
+
+  it('does not offer the link for an erased contact', async () => {
+    const { html } = await mountPanel({ name: 'x', erased: true }, { id: 9, customer: null })
+    expect(html).toContain('data-can-link="false"')
   })
 })
