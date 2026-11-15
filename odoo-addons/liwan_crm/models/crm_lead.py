@@ -112,18 +112,21 @@ class CrmLead(models.Model):
         nothing about that customer is revealed; a link to an archived customer is dead and is replaced. Otherwise
         ``customer_id`` names an existing customer, ``create_new`` asks for a new one, and without either a customer is
         made from the lead's data unless customers with its phone exist, which answers 409 ``conflict`` with them. The
-        service never merges on its own.
+        service never merges on its own. A caller who may not pick a customer is 403 ``forbidden`` first, so the answer
+        never tells a hidden link from none.
         """
         self.ensure_one()
+        service = self.env['liwan.customers.service']
+        service._liwan_require_pick()
         linked = self._liwan_linked_customer()
-        if self.env['liwan.customers.service']._liwan_is_hidden(self.partner_id):
+        if service._liwan_is_hidden(self.partner_id):
             raise ApiError(409, 'already_linked', 'the opportunity is already linked to a customer')
         if linked:
             if create_new or customer_id not in (None, linked.id):
                 raise ApiError(409, 'already_linked', 'the opportunity is already linked to a customer')
             return linked
         values = None if customer_id is not None else self._liwan_customer_values()
-        self.partner_id = self.env['liwan.customers.service']._liwan_resolve(
+        self.partner_id = service._liwan_resolve(
             customer_id=customer_id, values=values, create_new=create_new,
         )
         return self.partner_id

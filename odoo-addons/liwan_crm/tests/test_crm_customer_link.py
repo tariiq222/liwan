@@ -5,6 +5,7 @@ from unittest.mock import patch
 from odoo.tests import tagged
 
 from .common import LiwanCrmCase
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 URL = '/api/v1/crm/opportunities'
 PHONE = '+966501234567'
@@ -251,6 +252,18 @@ class TestCrmCustomerLink(LiwanCrmCase):
             self.assertEqual((response.status_code, response.json()['code']), (409, 'already_linked'), body)
             self.assertNotIn('Hidden Name', response.text)
             self.assertEqual((lead.won_status, lead.partner_id, lead.liwan_package_id.id), ('pending', hidden, False))
+
+    def test_a_caller_who_may_not_pick_is_forbidden_whether_or_not_the_lead_links_a_hidden_customer(self):
+        # The routes need a pick capability before the model is reached, so this is checked on the model.
+        hidden = self.hidden_customer()
+        linked = self.lead(partner_id=hidden.id)
+        self.hide(hidden)
+        unlinked = self.make_lead(self.agent, contact_name='Unlinked', phone='+966500000888')
+        reader = self.custom_user('crm_pick_denied', ['crm.leads.read'])
+        for lead in (linked, unlinked):
+            with self.assertRaises(LiwanAccessRule) as caught:
+                lead.with_user(reader)._liwan_link_customer()
+            self.assertEqual((caught.exception.status, caught.exception.code), (403, 'forbidden'))
 
     def test_a_lead_linked_to_an_archived_customer_is_replaced(self):
         old = self.customer('Old', '+966500000444')

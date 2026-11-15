@@ -4,6 +4,7 @@ from odoo.tests import tagged
 
 from . import whatsapp_payloads as wa
 from .common import LiwanInboxCase
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.models.privacy_hooks import ERASED_CONTACT
 
 SENDER = '+966501112222'
@@ -172,6 +173,19 @@ class TestLinkRoute(LiwanInboxCase):
                 self.assertNotIn('Hidden Name', result.text)
         self.assertEqual(self.reload(self.contact).partner_id, hidden)
         self.assertIsNone(self.get(f'/api/v1/inbox/contacts/{self.contact.id}').json()['customer'])
+
+    def test_a_caller_who_may_not_pick_is_forbidden_whether_or_not_the_contact_links_a_hidden_customer(self):
+        # The route needs the reply capability before the model is reached, so this is checked on the model.
+        self.env['liwan.customers.settings']._liwan_current().sharing = 'branch'
+        other_company = self.env['res.company'].create({'name': 'Other pick company'})
+        hidden = self.service.with_company(other_company)._liwan_create({'name': 'Hidden Name', 'phone': '+966500000670'})
+        unlinked = self.make_conversation(channel=self.make_channel(phone_id='100000000097')).contact_id
+        for partner in (hidden, self.env['res.partner']):
+            self.contact.partner_id = partner
+            for contact in (self.contact, unlinked):
+                with self.assertRaises(LiwanAccessRule) as caught:
+                    contact.with_user(self.reader_only)._liwan_customer()
+                self.assertEqual((caught.exception.status, caught.exception.code), (403, 'forbidden'))
 
     def test_a_contact_linked_to_an_archived_customer_is_replaced(self):
         old = self.customer('Old', '+966500000668')

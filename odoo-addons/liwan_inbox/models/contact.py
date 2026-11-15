@@ -35,10 +35,12 @@ class LiwanInboxContact(models.Model):
         to a partner that is no party or is archived) ``customer_id`` names an existing customer, ``create_new`` asks for a
         new one, and without either a customer is made from the contact's name and phone unless customers with that
         phone exist, which answers 409 ``conflict`` with them. A contact with no phone (TikTok) is made from its name
-        alone.
+        alone. A caller who may not pick a customer is 403 ``forbidden`` first, so the answer never tells a hidden link
+        from none.
         """
         self.ensure_one()
         service = self.env['liwan.customers.service']
+        service._liwan_require_pick()
         if service._liwan_is_hidden(self.partner_id):
             raise ApiError(409, 'already_linked', 'the contact is already linked to a customer')
         linked = self._liwan_linked_customer()
