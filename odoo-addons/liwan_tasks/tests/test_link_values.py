@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from unittest.mock import patch
 
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from odoo.addons.liwan_tasks.tests.common import LiwanTasksCase
@@ -39,3 +40,15 @@ class TestCreateLinkValues(LiwanTasksCase):
     def test_a_link_field_is_never_a_wire_field(self):
         with self.register('color'), self.assertRaisesRegex(Exception, 'color is not supported'):
             self.service()._create_task({'name': 'x', 'color': 3})
+
+    def test_a_link_target_the_creator_cannot_read_is_refused(self):
+        hidden = self.env['res.partner'].create({'name': 'Hidden', 'company_id': self.other_company.id})
+        visible = self.env['res.partner'].create({'name': 'Visible', 'company_id': self.alice.company_id.id})
+        Task = self.env['project.task'].with_user(self.alice)
+        vals = {'name': 'Linked', 'company_id': self.alice.company_id.id}
+        with self.register('partner_id'):
+            self.assertFalse(hidden.with_user(self.alice).has_access('read'))
+            for target in (hidden.id, 2 ** 30):
+                with self.subTest(target=target), self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+                    Task.create({**vals, 'partner_id': target})
+            self.assertEqual(Task.create({**vals, 'partner_id': visible.id}).partner_id, visible)

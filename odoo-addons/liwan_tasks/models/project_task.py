@@ -34,6 +34,33 @@ class ProjectTask(models.Model):
         """
         return frozenset()
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A link field a bridge registered may only point at a record the creator can read.
+
+        Here, not in liwan_tasks_pmo, so it holds with and without PMO installed: the model is the one
+        place every create passes. A missing or unreadable target is refused like any field that is not
+        allowed, so the refusal says nothing about the record.
+        """
+        if not self.env.su:
+            for vals in vals_list:
+                self._liwan_check_link_targets(vals)
+        return super().create(vals_list)
+
+    @api.model
+    def _liwan_check_link_targets(self, vals):
+        for name in self._liwan_task_link_fields() & set(vals):
+            field = self._fields[name]
+            if not field.relational or not vals[name]:
+                continue
+            target = self.env[field.comodel_name].browse(vals[name]).exists()
+            try:
+                target.check_access('read')
+            except AccessError:
+                target = None
+            if not target:
+                raise AccessError(self.env._("Task fields are not allowed."))
+
     @api.depends('project_id')
     def _compute_liwan_personal(self):
         for task in self:

@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import datetime
 
+from odoo.exceptions import AccessError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
@@ -102,6 +103,17 @@ class TestOpportunityTasks(LiwanCrmCase):
         task = self.env['project.task'].browse(body['id'])
         self.assertEqual(task.date_deadline, datetime(2026, 12, 1, 0, 0))
         self.assertEqual(body['date_deadline'], '2026-12-01T00:00:00Z')
+
+    def test_the_model_refuses_a_link_to_an_opportunity_the_creator_cannot_read(self):
+        self.set_settings(visibility='own')
+        mine = self.make_lead(self.agent)
+        hidden = {'own': self.make_lead(self.agent2), 'foreign company': self.make_lead(None, company=self.other_company)}
+        Task = self.env['project.task'].with_user(self.agent)
+        vals = {'name': 'Call', 'company_id': self.company.id, 'user_ids': [Command.set([self.agent.id])]}
+        for label, lead in hidden.items():
+            with self.subTest(lead=label), self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+                Task.create({**vals, 'lead_id': lead.id})
+        self.assertEqual(Task.create({**vals, 'lead_id': mine.id}).lead_id, mine)
 
     def test_an_archived_opportunity_takes_no_task(self):
         lead = self.make_lead(self.agent)
