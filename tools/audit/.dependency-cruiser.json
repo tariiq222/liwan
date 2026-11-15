@@ -1,0 +1,27 @@
+{
+  "forbidden": [
+    {
+      "name": "ui-layer-reaches-app-or-contracts",
+      "severity": "error",
+      "from": { "path": "^packages/(ui|commercial-ui)/" },
+      "to": { "path": "^(apps/|@liwan/contracts)" }
+    },
+    {
+      "name": "web-app-reaches-control-plane",
+      "severity": "error",
+      "from": { "path": "^apps/web/app/" },
+      "to": { "path": "control-plane" }
+    },
+    {
+      "name": "vendor-admin-reaches-customer-surfaces",
+      "severity": "error",
+      "from": { "path": "^apps/vendor-admin/app/" },
+      "to": { "path": "(@liwan/contracts|apps/web|odoo-addons)" }
+    }
+  ],
+  "options": {
+    "doNotFollow": "node_modules",
+    "combinedDependencies": true,
+    "exclude": { "path": "(node_modules|\\.nuxt|\\.output|dist|storybook-static)" }
+  }
+}
