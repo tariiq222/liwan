@@ -500,7 +500,7 @@ function commitImport(body, checked) {
     nextId += 1
     opportunities.unshift({
       id: nextId, contact_name: item.name, phone: item.phone, email: item.email, notes: item.notes, stage: ref(lists.stages, firstStage().id), user: mockUserRef(agentId),
-      source: ref(lists.sources, body.source_id), package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0,
+      source: ref(lists.sources, body.source_id), package: null, lost_reason: null, customer: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0,
       expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
       properties: propertiesOf(settings.values.lead_properties),
     })
