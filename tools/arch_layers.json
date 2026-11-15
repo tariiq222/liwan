@@ -21,6 +21,7 @@
     "liwan_appointments": 4,
     "liwan_inbox": 4,
     "liwan_sales": 4,
+    "liwan_helpdesk": 4,
     "liwan_meetings_pmo": 5,
     "liwan_crm_tasks": 5,
     "liwan_crm_meetings": 5,
@@ -193,6 +194,14 @@
       ],
       "pages": [
         "sales"
+      ]
+    },
+    "helpdesk": {
+      "components": [
+        "helpdesk"
+      ],
+      "pages": [
+        "helpdesk"
       ]
     }
   },

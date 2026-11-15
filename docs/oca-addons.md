@@ -74,19 +74,18 @@ reports, assets and bank"). Only modules a route uses are declared:
 | `account_statement_import_camt` (bank-statement-import), with `account_statement_import_file` and `account_statement_import_base` | the CAMT parser (`account.statement.import.camt.parser`) and the `unique_import_id` line field behind the bank statement import; the OCA wizard and its menus are never used (OFX is read by `liwan_finance` itself, no OCA 19.0 module reads it) |
 | `mis_builder` (mis-builder) | profit and loss, balance sheet, Zakat base (templates shipped as data) |
 
-`liwan_helpdesk` uses four modules of OCA/helpdesk; its pin names them, so the repository's other
-fourteen never reach the addons path:
+`liwan_helpdesk` uses three modules of OCA/helpdesk; its pin names them, so the repository's other
+fifteen never reach the addons path:
 
 | OCA module (repository) | Used for |
 |---|---|
 | `helpdesk_mgmt` (helpdesk) | the ticket engine of `liwan_helpdesk`: `helpdesk.ticket`, team, stage, category, tag, channel, the ticket sequence and the mail alias |
 | `helpdesk_mgmt_sla` (helpdesk) | SLA policies and the per-ticket SLA deadlines computed on the team's `resource.calendar` |
-| `helpdesk_mgmt_rating` (helpdesk) | customer satisfaction on the ticket, through `rating.mixin` |
 | `helpdesk_type` (helpdesk) | the ticket type list (incident, request, change, problem) as a tenant value list |
 
-The other fourteen modules of OCA/helpdesk are not on the addons path: its merge, duplicate-response,
-auto-close, activity and project/sale/product/crm bridges are engine behaviour LiwanOS either owns in
-`liwan_helpdesk` or links through its own bridge addons, and `helpdesk_mgmt_timesheet` needs
+The other fifteen modules of OCA/helpdesk are not on the addons path: its merge, duplicate-response,
+auto-close, activity, rating and project/sale/product/crm bridges are engine behaviour LiwanOS either
+owns in `liwan_helpdesk` or adds with its own bridge addon, and `helpdesk_mgmt_timesheet` needs
 `hr_timesheet`, which has no product surface.
 
 `date_range` and `report_xlsx` (server-ux, reporting-engine) come in as their dependencies. `account_tax_balance` and

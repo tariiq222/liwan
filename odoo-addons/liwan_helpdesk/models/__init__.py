@@ -1,0 +1,15 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from . import (
+    access_service,
+    ai_agent,
+    customers_service,
+    feature_registry,
+    helpdesk_service,
+    helpdesk_settings,
+    helpdesk_ticket,
+    mail_message,
+    notification_types,
+    res_users,
+    tenant_export,
+    visibility,
+)
