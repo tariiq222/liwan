@@ -34,7 +34,7 @@ export const FieldGrid: Story = {
     components: { SettingsPage, SettingsCard, SettingRow },
     setup: () => ({ args }),
     template: `<main class="liwan-shell-main"><SettingsPage><SettingsCard v-bind="args">
-      <SettingRow name="logo" label="الشعار" description="PNG أو JPG حتى 2 ميغابايت."><UButton color="neutral" variant="outline" label="اختيار صورة" :disabled="!args.canEdit" /></SettingRow>
+      <SettingRow label="الشعار" description="PNG أو JPG حتى 2 ميغابايت."><UButton color="neutral" variant="outline" label="اختيار صورة" :disabled="!args.canEdit" /></SettingRow>
       <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
         <UFormField name="city" label="المدينة"><UInput id="city" model-value="الرياض" class="w-full" :disabled="!args.canEdit" /></UFormField>
         <UFormField name="street" label="الشارع"><UInput id="street" model-value="" placeholder="كما يظهر في العنوان الوطني." class="w-full" :disabled="!args.canEdit" /></UFormField>
