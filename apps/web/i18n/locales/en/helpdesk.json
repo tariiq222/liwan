@@ -1,0 +1,148 @@
+{
+  "helpdesk": {
+    "title": "Support Desk",
+    "subtitle": "Support tickets from arrival to closure.",
+    "new": "New ticket",
+    "edit": "Edit ticket",
+    "search": "Search by ticket number, subject or requester",
+    "searchProviders": {
+      "tickets": "Support tickets"
+    },
+    "empty": "No tickets in this queue.",
+    "clear": "Clear filters",
+    "unassigned": "Unassigned",
+    "footer": "{shown} of {total} tickets",
+    "nav": {
+      "tickets": "Tickets"
+    },
+    "queue": {
+      "label": "Queue",
+      "open": "Open",
+      "closed": "Closed",
+      "all": "All"
+    },
+    "filters": {
+      "anyTeam": "Every team",
+      "anyStage": "Every stage",
+      "anyPriority": "Every priority",
+      "anyAssignee": "Everyone",
+      "mine": "Assigned to me",
+      "unassigned": "Unassigned"
+    },
+    "columns": {
+      "number": "Number",
+      "subject": "Subject",
+      "requester": "Requester",
+      "stage": "Stage",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "sla": "Service level",
+      "created": "Opened",
+      "team": "Team"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "sla": {
+      "none": "No service level",
+      "on_track": "On track",
+      "due_soon": "Due soon",
+      "overdue": "Overdue"
+    },
+    "form": {
+      "subject": "Subject",
+      "description": "What is the request",
+      "subjectRequired": "Write a clear subject.",
+      "descriptionRequired": "Describe what you need.",
+      "team": "Team",
+      "teamRequired": "Pick the team that receives the request.",
+      "priority": "Priority",
+      "category": "Category",
+      "type": "Type",
+      "channel": "Channel",
+      "customer": "Customer",
+      "customerHelp": "Leave it empty for an internal request from an employee.",
+      "none": "None",
+      "create": "Open the ticket",
+      "save": "Save changes",
+      "failed": "The ticket could not be saved."
+    },
+    "record": {
+      "loading": "Support ticket",
+      "details": "Details",
+      "requester": "Requester",
+      "assignee": "Assignee",
+      "category": "Category",
+      "type": "Type",
+      "channel": "Channel",
+      "created": "Opened",
+      "firstResponse": "First response",
+      "pending": "Waiting for the first reply",
+      "slaDeadline": "Service-level deadline",
+      "closedAt": "Closed",
+      "related": "Related tickets",
+      "description": "What was asked",
+      "stage": "Stage",
+      "take": "Assign to me",
+      "release": "Unassign",
+      "close": "Close the ticket",
+      "reopen": "Reopen",
+      "failed": "The action could not be completed."
+    },
+    "thread": {
+      "title": "Conversation",
+      "empty": "No replies yet.",
+      "internal": "Internal note",
+      "placeholder": "Answer the requester or leave a note for the team.",
+      "note": "Internal note, hidden from the requester",
+      "send": "Send",
+      "failed": "The reply could not be sent.",
+      "uploadFailed": "The file could not be uploaded.",
+      "deleteFailed": "The file could not be deleted."
+    },
+    "attachments": {
+      "title": "Attachments",
+      "empty": "No attachments.",
+      "add": "Attach a file",
+      "remove": "Remove the attachment"
+    },
+    "settings": {
+      "policy": "Policy",
+      "policyHint": "Who sees which ticket, what a new ticket takes, and the service-level targets.",
+      "policyTitle": "Support policy",
+      "preset": "Preset",
+      "presetHint": "A starting point that sets several settings at once; every value stays editable.",
+      "visibility": {
+        "own": "Own tickets",
+        "team": "My teams",
+        "all": "Whole company"
+      },
+      "visibilityHint": "Own: assigned to me and unassigned in my team. Team: every ticket of my teams. Company: every ticket.",
+      "defaultTeam": "Default team",
+      "defaultPriority": "Default priority",
+      "prefix": "Ticket number prefix",
+      "prefixHint": "Precedes the number of every new ticket, up to ten characters.",
+      "reopenDays": "Reopen window (days)",
+      "reopenHint": "Zero means a closed ticket never reopens.",
+      "firstResponse": "First-response target (hours)",
+      "firstResponseHint": "From opening the ticket to the team's first reply; zero disables the measure.",
+      "resolution": "Resolution target (hours)",
+      "resolutionHint": "From opening the ticket to closing it; zero disables the measure.",
+      "save": "Save the policy",
+      "saved": "The policy was saved.",
+      "failed": "The policy could not be saved.",
+      "presets": {
+        "general": "General",
+        "it": "IT service desk",
+        "maintenance": "Maintenance and facilities",
+        "public_sector": "Public sector service desk",
+        "retail": "Retail after-sales",
+        "care": "Care and clinics",
+        "education": "Education"
+      }
+    }
+  }
+}

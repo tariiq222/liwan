@@ -222,7 +222,8 @@
       "tasksEmpty": "لا مهام مفتوحة. أحسنت!",
       "meetingsEmpty": "لا اجتماعات قادمة.",
       "noDeadline": "بلا موعد"
-    }
+    },
+    "helpdesk": "الدعم الفني"
   },
   "auth": {
     "username": "اسم المستخدم",
@@ -430,6 +431,10 @@
       "projects": {
         "count": "مشاريع",
         "attention": "تحتاج متابعة"
+      },
+      "helpdesk": {
+        "open": "تذكرة مفتوحة",
+        "unassigned": "غير مسندة"
       }
     },
     "open": "فتح التطبيق",
