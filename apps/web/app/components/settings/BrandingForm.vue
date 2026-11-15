@@ -49,27 +49,33 @@ const isSelected = (color: string) => normalizeHex(draft.value.primary_color) ==
   <SharedSettingsCard id="branding" v-bind="state" data-testid="branding-form" :title="t('settings.branding.color')" :description="t('settings.branding.managedIdentity')" :can-edit="editable" @save="save" @revert="revert" @reload="reload">
     <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
       <UFormField data-span="full" name="branding-color" :label="t('settings.branding.colorLabel')" :error="draft.primary_color && !primaryValid ? t('settings.branding.errors.invalidColor') : undefined">
-        <div class="flex flex-wrap items-center gap-2">
-          <UPopover>
-            <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="locked">
-              <span class="size-5 rounded-inner border border-default" :style="{ backgroundColor: swatchColor }" />
-            </UButton>
-            <template #content><UColorPicker v-model="draft.primary_color" class="p-3" /></template>
-          </UPopover>
-          <UInput id="branding-color" v-model="draft.primary_color" data-testid="branding-color" dir="ltr" class="w-40 font-mono" :aria-invalid="!primaryValid" :disabled="locked" />
-          <div class="flex flex-wrap items-center gap-1" role="group" :aria-label="t('settings.branding.presets.label')">
+        <div class="flex flex-wrap items-center gap-3">
+          <UInput id="branding-color" v-model="draft.primary_color" data-testid="branding-color" dir="ltr" class="w-40 font-mono" :ui="{ leading: 'pointer-events-auto' }" :aria-invalid="!primaryValid" :disabled="locked">
+            <template #leading>
+              <UPopover>
+                <button type="button" class="inline-grid rounded-inner focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) disabled:opacity-50" data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="locked">
+                  <span class="size-5 rounded-inner border border-default" :style="{ backgroundColor: swatchColor }" aria-hidden="true" />
+                </button>
+                <template #content><UColorPicker v-model="draft.primary_color" class="p-3" /></template>
+              </UPopover>
+            </template>
+          </UInput>
+          <USeparator orientation="vertical" class="hidden h-(--liwan-control-h) sm:block" />
+          <div class="flex flex-wrap items-center gap-1.5" role="group" :aria-label="t('settings.branding.presets.label')">
             <UTooltip v-for="preset in PRESETS" :key="preset.key" :text="t(preset.labelKey)">
               <button
                 type="button"
-                class="inline-grid size-8 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) disabled:opacity-50"
-                :class="isSelected(preset.color) ? 'ring-2 ring-(--ring) ring-offset-2' : ''"
+                class="inline-grid size-8 place-items-center rounded-inner ring-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) disabled:opacity-50"
+                :class="isSelected(preset.color) ? 'ring-[1.5px] ring-(--ring)' : 'hover:ring-1 hover:ring-(--ui-border-muted)'"
                 data-testid="branding-preset"
                 :aria-label="t(preset.labelKey)"
                 :aria-pressed="isSelected(preset.color)"
                 :disabled="locked"
                 @click="draft.primary_color = preset.color"
               >
-                <span class="size-5 rounded-full border border-default" :style="{ backgroundColor: preset.color }" aria-hidden="true" />
+                <span class="inline-grid size-6 place-items-center rounded-inner border border-default text-white" :style="{ backgroundColor: preset.color }" aria-hidden="true">
+                  <UIcon v-if="isSelected(preset.color)" name="i-lucide-check" class="size-3.5" />
+                </span>
               </button>
             </UTooltip>
           </div>
