@@ -11,12 +11,13 @@ const stubs = { NuxtLink: link, SharedStatusBadge: badge, SharedRecordSection: s
 const messages = {
   'crm.opportunities.tasks.add': 'إضافة مهمة', 'crm.opportunities.tasks.empty': 'لا مهام', 'crm.opportunities.tasks.state.open': 'مفتوحة',
   'crm.opportunities.tasks.due': 'الموعد: {date}', 'crm.opportunities.meetings.add': 'إضافة اجتماع', 'crm.opportunities.meetings.empty': 'لا اجتماعات',
-  'crm.opportunities.meetings.state.confirmed': 'مؤكد',
+  'crm.opportunities.meetings.state.confirmed': 'مؤكد', 'crm.opportunities.conversations.empty': 'لا محادثات', 'crm.opportunities.conversations.state.open': 'مفتوحة',
 }
 const render = (name: string, props: Record<string, unknown>) =>
-  renderShared(resolve(import.meta.dirname, `../${name}.vue`), props, {}, { hydrated: true, messages, stubs, modules: { '@liwan/ui/app/composables/calendarDate': { formatCalendarDate: (value: string) => value.slice(0, 10) } } })
+  renderShared(resolve(import.meta.dirname, `../${name}.vue`), props, {}, { hydrated: true, messages, stubs, modules: { '@liwan/ui/app/composables/calendarDate': { formatCalendarDate: (value: string) => value.slice(0, 10) }, '@liwan/ui/app/utils/formatDate': { formatDateTime: (value: string) => value } } })
 
 const task = { id: 5, name: 'اتصال متابعة', state: 'open', priority: 'normal', date_deadline: '2026-11-20T09:00:00Z', assignees: [{ id: 3, name: 'سعد' }], source: 'personal', project: null, href: '/my-tasks/5' }
+const conversation = { id: 12, contact: { id: 4, name: 'منى', phone: null, email: null, erased: false }, channel: { id: 1, name: 'واتساب', kind: 'whatsapp' }, state: 'open', unread: true, last_message_at: '2026-11-14T10:00:00Z', last_message_preview: 'أريد عرض سعر' }
 const meeting = { id: 8, name: 'عرض المنتج', meeting_date: '2026-11-22', state: 'confirmed', organizer: { id: 3, name: 'سعد' } }
 
 describe('CrmOpportunityTasks', () => {
@@ -46,5 +47,20 @@ describe('CrmOpportunityMeetings', () => {
   it('offers the add button only to a writer', async () => {
     expect(await render('CrmOpportunityMeetings', { meetings: [meeting], total: 1, canWrite: true })).toContain('data-testid="crm-meeting-add"')
     expect(await render('CrmOpportunityMeetings', { meetings: [meeting], total: 1, canWrite: false })).not.toContain('crm-meeting-add')
+  })
+})
+
+describe('CrmOpportunityConversations', () => {
+  it('lists each conversation with its channel, state and a link to the inbox', async () => {
+    const html = await render('CrmOpportunityConversations', { conversations: [conversation], total: 1 })
+    expect(html).toContain('href="/inbox/12"')
+    expect(html).toContain('منى')
+    expect(html).toContain('واتساب')
+    expect(html).toContain('data-badge="مفتوحة"')
+    expect(html).toContain('أريد عرض سعر')
+  })
+
+  it('says so when none is linked', async () => {
+    expect(await render('CrmOpportunityConversations', { conversations: [], total: 0 })).toContain('لا محادثات')
   })
 })

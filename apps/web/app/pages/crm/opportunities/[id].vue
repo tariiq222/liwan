@@ -7,13 +7,14 @@ import CustomerLinkBlock from '@/components/customers/CustomerLinkBlock.vue'
 import CrmOpportunityCallForm, { type CrmCallDraft } from '@/components/crm/opportunity/CrmOpportunityCallForm.vue'
 import CrmOpportunityCallLog from '@/components/crm/opportunity/CrmOpportunityCallLog.vue'
 import CrmOpportunityContactForm from '@/components/crm/opportunity/CrmOpportunityContactForm.vue'
+import CrmOpportunityConversations from '@/components/crm/opportunity/CrmOpportunityConversations.vue'
 import CrmOpportunityMeetings from '@/components/crm/opportunity/CrmOpportunityMeetings.vue'
 import CrmOpportunityLostForm from '@/components/crm/opportunity/CrmOpportunityLostForm.vue'
 import CrmOpportunitySaleForm, { type CrmSaleDraft } from '@/components/crm/opportunity/CrmOpportunitySaleForm.vue'
 import CrmOpportunityTasks from '@/components/crm/opportunity/CrmOpportunityTasks.vue'
 import { useCustomerConflict } from '@/composables/customers/useCustomerConflict'
 import { useCrmLostReasonChoices, useCrmOutcomeChoices, useCrmPackageChoices, useCrmSourceChoices, useCrmStageChoices } from '@/composables/crm/useCrmLists'
-import { useCreateOpportunityMeeting, useCreateOpportunityTask, useOpportunityMeetingAccess, useOpportunityMeetings, useOpportunityTaskAccess, useOpportunityTasks } from '@/composables/crm/useOpportunityBridges'
+import { useOpportunityConversationAccess, useOpportunityConversations, useCreateOpportunityMeeting, useCreateOpportunityTask, useOpportunityMeetingAccess, useOpportunityMeetings, useOpportunityTaskAccess, useOpportunityTasks } from '@/composables/crm/useOpportunityBridges'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { useCrmCalls, useCrmOpportunity, useCrmOpportunityActions, useCrmOpportunityOpening } from '@/composables/crm/useOpportunities'
 import { owningListBack } from '@/utils/recordListOrigin'
@@ -182,6 +183,9 @@ const meetingAccess = useOpportunityMeetingAccess()
 const refused = (error: unknown) => (error as { status?: number } | null)?.status === 403
 const taskList = useOpportunityTasks(id, taskAccess.read)
 const meetingList = useOpportunityMeetings(id, meetingAccess.read)
+const conversationAccess = useOpportunityConversationAccess()
+const conversationList = useOpportunityConversations(id, conversationAccess)
+const showConversations = computed(() => conversationAccess.value && !refused(conversationList.error.value))
 const showTasks = computed(() => taskAccess.read.value && !refused(taskList.error.value))
 const showMeetings = computed(() => meetingAccess.read.value && !refused(meetingList.error.value))
 // The server writes through the record's own write check: its agent or an assigner.
@@ -354,6 +358,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       </SharedRecordSection>
       <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" v-model:dirty="callDirty" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="manualLostReasons" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
       <CrmOpportunityCallLog :calls="calls.items.value" :total="calls.data.value?.pages.at(-1)?.total ?? 0" :has-more="!!calls.hasNextPage.value" :loading-more="calls.isFetchingNextPage.value" @more="calls.fetchNextPage()" />
+      <CrmOpportunityConversations v-if="showConversations" :conversations="conversationList.data.value?.items ?? []" :total="conversationList.data.value?.total ?? 0" :loading="conversationList.isPending.value && conversationList.isFetching.value" :error="conversationList.error.value" @retry="conversationList.refetch()" />
       <CrmOpportunityTasks v-if="showTasks" ref="tasksPanel" :tasks="taskList.data.value?.items ?? []" :total="taskList.data.value?.total ?? 0" :loading="taskList.isPending.value && taskList.isFetching.value" :error="taskList.error.value" :can-write="taskAccess.write.value && ownsRecord" :pending="createTask.isPending.value" :form-error="taskError" @create="addTask" @retry="taskList.refetch()" />
       <CrmOpportunityMeetings v-if="showMeetings" ref="meetingsPanel" :meetings="meetingList.data.value?.items ?? []" :total="meetingList.data.value?.total ?? 0" :loading="meetingList.isPending.value && meetingList.isFetching.value" :error="meetingList.error.value" :can-write="meetingAccess.write.value && ownsRecord" :pending="createMeeting.isPending.value" :form-error="meetingError" @create="addMeeting" @retry="meetingList.refetch()" />
     </template>

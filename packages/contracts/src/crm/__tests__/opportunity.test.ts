@@ -1,4 +1,7 @@
 import {
+  ConversationOpportunityAnswerSchema,
+  ConversationOpportunityConflictErrorSchema,
+  ConversationOpportunityLinkSchema,
   CrmOpportunityCreateSchema,
   CrmOpportunityMeetingCreateSchema,
   CrmOpportunityTaskCreateSchema,
@@ -131,5 +134,30 @@ describe('the bridge write bodies', () => {
     expect(() => CrmOpportunityMeetingCreateSchema.parse({ name: 'Demo', series_id: 1 })).toThrow()
     expect(() => CrmOpportunityMeetingCreateSchema.parse({ name: 'Demo', project_id: 1 })).toThrow()
     expect(() => CrmOpportunityMeetingCreateSchema.parse({ attendee_ids: [3] })).toThrow()
+  })
+})
+
+describe('the conversation opportunity bridge', () => {
+  const ref = { id: 7, contact_name: 'Customer', stage: { id: 1, name: 'New' }, status: 'pending', active: true }
+
+  it('reads the ref, an archived one, or a bare null', () => {
+    expect(ConversationOpportunityAnswerSchema.parse(ref)).toEqual(ref)
+    expect(ConversationOpportunityAnswerSchema.parse({ ...ref, stage: null, active: false }).active).toBe(false)
+    expect(ConversationOpportunityAnswerSchema.parse(null)).toBeNull()
+    expect(() => ConversationOpportunityAnswerSchema.parse({ ...ref, name: 'x' })).toThrow()
+    expect(() => ConversationOpportunityAnswerSchema.parse({ ...ref, status: 'open' })).toThrow()
+  })
+
+  it('links by an opportunity id only', () => {
+    expect(ConversationOpportunityLinkSchema.parse({ opportunity_id: 7 }).opportunity_id).toBe(7)
+    expect(() => ConversationOpportunityLinkSchema.parse({})).toThrow()
+    expect(() => ConversationOpportunityLinkSchema.parse({ opportunity_id: 0 })).toThrow()
+    expect(() => ConversationOpportunityLinkSchema.parse({ opportunity_id: 7, create_new: true })).toThrow()
+  })
+
+  it('names both customers of a mismatch conflict, either may be missing', () => {
+    const conflict = { code: 'conflict', message: 'x', details: { contact_customer: { id: 1, name: 'A' }, opportunity_customer: null } }
+    expect(ConversationOpportunityConflictErrorSchema.parse(conflict).details.contact_customer?.name).toBe('A')
+    expect(() => ConversationOpportunityConflictErrorSchema.parse({ ...conflict, details: { contact_customer: null } })).toThrow()
   })
 })

@@ -1159,6 +1159,7 @@ export function inboxPreviewData(method, path, url, body = {}) {
     }
     if (parts[5] === 'flow-submissions' && method === 'GET') return ok(list(state.submissions.filter(item => item.conversation_id === conv.id)))
     if (parts[5] === 'uploads' && method === 'POST') return upload(conv, body)
+    if (parts[5] === 'opportunity' && method === 'GET') return ok(null)
     if (parts[5] === 'typing' && method === 'POST') return { status: 204, body: undefined }
     if (parts[5] === 'notes' && method === 'POST') {
       if (!String(body.body ?? '').trim()) return fail(422, 'invalid', 'الملاحظة فارغة', 'body')

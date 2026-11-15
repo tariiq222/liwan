@@ -374,6 +374,19 @@
         "noDate": "بلا تاريخ",
         "count": "يظهر {shown} من {total} اجتماع",
         "added": "أُضيف الاجتماع"
+      },
+      "conversations": {
+        "title": "المحادثات",
+        "empty": "لا توجد محادثات مرتبطة بهذه الفرصة.",
+        "erased": "عميل ممسوح",
+        "unread": "غير مقروءة",
+        "state": {
+          "open": "مفتوحة",
+          "pending": "معلّقة",
+          "resolved": "محلولة",
+          "closed": "مغلقة"
+        },
+        "count": "يظهر {shown} من {total} محادثة"
       }
     },
     "imports": {

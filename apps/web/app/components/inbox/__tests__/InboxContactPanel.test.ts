@@ -32,7 +32,7 @@ async function mountPanel(contact: Record<string, unknown>, detail: Record<strin
     inboxContactName: (c: { id: number; name: string; erased: boolean }, t: (key: string, values?: object) => string) => c.erased ? t('inbox.erasedContact', { id: c.id }) : c.name,
     useAccess: () => ({ can: () => true }), useInboxContact: () => ({ data: Vue.ref(detail) }),
     useLinkInboxContactCustomer: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
-    useCustomerConflict: () => ({ candidates: Vue.ref(null), offer: () => false, choose: vi.fn(), clear: vi.fn() }), isCustomerAlreadyLinked: () => false, CustomerLinkBlock: null,
+    useCustomerConflict: () => ({ candidates: Vue.ref(null), offer: () => false, choose: vi.fn(), clear: vi.fn() }), isCustomerAlreadyLinked: () => false, CustomerLinkBlock: null, InboxOpportunityCard: null,
     CONVERSATION_STATES: [], PRIORITIES: [], InboxFlowSubmissionsSection: null, InboxContactMarketing: null,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
@@ -44,7 +44,7 @@ async function mountPanel(contact: Record<string, unknown>, detail: Record<strin
   const pass = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('div', [slots.default?.()]) })
   const linkBlock = Vue.defineComponent({ props: ['customer', 'canLink', 'canOpen'], setup: props => () => Vue.h('div', { 'data-testid': 'link-block', 'data-customer': (props.customer as { name: string } | null)?.name ?? 'none', 'data-can-link': String(props.canLink) }) })
   app.component('CustomerLinkBlock', linkBlock)
-  for (const name of ['SharedRecordSection', 'SharedPropertyRow', 'UFormField', 'InboxFlowSubmissionsSection', 'InboxContactMarketing', 'SharedPersonPicker', 'USelect', 'USelectMenu']) app.component(name, pass)
+  for (const name of ['SharedRecordSection', 'InboxOpportunityCard', 'SharedPropertyRow', 'UFormField', 'InboxFlowSubmissionsSection', 'InboxContactMarketing', 'SharedPersonPicker', 'USelect', 'USelectMenu']) app.component(name, pass)
   app.component('UInput', Vue.defineComponent({ inheritAttrs: false, props: ['modelValue'], setup: (props, { attrs }) => () => Vue.h('input', { value: props.modelValue, disabled: attrs.disabled === true || undefined, 'data-type': attrs.type ?? 'text' }) }))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', { type: attrs.type as string }, String(attrs.label)) }))
   return { html: await renderToString(app), state: Vue.proxyRefs(state), patchContact }

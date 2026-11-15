@@ -10,6 +10,7 @@ export const crmKeys = {
   opportunity: (id: number) => ['crm', 'opportunities', 'record', id] as const,
   calls: (id: number) => ['crm', 'opportunities', 'calls', id] as const,
   tasks: (id: number) => ['crm', 'opportunities', 'tasks', id] as const,
+  conversations: (id: number) => ['crm', 'opportunities', 'conversations', id] as const,
   meetings: (id: number) => ['crm', 'opportunities', 'meetings', id] as const,
   importBatches: (params: object) => ['crm', 'imports', 'batches', params] as const,
   importBatchesAll: ['crm', 'imports', 'batches'] as const,

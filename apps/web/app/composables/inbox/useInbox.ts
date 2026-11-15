@@ -28,6 +28,7 @@ export const inboxKeys = {
   all: ['inbox'] as const,
   list: (route: InboxListRoute) => ['inbox', 'conversations', inboxListQuery(route)] as const,
   detail: (id: number) => ['inbox', 'conversation', id] as const,
+  opportunity: (id: number) => ['inbox', 'conversation-opportunity', id] as const,
   contact: (id: number) => ['inbox', 'contact', id] as const,
   messagesOf: (id: number) => ['inbox', 'messages', id] as const,
   canned: ['inbox', 'canned-replies'] as const,

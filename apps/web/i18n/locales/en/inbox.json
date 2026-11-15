@@ -2219,6 +2219,34 @@
         "notStarted": "Not started",
         "notFinished": "Not finished"
       }
+    },
+    "opportunity": {
+      "title": "Sales opportunity",
+      "none": "This conversation is not linked to an opportunity.",
+      "link": "Link an opportunity",
+      "unlink": "Unlink the opportunity",
+      "confirm": "Link the chosen opportunity",
+      "search": "Search by opportunity name or phone",
+      "listLabel": "Open opportunities",
+      "emptyForContact": "No open opportunity has this phone. Search by name or another number.",
+      "emptyNoPhone": "Search by opportunity name or phone.",
+      "noStage": "No stage",
+      "archived": "Archived",
+      "linked": "The conversation is linked to the opportunity",
+      "unlinked": "The conversation is unlinked from the opportunity",
+      "status": {
+        "pending": "In progress",
+        "won": "Won",
+        "lost": "Lost"
+      },
+      "errors": {
+        "alreadyLinked": "The conversation is linked to another opportunity. Unlink it first, then link the new one.",
+        "customerMismatch": "The contact belongs to customer \"{contact}\" and the opportunity to customer \"{opportunity}\". A conversation cannot be linked to an opportunity of a different customer.",
+        "noCustomer": "no customer",
+        "notYours": "This opportunity belongs to another agent, so you cannot link or unlink it.",
+        "unavailable": "This opportunity cannot be linked: it is archived or belongs to another company.",
+        "missing": "The conversation or the opportunity was not found, or you cannot see it."
+      }
     }
   },
   "errors": {

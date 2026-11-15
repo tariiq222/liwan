@@ -208,10 +208,11 @@ export function crmPreviewData(path, url) {
   if (path === '/api/v1/crm/dashboard') return dashboard()
   if (path === '/api/v1/crm/export') return exportFile(url)
   if (path === '/api/v1/crm/audit/views') return page(viewLogs(), url)
-  const record = path.match(/^\/api\/v1\/crm\/opportunities\/(\d+)(\/calls)?$/)
+  const record = path.match(/^\/api\/v1\/crm\/opportunities\/(\d+)(\/calls|\/conversations)?$/)
   if (record) {
     const found = opportunities.find(item => item.id === Number(record[1]))
     if (!found) return undefined
+    if (record[2] === '/conversations') return page([], url)
     return record[2] ? page(calls[found.id] ?? [], url) : found
   }
   return undefined

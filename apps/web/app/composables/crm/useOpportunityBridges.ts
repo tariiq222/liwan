@@ -1,6 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
+  InboxConversationListSchema,
   MeetingDetailSchema,
   MeetingListSchema,
   MyTaskListPageSchema,
@@ -31,6 +32,21 @@ export function useOpportunityMeetingAccess() {
     read: computed(() => can('crm.leads.read') && can('meetings.read')),
     write: computed(() => can('crm.leads.work') && can('meetings.create')),
   }
+}
+
+export function useOpportunityConversationAccess() {
+  const { can } = useAccess()
+  return computed(() => can('crm.leads.read') && can('inbox.conversations.read'))
+}
+
+export function useOpportunityConversations(id: MaybeRefOrGetter<number>, enabled: MaybeRefOrGetter<boolean>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => crmKeys.conversations(toValue(id))),
+    enabled: computed(() => toValue(id) > 0 && toValue(enabled)),
+    retry: false,
+    queryFn: ({ signal }) => $api(`/api/v1/crm/opportunities/${toValue(id)}/conversations`, { query: { limit: OPPORTUNITY_BRIDGE_LIMIT, offset: 0 }, signal, schema: InboxConversationListSchema }),
+  })
 }
 
 export function useOpportunityTasks(id: MaybeRefOrGetter<number>, enabled: MaybeRefOrGetter<boolean>) {

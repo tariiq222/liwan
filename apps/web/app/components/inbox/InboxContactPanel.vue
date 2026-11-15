@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CustomerLink, InboxConversationDetail, InboxConversationPatch } from '@liwan/contracts'
+import InboxOpportunityCard from '@/components/inbox/InboxOpportunityCard.vue'
 import CustomerLinkBlock from '@/components/customers/CustomerLinkBlock.vue'
 import InboxFlowSubmissionsSection from '@/components/inbox/InboxFlowSubmissionsSection.vue'
 import InboxContactMarketing from '@/components/inbox/campaigns/InboxContactMarketing.vue'
@@ -128,6 +129,8 @@ function saveContact() {
         @dismiss="conflict.clear()"
       />
     </SharedRecordSection>
+
+    <InboxOpportunityCard :conversation-id="props.conversation.id" :contact-phone="props.conversation.contact.phone" :can-reply="props.conversation.can_reply" />
 
     <InboxContactMarketing v-if="campaignsOn" :contact-id="props.conversation.contact.id" :can-write="props.conversation.can_reply" />
 
