@@ -11,7 +11,8 @@ export interface ShellRailGroups { top: ShellRailItem[]; applications: ShellRail
 
 /**
  * One sidebar row: a link, or an action (the create action is `primary`). `app` is an application id: the row then
- * shows that application's coloured icon tile instead of a bare icon.
+ * shows that application's coloured icon tile instead of a bare icon. `count` draws a badge only when positive (capped at
+ * `99+`); zero or absent draws nothing.
  */
 export interface ShellQuickItem { id: string; label: string; icon: string; to: RouteLocationRaw; active?: boolean; count?: number; primary?: boolean; app?: string }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ShellQuickItem } from '../../types/shell'
+import { countLabel, hasCount } from '../../utils/shellCount'
 
 // The icon row under the organisation: one tile per core application, each a link to that application's own page.
 // The row has no labels at any width, so every tile carries the name as its accessible name and always shows the name
@@ -13,8 +14,7 @@ const props = defineProps<{
   testIdPrefix?: string
 }>()
 const emit = defineEmits<{ navigate: [item: ShellQuickItem] }>()
-const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
-const nameOf = (item: ShellQuickItem) => (item.count === undefined ? item.label : `${item.label} (${countLabel(item.count)})`)
+const nameOf = (item: ShellQuickItem) => (hasCount(item.count) ? `${item.label} (${countLabel(item.count)})` : item.label)
 </script>
 
 <template>
@@ -30,7 +30,7 @@ const nameOf = (item: ShellQuickItem) => (item.count === undefined ? item.label 
         @click="emit('navigate', item)"
       >
         <UIcon :name="item.icon" aria-hidden="true" />
-        <span v-if="item.count !== undefined" data-slot="badge" dir="ltr" aria-hidden="true">{{ countLabel(item.count) }}</span>
+        <span v-if="hasCount(item.count)" data-slot="badge" dir="ltr" aria-hidden="true">{{ countLabel(item.count) }}</span>
       </NuxtLink>
     </ShellTip>
   </div>
