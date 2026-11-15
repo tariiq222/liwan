@@ -8,8 +8,8 @@ const props = defineProps<{
   /** Accessible name of the group (the heading when there is one). */
   label: string
   title?: string
-  /** A link at the end of the heading (the pinned list's edit link). */
-  action?: { label: string; to: string }
+  /** An icon-only link at the end of the heading (the pinned list's edit link); `label` is its accessible name and tooltip. */
+  action?: { label: string; to: string; icon: string }
   items: ShellNavigationLink[]
   /** Prefix of every row's test id, so the drawer copy and the column never share one. */
   testIdPrefix?: string
@@ -68,7 +68,9 @@ const testId = (row: ShellNavigationLink) => `${props.testIdPrefix ?? ''}${row.t
   <div class="liwan-side-group" role="group" :aria-label="props.title || props.label">
     <div v-if="props.title" class="liwan-side-heading">
       <h3>{{ props.title }}</h3>
-      <NuxtLink v-if="props.action" :to="props.action.to" data-testid="side-section-action">{{ props.action.label }}</NuxtLink>
+      <NuxtLink v-if="props.action" :to="props.action.to" class="liwan-side-action" :aria-label="props.action.label" :title="props.action.label" data-testid="side-section-action">
+        <UIcon :name="props.action.icon" class="size-4" aria-hidden="true" />
+      </NuxtLink>
     </div>
     <ReuseRows :rows="props.items" :path="[]" />
   </div>
