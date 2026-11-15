@@ -1,6 +1,14 @@
 {
   "app": {
     "selectPerson": "Select a person",
+    "customerPicker": {
+      "search": "Search customers",
+      "listLabel": "Customers",
+      "empty": "There are no customers yet. Customers are added from the customers list.",
+      "create": "Add a customer",
+      "selected": "Chosen customer: {name}",
+      "phoneEnding": "Phone ending in"
+    },
     "productPicker": {
       "search": "Search products",
       "listLabel": "Products",

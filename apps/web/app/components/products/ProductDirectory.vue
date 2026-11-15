@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Product } from '@liwan/contracts'
-import { PRODUCT_PAGE_SIZE, PRODUCTS_LIST_PATH, parseProductListQuery, productListLocation, safeProductsReturnTo } from '@/composables/products/productListParams'
+import { PRODUCT_LIST_KEYS, PRODUCT_PAGE_SIZE, PRODUCTS_LIST_PATH, parseProductListQuery } from '@/composables/products/productListParams'
 import { useProducts } from '@/composables/products/useProducts'
-import { useLastPageClamp, useRouteListFilters } from '@/composables/useRouteListFilters'
+import { listLocation, safeListReturnTo, useLastPageClamp, useRouteListFilters } from '@/composables/useRouteListFilters'
 import ProductTable from './ProductTable.vue'
 
 // The body of the products page: the filter bar (search by name, the type and the archived switch), then the table in one
@@ -13,7 +13,7 @@ const props = defineProps<{ background?: boolean }>()
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
-const { hydrated, filterQuery, search, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => PRODUCTS_LIST_PATH, safeReturnTo: safeProductsReturnTo })
+const { hydrated, filterQuery, search, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => PRODUCTS_LIST_PATH, safeReturnTo: value => safeListReturnTo(PRODUCTS_LIST_PATH, value) })
 
 const state = computed(() => parseProductListQuery(filterQuery.value))
 const query = useProducts(state)
@@ -22,7 +22,7 @@ const total = computed(() => query.data.value?.total ?? 0)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PRODUCT_PAGE_SIZE)))
 useLastPageClamp({ page: () => state.value.page, total: () => query.data.value?.total, pageSize: PRODUCT_PAGE_SIZE })
 const activeCount = computed(() => Number(Boolean(state.value.q)) + Number(state.value.type !== null))
-const backTo = computed(() => productListLocation(filterQuery.value, route.hash))
+const backTo = computed(() => listLocation(PRODUCTS_LIST_PATH, PRODUCT_LIST_KEYS, filterQuery.value, route.hash))
 const recordTo = (product: Product) => ({ path: `${PRODUCTS_LIST_PATH}/${product.id}`, query: { returnTo: backTo.value } })
 
 const ANY_TYPE = 'any'

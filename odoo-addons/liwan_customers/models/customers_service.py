@@ -149,6 +149,17 @@ class LiwanCustomersService(models.AbstractModel):
         return partners.search(domain, order=ORDER, limit=limit, offset=offset), partners.search_count(domain)
 
     @api.model
+    def _liwan_pick_search(self, query=None, limit=50, offset=0):
+        """``(parties, total)``: the active parties the caller can see whose name matches ``query``, for a pick holder
+        (403 otherwise)."""
+        self._liwan_require_pick()
+        domain = self._liwan_directory_domain()
+        if query:
+            domain.append(('name', 'ilike', query))
+        partners = self.env['res.partner']
+        return partners.search(domain, order=ORDER, limit=limit, offset=offset), partners.search_count(domain)
+
+    @api.model
     def _liwan_export_count(self, query=None, archived=False, filters=()):
         """How many parties ``_liwan_export_parties`` returns, counted without loading them."""
         domain = self._liwan_directory_domain(query, archived, filters)

@@ -2,7 +2,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { CustomerListSchema, CustomerSchema, type Customer, type CustomerCreate, type CustomerPatch } from '@liwan/contracts'
-import { customerKeys } from './customerKeys'
+import { customerKeys, isCustomerListing } from './customerKeys'
 import { CUSTOMER_PAGE_SIZE, customerApiQuery, type CustomerListState } from './customerListParams'
 
 export type { Customer }
@@ -31,7 +31,7 @@ export function useCustomer(id: MaybeRefOrGetter<number | null>) {
   })
 }
 
-/** Every write answers the customer as saved: it replaces the record's cache entry and refreshes the lists. */
+/** Every write answers the customer as saved: it replaces the record's cache entry and refreshes the lists and the picker. */
 function useCustomerWrite<Args>(send: (api: ReturnType<typeof useApi>['$api'], args: Args) => Promise<Customer>) {
   const { $api } = useApi()
   const qc = useQueryClient()
@@ -39,7 +39,7 @@ function useCustomerWrite<Args>(send: (api: ReturnType<typeof useApi>['$api'], a
     mutationFn: (args: Args) => send($api, args),
     onSuccess: async (saved) => {
       qc.setQueryData(customerKeys.detail(saved.id), saved)
-      await qc.invalidateQueries({ queryKey: [...customerKeys.all, 'list'] })
+      await qc.invalidateQueries({ queryKey: customerKeys.all, predicate: isCustomerListing })
     },
   })
 }

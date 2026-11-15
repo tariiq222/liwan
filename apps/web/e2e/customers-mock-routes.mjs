@@ -12,6 +12,8 @@
 //  - `is_company=true|false` on the list is a strict filter; `parent_id` must name a company customer (422 on `parent_id`);
 //  - the settings countries (`/api/v1/customers/settings/countries`, `customers.settings.manage`) are a fixed list, and
 //    `phone_country_id: null` means the main company's country (Saudi Arabia here);
+//  - the pick list (`/api/v1/customers/pick`) answers a holder of `customers.read` or `sales.quotations.manage` with the
+//    active customers' id, name, kind and the last four digits of the phone, by name and page;
 //  - the cookie `mock_customers=branch` is a session of a branch manager: the settings answer `can_manage: false`;
 //  - the privacy routes (`customers.erase`, `customers.privacy.export`): the preview mints a one-time token, the erase
 //    needs it and the customer's exact name and renames the customer like the server, and the export is a small .xlsx
@@ -31,6 +33,9 @@ const COUNTRIES = [
 ]
 const MAIN_COMPANY_COUNTRY = COUNTRIES[1]
 const LIST_PATH = '/api/v1/customers'
+const PICK_PATH = '/api/v1/customers/pick'
+// The applications' capabilities the pick list registers, beside `customers.read`.
+const PICK_CAPABILITIES = ['customers.read', 'sales.quotations.manage']
 const EXPORT_PATH = '/api/v1/customers/export'
 const E164 = /^\+[1-9]\d{6,14}$/
 const COMPANY = { id: 1, name: 'ليوان' }
@@ -70,6 +75,19 @@ let settings = freshSettings()
 let customers = freshCustomers()
 let nextId = 10
 let privacyTokens = new Map()
+
+/** An active customer of the directory, for the mocks of the applications that pick one. */
+export const findMockCustomer = id => customers.find(customer => customer.id === id && customer.active)
+
+/** One page of the pick list: active customers only, `q` on the name, `limit` and `offset`. */
+export function customerPickPage(url) {
+  const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+  const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
+  const limit = Math.max(1, Number(url.searchParams.get('limit') ?? 50) || 50)
+  const matches = customers.filter(customer => customer.active && (!q || customer.name.toLowerCase().includes(q)))
+  const items = matches.slice(offset, offset + limit).map(customer => ({ id: customer.id, name: customer.name, is_company: customer.is_company, phone_last4: customer.phone ? customer.phone.slice(-4) : null }))
+  return { items, total: matches.length }
+}
 
 const refusal = (status, code, message, extra = {}) => ({ status, body: { code, message, ...extra } })
 
@@ -260,6 +278,12 @@ export async function handleCustomers(req, res, path, url, { json, readBody }) {
   }
   const record = path.match(/^\/api\/v1\/customers\/(\d+)(?:\/(archive|restore))?$/)
   const privacy = path.match(PRIVACY_PATH)
+  if (path === PICK_PATH && req.method === 'GET') {
+    const pickCaps = capabilitiesForRequest(req.headers.cookie, PICK_CAPABILITIES)
+    if (pickCaps.length) json(res, 200, customerPickPage(url))
+    else json(res, 403, { code: 'forbidden', message: 'forbidden' })
+    return true
+  }
   const known = privacy || path === LIST_PATH || path === COUNTRIES_PATH || path === EXPORT_PATH || path === SETTINGS_PATH || record
   if (!known) return false
   const caps = capabilitiesForRequest(req.headers.cookie, CUSTOMERS_CAPABILITIES)

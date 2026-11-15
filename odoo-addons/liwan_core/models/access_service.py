@@ -327,6 +327,19 @@ class LiwanAccessService(models.AbstractModel):
         return bool(self._liwan_contextual_capability(user, key, record))
 
     @api.model
+    def _liwan_users_with_capability(self, company, key, query=None):
+        """The active internal members of ``company`` who hold ``key`` there, by name then id.
+
+        ``query`` keeps the users whose name contains it, whatever its case.
+        """
+        domain = [('company_ids', 'in', company.id), ('share', '=', False)]
+        if query:
+            domain.append(('name', 'ilike', query))
+        return self.env['res.users'].search(domain, order='name, id').filtered(
+            lambda user: self._liwan_has_capability(user, key, company=company),
+        )
+
+    @api.model
     def _liwan_is_employee_principal(self, user=None, company=None):
         """Recognize the v1 Employee role and its legacy group equivalent."""
         user = user or self.env.user

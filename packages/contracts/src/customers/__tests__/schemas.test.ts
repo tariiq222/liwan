@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CustomerCandidateListSchema,
+  CustomerPickListSchema,
   CustomerConflictDetailsSchema,
   CustomerCountryListSchema,
   CustomerCreateSchema,
@@ -127,5 +128,15 @@ describe('CustomerSettingsSchema', () => {
     expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [field] })).toThrow()
     expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [{ ...field, count: 0 }], options: [] })).toThrow()
     expect(() => CustomerFieldRemovalDetailsSchema.parse({ fields: [], options: [{ ...option, field_label: '' }] })).toThrow()
+  })
+})
+
+describe('CustomerPickListSchema', () => {
+  it('carries the name, the kind and the last four digits of the phone, nothing else', () => {
+    const pick = { id: 5, name: 'Acme', is_company: true, phone_last4: '4567' }
+    expect(CustomerPickListSchema.parse({ items: [pick, { ...pick, id: 6, phone_last4: null }], total: 2 }).items[0]).toEqual(pick)
+    expect(() => CustomerPickListSchema.parse({ items: [{ ...pick, phone: '+966501234567' }], total: 1 })).toThrow()
+    expect(() => CustomerPickListSchema.parse({ items: [{ id: 5, name: 'Acme', phone_last4: null }], total: 1 })).toThrow()
+    expect(() => CustomerPickListSchema.parse({ items: [{ ...pick, phone_last4: '45' }], total: 1 })).toThrow()
   })
 })

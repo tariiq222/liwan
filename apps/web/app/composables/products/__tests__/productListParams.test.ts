@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PRODUCT_PAGE_SIZE, parseProductListQuery, productApiQuery, productListLocation, safeProductsReturnTo } from '../productListParams'
+import { listLocation } from '../../useRouteListFilters'
+import { PRODUCT_LIST_KEYS, PRODUCT_PAGE_SIZE, PRODUCTS_LIST_PATH, parseProductListQuery, productApiQuery } from '../productListParams'
 
 describe('product list address', () => {
   it('reads the filters and the page from the query, with defaults for anything unknown', () => {
@@ -8,13 +9,8 @@ describe('product list address', () => {
     expect(parseProductListQuery({ q: ['a', 'b'] }).q).toBe('a')
   })
 
-  it('keeps only the list keys in the way back, and accepts only a products list as a return address', () => {
-    expect(productListLocation({ q: 'x', type: 'service', page: '2', returnTo: '/evil', other: '1' }, '#top')).toBe('/products?q=x&type=service&page=2#top')
-    expect(productListLocation({})).toBe('/products')
-    expect(safeProductsReturnTo('/products?q=x', '/products')).toBe('/products?q=x')
-    expect(safeProductsReturnTo('/products/new', '/products')).toBe('/products')
-    expect(safeProductsReturnTo('/customers', '/products')).toBe('/products')
-    expect(safeProductsReturnTo(undefined, '/products')).toBe('/products')
+  it('keeps only the list keys in the way back', () => {
+    expect(listLocation(PRODUCTS_LIST_PATH, PRODUCT_LIST_KEYS, { q: 'x', type: 'service', page: '2', returnTo: '/evil', other: '1' }, '#top')).toBe('/products?q=x&type=service&page=2#top')
   })
 
   it('asks the API for a page as limit and offset', () => {

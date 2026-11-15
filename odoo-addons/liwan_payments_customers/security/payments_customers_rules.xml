@@ -9,4 +9,29 @@
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="groups" eval="[Command.link(ref('liwan_customers.group_cap_customers_erase')), Command.link(ref('liwan_customers.group_cap_customers_privacy_export'))]"/>
     </record>
+
+    <!-- Stock lets a salesman read only the orders and lines that are their own or unassigned, and group rules of one
+         user are OR-ed. A privacy officer who also holds the salesman group would then miss the other orders of the
+         subject in the export and the erase preview, so the two privacy capabilities read every order and line of the
+         companies of the session (the stock company rule still applies). They never write them. -->
+    <record id="rule_sale_order_privacy" model="ir.rule">
+        <field name="name">sale.order: the privacy capabilities read every order of the customer</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[Command.link(ref('liwan_customers.group_cap_customers_erase')), Command.link(ref('liwan_customers.group_cap_customers_privacy_export'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_sale_order_line_privacy" model="ir.rule">
+        <field name="name">sale.order.line: the privacy capabilities read every order line of the customer</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[Command.link(ref('liwan_customers.group_cap_customers_erase')), Command.link(ref('liwan_customers.group_cap_customers_privacy_export'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
 </odoo>

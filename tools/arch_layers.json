@@ -20,6 +20,7 @@
     "liwan_crm": 4,
     "liwan_appointments": 4,
     "liwan_inbox": 4,
+    "liwan_sales": 4,
     "liwan_meetings_pmo": 5,
     "liwan_tasks_pmo": 5,
     "liwan_pmo_ai": 5,
@@ -29,6 +30,7 @@
     "liwan_tasks_ai": 5,
     "liwan_operations_ai": 5,
     "liwan_finance_ai": 5,
+    "liwan_sales_ai": 5,
     "liwan_ai_notify": 5,
     "base_tier_validation": 3,
     "liwan_operations_pmo": 5,
@@ -192,6 +194,14 @@
       ],
       "pages": [
         "inbox"
+      ]
+    },
+    "sales": {
+      "components": [
+        "sales"
+      ],
+      "pages": [
+        "sales"
       ]
     }
   },

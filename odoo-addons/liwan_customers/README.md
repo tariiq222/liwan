@@ -73,6 +73,9 @@ no application.
 - Routes under `/api/v1/customers` are opened by the feature keys that applications register in
   `_liwan_customers_feature_keys`. An application registers the capabilities that may pick a customer in
   `_liwan_customers_pick_capabilities`.
+- `GET /api/v1/customers/pick?q=&limit=&offset=` is the picker for a holder of `customers.read` or of a registered pick
+  capability: the active parties the caller can see whose name matches `q`, as `{items: [{id, name, is_company,
+  phone_last4}], total}`. The phone is never returned whole, and no other field is.
 
 ## Known limit of this version
 

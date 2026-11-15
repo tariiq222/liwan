@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { TagSchema } from '@liwan/contracts'
 import { productPicks } from '../fixtures/products'
 import { archivedProduct, products, settings as productSettings, taxChoices } from '../products/productFixtures'
+import { customerPicks, draftOrder, orders as salesOrders, salesSettings, salespeople } from '../sales/salesFixtures'
 import { charterDefaults, charterOwningUnits, charterTypes, me, people, projectCreateDefaults, projectDetail, projectRefs, tags, taskDetail } from '../fixtures/pmo'
 
 const contains = (value: string, request: Request) => value.includes(new URL(request.url).searchParams.get('q') ?? '')
@@ -21,6 +22,19 @@ export const apiHandlers = [
   }),
   http.get('/api/v1/products/settings', () => HttpResponse.json(productSettings)),
   http.get('/api/v1/products/taxes', () => HttpResponse.json({ items: taxChoices, total: taxChoices.length })),
+  http.get('/api/v1/customers/pick', ({ request }) => {
+    const items = customerPicks.filter(customer => contains(customer.name, request))
+    return HttpResponse.json({ items, total: items.length })
+  }),
+  http.get('/api/v1/sales/orders', ({ request }) => {
+    const params = new URL(request.url).searchParams
+    const states = (params.get('state') ?? '').split(',').filter(Boolean)
+    const items = salesOrders.filter(order => (!states.length || states.includes(order.state)) && (order.number.includes(params.get('q') ?? '') || order.customer.name.includes(params.get('q') ?? '')))
+    return HttpResponse.json({ items, total: items.length })
+  }),
+  http.get('/api/v1/sales/orders/:id', () => HttpResponse.json(draftOrder)),
+  http.get('/api/v1/sales/salespeople', () => HttpResponse.json(salespeople)),
+  http.get('/api/v1/sales/settings', () => HttpResponse.json(salesSettings)),
   http.get('/api/v1/projects', () => HttpResponse.json(projectRefs)),
   http.get('/api/v1/projects/:id', () => HttpResponse.json(projectDetail)),
   http.get('/api/v1/reports/projects/summary', () => HttpResponse.json({

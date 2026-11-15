@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Customer } from '@liwan/contracts'
-import { CUSTOMER_PAGE_SIZE, CUSTOMERS_LIST_PATH, customerListLocation, parseCustomerListQuery, safeCustomersReturnTo } from '@/composables/customers/customerListParams'
+import { CUSTOMER_LIST_KEYS, CUSTOMER_PAGE_SIZE, CUSTOMERS_LIST_PATH, parseCustomerListQuery } from '@/composables/customers/customerListParams'
 import { useCustomers } from '@/composables/customers/useCustomers'
-import { useLastPageClamp, useRouteListFilters } from '@/composables/useRouteListFilters'
+import { listLocation, safeListReturnTo, useLastPageClamp, useRouteListFilters } from '@/composables/useRouteListFilters'
 import CustomerTable from './CustomerTable.vue'
 
 // The body of the customers page: the filter bar (search and the archived switch), then the table in one card with its
@@ -12,7 +12,7 @@ const props = defineProps<{ background?: boolean }>()
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
-const { hydrated, filterQuery, search, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => CUSTOMERS_LIST_PATH, safeReturnTo: safeCustomersReturnTo })
+const { hydrated, filterQuery, search, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => CUSTOMERS_LIST_PATH, safeReturnTo: value => safeListReturnTo(CUSTOMERS_LIST_PATH, value) })
 
 const state = computed(() => parseCustomerListQuery(filterQuery.value))
 const query = useCustomers(state)
@@ -21,7 +21,7 @@ const total = computed(() => query.data.value?.total ?? 0)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / CUSTOMER_PAGE_SIZE)))
 useLastPageClamp({ page: () => state.value.page, total: () => query.data.value?.total, pageSize: CUSTOMER_PAGE_SIZE })
 const activeCount = computed(() => Number(Boolean(state.value.q)))
-const backTo = computed(() => customerListLocation(filterQuery.value, route.hash))
+const backTo = computed(() => listLocation(CUSTOMERS_LIST_PATH, CUSTOMER_LIST_KEYS, filterQuery.value, route.hash))
 const recordTo = (customer: Customer) => ({ path: `${CUSTOMERS_LIST_PATH}/${customer.id}`, query: { returnTo: backTo.value } })
 
 const scopes = computed(() => [

@@ -6,7 +6,7 @@ import {
   type CustomerPrivacyExport,
 } from '@liwan/contracts'
 import { saveBlob } from '../../utils/saveBlob'
-import { customerKeys } from './customerKeys'
+import { customerKeys, isCustomerListing } from './customerKeys'
 
 const privacyPath = (id: number, route: string) => `/api/v1/customers/${id}/privacy/${route}`
 const FALLBACK_FILENAME = 'customer-personal-data.xlsx'
@@ -30,7 +30,7 @@ export function useEraseCustomer() {
     mutationFn: ({ id, body }: { id: number; body: CustomerErase }) =>
       $api(privacyPath(id, 'erase'), { method: 'POST', body, schema: CustomerEraseResultSchema }),
     onSuccess: (_result, { id }) => qc.invalidateQueries({ queryKey: customerKeys.detail(id) })
-      .then(() => qc.invalidateQueries({ queryKey: [...customerKeys.all, 'list'] })),
+      .then(() => qc.invalidateQueries({ queryKey: customerKeys.all, predicate: isCustomerListing })),
   })
 }
 

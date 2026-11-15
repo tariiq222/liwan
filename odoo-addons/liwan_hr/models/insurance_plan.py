@@ -136,9 +136,7 @@ class LiwanHrInsurancePlan(models.Model):
     @api.model
     def _liwan_alert_recipients(self, company):
         """The users who manage insurance in ``company``."""
-        service = self.env['liwan.access.service']
-        candidates = self.env['res.users'].search([('company_ids', 'in', company.id), ('share', '=', False)])
-        return candidates.filtered(lambda user: service._liwan_has_capability(user, 'hr.insurance.manage', company=company))
+        return self.env['liwan.access.service']._liwan_users_with_capability(company, 'hr.insurance.manage')
 
     @api.model
     def _liwan_run_expiry_alerts(self):

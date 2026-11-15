@@ -16,6 +16,26 @@ export function listFilterQuery(query: Query, background: boolean, fallbackPath:
   return Object.fromEntries(new URLSearchParams(search))
 }
 
+/** The one string of a query entry: a repeated key answers its first value, anything else answers ''. */
+export function singleQueryValue(value: unknown): string {
+  return typeof value === 'string' ? value : Array.isArray(value) && typeof value[0] === 'string' ? value[0] : ''
+}
+
+/** The list address of a route's query with only the list's own keys, kept as the create panel's and a record's way back. */
+export function listLocation(path: string, keys: readonly string[], query: Query, hash = ''): string {
+  const search = new URLSearchParams()
+  for (const key of keys) {
+    const value = singleQueryValue(query[key])
+    if (value) search.set(key, value)
+  }
+  return `${path}${search.size ? `?${search}` : ''}${hash}`
+}
+
+/** A return address that is the list at `path` (with or without its query or hash), else `path` itself. */
+export function safeListReturnTo(path: string, value: unknown): string {
+  return typeof value === 'string' && (value === path || value.startsWith(`${path}?`) || value.startsWith(`${path}#`)) ? value : path
+}
+
 export function listPageNumber(value: unknown) {
   const page = Number(value)
   return Math.max(1, Number.isSafeInteger(page) ? page : 1)

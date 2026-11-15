@@ -1,5 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date
+
 from odoo import fields
+
+from odoo.addons.liwan_api.controllers.common import ApiError
 
 
 def iso(dt, *, timespec='seconds'):
@@ -15,3 +19,15 @@ def ref(record, *, label='name'):
     empty. ``label`` names the field shown as ``name`` (``display_name`` for
     records whose label is computed)."""
     return {'id': record.id, 'name': record[label]} if record else None
+
+
+def parse_iso_date(value, field):
+    """A ``YYYY-MM-DD`` calendar day as a date; None stays None, anything else is a 422 ``invalid`` on ``field``."""
+    if value is None:
+        return None
+    if isinstance(value, str) and len(value) == len('YYYY-MM-DD'):
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            pass
+    raise ApiError(422, 'invalid', f'{field} must be YYYY-MM-DD or null', field=field)

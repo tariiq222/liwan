@@ -42,6 +42,7 @@ EXPECTED_COMPANY_HEADER = 'X-Liwan-Expected-Company-Id'
 EXPECTED_ID_PATTERN = re.compile(r'^[1-9][0-9]*$')
 MAX_EXPECTED_ID_DIGITS = 16
 MAX_EXPECTED_ID = 9007199254740991
+BOOL_ARGS = {'true': True, 'false': False}
 
 
 def _raised_by_liwan(error):
@@ -607,6 +608,16 @@ def parse_page(args, default=DEFAULT_PAGE_LIMIT, maximum=MAX_PAGE_LIMIT):
     limit = parse_nonneg_int(raw_limit, 'limit') or default
     offset = parse_nonneg_int(args.get('offset', 0), 'offset')
     return min(limit, maximum), offset
+
+
+def parse_bool_arg(args, name, default=False):
+    """A ``true`` or ``false`` query argument as a bool; ``default`` when it is absent, else 422 ``invalid``."""
+    raw = args.get(name)
+    if raw is None:
+        return default
+    if raw not in BOOL_ARGS:
+        raise ApiError(422, 'invalid', f'{name} must be true or false', field=name)
+    return BOOL_ARGS[raw]
 
 
 def parse_nonneg_int(value, field):

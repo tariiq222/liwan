@@ -16,6 +16,7 @@ from odoo.addons.liwan_customers.models.access_service import (
 from odoo.addons.liwan_customers.serializers.customer import (
     dump_customer,
     dump_customers,
+    dump_picks,
     parse_customer_create,
     parse_customer_patch,
     parse_list_filters,
@@ -42,6 +43,21 @@ class CustomersController(http.Controller):
             raise ApiError(422, 'invalid_phone', 'phone is required', field='phone')
         found = service._liwan_candidates(phone)
         return {'items': [service._liwan_candidate_ref(partner) for partner in found], 'total': len(found)}
+
+    @http.route('/api/v1/customers/pick', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_registered_feature(SERVICE, FEATURE_HOOK, keys=FEATURE_KEYS, operation='read', match='any')
+    def pick_customers(self, **_):
+        """The active parties, for a holder of customers.read or of a registered pick capability: id, name, kind and
+        the last four digits of the phone, nothing else."""
+        service = request.env['liwan.customers.service']
+        # tools/route_gate_policy.py needs a top-level gate call; _liwan_pick_search checks again for direct callers.
+        service._liwan_require_pick()
+        args = request.httprequest.args
+        limit, offset = parse_page(args)
+        query = (args.get('q') or '').strip() or None
+        partners, total = service._liwan_pick_search(query, limit=limit, offset=offset)
+        return dump_picks(service, partners, total)
 
     @http.route('/api/v1/customers', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

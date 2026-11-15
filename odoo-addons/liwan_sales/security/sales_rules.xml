@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Three rules give a Sales user their orders; group rules only add, and each Sales rule is scoped per company
+         because capability groups are a union over the user's companies:
+         - the stock salesman rule (implied by sales.read): the documents they own and the unassigned ones;
+         - open read (below, orders and lines): the whole company where they hold sales.documents.assign, or
+           sales.read while the visibility setting is `all`;
+         - assign write (below, orders only): read, write and create on the whole company where they hold
+           sales.documents.assign. Lines are read through open read and written by the elevated service helper.
+         models/visibility.py `_liwan_domain` is the Python mirror used by the routes; keep them in step. -->
+    <record id="rule_sales_order_open_read" model="ir.rule">
+        <field name="name">liwan Sales orders: the whole company where it is open (read)</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_sales_read'))]"/>
+        <field name="domain_force">[('company_id', 'in', user.liwan_sales_open_company_ids.ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_sales_order_line_open_read" model="ir.rule">
+        <field name="name">liwan Sales order lines: the whole company where it is open (read)</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_sales_read'))]"/>
+        <field name="domain_force">[('company_id', 'in', user.liwan_sales_open_company_ids.ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_sales_order_assign_write" model="ir.rule">
+        <field name="name">liwan Sales orders: the whole company where the user assigns (read, write, create)</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_sales_documents_assign'))]"/>
+        <field name="domain_force">[('company_id', 'in', user.liwan_sales_assign_company_ids.ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>
