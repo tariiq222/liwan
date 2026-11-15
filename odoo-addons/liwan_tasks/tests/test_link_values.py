@@ -52,3 +52,18 @@ class TestCreateLinkValues(LiwanTasksCase):
                 with self.subTest(target=target), self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
                     Task.create({**vals, 'partner_id': target})
             self.assertEqual(Task.create({**vals, 'partner_id': visible.id}).partner_id, visible)
+
+    def test_a_write_of_a_link_to_an_unreadable_target_is_refused(self):
+        if self.env['ir.module.module'].search_count([('name', '=', 'liwan_tasks_pmo'), ('state', '=', 'installed')]):
+            self.skipTest('with liwan_tasks_pmo the personal write whitelist refuses link fields first')
+        hidden = self.env['res.partner'].create({'name': 'Hidden', 'company_id': self.other_company.id})
+        visible = self.env['res.partner'].create({'name': 'Visible', 'company_id': self.alice.company_id.id})
+        task = self.make_personal_task(self.alice).with_user(self.alice)
+        with self.register('partner_id'):
+            for target in (hidden.id, 2 ** 30):
+                with self.subTest(target=target), self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+                    task.write({'partner_id': target})
+            task.write({'partner_id': visible.id})
+            self.assertEqual(task.partner_id, visible)
+            task.write({'partner_id': False})
+            self.assertFalse(task.partner_id)

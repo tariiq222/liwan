@@ -115,6 +115,20 @@ class TestOpportunityTasks(LiwanCrmCase):
                 Task.create({**vals, 'lead_id': lead.id})
         self.assertEqual(Task.create({**vals, 'lead_id': mine.id}).lead_id, mine)
 
+    def test_the_model_refuses_to_move_a_link_to_an_opportunity_the_writer_cannot_read(self):
+        if self.env['ir.module.module'].search_count([('name', '=', 'liwan_tasks_pmo'), ('state', '=', 'installed')]):
+            self.skipTest('with liwan_tasks_pmo the personal write whitelist refuses lead_id first')
+        self.set_settings(visibility='own')
+        mine = self.make_lead(self.agent)
+        hidden = {'own': self.make_lead(self.agent2), 'foreign company': self.make_lead(None, company=self.other_company)}
+        task = self.env['project.task'].browse(self.create(self.agent, mine).json()['id']).with_user(self.agent)
+        for label, lead in hidden.items():
+            with self.subTest(lead=label), self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+                task.write({'lead_id': lead.id})
+        self.assertEqual(task.lead_id, mine)
+        task.write({'lead_id': False})
+        self.assertFalse(task.lead_id)
+
     def test_an_archived_opportunity_takes_no_task(self):
         lead = self.make_lead(self.agent)
         lead.active = False

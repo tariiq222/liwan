@@ -36,7 +36,7 @@ class ProjectTask(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """A link field a bridge registered may only point at a record the creator can read.
+        """A link field a bridge registered may only point at a record the creator can read (``write`` checks it too).
 
         Here, not in liwan_tasks_pmo, so it holds with and without PMO installed: the model is the one
         place every create passes. A missing or unreadable target is refused like any field that is not
@@ -46,6 +46,12 @@ class ProjectTask(models.Model):
             for vals in vals_list:
                 self._liwan_check_link_targets(vals)
         return super().create(vals_list)
+
+    def write(self, vals):
+        """The same target check as ``create``: a link may be cleared, never pointed at an unreadable record."""
+        if not self.env.su:
+            self._liwan_check_link_targets(vals)
+        return super().write(vals)
 
     @api.model
     def _liwan_check_link_targets(self, vals):
