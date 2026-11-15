@@ -191,6 +191,8 @@ never add an entry or raise a count to make a check pass.
 - **R3** No application imports another application. Two applications are linked by a bridge addon
   `liwan_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
   `pages/` or `components/` does not use another application's components.
+  A bridge stays a bridge: it defines no model of its own (a `_name` that is not also in its `_inherit`) and holds
+  at most 700 lines of Python outside `tests/` and `migrations/`; existing cases are recorded in the baseline.
 - **R4** Dependencies point down only: foundation (`liwan_core` ← `liwan_platform` ← `liwan_api`) ← shared
   services ← applications ← bridges ← `customer_<name>_*`.
 - **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports

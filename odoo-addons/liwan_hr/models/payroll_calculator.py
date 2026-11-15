@@ -4,6 +4,7 @@ from decimal import Decimal
 from odoo import api, models
 
 from .payroll_math import (
+    GOSI_REGISTRATION_MISSING,
     PayrollMathError,
     day_amount,
     gosi_amounts,
@@ -32,9 +33,18 @@ class LiwanHrPayrollCalculator(models.AbstractModel):
         try:
             return nationality_class(employee.current_version_id.country_id.code, compensation.gosi_registration_date)
         except PayrollMathError as error:
+            if error.code == GOSI_REGISTRATION_MISSING:
+                message = self.env._(
+                    'Payroll cannot compute GOSI for %(employee)s: the GOSI registration date is missing.',
+                    employee=employee.display_name,
+                )
+            else:
+                message = self.env._(
+                    'Payroll cannot compute GOSI for %(employee)s: the nationality is missing.',
+                    employee=employee.display_name,
+                )
             raise LiwanHrRule(
-                error.code, self.env._('Payroll cannot compute GOSI: %(code)s', code=error.code),
-                field='employee_id', details={'employee_id': employee.id},
+                error.code, message, field='employee_id', details={'employee_id': employee.id},
             ) from error
 
     @api.model

@@ -9,6 +9,8 @@ import unittest
 from pathlib import Path
 
 from arch_policy import (
+    BRIDGE_LIMIT_RECORDED,
+    BRIDGE_MAX_PYTHON_LINES,
     app_token,
     collect,
     commit_parents,
@@ -22,10 +24,13 @@ from arch_policy import (
     layer_weakenings,
     layers_weakened,
     main,
+    new_models,
     odoo_access_overrides,
     ratchet_problems,
     routes_without_feature,
+    comparable_totals,
     rule_totals,
+    totals_growth,
     sql_on_odoo_tables,
     sudo_calls,
     ui_layer_violations,
@@ -836,6 +841,85 @@ class TestCollect(unittest.TestCase):
         self.assertEqual(violations['R7'], {'odoo-addons/liwan_pmo/models/project_task.py': 1})
 
 
+class TestBridgeLimit(unittest.TestCase):
+    def test_a_class_with_its_own_name_is_a_new_model(self):
+        self.assertEqual(new_models("class A:\n    _name = 'x.y'\nclass B:\n    _name = 'x.z'\n"), 2)
+
+    def test_inherit_only_is_an_extension(self):
+        self.assertEqual(new_models("class A:\n    _inherit = 'res.partner'\n"), 0)
+        self.assertEqual(new_models("class A:\n    _inherit = ['a.b', 'c.d']\n"), 0)
+
+    def test_name_equal_to_inherit_is_an_extension(self):
+        self.assertEqual(new_models("class A:\n    _name = 'res.partner'\n    _inherit = 'res.partner'\n"), 0)
+        self.assertEqual(new_models("class A:\n    _name = 'a.b'\n    _inherit = ['a.b', 'mail.thread']\n"), 0)
+
+    def test_name_different_from_inherit_is_a_new_model(self):
+        self.assertEqual(new_models("class A:\n    _name = 'x.y'\n    _inherit = 'res.partner'\n"), 1)
+
+
+class TestBridgeLimitCollect(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.layers = {'ranks': {'liwan_core': 0, 'liwan_pmo': 4, 'liwan_hr': 4, 'liwan_hr_pmo': 5}, 'exempt': [],
+                       'web_apps': {}, 'commercial': {'pages': {}, 'allowed': []}}
+        self.write('odoo-addons/liwan_core/__manifest__.py', HEADER + repr({'name': 'c', 'depends': ['base']}))
+        for app in ('liwan_pmo', 'liwan_hr'):
+            self.write(f'odoo-addons/{app}/__manifest__.py', HEADER + repr({'name': app, 'depends': ['liwan_core']}))
+            self.write(f'odoo-addons/{app}/models/feature_registry.py',
+                       f"X = {{'key': '{app.removeprefix('liwan_')}.enabled', 'owner': '{app}'}}\n")
+        self.write('odoo-addons/liwan_hr_pmo/__manifest__.py', HEADER + repr(
+            {'name': 'b', 'depends': ['liwan_pmo', 'liwan_hr'], 'auto_install': True}))
+
+    def write(self, relative, text):
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding='utf-8')
+
+    def r3(self):
+        violations, hard = collect(self.root, self.layers)
+        self.assertEqual(hard, [])
+        return violations['R3']
+
+    def test_thin_bridge_is_clean(self):
+        self.write('odoo-addons/liwan_hr_pmo/models/a.py', "class A:\n    _inherit = 'liwan.pmo.x'\n")
+        self.assertEqual(self.r3(), {})
+
+    def test_new_model_in_a_bridge_is_reported(self):
+        self.write('odoo-addons/liwan_hr_pmo/models/a.py', "class A:\n    _name = 'liwan.hr.pmo.link'\n")
+        self.assertEqual(self.r3(), {'bridge-model odoo-addons/liwan_hr_pmo': 1})
+
+    def test_bridge_over_the_size_budget_reports_the_overage(self):
+        self.write('odoo-addons/liwan_hr_pmo/models/a.py', 'x = 1\n' * (BRIDGE_MAX_PYTHON_LINES + 5))
+        manifest_lines = len((self.root / 'odoo-addons/liwan_hr_pmo/__manifest__.py').read_text().splitlines())
+        self.assertEqual(self.r3(), {'bridge-size odoo-addons/liwan_hr_pmo': 5 + manifest_lines})
+
+    def test_bridge_at_the_size_budget_is_clean(self):
+        manifest_lines = len((self.root / 'odoo-addons/liwan_hr_pmo/__manifest__.py').read_text().splitlines())
+        self.write('odoo-addons/liwan_hr_pmo/models/a.py', 'x = 1\n' * (BRIDGE_MAX_PYTHON_LINES - manifest_lines))
+        self.assertEqual(self.r3(), {})
+
+    def test_tests_and_migrations_are_not_counted(self):
+        self.write('odoo-addons/liwan_hr_pmo/tests/test_a.py', "class T:\n    _name = 'x.t'\n" + 'x = 1\n' * 2000)
+        self.write('odoo-addons/liwan_hr_pmo/migrations/19.0.1.0.0/post-m.py', "class M:\n    _name = 'x.m'\n" + 'x = 1\n' * 2000)
+        self.assertEqual(self.r3(), {})
+
+    def test_an_application_with_models_is_not_reported(self):
+        self.write('odoo-addons/liwan_pmo/models/a.py', "class A:\n    _name = 'liwan.pmo.a'\n" + 'x = 1\n' * 2000)
+        self.assertEqual(self.r3(), {})
+
+    def test_baselined_violation_passes_and_a_larger_one_fails(self):
+        self.write('odoo-addons/liwan_hr_pmo/models/a.py', "class A:\n    _name = 'liwan.hr.pmo.a'\n")
+        baseline = {'R3': {'bridge-model odoo-addons/liwan_hr_pmo': 1}}
+        self.assertEqual(compare({'R3': self.r3()}, baseline), [])
+        self.write('odoo-addons/liwan_hr_pmo/models/b.py', "class B:\n    _name = 'liwan.hr.pmo.b'\n")
+        self.assertEqual(
+            compare({'R3': self.r3()}, baseline),
+            ['R3: bridge-model odoo-addons/liwan_hr_pmo: 2 found, baseline allows 1'],
+        )
+
+
 class TestMain(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -1008,6 +1092,95 @@ class TestBaseRef(BaseRefCase):
     def test_unknown_ref_exits_two(self):
         self.adopt()
         self.assertEqual(self.run_main('--base', 'no-such-ref'), 2)
+
+
+class TestBridgeLimitRecording(BaseRefCase):
+    """The bridge-limit violations are recorded once; afterwards the baseline never grows (real git repo)."""
+
+    def setUp(self):
+        super().setUp()
+        self.layers['ranks']['liwan_a_b'] = 5
+        self.write_layers()
+        manifest = self.root / 'odoo-addons/liwan_a_b/__manifest__.py'
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(HEADER + repr({'name': 'ab', 'depends': ['liwan_a', 'liwan_b'], 'auto_install': True}), encoding='utf-8')
+        self.models(1)
+
+    def models(self, n):
+        path = self.root / 'odoo-addons/liwan_a_b/models/m.py'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(''.join(f"class M{i}:\n    _name = 'a.b{i}'\n" for i in range(n)), encoding='utf-8')
+
+    def baseline(self):
+        return json.loads(self.baseline_file.read_text())
+
+    def strip_marker(self):
+        data = self.baseline()
+        del data['R3'][BRIDGE_LIMIT_RECORDED]
+        self.baseline_file.write_text(json.dumps(data), encoding='utf-8')
+
+    def test_first_recording_is_allowed_when_the_ref_never_recorded_the_gate(self):
+        self.sudo('a', 1)
+        self.commit_base()
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 0)
+        self.assertEqual(self.baseline()['R3'], {BRIDGE_LIMIT_RECORDED: 0, 'bridge-model odoo-addons/liwan_a_b': 1})
+        self.assertEqual(self.run_main('--base', 'main'), 0)
+
+    def test_first_recording_is_allowed_when_the_baseline_never_recorded_the_gate(self):
+        self.adopt()
+        self.strip_marker()
+        self.models(2)
+        self.assertEqual(self.run_main('--write-baseline'), 0)
+        self.assertEqual(self.baseline()['R3']['bridge-model odoo-addons/liwan_a_b'], 2)
+
+    def test_growth_is_refused_once_the_ref_recorded_the_gate(self):
+        self.adopt()
+        self.models(2)
+        self.assertEqual(self.run_main('--write-baseline'), 1)
+        self.assertEqual(self.baseline()['R3']['bridge-model odoo-addons/liwan_a_b'], 1)
+
+    def test_growth_over_a_ref_that_recorded_the_gate_is_caught_even_without_the_marker(self):
+        self.adopt()
+        self.baseline_file.write_text(json.dumps({**self.baseline(), 'R3': {'bridge-model odoo-addons/liwan_a_b': 3}}), encoding='utf-8')
+        self.models(3)
+        self.assertEqual(self.run_main('--base', 'main'), 1)
+
+    def test_recording_never_reopens_after_all_bridges_are_fixed(self):
+        self.adopt()
+        self.models(0)
+        self.assertEqual(self.run_main('--write-baseline'), 0)
+        self.assertEqual(self.baseline()['R3'], {BRIDGE_LIMIT_RECORDED: 0})
+        self.commit_base()
+        self.models(1)
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 1)
+
+    def test_other_rules_still_refuse_growth_during_the_first_recording(self):
+        self.sudo('a', 1)
+        self.commit_base()
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 0)
+        self.commit_base()
+        self.strip_marker()
+        self.commit_base()
+        self.sudo('a', 5)
+        self.assertEqual(self.run_main('--write-baseline'), 1)
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 1)
+
+    def test_a_non_bridge_r3_entry_still_refuses_growth(self):
+        self.assertEqual(
+            comparable_totals({'R3': {'bridge-model x': 2, 'other': 3}}, {'R3': {}}),
+            {'R3': 3},
+        )
+        self.assertEqual(
+            totals_growth(comparable_totals({'R3': {'bridge-model x': 2, 'other': 3}}, {'R3': {}}), {'R3': 1}, 'ref'),
+            ['R3: baseline total 3 exceeds ref total 1'],
+        )
+
+    def test_a_shrinking_bridge_count_is_accepted(self):
+        self.models(3)
+        self.adopt()
+        self.models(1)
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 0)
+        self.assertEqual(self.baseline()['R3']['bridge-model odoo-addons/liwan_a_b'], 1)
 
 
 TRAILER = 'Architecture-approved-by: Owner <owner@example.com>'

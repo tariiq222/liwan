@@ -2,7 +2,15 @@
   "R1": {},
   "R10": {},
   "R2": {},
-  "R3": {},
+  "R3": {
+    "bridge-limit recorded": 0,
+    "bridge-model odoo-addons/liwan_api_account": 1,
+    "bridge-model odoo-addons/liwan_hr_finance": 5,
+    "bridge-model odoo-addons/liwan_inbox_payments": 4,
+    "bridge-model odoo-addons/liwan_tasks_pmo": 1,
+    "bridge-size odoo-addons/liwan_hr_finance": 407,
+    "bridge-size odoo-addons/liwan_inbox_payments": 1692
+  },
   "R4": {},
   "R5": {},
   "R6": {},

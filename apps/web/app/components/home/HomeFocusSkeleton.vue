@@ -5,7 +5,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div role="status" aria-busy="true" :aria-label="t('app.loading')" class="divide-y divide-default overflow-hidden rounded-card border-[1.5px] border-default bg-default" data-testid="home-rail-skeleton">
+  <div role="status" aria-busy="true" :aria-label="t('app.loading')" class="divide-y divide-default overflow-hidden rounded-card border-[1.5px] border-default bg-default" data-testid="home-focus-skeleton">
     <span class="sr-only">{{ t('app.loading') }}</span>
     <div v-for="n in 5" :key="n" class="flex min-h-14 items-center gap-3 px-4 py-2.5" aria-hidden="true">
       <USkeleton class="size-8 shrink-0 rounded-control" />

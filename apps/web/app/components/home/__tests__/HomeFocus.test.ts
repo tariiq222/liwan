@@ -22,7 +22,7 @@ function options({ available = true, pending = false, failed = false, refetch = 
     messages, stubs,
     modules: {
       '@/components/home/HomeFocusCard.vue': load('HomeFocusCard.vue'),
-      '@/components/home/HomeRailSkeleton.vue': load('HomeRailSkeleton.vue'),
+      '@/components/home/HomeFocusSkeleton.vue': load('HomeFocusSkeleton.vue'),
       '@/components/home/HomeSection.vue': load('HomeSection.vue'),
       '@/composables/nav/shellModules': { shellModuleList: () => [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square' }] },
       '@/composables/useMyWork': { useMyWork: () => ({ available: Vue.computed(() => available), pending: Vue.computed(() => pending), failed: Vue.computed(() => failed), refetch, rows: Vue.computed(() => rows) }) },
@@ -69,7 +69,7 @@ describe('HomeFocus', () => {
   it('says so when there is nothing to start with, and shows a skeleton while loading', async () => {
     expect(await render({ rows: [] })).toContain('لا شيء عاجل الآن.')
     const loading = await render({ pending: true })
-    expect(loading).toContain('home-rail-skeleton')
+    expect(loading).toContain('home-focus-skeleton')
     expect(loading).not.toContain('home-focus-empty')
   })
 
