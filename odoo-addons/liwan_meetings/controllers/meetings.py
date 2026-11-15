@@ -169,6 +169,86 @@ def _parse_schedule_value(payload, field, *, allow_null):
     return (parsed, calendar_day), True
 
 
+CREATE_FIELDS = frozenset({
+    'name', 'meeting_date', 'location', 'start_datetime', 'end_datetime', 'meeting_url', 'attendee_ids',
+    'secretary_id', 'agenda', 'series_id', 'project_id', 'minutes_form',
+})
+
+
+def request_body():
+    body = request.get_json_data() if request.httprequest.content_length else {}
+    return body if isinstance(body, dict) else {}
+
+
+def create_meeting_from_body(body, extra_vals=None):
+    """Create a meeting from the validated fields of a request body, as the caller.
+
+    ``extra_vals`` are link values another application's bridge adds to the new meeting; the
+    bridge checks its own gates and capabilities before calling.
+    """
+    name = body.get('name')
+    meeting_date = body.get('meeting_date')
+    location = body.get('location')
+    meeting_url = body.get('meeting_url')
+    attendee_ids = body.get('attendee_ids')
+    secretary_id = body.get('secretary_id')
+    agenda = body.get('agenda')
+    series_id = body.get('series_id')
+    project_id = body.get('project_id')
+    minutes_form = body.get('minutes_form')
+    if not isinstance(name, str) or not name.strip():
+        raise ApiError(422, 'invalid', "name must not be empty", field='name')
+    vals = {
+        'name': name.strip(),
+        'organizer_id': request.env.uid,
+        **(extra_vals or {}),
+    }
+    start_data, has_start = _parse_schedule_value(body, 'start_datetime', allow_null=True)
+    end_data, has_end = _parse_schedule_value(body, 'end_datetime', allow_null=True)
+    if has_start and start_data is not False:
+        start, start_day = start_data
+    else:
+        start, start_day = (False if has_start else None), None
+    end = end_data[0] if has_end and end_data is not False else (False if has_end else None)
+    if has_start:
+        vals['start_datetime'] = start
+    if has_end:
+        vals['end_datetime'] = end
+    _validate_schedule_range(start, end)
+    resolved_day = _resolve_meeting_date(
+        meeting_date, start or None, provided='meeting_date' in body, start_day=start_day,
+    )
+    if resolved_day:
+        vals['meeting_date'] = resolved_day
+    if 'location' in body:
+        if location is not None and not isinstance(location, str):
+            raise ApiError(422, 'invalid', 'location must be a string', field='location')
+        vals['location'] = location.strip() if location else False
+    if 'meeting_url' in body:
+        vals['meeting_url'] = _parse_url(meeting_url)
+    if 'secretary_id' in body:
+        vals['secretary_id'] = (
+            False if secretary_id is None
+            else _validate_internal_user(secretary_id, 'secretary_id')
+        )
+    if attendee_ids is not None:
+        vals['attendee_ids'] = [(6, 0, _validate_internal_users(attendee_ids, 'attendee_ids'))]
+    if isinstance(agenda, str):
+        vals['agenda'] = agenda
+    if series_id:
+        vals['series_id'] = parse_positive_int(series_id, 'series_id')
+    if project_id:
+        links = request.env['liwan.meeting.links']
+        vals.update(links._liwan_project_vals(
+            links._liwan_check_project(parse_positive_int(project_id, 'project_id')),
+        ))
+    with request.env.cr.savepoint():
+        meeting = request.env['liwan.meeting.minute'].create(vals)
+        if minutes_form is not None:
+            meeting._liwan_set_minutes_form(minutes_form)
+    return meeting
+
+
 class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -233,62 +313,12 @@ class MeetingController(http.Controller):
     @http.route('/api/v1/meetings', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
-    def create_meeting(self, name=None, meeting_date=None, location=None, start_datetime=None, end_datetime=None, meeting_url=None, attendee_ids=None, secretary_id=None, agenda=None, series_id=None, project_id=None, minutes_form=None, **extra):
+    def create_meeting(self, **payload):
         require_capabilities('meetings.create')
+        extra = set(payload) - CREATE_FIELDS
         if extra:
             raise ApiError(422, 'invalid', 'unsupported meeting fields: %s' % ', '.join(sorted(extra)))
-        body = request.get_json_data() if request.httprequest.content_length else {}
-        if not isinstance(body, dict):
-            body = {}
-        if not isinstance(name, str) or not name.strip():
-            raise ApiError(422, 'invalid', "name must not be empty", field='name')
-        vals = {
-            'name': name.strip(),
-            'organizer_id': request.env.uid,
-        }
-        start_data, has_start = _parse_schedule_value(body, 'start_datetime', allow_null=True)
-        end_data, has_end = _parse_schedule_value(body, 'end_datetime', allow_null=True)
-        if has_start and start_data is not False:
-            start, start_day = start_data
-        else:
-            start, start_day = (False if has_start else None), None
-        end = end_data[0] if has_end and end_data is not False else (False if has_end else None)
-        if has_start:
-            vals['start_datetime'] = start
-        if has_end:
-            vals['end_datetime'] = end
-        _validate_schedule_range(start, end)
-        resolved_day = _resolve_meeting_date(
-            meeting_date, start or None, provided='meeting_date' in body, start_day=start_day,
-        )
-        if resolved_day:
-            vals['meeting_date'] = resolved_day
-        if 'location' in body:
-            if location is not None and not isinstance(location, str):
-                raise ApiError(422, 'invalid', 'location must be a string', field='location')
-            vals['location'] = location.strip() if location else False
-        if 'meeting_url' in body:
-            vals['meeting_url'] = _parse_url(meeting_url)
-        if 'secretary_id' in body:
-            vals['secretary_id'] = (
-                False if secretary_id is None
-                else _validate_internal_user(secretary_id, 'secretary_id')
-            )
-        if attendee_ids is not None:
-            vals['attendee_ids'] = [(6, 0, _validate_internal_users(attendee_ids, 'attendee_ids'))]
-        if isinstance(agenda, str):
-            vals['agenda'] = agenda
-        if series_id:
-            vals['series_id'] = parse_positive_int(series_id, 'series_id')
-        if project_id:
-            links = request.env['liwan.meeting.links']
-            vals.update(links._liwan_project_vals(
-                links._liwan_check_project(parse_positive_int(project_id, 'project_id')),
-            ))
-        with request.env.cr.savepoint():
-            meeting = request.env['liwan.meeting.minute'].create(vals)
-            if minutes_form is not None:
-                meeting._liwan_set_minutes_form(minutes_form)
+        meeting = create_meeting_from_body(request_body())
         return request.make_json_response(dump_meeting(meeting, detail=True), status=201)
 
     @http.route('/api/v1/meetings/<int:meeting_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)

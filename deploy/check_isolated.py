@@ -26,12 +26,13 @@ LIWAN_ADDONS = (
     'liwan_chat', 'liwan_integrations_sa', 'liwan_meetings', 'liwan_payments', 'liwan_tasks',
     'liwan_ai_notify', 'liwan_integrations_payments', 'liwan_meetings_ai', 'liwan_operations_ai',
     'liwan_orders', 'liwan_tasks_ai', 'liwan_customers', 'liwan_products', 'liwan_crm',
-    'liwan_crm_ai', 'liwan_payments_customers', 'liwan_inbox', 'liwan_inbox_payments', 'liwan_pmo',
-    'liwan_documents_pmo', 'liwan_meetings_pmo', 'liwan_operations_pmo', 'liwan_pmo_ai',
-    'liwan_tasks_pmo', 'liwan_hr', 'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_ai',
-    'liwan_hr_operations', 'liwan_finance', 'liwan_api_account', 'liwan_finance_ai',
-    'liwan_hr_finance', 'liwan_pmo_finance', 'liwan_products_account', 'liwan_appointments',
-    'liwan_appointments_payments', 'liwan_sales', 'liwan_sales_ai',
+    'liwan_crm_ai', 'liwan_crm_meetings', 'liwan_crm_tasks', 'liwan_payments_customers',
+    'liwan_inbox', 'liwan_inbox_payments', 'liwan_crm_inbox', 'liwan_pmo', 'liwan_documents_pmo',
+    'liwan_meetings_pmo', 'liwan_operations_pmo', 'liwan_pmo_ai', 'liwan_tasks_pmo', 'liwan_hr',
+    'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_ai', 'liwan_hr_operations', 'liwan_finance',
+    'liwan_api_account', 'liwan_finance_ai', 'liwan_hr_finance', 'liwan_pmo_finance',
+    'liwan_products_account', 'liwan_appointments', 'liwan_appointments_payments', 'liwan_sales',
+    'liwan_sales_ai',
 )
 SCRATCH_LIFECYCLE_TOKEN = 'CREATE_NEW_SCRATCH'
 FORBIDDEN_DB_RE = re.compile(

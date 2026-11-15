@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+export * from './bridges'
 export * from './call'
 export * from './dashboard'
 export * from './imports'
