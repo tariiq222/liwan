@@ -15,9 +15,9 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
-AI_FEATURE = 'ai.enabled'
 MAX_USAGE_ITEMS = 64
 
 
@@ -39,7 +39,7 @@ class AiController(http.Controller):
 
     @http.route('/api/v1/ai/tools', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='read')
+    @requires_feature(AI_SERVICE_FEATURE, operation='read')
     def list_tools(self, **_):
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
         mode = request.httprequest.args.get('mode')
@@ -61,7 +61,7 @@ class AiController(http.Controller):
 
     @http.route('/api/v1/ai/conversations/<string:conversation_id>/mode', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='read')
+    @requires_feature(AI_SERVICE_FEATURE, operation='read')
     def conversation_mode(self, conversation_id, **_):
         """The mode a conversation of the caller started in, so a continued message keeps it whatever the browser says."""
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
@@ -69,7 +69,7 @@ class AiController(http.Controller):
 
     @http.route('/api/v1/ai/audit', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     def record_audit(self, **payload):
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
         Audit = request.env['liwan.ai.audit']
@@ -87,7 +87,7 @@ class AiController(http.Controller):
     # it, and those figures are deducted from the tenant's balance, so only the recorder account may write them.
     @http.route('/api/v1/ai/usage', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     def record_usage(self, **payload):
         # ai.use is required by the model in the company the batch names, not here in the company the session works in now.
         unknown = sorted(set(payload) - {'items', 'user_company_id'})
@@ -109,7 +109,7 @@ class AiController(http.Controller):
 
     @http.route(USAGE_SERVICE_PATH, type='json2', auth='bearer', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     @requires_capability(AI_USAGE_RECORD)
     def record_usage_service(self, **payload):
         """Record the usage rows of a finished run for the user who made the calls, without that user's session.

@@ -12,6 +12,7 @@ from odoo.tools import html2plaintext
 from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE
 from odoo.addons.liwan_ai.models.ai_balance import RUN_RESERVE
 from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 from odoo.addons.liwan_api.serializers.common import iso
 
 KIND = 'ai.limit_warning'
@@ -42,7 +43,7 @@ class LiwanAiLimitTypes(models.AbstractModel):
     def _liwan_notification_types(self):
         return (
             *super()._liwan_notification_types(),
-            {'kind': KIND, 'owner': 'liwan_ai_notify', 'model': SETTINGS_MODEL, 'feature_key': 'ai.enabled'},
+            {'kind': KIND, 'owner': 'liwan_ai_notify', 'model': SETTINGS_MODEL, 'feature_key': AI_SERVICE_FEATURE},
         )
 
     @api.model

@@ -16,8 +16,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-
-AI_FEATURE = 'ai.enabled'
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 
 
 def require_tenant_manager():
@@ -33,7 +32,7 @@ class AiSettingsController(http.Controller):
 
     @http.route('/api/v1/ai/settings', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='read')
+    @requires_feature(AI_SERVICE_FEATURE, operation='read')
     @requires_capability(AI_SETTINGS_MANAGE)
     def read_settings(self, **_):
         require_tenant_manager()
@@ -41,7 +40,7 @@ class AiSettingsController(http.Controller):
 
     @http.route('/api/v1/ai/settings', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     @requires_capability(AI_SETTINGS_MANAGE)
     def write_settings(self, **payload):
         require_tenant_manager()
@@ -54,7 +53,7 @@ class AiSettingsController(http.Controller):
 
     @http.route('/api/v1/ai/consent', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     @requires_capability(AI_SETTINGS_MANAGE)
     def sign_consent(self, **payload):
         require_tenant_manager()
@@ -71,7 +70,7 @@ class AiSettingsController(http.Controller):
 
     @http.route('/api/v1/ai/consent/revoke', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     @requires_capability(AI_SETTINGS_MANAGE)
     def revoke_consent(self, **_):
         require_tenant_manager()
@@ -84,7 +83,7 @@ class AiSettingsController(http.Controller):
 
     @http.route('/api/v1/ai/config/authorize', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     @requires_capability(AI_SETTINGS_MANAGE)
     def authorize_config_write(self, **_):
         """Answers whether the caller may change the tenant's AI configuration in the AI service (its own key and the
@@ -94,7 +93,7 @@ class AiSettingsController(http.Controller):
 
     @http.route('/api/v1/ai/company-memory/authorize', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     @requires_capability(AI_SETTINGS_MANAGE)
     def authorize_company_memory(self, **_):
         """Names the company whose notes the caller may review: the current one, where they manage AI settings. The Nuxt
@@ -103,7 +102,7 @@ class AiSettingsController(http.Controller):
 
     @http.route('/api/v1/ai/monitoring', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='read')
+    @requires_feature(AI_SERVICE_FEATURE, operation='read')
     @requires_capability(AI_SETTINGS_MANAGE)
     def read_monitoring(self, **_):
         return dump_monitoring(request.env)

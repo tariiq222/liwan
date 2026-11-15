@@ -3,6 +3,8 @@ from . import (
     access_service,
     account_move,
     action_service,
+    ai_agent,
+    ai_readiness,
     analytic_report,
     audit_event,
     budget,

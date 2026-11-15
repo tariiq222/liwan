@@ -11,6 +11,7 @@ from odoo.addons.liwan_ai.serializers.settings import (
     MAX_MESSAGES_PER_USER,
     MAX_SPEND_CEILING,
 )
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 
 OWNER = 'liwan_ai'
 SETTING_KEY_SCHEMA = {'type': 'string', 'pattern': r'^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$'}
@@ -18,7 +19,7 @@ SETTING_KEY_SCHEMA = {'type': 'string', 'pattern': r'^[a-z][a-z0-9_]*\.[a-z][a-z
 SETUP_AGENT = {
     'key': SETUP_AGENT_KEY,
     'owner': OWNER,
-    'feature_key': 'ai.enabled',
+    'feature_key': AI_SERVICE_FEATURE,
     'name_ar': 'وكيل الإعداد',
     'name_en': 'Setup agent',
     'description_ar': 'يساعد في ضبط إعدادات التطبيقات المفعّلة حسب نشاط الشركة',
@@ -44,7 +45,7 @@ SETUP_AGENT = {
 
 SETUP_TOOLS = (
     {
-        'name': 'ai.readiness', 'owner': OWNER, 'kind': 'read', 'capability': AI_USE, 'feature_key': 'ai.enabled',
+        'name': 'ai.readiness', 'owner': OWNER, 'kind': 'read', 'capability': AI_USE, 'feature_key': AI_SERVICE_FEATURE,
         'description_ar': 'يفحص ما ينقص الشركة لتكتمل جاهزيتها (مستخدمون بلا دور، إعدادات لم تُحفظ، تطبيقات مفعّلة بلا سجلات) مع صفحة علاج كل بند',
         'description_en': 'Check what the company still lacks to be ready (users without a role, unsaved settings, enabled applications without records), with the page that fixes each item',
         'route': {'method': 'GET', 'path': '/api/v1/ai/setup/readiness'},
@@ -53,7 +54,7 @@ SETUP_TOOLS = (
         'result_summary': ['items[].key', 'items[].severity', 'items[].label', 'items[].page', 'total'],
     },
     {
-        'name': 'ai.list_settings', 'owner': OWNER, 'kind': 'read', 'capability': AI_USE, 'feature_key': 'ai.enabled',
+        'name': 'ai.list_settings', 'owner': OWNER, 'kind': 'read', 'capability': AI_USE, 'feature_key': AI_SERVICE_FEATURE,
         'description_ar': 'يعرض إعدادات التطبيقات المفعّلة التي يحق للمستخدم تغييرها مع قيمها الحالية وأثرها',
         'description_en': 'List the settings of the enabled applications the user may change, with their current values and impact',
         'route': {'method': 'GET', 'path': '/api/v1/ai/setup/settings'},
@@ -63,7 +64,7 @@ SETUP_TOOLS = (
                            'items[].value', 'items[].options[]', 'items[].min', 'items[].max', 'total'],
     },
     {
-        'name': 'ai.apply_setting', 'owner': OWNER, 'kind': 'write_light', 'capability': AI_USE, 'feature_key': 'ai.enabled',
+        'name': 'ai.apply_setting', 'owner': OWNER, 'kind': 'write_light', 'capability': AI_USE, 'feature_key': AI_SERVICE_FEATURE,
         'description_ar': 'يطبّق قيمة جديدة لإعداد واحد بعد موافقة المستخدم، مع القيمة الحالية التي عرضتها أداة القراءة',
         'description_en': 'Apply a new value to one setting after the user approves, with the current value the list tool showed',
         'route': {'method': 'POST', 'path': '/api/v1/ai/setup/settings/{key}'},
@@ -84,7 +85,7 @@ SETUP_TOOLS = (
 )
 
 
-def _setting(field, kind, label, impact, feature_key='ai.enabled', **allowed):
+def _setting(field, kind, label, impact, feature_key=AI_SERVICE_FEATURE, **allowed):
     """One tenant-wide AI policy; changed by a holder of ai.settings.manage in the tenant's root company."""
     return {
         'key': f'ai.{field}', 'owner': OWNER, 'feature_key': feature_key, 'model': 'liwan.ai.settings', 'field': field,

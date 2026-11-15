@@ -3,7 +3,7 @@
 capability its route already checks. Fields that are sensitive never appear in a result summary."""
 from odoo import api, models
 
-from odoo.addons.liwan_ai.models.tool_registry import (
+from odoo.addons.liwan_api.models.ai_tool_registry import (
     DATE_SCHEMA,
     PAGE_SCHEMA,
     read_tool,

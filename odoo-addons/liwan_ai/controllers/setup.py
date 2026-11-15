@@ -4,7 +4,6 @@ from psycopg2.errors import UniqueViolation
 from odoo import http
 from odoo.http import request
 
-from odoo.addons.liwan_ai.controllers.ai import AI_FEATURE
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.serializers.setup import dump_readiness_item, dump_setting
 from odoo.addons.liwan_api.controllers.common import (
@@ -13,6 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 
 
 class AiSetupController(http.Controller):
@@ -24,7 +24,7 @@ class AiSetupController(http.Controller):
 
     @http.route('/api/v1/ai/setup/readiness', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='read')
+    @requires_feature(AI_SERVICE_FEATURE, operation='read')
     @requires_capability(AI_USE)
     def readiness(self, **_):
         items = [dump_readiness_item(entry) for entry in request.env['liwan.ai.readiness']._liwan_ai_missing()]
@@ -32,7 +32,7 @@ class AiSetupController(http.Controller):
 
     @http.route('/api/v1/ai/setup/settings', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='read')
+    @requires_feature(AI_SERVICE_FEATURE, operation='read')
     @requires_capability(AI_USE)
     def list_settings(self, **_):
         registry = request.env['liwan.ai.setting.registry']
@@ -41,7 +41,7 @@ class AiSetupController(http.Controller):
 
     @http.route('/api/v1/ai/setup/settings/<string:key>', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     @requires_capability(AI_USE)
     def apply_setting(self, key, **payload):
         if set(payload) != {'value', 'expected'}:

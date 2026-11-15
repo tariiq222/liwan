@@ -8,6 +8,7 @@ class LiwanAiFeatureRegistry(models.AbstractModel):
     @api.model
     def _liwan_feature_definitions(self):
         return super()._liwan_feature_definitions() + (
+            # A literal: tools/catalog_check.py reads this file by AST. It must equal AI_SERVICE_FEATURE (pinned by a test).
             {'key': 'ai.enabled', 'type': 'boolean', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             {'key': 'ai.messages.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             {'key': 'ai.tool_calls.per_run', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
