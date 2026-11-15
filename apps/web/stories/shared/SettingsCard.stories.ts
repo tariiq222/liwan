@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import SettingsPage from '@liwan/ui/app/components/shared/layout/SettingsPage.vue'
 import SettingsCard from '@liwan/ui/app/components/shared/layout/SettingsCard.vue'
+import SettingRow from '@liwan/ui/app/components/shared/layout/SettingRow.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -27,6 +28,21 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 export const Clean: Story = { name: 'بلا تعديل' }
+export const FieldGrid: Story = {
+  name: 'شبكة حقول وصف قرار',
+  render: args => ({
+    components: { SettingsPage, SettingsCard, SettingRow },
+    setup: () => ({ args }),
+    template: `<main class="liwan-shell-main"><SettingsPage><SettingsCard v-bind="args">
+      <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+        <UFormField name="city" label="المدينة"><UInput id="city" model-value="الرياض" class="w-full" :disabled="!args.canEdit" /></UFormField>
+        <UFormField data-span="wide" name="street" label="الشارع" description="كما يظهر في العنوان الوطني."><UInput id="street" model-value="طريق الملك فهد" class="w-full" :disabled="!args.canEdit" /></UFormField>
+        <UFormField name="zip" label="الرمز البريدي"><UInput id="zip" model-value="12211" dir="ltr" class="w-full" :disabled="!args.canEdit" /></UFormField>
+      </div>
+      <SettingRow name="vat" label="مسجّلة في ضريبة القيمة المضافة" description="يظهر الرقم الضريبي في الفواتير."><USwitch :model-value="true" aria-label="مسجّلة في ضريبة القيمة المضافة" :disabled="!args.canEdit" /></SettingRow>
+    </SettingsCard></SettingsPage></main>`,
+  }),
+}
 export const Dirty: Story = { name: 'فيه تعديل', args: { dirty: true } }
 export const ReadOnly: Story = { name: 'عرض فقط', args: { canEdit: false } }
 export const SaveError: Story = { name: 'تعذّر الحفظ', args: { dirty: true, message: 'تعذّر حفظ الإعدادات الآن' } }
