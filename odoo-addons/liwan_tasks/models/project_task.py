@@ -64,11 +64,10 @@ class ProjectTask(models.Model):
 
     @api.model
     def _liwan_with_link_defaults(self, vals):
-        """``vals`` plus the ``default_<field>`` context value of each registered link field it leaves out,
-        which is the value the ORM would create with."""
-        defaults = {name: self.env.context[f'default_{name}']
-                    for name in self._liwan_link_fields() if f'default_{name}' in self.env.context}
-        return {**defaults, **vals}
+        """``vals`` plus the default of each registered link field it leaves out: what the ORM would create
+        with (``default_get`` covers the ``default_<field>`` context, ``ir.default`` and the field default)."""
+        missing = [name for name in self._liwan_link_fields() if name not in vals]
+        return {**self.default_get(missing), **vals} if missing else vals
 
     @api.model
     def _liwan_check_link_targets(self, vals):

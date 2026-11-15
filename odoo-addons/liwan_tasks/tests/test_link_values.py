@@ -90,3 +90,15 @@ class TestCreateLinkValues(LiwanTasksCase):
             self.assertEqual(task.partner_id, visible)
             task.write({'partner_id': False})
             self.assertFalse(task.partner_id)
+
+    def test_a_stored_ir_default_is_checked_like_a_value(self):
+        hidden = self.env['res.partner'].create({'name': 'Hidden', 'company_id': self.other_company.id})
+        visible = self.partner()
+        Task = self.env['project.task'].with_user(self.alice)
+        vals = {'name': 'Linked', 'company_id': self.alice.company_id.id}
+        with self.register('partner_id'):
+            self.env['ir.default'].set('project.task', 'partner_id', hidden.id, user_id=self.alice.id)
+            with self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+                Task.create(vals)
+            self.env['ir.default'].set('project.task', 'partner_id', visible.id, user_id=self.alice.id)
+            self.assertEqual(Task.create(vals).partner_id, visible)
