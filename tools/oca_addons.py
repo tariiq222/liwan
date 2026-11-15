@@ -10,6 +10,13 @@ never copied into this repository: ``fetch`` (https only) clones each repository
 pinned commit under ``DIR/<repo name>`` and verifies HEAD; it is idempotent. ``path --check`` fails
 unless every clone is at its pin. The destination is ``--dest``, else ``$LIWAN_OCA_DIR``, else
 ``oca-19.0`` beside the main checkout (shared by every worktree). See ``docs/oca-addons.md``.
+
+A repository may name ``modules``: the modules LiwanOS uses from it. Odoo installs every
+``auto_install`` module whose dependencies are installed, wherever it sits on the addons path, so a
+whole repository on the path would install modules LiwanOS never chose (OCA/helpdesk carries four
+such bridges). ``fetch`` therefore materialises ``DIR/.selected/<repo name>/`` with one relative
+symlink per named module, and ``path`` prints that directory instead of the repository root. The
+repository itself stays complete and unmodified at its pin.
 """
 from __future__ import annotations
 
@@ -31,7 +38,9 @@ DEST_ENV = 'LIWAN_OCA_DIR'
 DEST_NAME = 'oca-19.0'
 IMAGE_DEST = '/opt/oca'  # where deploy/odoo/Dockerfile puts the repositories
 REPO_NAME = re.compile(r'OCA/[a-z0-9][a-z0-9_-]*')
+MODULE_NAME = re.compile(r'[a-z][a-z0-9_]*')
 SHA = re.compile(r'[0-9a-f]{40}')
+SELECTED_DIR = '.selected'  # under DIR: one directory of module symlinks per repository that names `modules`
 # Seconds to wait before each retry of a fetch that failed on the network; a refused or unknown
 # commit is never retried. The CI image build fetches every pin from github.com.
 FETCH_RETRY_DELAYS = (10, 30)
@@ -74,6 +83,14 @@ def validate(data):
             errors.append('%s: branch must be a non-empty string' % name)
         if not isinstance(entry.get('commit'), str) or not SHA.fullmatch(entry['commit']):
             errors.append('%s: commit must be a full 40-character lowercase sha' % name)
+        modules = entry.get('modules')
+        if modules is not None:
+            if not isinstance(modules, list) or not modules:
+                errors.append('%s: modules must be a non-empty list of module names' % name)
+            elif any(not isinstance(item, str) or not MODULE_NAME.fullmatch(item) for item in modules):
+                errors.append('%s: every module must match [a-z][a-z0-9_]*' % name)
+            elif len(set(modules)) != len(modules):
+                errors.append('%s: modules must be unique' % name)
     for item in data.get('python_requirements', []):
         if not isinstance(item, dict) or item.get('repo') not in seen or not item.get('packages'):
             errors.append('python_requirements entry %r must name a pinned repo and its packages' % (item,))
@@ -106,8 +123,56 @@ def repo_dir(dest, repo):
     return Path(dest) / repo.split('/', 1)[1]
 
 
+def selection_dir(dest, repo):
+    """Where a repository's chosen modules are linked when its pin names ``modules``."""
+    return Path(dest) / SELECTED_DIR / repo.split('/', 1)[1]
+
+
+def addons_dir(dest, entry):
+    """The addons-path entry of one pinned repository: its selected modules, or the repository root."""
+    return selection_dir(dest, entry['repo']) if entry.get('modules') else repo_dir(dest, entry['repo'])
+
+
 def addons_path(pins, dest):
-    return ','.join(str(repo_dir(dest, entry['repo'])) for entry in pins['repos'])
+    return ','.join(str(addons_dir(dest, entry)) for entry in pins['repos'])
+
+
+def materialise_selection(pins, dest):
+    """Rebuild ``DIR/.selected`` from the pins; relative symlinks so the tree survives a copy.
+
+    Every named module is checked before anything is written, so a typo in the pin file fails here
+    with nothing half-built rather than as a silently missing application. A repository without
+    ``modules`` keeps no selection directory.
+    """
+    for entry in pins['repos']:
+        for module in entry.get('modules') or ():
+            if not (repo_dir(dest, entry['repo']) / module / '__manifest__.py').is_file():
+                raise OcaError('%s has no module %s at %s' % (entry['repo'], module, entry['commit']))
+    root = Path(dest) / SELECTED_DIR
+    shutil.rmtree(root, ignore_errors=True)
+    created = []
+    for entry in pins['repos']:
+        modules = entry.get('modules')
+        if not modules:
+            continue
+        target = selection_dir(dest, entry['repo'])
+        target.mkdir(parents=True)
+        created.append(target)
+        for module in modules:
+            (target / module).symlink_to(Path('..', '..', repo_dir(dest, entry['repo']).name, module))
+    return created
+
+
+def verify_selection(pins, dest):
+    """Raise ``OcaError`` unless every repository that names ``modules`` has its selection built."""
+    for entry in pins['repos']:
+        if not entry.get('modules'):
+            continue
+        target = selection_dir(dest, entry['repo'])
+        missing = [module for module in entry['modules'] if not (target / module / '__manifest__.py').is_file()]
+        if missing:
+            raise OcaError('%s has no prepared module selection (%s); run: python3 -B tools/oca_addons.py fetch'
+                           % (entry['repo'], ', '.join(missing)))
 
 
 def image_path(pins_file=PINS):
@@ -204,7 +269,9 @@ def fetch_repo(entry, dest, base_url, allow_local_base=False):
 
 
 def fetch_all(pins, dest, base_url, allow_local_base=False):
-    return {entry['repo']: fetch_repo(entry, dest, base_url, allow_local_base) for entry in pins['repos']}
+    fetched = {entry['repo']: fetch_repo(entry, dest, base_url, allow_local_base) for entry in pins['repos']}
+    materialise_selection(pins, dest)
+    return fetched
 
 
 def main(argv=None):
@@ -225,6 +292,9 @@ def main(argv=None):
     elif args.command == 'path':
         if args.check:
             verify_all(pins, dest)
+            verify_selection(pins, dest)
+        else:
+            verify_selection(pins, dest)
         sys.stdout.write(addons_path(pins, dest) + '\n')
     else:
         for repo, state in fetch_all(pins, dest, args.base_url).items():

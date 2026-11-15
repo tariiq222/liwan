@@ -284,14 +284,18 @@ def odoo_commit():
 
 
 def oca_dirs():
-    """The pinned OCA repositories (``deploy/oca-addons.json``), verified to be fetched at their pins."""
+    """The pinned OCA addons-path entries (``deploy/oca-addons.json``), verified to be fetched at their pins.
+
+    A repository that names ``modules`` contributes its prepared selection directory, not its root.
+    """
     try:
         pins = oca_addons.load_pins(oca_addons.PINS)
         dest = oca_addons.default_dest()
         oca_addons.verify_all(pins, dest)
+        oca_addons.verify_selection(pins, dest)
     except oca_addons.OcaError as exc:
         raise OdooTestError('%s' % exc) from None
-    return [oca_addons.repo_dir(dest, entry['repo']) for entry in pins['repos']]
+    return [oca_addons.addons_dir(dest, entry) for entry in pins['repos']]
 
 
 def changed_paths(merge_base):
