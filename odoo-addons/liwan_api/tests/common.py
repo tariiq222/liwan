@@ -10,6 +10,7 @@ from odoo.fields import Command
 from odoo.tests import HttpCase, new_test_user
 from odoo.tests.common import HOST, Opener
 
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 # A test-only boolean feature for shared-service tests that must not depend on
@@ -438,6 +439,17 @@ class MembershipCase(WorkingCompanyCase):
         profile.invalidate_recordset()
 
 
+def ai_engine_installed(env):
+    """Whether liwan_ai, which runs the assistant, is installed; an application's AI registrations work without it."""
+    return env['ir.module.module']._get('liwan_ai').state == 'installed'
+
+
+def skip_without_ai_engine(test, what_was_not_checked):
+    """Skip ``test`` when liwan_ai is absent, naming what the run therefore left unchecked."""
+    if not ai_engine_installed(test.env):
+        test.skipTest(f'liwan_ai is not installed: {what_was_not_checked}')
+
+
 class AiAgentCase(LiwanApiCase):
     """The shared test of an application's AI agent (spec 2026-11-04 §6.6): ``agent_key`` names the agent under test.
 
@@ -456,14 +468,13 @@ class AiAgentCase(LiwanApiCase):
             if tool['owner'] == agent['owner']
         ]
         self.assertTrue(tools, f'agent {self.agent_key} declares no tool')
-        profile = self.env.ref('liwan_platform.tenant_profile')
-        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**(profile.features or {}), agent['feature_key']: True},
-        })
+        # The AI service's own feature exists only with liwan_ai; every other key is switched on, so a mistyped one fails loudly.
+        if agent['feature_key'] != AI_SERVICE_FEATURE or ai_engine_installed(self.env):
+            profile = self.env.ref('liwan_platform.tenant_profile')
+            profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
+                'features': {**(profile.features or {}), agent['feature_key']: True},
+            })
         return tools
-
-    def _ai_installed(self):
-        return self.env['ir.module.module']._get('liwan_ai').state == 'installed'
 
     def _catalog(self):
         response = self.api('GET', '/api/v1/ai/tools')
@@ -483,7 +494,7 @@ class AiAgentCase(LiwanApiCase):
         tools = self._agent_tools()
         names = {tool['name'] for tool in tools}
         capabilities = {tool['capability'] for tool in tools}
-        ai_installed = self._ai_installed()
+        ai_installed = ai_engine_installed(self.env)
         if ai_installed:
             self.employee.write({'group_ids': [Command.link(self.env.ref('liwan_ai.group_cap_ai_use').id)]})
         access = type(self.env['liwan.access.service'])
@@ -498,8 +509,7 @@ class AiAgentCase(LiwanApiCase):
         self.patch(access, '_liwan_has_capability', has_capability)
         self.authenticate('api_emp', 'api_emp_pass_123')
         self._assert_routes_refused(tools)
-        if not ai_installed:
-            self.skipTest('liwan_ai is not installed: the registry and the routes were checked, the AI catalog was not')
+        skip_without_ai_engine(self, 'the registry and the routes were checked, the AI catalog was not')
         self.assertFalse({item['name'] for item in self._catalog()['items']} & names)
         granted['value'] = True
         catalog = self._catalog()

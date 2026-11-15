@@ -7,7 +7,7 @@ state) and its ``ir.model.data`` rows. A later removal adds its name here and ca
 migration of its version.
 """
 
-REMOVED_ADDONS = ('liwan_sales_ai',)
+REMOVED_ADDONS = ('liwan_sales_ai', 'liwan_hr_ai', 'liwan_finance_ai', 'liwan_operations_ai', 'liwan_pmo_ai')
 
 
 def forget_removed_addons(env, names=REMOVED_ADDONS):

@@ -1,6 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import new_test_user, tagged
 
+from odoo.addons.liwan_api.tests.common import (
+    ai_engine_installed,
+    skip_without_ai_engine,
+)
 from odoo.addons.liwan_pmo.tests.common import LiwanPmoCase
 
 PMO_TOOLS = (
@@ -11,6 +15,10 @@ PMO_TOOLS = (
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestPmoAiTools(LiwanPmoCase):
+
+    def _require_ai(self):
+        """The tool catalog route belongs to liwan_ai; the registry checks below run without it."""
+        skip_without_ai_engine(self, 'the /api/v1/ai/tools catalog is not served')
 
     def test_pmo_declares_its_six_tools_over_existing_routes(self):
         tools = self.env['liwan.ai.tool.registry']._liwan_ai_tool_map()
@@ -32,6 +40,7 @@ class TestPmoAiTools(LiwanPmoCase):
             self.assertIn((path, tool['route']['method']), routing, name)
 
     def test_employee_sees_read_and_task_state_tools_only(self):
+        self._require_ai()
         self.authenticate('api_emp', 'api_emp_pass_123')
         body = self.api('GET', '/api/v1/ai/tools').json()
         names = {item['name'] for item in body['items']}
@@ -41,6 +50,7 @@ class TestPmoAiTools(LiwanPmoCase):
         })
 
     def test_manager_sees_the_project_draft_tool(self):
+        self._require_ai()
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         body = self.api('GET', '/api/v1/ai/tools').json()
         draft = next(item for item in body['items'] if item['name'] == 'pmo.draft_project')
@@ -57,6 +67,7 @@ class TestPmoAiTools(LiwanPmoCase):
         self.assertIn('items[].is_overdue', tool['result_summary'])
 
     def test_a_user_outside_the_employee_role_sees_no_pmo_tools(self):
+        self._require_ai()
         new_test_user(self.env, login='api_guest', password='api_guest_pass_123', name='Ghada', groups='base.group_user')
         self.authenticate('api_guest', 'api_guest_pass_123')
         response = self.api('GET', '/api/v1/ai/tools')
@@ -80,7 +91,8 @@ class TestPmoAiTools(LiwanPmoCase):
         path = tool['route']['path'].replace('{project_id}', str(self.project.id))
         # api_emp reads the project and holds one of its tasks, but the company keeps finance to the managers.
         self.authenticate('api_emp', 'api_emp_pass_123')
-        self.assertIn(tool['name'], {item['name'] for item in self.api('GET', '/api/v1/ai/tools').json()['items']})
+        if ai_engine_installed(self.env):
+            self.assertIn(tool['name'], {item['name'] for item in self.api('GET', '/api/v1/ai/tools').json()['items']})
         refused = self.api(tool['route']['method'], path)
         self.assertEqual((refused.status_code, refused.json()['code']), (403, 'forbidden'))
         self.authenticate('api_mgr', 'api_mgr_pass_123')

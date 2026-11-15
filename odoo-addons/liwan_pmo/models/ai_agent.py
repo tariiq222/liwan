@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The LiwanOS AI tools of liwan_pmo, declared by the bridge liwan_pmo_ai: named tools over the PMO routes, each with the capability its route checks.
+"""The LiwanOS AI agent and tools of liwan_pmo: named tools over the PMO routes, each with the capability its route checks.
+The registries belong to liwan_api, so PMO declares them without depending on liwan_ai, which offers and runs the tools when installed.
 
 Numbers are computed by the routes, never by the model: the finance summary
 tool returns the server-side totals as they are. The draft tool writes nothing;

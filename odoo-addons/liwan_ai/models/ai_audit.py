@@ -8,7 +8,10 @@ from odoo.exceptions import AccessError, ValidationError
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
-from odoo.addons.liwan_api.models.ai_agent_registry import CORE_AGENT
+from odoo.addons.liwan_api.models.ai_agent_registry import (
+    AI_SERVICE_FEATURE,
+    CORE_AGENT,
+)
 from odoo.addons.liwan_api.models.ai_tool_registry import TOOL_KINDS
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.usage_window import month_label, month_window
@@ -279,7 +282,7 @@ class LiwanAiAudit(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         # The single choke point: the route and a direct /json/2 create obey the same feature gate.
-        self.env['liwan.entitlement.service'].require('ai.enabled')
+        self.env['liwan.entitlement.service'].require(AI_SERVICE_FEATURE)
         self.env['liwan.access.service']._liwan_require_capability(AI_USE)
         rows = [self._liwan_ai_prepare(values) for values in vals_list]
         messages = sum(row['kind'] == 'message' for row in rows)

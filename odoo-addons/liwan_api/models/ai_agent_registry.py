@@ -7,6 +7,8 @@ from odoo.exceptions import ValidationError
 AGENT_KEY = re.compile(r'^[a-z][a-z0-9_]*$')
 # The platform coordinator: defined by the AI service (its instructions are platform constants), never registered here.
 CORE_AGENT = 'core'
+# The feature of the AI service itself, used by an application that has no feature of its own (a base application); liwan_ai registers it.
+AI_SERVICE_FEATURE = 'ai.enabled'
 AGENT_TEXT = ('owner', 'feature_key', 'name_ar', 'name_en', 'description_ar', 'description_en', 'instructions_ar', 'instructions_en')
 FIELD_NAME = re.compile(r'^[a-z_][a-z0-9_]*$')
 # The page names the assistant's run context carries: a rail module id or a record scope kind (``project``).

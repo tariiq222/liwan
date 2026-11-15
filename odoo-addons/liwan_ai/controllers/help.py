@@ -4,7 +4,6 @@ import re
 from odoo import http
 from odoo.http import request
 
-from odoo.addons.liwan_ai.controllers.ai import AI_FEATURE
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
@@ -12,6 +11,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 
 MAX_QUERY = 200
 PAGE_NAME = re.compile(r'^[a-z][a-z_-]{0,39}$')
@@ -25,7 +25,7 @@ class AiHelpController(http.Controller):
 
     @http.route('/api/v1/ai/help', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='read')
+    @requires_feature(AI_SERVICE_FEATURE, operation='read')
     @requires_capability(AI_USE)
     def search_help(self, **_):
         args = request.httprequest.args

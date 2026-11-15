@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The HR agent and its self-service job profile tool."""
+"""The HR agent and its self-service job profile tool. The registries belong to liwan_api, so HR declares its agent without
+depending on liwan_ai, which offers and runs the tools when it is installed."""
 from odoo import api, models
 
 from odoo.addons.liwan_api.models.ai_tool_registry import read_tool

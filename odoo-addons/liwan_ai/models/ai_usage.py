@@ -13,6 +13,7 @@ from odoo.addons.liwan_ai.models.ai_audit import (
     is_conversation_id,
     raise_invalid,
 )
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 
 # The one route the usage recorder's API key may reach (models/ir_http.py registers it with the platform guard).
 USAGE_SERVICE_PATH = '/api/v1/ai/usage/service'
@@ -235,7 +236,7 @@ class LiwanAiUsage(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """Record the attempts of a batch as the signed-in user in the company this environment works in, each row once."""
-        self.env['liwan.entitlement.service'].require('ai.enabled')
+        self.env['liwan.entitlement.service'].require(AI_SERVICE_FEATURE)
         self.env['liwan.access.service']._liwan_require_capability(AI_USE)
         return self._liwan_ai_record(vals_list, self.env.user, self.env.company)
 
@@ -255,7 +256,7 @@ class LiwanAiUsage(models.Model):
         scoped = self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id], liwan_capability_scope=None)
         # The same gates as ``create``, stated here: tools/route_gate_policy.py reads the capability of the session route
         # from this method, and it must be the one evaluated in the named company.
-        scoped.env['liwan.entitlement.service'].require('ai.enabled')
+        scoped.env['liwan.entitlement.service'].require(AI_SERVICE_FEATURE)
         scoped.env['liwan.access.service']._liwan_require_capability(AI_USE)
         return scoped._liwan_ai_record(vals_list, scoped.env.user, scoped.env.company)
 
@@ -268,7 +269,7 @@ class LiwanAiUsage(models.Model):
         belong to ``company_id``, so a row is never attributed to a user or company it does not belong to. The whole
         write runs in that one company, so its record rules apply to it and to no other.
         """
-        self.env['liwan.entitlement.service'].require('ai.enabled')
+        self.env['liwan.entitlement.service'].require(AI_SERVICE_FEATURE)
         if not isinstance(user_id, int) or isinstance(user_id, bool):
             raise_invalid(self.env, 'user_id', 'user_id must be an integer')
         if not isinstance(company_id, int) or isinstance(company_id, bool):

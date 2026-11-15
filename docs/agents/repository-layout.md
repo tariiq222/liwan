@@ -62,10 +62,10 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   per-user audit log `liwan.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role; its ACL and own-rows rule follow that capability group, and the monthly message limit counts tenant-wide), and the two
   routes `GET /api/v1/ai/tools` and `POST /api/v1/ai/audit`. It knows no application and
   holds no language-model code. An application registers its agent, tools, knowledge sources, settings and readiness
-  checks inside its own addon, in the `liwan_api` registries, without depending on `liwan_ai`; `liwan_sales` already does,
-  and `tools/new_app.py` generates that registration inside every new application. The bridges `liwan_pmo_ai`,
-  `liwan_hr_ai`, `liwan_crm_ai`, `liwan_meetings_ai`, `liwan_tasks_ai`, `liwan_operations_ai` and `liwan_finance_ai`
-  (rank 5, `auto_install`) still hold the other applications' registrations and are being folded into them. The AI service and the Nuxt executor live
+  checks inside its own addon, in the `liwan_api` registries, without depending on `liwan_ai`. Sales, HR, Finance,
+  Operations and PMO register inside their own addons, and `tools/new_app.py` generates that registration inside every
+  new application. Three bridges remain, `liwan_crm_ai`, `liwan_tasks_ai` and `liwan_meetings_ai` (rank 5,
+  `auto_install`); they hold those applications' registrations until they are folded too. The AI service and the Nuxt executor live
   outside Odoo (`docs/superpowers/specs/2026-10-15-liwan-ai-design.md`).
 - `odoo-addons/liwan_directory` (shared service, rank 3) owns `/api/v1/people`
   (the user-id picker, whose ids are `res.users` ids) and its population of

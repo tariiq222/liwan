@@ -6,6 +6,8 @@ from . import project_child_visibility
 
 from . import (
     access_service,
+    ai_agent,
+    ai_readiness,
     directory,
     entitlement_service,
     feature_registry,
