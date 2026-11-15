@@ -63,7 +63,7 @@ async function confirmDelete(id: number) {
 
 <template>
   <div class="space-y-3">
-    <SharedPageState :loading="loading" :error="loadError" :empty="!attachments.length" :empty-text="labels.empty" @retry="$emit('retry')">
+    <SharedPageState empty-icon="i-lucide-paperclip" :loading="loading" :error="loadError" :empty="!attachments.length" :empty-text="labels.empty" @retry="$emit('retry')">
       <ul class="divide-y divide-default">
         <li v-for="attachment in attachments" :key="attachment.id" class="grid min-w-0 gap-2 py-2 text-sm">
           <div class="flex items-center gap-2">

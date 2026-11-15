@@ -55,7 +55,7 @@ function onCopied(id: number) {
 
 <template>
   <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo">
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-lock"
       :loading="isLoading"
       :error="forbidden ? undefined : listError"
       :empty="forbidden"

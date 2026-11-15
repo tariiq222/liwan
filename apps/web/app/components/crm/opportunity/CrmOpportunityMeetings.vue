@@ -82,7 +82,7 @@ defineExpose({ reset })
           <UButton type="submit" :loading="props.pending" :disabled="locked" :label="t('crm.opportunities.meetings.submit')" data-testid="crm-meeting-submit" />
         </div>
       </UForm>
-      <SharedPageState :loading="loading" :error="error" :empty="!meetings.length" :empty-text="t('crm.opportunities.meetings.empty')" @retry="emit('retry')">
+      <SharedPageState empty-icon="i-lucide-calendar-days" :loading="loading" :error="error" :empty="!meetings.length" :empty-text="t('crm.opportunities.meetings.empty')" @retry="emit('retry')">
         <ul class="divide-y divide-default" data-testid="crm-meeting-list">
           <li v-for="meeting in meetings" :key="meeting.id" class="grid gap-1 py-3 first:pt-0 last:pb-0">
             <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">

@@ -71,7 +71,7 @@ async function applyWeek(employeeId: number, scheduleId: number) {
       <UAlert v-else-if="saved" role="status" color="success" variant="subtle" :title="t('hrShifts.weekSaved')" />
       <SharedListCard>
         <SharedPageState :loading="roster.isLoading.value" :error="roster.error.value" :keep-content="weeks.length > 0" @retry="roster.refetch">
-          <SharedEmptyState v-if="!weeks.length" class="m-(--liwan-card-pad-dense)" :title="t('hrShifts.weekEmpty')" />
+          <SharedEmptyState icon="i-lucide-calendar-range" v-if="!weeks.length" class="m-(--liwan-card-pad-dense)" :title="t('hrShifts.weekEmpty')" />
           <ShiftWeekGrid
             v-else
             :weeks="weeks"

@@ -73,7 +73,7 @@ const lineCount = (budget: FinanceBudget) => t('financeBudgets.lines.count', { c
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeBudgets.budgets.empty')" />
+        <SharedEmptyState :icon="activeCount ? 'i-lucide-filter-x' : 'i-lucide-target'" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeBudgets.budgets.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,720px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('financeBudgets.budgets.title')">
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

@@ -16,10 +16,10 @@ const showEmpty = computed(() => !mine.isLoading.value && !mine.error.value && i
 <template>
   <SharedListPage :title="t('nav.myInsurance')">
     <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
-      <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
+      <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     </SharedPageState>
     <SharedPageState v-if="profile.data.value" :loading="mine.isLoading.value" :error="mine.error.value" :keep-content="items.length > 0" @retry="mine.refetch">
-      <SharedEmptyState v-if="showEmpty" bordered :title="t('hrInsurance.own.emptyTitle')" :description="t('hrInsurance.own.emptyHint')" />
+      <SharedEmptyState icon="i-lucide-heart-pulse" v-if="showEmpty" bordered :title="t('hrInsurance.own.emptyTitle')" :description="t('hrInsurance.own.emptyHint')" />
       <div v-else class="liwan-page-stack" data-testid="hr-my-insurance">
         <OwnInsuranceCard v-for="enrollment in items" :key="enrollment.id" :enrollment="enrollment" />
         <div class="flex flex-col items-center gap-2">

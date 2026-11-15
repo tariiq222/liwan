@@ -11,7 +11,7 @@ const status = useFinanceZatcaStatus(() => can('finance.zatca.read'))
 </script>
 
 <template>
-  <SharedPageState :loading="status.isLoading.value" :error="status.error.value" :empty="!status.data.value" @retry="status.refetch">
+  <SharedPageState empty-icon="i-lucide-qr-code" :loading="status.isLoading.value" :error="status.error.value" :empty="!status.data.value" @retry="status.refetch">
     <div v-if="status.data.value" class="grid gap-(--liwan-gap-card)">
       <SharedRecordSection variant="panel" :title="t('financeGovernance.zatca.environment.title')">
         <p class="font-semibold">{{ t(`financeGovernance.zatca.environment.modes.${status.data.value.api_mode}`) }}</p>

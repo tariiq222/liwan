@@ -191,7 +191,7 @@ async function retryNextPage() {
             </UButton>
           </li>
         </ul>
-        <div v-else class="p-4"><SharedEmptyState :title="emptyText" /></div>
+        <div v-else class="p-4"><SharedEmptyState icon="i-lucide-bell" :title="emptyText" /></div>
         <div v-if="hasQueryError && items.length && !isFetchNextPageError" class="grid gap-2 border-t border-default py-4 text-center" role="alert">
           <p class="text-sm text-error">{{ t('notifications.loadError') }}</p>
           <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />

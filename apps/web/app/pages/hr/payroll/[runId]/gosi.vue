@@ -33,7 +33,7 @@ function printPage() {
     <template v-if="statement" #actions>
       <UButton class="liwan-print-hide" color="neutral" variant="outline" icon="i-lucide-printer" :disabled="!hydrated" :label="t('hrPayroll.gosiStatement.print')" data-testid="hr-payroll-gosi-print" @click="printPage" />
     </template>
-    <SharedEmptyState v-if="notApproved" bordered :title="t('hrPayroll.gosiStatement.notApprovedTitle')" :description="t('hrPayroll.gosiStatement.notApprovedHint')" data-testid="hr-payroll-gosi-not-approved">
+    <SharedEmptyState icon="i-lucide-clock" v-if="notApproved" bordered :title="t('hrPayroll.gosiStatement.notApprovedTitle')" :description="t('hrPayroll.gosiStatement.notApprovedHint')" data-testid="hr-payroll-gosi-not-approved">
       <template #action>
         <UButton color="neutral" variant="outline" :to="backTo" :label="t('hrPayroll.gosiStatement.backToRun')" data-testid="hr-payroll-gosi-back" />
       </template>

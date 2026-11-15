@@ -59,7 +59,7 @@ function onCancel() {
     <SharedPageHeader class="liwan-print-hide" hide-title :title="t('projects.charter.title')" />
     <CharterApprovalPanel v-if="project" :project="project" />
     <ProjectPhaseGate v-if="project?.phase_state" :project="project" />
-    <SharedPageState :loading="isLoading && !project" :error="error" :empty="!isLoading && !error && !project" :empty-text="t('projects.empty')" @retry="refetch">
+    <SharedPageState empty-icon="i-lucide-file-question" :loading="isLoading && !project" :error="error" :empty="!isLoading && !error && !project" :empty-text="t('projects.empty')" @retry="refetch">
       <ProjectCharterForm v-if="project?.charter" :project="project" readonly :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @retry-milestones="refetchMilestones">
         <template #state>
           <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : charterState === 'submitted' ? 'info' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
@@ -76,7 +76,7 @@ function onCancel() {
         <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : charterState === 'submitted' ? 'info' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
       </template>
     </SharedPageHeader>
-    <SharedPageState :loading="isLoading && !project" :error="error" :empty="!isLoading && !error && !project" :empty-text="t('projects.empty')" @retry="refetch">
+    <SharedPageState empty-icon="i-lucide-file-question" :loading="isLoading && !project" :error="error" :empty="!isLoading && !error && !project" :empty-text="t('projects.empty')" @retry="refetch">
       <div class="grid gap-(--liwan-gap-card)">
         <UAlert v-if="project && charterState === 'draft' && project.charter?.return_note" color="warning" variant="subtle" icon="i-lucide-undo-2" data-testid="charter-returned" :title="t('projects.charter.returned')" :description="project.charter?.return_note" />
         <SharedFormSection panel>

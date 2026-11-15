@@ -198,13 +198,11 @@ function updateRoute(next: ChatListRoute) {
         <div class="grid w-full max-w-md place-items-center">
           <!-- The one empty state: the list beside it stays quiet when there are no conversations at all. -->
           <EmptyState
+            icon="i-lucide-messages-square"
             class="w-full"
             :title="hasConversations ? t('chat.select') : t('chat.empty')"
             :description="hasConversations ? t('chat.description') : t('chat.emptyDescription')"
           >
-            <template #icon>
-              <UIcon name="i-lucide-messages-square" class="size-8" />
-            </template>
             <template #action>
               <UButton :to="{ path: '/chat/new', query: listQuery }" icon="i-lucide-message-square-plus" :label="t('chat.start')" />
             </template>

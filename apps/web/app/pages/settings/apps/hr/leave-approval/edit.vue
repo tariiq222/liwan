@@ -54,7 +54,7 @@ async function save(body: OperationProcessBody) {
         :locked-kind="{ key: 'hr_leave', label: t('hr.leaveApproval.title') }"
         :resolvers-path="`${editor}/resolvers`" :back-to="backTo" :save="save" :refresh="refresh"
         @saved="navigateTo(backTo)" />
-      <SharedEmptyState v-else-if="process.data.value === null" :title="t('hr.leaveApproval.empty')" />
+      <SharedEmptyState icon="i-lucide-list-checks" v-else-if="process.data.value === null" :title="t('hr.leaveApproval.empty')" />
     </SharedPageState>
   </SharedPageContainer>
 </template>

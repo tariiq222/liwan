@@ -61,7 +61,7 @@ const createTo = computed(() => ({ path: '/hr/leave/allocations/new', query: ret
     <SharedForbiddenState v-if="!can('hr.leave.manage')" />
     <SharedListCard v-else>
       <SharedPageState :error="allocations.error.value" :keep-content="items.length > 0" @retry="allocations.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.leave.allocation.emptyTitle')" :description="t('hr.leave.allocation.emptyHint')" />
+        <SharedEmptyState icon="i-lucide-calendar-days" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.leave.allocation.emptyTitle')" :description="t('hr.leave.allocation.emptyHint')" />
         <SharedDataTable
           v-else
           bare

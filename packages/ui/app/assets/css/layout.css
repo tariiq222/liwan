@@ -36,6 +36,7 @@
    of its own (`setting-rows`), so the field grid below follows the width of the card content, not of the page: the sidebar, the page padding
    and the card padding no longer change how many columns fit. Queries named `settings` still reach the page container through it. */
 .liwan-setting-rows { display: grid; container: setting-rows / inline-size; }
+.liwan-setting-rows > * { padding-block: 16px; border-block-start: 1px solid var(--border); }
 .liwan-setting-rows > :first-child { padding-block-start: 0; border-block-start: 0; }
 .liwan-setting-rows > :last-child { padding-block-end: 0; }
 .liwan-setting-rows > [data-orientation="horizontal"] { align-items: center; gap: 24px; }
@@ -46,7 +47,7 @@
    either (a read-only value, a select) is a help button in the label's `hint` slot. Cells align to the top. A switch that gates one field is a
    cell too (its label above, the switch on the height of an input) and its field opens in the next cell; a switch with no dependent field, options
    that need explanation and file pickers stay `SharedSettingRow` rows beside the block. */
-.liwan-setting-rows > .liwan-setting-fields { grid-template-columns: minmax(0, 1fr); align-items: start; }
+.liwan-setting-rows > .liwan-setting-fields { grid-template-columns: minmax(0, 1fr); align-items: start; row-gap: 1rem; }
 /* The label row is at least one text line (1.25rem) and starts at the top, so a label that wraps grows its row downwards. A help button in the `hint`
    slot sits right after the label text, centred on the first line and overflowing it (the button is 24px). */
 .liwan-setting-fields [data-slot="labelWrapper"] { justify-content: flex-start; align-items: flex-start; gap: 4px; min-block-size: 1.25rem; }
@@ -54,13 +55,15 @@
 .liwan-setting-fields :is(input, textarea):focus::placeholder { color: transparent; }
 /* Controls of one grid row share one top edge even when a label wraps: each field spans two rows (label row, control row) of the grid through a
    subgrid, so the label row is as tall as the tallest label in that grid row and the control row starts below it for every field. `align-items: end`
-   was rejected: it lines the bottoms up, so an error or help text under one control would push its neighbours' controls out of line. The row gap
-   moves into the control row's bottom padding (the grid pulls the last one back) because a subgrid cannot keep a different gap between its two rows.
-   Without subgrid support the fields keep the plain stacked layout and the minimum label row above. */
+   was rejected: it lines the bottoms up, so an error or help text under one control would push its neighbours' controls out of line.
+   The grid keeps its own `row-gap` (16px) between grid rows and nothing else leaks out of it: the divider rule and the 16px padding of
+   `.liwan-setting-rows > *` frame the grid like any other row, and the last grid row adds no trailing band. The subgrid inherits that 16px between
+   its label row and control row, so the control wrapper pulls itself back up by the difference (its own 0.25rem top margin is replaced by
+   -0.75rem, which leaves 0.25rem under the label). The pull is on the control wrapper only, so it moves no sibling of the grid.
+   Without subgrid support the fields keep the plain stacked layout (the 0.25rem margin) and the minimum label row above. */
 @supports (grid-template-rows: subgrid) {
-  .liwan-setting-rows > .liwan-setting-fields { row-gap: 0; margin-block-end: -1.25rem; }
   .liwan-setting-fields > [data-slot="root"][data-orientation="vertical"] { display: grid; grid-row: span 2; grid-template-rows: subgrid; align-content: start; }
-  .liwan-setting-fields > [data-slot="root"][data-orientation="vertical"] > :last-child { padding-block-end: 1.25rem; }
+  .liwan-setting-fields > [data-slot="root"][data-orientation="vertical"] > :last-child { margin-block-start: -0.75rem; }
 }
 @container setting-rows (min-width: 580px) {
   .liwan-setting-rows > .liwan-setting-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }

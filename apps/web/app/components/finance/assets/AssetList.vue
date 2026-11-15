@@ -89,7 +89,7 @@ const dash = computed(() => t('app.notAvailable'))
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAssets.assets.empty')" />
+        <SharedEmptyState :icon="activeCount ? 'i-lucide-filter-x' : 'i-lucide-package'" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAssets.assets.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,900px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('financeAssets.assets.title')">
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

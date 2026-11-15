@@ -118,7 +118,7 @@ function readAgenda() {
         <h4 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.topics') }}</h4>
         <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="readonly || pending || modelValue.topics.length >= 100 || !hydrated" :label="t('meetingMinutesForm.addTopic')" @click="addTopic" />
       </div>
-      <SharedEmptyState v-if="!modelValue.topics.length" :title="t('meetingMinutesForm.noTopics')" />
+      <SharedEmptyState icon="i-lucide-list-checks" v-if="!modelValue.topics.length" :title="t('meetingMinutesForm.noTopics')" />
       <SharedSubCard v-for="(topic, index) in modelValue.topics" :id="`meeting-minutes-topic-${topic.key}`" tabindex="-1" :key="topic.key" as="article" class="grid gap-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h5 class="font-medium text-highlighted">{{ t('meetingMinutesForm.topicNumber', { number: index + 1 }) }}</h5>

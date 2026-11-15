@@ -107,7 +107,7 @@ const legs = computed(() => result.value
       </template>
     </UAlert>
     <SharedFormSection panel :title="t('financeDocuments.payments.transfer.accounts')" :description="t('financeDocuments.payments.transfer.accountsHint')">
-      <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="tooFewJournals" :empty-text="t('financeDocuments.payments.transfer.fewJournals')" @retry="journals.refetch">
+      <SharedPageState empty-icon="i-lucide-notebook" :loading="journals.isLoading.value" :error="journals.error.value" :empty="tooFewJournals" :empty-text="t('financeDocuments.payments.transfer.fewJournals')" @retry="journals.refetch">
       <div class="liwan-auto-grid gap-4">
         <UFormField :label="t('financeDocuments.payments.transfer.from')" name="finance-transfer-from" required :error="shown.fromJournalId ? t('financeDocuments.payments.form.journalRequired') : undefined">
           <USelect id="finance-transfer-from" :model-value="draft.fromJournalId ?? undefined" :items="journalItems" class="w-full" :placeholder="t('financeDocuments.payments.transfer.choose')" :disabled="locked" @update:model-value="value => { draft.fromJournalId = Number(value) }" />

@@ -248,7 +248,7 @@ function goToday() {
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
         <div class="@container min-w-0">
           <div class="@xl:hidden">
-            <div v-if="!agenda.length" class="p-(--liwan-card-pad-dense)"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
+            <div v-if="!agenda.length" class="p-(--liwan-card-pad-dense)"><SharedEmptyState icon="i-lucide-calendar-days" :title="t('meetingsUi.empty')" /></div>
             <ul v-else class="grid divide-y divide-default">
               <li v-for="meeting in agenda" :key="meeting.id">
                 <NuxtLink

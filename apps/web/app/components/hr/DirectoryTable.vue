@@ -224,7 +224,7 @@ function clearFilters() {
       @cancel="pendingArchiveId = null"
     />
 
-    <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
+    <SharedEmptyState :icon="hasActiveFilters ? 'i-lucide-filter-x' : 'i-lucide-users'" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
       <template v-if="hasActiveFilters" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
     </SharedEmptyState>
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,832px)] [&_table]:table-fixed">

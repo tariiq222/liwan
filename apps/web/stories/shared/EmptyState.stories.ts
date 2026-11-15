@@ -38,6 +38,15 @@ export const Bordered: Story = {
   }),
 }
 
+export const WithIcon: Story = {
+  name: 'بأيقونة تناسب المحتوى',
+  parameters: storyContext('unused', '`icon`: اسم أيقونة Iconify في بلاطة هادئة 44px فوق العنوان؛ الافتراضي `i-lucide-inbox`، و`compact` بلا أيقونة.'),
+  render: () => ({
+    components: { EmptyState },
+    template: `<div class="max-w-2xl"><EmptyState icon="i-lucide-paperclip" :title="$t('documents.noFiles')" /></div>`,
+  }),
+}
+
 export const Compact: Story = {
   name: 'حالة فارغة مدمجة داخل قسم',
   args: { compact: true },

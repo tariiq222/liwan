@@ -84,7 +84,7 @@ watch(items, async (now, before) => {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col" data-testid="ai-sheet">
-    <SharedEmptyState v-if="disabled" :title="t('ai.errors.unavailable')" data-testid="ai-sheet-unavailable" />
+    <SharedEmptyState icon="i-lucide-sparkles" v-if="disabled" :title="t('ai.errors.unavailable')" data-testid="ai-sheet-unavailable" />
     <template v-else>
       <section v-if="nowScope !== null" class="shrink-0 p-3 pb-0" :aria-label="t('ai.sheet.now.title')" data-testid="ai-sheet-now">
         <div class="flex flex-col gap-2 rounded-control bg-muted p-3">

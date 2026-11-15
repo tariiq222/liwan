@@ -21,7 +21,7 @@ const descriptionOf = (id: string) => (te(`launcher.apps.${id}.description`) ? t
 <template>
   <SharedPageContainer data-testid="apps-page">
     <HomeHello :title="t('launcher.title')">{{ t('launcher.subtitle') }}</HomeHello>
-    <SharedEmptyState v-if="!cards.length" bordered :title="t('home.empty')" data-testid="apps-empty" />
+    <SharedEmptyState icon="i-lucide-layout-grid" v-if="!cards.length" bordered :title="t('home.empty')" data-testid="apps-empty" />
     <HomeSection v-for="group in groups" :key="group.plan" mark="diamond" :title="t(`launcher.${group.plan}.title`)" :subtitle="t(`launcher.${group.plan}.subtitle`)" :data-testid="`apps-${group.plan}`">
       <div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21rem),1fr))] gap-3.5">
         <LauncherRow

@@ -57,7 +57,7 @@ const actions = (tax: FinanceTax): RowAction[] => [
         @update:search="value => { list.search.value = value }" @submit="list.submitSearch" @clear="list.clearFilters" @kind="list.setKind" @state="list.setState"
       />
       <SharedPageState :error="list.query.error.value" :keep-content="list.items.value.length > 0" @retry="list.query.refetch">
-        <SharedEmptyState v-if="list.showEmpty.value" :title="t(list.activeCount.value ? 'app.noResults' : 'financeRecords.taxes.empty')" />
+        <SharedEmptyState :icon="list.activeCount.value ? 'i-lucide-filter-x' : 'i-lucide-percent'" v-if="list.showEmpty.value" :title="t(list.activeCount.value ? 'app.noResults' : 'financeRecords.taxes.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,640px)]">
           <SharedDataTable bare :rows="list.items.value" :columns="columns" row-key="id" :loading="list.query.isPending.value" :caption="t('financeRecords.taxes.title')">
             <template #name-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.name }}</span></template>

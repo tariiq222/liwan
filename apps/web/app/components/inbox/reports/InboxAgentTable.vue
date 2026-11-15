@@ -61,7 +61,7 @@ const name = (row: Row) => row.subject?.name ?? t('inbox.reports.agents.unassign
     </template>
     <SharedPageState v-if="error" class="m-4" :error="error" @retry="emit('retry')" />
     <SharedLoadingSkeleton v-else-if="loading" class="m-4" />
-    <SharedEmptyState v-else-if="!rows.length" bordered class="m-4" :title="t('inbox.reports.agents.empty')" :description="t('inbox.reports.agents.emptyHint')" />
+    <SharedEmptyState icon="i-lucide-users" v-else-if="!rows.length" bordered class="m-4" :title="t('inbox.reports.agents.empty')" :description="t('inbox.reports.agents.emptyHint')" />
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,820px)]">
       <SharedDataTable
         bare :rows="sorted" :columns="columns" :row-key="(row: Row) => row.subject?.id ?? 0" :caption="t('inbox.reports.agents.caption')"

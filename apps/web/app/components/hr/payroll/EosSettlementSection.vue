@@ -91,7 +91,7 @@ watch(() => props.confirming, (now, was) => { if (was && !now) asking.value = fa
         <UInput id="hr-eos-deductions" v-model="openDeductions" class="w-full" inputmode="decimal" dir="ltr" :disabled="busy" data-testid="hr-eos-deductions" />
       </UFormField>
     </div>
-    <SharedPageState v-if="!figures" :loading="props.estimateLoading" :empty="!props.estimateLoading" :empty-text="t('hrPayroll.eos.pickCase')" />
+    <SharedPageState empty-icon="i-lucide-calculator" v-if="!figures" :loading="props.estimateLoading" :empty="!props.estimateLoading" :empty-text="t('hrPayroll.eos.pickCase')" />
     <SharedPropertiesPanel v-else data-testid="hr-eos-figures">
       <SharedPropertyRow :label="t('hrPayroll.eos.serviceYears')" :value="days(figures.service_years)" />
       <SharedPropertyRow :label="t('hrPayroll.eos.wage')" :value="money(figures.eos_wage)" />

@@ -16,7 +16,7 @@ function saved() { void navigateTo(backTo.value) }
   <SharedPageContainer>
     <SharedPageHeader :title="t('hr.depts.edit')" :back-to="backTo" />
     <SharedForbiddenState v-if="!canManage" />
-    <SharedPageState v-else :loading="query.isLoading.value || departments.isLoading.value || employees.isLoading.value" :error="initialDataReady ? undefined : dependencyError" :empty="!department" @retry="retryDependencies">
+    <SharedPageState empty-icon="i-lucide-network" v-else :loading="query.isLoading.value || departments.isLoading.value || employees.isLoading.value" :error="initialDataReady ? undefined : dependencyError" :empty="!department" @retry="retryDependencies">
       <DepartmentForm v-if="department" :department="department" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="backTo" @saved="saved" />
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />

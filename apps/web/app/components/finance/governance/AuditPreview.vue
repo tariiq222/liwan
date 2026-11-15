@@ -18,5 +18,5 @@ const rows = computed(() => (query.data.value?.items ?? []).map(event => ({
 </script>
 
 <template>
-  <SettingsPreviewList :items="rows" :loading="query.isPending.value" :error="query.error.value" :empty-text="t('financeGovernance.audit.empty')" @retry="query.refetch" />
+  <SettingsPreviewList :items="rows" :loading="query.isPending.value" :error="query.error.value" :empty-text="t('financeGovernance.audit.empty')" empty-icon="i-lucide-history" @retry="query.refetch" />
 </template>

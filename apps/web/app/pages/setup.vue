@@ -35,7 +35,7 @@ const stepChange = (step: SetupStepKey, outcome: SetupOutcome | null) => change.
         />
       </template>
     </SharedPageHeader>
-    <SharedEmptyState v-if="inBranch" :title="t('setup.branch.title')" :description="t('setup.branch.description')" data-testid="setup-branch" />
+    <SharedEmptyState icon="i-lucide-building-2" v-if="inBranch" :title="t('setup.branch.title')" :description="t('setup.branch.description')" data-testid="setup-branch" />
     <SharedPageState v-else :loading="isLoading" :error="error" @retry="refetch()">
       <template v-if="progress">
         <div class="flex flex-col gap-2" data-testid="setup-progress">

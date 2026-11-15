@@ -34,6 +34,7 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   error?: unknown
   emptyText?: string
+  emptyIcon?: string
   rowKey: keyof T | ((row: T) => string | number)
   rowTo?: (row: T) => RouteLocationRaw
   page?: number
@@ -217,7 +218,7 @@ function clear() {
       <slot name="bulk" :selected="props.selected" :clear="clear" />
       <UButton type="button" color="neutral" variant="ghost" size="sm" class="ms-auto" :disabled="!hydrated" @click="clear">{{ t('states.clearSelection') }}</UButton>
     </div>
-    <PageState :loading="props.loading && !props.rows.length" :error="props.error" :keep-content="props.rows.length > 0" :empty="props.rows.length === 0" :empty-text="props.emptyText" @retry="emit('retry')">
+    <PageState :loading="props.loading && !props.rows.length" :error="props.error" :keep-content="props.rows.length > 0" :empty="props.rows.length === 0" :empty-text="props.emptyText" :empty-icon="props.emptyIcon" @retry="emit('retry')">
       <template v-if="$slots.emptyAction" #emptyAction><slot name="emptyAction" /></template>
       <div ref="body" data-slot="data-table-body" class="min-w-0" @click="onClick">
         <div :class="[props.bare ? '' : surfaceClass, densityClass]" :data-density="props.density">

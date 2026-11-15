@@ -49,7 +49,7 @@ const tags = computed(() => [
       </div>
     </template>
 
-    <SharedEmptyState v-if="channels.data.value && !channels.data.value.length" bordered class="col-span-full" :title="t('inbox.reports.templates.noChannels')" />
+    <SharedEmptyState icon="i-lucide-plug-zap" v-if="channels.data.value && !channels.data.value.length" bordered class="col-span-full" :title="t('inbox.reports.templates.noChannels')" />
     <template v-else>
       <UAlert
         v-if="insightsOff" class="col-span-full" color="info" variant="subtle" icon="i-lucide-info" :title="t('inbox.reports.templates.insightsOff')"

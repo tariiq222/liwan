@@ -77,7 +77,7 @@ const createTo = computed(() => ({ path: '/inbox/campaigns/new', query: route.qu
     </template>
 
     <SharedPageState :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
-      <SharedEmptyState
+      <SharedEmptyState :icon="filtered ? 'i-lucide-filter-x' : 'i-lucide-megaphone'"
         v-if="showEmpty" class="m-(--liwan-card-pad-dense)"
         :title="filtered ? t('inbox.campaigns.emptyFiltered') : t('inbox.campaigns.empty')"
         :description="filtered ? undefined : t('inbox.campaigns.emptyHint')" data-testid="inbox-campaigns-empty"

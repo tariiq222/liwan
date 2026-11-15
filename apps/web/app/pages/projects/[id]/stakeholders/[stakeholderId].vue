@@ -31,7 +31,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${s
     <template v-if="item.data?.value && access.data.value?.can_manage && hydrated" #actions>
       <UButton data-testid="stakeholder-detail-edit" :to="editTo">{{ t('app.edit') }}</UButton>
     </template>
-    <SharedEmptyState v-if="!item.data?.value" :title="notFound ? t('projects.notFound') : t('app.noResults')" />
+    <SharedEmptyState icon="i-lucide-file-question" v-if="!item.data?.value" :title="notFound ? t('projects.notFound') : t('app.noResults')" />
     <SharedRecordSection v-else variant="panel" :title="t('projects.refresh.workspace.stakeholderContact')">
       <dl class="liwan-auto-grid gap-(--liwan-gap-card) text-sm">
         <SharedSubCard><dt class="text-muted">{{ t('projects.governance.stakeholder.contact') }}</dt><dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd></SharedSubCard>

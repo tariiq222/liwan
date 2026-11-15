@@ -94,7 +94,7 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
       </template>
     </SharedFilterBar>
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
-    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" :title="t(count ? 'app.noResults' : 'crm.opportunities.list.empty')" />
+    <SharedEmptyState :icon="count ? 'i-lucide-filter-x' : 'i-lucide-handshake'" v-else-if="!query.isPending.value && !items.length" :title="t(count ? 'app.noResults' : 'crm.opportunities.list.empty')" />
     <template v-else-if="board">
       <CrmOpportunityBoard :loading="query.isPending.value || stages.isLoading.value" :stages="stages.data.value?.items ?? []" :items="items" :to="recordTo" :now="now" :create-to="createTo" :create-label="createLabel" />
       <p v-if="!query.isPending.value" class="text-sm text-muted">{{ total > items.length ? t('crm.opportunities.board.capped', { count: items.length }) : t('crm.opportunities.list.results', { shown: items.length, total }) }}</p>

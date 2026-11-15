@@ -22,7 +22,7 @@ const backTo = computed(() => owningListBack(route.query, sourcePaths.value, rou
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-file-question"
       v-else
       :loading="isLoading && !project"
       :error="notFound ? null : error"

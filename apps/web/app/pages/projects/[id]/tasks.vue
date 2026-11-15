@@ -160,7 +160,7 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
             </TaskToolbar>
           </template>
           <TaskArchivedTable v-if="isArchived" :params="archivedParams" hide-project />
-          <SharedPageState v-else-if="isTimeline" :loading="schedule.isLoading.value && !schedule.data.value" :error="schedule.error.value" :empty="!schedule.isLoading.value && !schedule.data.value && !schedule.error.value" :empty-text="t('projects.schedule.empty')" @retry="schedule.refetch()">
+          <SharedPageState empty-icon="i-lucide-calendar-range" v-else-if="isTimeline" :loading="schedule.isLoading.value && !schedule.data.value" :error="schedule.error.value" :empty="!schedule.isLoading.value && !schedule.data.value && !schedule.error.value" :empty-text="t('projects.schedule.empty')" @retry="schedule.refetch()">
             <ScheduleGantt v-if="schedule.data.value" ref="gantt" :schedule="schedule.data.value" :scale="scale" :baseline="baseline" :project-start="project?.date_start" :project-end="project?.date_end" />
           </SharedPageState>
           <TaskTable v-else-if="!isBoard" :params="params" variant="project" :can-create="canCreate" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="sort => onParams({ ...params, sort })" />

@@ -89,13 +89,13 @@ function conversationTo(id: number) {
       />
     </header>
     <!-- With no conversations at all, the thread column carries the single empty state (with its start action); below 768px the list is the only column, so it carries it. -->
-    <EmptyState v-if="showStartEmpty" class="m-4" :title="t('chat.empty')" :description="t('chat.emptyDescription')">
+    <EmptyState icon="i-lucide-messages-square" v-if="showStartEmpty" class="m-4" :title="t('chat.empty')" :description="t('chat.emptyDescription')">
       <template #action>
         <UButton :to="{ path: '/chat/new', query: listQuery }" icon="i-lucide-message-square-plus" :label="t('chat.start')" />
       </template>
     </EmptyState>
     <div v-else-if="quietEmpty" class="flex-1" />
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-filter-x"
       v-else
       :loading="isLoading || !hydrated"
       :error="isError ? error : undefined"

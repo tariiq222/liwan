@@ -127,14 +127,11 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
       <template #empty>
         <div class="grid w-full max-w-md place-items-center">
           <EmptyState
+            icon="i-lucide-messages-square"
             class="w-full"
             :title="hasConversations ? t('inbox.select') : t('inbox.list.empty')"
             :description="hasConversations ? t('inbox.selectDescription') : t('inbox.list.emptyDescription')"
-          >
-            <template #icon>
-              <UIcon name="i-lucide-messages-square" class="size-8" />
-            </template>
-          </EmptyState>
+          />
         </div>
       </template>
       <template #info>

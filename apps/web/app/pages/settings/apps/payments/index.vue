@@ -33,7 +33,7 @@ async function reloadOrderSettings() {
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
       <SharedRecordSection v-if="shows('providers')" id="providers" class="liwan-settings-anchor" :title="t('payments.providers.title')" :description="t('payments.providers.hint')">
-        <SharedPageState :loading="providers.isLoading.value" :error="providers.error.value" :empty="items.length === 0" :empty-text="t('payments.providers.empty')" @retry="providers.refetch()">
+        <SharedPageState empty-icon="i-lucide-plug-zap" :loading="providers.isLoading.value" :error="providers.error.value" :empty="items.length === 0" :empty-text="t('payments.providers.empty')" @retry="providers.refetch()">
           <div class="grid gap-(--liwan-gap-card)" data-testid="payments-providers">
             <ProviderCard v-for="provider in items" :key="provider.id" :provider="provider" :can-edit="can('payments.providers.manage')" :reload-provider="() => reloadProvider(provider.id)" />
           </div>
@@ -43,7 +43,7 @@ async function reloadOrderSettings() {
         <OrderSettingsCard v-if="orders.data.value" :settings="orders.data.value" :can-edit="can('payments.settings.manage')" :reload-settings="reloadOrderSettings" />
         <!-- While the settings load or fail, the anchor stays on this wrapper; the card carries the same id once it exists. -->
         <div v-else id="orders" class="liwan-settings-anchor">
-          <SharedPageState :loading="orders.isLoading.value" :error="orders.error.value" :empty="true" @retry="orders.refetch()" />
+          <SharedPageState empty-icon="i-lucide-wallet" :loading="orders.isLoading.value" :error="orders.error.value" :empty="true" @retry="orders.refetch()" />
         </div>
       </template>
     </template>

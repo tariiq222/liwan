@@ -49,7 +49,7 @@ const rowTo = (audience: InboxAudience) => ({ path: `/inbox/campaigns/audiences/
       </SharedFilterBar>
     </template>
     <SharedPageState :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
-      <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('inbox.campaigns.audiences.empty')" :description="t('inbox.campaigns.audiences.emptyHint')" data-testid="inbox-audiences-empty" />
+      <SharedEmptyState icon="i-lucide-users" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('inbox.campaigns.audiences.empty')" :description="t('inbox.campaigns.audiences.emptyHint')" data-testid="inbox-audiences-empty" />
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="rowTo" :loading="list.isLoading.value" :caption="t('inbox.campaigns.audiences.title')">
         <template #name-cell="{ row }"><span class="font-semibold text-highlighted" :data-testid="`inbox-audience-row-${row.original.id}`">{{ row.original.name }}</span></template>
         <template #tags-cell="{ row }">

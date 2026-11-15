@@ -18,7 +18,7 @@ const items = computed(() => assignments.data.value?.items ?? [])
 <template>
   <SharedListPage :title="t('hr.self.schedule')">
     <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
-      <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
+      <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     </SharedPageState>
     <SharedListCard v-if="profile.data.value">
       <SharedPageState :loading="week.isLoading.value" :error="week.error.value" @retry="week.refetch">
@@ -27,7 +27,7 @@ const items = computed(() => assignments.data.value?.items ?? [])
     </SharedListCard>
     <SharedListCard v-if="profile.data.value">
       <SharedPageState :loading="assignments.isLoading.value" :error="assignments.error.value" @retry="assignments.refetch">
-        <SharedEmptyState v-if="!items.length" class="m-(--liwan-card-pad-dense)" :title="t('hrShifts.emptyMine')" :description="t('hrShifts.emptyMineHint')" />
+        <SharedEmptyState icon="i-lucide-calendar-clock" v-if="!items.length" class="m-(--liwan-card-pad-dense)" :title="t('hrShifts.emptyMine')" :description="t('hrShifts.emptyMineHint')" />
         <ShiftAssignmentTable v-else :assignments="items" :caption="t('hr.self.schedule')" />
       </SharedPageState>
     </SharedListCard>

@@ -137,7 +137,7 @@ function warningTo(row: HrWarning) {
       </template>
 
       <SharedPageState :error="warnings.error.value" :keep-content="items.length > 0" @retry="warnings.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrWarnings.emptyTitle')" :description="t('hrWarnings.emptyHint')" />
+        <SharedEmptyState icon="i-lucide-triangle-alert" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrWarnings.emptyTitle')" :description="t('hrWarnings.emptyHint')" />
         <WarningTable v-else :warnings="items" :row-to="warningTo" :loading="warnings.isLoading.value" :caption="t('hrWarnings.title')" />
       </SharedPageState>
       <template v-if="warnings.data.value && !showEmpty" #footer>

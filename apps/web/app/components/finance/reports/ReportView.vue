@@ -93,7 +93,7 @@ function clearFilters() {
           <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-download" :disabled="!hydrated" data-testid="finance-report-export-csv" @click="exportCsv">{{ t('financeReports.export.csv') }}</UButton>
           <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-printer" :disabled="!hydrated" data-testid="finance-report-print" @click="printReport">{{ t('financeReports.export.print') }}</UButton>
         </div>
-        <SharedEmptyState v-if="!ready" class="m-(--liwan-card-pad-dense)" :title="pickPrompt.title" :description="pickPrompt.description" />
+        <SharedEmptyState icon="i-lucide-file-chart-column" v-if="!ready" class="m-(--liwan-card-pad-dense)" :title="pickPrompt.title" :description="pickPrompt.description" />
         <SharedPageState v-else :loading="loading" :error="query.error.value" :keep-content="!!loaded" @retry="query.refetch">
           <template v-if="loaded">
             <UAlert

@@ -73,7 +73,7 @@ const columns = computed<TableColumn<OperationRequestSummary>[]>(() => [
       </SharedFilterBar>
     </template>
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
-    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t(hasFilters ? 'app.noResults' : 'operations.emptyRequests')" />
+    <SharedEmptyState :icon="hasFilters ? 'i-lucide-filter-x' : 'i-lucide-files'" v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t(hasFilters ? 'app.noResults' : 'operations.emptyRequests')" />
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,792px)] [&_table]:table-fixed">
       <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="requestTo" :loading="query.isPending.value" :caption="t(personal ? 'operations.personal.title' : `operations.nav.${scope}`)">
         <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

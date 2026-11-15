@@ -80,7 +80,7 @@ const accountActions = (account: FinanceAnalyticAccount): RowAction[] => [
         </SharedFilterField>
       </SharedFilterBar>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" :title="t(activeCount ? 'app.noResults' : 'financeAnalytic.accounts.empty')" />
+        <SharedEmptyState :icon="activeCount ? 'i-lucide-filter-x' : 'i-lucide-chart-pie'" v-if="showEmpty" :title="t(activeCount ? 'app.noResults' : 'financeAnalytic.accounts.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,640px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="query.isPending.value" :caption="t('financeAnalytic.accounts.title')">
             <template #code-cell="{ row }"><bdi class="tabular-nums">{{ row.original.code || dash }}</bdi></template>

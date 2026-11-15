@@ -134,7 +134,7 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
       </template>
       <SharedPageState v-if="!settled" :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
       <div v-else-if="noMatrix" class="p-(--liwan-card-pad)">
-        <SharedEmptyState
+        <SharedEmptyState icon="i-lucide-grid-3x3"
           data-testid="raci-empty"
           :title="t('projects.refresh.workspace.raciEmptyTitle')"
           :description="t(!visibleTasks.length && !visibleStakeholders.length ? 'projects.refresh.workspace.raciEmptyBoth' : !visibleTasks.length ? 'projects.refresh.workspace.raciEmptyTasks' : 'projects.refresh.workspace.raciEmptyStakeholders')"

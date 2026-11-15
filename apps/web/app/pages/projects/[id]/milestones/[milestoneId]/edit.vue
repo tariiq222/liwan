@@ -29,7 +29,7 @@ function retry() {
     <template v-if="projectId === null || milestoneId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-file-question"
       v-else
       :loading="(projectLoading || milestonesLoading || resolving) && !milestone"
       :error="notFound ? null : projectError || milestonesError"

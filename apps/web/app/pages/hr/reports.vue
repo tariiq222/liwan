@@ -99,7 +99,7 @@ function setWindow(value: string) {
               />
             </div>
             <SharedListCard>
-              <SharedEmptyState v-if="!departments.length" class="m-(--liwan-card-pad-dense)" :title="t('hr.reports.saudization.empty')" />
+              <SharedEmptyState icon="i-lucide-network" v-if="!departments.length" class="m-(--liwan-card-pad-dense)" :title="t('hr.reports.saudization.empty')" />
               <SharedDataTable
                 v-else
                 bare
@@ -145,7 +145,7 @@ function setWindow(value: string) {
             />
           </template>
           <SharedPageState :loading="expiring.isLoading.value" :error="expiring.error.value" :keep-content="items.length > 0" @retry="expiring.refetch">
-            <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.reports.expiring.empty')" />
+            <SharedEmptyState icon="i-lucide-file-clock" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.reports.expiring.empty')" />
             <SharedDataTable
               v-else-if="items.length"
               bare

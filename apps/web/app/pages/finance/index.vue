@@ -58,7 +58,7 @@ const progress = computed(() => setup.data.value ? financeSetupProgress(setup.da
           :description="t('finance.overview.attentionDescription')"
           data-testid="finance-attention-card"
         >
-          <SharedPageState class="m-(--liwan-card-pad-dense)" :loading="drafts.isLoading.value" :error="drafts.error.value" :empty="!drafts.data.value?.items.length" :empty-text="t('finance.overview.attentionEmpty')" @retry="drafts.refetch">
+          <SharedPageState empty-icon="i-lucide-receipt-text" class="m-(--liwan-card-pad-dense)" :loading="drafts.isLoading.value" :error="drafts.error.value" :empty="!drafts.data.value?.items.length" :empty-text="t('finance.overview.attentionEmpty')" @retry="drafts.refetch">
             <DraftDocumentList :rows="drafts.data.value?.items ?? []" />
           </SharedPageState>
         </SharedRecordSection>

@@ -88,7 +88,7 @@ function setPage(next: number) {
           </FilterBar>
         </div>
       </template>
-      <SharedPageState
+      <SharedPageState empty-icon="i-lucide-user-plus"
         v-if="query.isLoading.value || query.error.value || !runs.length"
         class="m-(--liwan-card-pad-dense)"
         :loading="query.isLoading.value"

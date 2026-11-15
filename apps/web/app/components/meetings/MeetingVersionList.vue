@@ -30,7 +30,7 @@ function capturedAt(value: string) {
 
 <template>
   <SharedRecordSection data-testid="meeting-version-list" variant="list" :title="t('meetingMinutesForm.versions')">
-    <SharedPageState :loading="loading" :error="error" :empty="!versions.length" :empty-text="t('meetingMinutesForm.noVersions')" @retry="emit('retry')">
+    <SharedPageState empty-icon="i-lucide-history" :loading="loading" :error="error" :empty="!versions.length" :empty-text="t('meetingMinutesForm.noVersions')" @retry="emit('retry')">
       <ol class="divide-y divide-default">
         <li v-for="version in versions" :key="version.id">
           <button

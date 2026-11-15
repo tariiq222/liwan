@@ -63,7 +63,7 @@ const reconcileLabel = (account: FinanceAccount) => t(account.reconcile ? 'finan
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAccounting.accounts.empty')" />
+        <SharedEmptyState :icon="activeCount ? 'i-lucide-filter-x' : 'i-lucide-list-tree'" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAccounting.accounts.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,720px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="query.isPending.value" :caption="t('financeAccounting.accounts.title')">
             <template #code-cell="{ row }"><bdi class="font-semibold tabular-nums text-highlighted" dir="ltr">{{ row.original.code }}</bdi></template>

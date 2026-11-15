@@ -81,12 +81,18 @@ describe('ForbiddenState and NotFoundState', () => {
   })
 })
 
-describe('EmptyState art', () => {
-  it('shows the Sadu tree without an icon, the icon instead of it, and no art when compact', async () => {
-    expect(await renderShared('EmptyState', { title: 'Nothing here' })).toMatch(/data-slot="empty-art" class="liwan-sadu-tree" aria-hidden="true"/)
-    const withIcon = await renderShared('EmptyState', { title: 'Nothing here' }, { icon: () => h('span', 'icon') })
-    expect(withIcon).not.toContain('empty-art')
-    expect(await renderShared('EmptyState', { title: 'Nothing here', compact: true })).not.toContain('empty-art')
+describe('EmptyState icon', () => {
+  it('shows the default icon tile, a given icon, the slot in the same tile, and nothing when compact', async () => {
+    const plain = await renderShared('EmptyState', { title: 'Nothing here' })
+    expect(plain).toMatch(/data-slot="empty-icon"[^>]*aria-hidden="true"/)
+    expect(plain).toContain('i-lucide-inbox')
+    expect(plain).not.toContain('sadu-tree')
+    expect(await renderShared('EmptyState', { title: 'Nothing here', icon: 'i-lucide-paperclip' })).toContain('i-lucide-paperclip')
+    const slotted = await renderShared('EmptyState', { title: 'Nothing here' }, { icon: () => h('span', 'custom') })
+    expect(slotted).toContain('data-slot="empty-icon"')
+    expect(slotted).toContain('custom')
+    expect(slotted).not.toContain('i-lucide-inbox')
+    expect(await renderShared('EmptyState', { title: 'Nothing here', compact: true })).not.toContain('empty-icon')
   })
 })
 

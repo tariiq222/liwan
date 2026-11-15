@@ -23,8 +23,8 @@ function saved() { void navigateTo(backTo.value, { replace: true }) }
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('products.edit')" :back-to="backTo" />
-    <SharedPageState v-if="!canEdit" :empty="true" :empty-text="t('errors.forbidden')" />
-    <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!product" @retry="query.refetch()">
+    <SharedPageState empty-icon="i-lucide-lock" v-if="!canEdit" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedPageState empty-icon="i-lucide-package" v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!product" @retry="query.refetch()">
       <ProductForm v-if="product" :product="product" :back-to="backTo" @saved="saved" />
     </SharedPageState>
   </SharedPageContainer>

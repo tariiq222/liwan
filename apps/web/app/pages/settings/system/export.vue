@@ -29,7 +29,7 @@ async function downloadExport(id: number) {
 <template>
   <SharedListPage :title="t('settings.tenantExport.title')" :description="t('settings.tenantExport.description')" back-to="/settings/system">
     <SharedForbiddenState v-if="!allowed" :description="t('settings.tenantExport.forbidden')" />
-    <SharedEmptyState v-else-if="inBranch" :title="t('settings.tenantExport.branch.title')" :description="t('settings.tenantExport.branch.description')" data-testid="tenant-export-branch" />
+    <SharedEmptyState icon="i-lucide-building-2" v-else-if="inBranch" :title="t('settings.tenantExport.branch.title')" :description="t('settings.tenantExport.branch.description')" data-testid="tenant-export-branch" />
     <TenantExportPanel
       v-else
       :exports="list.data.value?.items ?? []"

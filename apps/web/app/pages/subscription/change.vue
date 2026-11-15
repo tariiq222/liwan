@@ -182,7 +182,7 @@ definePageMeta({ middleware: 'customer-commercial' })
   <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.change.title')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
-    <SharedPageState v-else :loading="pending" :error="error" :empty="!pending && !error && !orderBlocked && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
+    <SharedPageState empty-icon="i-lucide-credit-card" v-else :loading="pending" :error="error" :empty="!pending && !error && !orderBlocked && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
       <UAlert v-if="orderBlocked" class="mb-4" color="warning" variant="subtle" :title="t('subscription.trialEnd.ordersBlocked')">
         <template #actions><UButton to="/subscription#trial-end" size="sm" color="neutral" variant="outline">{{ t('subscription.trialEnd.openRecovery') }}</UButton></template>
       </UAlert>

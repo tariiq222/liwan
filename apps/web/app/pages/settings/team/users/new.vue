@@ -143,7 +143,7 @@ function inviteAnother() {
 
 <template>
   <SharedCreatePanel :title="t('access.users.grantTitle')" :back-to="backTo">
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
+    <SharedPageState empty-icon="i-lucide-lock" v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <div v-else-if="sent" class="liwan-form">
       <UAlert role="status" color="success" variant="subtle" icon="i-lucide-mail-check" :title="t(sent.reactivated ? 'access.users.resetLinkSentTitle' : 'access.users.invitationSentTitle', { email: sent.email })" :description="sent.reactivated ? undefined : t('access.users.invitationSentBody')" />
       <SharedFormActions>

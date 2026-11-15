@@ -14,7 +14,7 @@ const items = computed(() => types.data.value?.items ?? [])
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('appointments.title')" />
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-calendar-clock"
       :loading="types.isPending.value"
       :error="types.error.value"
       :empty="items.length === 0"

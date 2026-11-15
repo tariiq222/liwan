@@ -14,7 +14,7 @@ const nameOf = (conversation: InboxConversation) => (conversation.contact.erased
 
 <template>
   <SharedRecordSection variant="panel" :title="t('crm.opportunities.conversations.title')" data-testid="crm-conversations">
-    <SharedPageState :loading="props.loading" :error="props.error" :empty="!props.conversations.length" :empty-text="t('crm.opportunities.conversations.empty')" @retry="emit('retry')">
+    <SharedPageState empty-icon="i-lucide-messages-square" :loading="props.loading" :error="props.error" :empty="!props.conversations.length" :empty-text="t('crm.opportunities.conversations.empty')" @retry="emit('retry')">
       <ul class="divide-y divide-default" data-testid="crm-conversation-list">
         <li v-for="conversation in props.conversations" :key="conversation.id" class="grid gap-1 py-3 first:pt-0 last:pb-0">
           <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">

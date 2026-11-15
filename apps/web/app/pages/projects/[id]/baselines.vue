@@ -54,7 +54,7 @@ const empty = computed(() => Boolean(list.data.value) && !items.value.length && 
     <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
     <template v-else>
       <BaselineTakePanel v-if="list.data.value" :project-id="id" :list="list.data.value" />
-      <SharedEmptyState v-if="empty" bordered :title="t('projects.baselines.empty')" :description="t('projects.baselines.emptyHint')" />
+      <SharedEmptyState icon="i-lucide-bookmark" v-if="empty" bordered :title="t('projects.baselines.empty')" :description="t('projects.baselines.emptyHint')" />
       <template v-else>
         <BaselineVarianceSummary v-if="variance.data.value" :variance="variance.data.value" />
         <SharedListCard>

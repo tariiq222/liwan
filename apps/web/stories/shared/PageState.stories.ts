@@ -25,4 +25,5 @@ export const Empty: Story = { name: 'فارغ', args: { empty: true } }
 export const Content: Story = { name: 'المحتوى' }
 
 export const RefreshFailed: Story = { name: 'تعذر تحديث بيانات ظاهرة', args: { error: { status: 500 }, keepContent: true } }
+export const EmptyWithIcon: Story = { name: 'فارغ بأيقونة المحتوى', args: { empty: true, emptyText: 'لا توجد مرفقات', emptyIcon: 'i-lucide-paperclip' } }
 export const FirstUse: Story = { name: 'فراغ مع الخطوة التالية', args: { empty: true, emptyText: 'لا توجد سجلات بعد', emptyDescription: 'ابدأ بإنشاء أول سجل.' }, render: args => ({ components: { PageState }, setup: () => ({ args }), template: `<PageState v-bind="args"><template #emptyAction><UButton to="/projects/new">{{ $t('app.create') }}</UButton></template></PageState>` }) }

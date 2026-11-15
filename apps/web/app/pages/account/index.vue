@@ -35,7 +35,7 @@ const profile = computed(() => cards.value.find(card => card.entry.section === '
     <div v-if="cards.length" class="liwan-card-grid">
       <PersonalSummaryCard v-for="(card, index) in orderedCards" :key="card.entry.id" :entry="card.entry" :data="card.data" :pending="card.pending" :error="card.error" :action="card.action" :customize="customize" :first="index === 0" :last="index === orderedCards.length - 1" @retry="card.retry" @move="move(card.entry.id, $event)" />
     </div>
-    <SharedEmptyState v-else bordered :title="t('account.noServices')" :description="t('account.noServicesHint')" />
+    <SharedEmptyState icon="i-lucide-layout-grid" v-else bordered :title="t('account.noServices')" :description="t('account.noServicesHint')" />
     <UButton to="/account/settings" color="neutral" variant="outline" icon="i-lucide-settings-2" :label="t('account.settings')" :disabled="!hydrated" class="self-start" />
   </SharedPageContainer>
 </template>

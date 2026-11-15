@@ -313,7 +313,7 @@ async function openProject(id: number) {
         </UAlert>
 
         <SharedPageState :error="projectList.error.value" :keep-content="displayedItems.length > 0" @retry="projectList.refetch">
-          <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
+          <SharedEmptyState :icon="emptyKey === 'filteredEmpty' ? 'i-lucide-filter-x' : 'i-lucide-folder-kanban'" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
           <ProjectTable v-else-if="view === 'table'" :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
           <ProjectCards v-else :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
         </SharedPageState>

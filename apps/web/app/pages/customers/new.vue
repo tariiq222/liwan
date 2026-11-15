@@ -20,7 +20,7 @@ function opened(id: number) { void navigateTo({ path: `${CUSTOMERS_LIST_PATH}/${
   </SharedListPage>
   <SharedCreatePanel :title="t('customers.new')" :back-to="backTo">
     <SharedForbiddenState v-if="!canManage" />
-    <SharedPageState v-else :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
+    <SharedPageState empty-icon="i-lucide-settings" v-else :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
       <CustomerForm v-if="settings.data.value" :settings="settings.data.value" :back-to="backTo" @saved="customer => opened(customer.id)" @open="opened" />
     </SharedPageState>
   </SharedCreatePanel>

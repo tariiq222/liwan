@@ -17,7 +17,7 @@ function saved() { void navigateTo(backTo.value, { replace: true }) }
   <SharedCreatePanel :title="t('hr.leave.new')" :back-to="backTo">
     <SharedForbiddenState v-if="!canPersonal('hr.leave.request')" />
     <SharedPageState v-else :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
-      <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
+      <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
       <LeaveRequestForm v-else-if="profile.data.value" :back-to="backTo" @saved="saved" />
     </SharedPageState>
   </SharedCreatePanel>

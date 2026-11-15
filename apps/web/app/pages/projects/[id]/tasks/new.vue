@@ -34,7 +34,7 @@ function created(id: number) {
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('tasks.invalidId') }}</p>
     </template>
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-file-question"
       v-else
       :loading="isLoading && !project"
       :error="notFound ? null : error"

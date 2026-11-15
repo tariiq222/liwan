@@ -135,7 +135,7 @@ async function confirmLeave() {
       />
     </SharedRecordSection>
     <SharedRecordSection variant="list" :title="t('chat.members')">
-      <SharedPageState :loading="membersLoading || !hydrated" :error="membersError" :empty="!members?.items.length" :empty-text="t('chat.noMembers')" @retry="refetchMembers()">
+      <SharedPageState empty-icon="i-lucide-users" :loading="membersLoading || !hydrated" :error="membersError" :empty="!members?.items.length" :empty-text="t('chat.noMembers')" @retry="refetchMembers()">
         <div v-for="member in members?.items" :key="member.id" class="grid gap-2 p-3">
           <div class="flex items-center gap-3 text-start">
             <UAvatar v-bind="avatarProps(member.name, member.id)" size="md" />
@@ -171,7 +171,7 @@ async function confirmLeave() {
       </div>
     </SharedRecordSection>
     <SharedRecordSection variant="list" :title="t('chat.attachments')">
-      <SharedPageState :loading="attachmentsLoading || !hydrated" :error="attachmentsError" :empty="!attachments?.items.length" :empty-text="t('chat.noAttachments')" @retry="refetchAttachments()">
+      <SharedPageState empty-icon="i-lucide-paperclip" :loading="attachmentsLoading || !hydrated" :error="attachmentsError" :empty="!attachments?.items.length" :empty-text="t('chat.noAttachments')" @retry="refetchAttachments()">
         <div v-for="attachment in attachments?.items" :key="attachment.id" class="p-3"><ChatAttachment :attachment="attachment" /></div>
       </SharedPageState>
       <div v-if="pagesFor(attachments?.total) > 1" class="p-3"><SharedPagination :page="pageFor(fileOffset)" :pages="pagesFor(attachments?.total)" @update:page="fileOffset = offsetFor($event, attachments?.total)" /></div>

@@ -98,7 +98,7 @@ const columns = computed<TableColumn<InboxTemplateButtonClicks>[]>(() => [
         :title="t('inbox.reports.templates.detail.daily.title')" :description="t('inbox.reports.templates.detail.daily.description')" :empty-text="t('inbox.reports.templates.detail.daily.empty')"
       />
       <SharedRecordSection variant="list" :title="t('inbox.reports.templates.detail.buttons.title')" data-testid="inbox-template-buttons">
-        <SharedEmptyState v-if="!data.buttons.length" bordered class="m-4" :title="t('inbox.reports.templates.detail.buttons.empty')" />
+        <SharedEmptyState icon="i-lucide-mouse-pointer-click" v-if="!data.buttons.length" bordered class="m-4" :title="t('inbox.reports.templates.detail.buttons.empty')" />
         <SharedDataTable v-else bare :rows="[...data.buttons]" :columns="columns" :row-key="(row: InboxTemplateButtonClicks) => `${row.type}:${row.text}`" :caption="t('inbox.reports.templates.detail.buttons.caption')">
           <template #text-cell="{ row }"><bdi class="text-sm font-medium text-highlighted">{{ row.original.text }}</bdi></template>
           <template #type-cell="{ row }">{{ t(`inbox.reports.templates.detail.buttons.${row.original.type}`) }}</template>

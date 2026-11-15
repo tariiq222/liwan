@@ -11,7 +11,7 @@ const clock = computed(() => props.now ?? Date.now())
 
 <template>
   <SharedRecordSection variant="list" :title="t('crm.dashboard.agent.dueTitle')" data-testid="crm-due-list">
-    <SharedEmptyState v-if="!items.length" class="m-(--liwan-card-pad-dense)" :title="t('crm.dashboard.agent.dueEmpty')" />
+    <SharedEmptyState icon="i-lucide-calendar-clock" v-if="!items.length" class="m-(--liwan-card-pad-dense)" :title="t('crm.dashboard.agent.dueEmpty')" />
     <ul v-else class="divide-y divide-default">
       <li v-for="item in items" :key="item.id" class="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 px-(--liwan-card-pad) py-3">
         <div class="min-w-0">

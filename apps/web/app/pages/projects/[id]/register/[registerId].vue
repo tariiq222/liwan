@@ -31,7 +31,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
     <template v-if="item.data?.value && access.data.value?.can_manage && hydrated" #actions>
       <UButton data-testid="register-detail-edit" :to="editTo">{{ t('app.edit') }}</UButton>
     </template>
-    <SharedEmptyState v-if="!item.data?.value" :title="t('app.noResults')" />
+    <SharedEmptyState icon="i-lucide-file-question" v-if="!item.data?.value" :title="t('app.noResults')" />
     <template v-else>
       <SharedRecordSection variant="panel" :title="t('projects.refresh.workspace.registerDescription')">
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.description || '—' }}</p>

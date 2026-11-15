@@ -127,7 +127,7 @@ function create(kind: InboxTikTokShortcutKind) {
       </template>
       <div class="flex flex-col gap-3">
         <UAlert v-if="!enabled[kind]" color="neutral" variant="subtle" icon="i-lucide-info" :title="t(`inbox.tiktok.shortcuts.${kind}.disabledHint`)" />
-        <SharedPageState :loading="hydrated && query.isPending.value" :error="query.error.value" :empty="!ofKind(kind).length" :empty-text="t(`inbox.tiktok.shortcuts.${kind}.empty`)" @retry="query.refetch()">
+        <SharedPageState empty-icon="i-lucide-message-square-quote" :loading="hydrated && query.isPending.value" :error="query.error.value" :empty="!ofKind(kind).length" :empty-text="t(`inbox.tiktok.shortcuts.${kind}.empty`)" @retry="query.refetch()">
           <ul class="flex flex-col divide-y divide-default">
             <li v-for="item in ofKind(kind)" :key="item.id" class="flex flex-wrap items-start justify-between gap-3 py-3">
               <div class="min-w-0 flex-1 text-start">

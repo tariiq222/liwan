@@ -203,7 +203,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
       @retry="analytics.refetch()"
     />
     <div v-else-if="rows.length === 0" class="col-span-full" data-testid="project-dashboard-empty">
-      <SharedEmptyState
+      <SharedEmptyState :icon="filtered ? 'i-lucide-filter-x' : 'i-lucide-folder-kanban'"
         bordered
         :title="t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty')"
         :description="t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint')"

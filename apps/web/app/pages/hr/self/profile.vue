@@ -8,7 +8,7 @@ const employee = computed(() => profile.data.value)
 
 <template>
   <SharedRecordPage :title="t('hr.self.profile')" back-to="/account" :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
-    <SharedEmptyState v-if="employee === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
+    <SharedEmptyState icon="i-lucide-user-x" v-if="employee === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     <template v-if="employee">
       <SharedIdentityCard :id="employee.id" :name="employee.name" :subtitle="employee.job_title" />
     </template>

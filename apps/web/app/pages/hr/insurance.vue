@@ -130,7 +130,7 @@ async function reloadProviders() {
     <SharedSegmentedControl :model-value="section" :items="sectionItems" :label="t('hrInsurance.sectionLabel')" :disabled="!hydrated" @update:model-value="writeQuery({ section: $event as Section })" />
 
     <template v-if="section === 'providers'">
-      <SharedPageState :loading="providers.isLoading.value" :error="providers.data.value ? null : providers.error.value" :empty="!providers.data.value" @retry="providers.refetch">
+      <SharedPageState empty-icon="i-lucide-heart-pulse" :loading="providers.isLoading.value" :error="providers.data.value ? null : providers.error.value" :empty="!providers.data.value" @retry="providers.refetch">
         <InsuranceProvidersCard v-if="providers.data.value" :providers="providers.data.value.items" :can-edit="canManage" :reload-providers="reloadProviders" />
       </SharedPageState>
     </template>
@@ -174,7 +174,7 @@ async function reloadProviders() {
       </template>
 
       <SharedPageState :error="active.error.value" :keep-content="items.length > 0" @retry="active.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(section === 'plans' ? 'hrInsurance.plansEmptyTitle' : 'hrInsurance.emptyTitle')" :description="t(section === 'plans' ? 'hrInsurance.plansEmptyHint' : 'hrInsurance.emptyHint')" />
+        <SharedEmptyState icon="i-lucide-heart-pulse" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(section === 'plans' ? 'hrInsurance.plansEmptyTitle' : 'hrInsurance.emptyTitle')" :description="t(section === 'plans' ? 'hrInsurance.plansEmptyHint' : 'hrInsurance.emptyHint')" />
         <PlanTable v-else-if="section === 'plans'" :plans="plans.data.value?.items ?? []" :row-to="planTo" :alert-days="alertDays" :loading="plans.isLoading.value" :caption="t('hrInsurance.section.plans')" />
         <EnrollmentTable v-else :enrollments="enrollments.data.value?.items ?? []" :row-to="enrollmentTo" :loading="enrollments.isLoading.value" :caption="t('hrInsurance.section.enrollments')" />
       </SharedPageState>
