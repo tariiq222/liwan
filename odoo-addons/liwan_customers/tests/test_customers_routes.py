@@ -237,7 +237,8 @@ class TestCustomersRoutes(CustomersCase):
         self.sign_in('cu_root_settings')
         read = self.api('GET', SETTINGS).json()
         self.assertEqual(read, {
-            'sharing': 'establishment', 'party_kinds': 'both', 'phone_country': None, 'fields': [],
+            'sharing': 'establishment', 'party_kinds': 'both', 'auto_link_single_match': False, 'phone_country': None,
+            'fields': [],
             'field_limits': {'max_properties': 50, 'max_options': 100, 'max_label': 64},
             'can_manage': True, 'revision': read['revision'],
         })

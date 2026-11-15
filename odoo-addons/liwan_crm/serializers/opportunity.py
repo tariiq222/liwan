@@ -29,7 +29,14 @@ STATUS_FILTERS = ('open', 'won', 'lost', 'all')
 PROPERTY_PREFIX = 'property.'
 
 
-def dump_opportunity(lead):
+def dump_customer_ref(lead, visible_customers=None):
+    """The customer an opportunity is linked to as ``{id, name}``: none when unlinked, when the caller cannot see it or
+    when the caller may not pick a customer. A list passes the customers it resolved once for its whole page."""
+    customer = lead._liwan_linked_customer() if visible_customers is None else lead.partner_id & visible_customers
+    return lead.env['liwan.customers.service']._liwan_link_ref(customer)
+
+
+def dump_opportunity(lead, visible_customers=None):
     return {
         'id': lead.id,
         'contact_name': lead.contact_name or '',
@@ -39,6 +46,7 @@ def dump_opportunity(lead):
         'stage': ref(lead.stage_id, label='display_name'),
         'user': ref(lead.user_id, label='display_name'),
         'source': ref(lead.source_id, label='display_name'),
+        'customer': dump_customer_ref(lead, visible_customers),
         'package': ref(lead.liwan_package_id, label='display_name'),
         'lost_reason': ref(lead.lost_reason_id, label='display_name'),
         'status': lead.won_status,

@@ -12,7 +12,7 @@ from odoo.addons.liwan_customers.models.customers_settings import (
     SHARING_MODES,
 )
 
-SETTING_KEYS = frozenset({'sharing', 'party_kinds', 'phone_country_id'})
+SETTING_KEYS = frozenset({'sharing', 'party_kinds', 'phone_country_id', 'auto_link_single_match'})
 PATCH_KEYS = SETTING_KEYS | {'fields', 'confirm_field_removal', 'revision'}
 
 
@@ -31,6 +31,7 @@ def dump_settings(settings, definition, can_manage):
     return {
         'sharing': settings.sharing,
         'party_kinds': settings.party_kinds,
+        'auto_link_single_match': settings.auto_link_single_match,
         'phone_country': dump_country(settings.phone_country_id) if settings.phone_country_id else None,
         'fields': dump_definition(definition),
         'field_limits': {'max_properties': MAX_PROPERTIES, 'max_options': MAX_OPTIONS, 'max_label': MAX_LABEL},
@@ -57,6 +58,10 @@ def parse_settings_patch(env, payload, current_definition):
         if payload['party_kinds'] not in PARTY_KINDS:
             raise ApiError(422, 'invalid', f'party_kinds must be one of {PARTY_KINDS}', field='party_kinds')
         values['party_kinds'] = payload['party_kinds']
+    if 'auto_link_single_match' in payload:
+        if not isinstance(payload['auto_link_single_match'], bool):
+            raise ApiError(422, 'invalid', 'auto_link_single_match must be true or false', field='auto_link_single_match')
+        values['auto_link_single_match'] = payload['auto_link_single_match']
     if 'phone_country_id' in payload:
         country_id = payload['phone_country_id']
         country = env['res.country']

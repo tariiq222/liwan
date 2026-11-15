@@ -12,6 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_customers.serializers.link import parse_customer_choice
 from odoo.addons.liwan_inbox.controllers.helpers import (
     CONVERSATION_STATES,
     check_fields,
@@ -40,7 +41,7 @@ from odoo.addons.liwan_inbox.models.privacy_hooks import (
     is_erased_contact,
 )
 from odoo.addons.liwan_inbox.serializers.conversation import (
-    dump_contact,
+    dump_contact_detail,
     dump_conversation,
     dump_conversation_detail,
     dump_messages,
@@ -50,6 +51,7 @@ from odoo.addons.liwan_inbox.serializers.settings import dump_canned_reply
 
 PRIORITIES = ('low', 'normal', 'high', 'urgent')
 CSAT_SCORES = ('good', 'neutral', 'bad')
+LINK_FIELDS = {'customer_id', 'create_new'}
 PATCH_FIELDS = {'revision', 'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'}
 REPLY_FIELDS = {'state', 'priority', 'tag_ids'}
 ASSIGN_FIELDS = {'assignee_id', 'department_id'}
@@ -236,7 +238,7 @@ class ConversationController(http.Controller):
     @requires_feature('inbox.enabled', operation='read')
     @requires_capability(READ)
     def get_contact(self, contact_id, **_):
-        return dump_contact(self._visible_contact(contact_id))
+        return dump_contact_detail(self._visible_contact(contact_id))
 
     @http.route('/api/v1/inbox/contacts/<int:contact_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -259,7 +261,29 @@ class ConversationController(http.Controller):
                 reject('email is not a valid address', 'email')
             values['email'] = email_normalize(email) if email else False
         contact.write(values)
-        return dump_contact(contact)
+        return dump_contact_detail(contact)
+
+    @http.route('/api/v1/inbox/contacts/<int:contact_id>/customer', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('inbox.enabled', operation='write')
+    @requires_capability(REPLY)
+    def link_customer(self, contact_id, **payload):
+        """Link the contact to a customer: the one named by ``customer_id``, a new one made from the contact when
+        ``create_new`` is true, or (neither) the contact's own data, which answers 409 ``conflict`` with the candidates
+        when customers with its phone exist. A linked contact keeps its customer: naming another answers 409
+        ``already_linked``."""
+        contact = self._visible_contact(contact_id)
+        if is_erased_contact(contact):
+            raise ApiError(409, 'contact_erased', 'an erased contact cannot be linked')
+        unknown = sorted(set(payload) - LINK_FIELDS)
+        if unknown:
+            reject(f'field {unknown[0]!r} is not accepted', unknown[0])
+        customer_id, create_new = parse_customer_choice(payload)
+        linked = contact._liwan_linked_customer()
+        if linked and (create_new or customer_id not in (None, linked.id)):
+            raise ApiError(409, 'already_linked', 'the contact is already linked to a customer')
+        contact._liwan_customer(customer_id=customer_id, create_new=create_new)
+        return dump_contact_detail(contact)
 
     @staticmethod
     def _visible_contact(contact_id):

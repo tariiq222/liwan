@@ -173,6 +173,17 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   and `liwan_pmo` both are. It lets PMO create and read personal tasks, holds every write of a
   personal task (also through PMO's own routes) to the personal fields, adds the project rows of
   the list, and owns the convert route (`/api/v1/my-tasks/<id>/convert`, `convert-targets`).
+- `odoo-addons/liwan_crm_tasks` (bridge, rank 5, `auto_install`) is installed whenever `liwan_crm` and
+  `liwan_tasks` both are. It owns the `lead_id` column of tasks and the routes that list and create the
+  follow-up tasks of an opportunity (`/api/v1/crm/opportunities/<id>/tasks`).
+- `odoo-addons/liwan_crm_meetings` (bridge, rank 5, `auto_install`) is installed whenever `liwan_crm` and
+  `liwan_meetings` both are. It owns the `lead_id` column of meetings and the routes that list and create
+  the meetings of an opportunity (`/api/v1/crm/opportunities/<id>/meetings`).
+- `odoo-addons/liwan_crm_inbox` (bridge, rank 5, `auto_install`) is installed whenever `liwan_crm` and
+  `liwan_inbox` both are. It owns the `lead_id` column of conversations and the routes that link a
+  conversation to an existing opportunity, read and clear that link
+  (`/api/v1/inbox/conversations/<id>/opportunity`) and list the conversations of an opportunity
+  (`/api/v1/crm/opportunities/<id>/conversations`). It creates no opportunity and copies no customer.
 - `odoo-addons/base_tier_validation` (shared service, rank 3) is the vendored OCA tier-validation
   engine (AGPL-3) used by `liwan_operations`.
 - `odoo-addons/liwan_registry_probe` (shared service, rank 3) is test-only: it contributes one probe capability and

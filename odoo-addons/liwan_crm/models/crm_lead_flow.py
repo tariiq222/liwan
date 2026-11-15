@@ -67,13 +67,15 @@ class CrmLeadFlow(models.Model):
                 details={'reason': f'crm_price_above_list_{policy}'},
             )
 
-    def _liwan_mark_won(self, package, final_price, discount_percent, user):
-        """Sell ``package`` at ``final_price``: won stage, prices set, follow-up cleared."""
+    def _liwan_mark_won(self, package, final_price, discount_percent, user, customer_id=None, create_new=False):
+        """Sell ``package`` at ``final_price``: won stage, prices set, follow-up cleared, and the lead linked to a
+        customer at the latest now (``_liwan_link_customer``: the one named, a new one, or one made from the lead)."""
         self.ensure_one()
         self._liwan_visibility()._liwan_check_write(self, user)
         self._liwan_require_open()
         list_price = self._liwan_package_price(package)
         discount = self._liwan_discount(list_price, final_price, discount_percent, user)
+        self._liwan_link_on_win(customer_id, create_new)
         self.write({
             'liwan_package_id': package.id,
             'liwan_list_price': list_price,
@@ -83,6 +85,16 @@ class CrmLeadFlow(models.Model):
             **CLEARED_FOLLOW_UP,
         })
         self.action_set_won()
+
+    def _liwan_link_on_win(self, customer_id, create_new):
+        """A win never relinks a linked lead: one linked to a customer the caller cannot see keeps it, untouched and
+        unnamed, when the request makes no customer choice. A choice is still 409 ``already_linked``
+        (``_liwan_link_customer``), before anything is written."""
+        keeps_hidden = customer_id is None and not create_new and self.env['liwan.customers.service']._liwan_is_hidden(
+            self.partner_id,
+        )
+        if not keeps_hidden:
+            self._liwan_link_customer(customer_id, create_new)
 
     def _liwan_close_lost(self, reason):
         """Close as lost with ``reason`` (may be empty), clearing the pending follow-up."""

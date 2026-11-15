@@ -27,6 +27,15 @@ class TestMeetingsApi(LiwanMeetingsCase):
             'user_id': self.employee.id, 'company_id': self.env.company.id, 'role_id': role.id,
         })
 
+    def test_create_refuses_a_link_field_of_an_application_that_is_not_the_route_s(self):
+        self._grant_meeting_create()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        refused = self.api('POST', '/api/v1/meetings', {'name': 'Linked', 'lead_id': 1})
+        self.assertEqual((refused.status_code, refused.json()['code']), (422, 'invalid'), refused.text)
+        created = self.api('POST', '/api/v1/meetings', {'name': 'Plain', 'location': 'Room'})
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['location'], 'Room')
+
     def test_patch_explicitly_clears_start_and_end(self):
         self._grant_meeting_create()
         meeting = self.env['liwan.meeting.minute'].create({

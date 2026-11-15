@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CustomerLinkRefSchema } from '../customers'
 import { InboxFlowInteractiveSchema, InboxFlowSubmissionSchema, InboxTemplateFlowButtonSchema, InboxTemplateFlowButtonWriteSchema } from './flows'
 import { InboxCommerceContentSchema, InboxMessageCommerceSchema } from './catalog'
 
@@ -45,6 +46,12 @@ export const InboxContactSchema = z.object({
   email: z.string().nullable(),
   // True once the customer's erase replaced the name with a stored marker; the screen shows a translated name.
   erased: z.boolean(),
+}).strict()
+
+// The contact panel read (`GET`/`PATCH /inbox/contacts/<id>`): the contact with the customer it is linked to, null when
+// unlinked, when the caller cannot see it or may not pick a customer.
+export const InboxContactDetailSchema = InboxContactSchema.extend({
+  customer: CustomerLinkRefSchema.nullable(),
 }).strict()
 
 export const InboxConversationSchema = z.object({
@@ -725,6 +732,7 @@ export type InboxDeliveryState = z.infer<typeof InboxDeliveryStateSchema>
 export type InboxVisibilityPolicy = z.infer<typeof InboxVisibilityPolicySchema>
 export type InboxPresetKey = z.infer<typeof InboxPresetKeySchema>
 export type InboxContact = z.infer<typeof InboxContactSchema>
+export type InboxContactDetail = z.infer<typeof InboxContactDetailSchema>
 export type InboxConversation = z.infer<typeof InboxConversationSchema>
 export type InboxConversationList = z.infer<typeof InboxConversationListSchema>
 export type InboxConversationDetail = z.infer<typeof InboxConversationDetailSchema>

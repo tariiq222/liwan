@@ -8,6 +8,10 @@ describe('crmErrorMessage', () => {
   it('names a closed or changed record on 409', () => {
     expect(crmErrorMessage(fail(409), t)).toBe('crm.opportunities.errors.conflict')
   })
+  it('says an already linked opportunity keeps its customer, apart from a changed record', () => {
+    expect(crmErrorMessage({ ...fail(409), code: 'already_linked' }, t)).toBe('crm.opportunities.errors.alreadyLinked')
+    expect(crmErrorMessage({ ...fail(409), code: 'conflict' }, t)).toBe('crm.opportunities.errors.conflict')
+  })
   it('names the refused phone and email by their reason code', () => {
     expect(crmErrorMessage(fail(422, 'phone', 'duplicate_phone'), t)).toBe('crm.opportunities.errors.duplicatePhone')
     expect(crmErrorMessage(fail(422, 'phone', 'invalid_phone'), t)).toBe('crm.opportunities.errors.invalidPhone')

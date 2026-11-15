@@ -15,6 +15,7 @@ import {
   type CrmOpportunityFilters,
   type CrmOpportunityPatch,
   type CrmSaleSchema,
+  type CustomerLink,
 } from '@liwan/contracts'
 import type { z } from 'zod'
 import { crmKeys } from './crmKeys'
@@ -165,6 +166,8 @@ export function useCrmOpportunityActions() {
     sell: useOpportunityWrite((id, body: SaleBody) => $api(`/api/v1/crm/opportunities/${id}/won`, { method: 'POST', body, schema: CrmOpportunitySchema }), same),
     lose: useOpportunityWrite((id, body: LostBody) => $api(`/api/v1/crm/opportunities/${id}/lost`, { method: 'POST', body, schema: CrmOpportunitySchema }), same),
     reopen: useOpportunityWrite((id, _body: null) => $api(`/api/v1/crm/opportunities/${id}/reopen`, { method: 'POST', body: {}, schema: CrmOpportunitySchema }), same),
+    // Links the opportunity to a customer; the server answers 409 `conflict` with candidates when customers share its phone.
+    linkCustomer: useOpportunityWrite((id, body: CustomerLink) => $api(`/api/v1/crm/opportunities/${id}/customer`, { method: 'POST', body, schema: CrmOpportunitySchema }), same),
     assign: useOpportunityWrite((id, body: AssignBody) => $api(`/api/v1/crm/opportunities/${id}/assign`, { method: 'POST', body, schema: CrmOpportunitySchema }), same),
   }
 }

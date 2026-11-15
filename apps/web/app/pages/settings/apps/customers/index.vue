@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CustomerAutoLinkCard from '@/components/customers/settings/CustomerAutoLinkCard.vue'
 import CustomerFieldsCard from '@/components/customers/settings/CustomerFieldsCard.vue'
 import CustomerPartyKindsCard from '@/components/customers/settings/CustomerPartyKindsCard.vue'
 import CustomerPhoneCountryCard from '@/components/customers/settings/CustomerPhoneCountryCard.vue'
@@ -31,6 +32,7 @@ async function reloadSettings() {
           <CustomerSharingCard v-if="shows('sharing')" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
           <CustomerPartyKindsCard v-if="shows('partyKinds')" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
           <CustomerPhoneCountryCard v-if="shows('phoneCountry')" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
+          <CustomerAutoLinkCard v-if="shows('autoLink')" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
           <CustomerFieldsCard v-if="shows('fields')" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
         </template>
       </SharedPageState>

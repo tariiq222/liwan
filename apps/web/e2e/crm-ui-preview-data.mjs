@@ -118,7 +118,7 @@ const withKeys = ({ key, options, ...field }) => ({
   key: key ?? serverKey(), ...field, ...(options && { options: options.map(({ key, label }) => ({ key: key ?? serverKey(), label })) }),
 })
 const seedOpportunities = () => {
-  const base = { email: '', notes: '', lost_reason: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
+  const base = { email: '', notes: '', lost_reason: null, customer: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
   const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({
     ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId),
     properties: propertiesOf(SEED_PROPERTIES), created_at: seededCreatedAt(id), ...extra,
@@ -208,10 +208,11 @@ export function crmPreviewData(path, url) {
   if (path === '/api/v1/crm/dashboard') return dashboard()
   if (path === '/api/v1/crm/export') return exportFile(url)
   if (path === '/api/v1/crm/audit/views') return page(viewLogs(), url)
-  const record = path.match(/^\/api\/v1\/crm\/opportunities\/(\d+)(\/calls)?$/)
+  const record = path.match(/^\/api\/v1\/crm\/opportunities\/(\d+)(\/calls|\/conversations)?$/)
   if (record) {
     const found = opportunities.find(item => item.id === Number(record[1]))
     if (!found) return undefined
+    if (record[2] === '/conversations') return page([], url)
     return record[2] ? page(calls[found.id] ?? [], url) : found
   }
   return undefined
@@ -331,7 +332,7 @@ function crmOpportunityWrite(method, path, body) {
     const created = {
       id: Math.max(0, ...opportunities.map(item => item.id)) + 1, contact_name: body.contact_name, phone: body.phone, email: body.email ?? '', notes: '',
       stage: ref(lists.stages, firstStage().id), user: mockUserRef('user_id' in body ? body.user_id : 2), source: ref(lists.sources, body.source_id),
-      package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0,
+      package: null, lost_reason: null, customer: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0,
       next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0), properties: propertiesOf(settings.values.lead_properties),
     }
     opportunities.unshift(created)

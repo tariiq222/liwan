@@ -78,6 +78,27 @@ class LiwanCustomersService(models.AbstractModel):
             code = 'forbidden'
             raise LiwanAccessRule(code, 'picking a customer is not allowed', status=403)
 
+    @api.model
+    def _liwan_link_ref(self, partner):
+        """``{id, name}`` of the customer a record is linked to, for a caller who may pick one (``_liwan_can_pick``);
+        none for another caller, whose view of a customer is the directory's gate, or when there is no ``partner``."""
+        if not partner or not self._liwan_can_pick():
+            return None
+        return {'id': partner.id, 'name': partner.name}
+
+    @api.model
+    def _liwan_visible_parties(self, partners):
+        """The active parties among ``partners`` the caller sees: a record's link to any other is read as no link."""
+        return self.env['res.partner'].search([('id', 'in', partners.ids), ('liwan_party', '=', True)])
+
+    @api.model
+    def _liwan_is_hidden(self, partner):
+        """Whether ``partner`` is set but the caller sees no record of it, archived included (another branch's customer).
+        An archived or erased customer is a dead link and is not hidden: its record still replaces it."""
+        if not partner:
+            return False
+        return not self.env['res.partner'].with_context(active_test=False).search_count([('id', '=', partner.id)])
+
     # ---- phone ----
 
     @api.model
@@ -172,11 +193,34 @@ class LiwanCustomersService(models.AbstractModel):
         return self.env['res.partner'].with_context(active_test=False).search(domain, order=ORDER)
 
     @api.model
-    def _liwan_phone_or_none(self, raw, country=None):
+    def _liwan_authenticated_single_match(self, address, company):
+        """The one active party in the scope of ``company`` whose phone is the channel address ``address``, when the
+        tenant enabled automatic linking and exactly one matches; otherwise no party.
+
+        For a channel that authenticates the number (3.4: an inbound WhatsApp message), run by the system on a new
+        contact. The scope is the parties with no company or ``company``, searched with the caller's own rights, so the
+        caller must be the superuser: a staff request goes through ``_liwan_resolve`` and its candidates.
+        """
+        if not self.env.is_superuser():
+            msg = 'use_liwan_customers_resolve: automatic linking runs in the system, never as a user'
+            raise AccessError(msg)
+        none = self.env['res.partner']
+        if not self.env['liwan.customers.settings']._liwan_current().auto_link_single_match:
+            return none
+        number = self._liwan_phone_or_none(address, channel=True)
+        if not number:
+            return none
+        found = none.search([
+            ('liwan_party', '=', True), ('phone_sanitized', '=', number), ('company_id', 'in', [False, company.id]),
+        ], limit=2)
+        return found if len(found) == 1 else none
+
+    @api.model
+    def _liwan_phone_or_none(self, raw, country=None, channel=False):
         """The E.164 form of ``raw`` when it is a valid phone, else None: a search text or a legacy number may be
         something else, and is then simply not read as a phone."""
         try:
-            return self._liwan_normalize_phone(raw, country=country)
+            return self._liwan_normalize_phone(raw, channel=channel, country=country)
         except LiwanAccessRule:
             return None
 

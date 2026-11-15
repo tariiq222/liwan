@@ -263,9 +263,24 @@ class LiwanMyTaskService(models.AbstractModel):
         return parent
 
     @api.model
-    def _create_task(self, vals):
+    def _checked_link_values(self, link_values):
+        unregistered = set(link_values) - self.env['project.task']._liwan_task_link_fields()
+        if unregistered:
+            raise ValueError(f'not a registered task link field: {sorted(unregistered)}')
+        return link_values
+
+    @api.model
+    def _create_task(self, vals, link_values=None):
+        """Create a personal task from wire ``vals``.
+
+        ``link_values`` is the extension point of a bridge: ORM values of the fields it registered in
+        ``project.task._liwan_task_link_fields`` (for example the link to another application's record),
+        already checked by the bridge. They are merged into the create values; a field that is not
+        registered is a programming error and raises ``ValueError``. They never come from the wire.
+        """
         self._require('tasks.tasks.create')
         out = self._clean_vals(vals, CREATE_FIELDS, creating=True)
+        out.update(self._checked_link_values(link_values or {}))
         if vals.get('parent_id') is not None:
             out['liwan_parent_id'] = self._check_parent(vals['parent_id']).id
         # Odoo leaves company_id empty on a project-less task, which the personal-task rule
