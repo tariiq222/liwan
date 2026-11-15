@@ -188,8 +188,8 @@ async function onLogo(event: Event) {
         <UFormField name="name" :label="t('settings.company.name')" required :error="fieldErrors.name">
           <UInput id="company-name" v-model="fields.name.value" class="w-full" data-testid="company-name" :disabled="locked" />
         </UFormField>
-        <UFormField name="report_header" :label="t('settings.company.tagline')" :help="t('settings.company.taglineHint')" :error="fieldErrors.report_header">
-          <UInput id="company-tagline" v-model="fields.report_header.value" class="w-full" data-testid="company-tagline" :disabled="locked" />
+        <UFormField name="report_header" :label="t('settings.company.tagline')" :error="fieldErrors.report_header">
+          <UInput id="company-tagline" v-model="fields.report_header.value" class="w-full" :placeholder="t('settings.company.taglineHint')" data-testid="company-tagline" :disabled="locked" />
         </UFormField>
         <UFormField name="company_registry" :label="t('settings.company.registry')" :error="fieldErrors.company_registry">
           <UInput id="company-registry" v-model="fields.company_registry.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-registry" :disabled="locked" />
@@ -200,15 +200,27 @@ async function onLogo(event: Event) {
         <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" data-testid="company-vat-registered" :disabled="vatLocked" />
       </SharedSettingRow>
       <div v-if="showVatNumber" class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
-        <UFormField name="vat" :label="t('settings.company.vat')" :help="t('settings.company.vatHint')" :required="registrationOn" :error="fieldErrors.vat">
-          <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-vat" :disabled="vatNumberLocked" />
+        <UFormField name="vat" :label="t('settings.company.vat')" :required="registrationOn" :error="fieldErrors.vat">
+          <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" :placeholder="t('settings.company.vatHint')" data-testid="company-vat" :disabled="vatNumberLocked" />
         </UFormField>
       </div>
     </template>
 
     <div v-else class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
       <template v-if="section === 'address'">
-        <UFormField name="country_id" :label="t('settings.company.country')" :help="t('settings.company.countryFixed')">
+        <UFormField name="country_id" :label="t('settings.company.country')">
+          <!-- The value is always filled and read-only, so its explanation cannot be a placeholder: a help button beside the label.
+               A popover rather than a tooltip because it opens on tap and on Enter/Space, not only on hover. The text also sits in the hint
+               element the input's aria-describedby points to, so a screen reader hears it without opening anything. -->
+          <template #hint>
+            <UPopover :content="{ side: 'top', align: 'end' }">
+              <UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-circle-help" :aria-label="`${t('app.fieldHelp')}: ${t('settings.company.country')}`" data-testid="company-country-help" />
+              <template #content>
+                <p class="max-w-64 p-3 text-sm text-default" data-testid="company-country-help-text">{{ t('settings.company.countryFixed') }}</p>
+              </template>
+            </UPopover>
+            <span class="sr-only">{{ t('settings.company.countryFixed') }}</span>
+          </template>
           <UInput id="company-country" :model-value="country?.name ?? ''" class="w-full" data-testid="company-country" readonly disabled />
         </UFormField>
         <UFormField name="state_id" :label="t('settings.company.state')" :error="fieldErrors.state_id">

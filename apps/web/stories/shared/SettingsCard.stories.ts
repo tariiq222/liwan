@@ -37,7 +37,9 @@ export const FieldGrid: Story = {
       <SettingRow name="logo" label="الشعار" description="PNG أو JPG حتى 2 ميغابايت."><UButton color="neutral" variant="outline" label="اختيار صورة" :disabled="!args.canEdit" /></SettingRow>
       <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
         <UFormField name="city" label="المدينة"><UInput id="city" model-value="الرياض" class="w-full" :disabled="!args.canEdit" /></UFormField>
-        <UFormField name="street" label="الشارع" help="كما يظهر في العنوان الوطني."><UInput id="street" model-value="طريق الملك فهد" class="w-full" :disabled="!args.canEdit" /></UFormField>
+        <UFormField name="street" label="الشارع"><UInput id="street" model-value="" placeholder="كما يظهر في العنوان الوطني." class="w-full" :disabled="!args.canEdit" /></UFormField>
+        <UFormField name="country" label="الدولة"><template #hint><UPopover><UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-circle-help" aria-label="شرح: الدولة" /><template #content><p class="max-w-64 p-3 text-sm">تُحدَّد الدولة عند إنشاء الحساب ولا تتغيّر.</p></template></UPopover></template><UInput id="country" model-value="السعودية" class="w-full" readonly disabled /></UFormField>
+        <UFormField name="district" label="الحي"><UInput id="district" model-value="العليا" class="w-full" :disabled="!args.canEdit" /></UFormField>
         <UFormField name="zip" label="الرمز البريدي"><UInput id="zip" model-value="12211" dir="ltr" class="w-full" :disabled="!args.canEdit" /></UFormField>
       </div>
       <SettingRow name="vat" label="مسجّلة في ضريبة القيمة المضافة" description="يظهر الرقم الضريبي في الفواتير."><USwitch :model-value="true" aria-label="مسجّلة في ضريبة القيمة المضافة" :disabled="!args.canEdit" /></SettingRow>

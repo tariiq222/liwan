@@ -2,7 +2,7 @@
 /*
  * One card of a settings page (DESIGN.md §6): the panel card with a stable anchor `id` and its content as rows (`.liwan-setting-rows`):
  * a decision is a `SharedSettingRow`, and data-entry fields sit in a block `<div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">`
- * of vertical `UFormField`s in equal cells (label, control, then the hint as `help`; tiled by the card's width), one block per card; file pickers and switches are `SharedSettingRow` rows. Inside a settings page the card has no footer of its own: it registers with the page's
+ * of vertical `UFormField`s in equal cells (label, then control; a text field's hint is its placeholder, a hint that cannot be one is a help button in the label's hint slot; one, two, three, then four columns as the card widens), one block per card; file pickers and switches are `SharedSettingRow` rows. Inside a settings page the card has no footer of its own: it registers with the page's
  * `useSettingsSave` registry and the page's one `SharedSettingsSaveBar` saves and reverts every edited card, so the card
  * only shows an «Unsaved» badge while it has edits. Outside a settings page, and for an action card with its own `saveLabel`
  * (applying a preset, which needs its own confirm), the card keeps its footer of «Revert» and «Save changes».

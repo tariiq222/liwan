@@ -21,6 +21,7 @@
     "search": "Search",
     "confirm": "Confirm",
     "save": "Save",
+    "fieldHelp": "Help",
     "settingsConflict": "Someone else changed these settings after you opened the page. Load the current values, then make your change again.",
     "list": {
       "newName": "New name"

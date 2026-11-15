@@ -39,15 +39,22 @@
 .liwan-setting-rows > :last-child { padding-block-end: 0; }
 .liwan-setting-rows > [data-orientation="horizontal"] { align-items: center; gap: 24px; }
 /* One block of data-entry fields per settings card (`class="liwan-auto-grid liwan-field-grid liwan-setting-fields"`, a direct child of the card
-   slot): equal cells, one column, two from 640px, three from 960px by the settings container. Each field is label, control, then hint
-   (`UFormField` `help`), and cells align to the top so a hint never moves its neighbours. Decisions and file pickers (switches, uploads) stay
+   slot): equal cells, one column, two from 640px, three from 960px, four from 1280px by the settings container (a cell stays above 280px). Each field is label then control. The hint of
+   a text field is its placeholder and hides while the box is focused; a hint that cannot be a placeholder (a read-only value, a select) is a help
+   button in the label's `hint` slot. Cells align to the top. Decisions and file pickers (switches, uploads) stay
    `SharedSettingRow` rows beside the block. */
 .liwan-setting-rows > .liwan-setting-fields { grid-template-columns: minmax(0, 1fr); align-items: start; }
+.liwan-setting-fields :is(input, textarea):focus::placeholder { color: transparent; }
+/* An Arabic hint inside a left-to-right input (number, email) still reads as Arabic, from the right edge. */
+.liwan-setting-fields input[dir="ltr"]:placeholder-shown { direction: rtl; text-align: start; }
 @container settings (min-width: 640px) {
   .liwan-setting-rows > .liwan-setting-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @container settings (min-width: 960px) {
   .liwan-setting-rows > .liwan-setting-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container settings (min-width: 1280px) {
+  .liwan-setting-rows > .liwan-setting-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .schedule-gantt { overflow-x: auto; }
 /* max-content: the grid must span every track, or its sticky name column stops at the scroller's width. */
