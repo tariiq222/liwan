@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import datetime
+
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
@@ -83,6 +85,23 @@ class TestOpportunityTasks(LiwanCrmCase):
         other = self.make_lead(self.agent)
         body = self.create(self.agent, lead, lead_id=other.id).json()
         self.assertEqual(self.env['project.task'].browse(body['id']).lead_id, lead)
+
+    def test_lead_id_is_a_registered_link_field_and_never_a_write_field(self):
+        self.assertIn('lead_id', self.env['project.task']._liwan_task_link_fields())
+        lead = self.make_lead(self.agent)
+        other = self.make_lead(self.agent)
+        task = self.env['project.task'].browse(self.create(self.agent, lead).json()['id'])
+        response = self.as_user(self.agent).api('PATCH', f'/api/v1/my-tasks/{task.id}', json={'lead_id': other.id})
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'lead_id'), response.text)
+        self.assertEqual(task.lead_id, lead)
+
+    def test_a_date_only_deadline_is_stored_as_utc_midnight(self):
+        # The service reads YYYY-MM-DD as 00:00 UTC (my_task_service._parse_deadline); the bridge does not change that.
+        lead = self.make_lead(self.agent)
+        body = self.create(self.agent, lead, date_deadline='2026-12-01').json()
+        task = self.env['project.task'].browse(body['id'])
+        self.assertEqual(task.date_deadline, datetime(2026, 12, 1, 0, 0))
+        self.assertEqual(body['date_deadline'], '2026-12-01T00:00:00Z')
 
     def test_an_archived_opportunity_takes_no_task(self):
         lead = self.make_lead(self.agent)

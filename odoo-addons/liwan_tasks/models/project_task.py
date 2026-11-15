@@ -23,6 +23,17 @@ class ProjectTask(models.Model):
                                      bypass_search_access=True)
     liwan_child_ids = fields.One2many('project.task', 'liwan_parent_id', string='Personal sub-tasks')
 
+    @api.model
+    def _liwan_task_link_fields(self):
+        """Fields a bridge sets on the personal tasks it creates (its link to another application's record).
+
+        None here. A bridge adds the names of the fields it owns on the task; ``liwan.my.task.service``
+        then takes their values from the bridge's ``_create_task(..., link_values=...)`` call and nothing
+        else, and liwan_tasks_pmo lets exactly these fields through its personal-create gate. They are
+        never wire fields, so a client request cannot set them.
+        """
+        return frozenset()
+
     @api.depends('project_id')
     def _compute_liwan_personal(self):
         for task in self:

@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class ProjectTaskLead(models.Model):
@@ -7,7 +7,11 @@ class ProjectTaskLead(models.Model):
 
     # The opportunity a follow-up task was created on. Deleting the opportunity leaves the task: it is
     # a record of the tasks application and stays as a plain personal task. Archiving changes nothing.
-    # Only the bridge's create route sets it (a creation default of the tasks service), so no client
-    # write reaches it: personal tasks only take their own fields.
+    # Only the bridge's create route sets it, as a registered link field of the tasks service, so no
+    # client write reaches it: personal tasks only take their own fields.
     lead_id = fields.Many2one('crm.lead', string='Opportunity', ondelete='set null',
                               index='btree_not_null', copy=False)
+
+    @api.model
+    def _liwan_task_link_fields(self):
+        return super()._liwan_task_link_fields() | {'lead_id'}

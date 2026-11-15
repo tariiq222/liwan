@@ -39,7 +39,23 @@ class ProjectTaskPersonal(models.Model):
 
     @api.model
     def _liwan_extra_create_fields(self):
-        return super()._liwan_extra_create_fields() | PERSONAL_EXTRA_FIELDS
+        return super()._liwan_extra_create_fields() | PERSONAL_EXTRA_FIELDS | self._liwan_task_link_fields()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A link field a bridge registered belongs to personal tasks only.
+
+        ``_liwan_extra_create_fields`` lets the registered fields through PMO's whitelist, which cannot
+        see the values; a create that puts one on a task with a project is refused here, like any
+        field outside the whitelist.
+        """
+        links = self._liwan_task_link_fields()
+        if links and not self.env.su:
+            for vals in vals_list:
+                merged = self._liwan_vals_with_defaults(vals)
+                if links & set(merged) and (merged.get('project_id') or merged.get('parent_id')):
+                    raise AccessError(self.env._("Task fields are not allowed."))
+        return super().create(vals_list)
 
     @api.model
     def _liwan_projectless_create_allowed(self, vals_list):
@@ -57,7 +73,7 @@ class ProjectTaskPersonal(models.Model):
         for vals in vals_list:
             if (
                 vals.get('project_id')
-                or set(vals) - PERSONAL_CREATE_FIELDS
+                or set(vals) - PERSONAL_CREATE_FIELDS - self._liwan_task_link_fields()
                 # Required, not defaulted: stock create fills a missing company_id from the
                 # context (default_company_id) after PMO's checks, which would pick a company
                 # where the caller holds no capability.

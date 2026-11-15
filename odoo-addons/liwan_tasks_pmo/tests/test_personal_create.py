@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo.exceptions import AccessError
 from odoo.fields import Command
 from odoo.tests import tagged
@@ -144,3 +146,41 @@ class TestPersonalCreateWithPmo(LiwanTasksCase):
             [self._vals(self.alice, liwan_parent_id=hidden.id)]))
         with self.assertRaises(AccessError):
             Task.create(self._vals(self.alice, liwan_parent_id=hidden.id))
+
+    def _register(self, *names):
+        return patch.object(type(self.env['project.task']), '_liwan_task_link_fields',
+                            lambda _self: frozenset(names))
+
+    def test_a_registered_link_field_passes_the_personal_create_gate(self):
+        with self._register('color'):
+            task = self.env['project.task'].with_user(self.alice).create(self._vals(self.alice, color=4))
+        self.assertTrue(task.liwan_personal)
+        self.assertEqual(task.color, 4)
+
+    def test_an_unregistered_field_is_refused_by_the_gate(self):
+        with self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+            self.env['project.task'].with_user(self.alice).create(self._vals(self.alice, color=4))
+
+    def test_a_registered_link_field_does_not_widen_the_projectless_hook(self):
+        project = self.env['project.project'].create({'name': 'P', 'company_id': self.env.company.id})
+        Task = self.env['project.task'].with_user(self.alice)
+        with self._register('color'):
+            self.assertTrue(Task._liwan_projectless_create_allowed([self._vals(self.alice, color=4)]))
+            self.assertFalse(Task._liwan_projectless_create_allowed(
+                [self._vals(self.alice, color=4, project_id=project.id)]))
+            self.assertFalse(Task._liwan_projectless_create_allowed(
+                [self._vals(self.alice, color=4, partner_id=self.bob.partner_id.id)]))
+
+    def test_a_registered_link_field_is_refused_on_a_project_task_create(self):
+        project = self.env['project.project'].create({'name': 'P', 'company_id': self.env.company.id})
+        Task = self.env['project.task'].with_user(self.alice)
+        with self._register('color'):
+            for vals in (
+                {'name': 'x', 'project_id': project.id, 'color': 4},
+                {'name': 'x', 'color': 4, 'parent_id': self.env['project.task'].create(
+                    {'name': 'parent', 'project_id': project.id}).id},
+            ):
+                with self.subTest(vals=sorted(vals)), self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+                    Task.create(vals)
+            with self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+                Task.with_context(default_project_id=project.id).create({'name': 'x', 'color': 4})
