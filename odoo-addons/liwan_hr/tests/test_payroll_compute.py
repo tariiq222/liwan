@@ -170,6 +170,17 @@ class TestPayrollCompute(PayrollCase):
             self._payslip(employee, structure=child)
         self.assertEqual(refused.exception.code, 'contract_missing')
 
+    def test_a_saudi_without_a_gosi_registration_date_is_refused_naming_the_employee(self):
+        employee = self.make_employee('No Gosi Date')
+        self.set_compensation(employee, 9000)
+        with self.assertRaises(LiwanHrRule) as refused:
+            self._payslip(employee)
+        self.assertEqual(refused.exception.code, 'gosi_registration_missing')
+        self.assertEqual(refused.exception.status, 422)
+        self.assertEqual(refused.exception.field, 'employee_id')
+        self.assertEqual(refused.exception.details['employee_id'], employee.id)
+        self.assertIn('No Gosi Date', refused.exception.message)
+
     def test_missing_contract_start_is_refused(self):
         employee = self.env['hr.employee'].create({'name': 'No Contract', 'company_id': self.env.company.id})
         employee.version_id.write({'contract_date_start': False})
