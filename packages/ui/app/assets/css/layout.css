@@ -38,13 +38,13 @@
 .liwan-setting-rows > :first-child { padding-block-start: 0; border-block-start: 0; }
 .liwan-setting-rows > :last-child { padding-block-end: 0; }
 .liwan-setting-rows > [data-orientation="horizontal"] { align-items: center; gap: 24px; }
-/* A block of data-entry fields inside a settings card (`class="liwan-auto-grid liwan-field-grid liwan-setting-fields"`, a direct child of the card
-   slot): stacked fields tile by the settings container, one column, two from 640px, three from 960px. A field marked `data-span="wide"` takes two
-   columns where there are two or more. Decisions (switches) stay SharedSettingRow rows beside the block. */
-.liwan-setting-rows > .liwan-setting-fields { grid-template-columns: minmax(0, 1fr); }
+/* One block of data-entry fields per settings card (`class="liwan-auto-grid liwan-field-grid liwan-setting-fields"`, a direct child of the card
+   slot): equal cells, one column, two from 640px, three from 960px by the settings container. Each field is label, control, then hint
+   (`UFormField` `help`), and cells align to the top so a hint never moves its neighbours. Decisions and file pickers (switches, uploads) stay
+   `SharedSettingRow` rows beside the block. */
+.liwan-setting-rows > .liwan-setting-fields { grid-template-columns: minmax(0, 1fr); align-items: start; }
 @container settings (min-width: 640px) {
   .liwan-setting-rows > .liwan-setting-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .liwan-setting-fields > [data-span="wide"] { grid-column: span 2; }
 }
 @container settings (min-width: 960px) {
   .liwan-setting-rows > .liwan-setting-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }

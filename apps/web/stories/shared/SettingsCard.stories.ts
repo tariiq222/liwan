@@ -34,9 +34,10 @@ export const FieldGrid: Story = {
     components: { SettingsPage, SettingsCard, SettingRow },
     setup: () => ({ args }),
     template: `<main class="liwan-shell-main"><SettingsPage><SettingsCard v-bind="args">
+      <SettingRow name="logo" label="الشعار" description="PNG أو JPG حتى 2 ميغابايت."><UButton color="neutral" variant="outline" label="اختيار صورة" :disabled="!args.canEdit" /></SettingRow>
       <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
         <UFormField name="city" label="المدينة"><UInput id="city" model-value="الرياض" class="w-full" :disabled="!args.canEdit" /></UFormField>
-        <UFormField data-span="wide" name="street" label="الشارع" description="كما يظهر في العنوان الوطني."><UInput id="street" model-value="طريق الملك فهد" class="w-full" :disabled="!args.canEdit" /></UFormField>
+        <UFormField name="street" label="الشارع" help="كما يظهر في العنوان الوطني."><UInput id="street" model-value="طريق الملك فهد" class="w-full" :disabled="!args.canEdit" /></UFormField>
         <UFormField name="zip" label="الرمز البريدي"><UInput id="zip" model-value="12211" dir="ltr" class="w-full" :disabled="!args.canEdit" /></UFormField>
       </div>
       <SettingRow name="vat" label="مسجّلة في ضريبة القيمة المضافة" description="يظهر الرقم الضريبي في الفواتير."><USwitch :model-value="true" aria-label="مسجّلة في ضريبة القيمة المضافة" :disabled="!args.canEdit" /></SettingRow>

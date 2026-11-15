@@ -141,13 +141,16 @@ describe('CompanyProfileForm: who may change the VAT status', () => {
 describe('CompanyProfileForm: the VAT controls as rendered', () => {
   const find = (nodes: { name: string, props: Record<string, unknown> }[], name: string, testId?: string) =>
     nodes.find(node => node.name === name && (!testId || node.props['data-testid'] === testId))?.props
+  // The logo is a row of its own above the fields: the VAT switch row is the one named vat_registered.
+  const vatRow = (nodes: { name: string, props: Record<string, unknown> }[]) =>
+    nodes.find(node => node.name === 'SharedSettingRow' && node.props.name === 'vat_registered')?.props
 
   it('shows the branch switch read-only with its reason and keeps the VAT number editable', async () => {
     const nodes = await renderControls(
       ['settings.company.manage', 'settings.company.vat.manage'],
       { ...PROFILE, vat_registered: true, vat_registration_editable: false, is_root_company: false } as CompanyProfile,
     )
-    expect(find(nodes, 'SharedSettingRow')).toMatchObject({ name: 'vat_registered', 'disabled-reason': 'settings.company.tax.changedFromRoot' })
+    expect(vatRow(nodes)).toMatchObject({ name: 'vat_registered', 'disabled-reason': 'settings.company.tax.changedFromRoot' })
     expect(find(nodes, 'USwitch', 'company-vat-registered')).toMatchObject({ 'data-testid': 'company-vat-registered', disabled: true })
     // A branch keeps its own number; the server accepts that write, so only the card's own lock disables the field.
     expect(find(nodes, 'UInput', 'company-vat')).toMatchObject({ 'data-testid': 'company-vat', disabled: false })
@@ -158,7 +161,7 @@ describe('CompanyProfileForm: the VAT controls as rendered', () => {
       ['settings.company.manage', 'settings.company.vat.manage'],
       { ...PROFILE, vat_registered: true, vat_registration_editable: true } as CompanyProfile,
     )
-    expect(find(nodes, 'SharedSettingRow')).toMatchObject({ 'disabled-reason': undefined })
+    expect(vatRow(nodes)).toMatchObject({ 'disabled-reason': undefined })
     expect(find(nodes, 'USwitch', 'company-vat-registered')).toMatchObject({ 'data-testid': 'company-vat-registered', disabled: false })
     expect(find(nodes, 'UInput', 'company-vat')).toMatchObject({ 'data-testid': 'company-vat', disabled: false })
   })
@@ -169,7 +172,7 @@ describe('CompanyProfileForm: the VAT controls as rendered', () => {
       { ...PROFILE, vat_registered: true, vat_registration_editable: true, vat: '300000000000003' } as CompanyProfile,
       true,
     )
-    expect(find(nodes, 'SharedSettingRow')).toBeUndefined()
+    expect(vatRow(nodes)).toBeUndefined()
     expect(find(nodes, 'USwitch', 'company-vat-registered')).toBeUndefined()
     expect(find(nodes, 'UInput', 'company-vat')).toMatchObject({ 'data-testid': 'company-vat', disabled: false })
   })
