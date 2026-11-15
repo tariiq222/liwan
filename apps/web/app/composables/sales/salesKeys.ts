@@ -4,5 +4,7 @@ export const salesKeys = {
   all: ['sales'] as const,
   list: (params: object) => ['sales', 'list', params] as const,
   detail: (id: number) => ['sales', 'order', id] as const,
+  // The public quotation page: the link (id and access token) names the record, there is no company or session.
+  quote: (id: number, token: string) => ['sales', 'quote', id, token] as const,
   settings: (companyId: number | undefined) => ['sales', 'settings', { companyId }] as const,
 }

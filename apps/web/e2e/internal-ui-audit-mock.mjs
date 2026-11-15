@@ -17,7 +17,7 @@ import { handleEvm } from './pmo-evm-mock-routes.mjs'
 import { CUSTOMERS_CAPABILITIES, handleCustomers } from './customers-mock-routes.mjs'
 import { handleProducts, PRODUCTS_CAPABILITIES } from './products-mock-routes.mjs'
 import { handleIntegrations, INTEGRATIONS_MANAGE, INTEGRATIONS_READ } from './integrations-mock-routes.mjs'
-import { handleSales, SALES_CAPABILITIES } from './sales-mock-routes.mjs'
+import { handlePublicSales, handleSales, SALES_CAPABILITIES } from './sales-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import { handleSsrFixtures, hasFixtureSession } from './ssr-fixture-sessions.mjs'
 import crypto from 'node:crypto'
@@ -493,6 +493,8 @@ async function handle(req, res) {
   if (await handlePublicPayments(req, res, path, url, { json, readBody })) return
   // The invited requester's routes answer without a session too: the booking's access token is the only credential.
   if (await handlePublicAppointments(req, res, path, url, { json, readBody })) return
+  // The customer's quotation link answers without a session too: the quotation's access token is the only credential.
+  if (await handlePublicSales(req, res, path, url, { json, readBody })) return
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 

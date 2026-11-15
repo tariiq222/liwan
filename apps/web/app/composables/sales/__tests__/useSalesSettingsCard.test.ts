@@ -9,7 +9,7 @@ const saveSettings = vi.fn()
 vi.mock('../useSalesSettings', () => ({ useSaveSalesSettings: () => ({ mutateAsync: saveSettings }) }))
 
 const { useSalesSettingsCard } = await import('../useSalesSettingsCard')
-const settings = { visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: '', revision: 1, can_manage: true } as const
+const settings = { visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: '', customer_answer: 'accept', acceptance_confirms: false, revision: 1, can_manage: true } as const
 
 beforeEach(() => saveSettings.mockReset())
 

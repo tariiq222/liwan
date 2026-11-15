@@ -5,7 +5,8 @@ import { SalesOrderListSchema, SalesOrderSchema, type SalesOrder, type SalesOrde
 import { salesKeys } from './salesKeys'
 import { salesApiQuery, type SalesListState } from './salesListParams'
 
-export const SALES_TRANSITIONS = ['confirm', 'cancel', 'reopen', 'lock', 'unlock'] as const
+// `send` mails the quotation to the customer; like the others it answers the document as saved.
+export const SALES_TRANSITIONS = ['confirm', 'cancel', 'reopen', 'lock', 'unlock', 'send'] as const
 export type SalesTransition = typeof SALES_TRANSITIONS[number]
 
 export function useSalesOrders(state: MaybeRefOrGetter<SalesListState>) {

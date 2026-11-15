@@ -6,7 +6,7 @@ import { draftOrder } from './salesFixtures'
 const meta = {
   title: 'Sales/SalesOrderLinesPanel',
   component: SalesOrderLinesPanel,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:113', 'بنود المستند للعرض مع المبالغ والإجماليات المحفوظة.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:131', 'بنود المستند للعرض مع المبالغ والإجماليات المحفوظة.') },
   args: { order: draftOrder },
 } satisfies Meta<typeof SalesOrderLinesPanel>
 export default meta

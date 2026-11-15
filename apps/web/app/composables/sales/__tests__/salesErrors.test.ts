@@ -29,4 +29,15 @@ describe('salesRefusalKey', () => {
     expect(salesRefusalKey(new ApiError(409, 'conflict', 'no'))).toBe('sales.errors.conflict')
     expect(salesRefusalKey(new ApiError(500, 'unavailable', 'down'))).toBeNull()
   })
+
+  it('names the refusals of sending and confirming a quotation', () => {
+    expect(salesRefusalKey(new ApiError(422, 'customer_email_missing', 'no email'))).toBe('sales.errors.customerEmailMissing')
+    expect(salesRefusalKey(new ApiError(422, 'quotation_expired', 'expired'))).toBe('sales.errors.quotationExpired')
+    expect(salesRefusalKey(new ApiError(422, 'invalid', 'needs a product line', 'lines'))).toBe('sales.errors.linesRequired')
+    expect(salesRefusalKey(new ApiError(422, 'invalid', 'bad', 'lines.0'))).toBeNull()
+    expect(salesRefusalKey(new ApiError(422, 'invalid', 'bad', 'lines.0.quantity'))).toBeNull()
+    expect(salesRefusalKey(new ApiError(422, 'invalid', 'bad', 'terms'))).toBeNull()
+    expect(salesRefusalKey(new ApiError(503, 'pdf_unavailable', 'no engine'))).toBe('sales.errors.pdfUnavailable')
+    expect(salesRefusalKey(new ApiError(503, 'mail_unavailable', 'no mail'))).toBe('sales.errors.mailUnavailable')
+  })
 })

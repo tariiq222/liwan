@@ -13,7 +13,7 @@ const refuse = (status: number, body: object) => handlers(agent, http.patch('/ap
 const meta = {
   title: 'Sales/SalesOrderForm',
   component: SalesOrderForm,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/new.vue:19', 'نموذج عرض السعر: العميل والمندوب والصلاحية والشروط والبنود. لا يرسل سعرًا ولا ضريبة.'), ...handlers(SALES_ALL) },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/new.vue:20', 'نموذج عرض السعر: العميل والمندوب والصلاحية والشروط والبنود. لا يرسل سعرًا ولا ضريبة.'), ...handlers(SALES_ALL) },
   args: { backTo: '/sales' },
 } satisfies Meta<typeof SalesOrderForm>
 export default meta

@@ -7,14 +7,14 @@ import {
 
 const currency = { id: 2, name: 'SAR', symbol: 'ر.س' }
 const ORDER: SalesOrder = {
-  id: 7, number: 'S00007', state: 'draft', locked: false, source: 'staff', customer: { id: 5, name: 'Acme' },
+  id: 7, number: 'S00007', state: 'draft', locked: false, expired: false, source: 'staff', customer_answer: null, customer: { id: 5, name: 'Acme' },
   salesperson: { id: 2, name: 'Maha', user_id: 2 }, validity_date: '2026-12-14', date: '2026-11-14T08:00:00Z', terms: 'Net 30', currency,
   amount_untaxed: 180, amount_tax: 27, amount_total: 207,
   lines: [
     { id: 3, kind: 'section', product: null, name: 'Services', quantity: 0, unit: null, unit_price: 0, discount_percent: 0, amount_untaxed: 0, amount_tax: 0, amount_total: 0 },
     { id: 4, kind: 'product', product: { id: 9, name: 'Haircut' }, name: 'Haircut', quantity: 2, unit: 'Units', unit_price: 100, discount_percent: 10, amount_untaxed: 180, amount_tax: 27, amount_total: 207 },
   ],
-  actions: { edit: true, confirm: true, cancel: true, reopen: false, lock: false, unlock: false, duplicate: true, assign: false },
+  actions: { edit: true, confirm: true, cancel: true, reopen: false, lock: false, unlock: false, duplicate: true, assign: false, send: true },
 }
 const PICK: ProductPick = { id: 11, name: 'Oil', type: 'goods', unit_price: 50, amount_untaxed: 50, amount_tax: 7.5, amount_total: 57.5, currency }
 

@@ -38,6 +38,14 @@ export function salesRefusalKey(error: unknown): string | null {
   const failure = error as Refusal | null
   if (isSalesDiscountAboveLimit(error)) return 'sales.errors.discountAboveLimit'
   if (failure?.status === 403 && failure.code === 'transition_forbidden') return 'sales.errors.transitionForbidden'
+  if (failure?.status === 503 && failure.code === 'mail_unavailable') return 'sales.errors.mailUnavailable'
+  if (failure?.status === 422 && failure.code === 'customer_email_missing') return 'sales.errors.customerEmailMissing'
+  if (failure?.status === 422 && failure.code === 'quotation_expired') return 'sales.errors.quotationExpired'
+  // The send queues the mail with the quotation PDF, so a missing PDF engine refuses the send (the staff PDF link is a plain download).
+  if (failure?.status === 503 && failure.code === 'pdf_unavailable') return 'sales.errors.pdfUnavailable'
+  // The server raises 422 on exactly `lines` only for a quotation with no product line (send, confirm); a malformed line
+  // names `lines.<index>.<field>` and the web client always sends a list.
+  if (failure?.status === 422 && failure.field === 'lines') return 'sales.errors.linesRequired'
   if (failure?.status === 403 && failure.code === 'feature_not_included') return 'sales.errors.featureNotIncluded'
   if (failure?.status === 403) return 'sales.errors.forbidden'
   if (failure?.status === 404) return 'sales.errors.notFound'

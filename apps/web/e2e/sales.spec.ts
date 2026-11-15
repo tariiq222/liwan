@@ -1,8 +1,9 @@
 import { test, expect, type Page } from '@playwright/test'
 
 // Runs against the isolated synthetic stack (MODULE_UI_PREVIEW=1): sales-mock-routes.mjs keeps state, reset before each
-// test. Seed: S00001 draft (mine, a section, a product and a note), S00002 confirmed (another salesperson), S00003
-// cancelled, S00004 an online order, confirmed and locked. `mock_caps=reader` drops every write capability and
+// test. Seed: S00001 draft (mine, a section, a product and a note; its customer has no email), S00002 confirmed (another
+// salesperson), S00003 cancelled, S00004 an online order, confirmed and locked, and four quotations already sent by another
+// salesperson: S00005 (accept or decline), S00006 (accept with a signature), S00007 (expired) and S00008 (read only). `mock_caps=reader` drops every write capability and
 // `mock_sales=branch` reads the settings with `can_manage: false`.
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'the sales checks run on the isolated mock stack (npm run e2e:mock)')
 
@@ -25,13 +26,13 @@ const heading = (page: Page) => page.locator('main h1')
 
 test.beforeEach(async ({ page }) => {
   await login(page)
-  const reset = await page.request.post('/api/v1/__mock/reset-sales', { data: {} })
+  const reset = await page.request.post('/api/v1/public/sales/__mock/reset', { data: {} })
   expect(reset.ok()).toBe(true)
 })
 
 test('the list keeps its filters in the address and Back from a record returns to the same filtered list', async ({ page }) => {
   await page.goto('/sales')
-  await expect(numbers(page)).toHaveText(['S00001', 'S00002', 'S00003', 'S00004'])
+  await expect(numbers(page)).toHaveText(['S00001', 'S00002', 'S00003', 'S00004', 'S00005', 'S00006', 'S00007', 'S00008'])
 
   await page.getByTestId('sales-search').fill('النخيل')
   await expect(page).toHaveURL(/q=/)
@@ -131,7 +132,7 @@ test('the record buttons follow the order actions, and the moves, the cancel con
   await expect(heading(page)).toHaveText('S00004')
   await expect(shown('sales-online')).toBeVisible()
   // Read-only: no write or move; copying it into a new staff quotation is the one action the server keeps.
-  for (const id of ['sales-edit', 'sales-confirm', 'sales-cancel', 'sales-lock', 'sales-unlock', 'sales-reopen', 'sales-assign-open']) {
+  for (const id of ['sales-edit', 'sales-confirm', 'sales-send', 'sales-pdf', 'sales-cancel', 'sales-lock', 'sales-unlock', 'sales-reopen', 'sales-assign-open']) {
     await expect(shown(id), id).toHaveCount(0)
   }
   await expect(shown('sales-duplicate')).toBeVisible()
@@ -149,7 +150,7 @@ test('the record buttons follow the order actions, and the moves, the cancel con
 
   await page.goto('/sales/1')
   await expect(heading(page)).toHaveText('S00001')
-  for (const id of ['sales-edit', 'sales-confirm', 'sales-cancel', 'sales-duplicate']) await expect(shown(id), id).toBeVisible()
+  for (const id of ['sales-edit', 'sales-send', 'sales-confirm', 'sales-cancel', 'sales-duplicate', 'sales-pdf']) await expect(shown(id), id).toBeVisible()
   for (const id of ['sales-lock', 'sales-unlock', 'sales-reopen']) await expect(shown(id), id).toHaveCount(0)
 
   await shown('sales-confirm').click()
@@ -205,7 +206,7 @@ test('a reader sees no create or edit and is refused /sales/new', async ({ page 
 
   await page.goto('/sales/1')
   await expect(heading(page)).toHaveText('S00001')
-  for (const id of ['sales-edit', 'sales-confirm', 'sales-cancel', 'sales-duplicate']) await expect(page.getByTestId(id), id).toHaveCount(0)
+  for (const id of ['sales-edit', 'sales-send', 'sales-confirm', 'sales-cancel', 'sales-duplicate']) await expect(page.getByTestId(id), id).toHaveCount(0)
 
   await page.goto('/sales/new')
   await expect(page.locator('main h1')).toHaveText('لا تملك صلاحية فتح هذه الصفحة')
@@ -230,4 +231,96 @@ test('the settings page is read-only without can_manage and saves for a manager'
   await expect.poll(async () => (await (await page.request.get('/api/v1/sales/settings')).json()).validity_days).toBe(45)
   await page.reload()
   await expect(page.getByTestId('sales-validity-days')).toHaveValue('45')
+})
+
+test('a draft is sent to the customer, shows its answer once the customer answers, and goes back to a draft', async ({ page }) => {
+  // S00001's customer has no email: the send is refused in words and the quotation stays a draft.
+  await page.goto('/sales/1')
+  await expect(page.getByTestId('sales-send')).toHaveText('إرسال للعميل')
+  await page.getByTestId('sales-send').click()
+  await expect(page.getByTestId('sales-action-error')).toContainText('ليس للعميل بريد إلكتروني')
+  await expect(page.getByTestId('sales-answer-status')).toHaveCount(0)
+
+  const created = await page.request.post('/api/v1/sales/orders', { data: { customer_id: 1, lines: [{ kind: 'product', product_id: 1, quantity: 1 }] } })
+  const { id } = await created.json() as { id: number }
+  await page.goto(`/sales/${id}`)
+  await page.getByTestId('sales-send').click()
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('بانتظار العميل')
+  await expect(page.locator('main').getByText('مُرسَل').first()).toBeVisible()
+  await expect(page.getByTestId('sales-send')).toHaveText('إعادة الإرسال')
+  await expect(page.getByTestId('sales-edit')).toHaveCount(0)
+  await expect(page.getByTestId('sales-pdf')).toHaveAttribute('href', `/api/v1/sales/orders/${id}/pdf`)
+
+  // The customer declines at the link; the record shows it after a reload.
+  const declined = await page.request.post(`/api/v1/public/sales/quotations/${id}/decline`, { data: { access_token: `tok-${id}`, reason: 'السعر مرتفع' } })
+  expect(declined.ok()).toBe(true)
+  await page.reload()
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('رفض العرض')
+  await expect(page.getByTestId('sales-answer-reason')).toContainText('السعر مرتفع')
+  await expect(page.getByTestId('sales-send')).toHaveCount(0)
+  await expect(page.getByTestId('sales-reopen')).toHaveCount(0)
+})
+
+test('sending a quotation again asks first, because the customer\'s earlier answer is removed; cancelling the question sends nothing', async ({ page }) => {
+  const sends: string[] = []
+  page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/api/v1/sales/orders/5/send')) sends.push(request.url()) })
+  const confirmation = page.getByTestId('inline-confirm')
+
+  await page.goto('/sales/5')
+  await page.getByTestId('sales-send').click()
+  await expect(confirmation).toContainText('هل تريد إعادة إرسال S00005 للعميل؟')
+  await expect(confirmation).toContainText('سيصل العميل بريد إلكتروني جديد. إن كان قد ردّ على العرض فسيُحذف ردّه وتوقيعه.')
+  await page.getByTestId('inline-confirm-cancel').click()
+  await expect(confirmation).toHaveCount(0)
+  expect(sends).toEqual([])
+
+  await page.getByTestId('sales-send').click()
+  await page.getByTestId('inline-confirm-action').click()
+  await expect(confirmation).toHaveCount(0)
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('بانتظار العميل')
+  expect(sends).toHaveLength(1)
+
+  // Only one question is open at a time: asking to cancel replaces the question about sending again.
+  await page.getByTestId('sales-send').click()
+  await page.getByTestId('sales-cancel').click()
+  await expect(confirmation).toHaveCount(1)
+  await expect(confirmation).toContainText('هل تريد إلغاء S00005؟')
+})
+
+test('a sent quotation can be reopened as a draft, an acceptance shows its signer, and an expired one is marked and cannot be confirmed', async ({ page }) => {
+  await page.goto('/sales/5')
+  await expect(page.getByTestId('sales-reopen')).toHaveText('إعادة إلى مسودة')
+  await expect(page.getByTestId('sales-confirm')).toBeVisible()
+  await expect(page.getByTestId('sales-send')).toHaveText('إعادة الإرسال')
+  await page.getByTestId('sales-reopen').click()
+  await expect(page.getByTestId('sales-edit')).toBeVisible()
+  await expect(page.getByTestId('sales-answer-status')).toHaveCount(0)
+
+  const accepted = await page.request.post('/api/v1/public/sales/quotations/6/accept', { data: { access_token: 'tok-6', signed_by: 'منى العتيبي', signature: 'iVBORw0KGgoAAAANSUhEUg' } })
+  expect(accepted.ok()).toBe(true)
+  await page.goto('/sales/6')
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('قبل العرض')
+  await expect(page.getByTestId('sales-answer-signer')).toContainText('منى العتيبي')
+
+  await page.goto('/sales/7')
+  await expect(heading(page)).toHaveText('S00007')
+  await expect(page.locator('main').getByText('منتهي الصلاحية').first()).toBeVisible()
+  await expect(page.getByTestId('sales-confirm')).toHaveCount(0)
+  await page.goto('/sales?state=quotations')
+  await expect(page.getByTestId('sales-expired')).toHaveCount(1)
+})
+
+test('the quotation settings choose how the customer answers, and acceptance confirming the order needs an answer', async ({ page }) => {
+  await page.goto('/settings/apps/sales')
+  const confirms = page.getByTestId('sales-acceptance-confirms')
+  await expect(page.getByTestId('sales-customer-answer').getByRole('radio', { name: /القبول أو الرفض/ })).toBeChecked()
+  await expect(confirms).toBeEnabled()
+  await page.getByTestId('sales-customer-answer').getByText('القراءة فقط').click()
+  await expect(confirms).toBeDisabled()
+  await page.getByTestId('sales-customer-answer').getByText('القبول بتوقيع').click()
+  await expect(confirms).toBeEnabled()
+  await confirms.click()
+  await page.getByRole('button', { name: /^حفظ/ }).first().click()
+  await expect.poll(async () => (await (await page.request.get('/api/v1/sales/settings')).json()))
+    .toMatchObject({ customer_answer: 'accept_and_sign', acceptance_confirms: true })
 })

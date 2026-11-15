@@ -44,7 +44,11 @@
       "lock": "Lock",
       "unlock": "Unlock",
       "duplicate": "Duplicate",
-      "assign": "Change salesperson"
+      "assign": "Change salesperson",
+      "send": "Send to customer",
+      "sendAgain": "Send again",
+      "backToDraft": "Back to draft",
+      "pdf": "Download PDF"
     },
     "assign": {
       "label": "New salesperson",
@@ -66,7 +70,11 @@
       "cancelConfirm": "Cancel {number}?",
       "cancelHint": "You can reopen it later as a draft.",
       "cancelConfirmAction": "Cancel document",
-      "cancelKeep": "Keep it",
+      "resendConfirm": "Send {number} to the customer again?",
+      "resendHint": "The customer gets a new e-mail. If they already answered, their answer and signature are removed.",
+      "resendAnsweredHint": "The customer gets a new e-mail. Their earlier answer and signature are removed, and they must answer again.",
+      "resendConfirmAction": "Send again",
+      "confirmKeep": "Keep it",
       "notEditable": "This document cannot be edited now. A quotation is edited only while it is a draft."
     },
     "form": {
@@ -124,7 +132,12 @@
       "featureNotIncluded": "The sales application is not part of your subscription.",
       "forbidden": "You may not do this.",
       "notFound": "The document does not exist or you may not read it.",
-      "conflict": "The document changed elsewhere. Refresh the page and try again."
+      "conflict": "The document changed elsewhere. Refresh the page and try again.",
+      "customerEmailMissing": "The customer has no email address. Add one to the customer, then send the quotation.",
+      "quotationExpired": "The quotation's validity date has passed. Edit the date or duplicate the quotation.",
+      "linesRequired": "Add at least one product line first.",
+      "pdfUnavailable": "The quotation PDF could not be made, so nothing was sent. Try again shortly.",
+      "mailUnavailable": "Outgoing mail is not set up, so nothing was sent and the quotation is unchanged. Ask your administrator to set up mail."
     },
     "settings": {
       "readOnlyTitle": "Read-only",
@@ -147,8 +160,120 @@
         "defaultTerms": "Default terms",
         "defaultTermsHint": "Added to new quotations only.",
         "numberRequired": "Enter a number.",
-        "numberInvalid": "This value was refused. Enter a whole number within the allowed range."
+        "numberInvalid": "This value was refused. Enter a whole number within the allowed range.",
+        "customerAnswer": "Customer answer",
+        "customerAnswerHint": "What the customer may do with a quotation you send. A change applies to quotations sent from now on.",
+        "answer": {
+          "none": "Read only",
+          "noneHint": "The customer reads the quotation and downloads the PDF. They cannot answer online.",
+          "accept": "Accept or decline",
+          "acceptHint": "The customer accepts with one tap, or declines and may say why.",
+          "accept_and_sign": "Accept with a signature",
+          "accept_and_signHint": "The customer writes their name and draws a signature to accept, or declines."
+        },
+        "acceptanceConfirms": "Acceptance confirms the order",
+        "acceptanceConfirmsHint": "When the customer accepts, the quotation becomes a confirmed order without further action. Off by default: you confirm it yourself."
       }
+    },
+    "expired": "Expired",
+    "answer": {
+      "title": "Customer answer",
+      "status": "Answer",
+      "waiting": "Waiting for the customer",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "mode": "Customer may",
+      "modes": {
+        "none": "Read only",
+        "accept": "Accept or decline",
+        "accept_and_sign": "Accept with a signature, or decline"
+      },
+      "afterAcceptance": "When they accept",
+      "orderConfirmed": "The order is confirmed",
+      "youConfirm": "You confirm the order yourself",
+      "answeredAt": "Answered on",
+      "signedBy": "Signed by",
+      "reason": "Reason",
+      "noReason": "No reason given."
+    },
+    "quote": {
+      "title": "Quotation {number}",
+      "details": "Quotation details",
+      "number": "Number",
+      "validUntil": "Valid until",
+      "pdf": "Download PDF",
+      "retry": "Try again",
+      "states": {
+        "invalidLink": {
+          "title": "This link does not work",
+          "body": "The quotation link is wrong or no longer available. Ask the sender for a new link."
+        },
+        "unavailable": {
+          "title": "The quotation could not be loaded",
+          "body": "Check your connection and try again."
+        },
+        "accepted": {
+          "title": "You accepted this quotation",
+          "body": "The sender has your answer."
+        },
+        "acceptedConfirmed": {
+          "title": "You accepted this quotation",
+          "body": "The sender has your answer and the order is confirmed."
+        },
+        "declined": {
+          "title": "You declined this quotation",
+          "body": "The sender has your answer."
+        },
+        "confirmed": {
+          "title": "This quotation is now an order",
+          "body": "It was confirmed by the sender, so it can no longer be answered here."
+        },
+        "cancelled": {
+          "title": "This quotation was cancelled",
+          "body": "The sender cancelled it. Contact them if you still need it."
+        },
+        "expired": {
+          "title": "This quotation has expired",
+          "body": "Its validity date has passed, so it can no longer be answered. Ask the sender for a new quotation."
+        },
+        "notOffered": {
+          "title": "This quotation is for reading",
+          "body": "The sender has not enabled answering online. Contact them to accept it."
+        }
+      },
+      "answerTitle": "Your answer",
+      "accept": "Accept quotation",
+      "acceptAndSign": "Accept and sign",
+      "signedByLabel": "Your full name",
+      "signedByRequired": "Enter your full name.",
+      "signature": "Signature",
+      "signatureLabel": "Signature box",
+      "signatureHint": "Write your name above, then draw your signature in the box with your finger or mouse, or press the Sign with my name button to use your typed name as the signature.",
+      "signatureClear": "Clear signature",
+      "signatureTyped": "Sign with my name",
+      "signatureSigned": "Signature added.",
+      "signatureEmpty": "No signature yet.",
+      "signatureRequired": "Draw your signature to accept.",
+      "signatureTooLarge": "The signature is too large. Clear it and draw it again.",
+      "decline": "Decline",
+      "declineTitle": "Decline this quotation?",
+      "declineHint": "You can tell the sender why. You cannot change your answer afterwards.",
+      "declineReason": "Reason (optional)",
+      "declineConfirm": "Decline quotation",
+      "declineKeep": "Go back",
+      "signedBy": "Signed by {name}",
+      "answeredOn": "Answered on {date}",
+      "errors": {
+        "failed": "Your answer was not sent. Try again.",
+        "answerNotAllowed": "This quotation can no longer be answered here.",
+        "alreadyAnswered": "This quotation was already answered.",
+        "expired": "This quotation has expired.",
+        "signatureRequired": "Write your name and draw your signature to accept.",
+        "signatureInvalid": "The signature was not accepted. Clear it and draw it again.",
+        "readOnly": "The sender's workspace is read-only at the moment, so your answer could not be saved. Try again later.",
+        "rateLimited": "Too many attempts. Wait a minute and try again."
+      },
+      "heading": "Quotation"
     }
   }
 }

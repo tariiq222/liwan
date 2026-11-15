@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { PersonRefSchema, SalesOrderListSchema, SalesOrderSchema, SalesSettingsSchema } from '@liwan/contracts'
-import { handleSales } from '../../../../e2e/sales-mock-routes.mjs'
+import { PersonRefSchema, SalesOrderListSchema, SalesOrderSchema, SalesPublicQuotationSchema, SalesQuotationAcceptSchema, SalesQuotationDeclineSchema, SalesSettingsSchema } from '@liwan/contracts'
+import { handlePublicSales, handleSales } from '../../../../e2e/sales-mock-routes.mjs'
 
 // The sales mock answers the shapes of the contracts and follows the server's rules, so it cannot drift.
-async function call(method: string, path: string, body?: object, cookie = ''): Promise<{ status: number; body: unknown }> {
+type Handler = typeof handleSales
+async function run(handler: Handler, method: string, path: string, body?: object, cookie = ''): Promise<{ status: number; body: unknown }> {
   let answer: { status: number; body: unknown } | undefined
   const url = new URL(`http://mock.example.test${path}`)
-  const handled = await handleSales(
+  const handled = await handler(
     { method, headers: { cookie } },
-    {},
+    { writeHead: (status: number) => { answer = { status, body: 'binary' } }, end: () => {} },
     url.pathname,
     url,
     { json: (_res: unknown, status: number, payload: unknown) => { answer = { status, body: payload } }, readBody: async () => JSON.stringify(body ?? {}) },
@@ -16,14 +17,16 @@ async function call(method: string, path: string, body?: object, cookie = ''): P
   expect(handled).toBe(true)
   return answer as { status: number; body: unknown }
 }
+const call = (method: string, path: string, body?: object, cookie = '') => run(handleSales, method, path, body, cookie)
+const publicCall = (method: string, path: string, body?: object, cookie = '') => run(handlePublicSales, method, path, body, cookie)
 
 describe('sales mock', () => {
-  beforeEach(async () => { await call('POST', '/api/v1/__mock/reset-sales') })
+  beforeEach(async () => { await publicCall('POST', '/api/v1/public/sales/__mock/reset') })
 
   it('lists orders by stage, source, mine and search, in the contract shape', async () => {
     const all = SalesOrderListSchema.parse((await call('GET', '/api/v1/sales/orders')).body)
-    expect(all.total).toBe(4)
-    expect(SalesOrderListSchema.parse((await call('GET', '/api/v1/sales/orders?state=draft,sent')).body).items.map(item => item.id)).toEqual([1])
+    expect(all.total).toBe(8)
+    expect(SalesOrderListSchema.parse((await call('GET', '/api/v1/sales/orders?state=draft,sent')).body).items.map(item => item.id)).toEqual([1, 5, 6, 7, 8])
     expect(SalesOrderListSchema.parse((await call('GET', '/api/v1/sales/orders?state=confirmed')).body).items.map(item => item.id)).toEqual([2, 4])
     expect(SalesOrderListSchema.parse((await call('GET', '/api/v1/sales/orders?state=cancelled,confirmed')).body).items.map(item => item.id)).toEqual([2, 3, 4])
     expect(SalesOrderListSchema.parse((await call('GET', '/api/v1/sales/orders?source=online')).body).items.map(item => item.id)).toEqual([4])
@@ -35,11 +38,12 @@ describe('sales mock', () => {
 
   it('reads an order with its actions, and an online order offers none of the writes', async () => {
     const draft = SalesOrderSchema.parse((await call('GET', '/api/v1/sales/orders/1')).body)
-    expect(draft.actions).toMatchObject({ edit: true, confirm: true, cancel: true, assign: true })
+    expect(draft.actions).toMatchObject({ edit: true, confirm: true, cancel: true, assign: true, send: true })
+    expect(draft).toMatchObject({ expired: false, customer_answer: null })
     expect(draft.lines.map(line => line.kind)).toEqual(['section', 'product', 'note'])
     const online = SalesOrderSchema.parse((await call('GET', '/api/v1/sales/orders/4')).body)
     expect(online).toMatchObject({ source: 'online', salesperson: null })
-    expect(online.actions).toMatchObject({ edit: false, confirm: false, cancel: false, lock: false, unlock: false, assign: false })
+    expect(online.actions).toMatchObject({ edit: false, confirm: false, cancel: false, lock: false, unlock: false, assign: false, send: false })
     expect((await call('GET', '/api/v1/sales/orders/999')).status).toBe(404)
   })
 
@@ -86,8 +90,70 @@ describe('sales mock', () => {
     expect(PersonRefSchema.array().parse((await call('GET', '/api/v1/sales/salespeople?q=مها')).body).map(person => person.id)).toEqual([7])
   })
 
+  it('sends a quotation, refusing a customer with no email, an expired one and one with no product line', async () => {
+    expect((await call('POST', '/api/v1/sales/orders/1/send')).body).toMatchObject({ code: 'customer_email_missing' })
+    expect((await call('POST', '/api/v1/sales/orders/7/send')).body).toMatchObject({ code: 'quotation_expired' })
+    const empty = SalesOrderSchema.parse((await call('POST', '/api/v1/sales/orders', { customer_id: 1 })).body)
+    expect((await call('POST', `/api/v1/sales/orders/${empty.id}/send`)).body).toMatchObject({ code: 'invalid', field: 'lines' })
+    const created = SalesOrderSchema.parse((await call('POST', '/api/v1/sales/orders', { customer_id: 1, lines: [{ kind: 'product', product_id: 1, quantity: 1 }] })).body)
+    const sent = SalesOrderSchema.parse((await call('POST', `/api/v1/sales/orders/${created.id}/send`)).body)
+    expect(sent).toMatchObject({ state: 'sent', actions: { send: true, reopen: true, edit: false }, customer_answer: { mode: 'accept', acceptance_confirms: false, answer: null } })
+    expect(SalesOrderSchema.parse((await call('POST', `/api/v1/sales/orders/${created.id}/reopen`)).body)).toMatchObject({ state: 'draft', customer_answer: null })
+    expect((await call('POST', '/api/v1/sales/orders/4/send')).body).toMatchObject({ code: 'transition_forbidden' })
+    expect(SalesOrderSchema.parse((await call('GET', '/api/v1/sales/orders/7')).body)).toMatchObject({ expired: true, actions: { confirm: false, send: false } })
+    expect((await call('POST', '/api/v1/sales/orders/7/confirm')).body).toMatchObject({ code: 'quotation_expired' })
+  })
+
+  it('offers the quotation as a PDF', async () => {
+    expect(await call('GET', '/api/v1/sales/orders/5/pdf')).toEqual({ status: 200, body: 'binary' })
+    expect(await publicCall('GET', '/api/v1/public/sales/quotations/5/pdf?access_token=tok-5')).toEqual({ status: 200, body: 'binary' })
+  })
+
+  it('reads a sent quotation by its access token and nothing else', async () => {
+    const quote = SalesPublicQuotationSchema.parse((await publicCall('GET', '/api/v1/public/sales/quotations/5?access_token=tok-5')).body)
+    expect(quote).toMatchObject({ state: 'sent', answer_mode: 'accept', answer: null, can_accept: true, can_decline: true, expired: false })
+    expect(SalesPublicQuotationSchema.parse((await publicCall('GET', '/api/v1/public/sales/quotations/7?access_token=tok-7')).body)).toMatchObject({ expired: true, can_accept: false, can_decline: false })
+    expect(SalesPublicQuotationSchema.parse((await publicCall('GET', '/api/v1/public/sales/quotations/8?access_token=tok-8')).body)).toMatchObject({ answer_mode: 'none', can_accept: false })
+    for (const path of ['/5?access_token=tok-6', '/5', '/1?access_token=tok-1', '/999?access_token=tok-999']) {
+      expect(await publicCall('GET', `/api/v1/public/sales/quotations${path}`)).toEqual({ status: 404, body: { code: 'not_found', message: 'not found' } })
+    }
+  })
+
+  it('accepts with the token alone, or with a name and a signature when asked, and answers once', async () => {
+    const accept = (id: number, body: object) => publicCall('POST', `/api/v1/public/sales/quotations/${id}/accept`, { access_token: `tok-${id}`, ...body })
+    const png = 'iVBORw0KGgo'.padEnd(120, 'A')
+    expect((await accept(6, {})).body).toMatchObject({ code: 'signature_required' })
+    expect((await accept(6, { signed_by: 'منى', signature: 'not a png' })).body).toMatchObject({ code: 'signature_invalid' })
+    expect((await accept(6, { signed_by: 'منى', signature: `iVBORw0KGgo${'A'.repeat(70_000)}` })).body).toMatchObject({ code: 'signature_invalid' })
+    expect((await accept(5, { signed_by: 'منى', signature: png })).body).toMatchObject({ code: 'invalid', field: 'signature' })
+    expect((await accept(8, {})).body).toMatchObject({ code: 'answer_not_allowed' })
+    expect((await accept(7, {})).body).toMatchObject({ code: 'quotation_expired' })
+    expect(SalesQuotationAcceptSchema.parse({ access_token: 'tok-6', signed_by: 'منى', signature: png }).signed_by).toBe('منى')
+    const signed = SalesPublicQuotationSchema.parse((await accept(6, { signed_by: 'منى', signature: png })).body)
+    expect(signed).toMatchObject({ state: 'sent', answer: 'accepted', signed_by: 'منى', can_accept: false })
+    expect((await accept(6, { signed_by: 'منى', signature: png })).body).toMatchObject({ code: 'already_answered' })
+    expect(SalesOrderSchema.parse((await call('GET', '/api/v1/sales/orders/6')).body)).toMatchObject({ customer_answer: { answer: 'accepted', signed_by: 'منى' }, actions: { send: false, reopen: false } })
+    expect((await publicCall('POST', '/api/v1/public/sales/quotations/5/accept', { access_token: 'tok-6' })).status).toBe(404)
+  })
+
+  it('confirms the order on acceptance when the quotation was sent that way, and records a decline with its reason', async () => {
+    expect(SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { customer_answer: 'accept', acceptance_confirms: true, revision: 1 })).body)).toMatchObject({ acceptance_confirms: true })
+    const created = SalesOrderSchema.parse((await call('POST', '/api/v1/sales/orders', { customer_id: 1, lines: [{ kind: 'product', product_id: 1, quantity: 1 }] })).body)
+    await call('POST', `/api/v1/sales/orders/${created.id}/send`)
+    const token = `tok-${created.id}`
+    const accepted = SalesPublicQuotationSchema.parse((await publicCall('POST', `/api/v1/public/sales/quotations/${created.id}/accept`, { access_token: token })).body)
+    expect(accepted).toMatchObject({ state: 'confirmed', answer: 'accepted' })
+
+    const declined = SalesQuotationDeclineSchema.parse({ access_token: 'tok-5', reason: ' السعر مرتفع ' })
+    const answer = SalesPublicQuotationSchema.parse((await publicCall('POST', '/api/v1/public/sales/quotations/5/decline', declined)).body)
+    expect(answer).toMatchObject({ state: 'sent', answer: 'declined', can_decline: false })
+    expect(SalesOrderSchema.parse((await call('GET', '/api/v1/sales/orders/5')).body).customer_answer).toMatchObject({ answer: 'declined', decline_reason: 'السعر مرتفع' })
+  })
+
   it('keeps the settings revision and refuses a stale one or a branch manager', async () => {
-    expect(SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body)).toMatchObject({ visibility: 'own', revision: 1, can_manage: true })
+    expect(SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body)).toMatchObject({ visibility: 'own', revision: 1, can_manage: true, customer_answer: 'accept', acceptance_confirms: false })
+    expect((await call('PATCH', '/api/v1/sales/settings', { customer_answer: 'sign', revision: 1 })).body).toMatchObject({ field: 'customer_answer' })
+    expect((await call('PATCH', '/api/v1/sales/settings', { acceptance_confirms: 'yes', revision: 1 })).body).toMatchObject({ field: 'acceptance_confirms' })
     expect(SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings', undefined, 'mock_sales=branch')).body).can_manage).toBe(false)
     expect((await call('PATCH', '/api/v1/sales/settings', { visibility: 'all', revision: 9 })).body).toMatchObject({ code: 'conflict' })
     expect((await call('PATCH', '/api/v1/sales/settings', { discount_limit_percent: 12.5, revision: 1 })).body).toMatchObject({ field: 'discount_limit_percent' })

@@ -9,19 +9,30 @@
 //    `details.reason` `discount_above_limit`;
 //  - the cookie `mock_caps=reader` drops every write capability (`.manage` through the shared filter, and confirm,
 //    approve and assign here); `mock_sales=agent` keeps the agent role (no assign, approve or settings);
-//  - the settings carry a revision: a stale one answers 409 `conflict`; `mock_sales=branch` reads `can_manage: false`.
+//  - the settings carry a revision: a stale one answers 409 `conflict`; `mock_sales=branch` reads `can_manage: false`;
+//  - send mails a quotation (422 `customer_email_missing` for a customer with no email; send and confirm answer
+//    422 `quotation_expired` after its validity date, and `actions.send` and `actions.confirm` are false then) and records how the customer may answer from the settings; the public routes (`handlePublicSales`,
+//    no session, access token `tok-<id>`) read, accept (with a signature when asked) and decline a quotation that was
+//    sent.
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
 import { findMockCustomer } from './customers-mock-routes.mjs'
 import { findMockProduct } from './products-mock-routes.mjs'
 
 export const SALES_CAPABILITIES = ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm', 'sales.discounts.approve', 'sales.documents.assign', 'sales.settings.manage']
 
-const RESET_PATH = '/api/v1/__mock/reset-sales'
+// Answers without a session, so a spec that never signs in (the customer's quotation page) can reset it too.
+const RESET_PATH = '/api/v1/public/sales/__mock/reset'
 const LIST_PATH = '/api/v1/sales/orders'
 const SETTINGS_PATH = '/api/v1/sales/settings'
 const SALESPEOPLE_PATH = '/api/v1/sales/salespeople'
 const SALESPEOPLE_LIMIT = 50
-const RECORD_PATH = /^\/api\/v1\/sales\/orders\/(\d+)(?:\/(confirm|cancel|reopen|lock|unlock|duplicate|assign))?$/
+const RECORD_PATH = /^\/api\/v1\/sales\/orders\/(\d+)(?:\/(confirm|cancel|reopen|lock|unlock|duplicate|assign|send|pdf))?$/
+const PUBLIC_PATH = /^\/api\/v1\/public\/sales\/quotations\/(\d+)(?:\/(accept|decline|pdf))?$/
+// The day of the mock's documents: a quotation whose validity date is before it has expired.
+const TODAY = '2026-11-14'
+const SIGNATURE_MAX_BYTES = 48 * 1024
+const PNG_BASE64_PREFIX = 'iVBORw0KGgo'
+const PDF_BYTES = '%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n'
 const CURRENCY = { id: 2, name: 'SAR', symbol: 'ر.س' }
 const ME = { id: 2, name: 'Admin', user_id: 2 }
 const PEOPLE = [ME, { id: 7, name: 'مها الثبيتي', user_id: 7 }, { id: 8, name: 'نايف العسيري', user_id: 8 }]
@@ -29,7 +40,8 @@ const LINE_KEYS = ['id', 'kind', 'product_id', 'name', 'quantity', 'discount_per
 const WRITE_KEYS = ['customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines']
 const round2 = value => Math.round(value * 100) / 100
 
-const freshSettings = () => ({ visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', revision: 1 })
+const freshSettings = () => ({ visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, revision: 1 })
+const waiting = mode => ({ mode, acceptance_confirms: false, answer: null, answered_at: null, signed_by: null, decline_reason: null })
 const line = (id, kind, fields) => ({ id, kind, product_id: null, name: '', quantity: 0, discount_percent: 0, ...fields })
 const freshOrders = () => [
   { id: 1, number: 'S00001', state: 'draft', locked: false, source: 'staff', customer_id: 2, customer_name: 'مؤسسة النخيل', salesperson: ME, validity_date: '2026-12-14', date: '2026-11-14T08:00:00Z', terms: 'الأسعار شاملة التوصيل داخل المدينة.',
@@ -41,7 +53,17 @@ const freshOrders = () => [
   { id: 4, number: 'S00004', state: 'confirmed', locked: true, source: 'online', customer_id: 1, customer_name: 'منى العتيبي', salesperson: null, validity_date: null, date: '2026-11-12T18:20:00Z', terms: '',
     lines: [line(41, 'product', { product_id: 2, name: 'باقة متقدمة', quantity: 1 })] },
 ]
-let orders = freshOrders()
+// Four quotations sent to a customer, by another salesperson: S00005 (the customer may accept or decline), S00006
+// (accept with a signature), S00007 (expired) and S00008 (read only). Each is open at `/quote/<id>?access_token=tok-<id>`.
+const sent = (id, customer, fields) => ({ id, number: `S${String(id).padStart(5, '0')}`, state: 'sent', locked: false, source: 'staff', customer_id: customer.id, customer_name: customer.name, salesperson: PEOPLE[1],
+  validity_date: '2026-12-14', date: '2026-11-13T10:00:00Z', terms: 'يسري العرض لمدة شهر من تاريخه.', lines: [line(id * 10 + 1, 'product', { product_id: 1, name: 'باقة أساسية', quantity: 2 })], ...fields })
+const sentOrders = () => [
+  sent(5, { id: 1, name: 'منى العتيبي' }, { answer: waiting('accept') }),
+  sent(6, { id: 1, name: 'منى العتيبي' }, { answer: waiting('accept_and_sign') }),
+  sent(7, { id: 3, name: 'خالد الشهري' }, { answer: waiting('accept'), validity_date: '2026-11-01' }),
+  sent(8, { id: 3, name: 'خالد الشهري' }, { answer: waiting('none') }),
+]
+let orders = [...freshOrders(), ...sentOrders()]
 let settings = freshSettings()
 let nextOrderId = 100
 let nextLineId = 1000
@@ -75,6 +97,11 @@ function dumpLine(stored) {
   }
 }
 
+const expired = order => order.validity_date !== null && order.validity_date < TODAY
+
+/** An expired quotation that is still open: sending or confirming it answers 422 `quotation_expired`, as the server does. */
+const expiredOpen = order => expired(order) && (order.state === 'draft' || order.state === 'sent')
+
 const own = (order, caps) => caps.includes('sales.documents.assign') || order.salesperson?.id === ME.id
 
 function actionsOf(order, caps) {
@@ -83,16 +110,18 @@ function actionsOf(order, caps) {
   const quote = caps.includes('sales.quotations.manage')
   const confirm = caps.includes('sales.orders.confirm')
   const draft = order.state === 'draft'
+  const open = draft || order.state === 'sent'
   const confirmed = order.state === 'confirmed'
   return {
     edit: mine && quote && draft,
-    confirm: mine && confirm && draft && order.lines.some(item => item.kind === 'product'),
-    cancel: mine && ((draft && quote) || (confirmed && !order.locked && confirm)),
-    reopen: mine && confirm && order.state === 'cancelled',
+    confirm: mine && confirm && open && !expired(order) && order.lines.some(item => item.kind === 'product'),
+    cancel: mine && ((open && quote) || (confirmed && !order.locked && confirm)),
+    reopen: mine && confirm && (order.state === 'cancelled' || (order.state === 'sent' && !order.answer?.answer)),
     lock: mine && confirm && confirmed && !order.locked,
     unlock: mine && confirm && confirmed && order.locked,
     duplicate: quote,
     assign: staff && caps.includes('sales.documents.assign'),
+    send: mine && quote && !expired(order) && (draft || (order.state === 'sent' && !order.answer?.answer)),
   }
 }
 
@@ -101,7 +130,7 @@ function dumpItem(order) {
   const untaxed = round2(lines.reduce((sum, item) => sum + item.amount_untaxed, 0))
   const tax = round2(lines.reduce((sum, item) => sum + item.amount_tax, 0))
   return {
-    id: order.id, number: order.number, state: order.state, locked: order.locked, source: order.source,
+    id: order.id, number: order.number, state: order.state, locked: order.locked, expired: expired(order), source: order.source, customer_answer: order.answer ?? null,
     customer: { id: order.customer_id, name: order.customer_name },
     salesperson: order.salesperson, validity_date: order.validity_date, date: order.date, terms: order.terms, currency: CURRENCY,
     amount_untaxed: untaxed, amount_tax: tax, amount_total: round2(untaxed + tax),
@@ -211,9 +240,20 @@ function create(body, caps) {
 const MOVES = {
   confirm: { allowed: actions => actions.confirm, apply: order => { order.state = 'confirmed' } },
   cancel: { allowed: actions => actions.cancel, apply: order => { order.state = 'cancelled' } },
-  reopen: { allowed: actions => actions.reopen, apply: order => { order.state = 'draft' } },
+  reopen: { allowed: actions => actions.reopen, apply: order => { order.state = 'draft'; order.answer = null } },
   lock: { allowed: actions => actions.lock, apply: order => { order.locked = true } },
   unlock: { allowed: actions => actions.unlock, apply: order => { order.locked = false } },
+}
+
+/** Mails the quotation (how the customer may answer is read from the settings now); the refusal, or null when it was sent. */
+function sendQuotation(order, caps) {
+  if (expiredOpen(order)) return refusal(422, 'quotation_expired', 'the quotation has expired')
+  if (!actionsOf(order, caps).send) return refusal(403, 'transition_forbidden', 'send is not allowed now')
+  if (!order.lines.some(item => item.kind === 'product')) return invalid('lines', 'a quotation needs a product line to be sent')
+  if (!findMockCustomer(order.customer_id)?.email) return refusal(422, 'customer_email_missing', 'the customer has no email address')
+  order.state = 'sent'
+  order.answer = { ...waiting(settings.customer_answer), acceptance_confirms: settings.acceptance_confirms }
+  return null
 }
 
 function updateSettings(body, manage) {
@@ -224,20 +264,14 @@ function updateSettings(body, manage) {
   if ('validity_days' in body) { if (!Number.isInteger(body.validity_days) || body.validity_days < 0 || body.validity_days > 3650) return invalid('validity_days'); next.validity_days = body.validity_days }
   if ('discount_limit_percent' in body) { const value = body.discount_limit_percent; if (!Number.isInteger(value) || value < 0 || value > 100) return invalid('discount_limit_percent'); next.discount_limit_percent = value }
   if ('default_terms' in body) { if (typeof body.default_terms !== 'string') return invalid('default_terms'); next.default_terms = body.default_terms }
+  if ('customer_answer' in body) { if (!['none', 'accept', 'accept_and_sign'].includes(body.customer_answer)) return invalid('customer_answer'); next.customer_answer = body.customer_answer }
+  if ('acceptance_confirms' in body) { if (typeof body.acceptance_confirms !== 'boolean') return invalid('acceptance_confirms'); next.acceptance_confirms = body.acceptance_confirms }
   settings = { ...next, revision: settings.revision + 1 }
   return { status: 200, body: { ...settings, can_manage: true } }
 }
 
 /** Answers a sales request and returns true; any other path is not this stub's. */
 export async function handleSales(req, res, path, url, { json, readBody }) {
-  if (path === RESET_PATH && req.method === 'POST') {
-    orders = freshOrders()
-    settings = freshSettings()
-    nextOrderId = 100
-    nextLineId = 1000
-    json(res, 200, {})
-    return true
-  }
   const record = path.match(RECORD_PATH)
   if (!(path === LIST_PATH || path === SETTINGS_PATH || path === SALESPEOPLE_PATH || record)) return false
   const caps = capabilities(req.headers.cookie)
@@ -288,7 +322,17 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
     send({ status: 200, body: dump(order, caps) })
     return true
   }
+  if (action === 'pdf' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="${order.number}.pdf"` })
+    res.end(PDF_BYTES)
+    return true
+  }
   if (req.method !== (action ? 'POST' : 'PATCH')) return false
+  if (action === 'send') {
+    if (!need('sales.quotations.manage')) return true
+    send(sendQuotation(order, caps) ?? { status: 200, body: dump(order, caps) })
+    return true
+  }
   if (action === 'duplicate') {
     if (!need('sales.quotations.manage')) return true
     const lines = order.lines.map(({ id: _id, unit_price: _price, ...rest }) => rest)
@@ -306,7 +350,8 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
   }
   if (action) {
     const move = MOVES[action]
-    if (!move.allowed(actionsOf(order, caps))) send(refusal(403, 'transition_forbidden', `${action} is not allowed now`))
+    if (action === 'confirm' && expiredOpen(order)) send(refusal(422, 'quotation_expired', 'the quotation has expired'))
+    else if (!move.allowed(actionsOf(order, caps))) send(refusal(403, 'transition_forbidden', `${action} is not allowed now`))
     else { move.apply(order); send({ status: 200, body: dump(order, caps) }) }
     return true
   }
@@ -317,5 +362,83 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
   if (parsed.failure) return send(parsed.failure), true
   Object.assign(order, parsed.values)
   send({ status: 200, body: dump(order, caps) })
+  return true
+}
+
+const publicLine = stored => {
+  const { id: _id, product: _product, ...rest } = dumpLine(stored)
+  return rest
+}
+
+/** The quotation as its customer reads it: the same document, as the link holder's contract describes it. */
+function publicQuotation(order) {
+  const item = dumpItem(order)
+  const open = order.state === 'sent' && !expired(order) && !order.answer.answer && order.answer.mode !== 'none'
+  return {
+    id: order.id, number: order.number, state: order.state, expired: item.expired, company_name: 'ليوان', customer_name: order.customer_name, date: order.date,
+    validity_date: order.validity_date, terms: order.terms, currency: CURRENCY, amount_untaxed: item.amount_untaxed, amount_tax: item.amount_tax,
+    amount_total: item.amount_total, lines: order.lines.map(publicLine), answer_mode: order.answer.mode, answer: order.answer.answer,
+    answered_at: order.answer.answered_at, signed_by: order.answer.signed_by, can_accept: open, can_decline: open,
+  }
+}
+
+/** The signature a customer drew, or the refusal: required in mode `accept_and_sign` and absent otherwise. */
+function checkSignature(order, body) {
+  const signing = order.answer.mode === 'accept_and_sign'
+  if (!signing) return 'signed_by' in body || 'signature' in body ? invalid('signature', 'a signature is not asked for') : null
+  if (typeof body.signed_by !== 'string' || !body.signed_by.trim() || typeof body.signature !== 'string') return refusal(422, 'signature_required', 'the name and the signature are required')
+  const bytes = /^[A-Za-z0-9+/]+={0,2}$/.test(body.signature) ? Buffer.from(body.signature, 'base64') : null
+  if (body.signed_by.length > 120 || !bytes || bytes.length > SIGNATURE_MAX_BYTES || !body.signature.startsWith(PNG_BASE64_PREFIX)) return refusal(422, 'signature_invalid', 'the signature is not a small PNG')
+  return null
+}
+
+function answerQuotation(order, action, body) {
+  if (order.answer.answer) return refusal(422, 'already_answered', 'the quotation was already answered')
+  if (expired(order)) return refusal(422, 'quotation_expired', 'the quotation has expired')
+  if (!publicQuotation(order).can_accept) return refusal(422, 'answer_not_allowed', 'the quotation cannot be answered')
+  const answeredAt = new Date().toISOString()
+  if (action === 'decline') {
+    if (typeof body.reason === 'string' && body.reason.length > 1000) return invalid('reason')
+    Object.assign(order.answer, { answer: 'declined', answered_at: answeredAt, decline_reason: body.reason?.trim() || null })
+  } else {
+    const failure = checkSignature(order, body)
+    if (failure) return failure
+    Object.assign(order.answer, { answer: 'accepted', answered_at: answeredAt, signed_by: body.signed_by?.trim() ?? null })
+    if (order.answer.acceptance_confirms) order.state = 'confirmed'
+  }
+  return null
+}
+
+/** The routes of the customer's quotation link: no session, the access token `tok-<id>` is the only credential. */
+export async function handlePublicSales(req, res, path, url, { json, readBody }) {
+  if (path === RESET_PATH && req.method === 'POST') {
+    orders = [...freshOrders(), ...sentOrders()]
+    settings = freshSettings()
+    nextOrderId = 100
+    nextLineId = 1000
+    json(res, 200, {})
+    return true
+  }
+  const route = PUBLIC_PATH.exec(path)
+  if (!route) return false
+  const [, rawId, action] = route
+  let body = {}
+  if (req.method === 'POST') {
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+  }
+  const token = req.method === 'POST' ? body.access_token : url.searchParams.get('access_token')
+  const order = orders.find(candidate => candidate.id === Number(rawId) && candidate.answer)
+  if (!order || token !== `tok-${order.id}`) {
+    json(res, 404, { code: 'not_found', message: 'not found' })
+    return true
+  }
+  if (!action && req.method === 'GET') json(res, 200, publicQuotation(order))
+  else if (action === 'pdf' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="${order.number}.pdf"` })
+    res.end(PDF_BYTES)
+  } else if ((action === 'accept' || action === 'decline') && req.method === 'POST') {
+    const failure = answerQuotation(order, action, body)
+    json(res, failure?.status ?? 200, failure?.body ?? publicQuotation(order))
+  } else return false
   return true
 }
