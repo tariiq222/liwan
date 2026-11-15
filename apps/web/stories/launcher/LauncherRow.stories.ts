@@ -17,5 +17,5 @@ type Story = StoryObj<typeof meta>
 
 export const Unpinned: Story = { name: 'غير مثبّت' }
 export const Pinned: Story = { name: 'مثبّت', args: { pinned: true } }
-export const AtLimit: Story = { name: 'عند حد التثبيت', args: { pinDisabled: true } }
+export const PinPending: Story = { name: 'قبل جاهزية الصفحة', args: { pinPending: true } }
 export const AlwaysInSidebar: Story = { name: 'ثابت في القائمة', args: { card: { ...meta.args.card, pinnable: false } } }

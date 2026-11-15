@@ -82,6 +82,21 @@
 .liwan-side-swap-enter-from { opacity: 0; translate: calc(var(--liwan-motion-inline-distance) * var(--liwan-inline-sign)) 0; }
 .liwan-side-swap[data-mode="global"].liwan-side-swap-enter-from { translate: calc(var(--liwan-motion-inline-distance) * var(--liwan-inline-sign) * -1) 0; }
 .liwan-side-body::-webkit-scrollbar { display: none; }
+/* The application list dissolves at an edge only when rows are hidden past it. A scroll-driven animation on the scroller itself
+   grows --side-fade-start over the first 28px scrolled and shrinks --side-fade-end over the last 28px, so a list that fits
+   (no scroll range, the animations do not run) keeps both at 0 and shows no fade. Browsers without scroll timelines show the plain clip. */
+@property --side-fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --side-fade-end { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes liwan-side-fade-start { to { --side-fade-start: 28px; } }
+@keyframes liwan-side-fade-end { from { --side-fade-end: 28px; } to { --side-fade-end: 0px; } }
+@supports (animation-timeline: scroll()) {
+  .liwan-side-body {
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--side-fade-start), #000 calc(100% - var(--side-fade-end)), transparent 100%);
+    animation: liwan-side-fade-start linear both, liwan-side-fade-end linear both;
+    animation-timeline: scroll(self block), scroll(self block);
+    animation-range: 0 28px, calc(100% - 28px) 100%;
+  }
+}
 .liwan-side-footer { display: grid; flex: none; gap: 2px; margin-block-start: auto; padding-block-start: 12px; border-block-start: 1px solid var(--liwan-rail-border); }
 .liwan-side-org { display: flex; align-items: center; gap: 10px; margin-block-end: 16px; padding: 8px 10px; border: 1px solid var(--liwan-rail-border); border-radius: var(--radius-control); background: var(--ui-bg); font-size: var(--text-sm); font-weight: 600; }
 .liwan-side-org [data-slot="initial"] { display: grid; width: 28px; height: 28px; flex: none; place-items: center; overflow: hidden; border-radius: var(--radius-tile); background: var(--ui-bg-muted); color: var(--liwan-ink); font-size: var(--text-sm); font-weight: 700; }

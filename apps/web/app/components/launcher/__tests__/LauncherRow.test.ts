@@ -7,7 +7,7 @@ const component = resolve(__dirname, '../LauncherRow.vue')
 const UTooltip = Vue.defineComponent({ props: { text: { type: String, default: '' } }, setup: (_, { slots }) => () => Vue.h('span', slots.default?.()) })
 const UButton = Vue.defineComponent({ inheritAttrs: false, props: { to: { type: String, default: '' } }, setup: (props, { attrs, slots }) => () => Vue.h(props.to ? 'a' : 'button', { ...attrs, href: props.to || undefined }, slots.default?.()) })
 const card = (extra: Record<string, unknown> = {}) => ({ id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder', to: '/projects', pinnable: true, category: 'team', plan: 'addon', surface: 'indigo', figures: [], ...extra })
-const messages = { 'nav.projects': 'المشاريع', 'launcher.open': 'فتح التطبيق', 'launcher.openShort': 'فتح', 'launcher.pin': 'تثبيت', 'launcher.unpin': 'إزالة', 'launcher.pinLimit': 'الحد' }
+const messages = { 'nav.projects': 'المشاريع', 'launcher.open': 'فتح التطبيق', 'launcher.openShort': 'فتح', 'launcher.pin': 'تثبيت', 'launcher.unpin': 'إزالة' }
 const render = (props: Record<string, unknown>) => renderShared(component, props, {}, { messages, stubs: { ...DEFAULT_STUBS, UTooltip, UButton } })
 
 describe('LauncherRow', () => {
@@ -25,14 +25,14 @@ describe('LauncherRow', () => {
     expect(html).toContain('liwan-app-tile')
   })
 
-  it('has a pin that says whether it is pinned, and is disabled at the limit', async () => {
+  it('has a pin that says whether it is pinned, and is disabled until the page is ready', async () => {
     const free = await render({ card: card() })
     expect(free).toContain('aria-label="تثبيت: المشاريع"')
     expect(free).toMatch(/aria-pressed="false"/)
     const pinned = await render({ card: card(), pinned: true })
     expect(pinned).toContain('aria-label="إزالة: المشاريع"')
     expect(pinned).toMatch(/aria-pressed="true"/)
-    expect(await render({ card: card(), pinDisabled: true })).toContain('disabled')
+    expect(await render({ card: card(), pinPending: true })).toContain('disabled')
   })
 
   it('has no pin for an application the sidebar always shows', async () => {

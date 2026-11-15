@@ -3,7 +3,7 @@ import type { AppCardModel } from '@/composables/useAppCards'
 
 // One application on the all-applications page: its tile, name and tagline, a pin for the sidebar list (a core
 // application, which the sidebar's icon row always shows, takes none) and the button that opens it.
-const props = defineProps<{ card: AppCardModel; description?: string; pinned?: boolean; pinDisabled?: boolean }>()
+const props = defineProps<{ card: AppCardModel; description?: string; pinned?: boolean; pinPending?: boolean }>()
 const emit = defineEmits<{ togglePin: [] }>()
 const { t } = useI18n()
 const id = useId()
@@ -17,8 +17,8 @@ const id = useId()
       <p v-if="props.description" class="text-xs leading-relaxed text-muted">{{ props.description }}</p>
     </div>
     <div class="flex shrink-0 items-center gap-2">
-      <UTooltip v-if="props.card.pinnable" :text="t(props.pinDisabled && !props.pinned ? 'launcher.pinLimit' : props.pinned ? 'launcher.unpin' : 'launcher.pin')">
-        <UButton type="button" square size="sm" color="neutral" :variant="props.pinned ? 'soft' : 'ghost'" :icon="props.pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" :disabled="props.pinDisabled" data-testid="launcher-pin" :aria-pressed="props.pinned" :aria-label="`${t(props.pinned ? 'launcher.unpin' : 'launcher.pin')}: ${t(props.card.labelKey)}`" @click="emit('togglePin')" />
+      <UTooltip v-if="props.card.pinnable" :text="t(props.pinned ? 'launcher.unpin' : 'launcher.pin')">
+        <UButton type="button" square size="sm" color="neutral" :variant="props.pinned ? 'soft' : 'ghost'" :icon="props.pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" :disabled="props.pinPending" data-testid="launcher-pin" :aria-pressed="props.pinned" :aria-label="`${t(props.pinned ? 'launcher.unpin' : 'launcher.pin')}: ${t(props.card.labelKey)}`" @click="emit('togglePin')" />
       </UTooltip>
       <UButton :to="props.card.to" size="sm" color="neutral" variant="soft" data-testid="launcher-open" :aria-label="`${t('launcher.open')}: ${t(props.card.labelKey)}`">{{ t('launcher.openShort') }}</UButton>
     </div>
