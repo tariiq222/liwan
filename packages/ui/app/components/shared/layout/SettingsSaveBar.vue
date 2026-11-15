@@ -40,6 +40,9 @@ const busy = computed(() => !hydrated.value || saving.value)
       />
       <UButton
         type="button"
+        color="neutral"
+        variant="solid"
+        class="bg-default text-highlighted hover:bg-elevated disabled:bg-default aria-disabled:bg-default disabled:opacity-60 focus-visible:outline-default"
         :label="t('app.saveChanges')"
         :loading="saving"
         :disabled="busy"
