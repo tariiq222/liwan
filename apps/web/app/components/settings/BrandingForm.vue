@@ -42,37 +42,39 @@ const { draft, state, save, revert, reload } = useSettingsForm<Branding, { prima
 const locked = computed(() => !hydrated.value || !editable.value || state.value.saving || state.value.reloading)
 const primaryValid = computed(() => normalizeHex(draft.value.primary_color) !== null)
 const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? DEFAULT_COMPANY_COLOR)
+const isSelected = (color: string) => normalizeHex(draft.value.primary_color) === normalizeHex(color)
 </script>
 
 <template>
   <SharedSettingsCard id="branding" v-bind="state" data-testid="branding-form" :title="t('settings.branding.color')" :description="t('settings.branding.managedIdentity')" :can-edit="editable" @save="save" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" name="branding-color" :label="t('settings.branding.color')" :description="t('settings.branding.primaryHint')" :error="draft.primary_color && !primaryValid ? t('settings.branding.errors.invalidColor') : undefined">
-      <div class="flex items-center gap-2">
-        <UInput id="branding-color" v-model="draft.primary_color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!primaryValid" :disabled="locked" />
-        <UPopover>
-          <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="locked">
-            <span class="size-5 rounded-inner border border-default" :style="{ backgroundColor: swatchColor }" />
-          </UButton>
-          <template #content><UColorPicker v-model="draft.primary_color" class="p-3" /></template>
-        </UPopover>
-      </div>
-    </UFormField>
-    <SharedSettingRow :label="t('settings.branding.presets.label')">
-      <div class="flex flex-wrap gap-2" role="group" :aria-label="t('settings.branding.presets.label')">
-        <UButton
-          v-for="preset in PRESETS"
-          :key="preset.key"
-          type="button"
-          color="neutral" variant="outline"
-          data-testid="branding-preset"
-          :aria-label="t(preset.labelKey)"
-          :disabled="locked"
-          @click="draft.primary_color = preset.color"
-        >
-          <span class="size-4 rounded-full border border-default" :style="{ backgroundColor: preset.color }" aria-hidden="true" />
-          {{ t(preset.labelKey) }}
-        </UButton>
-      </div>
-    </SharedSettingRow>
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField data-span="full" name="branding-color" :label="t('settings.branding.colorLabel')" :error="draft.primary_color && !primaryValid ? t('settings.branding.errors.invalidColor') : undefined">
+        <div class="flex flex-wrap items-center gap-2">
+          <UPopover>
+            <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="locked">
+              <span class="size-5 rounded-inner border border-default" :style="{ backgroundColor: swatchColor }" />
+            </UButton>
+            <template #content><UColorPicker v-model="draft.primary_color" class="p-3" /></template>
+          </UPopover>
+          <UInput id="branding-color" v-model="draft.primary_color" data-testid="branding-color" dir="ltr" class="w-40 font-mono" :aria-invalid="!primaryValid" :disabled="locked" />
+          <div class="flex flex-wrap items-center gap-1" role="group" :aria-label="t('settings.branding.presets.label')">
+            <UTooltip v-for="preset in PRESETS" :key="preset.key" :text="t(preset.labelKey)">
+              <button
+                type="button"
+                class="inline-grid size-8 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) disabled:opacity-50"
+                :class="isSelected(preset.color) ? 'ring-2 ring-(--ring) ring-offset-2' : ''"
+                data-testid="branding-preset"
+                :aria-label="t(preset.labelKey)"
+                :aria-pressed="isSelected(preset.color)"
+                :disabled="locked"
+                @click="draft.primary_color = preset.color"
+              >
+                <span class="size-5 rounded-full border border-default" :style="{ backgroundColor: preset.color }" aria-hidden="true" />
+              </button>
+            </UTooltip>
+          </div>
+        </div>
+      </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

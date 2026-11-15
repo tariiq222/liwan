@@ -45,6 +45,10 @@
    height of an input) and its field opens in the next cell; a switch with no dependent field, options that need explanation and file
    pickers stay `SharedSettingRow` rows beside the block. */
 .liwan-setting-rows > .liwan-setting-fields { grid-template-columns: minmax(0, 1fr); align-items: start; }
+/* The label row is one text line (1.25rem) in every field. A help button in the `hint` slot sits right after the label text, centred on that line
+   and overflowing it (the button is 24px), so a field with a button never pushes its control below its neighbours. */
+.liwan-setting-fields [data-slot="labelWrapper"] { justify-content: flex-start; align-items: center; gap: 4px; block-size: 1.25rem; }
+.liwan-setting-fields [data-slot="hint"] { display: inline-flex; align-items: center; }
 .liwan-setting-fields :is(input, textarea):focus::placeholder { color: transparent; }
 /* An Arabic hint inside a left-to-right input (number, email) still reads as Arabic, from the right edge. */
 .liwan-setting-fields input[dir="ltr"]:placeholder-shown { direction: rtl; text-align: start; }

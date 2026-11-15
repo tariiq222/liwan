@@ -38,6 +38,7 @@
       "manageHint": "Open a linked record to manage files using that application’s permissions."
     },
     "branding": {
+      "colorLabel": "Color",
       "color": "Document and report color",
       "saved": "Document color saved",
       "errors": {
@@ -51,8 +52,7 @@
         "teal": "Teal",
         "amber": "Amber"
       },
-      "managedIdentity": "Name and logo are on the Company profile page. Here is the company colour for documents and reports only, not the interface.",
-      "primaryHint": "Used in invoices, reports and printouts only. It does not change the interface colors."
+      "managedIdentity": "Name and logo are on the Company profile page. Here is the company colour for documents and reports only, not the interface."
     },
     "company": {
       "completeness": "{done} of {total} company details completed",
