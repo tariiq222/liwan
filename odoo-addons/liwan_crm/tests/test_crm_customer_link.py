@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """A lead is linked to a customer by staff and at the latest when it is won, and a lead edit never writes a customer."""
+from unittest.mock import patch
+
 from odoo.tests import tagged
 
 from .common import LiwanCrmCase
@@ -162,3 +164,116 @@ class TestCrmCustomerLink(LiwanCrmCase):
         lead.flush_recordset()
         known.invalidate_recordset()
         self.assertEqual((known.phone_sanitized, known.email), (PHONE, 'known@example.test'))
+
+    # Who sees the customer
+
+    def test_the_customer_name_reaches_only_a_caller_who_may_pick_a_customer(self):
+        self.set_visibility('all')
+        known = self.customer()
+        lead = self.lead(partner_id=known.id)
+        reader = self.custom_user('crm_ref_reader', ['crm.leads.read'])
+        picker = self.custom_user('crm_ref_picker', ['crm.leads.read', 'customers.read'])
+        expected = {reader: None, picker: {'id': known.id, 'name': 'Known'}, self.agent: {'id': known.id, 'name': 'Known'}}
+        for user, customer in expected.items():
+            self.as_user(user)
+            one = self.api('GET', f'{URL}/{lead.id}').json()
+            listed = next(item for item in self.api('GET', URL).json()['items'] if item['id'] == lead.id)
+            self.assertEqual((one['customer'], listed['customer']), (customer, customer), user.login)
+
+    def test_a_list_resolves_the_customers_of_its_page_once(self):
+        self.set_visibility('all')
+        for index in range(3):
+            phone = f'+96650000010{index}'
+            self.make_lead(self.agent, contact_name=f'Person {index}', phone=phone, partner_id=self.customer(f'Known {index}', phone).id)
+        self.as_user(self.agent)
+        self.api('GET', URL)
+        searches = []
+        original = type(self.env['res.partner']).search
+
+        def counting(records, domain, *args, **kwargs):
+            searches.append(domain)
+            return original(records, domain, *args, **kwargs)
+
+        with patch.object(type(self.env['res.partner']), 'search', counting):
+            items = self.api('GET', URL).json()['items']
+        self.assertEqual(sum(1 for item in items if item['customer']), 3)
+        self.assertEqual(len([d for d in searches if any(leaf[0] == 'liwan_party' for leaf in d if isinstance(leaf, tuple))]), 1)
+
+    # The call body
+
+    def test_a_customer_choice_without_a_sale_is_refused_on_a_call(self):
+        lead = self.lead()
+        outcome = self.env.ref('liwan_crm.outcome_sold')
+        for body in ({'customer_id': 1}, {'create_new': True}):
+            response = self.as_user(self.agent).api('POST', f'{URL}/{lead.id}/calls', json={'outcome_id': outcome.id, **body})
+            self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'), body)
+
+    # A link to a customer the caller cannot see
+
+    def hidden_customer(self):
+        """A customer of another branch that a lead of this one is linked to: shared when linked, moved afterwards."""
+        return self.service._liwan_create({'name': 'Hidden Name', 'phone': '+966500000777'})
+
+    def hide(self, customer):
+        self.env['liwan.customers.settings']._liwan_current().sharing = 'branch'
+        customer.company_id = self.other_company
+
+    def test_a_lead_linked_to_a_hidden_customer_is_never_relinked_and_reveals_nothing(self):
+        hidden = self.hidden_customer()
+        lead = self.lead(partner_id=hidden.id)
+        self.hide(hidden)
+        other = self.customer('Other', '+966500000999')
+        for body in ({}, {'create_new': True}, {'customer_id': other.id}):
+            response = self.link(self.agent, lead, **body)
+            self.assertEqual((response.status_code, response.json()['code']), (409, 'already_linked'), body)
+            self.assertNotIn('Hidden Name', response.text)
+            self.assertNotIn(str(hidden.id), response.text.replace(str(lead.id), ''))
+        self.assertEqual(lead.partner_id, hidden)
+        self.assertIsNone(self.as_user(self.agent).api('GET', f'{URL}/{lead.id}').json()['customer'])
+
+    def test_winning_a_lead_linked_to_a_hidden_customer_keeps_the_link_and_names_nothing(self):
+        hidden = self.hidden_customer()
+        lead = self.lead(partner_id=hidden.id)
+        self.hide(hidden)
+        response = self.won(self.agent, lead)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIsNone(response.json()['customer'])
+        self.assertNotIn('Hidden Name', response.text)
+        self.assertEqual((lead.won_status, lead.partner_id), ('won', hidden))
+
+    def test_winning_a_lead_linked_to_a_hidden_customer_with_a_choice_is_refused_before_any_write(self):
+        hidden = self.hidden_customer()
+        lead = self.lead(partner_id=hidden.id)
+        self.hide(hidden)
+        other = self.customer('Other', '+966500000999')
+        for body in ({'create_new': True}, {'customer_id': other.id}):
+            response = self.won(self.agent, lead, **body)
+            self.assertEqual((response.status_code, response.json()['code']), (409, 'already_linked'), body)
+            self.assertNotIn('Hidden Name', response.text)
+            self.assertEqual((lead.won_status, lead.partner_id, lead.liwan_package_id.id), ('pending', hidden, False))
+
+    def test_a_lead_linked_to_an_archived_customer_is_replaced(self):
+        old = self.customer('Old', '+966500000444')
+        lead = self.lead(partner_id=old.id)
+        old.active = False
+        other = self.customer('Other', '+966500000999')
+        self.assertEqual(self.link(self.agent, lead, customer_id=other.id).status_code, 200)
+        self.assertEqual(lead.partner_id, other)
+
+    # What stock Odoo does with the lead's own data once it has a customer (pinned, not decided)
+
+    def test_linking_a_lead_sets_its_contact_data_from_the_customer_and_a_customer_edit_follows(self):
+        known = self.customer('Known Co', '+966500000321', email='known@example.test')
+        lead = self.lead(email_from='lead@example.test')
+        self.assertEqual((lead.contact_name, lead.email_from, lead.phone), ('Lead person', 'lead@example.test', PHONE))
+        self.assertEqual(self.link(self.agent, lead, customer_id=known.id).status_code, 200)
+        lead.invalidate_recordset()
+        self.assertEqual(
+            (lead.contact_name, lead.email_from, lead.phone), ('Known Co', 'known@example.test', '+966500000321'),
+        )
+        self.service._liwan_update(known, {'name': 'Renamed Co', 'phone': '+966500000322', 'email': 'new@example.test'})
+        lead.invalidate_recordset()
+        # The email and the phone follow the customer; the contact name keeps the value copied at the link.
+        self.assertEqual(
+            (lead.contact_name, lead.email_from, lead.phone), ('Known Co', 'new@example.test', '+966500000322'),
+        )

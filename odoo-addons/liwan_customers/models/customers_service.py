@@ -78,6 +78,27 @@ class LiwanCustomersService(models.AbstractModel):
             code = 'forbidden'
             raise LiwanAccessRule(code, 'picking a customer is not allowed', status=403)
 
+    @api.model
+    def _liwan_link_ref(self, partner):
+        """``{id, name}`` of the customer a record is linked to, for a caller who may pick one (``_liwan_can_pick``);
+        none for another caller, whose view of a customer is the directory's gate, or when there is no ``partner``."""
+        if not partner or not self._liwan_can_pick():
+            return None
+        return {'id': partner.id, 'name': partner.name}
+
+    @api.model
+    def _liwan_visible_parties(self, partners):
+        """The active parties among ``partners`` the caller sees: a record's link to any other is read as no link."""
+        return self.env['res.partner'].search([('id', 'in', partners.ids), ('liwan_party', '=', True)])
+
+    @api.model
+    def _liwan_is_hidden(self, partner):
+        """Whether ``partner`` is set but the caller sees no record of it, archived included (another branch's customer).
+        An archived or erased customer is a dead link and is not hidden: its record still replaces it."""
+        if not partner:
+            return False
+        return not self.env['res.partner'].with_context(active_test=False).search_count([('id', '=', partner.id)])
+
     # ---- phone ----
 
     @api.model

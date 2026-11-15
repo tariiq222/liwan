@@ -2,6 +2,7 @@
 from odoo import api, fields, models
 
 from .constants import AUTHENTICATED_KINDS
+from odoo.addons.liwan_api.controllers.common import ApiError
 
 
 class LiwanInboxContact(models.Model):
@@ -29,17 +30,20 @@ class LiwanInboxContact(models.Model):
     def _liwan_customer(self, customer_id=None, create_new=False):
         """The customer of this contact, resolved by liwan.customers.service as the caller and linked on first use.
 
-        A contact linked to an active party the caller sees keeps it. Otherwise (no link, or a link to a partner that
-        is no party, is archived or is hidden) ``customer_id`` names an existing customer, ``create_new`` asks for a
+        A contact linked to an active party the caller sees keeps it, and one linked to a customer the caller cannot
+        see (another branch's) is 409 ``already_linked``, revealing nothing of it. Otherwise (no link, or a dead link
+        to a partner that is no party or is archived) ``customer_id`` names an existing customer, ``create_new`` asks for a
         new one, and without either a customer is made from the contact's name and phone unless customers with that
         phone exist, which answers 409 ``conflict`` with them. A contact with no phone (TikTok) is made from its name
         alone.
         """
         self.ensure_one()
+        service = self.env['liwan.customers.service']
+        if service._liwan_is_hidden(self.partner_id):
+            raise ApiError(409, 'already_linked', 'the contact is already linked to a customer')
         linked = self._liwan_linked_customer()
         if linked:
             return linked
-        service = self.env['liwan.customers.service']
         values = None if customer_id is not None else self._liwan_customer_values()
         self.partner_id = service._liwan_resolve(customer_id=customer_id, values=values, create_new=create_new)
         return self.partner_id
@@ -55,9 +59,7 @@ class LiwanInboxContact(models.Model):
 
     def _liwan_linked_customer(self):
         """The linked partner when it is an active party the caller sees, else no partner."""
-        if not self.partner_id:
-            return self.partner_id
-        return self.env['res.partner'].search([('id', '=', self.partner_id.id), ('liwan_party', '=', True)], limit=1)
+        return self.env['liwan.customers.service']._liwan_visible_parties(self.partner_id)
 
     def _liwan_customer_values(self):
         """The identity of a new customer made from this contact; its phone in E.164, read as a channel address."""

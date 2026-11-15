@@ -26,7 +26,7 @@ export const CrmOpportunitySchema = z.strictObject({
   stage: RefSchema.nullable(),
   user: RefSchema.nullable(),
   source: RefSchema.nullable(),
-  // The customer the opportunity is linked to; null when unlinked or when the caller cannot see it.
+  // The customer the opportunity is linked to; null when unlinked, when the caller cannot see it or may not pick a customer.
   customer: CustomerLinkRefSchema.nullable(),
   package: RefSchema.nullable(),
   lost_reason: RefSchema.nullable(),

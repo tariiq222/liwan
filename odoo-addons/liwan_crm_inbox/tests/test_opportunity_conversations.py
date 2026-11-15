@@ -204,3 +204,19 @@ class TestOpportunityConversations(CrmInboxCase):
         listed = self.api('GET', LIST.format(lead.id)).json()
         self.assertEqual(([item['id'] for item in listed['items']], listed['total']), ([mine.id], 1))
         self.settings.visibility_policy = 'all'
+
+    def test_a_customer_the_caller_cannot_see_is_not_named_in_the_conflict(self):
+        service = self.env['liwan.customers.service']
+        self.env['liwan.customers.settings']._liwan_current().sharing = 'branch'
+        other_company = self.env['res.company'].create({'name': 'Other conflict company'})
+        hidden = service.with_company(other_company)._liwan_create({'name': 'Hidden Name', 'phone': '+966501110009'})
+        second = service._liwan_create({'name': 'Second customer', 'phone': '+966501110010'})
+        conversation = self.make_conversation()
+        lead = self.make_lead(self.rep)
+        conversation.contact_id.partner_id, lead.partner_id = hidden, second
+        refused = self.as_user(self.rep).link(conversation, lead)
+        self.assertEqual((refused.status_code, refused.json()['code']), (409, 'conflict'), refused.text)
+        self.assertEqual(refused.json()['details'], {
+            'contact_customer': None, 'opportunity_customer': {'id': second.id, 'name': 'Second customer'},
+        })
+        self.assertNotIn('Hidden Name', refused.text)

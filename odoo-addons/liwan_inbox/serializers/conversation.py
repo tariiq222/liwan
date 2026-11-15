@@ -17,10 +17,11 @@ def dump_contact(contact):
 
 
 def dump_contact_detail(contact):
-    """A contact with the customer it is linked to (``{id, name}``, none when unlinked or when the caller does not see
-    it); read on the contact panel only, so a list of conversations does not search a customer per row."""
+    """A contact with the customer it is linked to (``{id, name}``, none when unlinked, when the caller does not see it
+    or when the caller may not pick a customer); read on the contact panel only, so a list of conversations does not
+    search a customer per row."""
     customer = contact._liwan_linked_customer()
-    return {**dump_contact(contact), 'customer': {'id': customer.id, 'name': customer.name} if customer else None}
+    return {**dump_contact(contact), 'customer': contact.env['liwan.customers.service']._liwan_link_ref(customer)}
 
 
 def dump_conversation(conversation):

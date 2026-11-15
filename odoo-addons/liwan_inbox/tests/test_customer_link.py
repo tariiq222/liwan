@@ -148,3 +148,36 @@ class TestLinkRoute(LiwanInboxCase):
         self.login(self.agent)
         self.assertError(self.api('POST', self.path(), {}), 409, 'contact_erased')
         self.assertFalse(self.reload(self.contact).partner_id)
+
+    def test_the_customer_name_reaches_only_a_caller_who_may_pick_a_customer(self):
+        known = self.customer('Known', '+966500000555')
+        self.contact.partner_id = known
+        path = f'/api/v1/inbox/contacts/{self.contact.id}'
+        self.login(self.reader_only)
+        self.assertIsNone(self.get(path).json()['customer'])
+        self.login(self.agent)
+        self.assertEqual(self.get(path).json()['customer'], {'id': known.id, 'name': 'Known'})
+
+    def test_a_contact_linked_to_a_hidden_customer_is_never_relinked_and_reveals_nothing(self):
+        self.env['liwan.customers.settings']._liwan_current().sharing = 'branch'
+        other_company = self.env['res.company'].create({'name': 'Other hidden company'})
+        hidden = self.service.with_company(other_company)._liwan_create({'name': 'Hidden Name', 'phone': '+966500000666'})
+        other = self.customer('Other', '+966500000667')
+        self.contact.partner_id = hidden
+        self.login(self.agent)
+        for body in ({}, {'create_new': True}, {'customer_id': other.id}):
+            with self.subTest(body=body):
+                result = self.api('POST', self.path(), body)
+                self.assertError(result, 409, 'already_linked')
+                self.assertNotIn('Hidden Name', result.text)
+        self.assertEqual(self.reload(self.contact).partner_id, hidden)
+        self.assertIsNone(self.get(f'/api/v1/inbox/contacts/{self.contact.id}').json()['customer'])
+
+    def test_a_contact_linked_to_an_archived_customer_is_replaced(self):
+        old = self.customer('Old', '+966500000668')
+        other = self.customer('Other', '+966500000669')
+        self.contact.partner_id = old
+        old.active = False
+        self.login(self.agent)
+        self.assertEqual(self.api('POST', self.path(), {'customer_id': other.id}).status_code, 200)
+        self.assertEqual(self.reload(self.contact).partner_id, other)

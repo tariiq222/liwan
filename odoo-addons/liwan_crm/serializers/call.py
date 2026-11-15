@@ -5,6 +5,7 @@ from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso, ref
 from odoo.addons.liwan_crm.serializers.lists import parse_price
 from odoo.addons.liwan_crm.serializers.opportunity import parse_id
+from odoo.addons.liwan_customers.serializers.link import parse_customer_choice
 
 NOTE_MAX = 2000
 DURATION_MAX_MINUTES = 1440
@@ -43,24 +44,14 @@ def _parse_sale(payload):
     if missing:
         raise ApiError(422, 'invalid', 'field is required', field=missing[0])
     discount = payload.get('discount_percent')
+    customer_id, create_new = parse_customer_choice(payload)
     return {
-        **parse_customer_choice(payload),
+        'customer_id': customer_id,
+        'create_new': create_new,
         'package_id': parse_id(payload['package_id'], 'package_id'),
         'final_price': parse_price(payload['final_price'], 'final_price'),
         'discount_percent': None if discount is None else _number(discount, 'discount_percent', 0, 100),
     }
-
-
-def parse_customer_choice(payload):
-    """``customer_id`` (an existing customer, or None) and ``create_new`` (``True`` asks for a new one) of a body;
-    naming a customer and asking for a new one together is a 422."""
-    customer_id = parse_id(payload['customer_id'], 'customer_id') if payload.get('customer_id') is not None else None
-    create_new = payload.get('create_new', False)
-    if create_new is not False and create_new is not True:
-        raise ApiError(422, 'invalid', 'must be true or false', field='create_new')
-    if customer_id is not None and create_new:
-        raise ApiError(422, 'invalid', 'name a customer or ask for a new one, not both', field='create_new')
-    return {'customer_id': customer_id, 'create_new': create_new}
 
 
 def parse_sale_body(payload):
@@ -77,12 +68,15 @@ def parse_call_body(payload):
     if note is not None and (not isinstance(note, str) or len(note) > NOTE_MAX):
         raise ApiError(422, 'invalid', f'must be text of up to {NOTE_MAX} characters', field='note')
     duration = payload.get('duration_minutes')
+    sale = _parse_sale(payload) if any(name in payload for name in SALE_FIELDS) else None
+    if sale is None and any(name in payload for name in CUSTOMER_FIELDS):
+        raise ApiError(422, 'invalid', 'a customer choice travels with a sale', field=next(n for n in CUSTOMER_FIELDS if n in payload))
     return {
         'outcome_id': parse_id(payload['outcome_id'], 'outcome_id'),
         'note': note or None,
         'duration': None if duration is None else _number(duration, 'duration_minutes', 0, DURATION_MAX_MINUTES),
         'lost_reason_id': parse_id(payload['lost_reason_id'], 'lost_reason_id') if 'lost_reason_id' in payload else None,
-        'sale': _parse_sale(payload) if any(name in payload for name in SALE_FIELDS) else None,
+        'sale': sale,
     }
 
 

@@ -15,7 +15,6 @@ from odoo.addons.liwan_crm.controllers.opportunities import (
     find_opportunity,
     visible_domain,
 )
-from odoo.addons.liwan_crm.serializers.opportunity import dump_customer_ref
 from odoo.addons.liwan_inbox.controllers.helpers import no_content, visible_conversation
 from odoo.addons.liwan_inbox.models.access_service import READ, REPLY
 from odoo.addons.liwan_inbox.serializers.conversation import dump_conversation
@@ -31,18 +30,15 @@ def dump_opportunity_ref(lead):
     }
 
 
-def contact_customer_ref(conversation):
-    customer = conversation.contact_id._liwan_linked_customer()
-    return {'id': customer.id, 'name': customer.name} if customer else None
-
-
 def require_same_customer(conversation, lead):
     """409 ``conflict`` when the contact and the opportunity are linked to different customers; one side without a
     customer is fine, and the link never copies a customer from one side to the other."""
-    contact_customer, lead_customer = conversation.contact_id.partner_id, lead.partner_id
-    if contact_customer and lead_customer and contact_customer != lead_customer:
+    contact = conversation.contact_id
+    if contact.partner_id and lead.partner_id and contact.partner_id != lead.partner_id:
+        service = request.env['liwan.customers.service']
         raise ApiError(409, 'conflict', 'the contact and the opportunity belong to different customers', details={
-            'contact_customer': contact_customer_ref(conversation), 'opportunity_customer': dump_customer_ref(lead),
+            'contact_customer': service._liwan_link_ref(contact._liwan_linked_customer()),
+            'opportunity_customer': service._liwan_link_ref(lead._liwan_linked_customer()),
         })
 
 

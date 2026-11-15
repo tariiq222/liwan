@@ -42,7 +42,7 @@ export const ConversationOpportunityAnswerSchema = ConversationOpportunitySchema
 /** `PUT /inbox/conversations/<id>/opportunity`: links an existing opportunity; nothing is created. */
 export const ConversationOpportunityLinkSchema = z.strictObject({ opportunity_id: z.number().int().positive() })
 
-/** `details` of the 409 `conflict`: the contact and the opportunity belong to different customers. */
+/** `details` of the 409 `conflict`: the contact and the opportunity belong to different customers; a side the caller cannot see or may not pick is null. */
 export const ConversationOpportunityConflictDetailsSchema = z.strictObject({
   contact_customer: CustomerLinkRefSchema.nullable(),
   opportunity_customer: CustomerLinkRefSchema.nullable(),

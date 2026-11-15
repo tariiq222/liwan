@@ -48,7 +48,8 @@ export const InboxContactSchema = z.object({
   erased: z.boolean(),
 }).strict()
 
-// The contact panel's read (`GET`/`PATCH /inbox/contacts/<id>`): the contact with the customer it is linked to.
+// The contact panel read (`GET`/`PATCH /inbox/contacts/<id>`): the contact with the customer it is linked to, null when
+// unlinked, when the caller cannot see it or may not pick a customer.
 export const InboxContactDetailSchema = InboxContactSchema.extend({
   customer: CustomerLinkRefSchema.nullable(),
 }).strict()
