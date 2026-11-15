@@ -1,10 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The Sales agent of the LiwanOS AI and its tools: read tools over existing liwan_sales routes, each with the
 capability its route already checks. A field that is sensitive is listed in ``sensitive_fields`` and never appears in a
-result summary."""
+result summary. The registries belong to liwan_api, so Sales declares its agent without depending on liwan_ai, which offers
+and runs the tools when it is installed."""
 from odoo import api, models
 
-from odoo.addons.liwan_ai.models.tool_registry import PAGE_SCHEMA, read_tool
+from odoo.addons.liwan_api.models.ai_tool_registry import PAGE_SCHEMA, read_tool
 
 OWNER = 'liwan_sales'
 FEATURE = 'sales.enabled'

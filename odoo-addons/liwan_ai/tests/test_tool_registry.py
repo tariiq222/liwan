@@ -57,6 +57,7 @@ class TestAiToolRegistry(AiProbe, TransactionCase):
         self._assert_rejected(self._with(kind='write_light', platform=True, route={'method': 'POST', 'path': '/api/v1/probe/things'}), 'platform')
         self._assert_rejected(self._with(setting='messages_per_user_monthly'), 'setting must be a boolean field')
         self._assert_rejected(self._with(setting='no_such_field'), 'setting must be a boolean field')
+        self._assert_rejected(self._with(setting=['knowledge_enabled']), 'setting must be')
 
     def test_route_must_be_under_api_v1(self):
         self._assert_rejected(self._with(route={'method': 'GET', 'path': '/web/things'}), '/api/v1/')

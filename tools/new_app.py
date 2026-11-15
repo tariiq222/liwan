@@ -3,9 +3,9 @@
 
     python3 -B tools/new_app.py <app> --name-ar <ar> --name-en <en> [--route SLUG] [--root DIR] [--dry-run]
 
-Creates the application's own folders and its AI bridge liwan_<app>_ai (its agent, one read tool and the access
-test) from tools/new_app_templates, makes the three registration edits (tools/arch_layers.json with both addons, the
-platform_v4 catalog tier,
+Creates the application's own folders from tools/new_app_templates, its AI agent with one read tool and the access test
+inside the application (the registries belong to liwan_api, so no bridge to liwan_ai), makes the three registration
+edits (tools/arch_layers.json, the platform_v4 catalog tier,
 packages/contracts/src/index.ts) and runs catalog_check.py --sync-release-copies.
 Nothing is written when any target already exists or any check fails.
 """
@@ -51,7 +51,6 @@ ARCH_LAYERS = 'tools/arch_layers.json'
 PLATFORM_SOLUTION = 'deploy/catalog/solutions/platform_v4.json'
 CONTRACTS_INDEX = 'packages/contracts/src/index.ts'
 APPLICATION_RANK = 4
-BRIDGE_RANK = 5
 
 
 CATALOG_WARNING = (
@@ -146,8 +145,7 @@ def registration_edits(root, tokens):
 
     layers = _load_exact(root, ARCH_LAYERS)
     ranks = layers.get('ranks', {})
-    bridge = f'{addon}_ai'
-    if addon in ranks or bridge in ranks or app in layers.get('web_apps', {}):
+    if addon in ranks or app in layers.get('web_apps', {}):
         msg = f'{app} is already registered in {ARCH_LAYERS}'
         raise ScaffoldError(msg)
     rebuilt, placed = {}, False
@@ -159,11 +157,7 @@ def registration_edits(root, tokens):
             placed = True
     if not placed:
         rebuilt[addon] = APPLICATION_RANK
-    # The AI bridge closes the bridge block, like the application closes the application block.
-    last_bridge = max((i for i, rank in enumerate(rebuilt.values()) if rank == BRIDGE_RANK), default=-1)
-    ranked = list(rebuilt.items())
-    ranked.insert(last_bridge + 1 if last_bridge >= 0 else len(ranked), (bridge, BRIDGE_RANK))
-    layers['ranks'] = dict(ranked)
+    layers['ranks'] = rebuilt
     route = tokens['route']
     layers.setdefault('web_apps', {})[app] = {'components': [route], 'pages': [route]}
 

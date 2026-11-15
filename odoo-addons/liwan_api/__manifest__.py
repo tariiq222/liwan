@@ -2,7 +2,7 @@
 {
     'name': 'liwan API',
     'summary': 'liwan platform: shared /api/v1 plumbing — auth, branding, me',
-    'version': '19.0.1.3.0',
+    'version': '19.0.1.4.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

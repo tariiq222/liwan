@@ -31,7 +31,7 @@ LIWAN_ADDONS = (
     'liwan_tasks_pmo', 'liwan_hr', 'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_ai',
     'liwan_hr_operations', 'liwan_finance', 'liwan_api_account', 'liwan_finance_ai',
     'liwan_hr_finance', 'liwan_pmo_finance', 'liwan_products_account', 'liwan_appointments',
-    'liwan_appointments_payments', 'liwan_sales', 'liwan_sales_ai',
+    'liwan_appointments_payments', 'liwan_sales',
 )
 SCRATCH_LIFECYCLE_TOKEN = 'CREATE_NEW_SCRATCH'
 FORBIDDEN_DB_RE = re.compile(

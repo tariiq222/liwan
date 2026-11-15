@@ -7,8 +7,9 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
-from odoo.addons.liwan_ai.models.agent_registry import CORE_AGENT
-from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS, TOOL_KINDS
+from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
+from odoo.addons.liwan_api.models.ai_agent_registry import CORE_AGENT
+from odoo.addons.liwan_api.models.ai_tool_registry import TOOL_KINDS
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.usage_window import month_label, month_window
 

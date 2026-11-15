@@ -2,7 +2,7 @@
 """The HR agent and its self-service job profile tool."""
 from odoo import api, models
 
-from odoo.addons.liwan_ai.models.tool_registry import read_tool
+from odoo.addons.liwan_api.models.ai_tool_registry import read_tool
 
 OWNER = 'liwan_hr'
 FEATURE = 'hr.enabled'

@@ -16,7 +16,8 @@ PAGE = re.compile(r'^[a-z][a-z_-]{0,39}$')
 class LiwanAiAgentRegistry(models.AbstractModel):
     """The specialist agents of the LiwanOS AI, composed through ``super()`` like ``liwan.ai.tool.registry``.
 
-    Each application declares one agent in its ``liwan_<app>_ai`` bridge. The agent's key is the application id
+    Each application declares one agent in its own addon; the contract lives in the foundation so that needs no
+    dependency on liwan_ai. The agent's key is the application id
     (its owner addon without ``liwan_``), the same prefix its tools carry, so an agent's tools are exactly the
     tools of its owner and no second list can drift from them (spec 2026-11-04 §6.5). An application that needs
     a second agent (``liwan_ai``: setup and help) keys it ``<app>_<agent>``, and that agent's tools carry the same prefix.

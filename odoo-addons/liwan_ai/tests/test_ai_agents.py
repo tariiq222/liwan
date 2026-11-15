@@ -3,7 +3,6 @@ from odoo.exceptions import ValidationError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.liwan_ai.models.tool_registry import SENSITIVE_FIELDS
 from odoo.addons.liwan_ai.tests.common import (
     CREATE_CAP,
     PROBE_AGENT,
@@ -12,6 +11,7 @@ from odoo.addons.liwan_ai.tests.common import (
     WRITE_CAP,
     AiProbe,
 )
+from odoo.addons.liwan_api.models.ai_tool_registry import SENSITIVE_FIELDS
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
