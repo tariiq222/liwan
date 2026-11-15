@@ -29,6 +29,9 @@ class LiwanCustomersSettings(models.Model):
     phone_country_id = fields.Many2one('res.country', ondelete='restrict')
     # The kinds of top-level customer the directory creates: it decides the forms of new customers, never an existing one.
     party_kinds = fields.Selection([(kind, kind) for kind in PARTY_KINDS], required=True, default='both')
+    # Whether an inbound message on a channel that authenticates the number (WhatsApp) links its contact to the one
+    # customer with that phone, without staff. Off: staff confirm every first link. Applies to contacts that arrive later.
+    auto_link_single_match = fields.Boolean(required=True, default=False)
     revision = fields.Integer(required=True, default=1)
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'the revision is a positive number')

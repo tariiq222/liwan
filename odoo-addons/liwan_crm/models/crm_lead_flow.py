@@ -67,13 +67,15 @@ class CrmLeadFlow(models.Model):
                 details={'reason': f'crm_price_above_list_{policy}'},
             )
 
-    def _liwan_mark_won(self, package, final_price, discount_percent, user):
-        """Sell ``package`` at ``final_price``: won stage, prices set, follow-up cleared."""
+    def _liwan_mark_won(self, package, final_price, discount_percent, user, customer_id=None, create_new=False):
+        """Sell ``package`` at ``final_price``: won stage, prices set, follow-up cleared, and the lead linked to a
+        customer at the latest now (``_liwan_link_customer``: the one named, a new one, or one made from the lead)."""
         self.ensure_one()
         self._liwan_visibility()._liwan_check_write(self, user)
         self._liwan_require_open()
         list_price = self._liwan_package_price(package)
         discount = self._liwan_discount(list_price, final_price, discount_percent, user)
+        self._liwan_link_customer(customer_id, create_new)
         self.write({
             'liwan_package_id': package.id,
             'liwan_list_price': list_price,

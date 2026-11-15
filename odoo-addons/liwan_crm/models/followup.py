@@ -25,7 +25,7 @@ class LiwanCrmFollowup(models.AbstractModel):
     def _liwan_record_call(self, lead, outcome, note=None, duration=None, now=None, sale=None, lost_reason=None):
         """Log a call on ``lead`` and apply its outcome; return the ``crm.phonecall``.
 
-        ``sale`` (``package``, ``final_price``, ``discount_percent``, ``user``) is required by a
+        ``sale`` (``package``, ``final_price``, ``discount_percent``, ``user``, ``customer_id``, ``create_new``) is required by a
         ``won`` outcome. ``lost_reason`` closes a ``lost`` outcome with that reason instead of the outcome's own.
         ``duration`` is in minutes.
         """
@@ -34,7 +34,10 @@ class LiwanCrmFollowup(models.AbstractModel):
         if outcome.effect == 'won':
             if not sale:
                 raise ApiError(422, 'invalid', 'a sold outcome needs a package and a final price', field='package_id')
-            lead._liwan_mark_won(sale['package'], sale['final_price'], sale['discount_percent'], sale['user'])
+            lead._liwan_mark_won(
+                sale['package'], sale['final_price'], sale['discount_percent'], sale['user'],
+                customer_id=sale.get('customer_id'), create_new=sale.get('create_new', False),
+            )
         elif outcome.effect == 'lost':
             lead._liwan_close_lost(lost_reason or outcome.lost_reason_id)
         elif outcome.effect == 'follow_up':

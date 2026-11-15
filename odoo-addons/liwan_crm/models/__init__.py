@@ -6,6 +6,7 @@ from . import (
     crm_lead_flow,
     crm_settings,
     crm_stage,
+    customers_service,
     dashboard,
     distribution,
     entitlement_service,

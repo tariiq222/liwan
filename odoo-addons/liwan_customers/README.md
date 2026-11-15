@@ -38,6 +38,11 @@ no application.
   `is_company` with `details.reason = party_kind_not_allowed`. A contact under a company parent is accepted in every
   mode. Customers an application creates inside its own action, and every edit, are not checked: the setting decides
   the forms of new customers and has no effect on existing data.
+- `auto_link_single_match` (boolean; default `false`) lets an inbound message on a channel that authenticates the
+  number (WhatsApp) link its contact to a customer without staff when exactly one active customer in the channel's
+  company scope (no company, or the channel's company) has that phone. Zero, or two or more, match nothing. It applies
+  to contacts that arrive after the change. The reader is `liwan.customers.service._liwan_authenticated_single_match`,
+  which runs only for the superuser (the events cron).
 - Custom fields are stock `res.partner.properties`: one definition per database in `properties.base.definition`,
   written through `PATCH /api/v1/customers/settings` (`fields`, the whole definition in display order; a field left
   out is removed) and parsed by `liwan_api/serializers/properties.py`. Values are `properties` on the customer wire

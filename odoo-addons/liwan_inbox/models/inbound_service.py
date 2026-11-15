@@ -117,6 +117,7 @@ class LiwanInboxInbound(models.AbstractModel):
         contact = Contact.create({
             'company_id': channel.owner_company_id.id, 'name': item.profile_name or phone, 'phone': phone,
         })
+        contact._liwan_auto_link(channel.kind, item.wa_id)
         return Identity.create({
             'company_id': channel.owner_company_id.id, 'contact_id': contact.id,
             'channel_kind': channel.kind, 'address': item.wa_id,

@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
 
+from .constants import AUTHENTICATED_KINDS
+
 
 class LiwanInboxContact(models.Model):
     """A person who writes to the company on a channel; once an action needs a customer, linked to one."""
@@ -41,6 +43,15 @@ class LiwanInboxContact(models.Model):
         values = None if customer_id is not None else self._liwan_customer_values()
         self.partner_id = service._liwan_resolve(customer_id=customer_id, values=values, create_new=create_new)
         return self.partner_id
+
+    def _liwan_auto_link(self, channel_kind, address):
+        """Link this new contact to the one customer that has its number, when the channel authenticates the number and
+        the tenant enabled automatic linking. Zero or several customers with the number link nothing."""
+        self.ensure_one()
+        if channel_kind in AUTHENTICATED_KINDS:
+            self.partner_id = self.env['liwan.customers.service']._liwan_authenticated_single_match(
+                address, self.company_id,
+            )
 
     def _liwan_linked_customer(self):
         """The linked partner when it is an active party the caller sees, else no partner."""

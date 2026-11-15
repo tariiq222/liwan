@@ -10,6 +10,8 @@ NOTE_MAX = 2000
 DURATION_MAX_MINUTES = 1440
 CALL_FIELDS = ('outcome_id', 'note', 'duration_minutes', 'lost_reason_id')
 SALE_FIELDS = ('package_id', 'final_price', 'discount_percent')
+# Which customer a sale links its opportunity to when it is not linked yet (neither: the opportunity's own data).
+CUSTOMER_FIELDS = ('customer_id', 'create_new')
 
 
 def dump_call(call):
@@ -42,20 +44,33 @@ def _parse_sale(payload):
         raise ApiError(422, 'invalid', 'field is required', field=missing[0])
     discount = payload.get('discount_percent')
     return {
+        **parse_customer_choice(payload),
         'package_id': parse_id(payload['package_id'], 'package_id'),
         'final_price': parse_price(payload['final_price'], 'final_price'),
         'discount_percent': None if discount is None else _number(discount, 'discount_percent', 0, 100),
     }
 
 
+def parse_customer_choice(payload):
+    """``customer_id`` (an existing customer, or None) and ``create_new`` (``True`` asks for a new one) of a body;
+    naming a customer and asking for a new one together is a 422."""
+    customer_id = parse_id(payload['customer_id'], 'customer_id') if payload.get('customer_id') is not None else None
+    create_new = payload.get('create_new', False)
+    if create_new is not False and create_new is not True:
+        raise ApiError(422, 'invalid', 'must be true or false', field='create_new')
+    if customer_id is not None and create_new:
+        raise ApiError(422, 'invalid', 'name a customer or ask for a new one, not both', field='create_new')
+    return {'customer_id': customer_id, 'create_new': create_new}
+
+
 def parse_sale_body(payload):
-    _reject_unknown(payload, SALE_FIELDS)
+    _reject_unknown(payload, (*SALE_FIELDS, *CUSTOMER_FIELDS))
     return _parse_sale(payload)
 
 
 def parse_call_body(payload):
     """The call (``outcome_id``, ``note``, ``duration_minutes``, ``lost_reason_id``) and, when sent, its sale (``sale``)."""
-    _reject_unknown(payload, (*CALL_FIELDS, *SALE_FIELDS))
+    _reject_unknown(payload, (*CALL_FIELDS, *SALE_FIELDS, *CUSTOMER_FIELDS))
     if 'outcome_id' not in payload:
         raise ApiError(422, 'invalid', 'field is required', field='outcome_id')
     note = payload.get('note')

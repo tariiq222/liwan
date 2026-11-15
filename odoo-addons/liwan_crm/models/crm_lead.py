@@ -1,5 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
+from odoo.tools import email_normalize
+
+from odoo.addons.liwan_api.controllers.common import ApiError
 
 NAME_MAX = 200
 EMAIL_MAX = 254
@@ -72,3 +75,46 @@ class CrmLead(models.Model):
         return self.sudo().with_context(active_test=False).search_count(
             [('company_id', '=', company.id), ('phone_sanitized', '=', phone_e164)], limit=1,
         ) > 0
+
+    def _inverse_email_from(self):
+        """Stock copies a lead's edited email onto its partner. A customer's identity is written only by
+        liwan.customers.service, never by a lead edit: the lead keeps its own email and the customer is left as it is.
+        Replaces ``crm.lead._inverse_email_from``, the inverse of ``email_from`` (documented override, R9)."""
+
+    def _inverse_phone(self):
+        """As ``_inverse_email_from``, for the phone: replaces ``crm.lead._inverse_phone``, the inverse of ``phone``.
+        Without it a lead edit rewrites the phone of the customer it is linked to."""
+
+    def _liwan_linked_customer(self):
+        """The linked partner when it is an active party the caller sees, else no partner."""
+        self.ensure_one()
+        return self.env['res.partner'].search([('id', '=', self.partner_id.id), ('liwan_party', '=', True)], limit=1)
+
+    def _liwan_customer_values(self):
+        """The identity of a new customer made from this lead: its contact name, phone and a valid email."""
+        values = {'name': self.contact_name or self.name}
+        if self.phone:
+            values['phone'] = self.phone
+        if self.email_from and email_normalize(self.email_from):
+            values['email'] = self.email_from
+        return values
+
+    def _liwan_link_customer(self, customer_id=None, create_new=False):
+        """Link this lead to a customer, through liwan.customers.service as the caller; return it.
+
+        A lead linked to an active party the caller sees keeps it: naming another is 409 ``already_linked``. Otherwise
+        ``customer_id`` names an existing customer, ``create_new`` asks for a new one, and without either a customer is
+        made from the lead's data unless customers with its phone exist, which answers 409 ``conflict`` with them. The
+        service never merges on its own.
+        """
+        self.ensure_one()
+        linked = self._liwan_linked_customer()
+        if linked:
+            if create_new or customer_id not in (None, linked.id):
+                raise ApiError(409, 'already_linked', 'the opportunity is already linked to a customer')
+            return linked
+        values = None if customer_id is not None else self._liwan_customer_values()
+        self.partner_id = self.env['liwan.customers.service']._liwan_resolve(
+            customer_id=customer_id, values=values, create_new=create_new,
+        )
+        return self.partner_id

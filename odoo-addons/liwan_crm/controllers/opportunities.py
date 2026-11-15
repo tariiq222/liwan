@@ -14,6 +14,10 @@ from odoo.addons.liwan_api.controllers.common import (
 from odoo.addons.liwan_api.serializers.properties import read_items
 from odoo.addons.liwan_crm.models.crm_lead import PROPERTIES_FIELD
 from odoo.addons.liwan_crm.models.distribution import agent_not_eligible
+from odoo.addons.liwan_crm.serializers.call import (
+    CUSTOMER_FIELDS,
+    parse_customer_choice,
+)
 from odoo.addons.liwan_crm.serializers.opportunity import (
     DUPLICATE_PHONE,
     DUPLICATE_PHONE_REASON,
@@ -250,4 +254,23 @@ class CrmOpportunitiesController(http.Controller):
         if 'phone' in parsed:
             vals['phone'] = _normalized_phone(parsed['phone'], lead)
         _saved(lambda: lead.write(vals))
+        return dump_opportunity(lead)
+
+    @http.route('/api/v1/crm/opportunities/<int:lead_id>/customer', type='json2', auth='user', methods=['POST'],
+                readonly=False)
+    @api_handler
+    @requires_feature('crm.enabled', operation='write')
+    @requires_capability('crm.leads.work')
+    def link_customer(self, lead_id, **payload):
+        """Link the opportunity to a customer: the one named by ``customer_id``, a new one when ``create_new`` is true,
+        or (neither) one made from its own data, which answers 409 ``conflict`` with the candidates when customers with
+        its phone exist. A linked opportunity keeps its customer: naming another answers 409 ``already_linked``."""
+        unknown = sorted(set(payload) - set(CUSTOMER_FIELDS))
+        if unknown:
+            raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
+        choice = parse_customer_choice(payload)
+        lead = find_opportunity(lead_id)
+        _visibility()._liwan_check_write(lead, request.env.user)
+        lead._liwan_require_open()
+        _saved(lambda: lead._liwan_link_customer(choice['customer_id'], choice['create_new']))
         return dump_opportunity(lead)

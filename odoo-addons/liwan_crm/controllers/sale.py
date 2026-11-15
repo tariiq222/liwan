@@ -33,6 +33,8 @@ def sale_arguments(sale):
         'package': find_package(sale['package_id']),
         'final_price': sale['final_price'],
         'discount_percent': sale['discount_percent'],
+        'customer_id': sale['customer_id'],
+        'create_new': sale['create_new'],
         'user': request.env.user,
     }
 
