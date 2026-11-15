@@ -195,12 +195,23 @@ async function onLogo(event: Event) {
           <UInput id="company-registry" v-model="fields.company_registry.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-registry" :disabled="locked" />
         </UFormField>
         <CompanyExtensionField v-for="extension in extensions" :key="extension.name" :extension="extension" :model-value="extensionValue(extension.name)" :error="fieldErrors[extension.name]" :disabled="locked" @update:model-value="setField(extension.name, $event)" />
-      </div>
-      <SharedSettingRow v-if="!taxOwnsVat" name="vat_registered" :label="t('settings.company.vatRegistered')" :description="t('settings.company.vatRegisteredHint')" :disabled-reason="vatEditable ? undefined : vatReason">
-        <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" data-testid="company-vat-registered" :disabled="vatLocked" />
-      </SharedSettingRow>
-      <div v-if="showVatNumber" class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
-        <UFormField name="vat" :label="t('settings.company.vat')" :required="registrationOn" :error="fieldErrors.vat">
+        <!-- A switch that gates one field is a cell: the VAT number opens in the next cell. The switch sits on the height of an input beside it. -->
+        <UFormField v-if="!taxOwnsVat" name="vat_registered" :label="t('settings.company.vatRegistered')" :help="vatEditable ? undefined : vatReason">
+          <template #hint>
+            <!-- The help button becomes a shared `SharedFieldHelp` when the rule is rolled out. A popover opens on tap and Enter/Space; the sr-only copy is read through aria-describedby. -->
+            <UPopover :content="{ side: 'top', align: 'end' }">
+              <UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-circle-help" :aria-label="`${t('app.fieldHelp')}: ${t('settings.company.vatRegistered')}`" data-testid="company-vat-registered-help" />
+              <template #content>
+                <p class="max-w-64 p-3 text-sm text-default" data-testid="company-vat-registered-help-text">{{ t('settings.company.vatRegisteredHint') }}</p>
+              </template>
+            </UPopover>
+            <span class="sr-only">{{ t('settings.company.vatRegisteredHint') }}</span>
+          </template>
+          <div class="flex min-h-(--liwan-control-h) items-center">
+            <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" data-testid="company-vat-registered" :disabled="vatLocked" />
+          </div>
+        </UFormField>
+        <UFormField v-if="showVatNumber" name="vat" :label="t('settings.company.vat')" :required="registrationOn" :error="fieldErrors.vat">
           <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" :placeholder="t('settings.company.vatHint')" data-testid="company-vat" :disabled="vatNumberLocked" />
         </UFormField>
       </div>
@@ -209,9 +220,6 @@ async function onLogo(event: Event) {
     <div v-else class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
       <template v-if="section === 'address'">
         <UFormField name="country_id" :label="t('settings.company.country')">
-          <!-- The value is always filled and read-only, so its explanation cannot be a placeholder: a help button beside the label.
-               A popover rather than a tooltip because it opens on tap and on Enter/Space, not only on hover. The text also sits in the hint
-               element the input's aria-describedby points to, so a screen reader hears it without opening anything. -->
           <template #hint>
             <UPopover :content="{ side: 'top', align: 'end' }">
               <UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-circle-help" :aria-label="`${t('app.fieldHelp')}: ${t('settings.company.country')}`" data-testid="company-country-help" />

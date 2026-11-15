@@ -41,8 +41,9 @@ export const FieldGrid: Story = {
         <UFormField name="country" label="الدولة"><template #hint><UPopover><UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-circle-help" aria-label="شرح: الدولة" /><template #content><p class="max-w-64 p-3 text-sm">تُحدَّد الدولة عند إنشاء الحساب ولا تتغيّر.</p></template></UPopover></template><UInput id="country" model-value="السعودية" class="w-full" readonly disabled /></UFormField>
         <UFormField name="district" label="الحي"><UInput id="district" model-value="العليا" class="w-full" :disabled="!args.canEdit" /></UFormField>
         <UFormField name="zip" label="الرمز البريدي"><UInput id="zip" model-value="12211" dir="ltr" class="w-full" :disabled="!args.canEdit" /></UFormField>
+        <UFormField name="vat_registered" label="مسجّلة في ضريبة القيمة المضافة"><template #hint><UPopover><UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-circle-help" aria-label="شرح: مسجّلة في ضريبة القيمة المضافة" /><template #content><p class="max-w-64 p-3 text-sm">يُطلب الرقم الضريبي وتظهر الضريبة في الفواتير.</p></template></UPopover></template><div class="flex min-h-(--liwan-control-h) items-center"><USwitch :model-value="true" aria-label="مسجّلة في ضريبة القيمة المضافة" :disabled="!args.canEdit" /></div></UFormField>
+        <UFormField name="vat" label="الرقم الضريبي"><UInput id="vat" model-value="300000000000003" dir="ltr" class="w-full" :disabled="!args.canEdit" /></UFormField>
       </div>
-      <SettingRow name="vat" label="مسجّلة في ضريبة القيمة المضافة" description="يظهر الرقم الضريبي في الفواتير."><USwitch :model-value="true" aria-label="مسجّلة في ضريبة القيمة المضافة" :disabled="!args.canEdit" /></SettingRow>
     </SettingsCard></SettingsPage></main>`,
   }),
 }
