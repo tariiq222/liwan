@@ -24,7 +24,7 @@ const meta = {
     layout: 'padded',
     a11y: { test: 'error' },
     msw: { handlers: { api: [http.get('/api/v1/my-tasks/summary', () => HttpResponse.json({ total: 12, open: 7, overdue: 2, done: 5 })), ...workHandlers] } },
-    ...storyContext('apps/web/app/pages/index.vue:25', '«تطبيقاتك»: بطاقات متدرجة على سكة تقف عند كل بطاقة، بأرقام حية ومعاينة لما يحتاج المستخدم في كل تطبيق، وشرائح تصفية بالفئة.'),
+    ...storyContext('apps/web/app/pages/index.vue:27', '«تطبيقاتك»: بطاقات متدرجة على سكة تقف عند كل بطاقة، بأرقام حية ومعاينة لما يحتاج المستخدم في كل تطبيق، وشرائح تصفية بالفئة.'),
   },
   args: { cards },
   render: args => ({ components: { HomeApps }, setup: () => ({ args }), template: '<div class="mx-auto max-w-5xl"><HomeApps v-bind="args" /></div>' }),

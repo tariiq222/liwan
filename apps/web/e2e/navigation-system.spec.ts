@@ -56,7 +56,7 @@ test('settings nested branches keep anchors, filters and library-owned controls'
   const users = menu.getByRole('button', { name: 'المستخدمون', exact: true })
   await expect(team).toHaveAttribute('aria-expanded', 'true')
   await expect(users).toHaveAttribute('aria-expanded', 'true')
-  await expect(menu.getByTestId('sidebar-settings-overview')).toHaveAttribute('href', '/settings/team#users')
+  await expect(menu.getByTestId('sidebar-settings-summary')).toHaveAttribute('href', '/settings/team#users')
   await menu.getByTestId('quick-view-stopped').click()
   await expect(page).toHaveURL(/\/settings\/team\/users\?status=stopped$/)
   await expect(menu.getByTestId('quick-view-stopped')).toHaveAttribute('data-active', 'true')

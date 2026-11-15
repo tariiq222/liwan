@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createBodyAdmission, createResponseAdmission, HEAVY_CREDITS } from '../bufferAdmission.mjs'
 
 beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }) })
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.resetModules() })
 
 const HEAVY_WAIT = 45_000
 const ORDINARY_WAIT = 15_000
@@ -61,4 +61,25 @@ it('hands a credit to a heavy waiter that is still inside its budget', async () 
   await vi.advanceTimersByTimeAsync(ORDINARY_WAIT * 2)
   holders[0]!()
   expect(await queued).toHaveProperty('value')
+})
+
+it('sizes HEAVY_CREDITS and the heavy pool from the heavy pool\'s active variable', async () => {
+  vi.stubEnv('NUXT_ODOO_POOL_HEAVY_ACTIVE', '3')
+  vi.stubEnv('NUXT_ODOO_POOL_HEAVY_QUEUED', '0')
+  vi.resetModules()
+  const configured = await import('../bufferAdmission.mjs')
+  expect(configured.HEAVY_CREDITS).toBe(3)
+  expect(configured.POOL_LIMITS.heavy).toEqual({ active: 3, queued: 0 })
+  const acquire = configured.createBodyAdmission('heavy', HEAVY_WAIT)
+  const holders = await Promise.all(Array.from({ length: 3 }, () => acquire(client().req, client().res)))
+  // No queue place was configured, so the fourth caller is refused at once.
+  expect(await outcome(acquire(client().req, client().res))).toEqual({ refused: 502 })
+  holders[0]!()
+  expect(await outcome(acquire(client().req, client().res))).toHaveProperty('value')
+})
+
+it('refuses to load with an invalid pool variable instead of falling back to the default', async () => {
+  vi.stubEnv('NUXT_ODOO_POOL_HEAVY_ACTIVE', '0')
+  vi.resetModules()
+  await expect(import('../bufferAdmission.mjs')).rejects.toThrow('NUXT_ODOO_POOL_HEAVY_ACTIVE must be an integer from 1 to 256')
 })

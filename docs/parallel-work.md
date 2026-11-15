@@ -165,7 +165,7 @@ removed by it; its owner records a claim with `wt claim` or finishes and merges 
 `npm run wt -- status` answers "which worktrees exist, who owns them, which are merged, which are dirty"
 and ends with the same report; it marks a worktree outside `.worktrees/` with `*`. `npm run wt -- gc` lists
 what is safe to remove (merged, clean, behind `main`, no process inside) and `--apply` removes it; after a merge that falls under
-the standing authorization in [integration-rules.md](agents/integration-rules.md#standing-authorization-owner-decision-2026-11-08), and any other removal needs the owner.
+the standing authorization in [integration-rules.md](agents/integration-rules.md#standing-authorization-owner-decision-2026-11-11), and any other removal needs the owner.
 
 These are workflow rules carried by the tool, not an operating-system lock: a bare `git worktree add` or
 an edit outside the claimed scopes is still possible. `wt check` makes it visible; the integration checks
@@ -217,7 +217,7 @@ run and by `npm run check:fast`, never by pull-request CI. The per-branch route 
 
 Use [integration-rules.md](agents/integration-rules.md) for delivery: one draft PR
 per independent task or agreed integration batch, followed by review, checks and
-a protected merge under the standing authorization after current-head `ci-result`
+a protected merge on the owner's explicit words after current-head `ci-result`
 and review of the actual combined diff. CI does not repair code, merge PRs or create tags. `wt status` compares ancestry with **local** `main`; when it is stale, compare
 with current remote `main` too. A merged head with dirty files still contains
 undelivered work. A child sharing its parent's head is dependent work, not a
@@ -234,7 +234,7 @@ test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 
 The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`),
-tracked by `main`. Push task branches under the standing authorization; `main` changes only
+tracked by `main`. Push a task branch only on the owner's explicit words; `main` changes only
 through a merged PR; never force-push published history, and do not imply that a push occurred. Do not remove a
 branch or worktree until its content is preserved and no process is using it. A production deployment or DNS cutover
 requires separate authorization; local `:8069`/`:3000` development is not

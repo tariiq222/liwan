@@ -8,7 +8,7 @@ OCA_PATH="$(python3 -B tools/oca_addons.py path --check)"
 : "${ODOO_ROOT:?}" "${ODOO_PYTHON:?}" "${ODOO_PORT:?}" "${PGHOST:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD?}"
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
 BASE_TAG="$(python3 -B tools/upgrade_baseline.py)"
-test -n "$BASE_TAG" || { echo "no LiwanOS-namespace release baseline; fresh-install gate remains binding"; exit 0; }
+test -n "$BASE_TAG" || { echo "no LiwanOS-namespace release baseline: the upgrade gate cannot run" >&2; exit 1; }
 SCRATCH_DB="liwan_ci_upgrade_scratch"
 SCRATCH_ROOT="$(mktemp -d)"
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"

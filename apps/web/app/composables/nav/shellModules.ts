@@ -1,7 +1,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 // Relative imports: the `@/` alias does not resolve for value imports under a
 // plain `vitest run`, and this module is unit-tested directly.
-import { canReach, canReachPath, SETTINGS_OVERVIEW_PATH, type AccessIdentity } from '../../utils/accessPolicy'
+import { canReach, canReachPath, SETTINGS_ENTRY_PATH, type AccessIdentity } from '../../utils/accessPolicy'
 import { hasFeature } from '../../modules/registry'
 import { activeManifests } from '../../modules/manifests'
 import { normalizedPath } from '../../utils/routePath'
@@ -119,7 +119,7 @@ export function shellModuleList(): ShellModuleDefinition[] {
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
     ...applications.map(({ id, labelKey, shortLabelKey, icon, to, core }) => ({ id, labelKey, shortLabelKey, icon, to, ...(core ? { core } : {}) })),
     // Settings is administration only: the account card is in the sidebar footer and the appearance button in the top bar.
-    { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH },
+    { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_ENTRY_PATH },
   ]
 }
 
@@ -128,7 +128,7 @@ export function visibleShellModules(identity: AccessIdentity): ShellModuleDefini
   return shellModuleList().flatMap(module => {
     const destinations = nav.filter(item => item.module === module.id)
     if (!destinations.length) return []
-    // Settings opens its overview; the other modules open their rail target when visible, else their first page.
+    // Settings opens its entry address, which redirects to the first reachable page; the other modules open their rail target when visible, else their first page.
     return [{ ...module, to: module.id === 'settings' ? module.to : destinations.find(item => item.to === module.to)?.to ?? destinations[0]!.to }]
   })
 }
@@ -145,7 +145,7 @@ export interface ShellContextLink {
   section?: string
   /** Locale key of a heading inside the first card over this link and the consecutive ones with the same key. */
   group?: string
-  /** Active only on exactly this path (the settings overview, a page with sibling pages beneath it). */
+  /** Active only on exactly this path (the account overview, a page with sibling pages beneath it). */
   exact?: boolean
   /** Path prefix that marks the link active, when it is not the link's own target (a settings page opens its first card). */
   within?: string
@@ -202,16 +202,14 @@ function openingCapability(identity: AccessIdentity | undefined, page: SettingsP
 }
 
 /**
- * The settings sidebar: the overview and one link per page on top, always (the applications' pages under their own
+ * The settings sidebar: one link per page on top, always (the applications' pages under their own
  * heading); below them the parts of the open page under its heading. Each page link opens the first part the identity
  * may use. A page with tabs lists only its parts that open a page of their own: the tab strip holds its cards.
  */
 function settingsContextLinks(path: string | undefined, identity?: AccessIdentity): ShellContextLink[] {
   const visible = visibleSettingsPages(identity)
   if (!visible.length) return []
-  const first = visible[0]!
   const top: ShellContextLink[] = [
-    { id: 'settings-overview', labelKey: 'settings.sections.overview', icon: 'i-lucide-layout-dashboard', to: SETTINGS_OVERVIEW_PATH, capability: openingCapability(identity, first.page, first.parts[0]!), exact: true },
     ...visible.map(({ page, parts }): ShellContextLink => ({
       id: `settings-${page.id}`, labelKey: page.labelKey, icon: page.icon, to: parts[0]!.to ?? page.to,
       capability: openingCapability(identity, page, parts[0]!),

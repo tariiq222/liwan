@@ -95,10 +95,6 @@
       "follow": "Details"
     },
     "viewAll": "View all",
-    "rail": {
-      "previous": "Previous",
-      "next": "Next"
-    },
     "filter": {
       "label": "Filter apps",
       "all": "All",
@@ -186,6 +182,8 @@
     "finance": "Finance",
     "viewAll": "View all",
     "listOf": "{name} list",
+    "branchPage": "All",
+    "branchSummary": "Summary",
     "overview": "Overview",
     "crm": "CRM",
     "home": "Today",
