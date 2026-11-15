@@ -263,7 +263,14 @@ class LiwanMyTaskService(models.AbstractModel):
         return parent
 
     @api.model
-    def _create_task(self, vals):
+    def _create_task(self, vals, link_values=None):
+        """Create a personal task from wire ``vals``.
+
+        ``link_values`` is the extension point of a bridge: ORM values of the fields it owns on the task
+        (for example the link to another application's record), already checked by the bridge. They are
+        set as creation defaults, so they are not part of the wire values: a bridge that guards the
+        personal-create whitelist (liwan_tasks_pmo) keeps judging the personal fields alone.
+        """
         self._require('tasks.tasks.create')
         out = self._clean_vals(vals, CREATE_FIELDS, creating=True)
         if vals.get('parent_id') is not None:
@@ -271,7 +278,8 @@ class LiwanMyTaskService(models.AbstractModel):
         # Odoo leaves company_id empty on a project-less task, which the personal-task rule
         # hides from everyone; project_id is left out so PMO's create gate sees a personal create.
         out['company_id'] = self.env.company.id
-        task = self.env['project.task'].create(out)
+        defaults = {f'default_{name}': value for name, value in (link_values or {}).items()}
+        task = self.env['project.task'].with_context(**defaults).create(out).with_env(self.env)
         self._notify_assigned(task, task.user_ids.browse())
         return task
 
