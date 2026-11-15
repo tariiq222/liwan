@@ -36,6 +36,9 @@ venv/
 *.log
 .runtime/
 .worktrees/
+# Engineering audit evidence: reports, machine-readable results, logs and baselines.
+# Disposable local evidence, never part of the product or a release.
+.audit/
 deploy/branding.json
 deploy/data/
 
@@ -81,10 +84,17 @@ Thumbs.db
 /.claude/agents/*
 !/.claude/agents/frontend-theme.md
 !/.claude/agents/odoo-reviewer.md
+!/.claude/agents/liwan-audit-orchestrator.md
 !/.claude/skills/
 /.claude/skills/*
 !/.claude/skills/e2e/
 !/.claude/skills/user-test/
+!/.claude/skills/liwan-audit-setup/
+!/.claude/skills/liwan-audit-full/
+!/.claude/skills/liwan-audit-security/
+!/.claude/skills/liwan-audit-performance/
+!/.claude/skills/liwan-audit-regression/
+!/.claude/skills/liwan-audit-report/
 !/.claude/scripts/
 /.claude/scripts/*
 !/.claude/scripts/guard-bash.sh
