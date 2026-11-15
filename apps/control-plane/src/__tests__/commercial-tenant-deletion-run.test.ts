@@ -245,23 +245,21 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(await refused(requestDeletion(pool, { ...who, customer_id: g.customer, secret: 'x'.repeat(32) }))).toEqual({ code: 'tenant_retired', status: 409 })
   })
 
-  it('resumes exactly after a failure at each effect: a finished effect is never repeated and the failed one runs again', async () => {
-    const names = ['drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'purge_offsite', 'remove_side_files']
-    for (const failing of names) {
-      effects = new FakeEffects()
-      await pool.query('TRUNCATE tenant_deletion_steps, tenant_deletion_requests')
-      const f = await fixture({ backup: true })
-      effects.failures.set(failing, ['crash_injected'])
-      await run()
-      const ledger = await steps(f)
-      expect(ledger[failing], failing).toMatchObject({ state: 'failed', error_code: 'crash_injected', failures: 1 })
-      expect((await req(f)).state).toBe('deleting')
-      await settle(); await run()
-      expect((await req(f)).state, failing).toBe('deleted')
-      const real = effects.calls.filter(c => !c.startsWith('dry:') && c !== 'remove_artifacts' && c !== 'unbind_relay')
-      const expected = [...names]; expected.splice(expected.indexOf(failing), 0, failing)
-      expect(real, failing).toEqual(expected)
-    }
+  const effectNames = ['drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'purge_offsite', 'remove_side_files']
+  it.each(effectNames)('resumes exactly after a failure at %s: a finished effect is never repeated and the failed one runs again', async failing => {
+    effects = new FakeEffects()
+    await pool.query('TRUNCATE tenant_deletion_steps, tenant_deletion_requests')
+    const f = await fixture({ backup: true })
+    effects.failures.set(failing, ['crash_injected'])
+    await run()
+    const ledger = await steps(f)
+    expect(ledger[failing], failing).toMatchObject({ state: 'failed', error_code: 'crash_injected', failures: 1 })
+    expect((await req(f)).state).toBe('deleting')
+    await settle(); await run()
+    expect((await req(f)).state, failing).toBe('deleted')
+    const real = effects.calls.filter(c => !c.startsWith('dry:') && c !== 'remove_artifacts' && c !== 'unbind_relay')
+    const expected = [...effectNames]; expected.splice(expected.indexOf(failing), 0, failing)
+    expect(real, failing).toEqual(expected)
   })
 
   it('backs off 1 min, 5 min, 30 min, 2 h then 6 h, flags the request stuck after five failures and raises the attention item with the step and code', async () => {

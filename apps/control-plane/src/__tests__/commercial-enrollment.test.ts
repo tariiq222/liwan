@@ -68,7 +68,10 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     const claimed=(await pool.query('SELECT * FROM commercial_outbox WHERE aggregate_id=$1',[s.order])).rows[0]
     const sameClaim={connect:pool.connect.bind(pool),query:(sql:string,params?:unknown[])=>/^\s*WITH due AS/.test(sql)?Promise.resolve({rows:[claimed]}):pool.query(sql,params as any[])} as unknown as Pool
     const processed=(await Promise.all([1,2].map(()=>processFulfillmentOutbox(sameClaim,{enrollment:{config}})))).flat()
-    expect(processed.find(x=>x.order_id===s.order)).toMatchObject({job_id:expect.any(String)})
+    // One worker enqueues the job; the other either finds the work done or loses a Postgres deadlock and defers its row (retried later).
+    const forOrder=processed.filter(x=>x.order_id===s.order)
+    expect(forOrder.filter(x=>x.job_id)).toHaveLength(1)
+    for(const x of forOrder.filter(x=>!x.job_id))expect(x.reason).toMatch(/deadlock detected/)
     await process()
     const reconfigure = (await pool.query("SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [customer.tenant_id])).rows
     expect(reconfigure).toHaveLength(1); expect(reconfigure[0].payload.authority.entitlement).toEqual({modules:s.entitlement.modules,features:{...s.entitlement.features,'ai.balance.granted':0,'ai.allowance.trial':133333,'ai.allowance.monthly':0},digest:s.entitlement.digest,compiler_version:s.entitlement.compiler_version})

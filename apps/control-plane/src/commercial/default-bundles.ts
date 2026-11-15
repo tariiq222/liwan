@@ -10,11 +10,12 @@ const LIWAN_PLAN_ID = '00000000-0000-4000-8000-0000000000b1'
 /** Release 1 application prices per month in SAR minor units (owner decisions 2026-11-06 and 2026-11-14). Seed amounts only: the
  *  vendor console owns every later change, and the annual price is exactly ten monthly payments. */
 const SEED_MONTHLY_MINOR: Record<string, number> = { crm: 9900, inbox: 25000, people: 11900, finance: 17900, projects: 11900 }
-const DEFAULT_SEED_MONTHLY_MINOR = 0
 /** Annual is ten months for twelve: the one ratio every seeded amount follows. */
 const ANNUAL_MONTHS = 10
 function seedPrices(appId: string) {
-  const minor = SEED_MONTHLY_MINOR[appId] ?? DEFAULT_SEED_MONTHLY_MINOR
+  const minor = SEED_MONTHLY_MINOR[appId]
+  // A sellable application with no seed amount must not be published silently as free: the owner sets its price here first.
+  if (minor === undefined) throw new CommercialHttpError('seed_price_missing', 422, appId)
   return [
     { cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor } },
     { cadence: { unit: 'year', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: minor * ANNUAL_MONTHS } },
@@ -34,15 +35,18 @@ export async function seedDefaultBundles(pool: Pool, actor: CommercialActor, inp
   const { release_id, reason } = input
   const release = await getRelease(pool, release_id)
   const existing = (await pool.query("SELECT id,selections FROM bundle_revisions WHERE catalog_release_id=$1 AND status='published' AND available", [release_id])).rows
+  // Price every sellable application before publishing any, so a missing seed amount leaves no partial set behind.
+  const sellable = release.applications.filter(isSellable)
+  const prices = new Map(sellable.map(app => [app.id, seedPrices(app.id)]))
   const bundleIds: string[] = []
   const created: string[] = []
-  for (const app of release.applications.filter(isSellable)) {
+  for (const app of sellable) {
     const reused = existing.find(b => b.selections.length === 1 && b.selections[0].app_id === app.id)
     if (reused) { bundleIds.push(reused.id); continue }
     const featureKeys = app.features.filter(f => f.kind === 'boolean' && f.selectable).map(f => f.key)
     const draft = await createBundle(pool, actor, {
       name: app.name_ar, description: app.name_en, audience: { kind: 'public' }, catalog_release_id: release_id,
-      selections: [{ app_id: app.id, feature_keys: featureKeys }], domain_limits: {}, prices: seedPrices(app.id), reason,
+      selections: [{ app_id: app.id, feature_keys: featureKeys }], domain_limits: {}, prices: prices.get(app.id)!, reason,
     })
     const validated = await mutateBundle(pool, actor, draft.id, 'validate', { edit_revision: draft.edit_revision, reason }, { pricingGranted: true, pricingStepUp: true })
     await mutateBundle(pool, actor, draft.id, 'publish', { edit_revision: (validated as { edit_revision: number }).edit_revision, reason }, { pricingGranted: true, pricingStepUp: true })

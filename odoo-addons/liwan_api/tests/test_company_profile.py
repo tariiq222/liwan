@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+from datetime import date, timedelta
 from io import BytesIO
 from unittest.mock import patch
 
@@ -500,7 +501,13 @@ class TestCompanyProfile(LiwanApiCase):
         self.assertIs(self._editable_as_admin(), False)
 
     def test_an_expired_tenant_is_not_told_it_can_edit_the_registration(self):
+        """Expiry compares ``valid_until`` with the UTC day, so the clock is pinned and both sides of the boundary are checked."""
         self.assertIs(self._editable_as_admin(), True)
-        self.env.cr.execute("UPDATE liwan_tenant_profile SET valid_until = CURRENT_DATE - 1")
+        service = type(self.env['liwan.entitlement.service'])
+        utc_today = date(2026, 11, 15)
+        self.env.cr.execute('UPDATE liwan_tenant_profile SET valid_until = %s', [utc_today])
         self.env.invalidate_all()
-        self.assertIs(self._editable_as_admin(), False)
+        with patch.object(service, '_liwan_utc_today', return_value=utc_today):
+            self.assertIs(self._editable_as_admin(), True)
+        with patch.object(service, '_liwan_utc_today', return_value=utc_today + timedelta(days=1)):
+            self.assertIs(self._editable_as_admin(), False)
