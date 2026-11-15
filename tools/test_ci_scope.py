@@ -237,7 +237,7 @@ class PullRequestTest(unittest.TestCase):
         self.assertTrue(set(self.ODOO) <= set(stages))
 
     def test_an_addon_change_selects_only_static_odoo_and_real_odoo_e2e(self):
-        stages = ci_scope.pull_request_stages(['odoo-addons/liwan_crm/a.py'], ['liwan_crm', 'liwan_crm_ai'])
+        stages = ci_scope.pull_request_stages(['odoo-addons/liwan_crm/a.py'], ['liwan_crm', 'liwan_crm_tasks'])
         self.assertEqual(set(stages), {'static', *self.ODOO, 'e2e-odoo'})
         web = ci_scope.pull_request_stages(['odoo-addons/liwan_crm/a.py', 'apps/web/app/a.vue'], ['liwan_crm'])
         self.assertIn('e2e-mock', web)

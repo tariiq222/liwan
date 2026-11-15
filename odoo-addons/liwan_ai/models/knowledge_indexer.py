@@ -6,7 +6,7 @@ schema (not an Odoo table, so R9's direct-SQL rule does not apply) that the serv
 of Odoo may only insert into it. A record's text is chunked and withheld here (``knowledge_chunker``) and travels in
 the queue until the service has embedded it; the index itself keeps vectors and references only.
 
-What to index comes from two places. The bridge of a source marks a record in ``liwan.ai.knowledge.pending`` in the
+What to index comes from two places. The application that declares a source marks a record in ``liwan.ai.knowledge.pending`` in the
 transaction that changes it, and the cron claims those rows; and a bootstrap scan, in id order with a cursor per source
 and company, reads the records that exist when the knowledge is turned on or the index rebuilt.
 """
@@ -60,7 +60,7 @@ class LiwanAiKnowledgeIndexer(models.AbstractModel):
 
     @api.model
     def _liwan_queue_delete(self, model, record_ids):
-        """Queue the removal of ``record_ids`` of ``model``; used by the indexer and by a bridge before it deletes records."""
+        """Queue the removal of ``record_ids`` of ``model``; used by the indexer and by an application before it deletes records."""
         if record_ids and self._liwan_queue_insertable():
             self.env.cr.execute(f"{INSERT} SELECT 'delete', %s, id, NULL, NULL FROM unnest(%s::bigint[]) AS id", [model, list(record_ids)])
 

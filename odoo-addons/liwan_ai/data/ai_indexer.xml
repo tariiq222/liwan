@@ -10,7 +10,7 @@
             <field name="active" eval="False"/>
             <field name="company_id" ref="base.main_company"/>
             <field name="company_ids" eval="[Command.set([ref('base.main_company')])]"/>
-            <field name="group_ids" eval="[Command.set([ref('group_ai_indexer')])]"/>
+            <field name="group_ids" eval="[Command.set([ref('liwan_api.group_ai_indexer')])]"/>
         </record>
     </data>
     <function model="liwan.ai.knowledge.indexer" name="_liwan_sync_companies"/>
@@ -21,7 +21,7 @@
         <field name="state">code</field>
         <field name="code">model._liwan_cron_tick()</field>
         <field name="user_id" ref="user_ai_indexer"/>
-        <field name="group_ids" eval="[Command.set([ref('group_ai_indexer')])]"/>
+        <field name="group_ids" eval="[Command.set([ref('liwan_api.group_ai_indexer')])]"/>
         <field name="interval_number">5</field>
         <field name="interval_type">minutes</field>
         <field name="active" eval="True"/>

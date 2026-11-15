@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The group of the AI knowledge indexer. It lives in the foundation so an application that declares a knowledge
+         source gives it read access to the source's models without depending on liwan_ai; liwan_ai owns the indexer
+         user that holds it and the cron that runs as that user. It implies nothing and holds no capability. -->
+    <record id="group_ai_indexer" model="res.groups"><field name="name">LiwanOS AI knowledge indexer</field></record>
+</odoo>

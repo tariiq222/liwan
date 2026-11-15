@@ -2,3 +2,6 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_liwan_tasks_task_read,liwan.tasks.task.read,project.model_project_task,group_cap_tasks_tasks_read,1,0,0,0
 access_liwan_tasks_task_create,liwan.tasks.task.create,project.model_project_task,group_cap_tasks_tasks_create,1,0,1,0
 access_liwan_tasks_task_write,liwan.tasks.task.write,project.model_project_task,group_cap_tasks_tasks_write,1,1,0,0
+access_project_task_ai_indexer,project.task ai indexer,project.model_project_task,liwan_api.group_ai_indexer,1,0,0,0
+access_project_project_ai_indexer,project.project ai indexer,project.model_project_project,liwan_api.group_ai_indexer,1,0,0,0
+access_project_task_type_ai_indexer,project.task.type ai indexer,project.model_project_task_type,liwan_api.group_ai_indexer,1,0,0,0

@@ -62,10 +62,11 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   per-user audit log `liwan.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role; its ACL and own-rows rule follow that capability group, and the monthly message limit counts tenant-wide), and the two
   routes `GET /api/v1/ai/tools` and `POST /api/v1/ai/audit`. It knows no application and
   holds no language-model code. An application registers its agent, tools, knowledge sources, settings and readiness
-  checks inside its own addon, in the `liwan_api` registries, without depending on `liwan_ai`. Sales, HR, Finance,
-  Operations and PMO register inside their own addons, and `tools/new_app.py` generates that registration inside every
-  new application. Three bridges remain, `liwan_crm_ai`, `liwan_tasks_ai` and `liwan_meetings_ai` (rank 5,
-  `auto_install`); they hold those applications' registrations until they are folded too. The AI service and the Nuxt executor live
+  checks inside its own addon, in the `liwan_api` registries, without depending on `liwan_ai`; no AI bridge remains, and
+  `tools/new_app.py` generates that registration inside every new application. The group of the knowledge indexer,
+  `liwan_api.group_ai_indexer`, also lives in the foundation: an application that declares a knowledge source gives it
+  read access to the source's models in its own `security/ir.model.access.csv`, while `liwan_ai` owns the inactive
+  indexer user that holds the group and the cron that runs as it. The AI service and the Nuxt executor live
   outside Odoo (`docs/superpowers/specs/2026-10-15-liwan-ai-design.md`).
 - `odoo-addons/liwan_directory` (shared service, rank 3) owns `/api/v1/people`
   (the user-id picker, whose ids are `res.users` ids) and its population of
@@ -121,7 +122,7 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
 - `odoo-addons/liwan_crm` (application, rank 4) owns the CRM: opportunities, calls and follow-up over stock
   `crm` and OCA `crm_phonecall`, the `/api/v1/crm` routes, their serializers, `crm.enabled`, the `crm.*`
   capabilities and their groups, and the opportunity custom-field definition of the current company. It knows
-  no other application; its AI tools still live in the bridge `liwan_crm_ai`, which is being folded into it.
+  no other application; it registers its AI agent, tools, settings, knowledge source and readiness check in its own addon.
 - `odoo-addons/liwan_sales` (application, rank 4) owns staff quotations and orders on stock `sale.order`
   (`sale_management`): the `/api/v1/sales` routes, their serializers, `sales.enabled`, the six `sales.*` capabilities
   with the agent and manager roles, the tenant's sales settings (visibility, quotation validity, discount limit,

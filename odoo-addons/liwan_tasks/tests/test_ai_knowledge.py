@@ -1,38 +1,49 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import importlib
+
 from odoo import api
 from odoo.exceptions import AccessError
-from odoo.tests import new_test_user, tagged
+from odoo.tests import TransactionCase, new_test_user, tagged
 
-from odoo.addons.liwan_ai.models.access_service import AI_USE
-from odoo.addons.liwan_ai.tests.common import AiProbe
+from odoo.addons.liwan_api.tests.common import skip_without_ai_engine
 from odoo.addons.liwan_tasks.tests.common import LiwanTasksCase
 
 MODEL = 'project.task'
 
 
 @tagged('post_install', '-at_install', 'liwan')
-class TestTasksAiKnowledge(AiProbe, LiwanTasksCase):
-
-    def setUp(self):
-        super().setUp()
-        self._install_probe()
-        self._install_knowledge(sources=None)
-        self.indexer_user = self.env.ref('liwan_ai.user_ai_indexer')
-        self.env.cr.execute('DELETE FROM liwan_ai.ai_knowledge_queue')
+class TestTasksAiKnowledgeSource(TransactionCase):
+    """What Tasks declares for the index, checked with or without liwan_ai."""
 
     def test_the_tasks_source_is_declared_and_valid(self):
         source = self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_map()[MODEL]
         self.assertEqual((source['owner'], source['feature_key'], source['title_field']), ('liwan_tasks', 'tasks.enabled', 'name'))
 
     def test_the_indexer_may_read_a_task_and_what_its_text_names_but_nothing_to_write(self):
-        indexer = self.env.ref('liwan_ai.group_ai_indexer')
+        indexer = self.env.ref('liwan_api.group_ai_indexer')
         for model in ('project.task', 'project.project', 'project.task.type'):
-            self.env.cr.execute(
-                'SELECT perm_read, perm_write, perm_create, perm_unlink FROM ir_model_access acl'
-                ' JOIN ir_model model ON model.id = acl.model_id WHERE model.model = %s AND acl.group_id = %s',
-                [model, indexer.id],
+            acls = self.env['ir.model.access'].search([('model_id.model', '=', model), ('group_id', '=', indexer.id)])
+            self.assertEqual(
+                [(acl.perm_read, acl.perm_write, acl.perm_create, acl.perm_unlink) for acl in acls],
+                [(True, False, False, False)], model,
             )
-            self.assertEqual(self.env.cr.fetchall(), [(True, False, False, False)], model)
+            self.assertEqual(set(acls.get_external_id().values()), {f'liwan_tasks.access_{model.replace(".", "_")}_ai_indexer'})
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestTasksAiKnowledge(LiwanTasksCase):
+    """The index built by liwan_ai over the tasks, as the technical indexer user."""
+
+    def setUp(self):
+        super().setUp()
+        skip_without_ai_engine(self, 'the tasks source and its access rows were checked, the index was not built')
+        # liwan_ai is optional for Tasks: its test helpers are imported once the engine is known to be installed.
+        importlib.import_module('odoo.addons.liwan_ai.tests.common').lend_probe(self)
+        self.ai_use = importlib.import_module('odoo.addons.liwan_ai.models.access_service').AI_USE
+        self._install_probe()
+        self._install_knowledge(sources=None)
+        self.indexer_user = self.env.ref('liwan_ai.user_ai_indexer')
+        self.env.cr.execute('DELETE FROM liwan_ai.ai_knowledge_queue')
 
     def test_deleting_a_task_queues_its_removal_from_the_index(self):
         project = self.env['project.project'].create({'name': 'Knowledge project'})
@@ -99,7 +110,7 @@ class TestTasksAiKnowledge(AiProbe, LiwanTasksCase):
 
     def test_the_technical_user_reads_only_what_a_source_declares(self):
         as_indexer = self.env(user=self.indexer_user)
-        # Models no source declares, whichever of them this database has (HR is not installed beside every bridge).
+        # Models no source declares, whichever of them this database has (HR is not always installed beside Tasks).
         for model in ('hr.employee', 'mail.mail', 'res.partner'):
             if model in self.env:
                 with self.subTest(model=model), self.assertRaises(AccessError):
@@ -130,7 +141,7 @@ class TestTasksAiKnowledge(AiProbe, LiwanTasksCase):
         original = access._liwan_has_capability
         # The roles under test carry no assistant capability of their own; what is under test is what each may read.
         self.patch(access, '_liwan_has_capability', lambda model, user, key, record=None, company=None: (
-            key == AI_USE or original(model, user, key, record=record, company=company)
+            key == self.ai_use or original(model, user, key, record=record, company=company)
         ))
         task = self._task(self.env.company, 'Shared task')
         refs = {'refs': [{'model': MODEL, 'res_id': task.id, 'chunk_no': 0}]}

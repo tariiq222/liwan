@@ -51,7 +51,7 @@ class LiwanAiAccessService(models.AbstractModel):
         """The technical indexer user holds the capabilities the knowledge sources declare, in each company it belongs to.
 
         It has no role and no assignment: nothing in the roles pages names it and nobody can assign or remove its
-        capabilities. What it may read is still bounded by the read-only ACL rows the bridges give its group. It holds
+        capabilities. What it may read is still bounded by the read-only ACL rows the applications that declare a source give its group. It holds
         them only while it acts as the inactive account it is: an administrator who reactivated it (which the guards
         below refuse) would gain nothing, and only its own session (the cron) is ever given them.
         """

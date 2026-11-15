@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from odoo.addons.liwan_api.tests.common import AiAgentCase
+from odoo.addons.liwan_api.tests.common import AiAgentCase, skip_without_ai_engine
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -15,6 +15,7 @@ class TestCrmAiAgent(AiAgentCase):
         registry = self.env['liwan.ai.setting.registry']
         settings = registry._liwan_ai_setting_map()
         self.assertTrue({'crm.visibility', 'crm.followup_attempts', 'crm.after_attempts', 'crm.discount_allowed'} <= set(settings))
+        skip_without_ai_engine(self, 'the CRM policies were declared and validated, their check and apply were not run')
         item = settings['crm.followup_attempts']
         with self.assertRaises(ValueError):
             registry._liwan_ai_check_value(item, 11)
