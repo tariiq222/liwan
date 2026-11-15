@@ -9,6 +9,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_sales.controllers.pdf_response import pdf_response
 from odoo.addons.liwan_sales.models.access_service import (
     DOCUMENTS_ASSIGN,
     ORDERS_CONFIRM,
@@ -65,6 +66,19 @@ class SalesOrdersController(http.Controller):
     def get_order(self, order_id, **_):
         return _detail(_service()._liwan_order(order_id))
 
+    @http.route('/api/v1/sales/orders/<int:order_id>/pdf', type='http', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('sales.enabled', operation='read')
+    @requires_capability(READ)
+    def order_pdf(self, order_id, **_):
+        """The stock quotation report of a readable order, rendered in the caller's own environment.
+
+        A file download is not JSON, so the route is ``type='http'``; ``api_handler`` still answers every refusal with
+        the JSON error shape.
+        """
+        order = _service()._liwan_order(order_id)
+        return pdf_response(order, request.env['liwan.sales.document']._liwan_pdf(order))
+
     @http.route('/api/v1/sales/orders', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('sales.enabled', operation='write')
@@ -78,6 +92,13 @@ class SalesOrdersController(http.Controller):
     @requires_capability(QUOTATIONS_MANAGE)
     def update_order(self, order_id, **payload):
         return _detail(_service()._liwan_update(order_id, parse_order_body(payload, creating=False)))
+
+    @http.route('/api/v1/sales/orders/<int:order_id>/send', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('sales.enabled', operation='write')
+    @requires_capability(QUOTATIONS_MANAGE)
+    def send_order(self, order_id, **_):
+        return _detail(_service()._liwan_send(order_id))
 
     @http.route([
         '/api/v1/sales/orders/<int:order_id>/confirm',

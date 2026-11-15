@@ -1,0 +1,1 @@
+No data migration: the new settings `customer_answer` (default `accept`) and `acceptance_confirms` (default false) are filled by the column defaults, and the five answer fields of `sale.order` start empty because no quotation has been sent before.

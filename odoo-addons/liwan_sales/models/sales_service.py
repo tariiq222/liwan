@@ -5,7 +5,7 @@ from odoo import api, fields, models
 from odoo.tools import html2plaintext, plaintext2html
 
 from .access_service import DISCOUNTS_APPROVE, QUOTATIONS_MANAGE
-from .sale_order import DISCOUNT_BOUNDS, LINE_KINDS, valid_discount
+from .sale_order import ANSWER_RESET, DISCOUNT_BOUNDS, LINE_KINDS, valid_discount
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_products.models.products_service import (
     QUANTITY_BOUNDS,
@@ -22,11 +22,17 @@ TRANSITIONS = {
     'unlock': 'action_unlock',
 }
 QUIET = {'mail_auto_subscribe_no_notify': True}
+# The actions an expired quotation is refused with 422 `quotation_expired`, ahead of the state table's 403.
+EXPIRY_REFUSED = ('send', 'confirm')
 
 
 def _invalid(field, message):
     code = 'invalid'
     raise LiwanAccessRule(code, message, field=field, status=422)
+
+
+def _invalid_code(code, message):
+    raise LiwanAccessRule(code, message, status=422)
 
 
 def _forbidden(message, field=None, details=None):
@@ -62,6 +68,8 @@ class LiwanSalesService(models.AbstractModel):
         403 ``transition_forbidden`` when the state table refuses the move."""
         order = self._liwan_order(order_id)
         self.env['liwan.sales.visibility']._liwan_check_write(order, self.env.user)
+        if action in EXPIRY_REFUSED and order.is_expired:
+            _invalid_code('quotation_expired', 'the quotation has expired; reopen it and extend its validity date')
         if not order._liwan_actions(self.env.user)[action]:
             code = 'transition_forbidden'
             raise LiwanAccessRule(code, f'{action} is not allowed in this state', status=403)
@@ -122,11 +130,51 @@ class LiwanSalesService(models.AbstractModel):
     @api.model
     def _liwan_transition(self, order_id, action):
         """Move the order by the stock method of ``action`` (``TRANSITIONS``), in the caller's environment."""
-        order = self._liwan_writable(order_id, action)
-        if action == 'confirm' and not order.order_line.filtered(lambda line: not line.display_type):
-            _invalid('lines', 'an order needs a product line to be confirmed')
+        return self._liwan_move(self._liwan_writable(order_id, action), action)
+
+    @api.model
+    def _liwan_move(self, order, action):
+        """Move ``order`` by ``action`` once the caller's checks have passed: the one path a staff move and the
+        customer's confirming acceptance share. Stock sends no confirmation mail from it. A reopen leaves no answer."""
+        if action == 'confirm':
+            self._liwan_require_product_line(order)
         getattr(order, TRANSITIONS[action])()
+        if action == 'reopen':
+            order.write(ANSWER_RESET)
         return order
+
+    @api.model
+    def _liwan_send(self, order_id):
+        """Send the draft or sent ``order_id`` to its customer, again when it was sent before.
+
+        Moves a draft to ``sent``, copies the settings of the customer's answer onto the order (clearing any earlier
+        answer and signature), makes the access token and queues the e-mail with the PDF and the link of the public page.
+        """
+        order = self._liwan_writable(order_id, 'send')
+        if not order.partner_id.email:
+            _invalid_code('customer_email_missing', 'the customer has no e-mail address')
+        self._liwan_require_product_line(order)
+        if not self.env['liwan.outbound.mail']._liwan_sender():
+            code = 'mail_unavailable'
+            raise LiwanAccessRule(code, 'no sender address is configured, the quotation cannot be mailed', status=503)
+        settings = self.env['liwan.sales.settings']._liwan_current()
+        order = order.with_context(**QUIET)
+        order.write({
+            **ANSWER_RESET,
+            'liwan_answer_mode': settings.customer_answer,
+            'liwan_acceptance_confirms': settings.acceptance_confirms,
+            'require_signature': settings.customer_answer == 'accept_and_sign',
+        })
+        if order.state == 'draft':
+            order.action_quotation_sent()
+        order._portal_ensure_token()
+        self.env['liwan.sales.document']._liwan_queue_mail(order)
+        return order
+
+    @api.model
+    def _liwan_require_product_line(self, order):
+        if not order.order_line.filtered(lambda line: not line.display_type):
+            _invalid('lines', 'an order needs a product line to be confirmed or sent')
 
     @api.model
     def _liwan_duplicate(self, order_id):

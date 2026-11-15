@@ -23,15 +23,19 @@ def _dump_salesperson(user):
     return {'id': user.id, 'name': user.name, 'user_id': user.id} if user else None
 
 
-def _dump_line(line):
-    # The tax of a line is never read: a branch session cannot read the root company's taxes. Only the stored amounts
-    # are, rounded to the currency because a freshly computed one still carries float noise.
-    product = line.product_id.product_tmpl_id
+def dump_currency(currency):
+    return {'id': currency.id, 'name': currency.name, 'symbol': currency.symbol}
+
+
+def dump_line_values(line):
+    """What a line shows on every page: its kind, name, quantity, unit, price, discount and amounts.
+
+    The tax of a line is never read: a branch session cannot read the root company's taxes. Only the stored amounts
+    are, rounded to the currency because a freshly computed one still carries float noise.
+    """
     money = line.currency_id.round
     return {
-        'id': line.id,
         'kind': LINE_KINDS[line.display_type],
-        'product': {'id': product.id, 'name': product.name} if product else None,
         'name': line.name,
         'quantity': line.product_uom_qty,
         'unit': line.product_uom_id.name or None,
@@ -40,6 +44,29 @@ def _dump_line(line):
         'amount_untaxed': money(line.price_subtotal),
         'amount_tax': money(line.price_tax),
         'amount_total': money(line.price_total),
+    }
+
+
+def _dump_line(line):
+    product = line.product_id.product_tmpl_id
+    return {
+        'id': line.id,
+        'product': {'id': product.id, 'name': product.name} if product else None,
+        **dump_line_values(line),
+    }
+
+
+def dump_customer_answer(order):
+    """What the customer was offered and has answered, or None before the first send."""
+    if not order.liwan_answer_mode:
+        return None
+    return {
+        'mode': order.liwan_answer_mode,
+        'acceptance_confirms': order.liwan_acceptance_confirms,
+        'answer': order.liwan_answer or None,
+        'answered_at': iso(order.liwan_answered_on),
+        'signed_by': order.signed_by or None,
+        'decline_reason': order.liwan_decline_reason or None,
     }
 
 
@@ -57,10 +84,12 @@ def dump_order_item(order):
         'validity_date': order.validity_date.isoformat() if order.validity_date else None,
         'date': iso(order.date_order),
         'terms': html2plaintext(order.note) if order.note else '',
-        'currency': {'id': currency.id, 'name': currency.name, 'symbol': currency.symbol},
+        'currency': dump_currency(currency),
         'amount_untaxed': currency.round(order.amount_untaxed),
         'amount_tax': currency.round(order.amount_tax),
         'amount_total': currency.round(order.amount_total),
+        'expired': bool(order.is_expired),
+        'customer_answer': dump_customer_answer(order),
     }
 
 

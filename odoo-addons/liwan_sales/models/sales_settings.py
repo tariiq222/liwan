@@ -5,10 +5,12 @@ from .access_service import SETTINGS_MANAGE
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 VISIBILITY_MODES = ('own', 'all')
+# What the customer may do on the public page of a sent quotation: nothing, accept, or accept with a signature.
+ANSWER_MODES = ('none', 'accept', 'accept_and_sign')
 
 
 class LiwanSalesSettings(models.Model):
-    """The tenant's Sales policy: who reads which document, and the defaults of a new quotation.
+    """The tenant's Sales policy: who reads which document, the defaults of a new quotation and what a customer may answer.
 
     One record per tenant database, changed only by a holder of ``sales.settings.manage`` in the working company and
     in the root company. ``revision`` refuses a write based on a stale read.
@@ -25,6 +27,10 @@ class LiwanSalesSettings(models.Model):
     # The highest discount percent a line may carry without sales.discounts.approve; 0 means no limit.
     discount_limit_percent = fields.Integer(required=True, default=0)
     default_terms = fields.Text()
+    # Copied onto a quotation when it is sent; a later change leaves a sent quotation as it was.
+    customer_answer = fields.Selection([(mode, mode) for mode in ANSWER_MODES], required=True, default='accept')
+    # Whether the customer's acceptance confirms the order by itself, or leaves it to staff.
+    acceptance_confirms = fields.Boolean(required=True, default=False)
     revision = fields.Integer(required=True, default=1)
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'the revision is a positive number')

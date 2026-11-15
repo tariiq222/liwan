@@ -4,7 +4,10 @@ from odoo.tests import tagged
 from .common import LiwanSalesCase
 
 SETTINGS = '/api/v1/sales/settings'
-KEYS = {'visibility', 'validity_days', 'discount_limit_percent', 'default_terms', 'can_manage', 'revision'}
+KEYS = {
+    'visibility', 'validity_days', 'discount_limit_percent', 'default_terms', 'customer_answer', 'acceptance_confirms',
+    'can_manage', 'revision',
+}
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -25,7 +28,7 @@ class TestSalesSettings(LiwanSalesCase):
             reader.json(),
             {
                 'visibility': 'own', 'validity_days': 30, 'discount_limit_percent': 0, 'default_terms': '',
-                'can_manage': False, 'revision': 1,
+                'customer_answer': 'accept', 'acceptance_confirms': False, 'can_manage': False, 'revision': 1,
             },
         )
         manager = self.api_as(self.manager, 'GET', SETTINGS).json()
@@ -39,7 +42,8 @@ class TestSalesSettings(LiwanSalesCase):
         revision = 1
         for payload in (
             {'visibility': 'all'}, {'validity_days': 0}, {'validity_days': 3650}, {'discount_limit_percent': 100},
-            {'default_terms': 'Payment within 30 days'}, {'default_terms': ''},
+            {'default_terms': 'Payment within 30 days'}, {'default_terms': ''}, {'customer_answer': 'none'},
+            {'customer_answer': 'accept_and_sign'}, {'acceptance_confirms': True}, {'acceptance_confirms': False},
         ):
             with self.subTest(payload=payload):
                 response = self.patch(self.manager, revision=revision, **payload)
@@ -54,7 +58,8 @@ class TestSalesSettings(LiwanSalesCase):
         for field, value in (
             ('visibility', 'team'), ('validity_days', -1), ('validity_days', 3651), ('validity_days', True),
             ('validity_days', '5'), ('discount_limit_percent', 101), ('discount_limit_percent', -1),
-            ('default_terms', 5), ('revision', 0),
+            ('default_terms', 5), ('revision', 0), ('customer_answer', 'sign'), ('customer_answer', None),
+            ('acceptance_confirms', 'yes'), ('acceptance_confirms', 1),
         ):
             with self.subTest(field=field, value=value):
                 payload = {'revision': 1, 'validity_days': 10} if field == 'revision' else {'revision': 1}

@@ -7,13 +7,13 @@ from .common import LiwanSalesCase
 ORDERS = '/api/v1/sales/orders'
 ITEM_KEYS = {
     'id', 'number', 'state', 'locked', 'source', 'customer', 'salesperson', 'validity_date', 'date', 'terms',
-    'currency', 'amount_untaxed', 'amount_tax', 'amount_total',
+    'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'expired', 'customer_answer',
 }
 LINE_KEYS = {
     'id', 'kind', 'product', 'name', 'quantity', 'unit', 'unit_price', 'discount_percent', 'amount_untaxed',
     'amount_tax', 'amount_total',
 }
-ACTION_KEYS = {'edit', 'confirm', 'cancel', 'reopen', 'lock', 'unlock', 'duplicate', 'assign'}
+ACTION_KEYS = {'edit', 'send', 'confirm', 'cancel', 'reopen', 'lock', 'unlock', 'duplicate', 'assign'}
 NO_ACTIONS = dict.fromkeys(ACTION_KEYS, False)
 
 
@@ -117,7 +117,7 @@ class TestSalesOrdersShape(LiwanSalesCase):
         order = self.make_order(self.agent)
         self.assertEqual(
             self.actions(self.agent, order),
-            {**NO_ACTIONS, 'edit': True, 'confirm': True, 'cancel': True, 'duplicate': True},
+            {**NO_ACTIONS, 'edit': True, 'send': True, 'confirm': True, 'cancel': True, 'duplicate': True},
         )
 
     def test_actions_follow_the_state_table(self):
@@ -126,7 +126,7 @@ class TestSalesOrdersShape(LiwanSalesCase):
             'sale': {'cancel': True, 'lock': True, 'duplicate': True},
             'locked': {'unlock': True, 'duplicate': True},
             'cancel': {'reopen': True, 'duplicate': True},
-            'sent': {'confirm': True, 'cancel': True, 'duplicate': True},
+            'sent': {'send': True, 'confirm': True, 'cancel': True, 'reopen': True, 'duplicate': True},
         }
         for label, flags in expected.items():
             with self.subTest(state=label):
@@ -142,7 +142,7 @@ class TestSalesOrdersShape(LiwanSalesCase):
         order = self.make_order(self.agent)
         self.assertEqual(
             self.actions(self.manager, order),
-            {**NO_ACTIONS, 'edit': True, 'confirm': True, 'cancel': True, 'duplicate': True, 'assign': True},
+            {**NO_ACTIONS, 'edit': True, 'send': True, 'confirm': True, 'cancel': True, 'duplicate': True, 'assign': True},
         )
 
     def test_an_online_order_only_offers_duplicate(self):

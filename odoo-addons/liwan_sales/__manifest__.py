@@ -2,7 +2,7 @@
 {
     'name': 'liwan Sales',
     'summary': 'liwan platform: the Sales application — /api/v1/sales quotations and orders',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
