@@ -1,3 +1,5 @@
+import { opportunityConversationsKey } from '../opportunityConversationsKey'
+
 // Query keys of the CRM application. Settings and terms are per company, like the data they describe.
 export const crmKeys = {
   all: ['crm'] as const,
@@ -10,7 +12,7 @@ export const crmKeys = {
   opportunity: (id: number) => ['crm', 'opportunities', 'record', id] as const,
   calls: (id: number) => ['crm', 'opportunities', 'calls', id] as const,
   tasks: (id: number) => ['crm', 'opportunities', 'tasks', id] as const,
-  conversations: (id: number) => ['crm', 'opportunities', 'conversations', id] as const,
+  conversations: opportunityConversationsKey,
   meetings: (id: number) => ['crm', 'opportunities', 'meetings', id] as const,
   importBatches: (params: object) => ['crm', 'imports', 'batches', params] as const,
   importBatchesAll: ['crm', 'imports', 'batches'] as const,

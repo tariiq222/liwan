@@ -1,6 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ConversationOpportunityAnswerSchema, CrmOpportunityListSchema } from '@liwan/contracts'
+import { opportunityConversationsKey } from '../opportunityConversationsKey'
 import { inboxKeys } from './useInbox'
 
 // The opportunity a conversation is linked to (the inbox bridge to CRM). It is read and written only while the tenant has
@@ -33,7 +34,13 @@ export function useLinkConversationOpportunity(conversationId: MaybeRefOrGetter<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (opportunityId: number) => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/opportunity`, { method: 'PUT', body: { opportunity_id: opportunityId }, schema: ConversationOpportunityAnswerSchema }),
-    onSuccess: ref => qc.setQueryData(inboxKeys.opportunity(toValue(conversationId)), ref),
+    onSuccess: (ref, opportunityId) => {
+      const cacheKey = inboxKeys.opportunity(toValue(conversationId))
+      const previous = qc.getQueryData<{ id: number } | null>(cacheKey)?.id
+      qc.setQueryData(cacheKey, ref)
+      // The conversations section of the new opportunity gains this conversation and that of the old one loses it.
+      for (const id of new Set([opportunityId, previous])) if (id) qc.invalidateQueries({ queryKey: opportunityConversationsKey(id) })
+    },
     // 409/403/404: what the server holds now may differ from what the card shows.
     onError: () => qc.invalidateQueries({ queryKey: inboxKeys.opportunity(toValue(conversationId)) }),
   })
@@ -45,7 +52,12 @@ export function useUnlinkConversationOpportunity(conversationId: MaybeRefOrGette
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/opportunity`, { method: 'DELETE' }),
-    onSuccess: () => qc.setQueryData(inboxKeys.opportunity(toValue(conversationId)), null),
+    onSuccess: () => {
+      const cacheKey = inboxKeys.opportunity(toValue(conversationId))
+      const previous = qc.getQueryData<{ id: number } | null>(cacheKey)?.id
+      qc.setQueryData(cacheKey, null)
+      if (previous) qc.invalidateQueries({ queryKey: opportunityConversationsKey(previous) })
+    },
     onError: () => qc.invalidateQueries({ queryKey: inboxKeys.opportunity(toValue(conversationId)) }),
   })
 }

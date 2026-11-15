@@ -367,7 +367,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       <div v-else-if="canWork" class="flex justify-end">
         <UButton size="xs" variant="outline" icon="i-lucide-pencil" :label="t('crm.opportunities.contact.edit')" :disabled="busy" data-testid="crm-contact-edit" @click="open('contact')" />
       </div>
-      <SharedRecordSection variant="panel" :title="t('customers.link.title')" data-testid="crm-customer">
+      <SharedRecordSection v-if="record.customer || canWork" variant="panel" :title="t('customers.link.title')" data-testid="crm-customer">
         <CustomerLinkBlock :customer="record.customer" :can-link="canWork" :can-open="can('customers.read')" :candidates="linkOpen" :pending="actions.linkCustomer.isPending.value" :error="textFor('link')" @link="onCustomerLink" @dismiss="conflict.clear()" />
       </SharedRecordSection>
       <SharedPropertiesPanel :title="t('crm.opportunities.record.details')">

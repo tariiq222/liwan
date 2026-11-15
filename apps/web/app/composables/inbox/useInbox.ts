@@ -283,7 +283,11 @@ export function useLinkInboxContactCustomer(id: MaybeRefOrGetter<number>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: CustomerLink) => $api(`/api/v1/inbox/contacts/${toValue(id)}/customer`, { method: 'POST', body, schema: InboxContactDetailSchema }),
-    onSuccess: detail => qc.setQueryData(inboxKeys.contact(detail.id), detail),
+    // The contact is read by the conversation detail and lists too, so every inbox read refreshes, like a contact edit.
+    onSuccess: detail => {
+      qc.setQueryData(inboxKeys.contact(detail.id), detail)
+      return qc.invalidateQueries({ queryKey: inboxKeys.all })
+    },
     onError: async (error) => {
       if (error instanceof ApiError && error.status === 409) await qc.invalidateQueries({ queryKey: inboxKeys.contact(toValue(id)) })
     },

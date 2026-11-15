@@ -8,15 +8,15 @@ import { describe, expect, it, vi } from 'vitest'
 const filename = new URL('../InboxContactPanel.vue', import.meta.url).pathname
 const messages: Record<string, string> = { 'inbox.erasedContact': 'Erased customer {id}', 'inbox.panel.contactErased': 'ERASED-HINT' }
 
-function conversation(contact: Record<string, unknown>) {
+function conversation(contact: Record<string, unknown>, canReply = true) {
   return {
-    id: 3, revision: 1, can_reply: true, can_assign: true, assignee: null, department: null, tags: [], state: 'open', priority: 'normal',
+    id: 3, revision: 1, can_reply: canReply, can_assign: true, assignee: null, department: null, tags: [], state: 'open', priority: 'normal',
     channel: { id: 1, name: 'WhatsApp' }, contact: { id: 9, phone: '966500000000', email: 'a@b.sa', ...contact },
   }
 }
 
 // The component is compiled and run against stubbed composables and form controls, as the other component tests do.
-async function mountPanel(contact: Record<string, unknown>, detail: Record<string, unknown> | null = null) {
+async function mountPanel(contact: Record<string, unknown>, detail: Record<string, unknown> | null = null, canReply = true) {
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'inbox-contact-panel' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
@@ -36,11 +36,11 @@ async function mountPanel(contact: Record<string, unknown>, detail: Record<strin
     CONVERSATION_STATES: [], PRIORITIES: [], InboxFlowSubmissionsSection: null, InboxContactMarketing: null,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
-  const state = component.setup({ conversation: conversation(contact) }, { expose: () => {} })
+  const state = component.setup({ conversation: conversation(contact, canReply) }, { expose: () => {} })
   const template = compileTemplate({ source: descriptor.template!.content, filename, id: 'inbox-contact-panel', compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] } })
   if (template.errors.length) throw template.errors[0]
   const render = new Function('Vue', transpile(template.code))(Vue)
-  const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, props: { conversation: conversation(contact) } }), render }))
+  const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, props: { conversation: conversation(contact, canReply) } }), render }))
   const pass = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('div', [slots.default?.()]) })
   const linkBlock = Vue.defineComponent({ props: ['customer', 'canLink', 'canOpen'], setup: props => () => Vue.h('div', { 'data-testid': 'link-block', 'data-customer': (props.customer as { name: string } | null)?.name ?? 'none', 'data-can-link': String(props.canLink) }) })
   app.component('CustomerLinkBlock', linkBlock)
@@ -86,8 +86,16 @@ describe('InboxContactPanel customer link', () => {
     expect(unlinked.html).toContain('data-can-link="true"')
   })
 
-  it('does not offer the link for an erased contact', async () => {
+  it('leaves the section out for an erased contact without a customer', async () => {
     const { html } = await mountPanel({ name: 'x', erased: true }, { id: 9, customer: null })
-    expect(html).toContain('data-can-link="false"')
+    expect(html).not.toContain('link-block')
+  })
+
+  it('leaves the section out when the server hides the customer from a viewer who cannot link, and shows a visible one read-only', async () => {
+    const hidden = await mountPanel({ name: 'Sara', erased: false }, { id: 9, customer: null }, false)
+    expect(hidden.html).not.toContain('link-block')
+    const visible = await mountPanel({ name: 'Sara', erased: false }, { id: 9, customer: { id: 4, name: 'Sara Co' } }, false)
+    expect(visible.html).toContain('data-customer="Sara Co"')
+    expect(visible.html).toContain('data-can-link="false"')
   })
 })

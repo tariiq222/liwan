@@ -75,6 +75,10 @@ async function linkCustomer(choice: CustomerLink) {
     linkError.value = linkMessage(error)
   }
 }
+// The server hides the customer from a viewer who may not pick customers (`customer: null`); such a viewer who cannot link
+// either has nothing to see here, so the section is left out instead of claiming the contact has no customer.
+const canLinkCustomer = computed(() => props.conversation.can_reply && !erased.value)
+const showCustomer = computed(() => Boolean(contactDetail.data.value) && (Boolean(contactDetail.data.value?.customer) || canLinkCustomer.value))
 const onLink = (choice: CustomerLink) => (conflict.candidates.value ? conflict.choose(choice) : linkCustomer(choice))
 
 // The contact's name and email are edited together and saved once.
@@ -117,10 +121,10 @@ function saveContact() {
       </form>
     </SharedRecordSection>
 
-    <SharedRecordSection v-if="contactDetail.data.value" variant="panel" :title="t('customers.link.title')">
+    <SharedRecordSection v-if="showCustomer" variant="panel" :title="t('customers.link.title')">
       <CustomerLinkBlock
-        :customer="contactDetail.data.value.customer"
-        :can-link="props.conversation.can_reply && !erased"
+        :customer="contactDetail.data.value?.customer ?? null"
+        :can-link="canLinkCustomer"
         :can-open="can('customers.read')"
         :candidates="conflict.candidates.value"
         :pending="linking"
