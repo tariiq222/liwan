@@ -151,36 +151,42 @@ class TestPersonalCreateWithPmo(LiwanTasksCase):
         return patch.object(type(self.env['project.task']), '_liwan_task_link_fields',
                             lambda _self: frozenset(names))
 
+    def _partner(self):
+        return self.env['res.partner'].create({'name': 'L', 'company_id': self.alice.company_id.id})
+
     def test_a_registered_link_field_passes_the_personal_create_gate(self):
-        with self._register('color'):
-            task = self.env['project.task'].with_user(self.alice).create(self._vals(self.alice, color=4))
+        partner = self._partner()
+        with self._register('partner_id'):
+            task = self.env['project.task'].with_user(self.alice).create(self._vals(self.alice, partner_id=partner.id))
         self.assertTrue(task.liwan_personal)
-        self.assertEqual(task.color, 4)
+        self.assertEqual(task.partner_id, partner)
 
     def test_an_unregistered_field_is_refused_by_the_gate(self):
         with self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
-            self.env['project.task'].with_user(self.alice).create(self._vals(self.alice, color=4))
+            self.env['project.task'].with_user(self.alice).create(self._vals(self.alice, partner_id=self._partner().id))
 
     def test_a_registered_link_field_does_not_widen_the_projectless_hook(self):
         project = self.env['project.project'].create({'name': 'P', 'company_id': self.env.company.id})
         Task = self.env['project.task'].with_user(self.alice)
-        with self._register('color'):
-            self.assertTrue(Task._liwan_projectless_create_allowed([self._vals(self.alice, color=4)]))
+        partner = self._partner().id
+        with self._register('partner_id'):
+            self.assertTrue(Task._liwan_projectless_create_allowed([self._vals(self.alice, partner_id=partner)]))
             self.assertFalse(Task._liwan_projectless_create_allowed(
-                [self._vals(self.alice, color=4, project_id=project.id)]))
+                [self._vals(self.alice, partner_id=partner, project_id=project.id)]))
             self.assertFalse(Task._liwan_projectless_create_allowed(
-                [self._vals(self.alice, color=4, partner_id=self.bob.partner_id.id)]))
+                [self._vals(self.alice, partner_id=partner, liwan_planned_start='2026-12-01')]))
 
     def test_a_registered_link_field_is_refused_on_a_project_task_create(self):
         project = self.env['project.project'].create({'name': 'P', 'company_id': self.env.company.id})
+        parent = self.env['project.task'].create({'name': 'parent', 'project_id': project.id})
         Task = self.env['project.task'].with_user(self.alice)
-        with self._register('color'):
+        partner = self._partner().id
+        with self._register('partner_id'):
             for vals in (
-                {'name': 'x', 'project_id': project.id, 'color': 4},
-                {'name': 'x', 'color': 4, 'parent_id': self.env['project.task'].create(
-                    {'name': 'parent', 'project_id': project.id}).id},
+                {'name': 'x', 'project_id': project.id, 'partner_id': partner},
+                {'name': 'x', 'partner_id': partner, 'parent_id': parent.id},
             ):
                 with self.subTest(vals=sorted(vals)), self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
                     Task.create(vals)
             with self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
-                Task.with_context(default_project_id=project.id).create({'name': 'x', 'color': 4})
+                Task.with_context(default_project_id=project.id).create({'name': 'x', 'partner_id': partner})

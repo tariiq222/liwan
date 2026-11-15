@@ -44,7 +44,7 @@ class ProjectTask(models.Model):
         """
         if not self.env.su:
             for vals in vals_list:
-                self._liwan_check_link_targets(vals)
+                self._liwan_check_link_targets(self._liwan_with_link_defaults(vals))
         return super().create(vals_list)
 
     def write(self, vals):
@@ -54,12 +54,28 @@ class ProjectTask(models.Model):
         return super().write(vals)
 
     @api.model
+    def _liwan_link_fields(self):
+        """The registered link fields; a registered field that is not a many2one is a programmer error."""
+        names = self._liwan_task_link_fields()
+        for name in names:
+            if self._fields[name].type != 'many2one':
+                raise TypeError(f'task link field {name} must be a many2one, not {self._fields[name].type}')
+        return names
+
+    @api.model
+    def _liwan_with_link_defaults(self, vals):
+        """``vals`` plus the ``default_<field>`` context value of each registered link field it leaves out,
+        which is the value the ORM would create with."""
+        defaults = {name: self.env.context[f'default_{name}']
+                    for name in self._liwan_link_fields() if f'default_{name}' in self.env.context}
+        return {**defaults, **vals}
+
+    @api.model
     def _liwan_check_link_targets(self, vals):
-        for name in self._liwan_task_link_fields() & set(vals):
-            field = self._fields[name]
-            if not field.relational or not vals[name]:
+        for name in self._liwan_link_fields() & set(vals):
+            if not vals[name]:
                 continue
-            target = self.env[field.comodel_name].browse(vals[name]).exists()
+            target = self.env[self._fields[name].comodel_name].browse(vals[name]).exists()
             try:
                 target.check_access('read')
             except AccessError:
