@@ -17,6 +17,7 @@ const manifest: AppManifest = {
       { id: 'sharing', labelKey: 'customers.settings.sharing.title', icon: 'i-lucide-share-2', capability: 'customers.settings.manage' },
       { id: 'partyKinds', labelKey: 'customers.settings.partyKinds.title', icon: 'i-lucide-users-round', capability: 'customers.settings.manage' },
       { id: 'phoneCountry', labelKey: 'customers.settings.phoneCountry.title', icon: 'i-lucide-phone', capability: 'customers.settings.manage' },
+      { id: 'autoLink', labelKey: 'customers.settings.autoLink.title', icon: 'i-lucide-link', capability: 'customers.settings.manage' },
       { id: 'fields', labelKey: 'customers.settings.fields.title', icon: 'i-lucide-list-plus', capability: 'customers.settings.manage' },
     ],
   },

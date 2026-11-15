@@ -49,3 +49,9 @@ export function isSharingTransferRequired(error: unknown): boolean {
   const failure = error as Refusal | null
   return failure?.status === 409 && failure.code === 'sharing_transfer_required'
 }
+
+/** Whether a link was refused because the record already has a customer, which it keeps (409 `already_linked`). */
+export function isCustomerAlreadyLinked(error: unknown): boolean {
+  const failure = error as Refusal | null
+  return failure?.status === 409 && failure.code === 'already_linked'
+}

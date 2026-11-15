@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ApiErrorSchema } from '../common/error'
 import {
   CustomFieldDefinitionPatchItemSchema,
   CustomFieldDefinitionSchema,
@@ -71,6 +72,34 @@ export const CustomerConflictDetailsSchema = z.object({
   candidates: z.array(CustomerCandidateSchema).min(1),
 }).strict()
 
+/** The customer a record (a CRM opportunity, an inbox contact) is linked to, as it is shown: its id and name. */
+export const CustomerLinkRefSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().min(1),
+}).strict()
+
+/** Which customer a link, a won opportunity or a sold call attaches: an existing one, a new one, or (neither) one made from the record's own data. */
+export const customerChoiceShape = {
+  customer_id: z.number().int().positive().optional(),
+  create_new: z.boolean().optional(),
+}
+
+const NOT_BOTH = { message: 'name a customer or ask for a new one, not both', path: ['create_new'] }
+export const customerChoiceIsOne = (body: { customer_id?: number | undefined; create_new?: boolean | undefined }) =>
+  body.customer_id === undefined || !body.create_new
+
+/** The body of `POST .../customer` on an opportunity or an inbox contact. */
+export const CustomerLinkSchema = z.object(customerChoiceShape).strict().refine(customerChoiceIsOne, NOT_BOTH)
+
+/** The 409 `conflict` of a link whose phone matches existing customers: nothing is linked until the user chooses. */
+export const CustomerLinkConflictErrorSchema = ApiErrorSchema.extend({
+  code: z.literal('conflict'),
+  details: CustomerConflictDetailsSchema,
+})
+
+/** The 409 `already_linked`: the record keeps the customer it has. */
+export const CustomerAlreadyLinkedErrorSchema = ApiErrorSchema.extend({ code: z.literal('already_linked') })
+
 const IdentityFields = {
   phone: z.string().min(1).nullable().optional(),
   email: z.string().min(1).max(254).nullable().optional(),
@@ -106,6 +135,8 @@ export const CustomerCountryListSchema = z.object({
 export const CustomerSettingsSchema = z.object({
   sharing: CustomerSharingSchema,
   party_kinds: CustomerPartyKindsSchema,
+  // Whether a record whose phone matches exactly one customer is linked to it without asking.
+  auto_link_single_match: z.boolean(),
   phone_country: CustomerCountrySchema.nullable(),
   // The tenant's customer fields, in display order; every customer carries their values.
   fields: z.array(CustomFieldDefinitionSchema),
@@ -118,6 +149,7 @@ export const CustomerSettingsSchema = z.object({
 export const CustomerSettingsPatchSchema = z.object({
   sharing: CustomerSharingSchema.optional(),
   party_kinds: CustomerPartyKindsSchema.optional(),
+  auto_link_single_match: z.boolean().optional(),
   phone_country_id: z.number().int().positive().nullable().optional(),
   // The whole definition in display order; a field left out is removed.
   fields: z.array(CustomFieldDefinitionPatchItemSchema).optional(),
@@ -158,6 +190,8 @@ export type CustomerCandidateList = z.infer<typeof CustomerCandidateListSchema>
 export type CustomerPick = z.infer<typeof CustomerPickSchema>
 export type CustomerPickList = z.infer<typeof CustomerPickListSchema>
 export type CustomerConflictDetails = z.infer<typeof CustomerConflictDetailsSchema>
+export type CustomerLinkRef = z.infer<typeof CustomerLinkRefSchema>
+export type CustomerLink = z.infer<typeof CustomerLinkSchema>
 export type CustomerCreate = z.infer<typeof CustomerCreateSchema>
 export type CustomerPatch = z.infer<typeof CustomerPatchSchema>
 export type CustomerCountry = z.infer<typeof CustomerCountrySchema>

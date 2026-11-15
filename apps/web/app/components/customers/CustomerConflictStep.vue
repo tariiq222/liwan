@@ -4,7 +4,8 @@ import type { CustomerCandidate } from '@liwan/contracts'
 // The step a create stops at when customers with the same phone exist: the user opens one of them or creates a new
 // customer anyway, and the create is repeated with that answer. Inline under the form (SharedInlineConfirm,
 // DESIGN.md section 5), not an overlay. The step shows a name and the last four digits only, never a full number.
-const props = defineProps<{ candidates: CustomerCandidate[]; pending?: boolean }>()
+// `description` and `confirmLabel` replace the create form's words where the same choice links a record to a customer.
+const props = defineProps<{ candidates: CustomerCandidate[]; pending?: boolean; description?: string; confirmLabel?: string }>()
 const emit = defineEmits<{ open: [id: number]; createNew: []; cancel: [] }>()
 const { t } = useI18n()
 const NEW_CUSTOMER = 'new'
@@ -28,8 +29,8 @@ function choose() {
   <SharedInlineConfirm
     color="primary"
     :title="t('customers.conflict.title')"
-    :description="t('customers.conflict.description')"
-    :confirm-label="t('customers.conflict.confirm')"
+    :description="props.description ?? t('customers.conflict.description')"
+    :confirm-label="props.confirmLabel ?? t('customers.conflict.confirm')"
     :pending="props.pending"
     :disabled="!choice"
     @confirm="choose"

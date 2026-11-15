@@ -56,6 +56,7 @@ const LIMITS = { max_properties: 20, max_options: 50, max_label: 100 }
 const freshSettings = () => ({
   sharing: 'branch',
   party_kinds: 'both',
+  auto_link_single_match: false,
   phone_country: { id: 191, code: 'SA', name: 'المملكة العربية السعودية' },
   fields: [
     { key: 'city', label: 'المدينة', type: 'char' },

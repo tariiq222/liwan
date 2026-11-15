@@ -4,12 +4,13 @@ import {
   InboxAgentListSchema,
   InboxAttachmentSchema,
   InboxCannedReplyListSchema,
-  InboxContactSchema,
+  InboxContactDetailSchema,
   InboxConversationDetailSchema,
   InboxConversationListSchema,
   InboxMessageListSchema,
   InboxMessageSchema,
   InboxTagListSchema,
+  type CustomerLink,
   type InboxContactPatch,
   type InboxMessage,
   type InboxConversationPatch,
@@ -27,6 +28,8 @@ export const inboxKeys = {
   all: ['inbox'] as const,
   list: (route: InboxListRoute) => ['inbox', 'conversations', inboxListQuery(route)] as const,
   detail: (id: number) => ['inbox', 'conversation', id] as const,
+  opportunity: (id: number) => ['inbox', 'conversation-opportunity', id] as const,
+  contact: (id: number) => ['inbox', 'contact', id] as const,
   messagesOf: (id: number) => ['inbox', 'messages', id] as const,
   canned: ['inbox', 'canned-replies'] as const,
   templates: (channelId: number) => ['inbox', 'templates', channelId] as const,
@@ -252,11 +255,41 @@ export function usePatchInboxConversation(id: MaybeRefOrGetter<number>) {
   })
 }
 
+/** The contact with the customer it is linked to; read for the contact panel only, never per row of a list. */
+export function useInboxContact(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => inboxKeys.contact(toValue(id))),
+    retry: false,
+    queryFn: ({ signal }) => $api(`/api/v1/inbox/contacts/${toValue(id)}`, { signal, schema: InboxContactDetailSchema }),
+  })
+}
+
 export function usePatchInboxContact(id: MaybeRefOrGetter<number>) {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: InboxContactPatch) => $api(`/api/v1/inbox/contacts/${toValue(id)}`, { method: 'PATCH', body, schema: InboxContactSchema }),
+    mutationFn: (body: InboxContactPatch) => $api(`/api/v1/inbox/contacts/${toValue(id)}`, { method: 'PATCH', body, schema: InboxContactDetailSchema }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inbox'] }),
+  })
+}
+
+/**
+ * Link the contact to a customer: the one named, a new one, or (neither) one made from the contact's data. The server
+ * answers 409 `conflict` with candidates when customers share the phone, and 409 `already_linked` for a linked contact.
+ */
+export function useLinkInboxContactCustomer(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CustomerLink) => $api(`/api/v1/inbox/contacts/${toValue(id)}/customer`, { method: 'POST', body, schema: InboxContactDetailSchema }),
+    // The contact is read by the conversation detail and lists too, so every inbox read refreshes, like a contact edit.
+    onSuccess: detail => {
+      qc.setQueryData(inboxKeys.contact(detail.id), detail)
+      return qc.invalidateQueries({ queryKey: inboxKeys.all })
+    },
+    onError: async (error) => {
+      if (error instanceof ApiError && error.status === 409) await qc.invalidateQueries({ queryKey: inboxKeys.contact(toValue(id)) })
+    },
   })
 }

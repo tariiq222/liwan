@@ -320,7 +320,73 @@
         "discount": "The discount is not allowed or does not match the prices.",
         "discountApproval": "This discount is above the allowed limit and needs someone who can approve discounts.",
         "forbidden": "You cannot do this on this record.",
-        "stage": "A record is not moved to the sold stage here. Use the sale action."
+        "stage": "A record is not moved to the sold stage here. Use the sale action.",
+        "alreadyLinked": "The opportunity is already linked to a customer, which cannot be changed here."
+      },
+      "customer": {
+        "linked": "The opportunity is linked to the customer"
+      },
+      "tasks": {
+        "title": "Tasks",
+        "add": "Add a task",
+        "name": "Task name",
+        "nameRequired": "Enter the task name",
+        "deadline": "Deadline",
+        "deadlineRequired": "Choose a deadline",
+        "priorityLabel": "Priority",
+        "priority": {
+          "normal": "Normal",
+          "high": "High"
+        },
+        "description": "Description",
+        "assignees": "Assignees",
+        "assigneesHint": "Left empty, the task goes to the opportunity's agent.",
+        "assigneesPlaceholder": "Choose assignees",
+        "submit": "Save task",
+        "empty": "This opportunity has no tasks.",
+        "state": {
+          "open": "Open",
+          "done": "Done",
+          "cancelled": "Cancelled"
+        },
+        "due": "Due {date}",
+        "noDeadline": "No deadline",
+        "count": "Showing {shown} of {total} tasks",
+        "added": "The task was added"
+      },
+      "meetings": {
+        "title": "Meetings",
+        "add": "Add a meeting",
+        "name": "Meeting title",
+        "nameRequired": "Enter the meeting title",
+        "date": "Day",
+        "location": "Place",
+        "url": "Meeting link",
+        "agenda": "Agenda",
+        "submit": "Save meeting",
+        "empty": "This opportunity has no meetings.",
+        "state": {
+          "draft": "Draft",
+          "confirmed": "Confirmed",
+          "done": "Done",
+          "cancelled": "Cancelled"
+        },
+        "noDate": "No date",
+        "count": "Showing {shown} of {total} meetings",
+        "added": "The meeting was added"
+      },
+      "conversations": {
+        "title": "Conversations",
+        "empty": "No conversations are linked to this opportunity.",
+        "erased": "Erased customer",
+        "unread": "Unread",
+        "state": {
+          "open": "Open",
+          "pending": "Pending",
+          "resolved": "Resolved",
+          "closed": "Closed"
+        },
+        "count": "Showing {shown} of {total} conversations"
       }
     },
     "imports": {

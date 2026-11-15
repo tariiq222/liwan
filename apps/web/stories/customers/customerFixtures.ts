@@ -4,6 +4,7 @@ import type { Customer, CustomerSettings } from '@liwan/contracts'
 export const settings: CustomerSettings = {
   sharing: 'branch',
   party_kinds: 'both',
+  auto_link_single_match: false,
   phone_country: { id: 191, code: 'SA', name: 'المملكة العربية السعودية' },
   fields: [
     { key: 'city', label: 'المدينة', type: 'char' },
