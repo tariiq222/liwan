@@ -546,6 +546,8 @@ def static_analysis(context):
     ]
     if context.deep:
         # A stray user-level .npmrc option must not decide whether the product's advisories were checked.
+        # npm 11 rejects some install-scoped keys from a user config inside a workspace (EALLOWSCRIPTS), so
+        # the audit pins its own empty user config and never inherits the operator's machine settings.
         commands.append(Command('npm audit', [PYTHON, '-B', 'tools/test_slot.py', '--', 'npm', 'run', 'check:audit'],
                                 timeout=900, env={'NPM_CONFIG_USERCONFIG': os.devnull}))
         commands.append(Command('ai service audit', ['bash', 'deploy/ci/lib/ai-service-audit.sh'],

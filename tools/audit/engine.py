@@ -21,7 +21,34 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-AUDIT_DIR = REPO / '.audit'
+
+
+def evidence_root() -> Path:
+    """Where this framework keeps its evidence, shared by every worktree of one checkout.
+
+    A lane is disposable (``wt lane finish`` returns it to origin/main and ``wt gc`` removes a task
+    worktree), so evidence written inside a lane disappears with it. The audit history belongs to the
+    repository, not to a lane: the default is the canonical checkout's ``.audit``, found through the
+    shared git directory, and ``LIWAN_AUDIT_DIR`` overrides it for a team that keeps evidence
+    elsewhere. Nothing here is tracked by git.
+    """
+    override = os.environ.get('LIWAN_AUDIT_DIR')
+    if override:
+        return Path(override).expanduser().resolve()
+    try:
+        common = subprocess.run(['git', 'rev-parse', '--git-common-dir'], cwd=REPO,
+                                capture_output=True, text=True, timeout=15, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return REPO / '.audit'
+    if not common:
+        return REPO / '.audit'
+    resolved = (REPO / common).resolve() if not Path(common).is_absolute() else Path(common).resolve()
+    # The common directory of a linked worktree is <main checkout>/.git, so its parent is the
+    # canonical checkout a lane is cut from.
+    return (resolved.parent if resolved.name == '.git' else resolved) / '.audit'
+
+
+AUDIT_DIR = evidence_root()
 GENERATED_SKIP = re.compile(
     r'(^|/)(node_modules|\.nuxt|\.output|\.nitro|storybook-static|dist|coverage|test-results|\.git|\.worktrees|\.audit)'
     r'(/|$)|(^|/)vendor(/|$)'

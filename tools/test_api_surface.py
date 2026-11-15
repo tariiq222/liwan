@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import ast
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -359,6 +360,76 @@ class TestCapabilityMatrix(unittest.TestCase):
         self.assertEqual(gated['feature_keys'], ['hr.enabled'])
         open_route = operations['GET /api/v1/b']
         self.assertEqual((open_route['capability_source'], open_route['no_capability_reason']), ('none', 'own data only'))
+
+
+class TestOperationIds(unittest.TestCase):
+    """OpenAPI requires each operationId to name one operation; a generated client keys methods by it."""
+
+    def route(self, handler, paths, methods=('POST',)):
+        return {
+            'docstring': '', 'addon': 'liwan_x', 'controller': 'C', 'handler': handler,
+            'paths': list(paths), 'methods': list(methods), 'auth': 'user', 'http_type': 'json2',
+            'summary': '', 'readonly': False, 'api_handler': True,
+            'feature_keys': [], 'feature_operation': None,
+        }
+
+    def operations(self, routes):
+        document = api_surface.build_document(routes, {})
+        return [(operation['operationId'], path)
+                for path, item in document['paths'].items()
+                for operation in item.values()]
+
+    def test_one_handler_on_two_paths_gets_two_ids(self):
+        """archive/restore on one handler must not share an id."""
+        pairs = self.operations([self.route('set_active', [
+            '/api/v1/things/<int:thing_id>/archive',
+            '/api/v1/things/<int:thing_id>/restore',
+        ])])
+        ids = [operation_id for operation_id, _path in pairs]
+        self.assertEqual(len(ids), 2)
+        self.assertEqual(len(set(ids)), 2, 'duplicate operationId: %r' % ids)
+        self.assertTrue(all(operation_id.startswith('liwan_x.C.set_active.post') for operation_id in ids))
+
+    def test_a_disambiguated_id_names_the_action(self):
+        pairs = self.operations([self.route('set_active', [
+            '/api/v1/things/<int:thing_id>/archive',
+            '/api/v1/things/<int:thing_id>/restore',
+        ])])
+        suffixes = {operation_id.rsplit('.', 1)[-1] for operation_id, _path in pairs}
+        self.assertEqual(suffixes, {'archive', 'restore'})
+
+    def test_four_actions_on_one_handler_are_four_ids(self):
+        pairs = self.operations([self.route('file_action', [
+            '/api/v1/documents/<int:document_id>/files/<int:file_id>/archive',
+            '/api/v1/documents/<int:document_id>/files/<int:file_id>/restore',
+            '/api/v1/documents/<int:document_id>/files/<int:file_id>/lock',
+            '/api/v1/documents/<int:document_id>/files/<int:file_id>/unlock',
+        ])])
+        ids = [operation_id for operation_id, _path in pairs]
+        self.assertEqual(len(ids), 4)
+        self.assertEqual(len(set(ids)), 4, 'duplicate operationId: %r' % ids)
+
+    def test_a_unique_id_is_left_alone(self):
+        """Only colliding ids change, so a stable surface keeps stable ids."""
+        pairs = self.operations([self.route('clone_role', ['/api/v1/admin/roles/<int:role_id>/clone'])])
+        self.assertEqual(pairs[0][0], 'liwan_x.C.clone_role.post')
+
+    def test_two_methods_on_one_path_are_distinct(self):
+        pairs = self.operations([self.route('thing', ['/api/v1/things'], methods=('GET', 'POST'))])
+        self.assertEqual(len({operation_id for operation_id, _path in pairs}), 2)
+
+    def test_whatever_the_generator_builds_has_unique_ids(self):
+        """The rule is enforced on the generator's own output, not on a committed snapshot.
+
+        The snapshot is regenerated only on an integration branch (tools/git_policy.py), so a task
+        branch can legitimately hold an older document; building the document here still proves the
+        generator cannot emit a collision.
+        """
+        document = api_surface.build_document(api_surface.extract_routes(), {})
+        ids = [operation['operationId'] for item in document['paths'].values()
+               for operation in item.values() if 'operationId' in operation]
+        duplicates = {value for value in ids if ids.count(value) > 1}
+        self.assertEqual(duplicates, set(), 'duplicate operationIds: %r' % sorted(duplicates))
 
 
 class TestAuthDocumentation(unittest.TestCase):
