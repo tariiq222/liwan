@@ -17,6 +17,9 @@ export const PUBLIC_API_NAMESPACE_METHODS = ['GET', 'HEAD', 'POST'] as const
 export const BOOKING_API_PREFIX = '/api/v1/public/appointments/'
 /** Public JSON bodies are small forms: a token and a few ids. */
 export const MAX_PUBLIC_API_BODY = 16 * 1024
+/** The customer's quotation answer carries a drawn signature (a base64 PNG of up to 48 KB), so the quotation routes take a larger body. */
+export const SALES_API_PREFIX = '/api/v1/public/sales/'
+export const MAX_PUBLIC_SALES_BODY = 96 * 1024
 
 // The auth='public' routes outside the public namespace: login-page branding, the second step of a
 // sign-in (which needs the pre-login session cookie) and the inbox provider webhooks (WhatsApp and TikTok sign
@@ -43,6 +46,14 @@ export const PUBLIC_BODY_LIMITS = new Map<string, number>([
   [WHATSAPP_HOOK_PATH, MAX_PUBLIC_HOOK_BODY],
   [TIKTOK_HOOK_PATH, MAX_PUBLIC_HOOK_BODY],
 ])
+
+/** The largest JSON body a public path takes: its own limit, the quotation routes' larger one, or the form size; undefined outside the public namespace. */
+export function publicBodyLimit(apiPath: string): number | undefined {
+  const own = PUBLIC_BODY_LIMITS.get(apiPath)
+  if (own !== undefined) return own
+  if (apiPath.startsWith(SALES_API_PREFIX)) return MAX_PUBLIC_SALES_BODY
+  return isPublicApiPath(apiPath) ? MAX_PUBLIC_API_BODY : undefined
+}
 
 export function isPublicApiPath(apiPath: string): boolean {
   return apiPath.startsWith(PUBLIC_API_NAMESPACE)

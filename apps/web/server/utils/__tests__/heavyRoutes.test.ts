@@ -11,6 +11,7 @@ const READS = [
   '/api/v1/reports/projects/analytics',
   '/api/v1/meetings/7/minutes.pdf',
   '/api/v1/finance/invoices/7/pdf',
+  '/api/v1/sales/orders/7/pdf',
 ]
 const WRITES = [
   '/api/v1/finance/assets/compute-depreciation',
@@ -57,6 +58,9 @@ describe('heavyRouteKind', () => {
     ['GET', '/api/v1/meetings/7/minutes.pdf/extra'],
     ['GET', '/api/v1/meetings/x/minutes.pdf'],
     ['GET', '/api/v1/finance/invoices/7/pdfs'],
+    ['GET', '/api/v1/sales/orders/7/pdfs'],
+    ['GET', '/api/v1/sales/orders/x/pdf'],
+    ['GET', '/api/v1/public/sales/quotations/7/pdf'],
     ['POST', '/api/v1/auth/totp'],
     ['GET', '/api/v1/branding'],
     ['GET', '/api/v1/tasks'],
