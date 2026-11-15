@@ -1,3 +1,8 @@
+# Bounded container logs: without this the json-file driver grows until the disk is full.
+x-logging: &liwan-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
 services:
   proxy:
     image: liwan-caddy:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
@@ -5,6 +10,7 @@ services:
       context: ..
       dockerfile: deploy/proxy/Dockerfile
     restart: unless-stopped
+    logging: *liwan-logging
     ports: ["80:80", "443:443"]
     environment: { DOMAIN: "${DOMAIN}" }
     # Non-root image user; the binary's file capability is the only way it binds 80/443.
@@ -22,6 +28,7 @@ services:
   web:
     build: { context: .., dockerfile: apps/web/Dockerfile }
     restart: unless-stopped
+    logging: *liwan-logging
     # The AI service is reachable only on the internal ai_internal network (see `ai` and `ai-egress`).
     networks: [default, ai_internal]
     environment:
@@ -35,6 +42,20 @@ services:
       # web only: the API key of the tenant's technical AI usage account (provision.sh mints it). With it the usage ledger is
       # recorded for a user whose session already ended; without it web reports with the user's session as before.
       LIWAN_AI_USAGE_KEY: "${LIWAN_AI_USAGE_KEY:-}"
+      # Admission ceilings of the API proxy. Unset keeps the defaults in apps/web/server/utils
+      # (tenantTransport.ts, bufferAdmission.mjs, apiSessionAdmission.ts); an invalid value stops the server at start.
+      NUXT_ODOO_MAX_CONCURRENCY: "${NUXT_ODOO_MAX_CONCURRENCY:-}"
+      NUXT_ODOO_POOL_SESSION_ACTIVE: "${NUXT_ODOO_POOL_SESSION_ACTIVE:-}"
+      NUXT_ODOO_POOL_SESSION_QUEUED: "${NUXT_ODOO_POOL_SESSION_QUEUED:-}"
+      NUXT_ODOO_POOL_PUBLIC_ACTIVE: "${NUXT_ODOO_POOL_PUBLIC_ACTIVE:-}"
+      NUXT_ODOO_POOL_PUBLIC_QUEUED: "${NUXT_ODOO_POOL_PUBLIC_QUEUED:-}"
+      NUXT_ODOO_POOL_BOOKING_ACTIVE: "${NUXT_ODOO_POOL_BOOKING_ACTIVE:-}"
+      NUXT_ODOO_POOL_BOOKING_QUEUED: "${NUXT_ODOO_POOL_BOOKING_QUEUED:-}"
+      NUXT_ODOO_POOL_HEAVY_ACTIVE: "${NUXT_ODOO_POOL_HEAVY_ACTIVE:-}"
+      NUXT_ODOO_POOL_HEAVY_QUEUED: "${NUXT_ODOO_POOL_HEAVY_QUEUED:-}"
+      NUXT_SESSION_CHECK_CACHE_SIZE: "${NUXT_SESSION_CHECK_CACHE_SIZE:-}"
+      NUXT_SESSION_CHECK_CONCURRENCY: "${NUXT_SESSION_CHECK_CONCURRENCY:-}"
+      NUXT_SESSION_CHECK_TTL_MS: "${NUXT_SESSION_CHECK_TTL_MS:-}"
     expose: ["3000"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -58,6 +79,7 @@ services:
       args:
         ODOO_COMMIT: ${ODOO_COMMIT:?set ODOO_COMMIT from deploy/odoo/ODOO_COMMIT}
     restart: unless-stopped
+    logging: *liwan-logging
     command: ["--workers", "2", "--proxy-mode"]
     environment:
       HOST: db
@@ -93,6 +115,7 @@ services:
     profiles: [ai]
     build: { context: ../apps/ai-service }
     restart: unless-stopped
+    logging: *liwan-logging
     # No route off the host: the only way out is the ai-egress allowlist proxy below.
     networks: [ai_internal]
     environment:
@@ -149,6 +172,7 @@ services:
     profiles: [ai]
     build: { context: ./ai-egress }
     restart: unless-stopped
+    logging: *liwan-logging
     environment:
       AI_EGRESS_HOSTS: "${AI_EGRESS_HOSTS:-}"
       # Tenants' own provider hosts (written by `ai`) join the allowlist: CONNECT to port 443, never to a private address.
@@ -169,6 +193,7 @@ services:
     # pgvector/pgvector is the official postgres:16 image plus the `vector` extension (AI knowledge index).
     image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
     restart: unless-stopped
+    logging: *liwan-logging
     # AI state lives in the tenant database, so db joins ai_internal as well as the default network.
     networks: [default, ai_internal]
     # The postgres user owns the data directory in the image, so the entrypoint never needs root.

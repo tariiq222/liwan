@@ -11,7 +11,7 @@ const meta = {
     layout: 'padded',
     a11y: { test: 'error' },
     msw: { handlers: { api: assistantShellHandlers } },
-    ...storyContext('apps/web/app/pages/index.vue:22', 'لافتة ليوان AI: حتى ثلاثة أشياء من مهام المستخدم واجتماعاته بقواعد بلا نموذج، وزر إلى المساعد. لا تظهر إلا لمن يملك المساعد.'),
+    ...storyContext('apps/web/app/pages/index.vue:26', 'لافتة ليوان AI: حتى ثلاثة أشياء من مهام المستخدم واجتماعاته بقواعد بلا نموذج، وزر إلى المساعد. لا تظهر إلا لمن يملك المساعد.'),
   },
   beforeEach: () => {
     const stopAssistant = declareStubAssistant()

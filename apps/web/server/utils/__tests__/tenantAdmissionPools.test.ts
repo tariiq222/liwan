@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import type { H3Event } from 'h3'
 import { POOL_LIMITS } from '../bufferAdmission.mjs'
 import { withTenantBody, withTenantResponse, type AdmissionScope } from '../tenantTransport'
@@ -12,6 +12,8 @@ afterEach(async () => {
   holders.forEach(done => done.then(() => { remaining-- }, () => { remaining-- }))
   while (remaining > 0) { for (const open of gates.splice(0)) open(); await new Promise(resolve => setTimeout(resolve, 0)) }
   holders.length = 0
+  vi.unstubAllEnvs()
+  vi.resetModules()
 })
 
 const event = () => {
@@ -78,4 +80,21 @@ it('lets heavy traffic proceed while the session pool is saturated', async () =>
   for (const kind of ['body', 'response'] as const) {
     expect(await settledWithin(hold('heavy', kind).inside)).toBe(true)
   }
+})
+
+it('applies a configured pool size to tenant traffic and leaves the other pools at their defaults', async () => {
+  vi.stubEnv('NUXT_ODOO_POOL_PUBLIC_ACTIVE', '1')
+  vi.stubEnv('NUXT_ODOO_POOL_PUBLIC_QUEUED', '0')
+  vi.resetModules()
+  const configured = await import('../tenantTransport')
+  let open!: () => void
+  let entered!: () => void
+  const inside = new Promise<void>(resolve => { entered = resolve })
+  const holder = configured.withTenantBody(event(), 'public', () => new Promise<void>(resolve => { open = resolve; entered() }))
+  await inside
+  await expect(configured.withTenantBody(event(), 'public', async () => {})).rejects.toMatchObject({ statusCode: 502 })
+  // Booking keeps its default two credits.
+  await expect(Promise.all([1, 2].map(() => configured.withTenantBody(event(), 'booking', async () => 'ran')))).resolves.toEqual(['ran', 'ran'])
+  open()
+  await holder
 })

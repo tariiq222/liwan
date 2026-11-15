@@ -1,25 +1,11 @@
 <script setup lang="ts">
-// A horizontal rail that snaps card by card. It is a focusable labelled region, so the keyboard scrolls it; the owner's
-// arrow buttons call `scrollCards`, which follows the reading direction (toward the end is left in Arabic).
+// A horizontal rail that snaps card by card. It is a focusable labelled region, so the keyboard scrolls it.
 defineProps<{ label: string }>()
-/** One 300px card and its gap, with a little extra so the next card's edge shows. */
-const CARD_STEP = 320
-const rail = ref<HTMLElement | null>(null)
-
-function scrollCards(direction: 1 | -1) {
-  const element = rail.value
-  if (!element) return
-  const sign = getComputedStyle(element).direction === 'rtl' ? -1 : 1
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  element.scrollBy({ left: sign * direction * CARD_STEP, behavior: reduced ? 'auto' : 'smooth' })
-}
-defineExpose({ scrollCards })
 </script>
 
 <template>
   <!-- The padding and the matching negative margin leave room for a card's lift and shadow without clipping them. -->
   <div
-    ref="rail"
     role="region"
     tabindex="0"
     :aria-label="label"

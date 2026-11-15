@@ -21,6 +21,11 @@
 # 2 OCPU / 16 GiB serving one tenant, never from the full-size plan.
 name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME to this staging project's own name}
 
+# Bounded container logs: without this the json-file driver grows until the disk is full.
+x-logging: &liwan-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
 services:
   proxy:
     image: liwan-caddy:${STAGING_IMAGE_TAG:?set STAGING_IMAGE_TAG to the staging image tag}
@@ -28,6 +33,7 @@ services:
       context: ../..
       dockerfile: deploy/proxy/Dockerfile
     restart: unless-stopped
+    logging: *liwan-logging
     # Loopback only, and never 80/443: the base definition publishes those host
     # ports, and two projects on one server must not compete for a port. The values
     # are also off the ports the rest of this repository uses (guard 8080, web 3000,
@@ -61,6 +67,7 @@ services:
   web:
     build: { context: ../.., dockerfile: apps/web/Dockerfile }
     restart: unless-stopped
+    logging: *liwan-logging
     networks: [staging_edge]
     environment:
       NUXT_ODOO_URL: http://odoo:8069
@@ -88,6 +95,7 @@ services:
       args:
         ODOO_COMMIT: ${ODOO_COMMIT:?set ODOO_COMMIT from deploy/odoo/ODOO_COMMIT}
     restart: unless-stopped
+    logging: *liwan-logging
     networks: [staging_edge, staging_db]
     # The plan for this box, not the full-size one:
     #   python3 -B deploy/odoo_sizing.py --ocpu 2 --memory-gib 16 --tenants 1
@@ -129,6 +137,7 @@ services:
     # PostgreSQL build than the one it rehearses for would rehearse the wrong engine.
     image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
     restart: unless-stopped
+    logging: *liwan-logging
     networks: [staging_db]
     # The postgres user owns the data directory in the image, so the entrypoint never needs root.
     user: postgres

@@ -88,6 +88,8 @@ function openLiveLink(event: MouseEvent) {
   if (!anchor || isTimeline.value) return
   const target = new URL(anchor.href)
   if (!new RegExp(`^/projects/${projectId.value}/tasks/(new|[1-9]\\d*)$`).test(target.pathname)) return
+  // A board column's '+' carries its own return target and the column preset: it opens as it is.
+  if (target.searchParams.has('returnTo')) return
   event.preventDefault()
   void openTask(target.pathname)
 }

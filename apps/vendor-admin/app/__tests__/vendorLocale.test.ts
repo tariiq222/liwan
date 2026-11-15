@@ -73,7 +73,7 @@ describe('vendor locale', () => {
       expect(new Set([v.catalog.title, v.plans.title, v.bundles.title, v.packages.title]).size).toBe(4)
     }
     const ar = titles('ar')
-    expect([ar.catalog.title, ar.plans.title, ar.bundles.title, ar.packages.title]).toEqual(['الكتالوج', 'الباقات', 'الحزم', 'الحزم القديمة'])
+    expect([ar.catalog.title, ar.plans.title, ar.bundles.title, ar.packages.title]).toEqual(['تركيبة تطبيقات ليوان', 'الباقات', 'الحزم', 'الحزم القديمة'])
     const en = titles('en')
     expect([en.catalog.title, en.plans.title, en.bundles.title, en.packages.title]).toEqual(['Catalog', 'Plans', 'Bundles', 'Legacy packages'])
   })

@@ -30,7 +30,7 @@ This file is the single source of repository instructions for every coding agent
 | Approval before updating external source versions | [Update policy](docs/UPDATE_POLICY.md) |
 | Checkout map and evidence entry points, not live runtime state | [Workspace map](docs/WORKSPACE.md) |
 
-Read the current task and the references for its scope before editing. A task-specific owner decision must state its scope; do not turn a bounded exception into a permanent policy change. If active references conflict or the decision source is unclear, report the exact conflict before changing the affected behavior. Errors, stale text and dead code inside the task's own scope are fixed or deleted without asking; a user-visible behavior change or reversing a recorded owner decision goes to the owner as options with a recommended default ([integration-rules.md](docs/agents/integration-rules.md#standing-authorization-owner-decision-2026-11-08)). Plans, archived documents, old worktree instructions and reports do not silently supersede active policy.
+Read the current task and the references for its scope before editing. A task-specific owner decision must state its scope; do not turn a bounded exception into a permanent policy change. If active references conflict or the decision source is unclear, report the exact conflict before changing the affected behavior. Errors, stale text and dead code inside the task's own scope are fixed or deleted without asking; a user-visible behavior change or reversing a recorded owner decision goes to the owner as options with a recommended default ([integration-rules.md](docs/agents/integration-rules.md#standing-authorization-owner-decision-2026-11-11)). Plans, archived documents, old worktree instructions and reports do not silently supersede active policy.
 
 Keep three claims separate: an approved requirement, implementation present in a named branch/SHA, and behavior verified by a recorded check. Neither a document update nor green checks authorize a release tag, production deployment or any operation excluded in [integration-rules.md](docs/agents/integration-rules.md). Change the owning reference and update its summaries together; do not copy a policy into another instruction file.
 
@@ -74,10 +74,11 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   Verify branch and dirty state live. Dated integration/recovery reports and
   older WIP describe their own checkpoints, not the current source state.
 - When reviewing a diff, follow `REVIEW.md` (what to report and what is already automated).
-- Never run tests on `liwan_dev` or `odoo19`. Commit, push of the task branch, PR, merge
-  and returning the lane (`wt lane finish`, or `wt gc` for a temporary worktree) fall under the standing authorization in
-  [integration-rules.md](docs/agents/integration-rules.md); deploying, release tags,
-  force-push, direct push to `main` and discarding work still need the owner's explicit words.
+- Never run tests on `liwan_dev` or `odoo19`. A local commit on the task branch and returning the lane
+  after a merge (`wt lane finish`, or `wt gc` for a temporary worktree) fall under the standing authorization in
+  [integration-rules.md](docs/agents/integration-rules.md). Push, opening a PR, marking it ready, merging and
+  auto-merge each need the owner's explicit words in the current conversation (owner decision 2026-11-11), as do
+  deploying, release tags, force-push, direct push to `main` and discarding work.
 - Local verification does not prove production deployment. Report fresh test
   evidence and the actual branch/runtime state.
 
@@ -248,8 +249,8 @@ another application) needs the owner's approval, recorded by the owner as an
   directory in the same commit.
 - `main` is protected on GitHub with PR and current CI requirements and no admin bypass.
   Integration uses a pull request; direct pushes and protection bypasses are prohibited. The
-  preservation procedure, the standing authorization (commit, push of the task branch, PR,
-  ready, merge after green `ci-result`, `wt gc`), the exclusions and the merge checklist have one
+  preservation procedure, the standing authorization (local commit, lane return after a merge), the
+  steps that need the owner's explicit words (push, PR, ready, merge, auto-merge), the exclusions and the merge checklist have one
   owner: [integration-rules.md](docs/agents/integration-rules.md). Read it before integrating an
   older branch. The 2026-10-17 direct-push exception is superseded by this PR workflow.
 - Use a task PR for an independent change; use one `<prefix>/tools-integrate-<slug>` candidate
@@ -269,7 +270,7 @@ another application) needs the owner's approval, recorded by the owner as an
 
 Before every integration, including from an older worktree, follow the six steps in
 `docs/agents/integration-rules.md`. They are mandatory, as is its definition of the owner
-keywords «كومت ودمج» and «انشر». These are agent workflow instructions, not a Git hook or
+keywords «كومت ودمج», «انشر» and «دمج»/«ادمج». These are agent workflow instructions, not a Git hook or
 server-enforced branch protection; do not claim automated merge protection exists unless it has
 actually been installed and verified.
 

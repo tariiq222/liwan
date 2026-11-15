@@ -69,6 +69,7 @@ CUSTOM_ROLES = {
     'e2e_docs_editor': ('تحرير المستندات بلا إدارة الوصول', ('documents.items.manage',)),
     'e2e_payments_reader': ('قراءة المدفوعات فقط', ('finance.payments.read',)),
     'e2e_employee_no_ai': ('موظف بلا مساعد ذكي', None),
+    'e2e_tasks_only': ('مهام شخصية فقط', ('tasks.tasks.read', 'tasks.tasks.create', 'tasks.tasks.write')),
 }
 # The Customer Messages application: without these three no seeded account holds any inbox.* capability, so every
 # inbox scenario and its API routes were unreachable (finding 2026-11-07). Seeded after every other persona: see
@@ -77,6 +78,11 @@ INBOX_PERSONAS = (
     ('inbox_manager', 'منال الشريف', 'مديرة صندوق العملاء', 'المبيعات', 'ceo', ('employee', 'inbox_manager')),
     ('inbox_supervisor', 'راكان الدوسري', 'مشرف صندوق العملاء', 'المبيعات', 'inbox_manager', ('employee', 'inbox_supervisor')),
     ('inbox_agent', 'لمياء العتيبي', 'موظفة صندوق العملاء', 'المبيعات', 'inbox_supervisor', ('employee', 'inbox_agent')),
+)
+# The personal-tasks capabilities with no project right: every other persona that holds tasks.* also holds
+# pmo.projects.read, so the convert refusal (TSK-94) had nobody to run it. Seeded last for the same reason as above.
+TASKS_PERSONAS = (
+    ('tasks_only', 'هيفاء الشهراني', 'منسقة مهام', 'العمليات', 'ops_manager', ('e2e_tasks_only',)),
 )
 # Branches (child companies of the root) and the people who work only there.
 BRANCHES = ('فرع جدة', 'فرع الدمام')
@@ -199,7 +205,7 @@ for key, name, job_title, department_name, manager_key, role_keys in PERSONAS + 
     ensure_persona(key, name, job_title, company, role_keys, departments[department_name], employees.get(manager_key, False))
 for key, name, job_title, branch_name, role_keys in BRANCH_PERSONAS:
     ensure_persona(key, name, job_title, branches[branch_name], role_keys)
-for key, name, job_title, department_name, manager_key, role_keys in INBOX_PERSONAS:
+for key, name, job_title, department_name, manager_key, role_keys in INBOX_PERSONAS + TASKS_PERSONAS:
     ensure_persona(key, name, job_title, company, role_keys, departments[department_name], employees.get(manager_key, False))
 
 for department_name, head_key in DEPARTMENT_HEADS.items():

@@ -11,6 +11,28 @@ COMPOSE_FILES = sorted((ROOT / 'deploy').rglob('*compose*.yml'))
 PINNED = re.compile(r'@sha256:[0-9a-f]{64}$')
 # Images the repository builds itself carry a release tag, not a registry digest.
 LOCAL_IMAGE = re.compile(r'^liwan-[a-z-]+:')
+# YAML anchors do not cross files, so every file that introduces a service carries this block itself.
+LOGGING_ANCHOR = re.compile(
+    r'^x-logging: &liwan-logging\n  driver: json-file\n  options: \{ max-size: "\d+[km]", max-file: "\d+" \}$', re.M)
+LOGGING_ALIAS = '    logging: *liwan-logging'
+# The file combinations an operator renders. Compose merges a service's `logging` from the file that introduces it,
+# so an overlay that only overrides a base service needs none of its own.
+STACKS = {
+    'dedicated': ('docker-compose.yml',),
+    'dedicated production': ('docker-compose.yml', 'docker-compose.production.yml'),
+    'dedicated classification': ('docker-compose.yml', 'docker-compose.classification.yml'),
+    'shared': ('docker-compose.yml', 'docker-compose.shared.yml'),
+    'shared production': ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
+                          'docker-compose.production.yml'),
+    'staging': ('staging/docker-compose.staging.yml',),
+    'staging classification': ('staging/docker-compose.staging.yml', 'docker-compose.classification.yml'),
+}
+PROXY_ADMISSION_SETTINGS = {
+    'NUXT_ODOO_MAX_CONCURRENCY', 'NUXT_SESSION_CHECK_CACHE_SIZE', 'NUXT_SESSION_CHECK_CONCURRENCY',
+    'NUXT_SESSION_CHECK_TTL_MS',
+    *(f'NUXT_ODOO_POOL_{pool}_{limit}' for pool in ('SESSION', 'PUBLIC', 'BOOKING', 'HEAVY')
+      for limit in ('ACTIVE', 'QUEUED')),
+}
 
 
 def services(compose_text):
@@ -114,6 +136,52 @@ class TestDedicatedCompose(unittest.TestCase):
 
     def test_database_does_not_start_as_root(self):
         self.assertRegex(self.services['db'], r'user:\s*postgres')
+
+
+class TestProxyAdmissionSettings(unittest.TestCase):
+    """A ceiling the proxy reads from its environment is useless unless the stack passes it to the container."""
+
+    def passed(self, compose, service):
+        block = services((ROOT / 'deploy' / compose).read_text())[service]
+        return set(re.findall(r'^      (NUXT_[A-Z_]+): "\$\{\1:-\}"$', block, re.M))
+
+    def test_web_receives_every_admission_setting(self):
+        self.assertLessEqual(PROXY_ADMISSION_SETTINGS, self.passed('docker-compose.yml', 'web'))
+
+    def test_guard_receives_the_pool_it_shares_with_web(self):
+        self.assertEqual(self.passed('docker-compose.shared.yml', 'guard'),
+                         {'NUXT_ODOO_POOL_SESSION_ACTIVE', 'NUXT_ODOO_POOL_SESSION_QUEUED'})
+
+    def test_the_listed_settings_are_the_ones_the_proxy_reads(self):
+        sources = ''.join((ROOT / 'apps/web/server/utils' / name).read_text()
+                          for name in ('tenantTransport.ts', 'bufferAdmission.mjs', 'apiSessionAdmission.ts'))
+        fixed = set(re.findall(r'NUXT_(?:ODOO_MAX_CONCURRENCY|SESSION_CHECK_[A-Z_]+)', sources))
+        pools = set(re.findall(r'^  (\w+): \{ active: \d+, queued: \d+ \},$', sources, re.M))
+        self.assertIn('`NUXT_ODOO_POOL_${pool.toUpperCase()}`', sources)
+        self.assertEqual(PROXY_ADMISSION_SETTINGS, fixed | {
+            f'NUXT_ODOO_POOL_{pool.upper()}_{limit}' for pool in pools for limit in ('ACTIVE', 'QUEUED')})
+
+
+class TestBoundedLogs(unittest.TestCase):
+    def test_every_service_of_every_stack_rotates_its_json_file_logs(self):
+        for stack, names in STACKS.items():
+            texts = [(ROOT / 'deploy' / name).read_text() for name in names]
+            rotated = {name for text in texts if LOGGING_ANCHOR.search(text)
+                       for name, block in services(text).items() if LOGGING_ALIAS in block.splitlines()}
+            for name in sorted({name for text in texts for name in services(text)}):
+                with self.subTest(stack=stack, service=name):
+                    self.assertIn(name, rotated, 'no bounded json-file logging')
+
+    def test_no_stack_file_sets_another_logging_configuration(self):
+        for name in sorted({name for names in STACKS.values() for name in names}):
+            for line in re.findall(r'^ +logging:.*$', (ROOT / 'deploy' / name).read_text(), re.M):
+                with self.subTest(compose=name):
+                    self.assertEqual(line, LOGGING_ALIAS)
+
+    def test_guard_rejects_unbounded_logging(self):
+        self.assertIsNone(LOGGING_ANCHOR.search('x-logging: &liwan-logging\n  driver: json-file\n'))
+        self.assertIsNone(LOGGING_ANCHOR.search(
+            'x-logging: &liwan-logging\n  driver: json-file\n  options: { max-size: "10m" }'))
 
 
 if __name__ == '__main__':

@@ -14,6 +14,7 @@ describe('HomeFocusCard', () => {
   it('names the application, links the title to the record and shows the caption', async () => {
     const html = await render({ row: row() })
     expect(html).toContain('data-app="tasks"')
+    expect(html).toContain('<li')
     expect(html).toContain('>مهامي</small>')
     expect(html).toMatch(/href="\/my-tasks\/1"[^>]*>تجهيز عقد متجر وردة</)
     expect(html).toContain('مستحقة اليوم')

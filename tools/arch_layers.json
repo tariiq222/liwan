@@ -210,7 +210,9 @@
       "apps/web/app/components/shared/commerce/",
       "apps/web/server/api/commercial/",
       "apps/web/server/api/invitations/",
-      "apps/web/server/utils/customer-commercial.ts"
+      "apps/web/server/utils/customer-commercial.ts",
+      "apps/web/app/composables/useSubscription.ts",
+      "apps/web/app/utils/subscription.ts"
     ]
   }
 }

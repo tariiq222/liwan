@@ -14,6 +14,12 @@
 #
 # The values are written literally rather than interpolated so a missing or wrong
 # environment variable cannot silently downsize production to Odoo's defaults.
+
+# Bounded container logs: without this the json-file driver grows until the disk is full.
+x-logging: &liwan-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
 services:
   odoo:
     # The worker budget is NOT here, deliberately. In the production topology the
@@ -53,6 +59,7 @@ services:
     # and `deploy/image_pins.py` fails the build when a production image is tag-only.
     image: edoburu/pgbouncer:v1.24.1-p0@sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628
     restart: unless-stopped
+    logging: *liwan-logging
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     read_only: true

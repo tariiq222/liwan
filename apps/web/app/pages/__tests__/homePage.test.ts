@@ -33,10 +33,10 @@ async function render({ cards = [{ id: 'tasks' }] as Array<{ id: string }>, capa
 const at = (html: string, testid: string) => html.indexOf(`data-testid="${testid}"`)
 
 describe('home page', () => {
-  it('is «يومي»: the greeting, the assistant banner, the indicators, what to start with, then the applications', async () => {
+  it('is «يومي»: the greeting, the indicators, what to start with, the assistant banner, then the applications', async () => {
     const { html } = await render()
     expect(html).toContain('data-testid="foundation-home"')
-    const order = ['greeting', 'banner', 'indicators', 'focus', 'home-apps'].map(testid => at(html, testid))
+    const order = ['greeting', 'indicators', 'focus', 'banner', 'home-apps'].map(testid => at(html, testid))
     expect(order.every(position => position >= 0)).toBe(true)
     expect(order).toEqual([...order].sort((a, b) => a - b))
     expect(html).not.toContain('home-empty-')
