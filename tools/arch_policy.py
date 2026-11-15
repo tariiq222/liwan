@@ -28,6 +28,12 @@ BRIDGE_RANK = 5
 APP_RANK = 4
 BASE_APPLICATIONS = frozenset({'liwan_documents', 'liwan_operations'})
 FOUNDATION_MAX_RANK = 2
+# R3: the most lines of Python (outside tests and migrations) a bridge addon may hold before it counts as an application.
+BRIDGE_MAX_PYTHON_LINES = 700
+# R3 baseline keys of the bridge limit. The marker key (always count 0) is written with the baseline once the
+# existing violations are recorded; only a baseline without it may take the bridge-limit counts for the first time.
+BRIDGE_LIMIT_KINDS = ('bridge-model ', 'bridge-size ')
+BRIDGE_LIMIT_RECORDED = 'bridge-limit recorded'
 
 # R2 tokens that are not an addon of this repository: Odoo models.
 # app_token() adds every registered application and bridge (ranks 4 and 5 in arch_layers.json).
@@ -211,6 +217,35 @@ def sudo_sites(text: str, superuser_id: bool = True) -> list[tuple[int, str]]:
 def sudo_calls(text: str, superuser_id: bool = True) -> int:
     """R7: the number of sudo sites of one file."""
     return len(sudo_sites(text, superuser_id))
+
+
+def _class_strings(node: ast.ClassDef, attribute: str) -> list[str]:
+    """The string constants a class body assigns to `attribute` (a single string or a list or tuple of strings)."""
+    found: list[str] = []
+    for stmt in node.body:
+        if isinstance(stmt, ast.Assign) and any(isinstance(t, ast.Name) and t.id == attribute for t in stmt.targets):
+            found += [c.value for c in _string_constants(stmt.value)]
+    return found
+
+
+def new_models(text: str) -> int:
+    """R3: classes that define a model of their own, a `_name` that is not one of the models the class inherits."""
+    total = 0
+    for node in ast.walk(ast.parse(text)):
+        if isinstance(node, ast.ClassDef):
+            names = _class_strings(node, '_name')
+            if names and not set(names) & set(_class_strings(node, '_inherit')):
+                total += 1
+    return total
+
+
+def bridge_limit_violations(addon: str, files: list[Path]) -> dict[str, int]:
+    """R3: a bridge addon defines no model of its own and stays within BRIDGE_MAX_PYTHON_LINES lines of Python."""
+    sources = [_read(p) for p in files if p.suffix == '.py' and 'migrations' not in p.parts]
+    found: dict[str, int] = {}
+    _put(found, f'bridge-model odoo-addons/{addon}', sum(new_models(text) for text in sources))
+    _put(found, f'bridge-size odoo-addons/{addon}', max(0, sum(len(text.splitlines()) for text in sources) - BRIDGE_MAX_PYTHON_LINES))
+    return found
 
 
 # R10: a route names its feature, or (requires_registered_feature) the features installed addons register for it.
@@ -510,6 +545,19 @@ def totals_growth(new: dict[str, int], old: dict[str, int], label: str) -> list[
     ]
 
 
+def bridge_limit_recorded(v: Violations) -> bool:
+    """R3: whether this baseline already recorded the existing bridge-limit violations."""
+    return BRIDGE_LIMIT_RECORDED in v.get('R3', {})
+
+
+def comparable_totals(v: Violations, older: Violations) -> dict[str, int]:
+    """The rule totals of V to compare with OLDER's; the bridge-limit counts are left out while OLDER never recorded them."""
+    totals = rule_totals(v)
+    if not bridge_limit_recorded(older) and 'R3' in totals:
+        totals['R3'] -= sum(count for key, count in v['R3'].items() if key.startswith(BRIDGE_LIMIT_KINDS))
+    return totals
+
+
 class UnknownRef(RuntimeError):
     pass
 
@@ -534,7 +582,7 @@ def file_at(root: Path, rev: str, rel: str) -> str | None:
 
 
 def ratchet_problems(
-    ref: str, root: Path, layers_file: Path, baseline_file: Path, totals: dict[str, int], baseline_exists: bool,
+    ref: str, root: Path, layers_file: Path, baseline_file: Path, written: Violations, baseline_exists: bool,
     documented_file: Path | None = None,
 ) -> list[str]:
     """Compare the baseline totals, the layers file and the documented sudo cases with the same files at REF."""
@@ -544,7 +592,8 @@ def ratchet_problems(
     if ref_baseline is not None:
         if not baseline_exists:
             problems.append(f'baseline file deleted; restore it from {ref}')
-        problems += totals_growth(totals, rule_totals(json.loads(ref_baseline)), ref)
+        ref_violations = json.loads(ref_baseline)
+        problems += totals_growth(comparable_totals(written, ref_violations), rule_totals(ref_violations), ref)
     if ref_layers is not None:
         layer_problems = layers_weakened(json.loads(ref_layers), json.loads(_read(layers_file)), root)
         if layer_problems and not change_approved(ref, root, layers_file, layer_weakenings):
@@ -818,7 +867,10 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
             text = _read(registry) if registry.is_file() else ''
             if not (ENABLED_FEATURE.search(text) and f"'owner': '{addon}'" in text):
                 v['R10'][f'{addon} registers no <app>.enabled feature it owns'] = 1
-        for path in _addon_files(addon_dir, ('.py', '.xml', '.csv'), root):
+        files = _addon_files(addon_dir, ('.py', '.xml', '.csv'), root)
+        if ranks[addon] == BRIDGE_RANK:
+            v['R3'].update(bridge_limit_violations(addon, files))
+        for path in files:
             text, rel = _read(path), _rel(path, root)
             if ranks[addon] <= FOUNDATION_MAX_RANK and path.name != '__manifest__.py':
                 _put(v['R2'], rel, count(token, text))
@@ -930,21 +982,21 @@ def main(
     current = without_documented(found, documented)
     exists = baseline_file.is_file()
     baseline = json.loads(_read(baseline_file)) if exists else {}
-    # The totals that end up on disk: today's violations when writing, the file itself when checking.
-    totals = rule_totals(current) if args.write_baseline else rule_totals(baseline)
+    # The violations that end up on disk: today's when writing, the file itself when checking.
+    written = current if args.write_baseline else baseline
     try:
-        ratchet = ratchet_problems(args.base, root, layers_file, baseline_file, totals, exists or args.write_baseline, documented_file) if args.base else []
+        ratchet = ratchet_problems(args.base, root, layers_file, baseline_file, written, exists or args.write_baseline, documented_file) if args.base else []
     except UnknownRef as error:
         sys.stderr.write(f'{error}\n')
         return 2
     if args.write_baseline:
         # The first write records today's debt; every later write may only keep or shrink each rule total, and a
         # documented sudo case that no longer matches the code blocks the write just like the check path.
-        growth = totals_growth(totals, rule_totals(baseline), 'existing baseline') if exists else []
+        growth = totals_growth(comparable_totals(current, baseline), rule_totals(baseline), 'existing baseline') if exists else []
         problems = hard + growth + ratchet + documented_problems(documented, found)
         if not problems:
             baseline_file.write_text(
-                json.dumps(current, indent=2, sort_keys=True, ensure_ascii=False) + '\n', encoding='utf-8',
+                json.dumps({**current, 'R3': {**current.get('R3', {}), BRIDGE_LIMIT_RECORDED: 0}}, indent=2, sort_keys=True, ensure_ascii=False) + '\n', encoding='utf-8',
             )
             print(f'wrote {baseline_file.name}')
     else:
