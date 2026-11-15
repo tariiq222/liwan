@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import HomeFocusCard from '@/components/home/HomeFocusCard.vue'
-import HomeRailSkeleton from '@/components/home/HomeRailSkeleton.vue'
+import HomeFocusSkeleton from '@/components/home/HomeFocusSkeleton.vue'
 import HomeSection from '@/components/home/HomeSection.vue'
 import { shellModuleList } from '@/composables/nav/shellModules'
 import { useMyWork } from '@/composables/useMyWork'
@@ -23,7 +23,7 @@ const items = computed(() => rows.value.slice(0, FOCUS_ROWS).map(row => {
     <template #actions>
       <UButton to="/work" color="neutral" variant="link" size="sm" :label="t('home.viewAll')" data-testid="home-focus-all" />
     </template>
-    <HomeRailSkeleton v-if="pending" />
+    <HomeFocusSkeleton v-if="pending" />
     <SharedErrorState v-else-if="failed" data-testid="home-focus-error" @retry="refetch()" />
     <p v-else-if="!items.length" class="rounded-card border-[1.5px] border-dashed border-default p-5 text-sm text-muted" data-testid="home-focus-empty">{{ t('home.focusEmpty') }}</p>
     <ul v-else :aria-label="t('home.focus')" class="liwan-soft-in divide-y divide-default overflow-hidden rounded-card border-[1.5px] border-default bg-default" data-testid="home-focus-list">
