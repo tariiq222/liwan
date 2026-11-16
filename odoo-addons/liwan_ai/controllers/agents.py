@@ -3,7 +3,7 @@ from odoo import http
 from odoo.fields import Command
 from odoo.http import request
 
-from odoo.addons.liwan_ai.controllers.settings import AI_FEATURE, require_tenant_manager
+from odoo.addons.liwan_ai.controllers.settings import require_tenant_manager
 from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE
 from odoo.addons.liwan_ai.serializers.agent_settings import (
     AGENT_FLAGS,
@@ -17,6 +17,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 
 ROLES_READ = 'access.roles.read'
 
@@ -26,7 +27,7 @@ class AiAgentsController(http.Controller):
 
     @http.route('/api/v1/ai/agents', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='read')
+    @requires_feature(AI_SERVICE_FEATURE, operation='read')
     @requires_capability(AI_SETTINGS_MANAGE)
     def list_agents(self, **_):
         require_tenant_manager()
@@ -34,7 +35,7 @@ class AiAgentsController(http.Controller):
 
     @http.route('/api/v1/ai/agents/<string:key>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
-    @requires_feature(AI_FEATURE, operation='write')
+    @requires_feature(AI_SERVICE_FEATURE, operation='write')
     @requires_capability(AI_SETTINGS_MANAGE)
     def update_agent(self, key, **payload):
         require_tenant_manager()

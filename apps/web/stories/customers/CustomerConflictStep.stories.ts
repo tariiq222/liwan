@@ -21,3 +21,7 @@ export const SeveralCandidates: Story = {
   args: { candidates: [{ id: 41, name: 'منى العتيبي', phone_last4: '0001' }, { id: 42, name: 'منى سعد العتيبي', phone_last4: '0001' }, { id: 43, name: 'مؤسسة العتيبي', phone_last4: null }] },
 }
 export const Sending: Story = { name: 'جارٍ الإرسال', args: { pending: true } }
+export const LinkingARecord: Story = {
+  name: 'ربط سجل بعميل',
+  args: { description: 'يوجد عملاء بهذا الرقم. اربط أحدهم، أو أنشئ عميلًا جديدًا إن كان شخصًا آخر.', confirmLabel: 'ربط' },
+}

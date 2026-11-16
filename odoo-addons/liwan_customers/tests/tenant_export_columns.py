@@ -48,6 +48,7 @@ COLUMNS = {
     'customer_settings': (
         'id',
         'create_date',
+        'auto_link_single_match',
         'party_kinds',
         'phone_country_id',
         'revision',

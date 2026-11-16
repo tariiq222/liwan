@@ -15,6 +15,7 @@ const { useCustomerSettingsCard } = await import('../useCustomerSettingsCard')
 const seed = (): CustomerSettings => ({
   sharing: 'branch',
   party_kinds: 'both',
+  auto_link_single_match: false,
   phone_country: { id: 1, code: 'SA', name: 'السعودية' },
   fields: [{ key: 'city', label: 'المدينة', type: 'char' }, { key: 'vip', label: 'مميز', type: 'boolean' }],
   field_limits: { max_properties: 20, max_options: 50, max_label: 100 },

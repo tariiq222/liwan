@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { customerChoiceIsOne, customerChoiceShape } from '../customers'
 import { CrmOpportunitySchema } from './opportunity'
 
 const NOTE_MAX = 2000
@@ -30,7 +31,11 @@ const saleShape = {
   discount_percent: z.number().min(0).max(100).nullable().optional(),
 }
 
-export const CrmSaleSchema = z.strictObject(saleShape)
+const NOT_BOTH = { message: 'name a customer or ask for a new one, not both', path: ['create_new'] }
+
+// `customer_id` / `create_new` choose the customer an unlinked opportunity is linked to on win; the server answers
+// 409 `conflict` with candidates when the phone matches customers and neither is sent.
+export const CrmSaleSchema = z.strictObject({ ...saleShape, ...customerChoiceShape }).refine(customerChoiceIsOne, NOT_BOTH)
 
 // Any sale field needs the package and the price: the sale is sent whole, and only with a sold outcome.
 export const CrmCallCreateSchema = z
@@ -43,7 +48,13 @@ export const CrmCallCreateSchema = z
     package_id: saleShape.package_id.optional(),
     final_price: saleShape.final_price.optional(),
     discount_percent: saleShape.discount_percent,
+    ...customerChoiceShape,
   })
+  .refine(customerChoiceIsOne, NOT_BOTH)
+  .refine(
+    (body) => (body.customer_id === undefined && body.create_new === undefined) || body.package_id !== undefined,
+    'a customer choice travels with a sale',
+  )
   .refine(
     (body) =>
       [body.package_id, body.final_price, body.discount_percent].every((field) => field === undefined) ||

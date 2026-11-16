@@ -72,6 +72,14 @@
       "newHint": "Create the customer even though the number matches.",
       "confirm": "Continue"
     },
+    "link": {
+      "title": "Customer",
+      "none": "Not linked to a customer.",
+      "action": "Create a customer from this data",
+      "open": "Open customer {name}",
+      "conflictDescription": "Customers with this number exist. Link one of them, or create a new customer if this is someone else.",
+      "conflictConfirm": "Link"
+    },
     "settings": {
       "readOnlyTitle": "Settings are view only",
       "readOnly": "Customer settings belong to the managers of the main company. You can see them but cannot change them from here.",
@@ -107,6 +115,12 @@
         "search": "Search for a country",
         "loadError": "Could not load the countries",
         "retry": "Try again"
+      },
+      "autoLink": {
+        "title": "Automatic customer linking",
+        "hint": "Decides whether a new contact is linked to an existing customer without staff. It does not change existing contacts.",
+        "label": "Link contacts to customers automatically",
+        "help": "When a WhatsApp message arrives from a number that matches exactly one customer, the contact is linked to it. If the number matches several customers or none, staff choose by hand. Off by default."
       },
       "fields": {
         "title": "Customer fields",

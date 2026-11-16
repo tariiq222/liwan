@@ -15,7 +15,6 @@ from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE
 from odoo.addons.liwan_ai.models.knowledge_indexer import KNOWLEDGE_FEATURE
 from odoo.addons.liwan_api.tests.common import (
     PROBE_FEATURE,
-    LiwanApiCase,
     register_probe_feature,
     set_probe_feature,
 )
@@ -164,7 +163,7 @@ class AiProbe:
         self.settings_managers |= user
 
     def _install_knowledge(self, queue=True, sources=(PROBE_SOURCE,)):
-        """Declare ``sources`` (none: keep the installed bridges' own) and turn the knowledge on: the queue table, a signed
+        """Declare ``sources`` (none: keep the installed applications' own) and turn the knowledge on: the queue table, a signed
         acknowledgement, the setting and the feature."""
         if sources is not None:
             self.patch(type(self.env['liwan.ai.knowledge.registry']), '_liwan_ai_knowledge_sources', lambda model: list(sources))
@@ -211,58 +210,10 @@ class AiProbe:
         set_probe_feature(self)
 
 
-class AiBridgeCase(LiwanApiCase):
-    """The shared test of an application's AI bridge (spec 2026-11-04 §6.6): ``agent_key`` names the agent under test.
+def lend_probe(case):
+    """Give ``case`` the helpers of ``AiProbe`` without inheriting it.
 
-    A user without a tool's capability neither sees the tool nor runs its route; with the capability the tool appears
-    under its agent. The application's feature is switched on for the test, so the check is about capabilities only.
-    """
-    agent_key = None
-
-    def _bridge_tools(self):
-        agent = self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().get(self.agent_key)
-        self.assertTrue(agent, f'no agent {self.agent_key}')
-        tools = [
-            tool for tool in self.env['liwan.ai.tool.registry']._liwan_ai_tool_map().values()
-            if tool['owner'] == agent['owner']
-        ]
-        self.assertTrue(tools, f'agent {self.agent_key} declares no tool')
-        profile = self.env.ref('liwan_platform.tenant_profile')
-        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**(profile.features or {}), agent['feature_key']: True},
-        })
-        return tools
-
-    def _catalog_names(self):
-        response = self.api('GET', '/api/v1/ai/tools')
-        self.assertEqual(response.status_code, 200, response.text)
-        return {item['name'] for item in response.json()['items']}
-
-    def assert_agent_follows_capabilities(self):
-        tools = self._bridge_tools()
-        names = {tool['name'] for tool in tools}
-        capabilities = {tool['capability'] for tool in tools}
-        self.employee.write({'group_ids': [Command.link(self.env.ref('liwan_ai.group_cap_ai_use').id)]})
-        access = type(self.env['liwan.access.service'])
-        original = access._liwan_has_capability
-        granted = {'value': False}
-
-        def has_capability(model, user, key, record=None, company=None):
-            if key in capabilities and user == self.employee:
-                return granted['value']
-            return original(model, user, key, record=record, company=company)
-
-        self.patch(access, '_liwan_has_capability', has_capability)
-        self.authenticate('api_emp', 'api_emp_pass_123')
-        self.assertFalse(self._catalog_names() & names)
-        for tool in tools:
-            if tool['kind'] != 'read' or '{' in tool['route']['path']:
-                continue
-            constants = {key: value for key, value in (tool['input_map'].get('query') or {}).items() if not str(value).startswith('$')}
-            query = '&'.join(f'{key}={value}' for key, value in constants.items())
-            response = self.api('GET', tool['route']['path'] + (f'?{query}' if query else ''))
-            self.assertEqual(response.status_code, 403, f"{tool['name']}: {response.text}")
-        granted['value'] = True
-        catalog = self.api('GET', '/api/v1/ai/tools').json()
-        self.assertTrue(names <= {item['name'] for item in catalog['items']})
-        self.assertIn(self.agent_key, [item['key'] for item in catalog['agents']])
+    A test module of an application must import without liwan_ai, so it cannot name ``AiProbe`` as a base class. Its
+    knowledge tests skip without the engine first, then import this function and call it in ``setUp``."""
+    for name in ('_grant_ai_use', '_install_knowledge', '_queue', '_install_probe'):
+        setattr(case, name, getattr(AiProbe, name).__get__(case))

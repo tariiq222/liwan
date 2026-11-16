@@ -19,6 +19,29 @@
 3. لا تغيير بيانات؟ ضع `migrations/<version>/README.md` بجملة تشرح السبب. الحارس يقبله.
 4. الترحيل idempotent ولا يخمّن: حالة غامضة ⇒ `raise` برسالة تحدد المطلوب من المشغّل.
 
+## حذف addon
+
+addon محذوف من الشجرة يترك في قاعدة مثبّتة سابقًا صف الوحدة (يبقى `to upgrade` ويعدّه Odoo حالة غير متسقة)
+وصفوف `ir.model.data` الخاصة به، ومنها `base.module_<addon>`. تُنسى كلها هكذا:
+
+1. أضف اسمه إلى `REMOVED_ADDONS` في `odoo-addons/liwan_api/models/removed_addons.py`.
+2. ارفع إصدار `liwan_api` وأنشئ `migrations/<version>/end-forget_removed_addons.py` يستدعي
+   `forget_removed_addons`. لكل حذف لاحق إصدار `liwan_api` جديد بترحيله الخاص: القاعدة التي بلغت الإصدار الحالي
+   لا تعيد تشغيل السكربت القديم.
+3. `forget_removed_addons` تنسى الوحدة وxml ids ولا تحذف أي سجل، فهي لـaddon لا يملك سجلات بيانات
+   (لا ACL ولا rule ولا view ولا cron ولا ملف بيانات). الـaddon الذي يملكها يسلّم xml ids إلى مالكها الجديد
+   قبل نسيانه، وإلا ترفض الدالة وتسمّي الـaddon والموديلات.
+4. التسليم بـ`hand_over_xml_ids(env, source, target, names)` من الملف نفسه: تنقل xml ids المسمّاة من `source` إلى
+   `target` عبر ORM ويبقى السجل نفسه برقمه وروابطه. تُستدعى من ترحيل `pre-*` في إصدار جديد للمالك الجديد، فيجد ملف
+   بياناته xml id مسلَّمًا ويحدّث السجل بدل إنشاء سجل ثانٍ. الدالة idempotent، وترفض إن كان `target` يملك الاسم من قبل.
+   مثال 19.0.1.5.0 من `liwan_api`: سلّم `liwan_ai.group_ai_indexer` لنفسه في `pre`، وتسلّم `liwan_crm` و`liwan_tasks`
+   صفوف ACL من جسريهما في `pre` كل منهما، ثم نسي ترحيل `end` في `liwan_api` الجسور بعد تحديث كل الوحدات.
+   صفوف `ir.model` و`ir.model.fields` وما يشبهها التي يكتبها Odoo لـaddon يوسّع موديلات فقط لا تمنع.
+   القاعدة العامة: بعد تسليم xml id تُرقّى الوحدة المالكة الجديدة مع الوحدات التي تشير إليه. مثلًا نُقلت مجموعة فهرسة الـAI
+   إلى `liwan_api` (19.0.1.5.0) وملفات ACL في التطبيقات تشير إلى `liwan_api.group_ai_indexer`، فقاعدة أقدم من هذا الإصدار
+   تُرقّى بـ`-u liwan_api` (يسحب معه تابعيه المثبّتين) أو `-u all`. ترقية `liwan_crm` أو `liwan_tasks` أو `liwan_ai`
+   وحدها على قاعدة كهذه تفشل لأن الـexternal id غير موجود.
+
 ## ما لا نفعله
 
 - لا downgrade migrations. التراجع = استرجاع DB + filestore (`deploy/restore_verify.py`).

@@ -1,11 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
     access_service,
+    ai_agent,
+    ai_knowledge,
+    ai_readiness,
     call_outcome,
     crm_lead,
     crm_lead_flow,
     crm_settings,
     crm_stage,
+    customers_service,
     dashboard,
     distribution,
     entitlement_service,

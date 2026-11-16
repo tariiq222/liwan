@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "updated": "2026-11-15",
+  "note": "Every scanner this framework can use, its pinned specifier, its license, and why it is or is not part of a run. A missing axis is therefore a recorded choice, never an accident.",
+  "tools": {
+    "semgrep": {
+      "runner": "homebrew",
+      "specifier": "semgrep 1.170.0",
+      "license": "LGPL-2.1",
+      "decision": "installed",
+      "scope": "static security scan with the p/python, p/typescript and p/secrets rulesets pinned by sha256 in tools/semgrep_rules.lock.json",
+      "note": "the framework reuses the repository gate and points SEMGREP_LOG_FILE at the run directory so a read-only home cannot abort it"
+    },
+    "gitleaks": {
+      "runner": "homebrew",
+      "specifier": "gitleaks 8.30.1",
+      "license": "MIT",
+      "decision": "installed",
+      "scope": "credential-shaped literal scan of first-party source; tests, docs and reviewed fixtures are classified separately"
+    },
+    "dependency-cruiser": {
+      "runner": "npx",
+      "specifier": "dependency-cruiser@17.0.0",
+      "license": "MIT",
+      "decision": "installed",
+      "scope": "read-only module graph over apps/web and packages; the same direction arch_policy proves statically",
+      "not_repo_dependency_because": "read-only analysis; not needed by a build, test or runtime"
+    },
+    "schemathesis": {
+      "runner": "uvx",
+      "specifier": "schemathesis==4.33.4",
+      "license": "MIT",
+      "decision": "installed",
+      "scope": "loads docs/api/openapi.json offline under --deep or the full profile; a live property run needs an isolated stack and stays deferred",
+      "not_repo_dependency_because": "a one-off CLI that must never import application code or join a production image"
+    },
+    "k6": {
+      "runner": "homebrew",
+      "specifier": "k6 v2.3.0",
+      "license": "AGPL-3.0",
+      "decision": "installed",
+      "scope": "harness smoke against a loopback fixture, or a bounded load against an isolated local stack only",
+      "note": "k6 is never linked into the product and never shipped in an image"
+    },
+    "playwright": {
+      "runner": "homebrew + repo devDependency",
+      "specifier": "playwright ^1.65.0",
+      "license": "Apache-2.0",
+      "decision": "installed",
+      "scope": "browser journeys through the existing isolated e2e wrapper (npm run e2e*), opt-in"
+    },
+    "trivy": {
+      "runner": "homebrew",
+      "specifier": "trivy (not installed)",
+      "license": "Apache-2.0",
+      "decision": "not-installed",
+      "reason": "not on this machine; installing a persistent global scanner is the owner's decision, and dependency advisories are already covered by tools/check:audit plus the image CI stage",
+      "scope": "would add container-image and OS-package CVE scanning"
+    },
+    "sonarqube-community": {
+      "runner": "docker + sonar-scanner",
+      "specifier": "SonarQube Community Build + sonar-scanner 8.1.0",
+      "license": "LGPL-3.0",
+      "decision": "optional",
+      "reason": "needs a long-running server and its own database; that operational burden is the new infrastructure the task excludes, and ruff plus the arch policies already cover most of the same ground locally",
+      "scope": "would add duplication, cognitive-complexity and coverage-trend analysis"
+    },
+    "owasp-zap": {
+      "runner": "docker",
+      "specifier": "zaproxy/zap-stable",
+      "license": "Apache-2.0",
+      "decision": "deferred",
+      "reason": "active DAST needs a deployed isolated stack, an explicit scope and the owner's approval; never run against a live, customer or production target",
+      "scope": "dynamic application security testing"
+    },
+    "pact": {
+      "runner": "n/a",
+      "specifier": "not adopted",
+      "license": "MIT",
+      "decision": "not-applicable",
+      "reason": "Pact models contracts between separately deployed services. LiwanOS is one Odoo process plus a Nuxt app; that boundary is already tested by packages/contracts and the OpenAPI surface check, so a broker would add a second contract format without a consumer to serve",
+      "scope": "would add consumer-driven contract testing"
+    }
+  }
+}

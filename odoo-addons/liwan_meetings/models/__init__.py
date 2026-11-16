@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 # `meeting_minute_*` extend the base model of `meeting_minute` and sort after it: keep that order.
 from . import (
+    ai_agent,
+    ai_readiness,
     calendar_event,
     entitlement_service,
     feature_registry,

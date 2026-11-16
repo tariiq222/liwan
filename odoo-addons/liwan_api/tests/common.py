@@ -10,6 +10,7 @@ from odoo.fields import Command
 from odoo.tests import HttpCase, new_test_user
 from odoo.tests.common import HOST, Opener
 
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 # A test-only boolean feature for shared-service tests that must not depend on
@@ -436,3 +437,81 @@ class MembershipCase(WorkingCompanyCase):
             [mode, source, profile.id],
         )
         profile.invalidate_recordset()
+
+
+def ai_engine_installed(env):
+    """Whether liwan_ai, which runs the assistant, is installed; an application's AI registrations work without it."""
+    return env['ir.module.module']._get('liwan_ai').state == 'installed'
+
+
+def skip_without_ai_engine(test, what_was_not_checked):
+    """Skip ``test`` when liwan_ai is absent, naming what the run therefore left unchecked."""
+    if not ai_engine_installed(test.env):
+        test.skipTest(f'liwan_ai is not installed: {what_was_not_checked}')
+
+
+class AiAgentCase(LiwanApiCase):
+    """The shared test of an application's AI agent (spec 2026-11-04 §6.6): ``agent_key`` names the agent under test.
+
+    The agent and its tools pass the registry's validation, and a user without a tool's capability cannot run its route.
+    When liwan_ai is installed, the tool also stays out of that user's catalog and appears under its agent once the
+    capability is held; without liwan_ai that part is skipped. The application's feature is switched on for the test, so
+    the check is about capabilities only.
+    """
+    agent_key = None
+
+    def _agent_tools(self):
+        agent = self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().get(self.agent_key)
+        self.assertTrue(agent, f'no agent {self.agent_key}')
+        tools = [
+            tool for tool in self.env['liwan.ai.tool.registry']._liwan_ai_tool_map().values()
+            if tool['owner'] == agent['owner']
+        ]
+        self.assertTrue(tools, f'agent {self.agent_key} declares no tool')
+        # The AI service's own feature exists only with liwan_ai; every other key is switched on, so a mistyped one fails loudly.
+        if agent['feature_key'] != AI_SERVICE_FEATURE or ai_engine_installed(self.env):
+            profile = self.env.ref('liwan_platform.tenant_profile')
+            profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
+                'features': {**(profile.features or {}), agent['feature_key']: True},
+            })
+        return tools
+
+    def _catalog(self):
+        response = self.api('GET', '/api/v1/ai/tools')
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def _assert_routes_refused(self, tools):
+        for tool in tools:
+            if tool['kind'] != 'read' or '{' in tool['route']['path']:
+                continue
+            constants = {key: value for key, value in (tool['input_map'].get('query') or {}).items() if not str(value).startswith('$')}
+            query = '&'.join(f'{key}={value}' for key, value in constants.items())
+            response = self.api('GET', tool['route']['path'] + (f'?{query}' if query else ''))
+            self.assertEqual(response.status_code, 403, f"{tool['name']}: {response.text}")
+
+    def assert_agent_follows_capabilities(self):
+        tools = self._agent_tools()
+        names = {tool['name'] for tool in tools}
+        capabilities = {tool['capability'] for tool in tools}
+        ai_installed = ai_engine_installed(self.env)
+        if ai_installed:
+            self.employee.write({'group_ids': [Command.link(self.env.ref('liwan_ai.group_cap_ai_use').id)]})
+        access = type(self.env['liwan.access.service'])
+        original = access._liwan_has_capability
+        granted = {'value': False}
+
+        def has_capability(model, user, key, record=None, company=None):
+            if key in capabilities and user == self.employee:
+                return granted['value']
+            return original(model, user, key, record=record, company=company)
+
+        self.patch(access, '_liwan_has_capability', has_capability)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self._assert_routes_refused(tools)
+        skip_without_ai_engine(self, 'the registry and the routes were checked, the AI catalog was not')
+        self.assertFalse({item['name'] for item in self._catalog()['items']} & names)
+        granted['value'] = True
+        catalog = self._catalog()
+        self.assertTrue(names <= {item['name'] for item in catalog['items']})
+        self.assertIn(self.agent_key, [item['key'] for item in catalog['agents']])

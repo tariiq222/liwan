@@ -106,10 +106,10 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   unique IDs and no cycles. Restores require a readable active parent project.
 - A new application starts from `python3 -B tools/new_app.py <app> --name-ar <ar>
   --name-en <en> [--route SLUG] [--dry-run]` and the `liwan-new-app` skill. It creates the
-  application's own folders (addon, web pages/components, contracts namespace) and its AI bridge
-  `liwan_<app>_ai` (rank 5, one agent, one read tool and the access test, from
-  `tools/new_app_templates`). Outside those folders it edits exactly three registration files:
-  `tools/arch_layers.json` (the application at rank 4, the bridge at rank 5, and its `web_apps` entry),
+  application's own folders (addon, web pages/components, contracts namespace) from `tools/new_app_templates`,
+  with the application's AI agent, one read tool and the access test inside the addon (registered in the
+  `liwan_api` registries, no AI bridge). Outside those folders it edits exactly three registration files:
+  `tools/arch_layers.json` (the application at rank 4 and its `web_apps` entry),
   `deploy/catalog/solutions/platform_v4.json` (a sellable tier with module `liwan_<app>` and feature
   `boolean:<app>.enabled`) and `packages/contracts/src/index.ts` (one export line). It then runs
   `python3 -B tools/catalog_check.py --sync-release-copies`, which rewrites the release module

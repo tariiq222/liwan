@@ -23,8 +23,8 @@ The authoritative addon list and ranks (0-2 foundation, 3 shared service, 4 appl
 complete list. Applications without an entry below: `liwan_finance` (Finance, `/api/v1/finance`),
 `liwan_appointments` (Appointments, `/api/v1/appointments`) and `liwan_inbox` (Customer Messages,
 WhatsApp, `/api/v1/inbox`); the shared service `liwan_payments` (online payments through the
-tenant's own gateway account, `/api/v1/payments`). Bridges `liwan_<app>_ai` declare each
-application's AI agent and tools.
+tenant's own gateway account, `/api/v1/payments`). The AI registries live in `liwan_api`, and each
+application declares its AI agent and tools in its own addon (see `liwan_ai` below).
 
 - `odoo-addons/liwan_core` depends on `base` only. It owns the access service, the system capabilities, the
   built-in `employee`, `system_admin` and `vendor_support` roles, assignments, access audit, migration and identity
@@ -48,22 +48,25 @@ application's AI agent and tools.
   where applications register their notification kinds, delivery
   (`liwan.notify.service._liwan_deliver`) and `/api/v1/notifications`. It names no
   application.
-- `odoo-addons/liwan_ai` (shared service, rank 3) owns the LiwanOS AI tool and agent registries
-  (`liwan.ai.tool.registry` and `liwan.ai.agent.registry`, composed through `super()` by each application), the
-  administrator's agent and tool settings that only narrow the catalog, the setting registry
+- `odoo-addons/liwan_ai` (shared service, rank 3) runs the LiwanOS AI over the registries that `liwan_api` owns
+  (`liwan.ai.tool.registry`, `liwan.ai.agent.registry`, `liwan.ai.knowledge.registry`, `liwan.ai.setting.registry` and
+  the record checks of `liwan.ai.readiness`, composed through `super()` by each application): the catalog a user may use, the
+  administrator's agent and tool settings that only narrow the catalog, the changes through the setting registry
   (`liwan.ai.setting.registry`: the fields of each application's settings model the free setup agent may propose and,
-  after approval, change; declared in the application's AI bridge), the free help agent (key `ai_help`, tool
+  after approval, change; declared by the application), the free help agent (key `ai_help`, tool
   `ai_help.search_guide` over `GET /api/v1/ai/help`: it answers how-to questions from the user guide shipped in
   `data/help/<lang>/<app>.md`, a draft until the owner reviews it, and reads no tenant record), the readiness check of the
-  setup agent (`liwan.ai.readiness`: users without a role, unsaved settings, and the applications' main records declared by their
-  AI bridges through `_liwan_ai_record_checks`), the single `ai.assist.monthly` budget the setup and help conversations
+  setup agent (`liwan.ai.readiness`: users without a role, unsaved settings, and the applications' main records declared
+  through `_liwan_ai_record_checks`), the single `ai.assist.monthly` budget the setup and help conversations
   share (they never count against the package's messages), the
   per-user audit log `liwan.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role; its ACL and own-rows rule follow that capability group, and the monthly message limit counts tenant-wide), and the two
   routes `GET /api/v1/ai/tools` and `POST /api/v1/ai/audit`. It knows no application and
-  holds no language-model code. Each application's agent and tools are declared by its bridge
-  `liwan_<app>_ai` (rank 5, `auto_install`: `liwan_pmo_ai`, `liwan_hr_ai`, `liwan_crm_ai`, `liwan_meetings_ai`,
-  `liwan_tasks_ai`, `liwan_operations_ai`, `liwan_finance_ai`), never by the application, which does not depend on
-  `liwan_ai`; `tools/new_app.py` generates that bridge with every new application. The AI service and the Nuxt executor live
+  holds no language-model code. An application registers its agent, tools, knowledge sources, settings and readiness
+  checks inside its own addon, in the `liwan_api` registries, without depending on `liwan_ai`; no AI bridge remains, and
+  `tools/new_app.py` generates that registration inside every new application. The group of the knowledge indexer,
+  `liwan_api.group_ai_indexer`, also lives in the foundation: an application that declares a knowledge source gives it
+  read access to the source's models in its own `security/ir.model.access.csv`, while `liwan_ai` owns the inactive
+  indexer user that holds the group and the cron that runs as it. The AI service and the Nuxt executor live
   outside Odoo (`docs/superpowers/specs/2026-10-15-liwan-ai-design.md`).
 - `odoo-addons/liwan_directory` (shared service, rank 3) owns `/api/v1/people`
   (the user-id picker, whose ids are `res.users` ids) and its population of
@@ -119,7 +122,7 @@ application's AI agent and tools.
 - `odoo-addons/liwan_crm` (application, rank 4) owns the CRM: opportunities, calls and follow-up over stock
   `crm` and OCA `crm_phonecall`, the `/api/v1/crm` routes, their serializers, `crm.enabled`, the `crm.*`
   capabilities and their groups, and the opportunity custom-field definition of the current company. It knows
-  no other application; its AI tools live in the bridge `liwan_crm_ai`.
+  no other application; it registers its AI agent, tools, settings, knowledge source and readiness check in its own addon.
 - `odoo-addons/liwan_sales` (application, rank 4) owns staff quotations and orders on stock `sale.order`
   (`sale_management`): the `/api/v1/sales` routes, their serializers, `sales.enabled`, the six `sales.*` capabilities
   with the agent and manager roles, the tenant's sales settings (visibility, quotation validity, discount limit,
@@ -127,8 +130,8 @@ application's AI agent and tools.
   price from `liwan_products`, and the tax of a line from `liwan_orders`; an online order of `liwan_payments` is
   listed read-only. It writes order lines through one documented elevated helper
   (`tools/arch_documented_sudo.json`), because a branch session cannot write the root company's taxes. Pages are
-  under `/sales` in `apps/web`, its settings at `/settings/apps/sales`; its AI tool lives in the bridge
-  `liwan_sales_ai`. Its contract is `odoo-addons/liwan_sales/README.md`. Plan:
+  under `/sales` in `apps/web`, its settings at `/settings/apps/sales`; its AI agent and tool are registered
+  inside `liwan_sales` itself. Its contract is `odoo-addons/liwan_sales/README.md`. Plan:
   `docs/superpowers/plans/2026-11-14-liwan-sales.md`.
 - `odoo-addons/liwan_chat` (application, rank 4) owns member-private chat over the native `discuss.channel`:
   conversations, messages, reactions and the `/api/v1/chat` routes, `chat.enabled` and the `chat.*` capabilities.
@@ -171,6 +174,17 @@ application's AI agent and tools.
   and `liwan_pmo` both are. It lets PMO create and read personal tasks, holds every write of a
   personal task (also through PMO's own routes) to the personal fields, adds the project rows of
   the list, and owns the convert route (`/api/v1/my-tasks/<id>/convert`, `convert-targets`).
+- `odoo-addons/liwan_crm_tasks` (bridge, rank 5, `auto_install`) is installed whenever `liwan_crm` and
+  `liwan_tasks` both are. It owns the `lead_id` column of tasks and the routes that list and create the
+  follow-up tasks of an opportunity (`/api/v1/crm/opportunities/<id>/tasks`).
+- `odoo-addons/liwan_crm_meetings` (bridge, rank 5, `auto_install`) is installed whenever `liwan_crm` and
+  `liwan_meetings` both are. It owns the `lead_id` column of meetings and the routes that list and create
+  the meetings of an opportunity (`/api/v1/crm/opportunities/<id>/meetings`).
+- `odoo-addons/liwan_crm_inbox` (bridge, rank 5, `auto_install`) is installed whenever `liwan_crm` and
+  `liwan_inbox` both are. It owns the `lead_id` column of conversations and the routes that link a
+  conversation to an existing opportunity, read and clear that link
+  (`/api/v1/inbox/conversations/<id>/opportunity`) and list the conversations of an opportunity
+  (`/api/v1/crm/opportunities/<id>/conversations`). It creates no opportunity and copies no customer.
 - `odoo-addons/base_tier_validation` (shared service, rank 3) is the vendored OCA tier-validation
   engine (AGPL-3) used by `liwan_operations`.
 - `odoo-addons/liwan_registry_probe` (shared service, rank 3) is test-only: it contributes one probe capability and

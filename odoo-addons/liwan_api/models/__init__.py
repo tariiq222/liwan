@@ -1,5 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    ai_agent_registry,
+    ai_knowledge_registry,
+    ai_readiness,
+    ai_setting_registry,
+    ai_tool_registry,
     country_names,
     res_users,
     tenant_export,

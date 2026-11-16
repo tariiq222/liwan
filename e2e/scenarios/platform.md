@@ -1,7 +1,7 @@
 # Platform: sign-in, home, notifications, people picker, assistant, feature switches
 
 Pages: `/login`, home `/`, `/work`, `/apps`, `/apps/[id]`, `/search`, `/notifications`, `/ai`, the bell and the
-assistant sheet in the header. Owners: `liwan_notify`, `liwan_directory`, `liwan_ai`, `liwan_pmo_ai`,
+assistant sheet in the header. Owners: `liwan_notify`, `liwan_directory`, `liwan_ai`, `liwan_pmo`,
 `liwan_platform`, and the Nuxt server routes `apps/web/server/api/auth`, `apps/web/server/api/ai/runs`.
 Personas and status values: [README](README.md). Rows of the Covers column name what the row exercises; a row with no
 token exercises a surface the coverage tool does not list (Nuxt server routes, control-plane routes).
@@ -89,8 +89,8 @@ Kinds registered in `liwan.notify.registry`: `tasks.assigned` (feature `tasks.en
 
 ## Assistant: catalog, limits, audit
 
-Tools registered today: one agent per application bridge (`liwan_pmo_ai` with six `pmo.*` tools, and read tools in
-`liwan_hr_ai`, `liwan_crm_ai`, `liwan_meetings_ai`, `liwan_tasks_ai`, `liwan_operations_ai`, `liwan_finance_ai`); one
+Tools registered today: one agent per application (`liwan_pmo` with six `pmo.*` tools, and read tools in
+`liwan_hr`, `liwan_sales`, `liwan_operations`, `liwan_finance`, `liwan_crm`, `liwan_meetings`, `liwan_tasks`); one
 conversation routes each request to the agent that owns it. Capability `ai.use` is granted by the built-in
 employee role (`liwan_ai/models/access_service.py`); entitlements `ai.enabled` (flag), `ai.messages.monthly` and
 `ai.tool_calls.per_run` (limits).

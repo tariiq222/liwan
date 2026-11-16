@@ -8,6 +8,9 @@ WHATSAPP_FEATURE = 'inbox.whatsapp'
 TIKTOK_FEATURE = 'inbox.tiktok'
 # The sub-feature that gates one channel kind, checked on the channel create and on its routes.
 CHANNEL_FEATURES = {'whatsapp': WHATSAPP_FEATURE, 'tiktok': TIKTOK_FEATURE}
+# The channel kinds whose contact address is the number the provider authenticated: a WhatsApp id is the sender's phone,
+# while a TikTok id is an opaque account id.
+AUTHENTICATED_KINDS = ('whatsapp',)
 # The public webhook path of each channel kind: the source of the uses' `webhook_path` and of the web proxy's route list.
 HOOK_PATHS = {'whatsapp': '/api/v1/inbox/hooks/whatsapp', 'tiktok': '/api/v1/inbox/hooks/tiktok'}
 # The uses of liwan.integration.registry that a channel of each kind holds (provider `meta` and `tiktok`).

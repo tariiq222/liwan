@@ -6,13 +6,14 @@ from odoo import api, models
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.models.tool_registry import HELP_AGENT_KEY
+from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 
 OWNER = 'liwan_ai'
 
 HELP_AGENT = {
     'key': HELP_AGENT_KEY,
     'owner': OWNER,
-    'feature_key': 'ai.enabled',
+    'feature_key': AI_SERVICE_FEATURE,
     'name_ar': 'وكيل المساعدة',
     'name_en': 'Help agent',
     'description_ar': 'يجيب عن أسئلة «كيف أفعل كذا؟» في ليوان من دليل الاستخدام',
@@ -39,7 +40,7 @@ HELP_AGENT = {
 
 HELP_TOOLS = (
     {
-        'name': f'{HELP_AGENT_KEY}.search_guide', 'owner': OWNER, 'kind': 'read', 'capability': AI_USE, 'feature_key': 'ai.enabled',
+        'name': f'{HELP_AGENT_KEY}.search_guide', 'owner': OWNER, 'kind': 'read', 'capability': AI_USE, 'feature_key': AI_SERVICE_FEATURE,
         'description_ar': 'يبحث في دليل استخدام ليوان عن الأقسام المطابقة للسؤال ويعيد عنوان كل قسم وخطواته ورابط صفحته',
         'description_en': 'Search the LiwanOS user guide for the sections that match the question, with each title, its steps and its page link',
         'route': {'method': 'GET', 'path': '/api/v1/ai/help'},

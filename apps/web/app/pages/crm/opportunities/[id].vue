@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import type { CrmOpportunityPatch, CustomFieldValues } from '@liwan/contracts'
+import type { CrmOpportunityMeetingCreate, CrmOpportunityPatch, CrmOpportunityTaskCreate, CustomFieldValues, CustomerLink } from '@liwan/contracts'
 import { formatDate, formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
+import CustomerConflictStep from '@/components/customers/CustomerConflictStep.vue'
+import CustomerLinkBlock from '@/components/customers/CustomerLinkBlock.vue'
 import CrmOpportunityCallForm, { type CrmCallDraft } from '@/components/crm/opportunity/CrmOpportunityCallForm.vue'
 import CrmOpportunityCallLog from '@/components/crm/opportunity/CrmOpportunityCallLog.vue'
 import CrmOpportunityContactForm from '@/components/crm/opportunity/CrmOpportunityContactForm.vue'
+import CrmOpportunityConversations from '@/components/crm/opportunity/CrmOpportunityConversations.vue'
+import CrmOpportunityMeetings from '@/components/crm/opportunity/CrmOpportunityMeetings.vue'
 import CrmOpportunityLostForm from '@/components/crm/opportunity/CrmOpportunityLostForm.vue'
 import CrmOpportunitySaleForm, { type CrmSaleDraft } from '@/components/crm/opportunity/CrmOpportunitySaleForm.vue'
+import CrmOpportunityTasks from '@/components/crm/opportunity/CrmOpportunityTasks.vue'
+import { useCustomerConflict } from '@/composables/customers/useCustomerConflict'
 import { useCrmLostReasonChoices, useCrmOutcomeChoices, useCrmPackageChoices, useCrmSourceChoices, useCrmStageChoices } from '@/composables/crm/useCrmLists'
+import { useOpportunityConversationAccess, useOpportunityConversations, useCreateOpportunityMeeting, useCreateOpportunityTask, useOpportunityMeetingAccess, useOpportunityMeetings, useOpportunityTaskAccess, useOpportunityTasks } from '@/composables/crm/useOpportunityBridges'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { useCrmCalls, useCrmOpportunity, useCrmOpportunityActions, useCrmOpportunityOpening } from '@/composables/crm/useOpportunities'
 import { owningListBack } from '@/utils/recordListOrigin'
@@ -82,7 +89,7 @@ const saleDirty = computed(() => panel.value === 'sale' && (Boolean(saleDraft.va
 const unsent = computed(() => callDirty.value || lostDirty.value || saleDirty.value || probabilityDirty.value || customDirty.value || contactDirty.value)
 // A refusal belongs to the form that sent it and shows there only; one from a page action, or whose form went away
 // (a 409 refreshed the record and the form with it), shows at the top of the page.
-type Origin = 'page' | 'call' | 'sale' | 'lost' | 'contact'
+type Origin = 'page' | 'call' | 'sale' | 'lost' | 'contact' | 'link'
 const failure = ref<{ error: unknown; origin: Origin; sale: boolean } | null>(null)
 const failureText = computed(() => (failure.value ? crmErrorMessage(failure.value.error, t, { sale: failure.value.sale }) : ''))
 const formShown = computed<Record<Origin, boolean>>(() => ({
@@ -91,6 +98,7 @@ const formShown = computed<Record<Origin, boolean>>(() => ({
   sale: canWork.value && panel.value === 'sale',
   lost: canWork.value && panel.value === 'lost',
   contact: canWork.value && panel.value === 'contact',
+  link: Boolean(record.value),
 }))
 const pageFailure = computed(() => Boolean(failure.value) && !formShown.value[failure.value!.origin])
 const textFor = (origin: Origin) => (failure.value?.origin === origin ? failureText.value : '')
@@ -109,11 +117,21 @@ function open(next: Panel) {
   resetSale()
 }
 
-async function run<T>(origin: Origin, work: () => Promise<T>, sale = false): Promise<T | undefined> {
+// Customers sharing the record's phone stop a link, a win or a sold call at the same step: the user picks one of them or
+// asks for a new customer, and the attempt that stopped is repeated with that answer. Nothing is linked before then.
+const conflict = useCustomerConflict()
+const conflictOrigin = ref<Origin | null>(null)
+
+async function run<T>(origin: Origin, work: (choice: CustomerLink) => Promise<T>, sale = false, choice: CustomerLink = {}): Promise<T | undefined> {
   failure.value = null
+  conflict.clear()
   try {
-    return await work()
+    return await work(choice)
   } catch (error) {
+    if (conflict.offer(error, next => run(origin, work, sale, next))) {
+      conflictOrigin.value = origin
+      return undefined
+    }
     failure.value = { error, origin, sale }
     return undefined
   }
@@ -121,7 +139,7 @@ async function run<T>(origin: Origin, work: () => Promise<T>, sale = false): Pro
 
 async function recordCall(draft: CrmCallDraft) {
   recorded.value = ''
-  const result = await run('call', () => actions.recordCall.mutateAsync({ id: id.value, body: draft }), draft.package_id !== undefined)
+  const result = await run('call', choice => actions.recordCall.mutateAsync({ id: id.value, body: { ...draft, ...choice } }), draft.package_id !== undefined)
   if (!result) return
   callFormKey.value++
   const next = result.opportunity.next_call_at
@@ -142,11 +160,63 @@ async function sell() {
   saleAttempted.value = true
   const { package_id, final_price } = saleDraft.value
   if (!package_id || final_price === null) return
-  const done = await run('sale', () => actions.sell.mutateAsync({ id: id.value, body: { package_id, final_price } }), true)
+  const done = await run('sale', choice => actions.sell.mutateAsync({ id: id.value, body: { package_id, final_price, ...choice } }), true)
   if (!done) return
   panel.value = null
   resetSale()
   toast.add({ title: t('crm.opportunities.sale.sold'), color: 'success' })
+}
+
+const linkOpen = computed(() => conflict.candidates.value && conflictOrigin.value === 'link' ? conflict.candidates.value : null)
+const stepOpen = computed(() => conflict.candidates.value && conflictOrigin.value !== 'link' ? conflict.candidates.value : null)
+async function linkCustomer(choice: CustomerLink) {
+  const done = await run('link', next => actions.linkCustomer.mutateAsync({ id: id.value, body: next }), false, choice)
+  if (done) toast.add({ title: t('crm.opportunities.customer.linked'), color: 'success' })
+}
+// An answer to a stopped link repeats that link; a first request starts one.
+const onCustomerLink = (choice: CustomerLink) => (linkOpen.value ? conflict.choose(choice) : linkCustomer(choice))
+
+// The other applications' sections: shown only while the tenant has the application and the user holds both
+// applications' capabilities. A refusal (403) from the section's own read hides it and leaves the page working.
+const taskAccess = useOpportunityTaskAccess()
+const meetingAccess = useOpportunityMeetingAccess()
+const refused = (error: unknown) => (error as { status?: number } | null)?.status === 403
+const taskList = useOpportunityTasks(id, taskAccess.read)
+const meetingList = useOpportunityMeetings(id, meetingAccess.read)
+const conversationAccess = useOpportunityConversationAccess()
+const conversationList = useOpportunityConversations(id, conversationAccess)
+const showConversations = computed(() => conversationAccess.value && !refused(conversationList.error.value))
+const showTasks = computed(() => taskAccess.read.value && !refused(taskList.error.value))
+const showMeetings = computed(() => meetingAccess.read.value && !refused(meetingList.error.value))
+// The server writes through the record's own write check: its agent or an assigner.
+const ownsRecord = computed(() => Boolean(record.value) && (record.value?.user?.id === me.value?.id || canAssign.value))
+const createTask = useCreateOpportunityTask(id)
+const createMeeting = useCreateOpportunityMeeting(id)
+const tasksPanel = ref<InstanceType<typeof CrmOpportunityTasks>>()
+const meetingsPanel = ref<InstanceType<typeof CrmOpportunityMeetings>>()
+const taskError = ref('')
+const meetingError = ref('')
+
+async function addTask(body: CrmOpportunityTaskCreate) {
+  taskError.value = ''
+  try {
+    await createTask.mutateAsync(body)
+    tasksPanel.value?.reset()
+    toast.add({ title: t('crm.opportunities.tasks.added'), color: 'success' })
+  } catch (error) {
+    taskError.value = crmErrorMessage(error, t)
+  }
+}
+
+async function addMeeting(body: CrmOpportunityMeetingCreate) {
+  meetingError.value = ''
+  try {
+    await createMeeting.mutateAsync(body)
+    meetingsPanel.value?.reset()
+    toast.add({ title: t('crm.opportunities.meetings.added'), color: 'success' })
+  } catch (error) {
+    meetingError.value = crmErrorMessage(error, t)
+  }
 }
 
 async function reopen() {
@@ -274,6 +344,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
         <p class="whitespace-pre-line text-sm" data-testid="crm-notes">{{ record.notes }}</p>
       </SharedRecordSection>
       <UAlert v-if="pageFailure" role="alert" color="error" variant="subtle" :description="failureText" data-testid="crm-failure" />
+      <CustomerConflictStep v-if="stepOpen" :candidates="stepOpen" :pending="busy" :description="t('customers.link.conflictDescription')" :confirm-label="t('customers.link.conflictConfirm')" @open="conflict.choose({ customer_id: $event })" @create-new="conflict.choose({ create_new: true })" @cancel="conflict.clear()" />
       <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" v-model:dirty="lostDirty" :reasons="manualLostReasons" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
       <SharedRecordSection v-if="panel === 'sale' && canWork" variant="panel" :title="t('crm.opportunities.sale.title', { term: term('package', 'one') })">
         <div class="grid gap-4">
@@ -287,12 +358,18 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       </SharedRecordSection>
       <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" v-model:dirty="callDirty" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="manualLostReasons" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
       <CrmOpportunityCallLog :calls="calls.items.value" :total="calls.data.value?.pages.at(-1)?.total ?? 0" :has-more="!!calls.hasNextPage.value" :loading-more="calls.isFetchingNextPage.value" @more="calls.fetchNextPage()" />
+      <CrmOpportunityConversations v-if="showConversations" :conversations="conversationList.data.value?.items ?? []" :total="conversationList.data.value?.total ?? 0" :loading="conversationList.isPending.value && conversationList.isFetching.value" :error="conversationList.error.value" @retry="conversationList.refetch()" />
+      <CrmOpportunityTasks v-if="showTasks" ref="tasksPanel" :tasks="taskList.data.value?.items ?? []" :total="taskList.data.value?.total ?? 0" :loading="taskList.isPending.value && taskList.isFetching.value" :error="taskList.error.value" :can-write="taskAccess.write.value && ownsRecord" :pending="createTask.isPending.value" :form-error="taskError" @create="addTask" @retry="taskList.refetch()" />
+      <CrmOpportunityMeetings v-if="showMeetings" ref="meetingsPanel" :meetings="meetingList.data.value?.items ?? []" :total="meetingList.data.value?.total ?? 0" :loading="meetingList.isPending.value && meetingList.isFetching.value" :error="meetingList.error.value" :can-write="meetingAccess.write.value && ownsRecord" :pending="createMeeting.isPending.value" :form-error="meetingError" @create="addMeeting" @retry="meetingList.refetch()" />
     </template>
     <template v-if="record" #aside>
       <CrmOpportunityContactForm v-if="canWork && panel === 'contact'" v-model:dirty="contactDirty" :record="record" :sources="sources.data.value?.items ?? []" :pending="actions.patch.isPending.value" :disabled="busy" :error="errorFor('contact')" @save="saveContact" @cancel="open('contact')" />
       <div v-else-if="canWork" class="flex justify-end">
         <UButton size="xs" variant="outline" icon="i-lucide-pencil" :label="t('crm.opportunities.contact.edit')" :disabled="busy" data-testid="crm-contact-edit" @click="open('contact')" />
       </div>
+      <SharedRecordSection v-if="record.customer || canWork" variant="panel" :title="t('customers.link.title')" data-testid="crm-customer">
+        <CustomerLinkBlock :customer="record.customer" :can-link="canWork" :can-open="can('customers.read')" :candidates="linkOpen" :pending="actions.linkCustomer.isPending.value" :error="textFor('link')" @link="onCustomerLink" @dismiss="conflict.clear()" />
+      </SharedRecordSection>
       <SharedPropertiesPanel :title="t('crm.opportunities.record.details')">
         <SharedPropertyRow :label="t('crm.opportunities.record.email')" :value="record.email" />
         <SharedPropertyRow :label="t('crm.opportunities.record.source')" :value="record.source?.name" />

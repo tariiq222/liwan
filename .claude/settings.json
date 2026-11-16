@@ -44,5 +44,41 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "audit-context-building@trailofbits": true,
+    "static-analysis@trailofbits": true,
+    "differential-review@trailofbits": true,
+    "insecure-defaults@trailofbits": true,
+    "sharp-edges@trailofbits": true,
+    "supply-chain-risk-auditor@trailofbits": true,
+    "testing-handbook-skills@trailofbits": true,
+    "comprehensive-review@claude-code-workflows": true,
+    "security-scanning@claude-code-workflows": true,
+    "performance-testing-review@claude-code-workflows": true,
+    "database-design@claude-code-workflows": true,
+    "observability-monitoring@claude-code-workflows": true,
+    "deployment-validation@claude-code-workflows": true,
+    "grafana-k6@grafana-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "trailofbits": {
+      "source": {
+        "source": "github",
+        "repo": "trailofbits/skills"
+      }
+    },
+    "claude-code-workflows": {
+      "source": {
+        "source": "github",
+        "repo": "wshobson/agents"
+      }
+    },
+    "grafana-skills": {
+      "source": {
+        "source": "github",
+        "repo": "grafana/skills"
+      }
+    }
   }
 }

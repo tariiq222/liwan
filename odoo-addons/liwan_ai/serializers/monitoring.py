@@ -3,7 +3,7 @@
 
 Read through the ORM as the caller, so the record rules decide which companies' rows are counted.
 """
-from odoo.addons.liwan_ai.models.tool_registry import TOOL_KINDS
+from odoo.addons.liwan_api.models.ai_tool_registry import TOOL_KINDS
 
 TOP_TOOLS = 10
 

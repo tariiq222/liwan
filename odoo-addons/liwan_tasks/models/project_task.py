@@ -23,6 +23,65 @@ class ProjectTask(models.Model):
                                      bypass_search_access=True)
     liwan_child_ids = fields.One2many('project.task', 'liwan_parent_id', string='Personal sub-tasks')
 
+    @api.model
+    def _liwan_task_link_fields(self):
+        """Fields a bridge sets on the personal tasks it creates (its link to another application's record).
+
+        None here. A bridge adds the names of the fields it owns on the task; ``liwan.my.task.service``
+        then takes their values from the bridge's ``_create_task(..., link_values=...)`` call and nothing
+        else, and liwan_tasks_pmo lets exactly these fields through its personal-create gate. They are
+        never wire fields, so a client request cannot set them.
+        """
+        return frozenset()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A link field a bridge registered may only point at a record the creator can read (``write`` checks it too).
+
+        Here, not in liwan_tasks_pmo, so it holds with and without PMO installed: the model is the one
+        place every create passes. A missing or unreadable target is refused like any field that is not
+        allowed, so the refusal says nothing about the record.
+        """
+        if not self.env.su:
+            for vals in vals_list:
+                self._liwan_check_link_targets(self._liwan_with_link_defaults(vals))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        """The same target check as ``create``: a link may be cleared, never pointed at an unreadable record."""
+        if not self.env.su:
+            self._liwan_check_link_targets(vals)
+        return super().write(vals)
+
+    @api.model
+    def _liwan_link_fields(self):
+        """The registered link fields; a registered field that is not a many2one is a programmer error."""
+        names = self._liwan_task_link_fields()
+        for name in names:
+            if self._fields[name].type != 'many2one':
+                raise TypeError(f'task link field {name} must be a many2one, not {self._fields[name].type}')
+        return names
+
+    @api.model
+    def _liwan_with_link_defaults(self, vals):
+        """``vals`` plus the default of each registered link field it leaves out: what the ORM would create
+        with (``default_get`` covers the ``default_<field>`` context, ``ir.default`` and the field default)."""
+        missing = [name for name in self._liwan_link_fields() if name not in vals]
+        return {**self.default_get(missing), **vals} if missing else vals
+
+    @api.model
+    def _liwan_check_link_targets(self, vals):
+        for name in self._liwan_link_fields() & set(vals):
+            if not vals[name]:
+                continue
+            target = self.env[self._fields[name].comodel_name].browse(vals[name]).exists()
+            try:
+                target.check_access('read')
+            except AccessError:
+                target = None
+            if not target:
+                raise AccessError(self.env._("Task fields are not allowed."))
+
     @api.depends('project_id')
     def _compute_liwan_personal(self):
         for task in self:

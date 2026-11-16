@@ -1,0 +1,11 @@
+{
+  "note": "Semgrep matches that a reviewer examined and classified as a false positive. Each entry names the rule id suffix, the path and the reason. A reason must say why the match cannot be the defect the rule encodes; it is not a way to silence a real finding. The repository gate tools/semgrep_gate.py remains the blocking authority for changed files.",
+  "reviewed": [
+    {
+      "rule": "dangerous-subprocess-use-tainted-env-args",
+      "path": "tools/test_ai_egress.py",
+      "line": 229,
+      "reason": "the match is the construction of a subprocess.CompletedProcess result object returned by a test helper; no process is spawned there and the argv comes from a fixed entrypoint path plus this test's own environment"
+    }
+  ]
+}

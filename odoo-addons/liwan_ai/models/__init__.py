@@ -2,7 +2,6 @@
 from . import (
     access_role,
     access_service,
-    agent_registry,
     ai_agent_setting,
     ai_audit,
     ai_balance,

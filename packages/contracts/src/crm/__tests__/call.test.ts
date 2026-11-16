@@ -70,3 +70,22 @@ describe('call and sale bodies', () => {
     expect(() => CrmAssignSchema.parse({ user_id: null })).toThrow()
   })
 })
+
+describe('the customer choice of a sale', () => {
+  const sale = { package_id: 2, final_price: 900 }
+
+  it('names a customer or asks for a new one on a sale and on a sold call', () => {
+    expect(CrmSaleSchema.parse({ ...sale, customer_id: 5 }).customer_id).toBe(5)
+    expect(CrmSaleSchema.parse({ ...sale, create_new: true }).create_new).toBe(true)
+    expect(CrmCallCreateSchema.parse({ outcome_id: 4, ...sale, customer_id: 5 }).customer_id).toBe(5)
+    expect(CrmCallCreateSchema.parse({ outcome_id: 4, ...sale, create_new: true }).create_new).toBe(true)
+  })
+
+  it('refuses both together, a non-positive id and a customer choice without a sale', () => {
+    expect(() => CrmSaleSchema.parse({ ...sale, customer_id: 5, create_new: true })).toThrow()
+    expect(() => CrmCallCreateSchema.parse({ outcome_id: 4, ...sale, customer_id: 5, create_new: true })).toThrow()
+    expect(() => CrmSaleSchema.parse({ ...sale, customer_id: 0 })).toThrow()
+    expect(() => CrmCallCreateSchema.parse({ outcome_id: 1, customer_id: 5 })).toThrow()
+    expect(() => CrmCallCreateSchema.parse({ outcome_id: 1, create_new: true })).toThrow()
+  })
+})

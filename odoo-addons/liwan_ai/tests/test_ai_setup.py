@@ -167,7 +167,11 @@ class TestAiSetupAgent(AiProbe, LiwanApiCase):
         }
         registry = type(self.env['liwan.ai.readiness'])
         self.patch(registry, '_liwan_ai_record_checks', lambda model: (check,))
-        readiness = self.env['liwan.ai.readiness'].with_user(self.env.ref('base.user_admin'))
+        # The reader needs the ACL group of liwan.ai.consent, not only the capability: without it the count raises an
+        # AccessError and the check is skipped. With liwan_api and liwan_ai alone the admin does not hold that group.
+        admin = self.env.ref('base.user_admin')
+        self._grant_ai_use(admin)
+        readiness = self.env['liwan.ai.readiness'].with_user(admin)
         self.assertEqual([entry['key'] for entry in readiness._liwan_ai_record_items()], ['records.ai.consents'])
         self.assertEqual(readiness._liwan_ai_record_items()[0]['severity'], 'optional')
         # A domain narrows which records count: none matches, so the application still looks unused.

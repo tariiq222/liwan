@@ -2,8 +2,8 @@
 from odoo.tests import tagged
 
 from odoo.addons.liwan_ai.models.ai_settings import DEFAULT_INPUT_TOKENS_PER_RUN
-from odoo.addons.liwan_ai.models.tool_registry import SENSITIVE_FIELDS
 from odoo.addons.liwan_ai.tests.common import CREATE_CAP, READ_CAP, WRITE_CAP, AiProbe
+from odoo.addons.liwan_api.models.ai_tool_registry import SENSITIVE_FIELDS
 from odoo.addons.liwan_api.tests.common import LiwanApiCase, set_probe_feature
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
