@@ -2,7 +2,7 @@
 
 Pages: `/documents` (`new`, `[documentId]`, `edit`, `access`), `/documents/self` (served at
 `/account/documents`), `/hr/departments/[id]/documents`. Owners: `liwan_documents`,
-`liwan_documents_hr`. Personas and status values: [README](README.md).
+`liwan_hr` (department and employee contexts). Personas and status values: [README](README.md).
 
 The department document pages under `/hr/departments/[id]/documents` are scenarios of
 [hr.md](hr.md); this file covers the library itself, its API and the redirects into it.
@@ -33,7 +33,7 @@ API errors quoted below are the server messages; the UI shows its own Arabic tex
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| DOC-53 | Contexts list | staff1 | Only available kinds, labelled in Arabic: «القسم» for any holder of `hr.departments.read` (every employee), «الموظف» only with `hr.employees.manage`; 403 `forbidden` without `documents.items.read` | `GET /api/v1/documents/contexts` | automated | `e2e/tests/documents-register.e2e.ts` (2026-11-15 pass as hr_manager, staff1 and no_roles; the expected result was corrected to what the code grants, `liwan_documents_hr/models/document_links.py`); failure before the fix; #198; API labels are English (Department, Employee) and the UI shows them raw; staff1 gets the department kind only (he holds hr.departments.read) |
+| DOC-53 | Contexts list | staff1 | Only available kinds, labelled in Arabic: «القسم» for any holder of `hr.departments.read` (every employee), «الموظف» only with `hr.employees.manage`; 403 `forbidden` without `documents.items.read` | `GET /api/v1/documents/contexts` | automated | `e2e/tests/documents-register.e2e.ts` (2026-11-15 pass as hr_manager, staff1 and no_roles; the expected result was corrected to what the code grants, `liwan_hr/models/document_links.py`); failure before the fix; #198; API labels are English (Department, Employee) and the UI shows them raw; staff1 gets the department kind only (he holds hr.departments.read) |
 | DOC-54 | Library not initialised | hr_manager | 403 `library_unavailable`, `document library requires operator initialization` | `POST /api/v1/documents` | dropped | owner dropped it 2026-11-15: no customer page or API route can produce a company without its library, every company is created with one; the refusal lives in `liwan_document_service/models/document.py` and no Odoo test asserts `library_unavailable` yet, which is where a test of it belongs; earlier note; round 3 final: a company created from the Odoo shell still gets its document library automatically (create 201), so the uninitialised state cannot be produced; round 2: library exists for every company here (the Dammam manager created a document with 201); a company without a library needs an operator step; Operator step; test only on a company without a library |
 | DOC-61 | Edit page for an unknown or non-numeric id | hr_manager | Not found state | `page /documents/[id]/edit` | automated | `e2e/tests/documents-register.e2e.ts` (2026-11-15 pass, the #190 fix holds: /documents/999999/edit and /documents/abc/edit both show the not-found state); failure before the fix; #190; /documents/999999/edit shows not-found, but /documents/abc/edit renders only the heading with an empty page |
 
@@ -54,7 +54,7 @@ API errors quoted below are the server messages; the UI shows its own Arabic tex
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 
-## Employee and department links (liwan_documents_hr)
+## Employee and department links (liwan_hr)
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |

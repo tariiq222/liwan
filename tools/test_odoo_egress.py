@@ -19,7 +19,7 @@ BASE = ROOT / 'deploy' / 'docker-compose.yml'
 # Each host the Odoo addons call, with the call site that makes it necessary (the operator document lists the same).
 EXPECTED_HOSTS = (
     'api.authentica.sa',  # liwan_core/models/sms_gateway.py AUTHENTICA_ENDPOINT
-    'graph.facebook.com',  # liwan_inbox/adapters/whatsapp.py GRAPH_BASE (also liwan_inbox_payments through graph_request)
+    'graph.facebook.com',  # liwan_inbox/adapters/whatsapp.py GRAPH_BASE (also adapters/meta_catalog.py through graph_request)
     'lookaside.fbsbx.com',  # liwan_inbox/adapters/whatsapp.py MEDIA_HOSTS
     'business-api.tiktok.com',  # liwan_inbox/adapters/tiktok.py API_BASE
     '.tiktokcdn.com',  # liwan_inbox/adapters/tiktok.py MEDIA_DOMAINS

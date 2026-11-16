@@ -20,24 +20,29 @@ MANAGE_AUTOMATION = 'inbox.automation.manage'
 MANAGE_FLOWS = 'inbox.flows.manage'
 REPORTS_READ = 'inbox.reports.read'
 CAMPAIGNS = 'inbox.campaigns.manage'
+CATALOG_MANAGE = 'inbox.catalog.manage'
+ORDERS_MANAGE = 'inbox.orders.manage'
 
 PERMISSIONS = frozenset({
     READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, MANAGE_TEMPLATES, MANAGE_AUTOMATION, MANAGE_FLOWS, REPORTS_READ, CAMPAIGNS,
+    CATALOG_MANAGE, ORDERS_MANAGE,
 })
 PERMISSION_DEPENDENCIES = {
     REPLY: {READ},
     ASSIGN: {READ},
     EXPORT: {READ},
+    ORDERS_MANAGE: {REPLY},
 }
-# Vendor support runs the channels and the settings, and never reads the customers' conversations (owner decision 2026-10-29, INB-18).
+# Vendor support runs the channels and the settings, and never reads the customers' conversations, orders or catalog
+# (owner decision 2026-10-29, INB-18).
 VENDOR_SUPPORT_PERMISSIONS = frozenset({MANAGE_CHANNELS, MANAGE_SETTINGS})
 # The manager creates and prices the products its catalog lists, through the shared products service (plan D4, option A);
 # built-in roles list their dependencies themselves, so the read capability the two writes require is granted too.
 PRODUCT_GRANTS = frozenset({PRODUCTS_READ, PRODUCTS_MANAGE, PRODUCTS_PRICES_MANAGE})
 # Customer messages are sensitive: the base employee role gets none of them.
 ROLE_GRANTS = {
-    'liwan_inbox.role_inbox_agent': frozenset({READ, REPLY}),
-    'liwan_inbox.role_inbox_supervisor': frozenset({READ, REPLY, ASSIGN, EXPORT, REPORTS_READ}),
+    'liwan_inbox.role_inbox_agent': frozenset({READ, REPLY, ORDERS_MANAGE}),
+    'liwan_inbox.role_inbox_supervisor': frozenset({READ, REPLY, ASSIGN, EXPORT, REPORTS_READ, ORDERS_MANAGE}),
     'liwan_inbox.role_inbox_manager': PERMISSIONS | PRODUCT_GRANTS,
     'liwan_core.role_vendor_support': VENDOR_SUPPORT_PERMISSIONS,
 }

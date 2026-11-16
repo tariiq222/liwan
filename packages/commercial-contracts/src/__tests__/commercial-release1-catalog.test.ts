@@ -105,7 +105,7 @@ describe('release 1 entitlement boundaries', () => {
   })
 
   it('keeps the payment gateway open in core, so a messages-only customer can check out', () => {
-    // Owner decision (A6): connecting the tenant's own gateway is free. `inbox_payments` routes need
+    // Owner decision (A6): connecting the tenant's own gateway is free. The catalog and order routes of `liwan_inbox` need
     // `payments.enabled`, so locking it would close the WhatsApp catalog checkout for the one app that sells.
     const messagesOnly = features([bundle(releaseOf(), 3, 'inbox')])
     expect(messagesOnly['payments.enabled']).toBe(true)

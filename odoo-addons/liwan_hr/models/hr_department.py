@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from psycopg2.errors import ForeignKeyViolation
+
 from odoo import api, models
 from odoo.exceptions import AccessError
 from odoo.fields import Domain
@@ -140,7 +142,12 @@ class LiwanHrDepartment(models.Model):
                 ],
             )
         )
-        return {'employees': employees, 'children': children}
+        documents = self.env['liwan.document']
+        documents_count = (
+            documents.with_context(active_test=False).search_count([('department_id', '=', self.id)])
+            if documents._liwan_actor_allows('read') else 0
+        )
+        return {'employees': employees, 'children': children, 'documents': documents_count}
 
     def _liwan_serialized_relations(self):
         self.ensure_one()
@@ -233,8 +240,13 @@ class LiwanHrDepartment(models.Model):
                     'department still has employees, children, or documents',
                     details=details,
                 )
-        with self.env.cr.savepoint():
-            super().unlink()
+        try:
+            with self.env.cr.savepoint():
+                super().unlink()
+        except ForeignKeyViolation:
+            # The FK includes hidden documents. Never inspect them with elevated
+            # rights or reveal counts/names through the department delete API.
+            raise LiwanHrRule(DEPARTMENT_IN_USE_CODE, 'department is in use') from None
         return True
 
     @api.constrains('company_id')

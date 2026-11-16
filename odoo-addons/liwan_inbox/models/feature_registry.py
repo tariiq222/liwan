@@ -69,6 +69,12 @@ class LiwanInboxFeatureRegistry(models.AbstractModel):
                 'module': 'liwan_inbox',
             },
             {
+                'key': 'inbox.catalog',
+                'type': 'boolean',
+                'owner': 'liwan_inbox',
+                'module': 'liwan_inbox',
+            },
+            {
                 'key': 'inbox.campaign_recipients',
                 'type': 'limit',
                 'owner': 'liwan_inbox',

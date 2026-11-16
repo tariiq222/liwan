@@ -9,15 +9,12 @@ from odoo.addons.liwan_api.tests.common import (
     exempt_isolation_route,
 )
 
-# Types, combinations and bookings plus the type slots route and the guest pair.
-EXPECTED_GET_RECORD_ROUTES = 6
+# Types, combinations and bookings plus the type slots route, the guest pair and the two payment routes.
+EXPECTED_GET_RECORD_ROUTES = 8
 
 
 class AppointmentsIsolationFixture:
-    """Roles and one type, combination and booking per company of the isolation matrix.
-
-    Not a test case: liwan_appointments_payments reuses it for its own routes.
-    """
+    """Roles and one type, combination and booking per company of the isolation matrix."""
 
     @classmethod
     def setup_appointments_isolation(cls):
@@ -73,6 +70,12 @@ class TestAppointmentsCompanyIsolation(AppointmentsIsolationFixture, CompanyIsol
             'type': '/api/v1/appointments/types/{}',
         })
 
+    def test_payment_record_matrix(self):
+        self.assert_record_matrix({
+            'type': '/api/v1/appointments/types/{}/payment',
+            'booking': '/api/v1/appointments/bookings/{}/payment',
+        })
+
     def test_slots_route_is_company_scoped(self):
         for current, company in self.by_tag.items():
             self.env_in(company)
@@ -118,8 +121,10 @@ class TestAppointmentsCompanyIsolation(AppointmentsIsolationFixture, CompanyIsol
 
 cover_isolation_routes((
     '/api/v1/appointments/bookings/<int:booking_id>',
+    '/api/v1/appointments/bookings/<int:booking_id>/payment',
     '/api/v1/appointments/combinations/<int:combination_id>',
     '/api/v1/appointments/types/<int:type_id>',
+    '/api/v1/appointments/types/<int:type_id>/payment',
     '/api/v1/appointments/types/<int:type_id>/slots',
 ), source='liwan_appointments/tests/test_company_isolation.py')
 for _pattern in (

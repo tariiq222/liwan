@@ -13932,6 +13932,9 @@
                 "minimum": 0,
                 "type": "integer"
               },
+              "can_quote": {
+                "type": "boolean"
+              },
               "contact_name": {
                 "type": "string"
               },
@@ -14243,6 +14246,9 @@
                     "type": "null"
                   }
                 ]
+              },
+              "win_by_order": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -14258,6 +14264,8 @@
               "package",
               "lost_reason",
               "status",
+              "win_by_order",
+              "can_quote",
               "list_price",
               "discount_percent",
               "final_price",
@@ -15767,6 +15775,9 @@
                   "minimum": 0,
                   "type": "integer"
                 },
+                "can_quote": {
+                  "type": "boolean"
+                },
                 "contact_name": {
                   "type": "string"
                 },
@@ -16078,6 +16089,9 @@
                       "type": "null"
                     }
                   ]
+                },
+                "win_by_order": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -16093,6 +16107,8 @@
                 "package",
                 "lost_reason",
                 "status",
+                "win_by_order",
+                "can_quote",
                 "list_price",
                 "discount_percent",
                 "final_price",
@@ -16285,6 +16301,9 @@
             "maximum": 9007199254740991,
             "minimum": 0,
             "type": "integer"
+          },
+          "can_quote": {
+            "type": "boolean"
           },
           "contact_name": {
             "type": "string"
@@ -16597,6 +16616,9 @@
                 "type": "null"
               }
             ]
+          },
+          "win_by_order": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -16612,6 +16634,8 @@
           "package",
           "lost_reason",
           "status",
+          "win_by_order",
+          "can_quote",
           "list_price",
           "discount_percent",
           "final_price",
@@ -30825,6 +30849,11 @@
                   "exclusiveMinimum": -1000000000000,
                   "type": "number"
                 },
+                "product_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
                 "quantity": {
                   "exclusiveMaximum": 1000000000000,
                   "minimum": 0,
@@ -30839,10 +30868,6 @@
                   "type": "array"
                 }
               },
-              "required": [
-                "name",
-                "price_unit"
-              ],
               "type": "object"
             },
             "minItems": 1,
@@ -31199,6 +31224,31 @@
                 "price_unit": {
                   "type": "number"
                 },
+                "product": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "quantity": {
                   "type": "number"
                 },
@@ -31227,6 +31277,7 @@
               "required": [
                 "id",
                 "name",
+                "product",
                 "account",
                 "quantity",
                 "price_unit",
@@ -31323,6 +31374,32 @@
           },
           "ref": {
             "type": "string"
+          },
+          "source_order": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "number": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "number"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "state": {
             "enum": [
@@ -31559,6 +31636,11 @@
             "exclusiveMinimum": -1000000000000,
             "type": "number"
           },
+          "product_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
           "quantity": {
             "exclusiveMaximum": 1000000000000,
             "minimum": 0,
@@ -31573,10 +31655,6 @@
             "type": "array"
           }
         },
-        "required": [
-          "name",
-          "price_unit"
-        ],
         "type": "object"
       },
       "FinanceInvoiceLineSchema": {
@@ -31716,6 +31794,31 @@
           "price_unit": {
             "type": "number"
           },
+          "product": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "quantity": {
             "type": "number"
           },
@@ -31744,6 +31847,7 @@
         "required": [
           "id",
           "name",
+          "product",
           "account",
           "quantity",
           "price_unit",
@@ -32018,6 +32122,11 @@
                   "exclusiveMinimum": -1000000000000,
                   "type": "number"
                 },
+                "product_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
                 "quantity": {
                   "exclusiveMaximum": 1000000000000,
                   "minimum": 0,
@@ -32032,10 +32141,6 @@
                   "type": "array"
                 }
               },
-              "required": [
-                "name",
-                "price_unit"
-              ],
               "type": "object"
             },
             "minItems": 1,
@@ -35744,6 +35849,26 @@
           "zatca",
           "ready",
           "blockers"
+        ],
+        "type": "object"
+      },
+      "FinanceSourceOrderSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "number": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number"
         ],
         "type": "object"
       },
@@ -62271,6 +62396,20 @@
           },
           "unread": {
             "type": "boolean"
+          },
+          "waiting_overdue": {
+            "type": "boolean"
+          },
+          "waiting_since": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -62284,6 +62423,8 @@
           "tags",
           "revision",
           "last_message_at",
+          "waiting_since",
+          "waiting_overdue",
           "last_message_preview",
           "last_message_kind",
           "unread",
@@ -62572,6 +62713,20 @@
                 },
                 "unread": {
                   "type": "boolean"
+                },
+                "waiting_overdue": {
+                  "type": "boolean"
+                },
+                "waiting_since": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -62585,6 +62740,8 @@
                 "tags",
                 "revision",
                 "last_message_at",
+                "waiting_since",
+                "waiting_overdue",
                 "last_message_preview",
                 "last_message_kind",
                 "unread",
@@ -62946,6 +63103,20 @@
           },
           "unread": {
             "type": "boolean"
+          },
+          "waiting_overdue": {
+            "type": "boolean"
+          },
+          "waiting_since": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -62959,6 +63130,8 @@
           "tags",
           "revision",
           "last_message_at",
+          "waiting_since",
+          "waiting_overdue",
           "last_message_preview",
           "last_message_kind",
           "unread",
@@ -83941,6 +84114,303 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "MailDnsRecordKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "dkim",
+          "spf",
+          "return_path"
+        ],
+        "type": "string"
+      },
+      "MailDnsRecordSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "dkim",
+              "spf",
+              "return_path"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "CNAME",
+              "TXT"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "type",
+          "name",
+          "value"
+        ],
+        "type": "object"
+      },
+      "MailDnsRecordTypeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "CNAME",
+          "TXT"
+        ],
+        "type": "string"
+      },
+      "MailDomainSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "from_local_part": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pause_reason": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "provider_configured": {
+            "type": "boolean"
+          },
+          "records": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "dkim",
+                    "spf",
+                    "return_path"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "CNAME",
+                    "TXT"
+                  ],
+                  "type": "string"
+                },
+                "value": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "type",
+                "name",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "return_path_expires_at": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "return_path_recreated_at": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sender_address": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "pending_dns",
+              "verified",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "domain",
+          "from_local_part",
+          "sender_address",
+          "records",
+          "return_path_expires_at",
+          "return_path_recreated_at",
+          "verified_at",
+          "last_error",
+          "paused",
+          "pause_reason",
+          "provider_configured"
+        ],
+        "type": "object"
+      },
+      "MailDomainStartSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "domain": {
+            "maxLength": 253,
+            "minLength": 1,
+            "type": "string"
+          },
+          "from_local_part": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain",
+          "from_local_part"
+        ],
+        "type": "object"
+      },
+      "MailDomainStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "not_started",
+          "pending_dns",
+          "verified",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "MailTestSendSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "mail_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "state": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "mail_id",
+          "state"
+        ],
+        "type": "object"
+      },
+      "MailUsageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "ceiling": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "deferred": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "near_ceiling": {
+            "type": "boolean"
+          },
+          "today": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "today",
+          "ceiling",
+          "near_ceiling",
+          "deferred"
         ],
         "type": "object"
       },
@@ -105137,6 +105607,31 @@
         ],
         "type": "object"
       },
+      "SalesAnswerModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "none",
+          "accept",
+          "accept_and_sign"
+        ],
+        "type": "string"
+      },
+      "SalesAnswerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "accepted",
+          "declined"
+        ],
+        "type": "string"
+      },
+      "SalesAnsweredResendSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "allow",
+          "refuse"
+        ],
+        "type": "string"
+      },
       "SalesCurrencySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -105161,12 +105656,158 @@
         ],
         "type": "object"
       },
+      "SalesCustomerAnswerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "acceptance_confirms": {
+            "type": "boolean"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "declined"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "answered_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decline_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "none",
+              "accept",
+              "accept_and_sign"
+            ],
+            "type": "string"
+          },
+          "signature_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "drawn",
+                  "typed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "signed_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "mode",
+          "acceptance_confirms",
+          "answer",
+          "answered_at",
+          "signed_by",
+          "signature_method",
+          "decline_reason"
+        ],
+        "type": "object"
+      },
+      "SalesInvoiceActorSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "owner",
+          "any_biller"
+        ],
+        "type": "string"
+      },
+      "SalesInvoiceDownPaymentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "allow",
+          "refuse"
+        ],
+        "type": "string"
+      },
+      "SalesInvoiceKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "invoice",
+          "down_payment",
+          "credit_note"
+        ],
+        "type": "string"
+      },
+      "SalesInvoicePaymentStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "not_paid",
+          "in_payment",
+          "paid",
+          "partial",
+          "reversed",
+          "blocked",
+          "invoicing_legacy"
+        ],
+        "type": "string"
+      },
+      "SalesInvoiceStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft",
+          "posted",
+          "cancel"
+        ],
+        "type": "string"
+      },
+      "SalesInvoicingStatusSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "none",
+          "to_invoice",
+          "partial",
+          "invoiced"
+        ],
+        "type": "string"
+      },
       "SalesLineKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "product",
           "section",
           "note"
+        ],
+        "type": "string"
+      },
+      "SalesOpportunityWinAmountSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "untaxed",
+          "total"
+        ],
+        "type": "string"
+      },
+      "SalesOpportunityWinSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "order_confirmed",
+          "manual"
         ],
         "type": "string"
       },
@@ -105195,6 +105836,9 @@
           "reopen": {
             "type": "boolean"
           },
+          "send": {
+            "type": "boolean"
+          },
           "unlock": {
             "type": "boolean"
           }
@@ -105207,7 +105851,8 @@
           "lock",
           "unlock",
           "duplicate",
-          "assign"
+          "assign",
+          "send"
         ],
         "type": "object"
       },
@@ -105279,7 +105924,25 @@
             },
             "type": "array"
           },
+          "payment_to_confirm": {
+            "enum": [
+              "off",
+              "full",
+              "percent"
+            ],
+            "type": "string"
+          },
+          "prepayment_percent": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
           "salesperson_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "template_id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
@@ -105302,6 +105965,302 @@
         },
         "required": [
           "customer_id"
+        ],
+        "type": "object"
+      },
+      "SalesOrderInvoiceBodySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "method": {
+                "const": "order",
+                "type": "string"
+              }
+            },
+            "required": [
+              "method"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "method": {
+                "const": "percent",
+                "type": "string"
+              },
+              "percent": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "required": [
+              "method",
+              "percent"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "exclusiveMinimum": 0,
+                "maximum": 1000000000000,
+                "type": "number"
+              },
+              "method": {
+                "const": "amount",
+                "type": "string"
+              }
+            },
+            "required": [
+              "method",
+              "amount"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SalesOrderInvoiceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_residual": {
+            "type": "number"
+          },
+          "amount_total": {
+            "type": "number"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "invoice_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_date_due": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "invoice",
+              "down_payment",
+              "credit_note"
+            ],
+            "type": "string"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_state": {
+            "enum": [
+              "not_paid",
+              "in_payment",
+              "paid",
+              "partial",
+              "reversed",
+              "blocked",
+              "invoicing_legacy"
+            ],
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "posted",
+              "cancel"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "state",
+          "kind",
+          "payment_state",
+          "invoice_date",
+          "invoice_date_due",
+          "amount_total",
+          "amount_residual",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "SalesOrderInvoicingSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_credited": {
+            "type": "number"
+          },
+          "amount_drafted": {
+            "type": "number"
+          },
+          "amount_invoiced": {
+            "type": "number"
+          },
+          "amount_paid": {
+            "type": "number"
+          },
+          "amount_to_invoice": {
+            "type": "number"
+          },
+          "can_down_payment": {
+            "type": "boolean"
+          },
+          "can_invoice": {
+            "type": "boolean"
+          },
+          "invoices": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount_residual": {
+                  "type": "number"
+                },
+                "amount_total": {
+                  "type": "number"
+                },
+                "currency": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "invoice_date": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "invoice_date_due": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "enum": [
+                    "invoice",
+                    "down_payment",
+                    "credit_note"
+                  ],
+                  "type": "string"
+                },
+                "number": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "payment_state": {
+                  "enum": [
+                    "not_paid",
+                    "in_payment",
+                    "paid",
+                    "partial",
+                    "reversed",
+                    "blocked",
+                    "invoicing_legacy"
+                  ],
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "draft",
+                    "posted",
+                    "cancel"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "number",
+                "state",
+                "kind",
+                "payment_state",
+                "invoice_date",
+                "invoice_date_due",
+                "amount_total",
+                "amount_residual",
+                "currency"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "none",
+              "to_invoice",
+              "partial",
+              "invoiced"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "amount_invoiced",
+          "amount_credited",
+          "amount_drafted",
+          "amount_to_invoice",
+          "amount_paid",
+          "invoices",
+          "can_invoice",
+          "can_down_payment"
         ],
         "type": "object"
       },
@@ -105488,9 +106447,91 @@
             ],
             "type": "object"
           },
+          "customer_answer": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "acceptance_confirms": {
+                    "type": "boolean"
+                  },
+                  "answer": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "accepted",
+                          "declined"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "answered_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "decline_reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mode": {
+                    "enum": [
+                      "none",
+                      "accept",
+                      "accept_and_sign"
+                    ],
+                    "type": "string"
+                  },
+                  "signature_method": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "drawn",
+                          "typed"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signed_by": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode",
+                  "acceptance_confirms",
+                  "answer",
+                  "answered_at",
+                  "signed_by",
+                  "signature_method",
+                  "decline_reason"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "date": {
             "minLength": 1,
             "type": "string"
+          },
+          "expired": {
+            "type": "boolean"
           },
           "id": {
             "exclusiveMinimum": 0,
@@ -105571,7 +106612,9 @@
           "number",
           "state",
           "locked",
+          "expired",
           "source",
+          "customer_answer",
           "customer",
           "salesperson",
           "validity_date",
@@ -105642,9 +106685,91 @@
                   ],
                   "type": "object"
                 },
+                "customer_answer": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptance_confirms": {
+                          "type": "boolean"
+                        },
+                        "answer": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "accepted",
+                                "declined"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "answered_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "decline_reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "mode": {
+                          "enum": [
+                            "none",
+                            "accept",
+                            "accept_and_sign"
+                          ],
+                          "type": "string"
+                        },
+                        "signature_method": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "drawn",
+                                "typed"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "signed_by": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "acceptance_confirms",
+                        "answer",
+                        "answered_at",
+                        "signed_by",
+                        "signature_method",
+                        "decline_reason"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "date": {
                   "minLength": 1,
                   "type": "string"
+                },
+                "expired": {
+                  "type": "boolean"
                 },
                 "id": {
                   "exclusiveMinimum": 0,
@@ -105725,7 +106850,9 @@
                 "number",
                 "state",
                 "locked",
+                "expired",
                 "source",
+                "customer_answer",
                 "customer",
                 "salesperson",
                 "validity_date",
@@ -105749,6 +106876,38 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "SalesOrderOpportunitySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "contact_name": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "won",
+              "lost"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "contact_name",
+          "status",
+          "active"
         ],
         "type": "object"
       },
@@ -105805,6 +106964,19 @@
             },
             "type": "array"
           },
+          "payment_to_confirm": {
+            "enum": [
+              "off",
+              "full",
+              "percent"
+            ],
+            "type": "string"
+          },
+          "prepayment_percent": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
           "salesperson_id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -105826,6 +106998,186 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "SalesOrderPaymentAttentionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "payment_not_recorded",
+          "payment_reversed",
+          "payment_awaits_confirmation"
+        ],
+        "type": "string"
+      },
+      "SalesOrderPaymentHeldSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "expired",
+          "reopened",
+          "cancelled",
+          "awaiting_signature"
+        ],
+        "type": "string"
+      },
+      "SalesOrderPaymentLinkSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "none",
+          "ready",
+          "awaiting_signature",
+          "no_gateway",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "SalesOrderPaymentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_due": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "amount_received": {
+            "type": "number"
+          },
+          "amount_refundable": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "amount_required": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "amount_to_refund": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "attention": {
+            "anyOf": [
+              {
+                "enum": [
+                  "payment_not_recorded",
+                  "payment_reversed",
+                  "payment_awaits_confirmation"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "can_refund": {
+            "type": "boolean"
+          },
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "held": {
+            "anyOf": [
+              {
+                "enum": [
+                  "expired",
+                  "reopened",
+                  "cancelled",
+                  "awaiting_signature"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "link": {
+            "enum": [
+              "none",
+              "ready",
+              "awaiting_signature",
+              "no_gateway",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "off",
+              "full",
+              "percent"
+            ],
+            "type": "string"
+          },
+          "needs_attention": {
+            "type": "boolean"
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "none",
+              "payable",
+              "processing",
+              "paid",
+              "not_payable",
+              "cancelled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "percent",
+          "currency",
+          "amount_required",
+          "amount_received",
+          "amount_due",
+          "amount_to_refund",
+          "amount_refundable",
+          "can_refund",
+          "status",
+          "link",
+          "held",
+          "needs_attention",
+          "attention"
+        ],
+        "type": "object"
+      },
+      "SalesOrderPaymentStatusSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "none",
+          "payable",
+          "processing",
+          "paid",
+          "not_payable",
+          "cancelled"
+        ],
+        "type": "string"
+      },
+      "SalesOrderRefundBodySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "reference": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "reference"
+        ],
         "type": "object"
       },
       "SalesOrderSchema": {
@@ -105856,6 +107208,9 @@
               "reopen": {
                 "type": "boolean"
               },
+              "send": {
+                "type": "boolean"
+              },
               "unlock": {
                 "type": "boolean"
               }
@@ -105868,7 +107223,8 @@
               "lock",
               "unlock",
               "duplicate",
-              "assign"
+              "assign",
+              "send"
             ],
             "type": "object"
           },
@@ -105922,14 +107278,247 @@
             ],
             "type": "object"
           },
+          "customer_answer": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "acceptance_confirms": {
+                    "type": "boolean"
+                  },
+                  "answer": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "accepted",
+                          "declined"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "answered_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "decline_reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mode": {
+                    "enum": [
+                      "none",
+                      "accept",
+                      "accept_and_sign"
+                    ],
+                    "type": "string"
+                  },
+                  "signature_method": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "drawn",
+                          "typed"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signed_by": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode",
+                  "acceptance_confirms",
+                  "answer",
+                  "answered_at",
+                  "signed_by",
+                  "signature_method",
+                  "decline_reason"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "date": {
             "minLength": 1,
             "type": "string"
+          },
+          "expired": {
+            "type": "boolean"
           },
           "id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "invoicing": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_credited": {
+                    "type": "number"
+                  },
+                  "amount_drafted": {
+                    "type": "number"
+                  },
+                  "amount_invoiced": {
+                    "type": "number"
+                  },
+                  "amount_paid": {
+                    "type": "number"
+                  },
+                  "amount_to_invoice": {
+                    "type": "number"
+                  },
+                  "can_down_payment": {
+                    "type": "boolean"
+                  },
+                  "can_invoice": {
+                    "type": "boolean"
+                  },
+                  "invoices": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "amount_residual": {
+                          "type": "number"
+                        },
+                        "amount_total": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "invoice_date": {
+                          "anyOf": [
+                            {
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "invoice_date_due": {
+                          "anyOf": [
+                            {
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "kind": {
+                          "enum": [
+                            "invoice",
+                            "down_payment",
+                            "credit_note"
+                          ],
+                          "type": "string"
+                        },
+                        "number": {
+                          "anyOf": [
+                            {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "payment_state": {
+                          "enum": [
+                            "not_paid",
+                            "in_payment",
+                            "paid",
+                            "partial",
+                            "reversed",
+                            "blocked",
+                            "invoicing_legacy"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "draft",
+                            "posted",
+                            "cancel"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "number",
+                        "state",
+                        "kind",
+                        "payment_state",
+                        "invoice_date",
+                        "invoice_date_due",
+                        "amount_total",
+                        "amount_residual",
+                        "currency"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "status": {
+                    "enum": [
+                      "none",
+                      "to_invoice",
+                      "partial",
+                      "invoiced"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status",
+                  "amount_invoiced",
+                  "amount_credited",
+                  "amount_drafted",
+                  "amount_to_invoice",
+                  "amount_paid",
+                  "invoices",
+                  "can_invoice",
+                  "can_down_payment"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "lines": {
             "items": {
@@ -106027,6 +107616,171 @@
             "minLength": 1,
             "type": "string"
           },
+          "opportunity": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "contact_name": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "won",
+                      "lost"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "contact_name",
+                  "status",
+                  "active"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_due": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "amount_received": {
+                    "type": "number"
+                  },
+                  "amount_refundable": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "amount_required": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "amount_to_refund": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "attention": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "payment_not_recorded",
+                          "payment_reversed",
+                          "payment_awaits_confirmation"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "can_refund": {
+                    "type": "boolean"
+                  },
+                  "currency": {
+                    "maxLength": 3,
+                    "minLength": 3,
+                    "type": "string"
+                  },
+                  "held": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "expired",
+                          "reopened",
+                          "cancelled",
+                          "awaiting_signature"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "enum": [
+                      "none",
+                      "ready",
+                      "awaiting_signature",
+                      "no_gateway",
+                      "unavailable"
+                    ],
+                    "type": "string"
+                  },
+                  "mode": {
+                    "enum": [
+                      "off",
+                      "full",
+                      "percent"
+                    ],
+                    "type": "string"
+                  },
+                  "needs_attention": {
+                    "type": "boolean"
+                  },
+                  "percent": {
+                    "maximum": 100,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "status": {
+                    "enum": [
+                      "none",
+                      "payable",
+                      "processing",
+                      "paid",
+                      "not_payable",
+                      "cancelled"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "percent",
+                  "currency",
+                  "amount_required",
+                  "amount_received",
+                  "amount_due",
+                  "amount_to_refund",
+                  "amount_refundable",
+                  "can_refund",
+                  "status",
+                  "link",
+                  "held",
+                  "needs_attention",
+                  "attention"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resend_refused": {
+            "type": "boolean"
+          },
           "salesperson": {
             "anyOf": [
               {
@@ -106094,7 +107848,9 @@
           "number",
           "state",
           "locked",
+          "expired",
           "source",
+          "customer_answer",
           "customer",
           "salesperson",
           "validity_date",
@@ -106105,7 +107861,8 @@
           "amount_tax",
           "amount_total",
           "lines",
-          "actions"
+          "actions",
+          "resend_refused"
         ],
         "type": "object"
       },
@@ -106127,10 +107884,845 @@
         ],
         "type": "string"
       },
+      "SalesPaymentToConfirmSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "off",
+          "full",
+          "percent"
+        ],
+        "type": "string"
+      },
+      "SalesPrepaymentPercentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "maximum": 100,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "SalesPresetKeySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "services",
+          "trading",
+          "contracting"
+        ],
+        "type": "string"
+      },
+      "SalesPublicLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_tax": {
+            "type": "number"
+          },
+          "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
+            "type": "number"
+          },
+          "discount_percent": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "product",
+              "section",
+              "note"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit_price": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "quantity",
+          "unit",
+          "unit_price",
+          "discount_percent",
+          "amount_untaxed",
+          "amount_tax",
+          "amount_total"
+        ],
+        "type": "object"
+      },
+      "SalesPublicPaymentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "pay_url": {
+            "anyOf": [
+              {
+                "pattern": "^\\/pay\\/order\\/\\d+\\?access_token=[\\w-]{1,128}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "payable",
+              "awaiting_signature",
+              "processing",
+              "paid",
+              "received",
+              "unavailable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "percent",
+          "amount",
+          "currency",
+          "pay_url",
+          "state"
+        ],
+        "type": "object"
+      },
+      "SalesPublicPaymentStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "payable",
+          "awaiting_signature",
+          "processing",
+          "paid",
+          "received",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "SalesPublicQuotationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_tax": {
+            "type": "number"
+          },
+          "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
+            "type": "number"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "declined"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "answer_mode": {
+            "enum": [
+              "none",
+              "accept",
+              "accept_and_sign"
+            ],
+            "type": "string"
+          },
+          "answered_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "can_accept": {
+            "type": "boolean"
+          },
+          "can_decline": {
+            "type": "boolean"
+          },
+          "company_name": {
+            "type": "string"
+          },
+          "currency": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "symbol"
+            ],
+            "type": "object"
+          },
+          "customer_name": {
+            "type": "string"
+          },
+          "date": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount_tax": {
+                  "type": "number"
+                },
+                "amount_total": {
+                  "type": "number"
+                },
+                "amount_untaxed": {
+                  "type": "number"
+                },
+                "discount_percent": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "kind": {
+                  "enum": [
+                    "product",
+                    "section",
+                    "note"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "number"
+                },
+                "unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "unit_price": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "name",
+                "quantity",
+                "unit",
+                "unit_price",
+                "discount_percent",
+                "amount_untaxed",
+                "amount_tax",
+                "amount_total"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "number": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "amount": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "currency": {
+                    "maxLength": 3,
+                    "minLength": 3,
+                    "type": "string"
+                  },
+                  "pay_url": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\/pay\\/order\\/\\d+\\?access_token=[\\w-]{1,128}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "percent": {
+                    "maximum": 100,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "state": {
+                    "enum": [
+                      "payable",
+                      "awaiting_signature",
+                      "processing",
+                      "paid",
+                      "received",
+                      "unavailable"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "percent",
+                  "amount",
+                  "currency",
+                  "pay_url",
+                  "state"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "signature_methods": {
+            "anyOf": [
+              {
+                "enum": [
+                  "draw",
+                  "draw_or_type"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "signed_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "sent",
+              "confirmed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "terms": {
+            "type": "string"
+          },
+          "validity_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "state",
+          "expired",
+          "company_name",
+          "customer_name",
+          "date",
+          "validity_date",
+          "terms",
+          "currency",
+          "amount_untaxed",
+          "amount_tax",
+          "amount_total",
+          "lines",
+          "answer_mode",
+          "signature_methods",
+          "answer",
+          "answered_at",
+          "signed_by",
+          "can_accept",
+          "can_decline"
+        ],
+        "type": "object"
+      },
+      "SalesQuotationAcceptSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "access_token": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "signature": {
+            "maxLength": 65536,
+            "pattern": "^[A-Za-z0-9+/]+={0,2}$",
+            "type": "string"
+          },
+          "signature_method": {
+            "enum": [
+              "drawn",
+              "typed"
+            ],
+            "type": "string"
+          },
+          "signed_by": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token"
+        ],
+        "type": "object"
+      },
+      "SalesQuotationDeclineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "access_token": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token"
+        ],
+        "type": "object"
+      },
+      "SalesReportBreakdownSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "by": {
+            "enum": [
+              "period",
+              "salesperson",
+              "customer",
+              "product"
+            ],
+            "type": "string"
+          },
+          "currency": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "symbol"
+            ],
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount_total": {
+                  "type": "number"
+                },
+                "amount_untaxed": {
+                  "type": "number"
+                },
+                "key": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "label": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "orders": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "orders",
+                "quantity",
+                "amount_untaxed",
+                "amount_total"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "enum": [
+                  "day",
+                  "week",
+                  "month"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "by",
+          "period",
+          "currency",
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "SalesReportCurrencySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "symbol"
+        ],
+        "type": "object"
+      },
+      "SalesReportDimensionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "period",
+          "salesperson",
+          "customer",
+          "product"
+        ],
+        "type": "string"
+      },
+      "SalesReportItemSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
+            "type": "number"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "orders": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "quantity": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "orders",
+          "quantity",
+          "amount_untaxed",
+          "amount_total"
+        ],
+        "type": "object"
+      },
+      "SalesReportPeriodSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "day",
+          "week",
+          "month"
+        ],
+        "type": "string"
+      },
+      "SalesReportSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cancelled": {
+            "additionalProperties": false,
+            "properties": {
+              "amount_total": {
+                "type": "number"
+              },
+              "amount_untaxed": {
+                "type": "number"
+              },
+              "orders": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "orders",
+              "amount_untaxed",
+              "amount_total"
+            ],
+            "type": "object"
+          },
+          "confirmed": {
+            "additionalProperties": false,
+            "properties": {
+              "amount_total": {
+                "type": "number"
+              },
+              "amount_untaxed": {
+                "type": "number"
+              },
+              "orders": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "orders",
+              "amount_untaxed",
+              "amount_total"
+            ],
+            "type": "object"
+          },
+          "currency": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "symbol"
+            ],
+            "type": "object"
+          },
+          "quotations": {
+            "additionalProperties": false,
+            "properties": {
+              "amount_total": {
+                "type": "number"
+              },
+              "amount_untaxed": {
+                "type": "number"
+              },
+              "orders": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "orders",
+              "amount_untaxed",
+              "amount_total"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "currency",
+          "confirmed",
+          "quotations",
+          "cancelled"
+        ],
+        "type": "object"
+      },
+      "SalesReportTotalsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
+            "type": "number"
+          },
+          "orders": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "orders",
+          "amount_untaxed",
+          "amount_total"
+        ],
+        "type": "object"
+      },
       "SalesSettingsPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "acceptance_confirms": {
+            "type": "boolean"
+          },
+          "answered_resend": {
+            "enum": [
+              "allow",
+              "refuse"
+            ],
+            "type": "string"
+          },
+          "customer_answer": {
+            "enum": [
+              "none",
+              "accept",
+              "accept_and_sign"
+            ],
+            "type": "string"
+          },
           "default_terms": {
             "maxLength": 10000,
             "type": "string"
@@ -106140,10 +108732,58 @@
             "minimum": 0,
             "type": "integer"
           },
+          "invoice_actor": {
+            "enum": [
+              "owner",
+              "any_biller"
+            ],
+            "type": "string"
+          },
+          "invoice_down_payment": {
+            "enum": [
+              "allow",
+              "refuse"
+            ],
+            "type": "string"
+          },
+          "opportunity_win": {
+            "enum": [
+              "order_confirmed",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "opportunity_win_amount": {
+            "enum": [
+              "untaxed",
+              "total"
+            ],
+            "type": "string"
+          },
+          "payment_to_confirm": {
+            "enum": [
+              "off",
+              "full",
+              "percent"
+            ],
+            "type": "string"
+          },
+          "prepayment_percent": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
           "revision": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "signature_methods": {
+            "enum": [
+              "draw",
+              "draw_or_type"
+            ],
+            "type": "string"
           },
           "validity_days": {
             "maximum": 3650,
@@ -106163,12 +108803,290 @@
         ],
         "type": "object"
       },
+      "SalesSettingsPresetListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "enum": [
+                    "services",
+                    "trading",
+                    "contracting"
+                  ],
+                  "type": "string"
+                },
+                "matches": {
+                  "type": "boolean"
+                },
+                "values": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "acceptance_confirms": {
+                      "type": "boolean"
+                    },
+                    "answered_resend": {
+                      "enum": [
+                        "allow",
+                        "refuse"
+                      ],
+                      "type": "string"
+                    },
+                    "customer_answer": {
+                      "enum": [
+                        "none",
+                        "accept",
+                        "accept_and_sign"
+                      ],
+                      "type": "string"
+                    },
+                    "discount_limit_percent": {
+                      "maximum": 100,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "invoice_actor": {
+                      "enum": [
+                        "owner",
+                        "any_biller"
+                      ],
+                      "type": "string"
+                    },
+                    "invoice_down_payment": {
+                      "enum": [
+                        "allow",
+                        "refuse"
+                      ],
+                      "type": "string"
+                    },
+                    "opportunity_win": {
+                      "enum": [
+                        "order_confirmed",
+                        "manual"
+                      ],
+                      "type": "string"
+                    },
+                    "opportunity_win_amount": {
+                      "enum": [
+                        "untaxed",
+                        "total"
+                      ],
+                      "type": "string"
+                    },
+                    "payment_to_confirm": {
+                      "enum": [
+                        "off",
+                        "full",
+                        "percent"
+                      ],
+                      "type": "string"
+                    },
+                    "prepayment_percent": {
+                      "maximum": 100,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "signature_methods": {
+                      "enum": [
+                        "draw",
+                        "draw_or_type"
+                      ],
+                      "type": "string"
+                    },
+                    "validity_days": {
+                      "maximum": 3650,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "visibility": {
+                      "enum": [
+                        "own",
+                        "all"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "visibility",
+                    "validity_days",
+                    "discount_limit_percent",
+                    "customer_answer",
+                    "acceptance_confirms",
+                    "answered_resend",
+                    "signature_methods"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "key",
+                "values",
+                "matches"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "SalesSettingsPresetSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "enum": [
+              "services",
+              "trading",
+              "contracting"
+            ],
+            "type": "string"
+          },
+          "matches": {
+            "type": "boolean"
+          },
+          "values": {
+            "additionalProperties": false,
+            "properties": {
+              "acceptance_confirms": {
+                "type": "boolean"
+              },
+              "answered_resend": {
+                "enum": [
+                  "allow",
+                  "refuse"
+                ],
+                "type": "string"
+              },
+              "customer_answer": {
+                "enum": [
+                  "none",
+                  "accept",
+                  "accept_and_sign"
+                ],
+                "type": "string"
+              },
+              "discount_limit_percent": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "invoice_actor": {
+                "enum": [
+                  "owner",
+                  "any_biller"
+                ],
+                "type": "string"
+              },
+              "invoice_down_payment": {
+                "enum": [
+                  "allow",
+                  "refuse"
+                ],
+                "type": "string"
+              },
+              "opportunity_win": {
+                "enum": [
+                  "order_confirmed",
+                  "manual"
+                ],
+                "type": "string"
+              },
+              "opportunity_win_amount": {
+                "enum": [
+                  "untaxed",
+                  "total"
+                ],
+                "type": "string"
+              },
+              "payment_to_confirm": {
+                "enum": [
+                  "off",
+                  "full",
+                  "percent"
+                ],
+                "type": "string"
+              },
+              "prepayment_percent": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "signature_methods": {
+                "enum": [
+                  "draw",
+                  "draw_or_type"
+                ],
+                "type": "string"
+              },
+              "validity_days": {
+                "maximum": 3650,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "visibility": {
+                "enum": [
+                  "own",
+                  "all"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "visibility",
+              "validity_days",
+              "discount_limit_percent",
+              "customer_answer",
+              "acceptance_confirms",
+              "answered_resend",
+              "signature_methods"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "matches"
+        ],
+        "type": "object"
+      },
       "SalesSettingsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "acceptance_confirms": {
+            "type": "boolean"
+          },
+          "answered_resend": {
+            "enum": [
+              "allow",
+              "refuse"
+            ],
+            "type": "string"
+          },
           "can_manage": {
             "type": "boolean"
+          },
+          "customer_answer": {
+            "enum": [
+              "none",
+              "accept",
+              "accept_and_sign"
+            ],
+            "type": "string"
           },
           "default_terms": {
             "type": "string"
@@ -106178,10 +109096,58 @@
             "minimum": 0,
             "type": "integer"
           },
+          "invoice_actor": {
+            "enum": [
+              "owner",
+              "any_biller"
+            ],
+            "type": "string"
+          },
+          "invoice_down_payment": {
+            "enum": [
+              "allow",
+              "refuse"
+            ],
+            "type": "string"
+          },
+          "opportunity_win": {
+            "enum": [
+              "order_confirmed",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "opportunity_win_amount": {
+            "enum": [
+              "untaxed",
+              "total"
+            ],
+            "type": "string"
+          },
+          "payment_to_confirm": {
+            "enum": [
+              "off",
+              "full",
+              "percent"
+            ],
+            "type": "string"
+          },
+          "prepayment_percent": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
           "revision": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "signature_methods": {
+            "enum": [
+              "draw",
+              "draw_or_type"
+            ],
+            "type": "string"
           },
           "validity_days": {
             "maximum": 9007199254740991,
@@ -106201,8 +109167,453 @@
           "validity_days",
           "discount_limit_percent",
           "default_terms",
+          "customer_answer",
+          "acceptance_confirms",
+          "answered_resend",
+          "signature_methods",
           "revision",
           "can_manage"
+        ],
+        "type": "object"
+      },
+      "SalesSignatureMethodSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "drawn",
+          "typed"
+        ],
+        "type": "string"
+      },
+      "SalesSignatureMethodsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draw",
+          "draw_or_type"
+        ],
+        "type": "string"
+      },
+      "SalesTemplateCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "product",
+                    "section",
+                    "note"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                "product_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "quantity": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1000000,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "terms": {
+            "maxLength": 10000,
+            "type": "string"
+          },
+          "validity_days": {
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "SalesTemplateItemSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "can_manage": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "line_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "usable": {
+            "type": "boolean"
+          },
+          "validity_days": {
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "validity_days",
+          "archived",
+          "line_count",
+          "usable",
+          "can_manage"
+        ],
+        "type": "object"
+      },
+      "SalesTemplateLineInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "product",
+              "section",
+              "note"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "product_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0,
+            "maximum": 1000000,
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "SalesTemplateLineKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "product",
+          "section",
+          "note"
+        ],
+        "type": "string"
+      },
+      "SalesTemplateLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "product",
+              "section",
+              "note"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "usable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "product",
+          "name",
+          "quantity",
+          "usable"
+        ],
+        "type": "object"
+      },
+      "SalesTemplateListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "archived": {
+                  "type": "boolean"
+                },
+                "can_manage": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "line_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "usable": {
+                  "type": "boolean"
+                },
+                "validity_days": {
+                  "maximum": 3650,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "validity_days",
+                "archived",
+                "line_count",
+                "usable",
+                "can_manage"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "SalesTemplatePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "product",
+                    "section",
+                    "note"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                "product_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "quantity": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1000000,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "terms": {
+            "maxLength": 10000,
+            "type": "string"
+          },
+          "validity_days": {
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "SalesTemplateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "can_manage": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "line_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "product",
+                    "section",
+                    "note"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "product": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "quantity": {
+                  "type": "number"
+                },
+                "usable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "kind",
+                "product",
+                "name",
+                "quantity",
+                "usable"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "terms": {
+            "type": "string"
+          },
+          "usable": {
+            "type": "boolean"
+          },
+          "validity_days": {
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "validity_days",
+          "archived",
+          "line_count",
+          "usable",
+          "can_manage",
+          "terms",
+          "lines"
         ],
         "type": "object"
       },
@@ -109461,7 +112872,7 @@
   "info": {
     "description": "Generated surface of every /api/v1 route across the liwan Odoo addons, with contract schemas harvested from @liwan/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
     "title": "liwan /api/v1",
-    "version": "19.0.1.5.0"
+    "version": "19.0.1.6.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -110429,7 +113840,7 @@
     },
     "/api/v1/admin/employee-accounts": {
       "post": {
-        "operationId": "liwan_access_hr.EmployeeAccountsController.grant.post",
+        "operationId": "liwan_hr.EmployeeAccountsController.grant.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -110448,10 +113859,10 @@
         ],
         "summary": "grant",
         "tags": [
-          "liwan_access_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_access_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -110469,7 +113880,7 @@
     },
     "/api/v1/admin/employee-accounts/candidates": {
       "get": {
-        "operationId": "liwan_access_hr.EmployeeAccountsController.candidates.get",
+        "operationId": "liwan_hr.EmployeeAccountsController.candidates.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -110488,10 +113899,10 @@
         ],
         "summary": "candidates",
         "tags": [
-          "liwan_access_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_access_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -113378,7 +116789,7 @@
     },
     "/api/v1/appointments/bookings/{booking_id}/payment": {
       "get": {
-        "operationId": "liwan_appointments_payments.BookingPaymentController.get_booking_payment.get",
+        "operationId": "liwan_appointments.BookingPaymentController.get_booking_payment.get",
         "parameters": [
           {
             "in": "path",
@@ -113410,10 +116821,10 @@
         ],
         "summary": "get_booking_payment",
         "tags": [
-          "liwan_appointments_payments"
+          "liwan_appointments"
         ],
         "x-liwan": {
-          "addon": "liwan_appointments_payments",
+          "addon": "liwan_appointments",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -113431,7 +116842,7 @@
     },
     "/api/v1/appointments/bookings/{booking_id}/payment/link": {
       "post": {
-        "operationId": "liwan_appointments_payments.BookingPaymentController.create_booking_payment_link.post",
+        "operationId": "liwan_appointments.BookingPaymentController.create_booking_payment_link.post",
         "parameters": [
           {
             "in": "path",
@@ -113463,10 +116874,10 @@
         ],
         "summary": "The pay-page path of the booking's online order, for the staff who booked it to send to the customer.",
         "tags": [
-          "liwan_appointments_payments"
+          "liwan_appointments"
         ],
         "x-liwan": {
-          "addon": "liwan_appointments_payments",
+          "addon": "liwan_appointments",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -114613,7 +118024,7 @@
     },
     "/api/v1/appointments/types/{type_id}/payment": {
       "get": {
-        "operationId": "liwan_appointments_payments.BookingPaymentController.get_type_payment.get",
+        "operationId": "liwan_appointments.BookingPaymentController.get_type_payment.get",
         "parameters": [
           {
             "in": "path",
@@ -114645,10 +118056,10 @@
         ],
         "summary": "get_type_payment",
         "tags": [
-          "liwan_appointments_payments"
+          "liwan_appointments"
         ],
         "x-liwan": {
-          "addon": "liwan_appointments_payments",
+          "addon": "liwan_appointments",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -114664,7 +118075,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_appointments_payments.BookingPaymentController.patch_type_payment.patch",
+        "operationId": "liwan_appointments.BookingPaymentController.patch_type_payment.patch",
         "parameters": [
           {
             "in": "path",
@@ -114696,10 +118107,10 @@
         ],
         "summary": "patch_type_payment",
         "tags": [
-          "liwan_appointments_payments"
+          "liwan_appointments"
         ],
         "x-liwan": {
-          "addon": "liwan_appointments_payments",
+          "addon": "liwan_appointments",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -117190,6 +120601,112 @@
         }
       }
     },
+    "/api/v1/crm/opportunities/{lead_id}/orders": {
+      "get": {
+        "operationId": "liwan_sales_crm.CrmOpportunityOrdersController.list_opportunity_orders.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lead_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_opportunity_orders",
+        "tags": [
+          "liwan_sales_crm"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales_crm",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "crm",
+          "controller": "CrmOpportunityOrdersController",
+          "feature_keys": [
+            "crm.enabled",
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_opportunity_orders",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_sales_crm.CrmOpportunityOrdersController.create_opportunity_order.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lead_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_opportunity_order",
+        "tags": [
+          "liwan_sales_crm"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales_crm",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "crm",
+          "controller": "CrmOpportunityOrdersController",
+          "feature_keys": [
+            "crm.enabled",
+            "sales.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_opportunity_order",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/crm/opportunities/{lead_id}/reopen": {
       "post": {
         "operationId": "liwan_crm.CrmSaleController.reopen.post",
@@ -119137,7 +122654,7 @@
     },
     "/api/v1/document-contexts/employee/{subject_id}/{document_id}/employee-access": {
       "post": {
-        "operationId": "liwan_documents_hr.EmployeeContextAccess.share_context_document.post",
+        "operationId": "liwan_hr.EmployeeContextAccess.share_context_document.post",
         "parameters": [
           {
             "in": "path",
@@ -119177,10 +122694,10 @@
         ],
         "summary": "share_context_document",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -120270,7 +123787,7 @@
     },
     "/api/v1/documents/employee/me": {
       "get": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.list_own_documents.get",
+        "operationId": "liwan_hr.EmployeeDocuments.list_own_documents.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -120289,10 +123806,10 @@
         ],
         "summary": "list_own_documents",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -120310,7 +123827,7 @@
     },
     "/api/v1/documents/employee/me/{document_id}": {
       "get": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.get_own_document.get",
+        "operationId": "liwan_hr.EmployeeDocuments.get_own_document.get",
         "parameters": [
           {
             "in": "path",
@@ -120342,10 +123859,10 @@
         ],
         "summary": "get_own_document",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -120363,7 +123880,7 @@
     },
     "/api/v1/documents/employee/me/{document_id}/files": {
       "get": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.list_own_document_files.get",
+        "operationId": "liwan_hr.EmployeeDocuments.list_own_document_files.get",
         "parameters": [
           {
             "in": "path",
@@ -120395,10 +123912,10 @@
         ],
         "summary": "list_own_document_files",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -120416,7 +123933,7 @@
     },
     "/api/v1/documents/employee/me/{document_id}/files/{file_id}/download": {
       "get": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.download_own_document_file.get",
+        "operationId": "liwan_hr.EmployeeDocuments.download_own_document_file.get",
         "parameters": [
           {
             "in": "path",
@@ -120456,10 +123973,10 @@
         ],
         "summary": "download_own_document_file",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "contract_namespace": "documents",
@@ -120474,7 +123991,7 @@
         }
       },
       "head": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.download_own_document_file.head",
+        "operationId": "liwan_hr.EmployeeDocuments.download_own_document_file.head",
         "parameters": [
           {
             "in": "path",
@@ -120514,10 +124031,10 @@
         ],
         "summary": "download_own_document_file",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "contract_namespace": "documents",
@@ -120859,7 +124376,7 @@
     },
     "/api/v1/documents/{document_id}/employee-access": {
       "post": {
-        "operationId": "liwan_documents_hr.EmployeeDocumentAccess.share_with_employee.post",
+        "operationId": "liwan_hr.EmployeeDocumentAccess.share_with_employee.post",
         "parameters": [
           {
             "in": "path",
@@ -120891,10 +124408,10 @@
         ],
         "summary": "The explicit choice made when a document is linked to an employee: let the employee read it.",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -130780,7 +134297,7 @@
     },
     "/api/v1/hr/leave/approval-process": {
       "delete": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.archive_process.delete",
+        "operationId": "liwan_hr.HrLeaveApprovalController.archive_process.delete",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -130799,10 +134316,10 @@
         ],
         "summary": "archive_process",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -130818,7 +134335,7 @@
         }
       },
       "get": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.get_approval_process.get",
+        "operationId": "liwan_hr.HrLeaveApprovalController.get_approval_process.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -130837,10 +134354,10 @@
         ],
         "summary": "get_approval_process",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -130858,7 +134375,7 @@
     },
     "/api/v1/hr/leave/approval-process/default": {
       "post": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.create_default_process.post",
+        "operationId": "liwan_hr.HrLeaveApprovalController.create_default_process.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -130877,10 +134394,10 @@
         ],
         "summary": "create_default_process",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -130898,7 +134415,7 @@
     },
     "/api/v1/hr/leave/approval-process/editor": {
       "get": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.approval_editor.get",
+        "operationId": "liwan_hr.HrLeaveApprovalController.approval_editor.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -130917,10 +134434,10 @@
         ],
         "summary": "approval_editor",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -130936,7 +134453,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.save_approval_editor.patch",
+        "operationId": "liwan_hr.HrLeaveApprovalController.save_approval_editor.patch",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -130955,10 +134472,10 @@
         ],
         "summary": "save_approval_editor",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -130976,7 +134493,7 @@
     },
     "/api/v1/hr/leave/approval-process/editor/resolvers": {
       "get": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.approval_edit_resolvers.get",
+        "operationId": "liwan_hr.HrLeaveApprovalController.approval_edit_resolvers.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -130995,10 +134512,10 @@
         ],
         "summary": "approval_edit_resolvers",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -131240,7 +134757,7 @@
     },
     "/api/v1/hr/leave/requests/{leave_id}/approval": {
       "get": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.get_approval.get",
+        "operationId": "liwan_hr.HrLeaveApprovalController.get_approval.get",
         "parameters": [
           {
             "in": "path",
@@ -131272,10 +134789,10 @@
         ],
         "summary": "get_approval",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -131291,7 +134808,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.decide_approval.post",
+        "operationId": "liwan_hr.HrLeaveApprovalController.decide_approval.post",
         "parameters": [
           {
             "in": "path",
@@ -131323,10 +134840,10 @@
         ],
         "summary": "decide_approval",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138462,7 +141979,7 @@
     },
     "/api/v1/inbox/catalog-items/{item_id}": {
       "delete": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.delete_item.delete",
+        "operationId": "liwan_inbox.CatalogItemController.delete_item.delete",
         "parameters": [
           {
             "in": "path",
@@ -138494,10 +142011,10 @@
         ],
         "summary": "delete_item",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138514,7 +142031,7 @@
         }
       },
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.read_item.get",
+        "operationId": "liwan_inbox.CatalogItemController.read_item.get",
         "parameters": [
           {
             "in": "path",
@@ -138546,10 +142063,10 @@
         ],
         "summary": "read_item",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138566,7 +142083,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.patch_item.patch",
+        "operationId": "liwan_inbox.CatalogItemController.patch_item.patch",
         "parameters": [
           {
             "in": "path",
@@ -138598,10 +142115,10 @@
         ],
         "summary": "patch_item",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138620,7 +142137,7 @@
     },
     "/api/v1/inbox/catalogs": {
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogController.list_catalogs.get",
+        "operationId": "liwan_inbox.CatalogController.list_catalogs.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -138639,10 +142156,10 @@
         ],
         "summary": "list_catalogs",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138659,7 +142176,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_inbox_payments.CatalogController.create_catalog.post",
+        "operationId": "liwan_inbox.CatalogController.create_catalog.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -138678,10 +142195,10 @@
         ],
         "summary": "create_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138700,7 +142217,7 @@
     },
     "/api/v1/inbox/catalogs/{catalog_id}": {
       "delete": {
-        "operationId": "liwan_inbox_payments.CatalogController.delete_catalog.delete",
+        "operationId": "liwan_inbox.CatalogController.delete_catalog.delete",
         "parameters": [
           {
             "in": "path",
@@ -138732,10 +142249,10 @@
         ],
         "summary": "delete_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138752,7 +142269,7 @@
         }
       },
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogController.read_catalog.get",
+        "operationId": "liwan_inbox.CatalogController.read_catalog.get",
         "parameters": [
           {
             "in": "path",
@@ -138784,10 +142301,10 @@
         ],
         "summary": "read_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138804,7 +142321,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_inbox_payments.CatalogController.patch_catalog.patch",
+        "operationId": "liwan_inbox.CatalogController.patch_catalog.patch",
         "parameters": [
           {
             "in": "path",
@@ -138836,10 +142353,10 @@
         ],
         "summary": "patch_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138858,7 +142375,7 @@
     },
     "/api/v1/inbox/catalogs/{catalog_id}/items": {
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.list_items.get",
+        "operationId": "liwan_inbox.CatalogItemController.list_items.get",
         "parameters": [
           {
             "in": "path",
@@ -138890,10 +142407,10 @@
         ],
         "summary": "list_items",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138910,7 +142427,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.create_item.post",
+        "operationId": "liwan_inbox.CatalogItemController.create_item.post",
         "parameters": [
           {
             "in": "path",
@@ -138942,10 +142459,10 @@
         ],
         "summary": "create_item",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -138964,7 +142481,7 @@
     },
     "/api/v1/inbox/catalogs/{catalog_id}/sync": {
       "post": {
-        "operationId": "liwan_inbox_payments.CatalogController.sync_catalog.post",
+        "operationId": "liwan_inbox.CatalogController.sync_catalog.post",
         "parameters": [
           {
             "in": "path",
@@ -138996,10 +142513,10 @@
         ],
         "summary": "sync_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -139544,7 +143061,7 @@
     },
     "/api/v1/inbox/channels/{channel_id}/commerce": {
       "get": {
-        "operationId": "liwan_inbox_payments.ChannelCommerceController.read_commerce.get",
+        "operationId": "liwan_inbox.ChannelCommerceController.read_commerce.get",
         "parameters": [
           {
             "in": "path",
@@ -139576,10 +143093,10 @@
         ],
         "summary": "The channel's catalog and Meta's cart and catalog button settings (refreshed by a catalog manager when stale).",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -139596,7 +143113,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_inbox_payments.ChannelCommerceController.patch_commerce.patch",
+        "operationId": "liwan_inbox.ChannelCommerceController.patch_commerce.patch",
         "parameters": [
           {
             "in": "path",
@@ -139628,10 +143145,10 @@
         ],
         "summary": "Switch the cart and the catalog button at Meta first; nothing is kept when Meta refuses.",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -141588,7 +145105,7 @@
     },
     "/api/v1/inbox/conversations/{conversation_id}/catalog-items": {
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.pick_items.get",
+        "operationId": "liwan_inbox.CatalogItemController.pick_items.get",
         "parameters": [
           {
             "in": "path",
@@ -141620,10 +145137,10 @@
         ],
         "summary": "What the composer's product picker lists: the listed, synced, not rejected items of the conversation's catalog.",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -142011,7 +145528,7 @@
     },
     "/api/v1/inbox/conversations/{conversation_id}/orders": {
       "get": {
-        "operationId": "liwan_inbox_payments.OrderController.list_conversation_orders.get",
+        "operationId": "liwan_inbox.OrderController.list_conversation_orders.get",
         "parameters": [
           {
             "in": "path",
@@ -142043,10 +145560,10 @@
         ],
         "summary": "list_conversation_orders",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -142063,7 +145580,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_inbox_payments.OrderController.create_order.post",
+        "operationId": "liwan_inbox.OrderController.create_order.post",
         "parameters": [
           {
             "in": "path",
@@ -142095,10 +145612,10 @@
         ],
         "summary": "create_order",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -143317,7 +146834,7 @@
     },
     "/api/v1/inbox/orders": {
       "get": {
-        "operationId": "liwan_inbox_payments.OrderController.list_orders.get",
+        "operationId": "liwan_inbox.OrderController.list_orders.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -143336,10 +146853,10 @@
         ],
         "summary": "list_orders",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -143358,7 +146875,7 @@
     },
     "/api/v1/inbox/orders/{order_id}": {
       "get": {
-        "operationId": "liwan_inbox_payments.OrderController.read_order.get",
+        "operationId": "liwan_inbox.OrderController.read_order.get",
         "parameters": [
           {
             "in": "path",
@@ -143390,10 +146907,10 @@
         ],
         "summary": "read_order",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -143410,7 +146927,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_inbox_payments.OrderController.patch_order.patch",
+        "operationId": "liwan_inbox.OrderController.patch_order.patch",
         "parameters": [
           {
             "in": "path",
@@ -143442,10 +146959,10 @@
         ],
         "summary": "patch_order",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -143464,7 +146981,7 @@
     },
     "/api/v1/inbox/orders/{order_id}/cancel": {
       "post": {
-        "operationId": "liwan_inbox_payments.OrderController.cancel_order.post",
+        "operationId": "liwan_inbox.OrderController.cancel_order.post",
         "parameters": [
           {
             "in": "path",
@@ -143496,10 +147013,10 @@
         ],
         "summary": "cancel_order",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -143518,7 +147035,7 @@
     },
     "/api/v1/inbox/orders/{order_id}/checkout": {
       "post": {
-        "operationId": "liwan_inbox_payments.OrderController.checkout_order.post",
+        "operationId": "liwan_inbox.OrderController.checkout_order.post",
         "parameters": [
           {
             "in": "path",
@@ -143550,10 +147067,10 @@
         ],
         "summary": "Create the online order (once) for the contact's customer and send its pay link; everything is undone when",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -145056,6 +148573,244 @@
           "feature_operation": "read",
           "handler": "list_providers",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/mail/domain": {
+      "delete": {
+        "operationId": "liwan_notify.MailDomainController.remove.delete",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "remove",
+        "tags": [
+          "liwan_notify"
+        ],
+        "x-liwan": {
+          "addon": "liwan_notify",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MailDomainController",
+          "feature_keys": [
+            "registry:liwan.notify.registry"
+          ],
+          "feature_operation": "write",
+          "handler": "remove",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "get": {
+        "operationId": "liwan_notify.MailDomainController.get_domain.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_domain",
+        "tags": [
+          "liwan_notify"
+        ],
+        "x-liwan": {
+          "addon": "liwan_notify",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MailDomainController",
+          "feature_keys": [
+            "registry:liwan.notify.registry"
+          ],
+          "feature_operation": "read",
+          "handler": "get_domain",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/mail/domain/start": {
+      "post": {
+        "operationId": "liwan_notify.MailDomainController.start.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "start",
+        "tags": [
+          "liwan_notify"
+        ],
+        "x-liwan": {
+          "addon": "liwan_notify",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MailDomainController",
+          "feature_keys": [
+            "registry:liwan.notify.registry"
+          ],
+          "feature_operation": "write",
+          "handler": "start",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/mail/domain/test-send": {
+      "post": {
+        "operationId": "liwan_notify.MailDomainController.test_send.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "test_send",
+        "tags": [
+          "liwan_notify"
+        ],
+        "x-liwan": {
+          "addon": "liwan_notify",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MailDomainController",
+          "feature_keys": [
+            "registry:liwan.notify.registry"
+          ],
+          "feature_operation": "write",
+          "handler": "test_send",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/mail/domain/usage": {
+      "get": {
+        "operationId": "liwan_notify.MailDomainController.usage.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "usage",
+        "tags": [
+          "liwan_notify"
+        ],
+        "x-liwan": {
+          "addon": "liwan_notify",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MailDomainController",
+          "feature_keys": [
+            "registry:liwan.notify.registry"
+          ],
+          "feature_operation": "read",
+          "handler": "usage",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/mail/domain/verify": {
+      "post": {
+        "operationId": "liwan_notify.MailDomainController.verify.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "verify",
+        "tags": [
+          "liwan_notify"
+        ],
+        "x-liwan": {
+          "addon": "liwan_notify",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MailDomainController",
+          "feature_keys": [
+            "registry:liwan.notify.registry"
+          ],
+          "feature_operation": "write",
+          "handler": "verify",
+          "readonly": false,
           "route_type": "json2"
         }
       }
@@ -154158,7 +157913,7 @@
     },
     "/api/v1/public/inbox/catalog/images/{item_id}/{token}": {
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogImageController.product_image.get",
+        "operationId": "liwan_inbox.CatalogImageController.product_image.get",
         "parameters": [
           {
             "in": "path",
@@ -154185,10 +157940,10 @@
         "security": [],
         "summary": "The image of a listed catalog item, JPEG or PNG; an unknown or unlisted item and a wrong token answer the same 404.",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": false,
           "auth": "public",
           "contract_namespace": null,
@@ -154449,6 +158204,165 @@
           "handler": "start_order_payment",
           "readonly": false,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/sales/quotations/{order_id}": {
+      "get": {
+        "operationId": "liwan_sales.SalesPublicController.get_quotation.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "get_quotation",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "SalesPublicController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_quotation",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/sales/quotations/{order_id}/accept": {
+      "post": {
+        "operationId": "liwan_sales.SalesPublicController.accept_quotation.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "accept_quotation",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "SalesPublicController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "accept_quotation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/sales/quotations/{order_id}/decline": {
+      "post": {
+        "operationId": "liwan_sales.SalesPublicController.decline_quotation.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "decline_quotation",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "SalesPublicController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "decline_quotation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/sales/quotations/{order_id}/pdf": {
+      "get": {
+        "operationId": "liwan_sales.SalesPublicController.quotation_pdf.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "quotation_pdf",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "public",
+          "contract_namespace": null,
+          "controller": "SalesPublicController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "quotation_pdf",
+          "readonly": false,
+          "route_type": "http"
         }
       }
     },
@@ -154926,6 +158840,60 @@
         }
       }
     },
+    "/api/v1/sales/orders/{order_id}/invoices": {
+      "post": {
+        "operationId": "liwan_sales_finance.SalesOrderInvoicesController.create_order_invoice.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_order_invoice",
+        "tags": [
+          "liwan_sales_finance"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesOrderInvoicesController",
+          "feature_keys": [
+            "sales.enabled",
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_order_invoice",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/sales/orders/{order_id}/lock": {
       "post": {
         "operationId": "liwan_sales.SalesOrdersController.move_order.post.sales.orders.lock",
@@ -154974,6 +158942,112 @@
           ],
           "feature_operation": "write",
           "handler": "move_order",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/orders/{order_id}/pdf": {
+      "get": {
+        "operationId": "liwan_sales.SalesOrdersController.order_pdf.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The stock quotation report of a readable order, rendered in the caller's own environment.",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "sales",
+          "controller": "SalesOrdersController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "order_pdf",
+          "readonly": true,
+          "route_type": "http"
+        }
+      }
+    },
+    "/api/v1/sales/orders/{order_id}/refunds": {
+      "post": {
+        "operationId": "liwan_sales_payments.SalesRefundsController.record_refund.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "record_refund",
+        "tags": [
+          "liwan_sales_payments"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales_payments",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesRefundsController",
+          "feature_keys": [
+            "sales.enabled",
+            "payments.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "record_refund",
           "readonly": false,
           "route_type": "json2"
         }
@@ -155032,6 +159106,59 @@
         }
       }
     },
+    "/api/v1/sales/orders/{order_id}/send": {
+      "post": {
+        "operationId": "liwan_sales.SalesOrdersController.send_order.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "send_order",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesOrdersController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "send_order",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/sales/orders/{order_id}/unlock": {
       "post": {
         "operationId": "liwan_sales.SalesOrdersController.move_order.post.sales.orders.unlock",
@@ -155081,6 +159208,126 @@
           "feature_operation": "write",
           "handler": "move_order",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/reports/breakdown": {
+      "get": {
+        "operationId": "liwan_sales.SalesReportsController.breakdown.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The amounts grouped by ``by`` (``period``, ``salesperson``, ``customer`` or ``product``), confirmed orders unless ``state`` says otherwise.",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesReportsController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "breakdown",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/reports/export": {
+      "get": {
+        "operationId": "liwan_sales.SalesReportsController.export_rows.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The detail rows behind the breakdown filters (confirmed orders unless ``state`` says otherwise) as CSV.",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesReportsController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "export_rows",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/reports/summary": {
+      "get": {
+        "operationId": "liwan_sales.SalesReportsController.summary.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Orders and amounts of the documents the caller reads: confirmed orders, open quotations and cancelled ones.",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesReportsController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "summary",
+          "readonly": true,
           "route_type": "json2"
         }
       }
@@ -155198,6 +159445,334 @@
           ],
           "feature_operation": "write",
           "handler": "write_settings",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/settings/presets": {
+      "get": {
+        "operationId": "liwan_sales.SalesSettingsController.read_presets.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The sector presets: structured values the caller applies with an ordinary ``PATCH /settings``.",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesSettingsController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_presets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/templates": {
+      "get": {
+        "operationId": "liwan_sales.SalesTemplatesController.list_templates.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_templates",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesTemplatesController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_templates",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_sales.SalesTemplatesController.create_template.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_template",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesTemplatesController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_template",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/templates/{template_id}": {
+      "get": {
+        "operationId": "liwan_sales.SalesTemplatesController.get_template.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_template",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesTemplatesController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_template",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_sales.SalesTemplatesController.update_template.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_template",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesTemplatesController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "update_template",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/templates/{template_id}/archive": {
+      "post": {
+        "operationId": "liwan_sales.SalesTemplatesController.move_template.post.sales.templates.archive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "move_template",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesTemplatesController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "move_template",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/sales/templates/{template_id}/restore": {
+      "post": {
+        "operationId": "liwan_sales.SalesTemplatesController.move_template.post.sales.templates.restore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "move_template",
+        "tags": [
+          "liwan_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "sales",
+          "controller": "SalesTemplatesController",
+          "feature_keys": [
+            "sales.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "move_template",
           "readonly": false,
           "route_type": "json2"
         }
@@ -156904,12 +161479,10 @@
     }
   ],
   "tags": [
-    "liwan_access_hr",
     "liwan_ai",
     "liwan_api",
     "liwan_api_account",
     "liwan_appointments",
-    "liwan_appointments_payments",
     "liwan_chat",
     "liwan_crm",
     "liwan_crm_inbox",
@@ -156919,13 +161492,10 @@
     "liwan_directory",
     "liwan_document_service",
     "liwan_documents",
-    "liwan_documents_hr",
     "liwan_finance",
     "liwan_hr",
     "liwan_hr_finance",
-    "liwan_hr_operations",
     "liwan_inbox",
-    "liwan_inbox_payments",
     "liwan_integrations_sa",
     "liwan_meetings",
     "liwan_meetings_pmo",
@@ -156936,6 +161506,9 @@
     "liwan_products",
     "liwan_products_account",
     "liwan_sales",
+    "liwan_sales_crm",
+    "liwan_sales_finance",
+    "liwan_sales_payments",
     "liwan_tasks",
     "liwan_tasks_pmo"
   ]

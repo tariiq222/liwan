@@ -49,7 +49,33 @@ class LiwanHrReport(models.AbstractModel):
 
     @api.model
     def _liwan_additional_expiring(self, within_days):
-        return []
+        """Dated items of the document library: documents with an expiry date inside the window."""
+        items = []
+        entitlement = self.env['liwan.entitlement.service']
+        documents = self.env['liwan.document']
+        if not entitlement._liwan_feature_read(
+            'hr.enabled',
+        ) or not documents._liwan_actor_allows('read'):
+            return items
+        today = fields.Date.context_today(self)
+        for document in documents.search(
+            [
+                ('expiry_date', '!=', False),
+                ('expiry_date', '<=', today + timedelta(days=within_days)),
+            ],
+        ):
+            # A document linked to an employee names its owner, so the manager knows whose document expires.
+            owner = document.employee_id
+            items.append(
+                {
+                    'kind': 'document',
+                    'employee': {'id': owner.id, 'name': owner.name} if owner else None,
+                    'document': {'id': document.id, 'name': document.name},
+                    'due_date': document.expiry_date,
+                    'days_left': (document.expiry_date - today).days,
+                },
+            )
+        return items
 
     @api.model
     def _liwan_saudization(self):

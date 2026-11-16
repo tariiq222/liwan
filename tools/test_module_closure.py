@@ -44,18 +44,21 @@ class RealManifestClosureTest(unittest.TestCase):
     def test_tier_closures_match_the_closures_read_by_hand_from_the_manifests(self):
         # Expected values written out from the manifests, not computed. The release base installs liwan_documents and
         # liwan_operations in every tier: they bring the shared services liwan_document_service and
-        # liwan_approval_service plus liwan_directory and liwan_notify. liwan_hr depends on liwan_api and liwan_notify,
-        # and three auto_install bridges join once it is in: liwan_access_hr (with liwan_api), liwan_documents_hr (with
-        # liwan_document_service) and liwan_hr_operations (with liwan_approval_service). liwan_appointments depends on
-        # liwan_api and the shared services liwan_customers and liwan_products (plus Odoo's resource_booking) and has
-        # no bridge with the base modules.
+        # liwan_approval_service plus liwan_directory and liwan_notify. liwan_hr depends on liwan_api, liwan_notify,
+        # liwan_document_service and liwan_approval_service, which the base already holds. liwan_appointments depends on
+        # liwan_api and the shared services liwan_customers, liwan_products and liwan_payments (plus Odoo's
+        # resource_booking); liwan_payments brings liwan_orders and the auto-install bridge liwan_payments_customers.
+        # It has no bridge with the base modules.
         base = {
             'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_directory', 'liwan_notify',
             'liwan_document_service', 'liwan_documents', 'liwan_approval_service', 'liwan_operations',
         }
         expected = {
-            'people': base | {'liwan_hr', 'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_operations'},
-            'appointments': base | {'liwan_customers', 'liwan_products', 'liwan_appointments'},
+            'people': base | {'liwan_hr'},
+            'appointments': base | {
+                'liwan_customers', 'liwan_products', 'liwan_payments', 'liwan_orders', 'liwan_payments_customers',
+                'liwan_appointments',
+            },
         }
         tiers = _release_tiers()
         for tier, modules in expected.items():
@@ -214,12 +217,12 @@ class RealManifestClosureTest(unittest.TestCase):
             with self.assertRaises(module_closure.ClosureError):
                 module_closure.install_closure([root], ['liwan_bad'])
 
-    def test_the_real_payments_bridge_joins_only_with_appointments_and_payments(self):
-        both = module_closure.install_closure([ADDONS], BASE + ['liwan_appointments', 'liwan_payments'])
-        self.assertIn('liwan_appointments_payments', both)
-        for alone in ('liwan_appointments', 'liwan_payments'):
-            with self.subTest(alone=alone):
-                self.assertNotIn('liwan_appointments_payments', module_closure.install_closure([ADDONS], BASE + [alone]))
+    def test_appointments_and_inbox_closures_hold_payments_and_orders(self):
+        for app in ('liwan_appointments', 'liwan_inbox'):
+            with self.subTest(app=app):
+                closure = module_closure.install_closure([ADDONS], BASE + [app])
+                self.assertIn('liwan_payments', closure)
+                self.assertIn('liwan_orders', closure)
 
     def test_the_real_sales_payments_bridge_joins_only_with_sales_and_payments(self):
         both = module_closure.install_closure([ADDONS], BASE + ['liwan_sales', 'liwan_payments'])
@@ -241,13 +244,6 @@ class RealManifestClosureTest(unittest.TestCase):
         for alone in ('liwan_sales', 'liwan_finance'):
             with self.subTest(alone=alone):
                 self.assertNotIn('liwan_sales_finance', module_closure.install_closure([ADDONS], BASE + [alone]))
-
-    def test_the_real_inbox_payments_bridge_joins_only_with_inbox_and_payments(self):
-        both = module_closure.install_closure([ADDONS], BASE + ['liwan_inbox', 'liwan_payments'])
-        self.assertIn('liwan_inbox_payments', both)
-        for alone in ('liwan_inbox', 'liwan_payments'):
-            with self.subTest(alone=alone):
-                self.assertNotIn('liwan_inbox_payments', module_closure.install_closure([ADDONS], BASE + [alone]))
 
     def test_the_real_api_account_bridge_joins_only_when_stock_account_is_installed(self):
         # liwan_api_account's other side is stock `account`, not a LiwanOS module: it joins a closure that holds
@@ -278,7 +274,11 @@ class RealManifestClosureTest(unittest.TestCase):
         self.assertEqual(
             module_closure.install_closure([ADDONS], BASE + ['liwan_meetings']), shared | {'liwan_meetings'},
         )
-        self.assertEqual(module_closure.install_closure([ADDONS], BASE + ['liwan_pmo']), shared | {'liwan_pmo'})
+        # liwan_pmo depends on the shared document service for its project documents.
+        self.assertEqual(
+            module_closure.install_closure([ADDONS], BASE + ['liwan_pmo']),
+            shared | {'liwan_document_service', 'liwan_pmo'},
+        )
         self.assertIn(
             'liwan_meetings_pmo', module_closure.install_closure([ADDONS], BASE + ['liwan_meetings', 'liwan_pmo']),
         )

@@ -21,7 +21,7 @@ A bridge links its two sides one of two ways: two LiwanOS modules (``liwan_tasks
 module and one stock module (``liwan_api_account`` on ``liwan_api`` and stock ``account``). A stock side has
 no rank, so there is nothing to switch off for it in the route probe. It is the single unranked module
 ``auto_install`` names, and that list must name exactly the two sides, so Odoo installs the bridge only when
-both are present; the bridge may depend on further stock modules, as ``liwan_inbox_payments`` does on ``sale``.
+both are present; the bridge may depend on further stock modules.
 Anything else is refused and the error says what the manifest held.
 
 ``matrix`` packs the runs into ``GROUP_COUNT`` jobs per stage (space-separated modules, split by test
@@ -179,8 +179,8 @@ def unexpected(module: str, installed: set[str], layers: Path = LAYERS, addons: 
     asked = required(module, layers, addons)
     allowed = set(asked)
     # A bridge whose LiwanOS sides are all part of the run auto-installs legitimately. The foundation is part of
-    # every run, so a bridge between the foundation and the application under test (liwan_access_hr for
-    # liwan_hr) belongs to that application's standalone install. So do the shared services the run pulled in
+    # every run, so a bridge between the foundation and the application under test (liwan_api_account
+    # for liwan_api) belongs to that application's standalone install. So do the shared services the run pulled in
     # as dependencies: a bridge between two of them (liwan_ai_notify for liwan_ai and liwan_notify) comes
     # with any run that needs both. A bridge's stock side never appears in the installed LiwanOS list, and Odoo
     # installs the bridge only when that side is present too, so its LiwanOS side is the trigger this can see.

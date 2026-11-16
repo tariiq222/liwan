@@ -83,7 +83,7 @@ class LiwanInboxMessage(models.Model):
     # and `option_ids` its buttons or list rows.
     option_ids = fields.One2many('liwan.inbox.message.option', 'message_id')
     # Commerce: the Meta catalog an outbound product message names or an inbound cart was made from, the product an
-    # inbound text was sent from, and the lines of an inbound cart (the bridge turns a cart into an order).
+    # inbound text was sent from, and the lines of an inbound cart (a cart becomes an order).
     catalog_id = fields.Char()
     referred_catalog_id = fields.Char()
     referred_retailer_id = fields.Char()
@@ -246,28 +246,59 @@ class LiwanInboxMessage(models.Model):
             'option_ids': [(0, 0, {**row, 'title': titles.get(row['option_id'], row['option_id'])}) for row in rows],
         }
 
-    # Commerce hooks: the neutral answers of an inbox without a product catalog; liwan_inbox_payments overrides them.
+    @api.model
+    def _liwan_sendable_items(self, channel, retailer_ids):
+        """The items of the channel's catalog the composer may send: listed, in Meta's catalog and not rejected."""
+        catalog = channel._liwan_catalog()
+        return self.env['liwan.inbox.catalog.item'].search([
+            ('catalog_id', '=', catalog.id), ('retailer_id', 'in', list(retailer_ids)), ('listed', '=', True),
+            ('sync_state', '=', 'synced'), ('review_status', '!=', 'rejected'),
+        ]) if catalog else self.env['liwan.inbox.catalog.item']
 
     @api.model
     def _liwan_check_commerce(self, channel, retailer_ids):
         """Raise ValidationError unless every retailer id is a product the channel's catalog can send."""
+        if not self.env['liwan.inbox.catalog']._liwan_enabled():
+            raise ValidationError(self.env._('The product catalog is not included in the plan.'))
+        unknown = sorted(set(retailer_ids) - set(self._liwan_sendable_items(channel, retailer_ids).mapped('retailer_id')))
+        if unknown:
+            raise ValidationError(self.env._('These products cannot be sent from the catalog: %(ids)s', ids=', '.join(unknown)))
 
     @api.model
     def _liwan_commerce_titles(self, channel, retailer_ids):
         """{retailer id: the product name} to keep with a sent message."""
-        return {retailer_id: retailer_id for retailer_id in retailer_ids}
+        items = self.env['liwan.inbox.catalog.item'].search([
+            ('catalog_id', '=', channel._liwan_catalog().id), ('retailer_id', 'in', list(retailer_ids)),
+        ])
+        return {item.retailer_id: item.name for item in items}
 
     @api.model
     def _liwan_commerce_products(self, channel, retailer_ids):
-        """{retailer id: the product as the thread shows it now} (the contract's product block); none without a catalog."""
-        return {}
+        """{retailer id: the product as the thread shows it now} (the contract's product block)."""
+        catalog = channel._liwan_catalog()
+        items = self.env['liwan.inbox.catalog.item'].search([
+            ('catalog_id', '=', catalog.id), ('retailer_id', 'in', list(retailer_ids)),
+        ])
+        return {item.retailer_id: {
+            'catalog_item_id': item.id, 'name': item.name, 'price': item.price, 'currency': item.currency,
+            'availability': item.availability, 'image_url': item.image_url or None,
+        } for item in items}
 
     def _liwan_commerce_order_summary(self):
         """The order made from this cart message (the contract's order summary), or None."""
-        return
+        self.ensure_one()
+        order = self.env['liwan.inbox.order'].search([('message_id', '=', self.id)], limit=1)
+        if not order:
+            return None
+        return {
+            'id': order.id, 'state': order.state, 'reference': order.reference or None,
+            'payment_status': order._liwan_payment_status(),
+        }
 
     def _liwan_on_ingested(self):
-        """Called once for each inbound message right after it is stored."""
+        """Called once for each inbound message right after it is stored: a cart becomes an order."""
+        if self.kind == 'order' and self.env['liwan.inbox.catalog']._liwan_enabled():
+            self.env['liwan.inbox.order']._liwan_from_cart(self)
 
     @api.model
     def _liwan_wake_outbox(self):

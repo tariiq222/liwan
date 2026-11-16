@@ -2,6 +2,8 @@
 from odoo import api, models
 from odoo.fields import Domain
 
+from .leave_approval_constants import KIND, LEAVE_APPROVAL_TOKEN, REJECTING_CONTEXT
+
 # The payslip models fenced per payroll company, with the path from each to its payslip. OCA hr.payslip.line
 # copies hr.salary.rule's company_id (payroll/models/hr_salary_rule.py:44-48, the computing environment's
 # company), never the payslip's, so a line answers through its slip (payroll/models/hr_payslip_line.py:13-15).
@@ -148,8 +150,25 @@ class LiwanHrIrRule(models.Model):
 
     @api.model
     def _liwan_leave_extra_read_domain(self):
-        """Leaves readable beyond the actor's own and their staff scope; a bridge may widen it narrowly."""
-        return Domain.FALSE
+        """The time-off approver reads the leave while it is pending and they hold its snapshotted review right."""
+        extra = Domain.FALSE
+        requests = self.env['liwan.operation.request']
+        if not requests.has_access('read'):
+            return extra
+        memberships = self.env['liwan.access.service']._liwan_membership_company_ids()
+        candidates = requests.search([
+            ('state', '=', 'pending'), ('execution_kind', '=', KIND),
+            ('company_id', 'in', memberships), ('participant_ids', 'in', [self.env.uid]),
+        ])
+        eligible = candidates.filtered(lambda approval: approval._is_stage_reviewer())
+        rejecting = self.env.context.get(REJECTING_CONTEXT)
+        if isinstance(rejecting, tuple) and rejecting[0] is LEAVE_APPROVAL_TOKEN:
+            eligible |= requests.search([('execution_kind', '=', KIND), ('id', '=', rejecting[1]), ('state', '=', 'rejected')])
+        return extra | (
+            Domain('employee_id.leave_manager_id', '=', self.env.uid)
+            & Domain('company_id', 'in', memberships)
+            & Domain('liwan_approval_request_ids', 'in', eligible.ids)
+        )
 
     @api.model
     def _liwan_payslip_read_fence(self, slip):

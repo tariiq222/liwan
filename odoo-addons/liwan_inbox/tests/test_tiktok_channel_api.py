@@ -16,7 +16,7 @@ ACCESS_TOKEN = 'tiktok-access-token-api'
 REFRESH_TOKEN = 'tiktok-refresh-token-api'
 REASON = 'inbox_channel_kind_unsupported'
 API = '/api/v1/inbox'
-# The catalog bridge's fixtures: a TikTok channel that a catalog and an order point at.
+# The catalog fixtures: a TikTok channel that a catalog and an order point at.
 CATALOG_BUSINESS_ACCOUNT_ID = '600000000001'
 CATALOG_ID = '300000000001'
 CATALOG_CREATE = {
@@ -58,32 +58,28 @@ class TestTikTokChannelApi(LiwanInboxCase):
             'channel_id': cls.tiktok.id, 'contact_id': contact.id, 'identity_id': identity.id,
             'company_id': cls.tiktok.owner_company_id.id,
         })
-        # The catalog bridge routes (liwan_inbox_payments). The models are absent when this application
-        # is tested alone, so the inventory adds those routes only when the bridge is installed. The
-        # catalog hangs off a second TikTok channel's WhatsApp account id, the shape the guard defends.
-        cls.catalog = cls.item = cls.order = None
-        if 'liwan.inbox.catalog' in cls.env:
-            catalog_channel = cls.make_tiktok_channel(business_id=CATALOG_BUSINESS_ACCOUNT_ID)
-            cls.catalog = cls.env['liwan.inbox.catalog'].create({
-                'company_id': catalog_channel.owner_company_id.id,
-                'business_account_id': CATALOG_BUSINESS_ACCOUNT_ID,
-                'meta_catalog_id': CATALOG_ID, 'name': 'Shop', 'brand': 'Acme',
-            })
-            product = cls.env['product.product'].create({'name': 'TikTok product', 'type': 'consu'})
-            cls.item = cls.env['liwan.inbox.catalog.item'].create({
-                'catalog_id': cls.catalog.id, 'product_id': product.id, 'retailer_id': 'TIKTOK-1',
-            })
-            cls.order = cls.env['liwan.inbox.order'].create({
-                'company_id': cls.tiktok.owner_company_id.id, 'conversation_id': cls.conversation.id,
-                'catalog_id': cls.catalog.id,
-            })
+        # The catalog hangs off a second TikTok channel's WhatsApp account id, the shape the guard defends.
+        catalog_channel = cls.make_tiktok_channel(business_id=CATALOG_BUSINESS_ACCOUNT_ID)
+        cls.catalog = cls.env['liwan.inbox.catalog'].create({
+            'company_id': catalog_channel.owner_company_id.id,
+            'business_account_id': CATALOG_BUSINESS_ACCOUNT_ID,
+            'meta_catalog_id': CATALOG_ID, 'name': 'Shop', 'brand': 'Acme',
+        })
+        product = cls.env['product.product'].create({'name': 'TikTok product', 'type': 'consu'})
+        cls.item = cls.env['liwan.inbox.catalog.item'].create({
+            'catalog_id': cls.catalog.id, 'product_id': product.id, 'retailer_id': 'TIKTOK-1',
+        })
+        cls.order = cls.env['liwan.inbox.order'].create({
+            'company_id': cls.tiktok.owner_company_id.id, 'conversation_id': cls.conversation.id,
+            'catalog_id': cls.catalog.id,
+        })
 
     def setUp(self):
         super().setUp()
         self.login(self.manager)
 
     def whatsapp_routes(self):
-        """Every WhatsApp-only route of liwan_inbox and its catalog bridge, with the body that reaches its guard."""
+        """Every WhatsApp-only route of liwan_inbox, with the body that reaches its guard."""
         channel = f'{API}/channels/{self.tiktok.id}'
         template = f'{API}/templates/{self.template.id}'
         flow = f'{API}/flows/{self.flow.id}'
@@ -110,21 +106,20 @@ class TestTikTokChannelApi(LiwanInboxCase):
             ('POST', f'{channel}/template-insights'), ('POST', f'{channel}/analytics/sync'),
             ('GET', f'{channel}/sending'), ('PATCH', f'{channel}/sending'), ('POST', f'{channel}/sending/refresh'),
         ]
-        if self.catalog:
-            catalog = f'{API}/catalogs/{self.catalog.id}'
-            item = f'{API}/catalog-items/{self.item.id}'
-            order = f'{API}/orders/{self.order.id}'
-            conversation = f'{API}/conversations/{self.conversation.id}'
-            routes += [
-                ('POST', f'{API}/catalogs'),
-                ('GET', catalog), ('PATCH', catalog), ('DELETE', catalog), ('POST', f'{catalog}/sync'),
-                ('GET', f'{catalog}/items'), ('POST', f'{catalog}/items'),
-                ('GET', item), ('PATCH', item), ('DELETE', item),
-                ('GET', f'{conversation}/catalog-items'),
-                ('GET', f'{channel}/commerce'), ('PATCH', f'{channel}/commerce'),
-                ('GET', f'{conversation}/orders'), ('POST', f'{conversation}/orders'),
-                ('GET', order), ('PATCH', order), ('POST', f'{order}/checkout'), ('POST', f'{order}/cancel'),
-            ]
+        catalog = f'{API}/catalogs/{self.catalog.id}'
+        item = f'{API}/catalog-items/{self.item.id}'
+        order = f'{API}/orders/{self.order.id}'
+        conversation = f'{API}/conversations/{self.conversation.id}'
+        routes += [
+            ('POST', f'{API}/catalogs'),
+            ('GET', catalog), ('PATCH', catalog), ('DELETE', catalog), ('POST', f'{catalog}/sync'),
+            ('GET', f'{catalog}/items'), ('POST', f'{catalog}/items'),
+            ('GET', item), ('PATCH', item), ('DELETE', item),
+            ('GET', f'{conversation}/catalog-items'),
+            ('GET', f'{channel}/commerce'), ('PATCH', f'{channel}/commerce'),
+            ('GET', f'{conversation}/orders'), ('POST', f'{conversation}/orders'),
+            ('GET', order), ('PATCH', order), ('POST', f'{order}/checkout'), ('POST', f'{order}/cancel'),
+        ]
         return routes
 
     def test_whatsapp_only_routes_refuse_tiktok(self):
@@ -148,8 +143,6 @@ class TestTikTokChannelApi(LiwanInboxCase):
         self.assertEqual(session.call_count, 0, 'a WhatsApp-only route opened a provider session for a TikTok channel')
 
     def test_a_whatsapp_catalog_still_answers_after_the_kind_guard(self):
-        if 'liwan.inbox.catalog' not in self.env:
-            self.skipTest('the catalog bridge is not installed')
         catalog = self.env['liwan.inbox.catalog'].create({
             'business_account_id': self.channel.connection_id.external_id,
             'meta_catalog_id': '300000000002', 'name': 'WhatsApp shop', 'brand': 'Acme',

@@ -81,7 +81,7 @@ class InstallListTest(Fixture):
             self.check('a_b_sale', ['app_a', 'app_b', 'a_b_sale', 'app_c'])
 
     def test_a_one_liwan_side_bridge_may_also_depend_on_other_stock_modules(self):
-        # Like liwan_inbox_payments depending on stock sale: the stock SIDE is the one auto_install names, and any
+        # Like a bridge depending on stock sale: the stock SIDE is the one auto_install names, and any
         # other stock module is a plain dependency that Odoo installs with it.
         (self.addons / 'api_stock' / '__manifest__.py').write_text(
             repr({'depends': ['liwan_api', 'account', 'sale'], 'auto_install': ['liwan_api', 'account']}))
@@ -232,7 +232,7 @@ class RepositoryTest(unittest.TestCase):
                 self.assertEqual(sorted(packed), sorted(modules))
 
     def test_modules_narrow_the_matrix_and_a_bad_list_is_refused(self):
-        self.assertEqual(json.loads(self.output('matrix', 'apps', '--modules', 'liwan_hr,liwan_access_hr')), ['liwan_hr'])
+        self.assertEqual(json.loads(self.output('matrix', 'apps', '--modules', 'liwan_hr,liwan_hr_finance')), ['liwan_hr'])
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(app_isolation.main(['matrix', 'apps', '--modules', '']), 1)
 

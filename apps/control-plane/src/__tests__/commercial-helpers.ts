@@ -29,7 +29,7 @@ function engineSolution() {
     { id: 'payments', name: 'Online payments', sellable: true, modules: ['liwan_payments'], features: ['boolean:payments.enabled'] },
     { id: 'crm', name: 'CRM', sellable: true, modules: ['liwan_crm'], features: ['boolean:crm.enabled', 'boolean:crm.import', 'boolean:crm.export'] },
     { id: 'appointments', name: 'Appointments', sellable: true, modules: ['liwan_appointments'], features: ['boolean:appointments.enabled'] },
-    { id: 'inbox', name: 'Customer Inbox', sellable: true, modules: ['liwan_inbox', 'liwan_inbox_payments'],
+    { id: 'inbox', name: 'Customer Inbox', sellable: true, modules: ['liwan_inbox'],
       features: ['boolean:inbox.enabled', 'boolean:inbox.whatsapp', 'boolean:inbox.tiktok', 'boolean:inbox.templates', 'boolean:inbox.automation', 'boolean:inbox.flows', 'boolean:inbox.reports', 'boolean:inbox.catalog', 'boolean:inbox.campaigns', 'limit:inbox.channels', 'limit:inbox.messages_out', 'limit:inbox.campaign_recipients'] },
   ]
   return { schema_version: 3, descriptor_grammar: 'limit:key | limit:key:<int> | boolean:key', id: 'engine_fixture', name: 'Engine fixture', industry: 'none',

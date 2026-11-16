@@ -39,6 +39,11 @@ COLUMNS = {
         'tiktok_questions_enabled',
         'create_date',
         'write_date',
+        'paid_notice_enabled',
+        'paid_notice_text',
+        'commerce_cart_enabled',
+        'commerce_catalog_visible',
+        'commerce_phone',
     ),
     'inbox_settings': (
         'id',

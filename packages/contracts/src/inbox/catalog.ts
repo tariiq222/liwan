@@ -4,9 +4,9 @@ import { InboxContactRefSchema } from './refs'
 // Wire shapes of WhatsApp phase 7: catalog and commerce messages.
 // - The commerce content of a message (product, product_list, catalog_message) and the `commerce` block of a
 //   thread message are WhatsApp wire data serialized by odoo-addons/liwan_inbox (serializers/conversation.py).
-//   Their product details and order summary are filled by the bridge odoo-addons/liwan_inbox_payments and are
-//   null without it.
-// - Catalogs, catalog items, channel commerce settings and orders are served by the bridge
+//   Their product details and order summary are filled by the payments part of odoo-addons/liwan_inbox and are
+//   null without `payments.enabled`.
+// - Catalogs, catalog items, channel commerce settings and orders are served by `liwan_inbox`
 //   (/api/v1/inbox/catalogs, /api/v1/inbox/catalog-items, /api/v1/inbox/channels/<id>/commerce,
 //   /api/v1/inbox/orders) behind `inbox.catalog`.
 // Every schema mirrors one serializer exactly (strict objects). Text and count limits are Meta's.

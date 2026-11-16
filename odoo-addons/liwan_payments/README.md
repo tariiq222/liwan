@@ -78,10 +78,8 @@ the first release (spec 6.4).
 
 `sale` brings the stock modules that auto-install with it and the applications already present:
 `sale_crm` (with `crm`), `sale_edi_ubl`, `sale_sms` and `spreadsheet_dashboard_sale`. They add
-fields and backend views only; LiwanOS uses none of them. The bridge
-`liwan_appointments_payments` installs itself when a database is created or when appointments or
-payments is installed into one that has the other; on a database that already has both, install it
-explicitly (`-i liwan_appointments_payments`).
+fields and backend views only; LiwanOS uses none of them. The booking payments code is part of
+`liwan_appointments`, which depends on `liwan_payments`, so installing appointments installs payments.
 
 ## Routes
 

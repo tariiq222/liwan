@@ -4,10 +4,12 @@ from pathlib import Path
 
 from odoo.tests import TransactionCase, new_test_user, tagged
 
+from .removed_addon import REMOVED_ADDON, installed_removed_addon
+
 MIGRATIONS = Path(__file__).parents[1] / 'migrations' / '19.0.1.20.0'
 FIELD_XMLID = 'field_liwan_inbox_contact__partner_id'
 FOREIGN_KEY = 'liwan_inbox_contact_partner_id_fkey'
-BRIDGE = 'liwan_inbox_payments'
+BRIDGE = REMOVED_ADDON
 OWNER = 'liwan_inbox'
 PREVIOUS = '19.0.1.19.0'
 
@@ -40,6 +42,7 @@ class TestContactPartnerMove(TransactionCase):
 
     def old_layout(self):
         """The rows as the bridge left them when it declared the field."""
+        installed_removed_addon(self.env)
         self.env.flush_all()
         self.env.cr.execute(
             "UPDATE ir_model_data SET module = %s WHERE model = 'ir.model.fields' AND name = %s", [BRIDGE, FIELD_XMLID],
@@ -63,6 +66,7 @@ class TestContactPartnerMove(TransactionCase):
         self.assertEqual((self.field_modules(), self.key_modules()), ([OWNER], [OWNER]))
 
     def test_a_row_already_under_liwan_inbox_wins_over_the_bridge_row(self):
+        installed_removed_addon(self.env)
         self.env.flush_all()
         self.env.cr.execute(
             """INSERT INTO ir_model_data (module, name, model, res_id, noupdate)

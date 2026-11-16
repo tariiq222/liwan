@@ -188,7 +188,7 @@
     {
       "reason": "Public catalog product image under /api/v1/public/ (auth='public', no session): authorized by the item's own random image token, compared in constant time; no user and no capability exist for Meta's fetcher.",
       "routes": [
-        "liwan_inbox_payments/controllers/images.py:product_image"
+        "liwan_inbox/controllers/images.py:product_image"
       ]
     },
     {

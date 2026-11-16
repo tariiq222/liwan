@@ -179,7 +179,7 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         self._error(self.api('POST', '%s/%d/confirm' % (BOOKINGS, body['id'])), 422, 'invalid')
 
     def test_confirms_on_schedule_follows_the_company_setting_by_default(self):
-        # The extension point a bridge overrides; its default is the requester_confirmation setting.
+        # Without an online order it follows the requester_confirmation setting.
         self.assertTrue(self.booking._liwan_confirms_on_schedule())
         self._settings(requester_confirmation=True)
         self.assertFalse(self.booking._liwan_confirms_on_schedule())

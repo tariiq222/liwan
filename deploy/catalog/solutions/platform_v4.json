@@ -66,8 +66,7 @@
       "description": "The Customer Messages application: WhatsApp and TikTok customer messages.",
       "sellable": true,
       "modules": [
-        "liwan_inbox",
-        "liwan_inbox_payments"
+        "liwan_inbox"
       ],
       "features": [
         "boolean:inbox.enabled",

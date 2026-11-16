@@ -61,7 +61,7 @@ class ShardCountTest(unittest.TestCase):
 
 class AffectedTagsTest(unittest.TestCase):
     def test_only_the_affected_modules_are_split_and_tagged(self):
-        modules = ['liwan_hr', 'liwan_access_hr', 'liwan_pmo']
+        modules = ['liwan_hr', 'liwan_hr_finance', 'liwan_pmo']
         count = len(odoo_shards.shard_numbers(modules))
         tagged = [t for k in range(1, count + 1) for t in odoo_shards.tags('%d/%d' % (k, count), modules).split(',')]
         self.assertEqual(sorted(tagged), sorted('/' + m for m in modules))
@@ -176,10 +176,10 @@ class CommandTest(unittest.TestCase):
             self.assertEqual(self.output('tags', '%d/%d' % (k, count)), ','.join('/' + m for m in planned[k - 1]))
 
     def test_modules_narrow_the_matrix_and_the_tags(self):
-        self.assertEqual(json.loads(self.output('matrix', '--modules', 'liwan_notify,liwan_access_hr')), [1])
-        self.assertEqual(self.output('tags', '1/1', '--modules', 'liwan_notify,liwan_access_hr'),
-                         '/liwan_access_hr,/liwan_notify')
-        self.assertEqual(json.loads(self.output('matrix', '--modules', 'liwan_hr,liwan_access_hr')), [1, 2])
+        self.assertEqual(json.loads(self.output('matrix', '--modules', 'liwan_notify,liwan_tasks_pmo')), [1])
+        self.assertEqual(self.output('tags', '1/1', '--modules', 'liwan_notify,liwan_tasks_pmo'),
+                         '/liwan_notify,/liwan_tasks_pmo')
+        self.assertEqual(json.loads(self.output('matrix', '--modules', 'liwan_hr,liwan_hr_finance')), [1, 2])
 
     def test_invalid_count_and_missing_port_are_refused(self):
         with self.assertRaises(odoo_shards.ShardError):

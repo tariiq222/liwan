@@ -7,6 +7,7 @@ from . import (
     customers_service,
     feature_registry,
     guest_service,
+    product_template,
     products_service,
     res_company,
     resource_booking,

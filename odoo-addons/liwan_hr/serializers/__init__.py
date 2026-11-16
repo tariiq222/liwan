@@ -6,6 +6,7 @@ from . import (
     hr_employee,
     hr_leave,
     hr_report,
+    leave_approval,
     lifecycle,
     payroll,
     recruitment,

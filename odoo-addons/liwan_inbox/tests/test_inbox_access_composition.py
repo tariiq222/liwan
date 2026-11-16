@@ -4,9 +4,11 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.addons.liwan_inbox.models.access_service import (
     ASSIGN,
     CAMPAIGNS,
+    CATALOG_MANAGE,
     EXPORT,
     MANAGE_CHANNELS,
     MANAGE_SETTINGS,
+    ORDERS_MANAGE,
     PERMISSIONS,
     READ,
     REPLY,
@@ -26,7 +28,7 @@ class TestInboxAccessComposition(TransactionCase):
         cls.Permission = cls.env['liwan.access.permission']
 
     def _keys(self, role_xmlid):
-        """The role's grants of this addon; the bridge liwan_inbox_payments (auto_install) adds its own to the same roles."""
+        """The role's grants of this addon; other addons may add their own capabilities to the same roles."""
         return set(self.env.ref(role_xmlid).permission_ids.mapped('key')) & PERMISSIONS
 
     def test_owns_its_capabilities_and_their_groups(self):
@@ -43,8 +45,10 @@ class TestInboxAccessComposition(TransactionCase):
         self.assertEqual(sensitive, {EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, REPORTS_READ, CAMPAIGNS})
 
     def test_roles_hold_the_designed_grants(self):
-        self.assertEqual(self._keys('liwan_inbox.role_inbox_agent'), {READ, REPLY})
-        self.assertEqual(self._keys('liwan_inbox.role_inbox_supervisor'), {READ, REPLY, ASSIGN, EXPORT, REPORTS_READ})
+        self.assertEqual(self._keys('liwan_inbox.role_inbox_agent'), {READ, REPLY, ORDERS_MANAGE})
+        self.assertEqual(
+            self._keys('liwan_inbox.role_inbox_supervisor'), {READ, REPLY, ASSIGN, EXPORT, REPORTS_READ, ORDERS_MANAGE},
+        )
         self.assertEqual(self._keys('liwan_inbox.role_inbox_manager'), set(PERMISSIONS))
         self.assertEqual(self._keys('liwan_core.role_vendor_support'), VENDOR_SUPPORT_PERMISSIONS)
 
@@ -64,6 +68,10 @@ class TestInboxAccessComposition(TransactionCase):
         for key in (REPLY, ASSIGN, EXPORT):
             permission = self.Permission.search([('key', '=', key)])
             self.assertEqual(permission.dependency_ids.mapped('key'), [READ], key)
+
+    def test_orders_require_reply_and_the_catalog_requires_nothing(self):
+        self.assertEqual(self.Permission.search([('key', '=', ORDERS_MANAGE)]).dependency_ids.mapped('key'), [REPLY])
+        self.assertFalse(self.Permission.search([('key', '=', CATALOG_MANAGE)]).dependency_ids)
 
     def test_hook_identity_is_inactive_and_only_in_its_group(self):
         hook = self.env.ref('liwan_inbox.user_inbox_hook')

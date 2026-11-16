@@ -43,8 +43,7 @@ SHARD_COUNT = 6
 # 1920 s) set the scale: finance, hr and pmo, which many bridges extend, run slower in the full install than the
 # rest. Refit when the shard times drift apart.
 COST_FACTOR = {'liwan_finance': 2.7, 'liwan_hr': 2.4, 'liwan_pmo': 2.1, 'liwan_hr_finance': 3.3,
-               'liwan_meetings_pmo': 4.9, 'liwan_pmo_finance': 2.2, 'liwan_appointments_payments': 2.3,
-               'liwan_hr_operations': 1.6}
+               'liwan_meetings_pmo': 4.9, 'liwan_pmo_finance': 2.2}
 # Vendored addons that release modules depend on and whose tests include ones written by this team. `-i <release>`
 # installs them as dependencies, so their tests run in a shard like a release module's. They stay out of the release
 # list (and so out of the catalog and the production install list). `liwan_registry_probe` is not here on purpose:

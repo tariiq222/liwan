@@ -8,5 +8,6 @@ from . import (
     appointment_settings,
     appointment_slots,
     appointment_types,
+    booking_payments,
     records,
 )

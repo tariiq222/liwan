@@ -1,0 +1,270 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
+from odoo import Command, fields
+from odoo.tests import tagged
+
+from .catalog_common import (
+    CATALOG_ID,
+    FakeMeta,
+    LiwanCatalogCase,
+    meta_response,
+    upload,
+)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestCatalogSync(LiwanCatalogCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.tax = cls.env['account.tax'].create({'name': 'VAT 15', 'amount': 15, 'amount_type': 'percent', 'type_tax_use': 'sale'})
+        # Typed 115 with a 15% tax. The shared fixture company computes under "price includes tax" (stated by the payments
+        # case), so the customer pays the typed 115.00; test_vat_registered covers "tax added" (132.25) and the
+        # unregistered case (115.00) on companies whose mode can still change.
+        cls.taxed = cls.image_product('Taxed', 115.0, taxes_id=[Command.set(cls.tax.ids)])
+        # A catalog price carries a tax only while the establishment is registered for VAT.
+        cls.env.company.write({'vat': '300000000000003', 'liwan_vat_registered': True})
+
+    def setUp(self):
+        super().setUp()
+        self.catalog = self.make_catalog()
+        self.sync = self.env['liwan.inbox.catalog']._liwan_run_sync
+
+    def run_sync(self, meta=None):
+        meta = meta or FakeMeta()
+        with meta.patch():
+            self.sync()
+        return meta
+
+    def products_service(self):
+        return self.env['liwan.products.service'].with_user(self.manager)
+
+    def test_an_edit_through_the_service_queues_the_item_for_resync(self):
+        product = self.products_service()._liwan_create({
+            'name': 'Edited', 'type': 'service', 'list_price': 40, 'image': upload(), 'taxes': [self.tax.id],
+        })
+        item = self.synced(self.make_item(self.catalog, product.product_variant_id))
+        reduced = self.env['account.tax'].create({
+            'name': 'VAT 5', 'amount': 5, 'amount_type': 'percent', 'type_tax_use': 'sale',
+        })
+        for values in ({'name': 'Renamed'}, {'list_price': 41}, {'taxes': [reduced.id]}, {'description': 'Words'}):
+            with self.subTest(values=values):
+                item.sync_state = 'synced'
+                self.products_service()._liwan_update(product, values)
+                item.invalidate_recordset(['sync_state'])
+                self.assertEqual(item.sync_state, 'pending')
+
+    def test_an_archived_product_is_withdrawn_from_meta_and_is_not_orderable_until_restored(self):
+        product = self.products_service()._liwan_create({'name': 'Withdrawn', 'type': 'service', 'list_price': 40, 'image': upload()})
+        item = self.make_item(self.catalog, product.product_variant_id)
+        self.run_sync()
+        item.review_status = 'approved'
+        self.assertEqual((item.sync_state, bool(item.synced_hash), item._liwan_orderable()), ('synced', True, True))
+        self.products_service()._liwan_archive(product)
+        item.invalidate_recordset()
+        self.assertEqual((item.sync_state, item._liwan_orderable()), ('removing', False))
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'], [{'method': 'DELETE', 'data': {'id': item.retailer_id}}])
+        self.assertEqual((item.sync_state, item.synced_hash), ('synced', False))
+        self.assertEqual(self.run_sync().bodies('items_batch'), [])
+        # An edit of the withdrawn item does not put it back.
+        item.availability = 'out_of_stock'
+        self.assertEqual(item.sync_state, 'synced')
+        self.products_service()._liwan_restore(product)
+        item.invalidate_recordset()
+        self.assertEqual(item.sync_state, 'pending')
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'][0]['method'], 'CREATE')
+        item.review_status = 'approved'
+        self.assertTrue(item._liwan_orderable())
+
+    def test_restoring_a_product_before_its_withdrawal_was_sent_keeps_the_item_at_meta(self):
+        product = self.products_service()._liwan_create({'name': 'Blip', 'type': 'service', 'list_price': 40, 'image': upload()})
+        item = self.make_item(self.catalog, product.product_variant_id)
+        self.run_sync()
+        self.products_service()._liwan_archive(product)
+        item.invalidate_recordset()
+        self.assertEqual(item.sync_state, 'removing')
+        self.products_service()._liwan_restore(product)
+        item.invalidate_recordset()
+        self.assertEqual(item.sync_state, 'pending')
+        self.assertEqual(self.run_sync().bodies('items_batch'), [])
+        self.assertEqual(item.sync_state, 'synced')
+
+    def test_the_item_payload_is_exact(self):
+        item = self.make_item(self.catalog, self.taxed)
+        self.catalog.default_link = None
+        meta = self.run_sync()
+        request = meta.bodies('items_batch')[0]['requests'][0]
+        currency = self.env.company.currency_id.name
+        self.assertEqual(request['method'], 'CREATE')
+        self.assertEqual(request['data'], {
+            'id': f'wv-{self.taxed.id}', 'title': 'Taxed', 'description': 'Taxed', 'availability': 'in stock', 'condition': 'new',
+            'price': f'115.00 {currency}', 'link': 'https://wa.me/966501112222',
+            'image_link': f'https://tenant.example.test/api/v1/public/inbox/catalog/images/{item.id}/{item.image_token}',
+            'brand': 'Acme',
+        })
+
+    def test_the_price_is_the_taxed_total_and_the_catalog_link_is_used(self):
+        self.catalog.write({'default_link': 'https://shop.example.test'})
+        self.make_item(self.catalog, self.taxed, link_override='https://shop.example.test/taxed')
+        data = self.run_sync().bodies('items_batch')[0]['requests'][0]['data']
+        self.assertEqual((data['price'].split()[0], data['link']), ('115.00', 'https://shop.example.test/taxed'))
+
+    def test_variants_share_an_item_group(self):
+        size = self.env['product.attribute'].create({
+            'name': 'Size', 'value_ids': [Command.create({'name': 'S'}), Command.create({'name': 'M'})],
+        })
+        template = self.env['product.template'].create({
+            'name': 'Tee', 'type': 'consu', 'list_price': 10,
+            'attribute_line_ids': [Command.create({'attribute_id': size.id, 'value_ids': [Command.set(size.value_ids.ids)]})],
+        })
+        for variant in template.product_variant_ids:
+            variant.image_variant_1920 = self.product.image_1920
+            self.make_item(self.catalog, variant)
+        self.assertEqual(len(template.product_variant_ids), 2)
+        groups = {request['data']['item_group_id'] for request in self.run_sync().bodies('items_batch')[0]['requests']}
+        self.assertEqual(groups, {f'wv-t{template.id}'})
+
+    def test_create_then_update_then_delete(self):
+        item = self.make_item(self.catalog)
+        self.run_sync()
+        self.assertEqual((item.sync_state, item.review_status), ('synced', 'unknown'))
+        self.assertTrue(item.synced_hash and item.last_synced_at)
+        self.assertEqual(self.run_sync().bodies('items_batch'), [])  # nothing changed: no new batch
+        item.availability = 'out_of_stock'
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'][0]['method'], 'UPDATE')
+        item.listed = False
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'], [{'method': 'DELETE', 'data': {'id': 'SHIRT-1'}}])
+        self.assertEqual((item.sync_state, item.synced_hash), ('synced', False))
+
+    def test_a_save_that_changes_nothing_is_not_resent(self):
+        item = self.synced(self.make_item(self.catalog))
+        item.synced_hash = item._liwan_payload_hash()
+        item.sync_state = 'pending'
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch'), [])
+        self.assertEqual(item.sync_state, 'synced')
+
+    def test_a_product_change_marks_the_item_for_resync_and_a_new_image_rotates_the_token(self):
+        item = self.synced(self.make_item(self.catalog))
+        token = item.image_token
+        self.product.product_tmpl_id.list_price = 120
+        item.invalidate_recordset()
+        self.assertEqual(item.sync_state, 'pending')
+        self.assertEqual(item.image_token, token)
+        item.sync_state = 'synced'
+        self.product.product_tmpl_id.image_1920 = self.product2.image_1920
+        self.assertNotEqual(item.image_token, token)
+
+    def test_errors_are_attached_to_the_item_that_caused_them(self):
+        good, bad = self.make_item(self.catalog), self.make_item(self.catalog, self.product2)
+        self.run_sync(FakeMeta({
+            f'POST {CATALOG_ID}/items_batch': {
+                'handles': ['h2'], 'validation_status': [{'retailer_id': bad.retailer_id, 'errors': [{'message': 'Bad price'}]}],
+            },
+            f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{
+                'status': 'finished', 'errors': [{'id': good.retailer_id, 'message': 'Image not reachable'}],
+            }]},
+        }))
+        self.assertEqual((bad.sync_state, bad.sync_error), ('error', 'Bad price'))
+        self.assertEqual((good.sync_state, good.sync_error), ('error', 'Image not reachable'))
+
+    def test_a_batch_in_progress_waits_then_times_out(self):
+        item = self.make_item(self.catalog)
+        waiting = FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}})
+        self.run_sync(waiting)
+        self.assertEqual(item.sync_state, 'syncing')
+        self.env.flush_all()
+        self.env.cr.execute('UPDATE liwan_inbox_catalog_item SET write_date = %s', [fields.Datetime.now() - timedelta(hours=2)])
+        item.invalidate_recordset()
+        self.run_sync(waiting)
+        self.assertEqual(item.sync_state, 'error')
+
+    def test_the_review_status_is_refreshed(self):
+        item = self.synced(self.make_item(self.catalog))
+        item.write({'review_status': 'pending', 'reviewed_at': False})
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/products': {'data': [{
+            'retailer_id': 'SHIRT-1', 'review_status': 'rejected', 'review_rejection_reasons': ['adult_content'],
+        }]}}))
+        self.assertEqual((item.review_status, item.review_reason), ('rejected', 'adult_content'))
+
+    def test_a_provider_failure_marks_the_catalog_and_the_next_run_retries(self):
+        item = self.make_item(self.catalog)
+        down = FakeMeta({f'POST {CATALOG_ID}/items_batch': meta_response(500, {})})
+        self.run_sync(down)
+        self.assertEqual(self.catalog.state, 'error')
+        self.assertTrue(self.catalog.last_error)
+        self.assertEqual(item.sync_state, 'pending')
+        self.run_sync()
+        self.assertEqual((self.catalog.state, self.catalog.last_error), ('connected', False))
+        self.assertEqual(item.sync_state, 'synced')
+
+    def test_unlisting_while_the_batch_is_open_deletes_after_it_settles(self):
+        item = self.make_item(self.catalog)
+
+        def waiting():
+            return FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}})
+
+        self.run_sync(waiting())
+        self.assertEqual(item.sync_state, 'syncing')
+        item.listed = False
+        self.assertEqual(item.sync_state, 'removing')
+        self.assertEqual(self.run_sync(waiting()).bodies('items_batch'), [])  # still open: nothing is sent over it
+        self.run_sync()  # the batch finishes; the DELETE follows in the next run
+        self.assertEqual(item.sync_state, 'removing')
+        self.assertTrue(item.synced_hash)
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'], [{'method': 'DELETE', 'data': {'id': 'SHIRT-1'}}])
+        self.assertEqual((item.sync_state, item.synced_hash), ('synced', False))
+
+    def test_deleting_while_the_batch_is_open_removes_the_item_at_meta_before_dropping_it(self):
+        item = self.make_item(self.catalog)
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}}))
+        item._liwan_delete()
+        self.assertTrue(item.exists())
+        self.run_sync()
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'][0]['method'], 'DELETE')
+        self.assertFalse(item.exists())
+
+    def test_a_failed_create_then_unlisted_needs_no_delete(self):
+        item = self.make_item(self.catalog)
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}}))
+        item.listed = False
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{
+            'status': 'finished', 'errors': [{'id': 'SHIRT-1', 'message': 'Bad'}],
+        }]}}))
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch'), [])
+        self.assertEqual(item.sync_state, 'synced')
+
+    def test_a_change_while_the_batch_is_open_is_sent_after_it_settles(self):
+        item = self.make_item(self.catalog)
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}}))
+        item.availability = 'out_of_stock'
+        self.assertEqual(item.sync_state, 'syncing')
+        self.run_sync()
+        self.assertEqual(item.sync_state, 'pending')
+        self.assertTrue(item.synced_hash)
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'][0]['method'], 'UPDATE')
+        self.assertEqual(item.sync_state, 'synced')
+
+    def test_a_product_change_while_the_batch_is_open_is_sent_after_it_settles(self):
+        item = self.make_item(self.catalog)
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}}))
+        self.product.product_tmpl_id.list_price = 150
+        item.invalidate_recordset()
+        self.run_sync()
+        self.assertEqual(item.sync_state, 'pending')
+
+    def test_nothing_is_synced_when_the_plan_lost_the_catalog(self):
+        self.make_item(self.catalog)
+        with self.without_catalog():
+            meta = self.run_sync()
+        self.assertEqual(meta.calls, [])
