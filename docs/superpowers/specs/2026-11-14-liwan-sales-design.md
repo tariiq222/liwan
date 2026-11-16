@@ -52,7 +52,7 @@ Out of this design: sales teams (decision 10), pricelists (the product service a
 
 ## 5. Online orders
 
-An online order and a staff quotation are rows of the same model. Sales lists both and states the source of each. An online order is read-only in sales: its lines, payment, expiry and refunds stay with the channel that made it and with payments. The payments orders list remains the place for refunds.
+An online order and a staff quotation are rows of the same model. Sales lists both and states the source of each. An online order is read-only in sales: its lines, payment, expiry and refunds stay with the channel that made it and with payments. The payments orders list remains the place for its refunds; money on a staff quotation is refunded from the quotation, through the payments bridge, by Sales staff who also hold `payments.refund`.
 
 ## 6. Capabilities
 
@@ -82,8 +82,9 @@ One record per tenant, changed in the root company by holders of `sales.settings
 | How the customer may sign | `signature_methods`: `draw_or_type`, `draw` | `draw_or_type` | Copied onto the quotation when it is sent, so quotations already sent keep theirs |
 | Discount limit without approval | Percent | 0, meaning no limit | New and edited lines |
 | Default terms and conditions | Text | Empty | New quotations only |
+| Payment to confirm (`liwan_sales_payments`) | `payment_to_confirm`: `off`, `full`, `percent`; with `prepayment_percent`, a whole number from 1 to 100 | `off`; 50 | New quotations only: each quotation keeps its own choice (stock `require_payment` and `prepayment_percent`), which staff change on a draft. Present only while the tenant can take online payments |
 
-The two settings added in PR 3 (`answered_resend` and `signature_methods`) have tenant scope and are changed by holders of `sales.settings.manage`, like the others.
+The two settings added in PR 3 (`answered_resend` and `signature_methods`) have tenant scope and are changed by holders of `sales.settings.manage`, like the others. The payment setting added by the payments bridge has the same scope and right; the bridge adds its two fields to `liwan.sales.settings` and to the settings wire shape through hooks of `liwan_sales` (README of `liwan_sales`, "Extension points for bridges").
 
 Sector presets set several of these at once.
 
@@ -97,7 +98,7 @@ Sales changes authorization and money documents, so each pull request takes the 
 | 2 | `liwan_sales`: scaffold, capabilities, settings, quotations and orders with their lines and states, the list and record pages | Products PR 2 is merged; it brings the pick list and the price function |
 | 3 | Send, the public page, acceptance, signature and expiry | PR 2 |
 | 4 | `liwan_sales_finance`: invoices and down payments | PR 2 and products PR 6 (a product on finance invoice lines) |
-| 5 | `liwan_sales_crm` and `liwan_sales_payments` | PR 2 |
+| 5 | `liwan_sales_crm` and `liwan_sales_payments`; the payments part is built (see the status rows below), the CRM part is not | PR 2 |
 | 6 | Templates, reports, export and sector presets | PR 2 |
 
 Each pull request proves its lines in `saas` and `non_saas`, with a branch session and a root session, and with each value of the visibility setting.
@@ -140,6 +141,10 @@ The owner approved each point as written here.
 | PR 3 Odoo checks | Run locally on 2026-11-16 on the final working tree of `codex/sales-quotation-send`, not in CI and not in production: `python3 -B tools/odoo_test.py --addons liwan_sales --no-dependents` 140 tests, 0 failed, 0 errors (re-run after the review fixes); `deploy/ci/odoo-app-standalone.sh liwan_sales` passed (standalone install, tests, isolation, routes); `deploy/ci/odoo-bridge.sh liwan_sales_ai` passed |
 | PR 3 web checks | Run locally on 2026-11-16: `npm -w apps/web run lint` (vue-tsc) clean; `apps/web` vitest 782 files, 7037 tests passed; the sales tests of `packages/contracts` 14 passed; after the review fixes, the sales and quote vitest files 80 passed, the contracts sales tests 14 passed, and the mocked e2e `apps/web/e2e/sales-quote-mocked.spec.ts` and `apps/web/e2e/sales.spec.ts` 35 passed, 0 skipped |
 | PR 3 repository checks | Run locally on 2026-11-16: the tools unittest suite 1533 tests OK (2 skipped); `arch_policy`, `route_gate_policy`, `sudo_gate`, `ui_policy`, `secret_guard`, `no_external_refs`, `docs_policy`, `migration_guard` against the merge base and `semgrep_gate` (50 files, 0 findings) all exit 0 |
+| PR 5 payments part (`liwan_sales_payments`) | Built on `codex/sales-quotation-send`, not committed and not pushed. A staff quotation asks to be paid in full or in part before it becomes an order; the pay link is the existing `/pay/order/<id>` page under the quotation's own access token, open only while the quotation's customer page is; a payment confirms the order through the Sales confirm path, once, under a row lock, with one confirmation mail; acceptance never confirms a quotation that asks to be paid. A payment that cannot confirm it now (expired, reopened, cancelled) stays recorded with a note, and sending the quotation again confirms it with that money. Staff refund money on a staff quotation from Sales (`POST /api/v1/sales/orders/{id}/refunds`). The signature comes before the payment. The CRM bridge of PR 5 is not built. Design in `odoo-addons/liwan_sales_payments/README.md` |
+| PR 5 payments Odoo checks | Run locally on 2026-11-16 on the working tree after the review fixes: `python3 -B tools/odoo_test.py --addons liwan_sales_payments,liwan_sales,liwan_payments --no-dependents` 367 tests, 0 failed, 0 errors; `deploy/ci/odoo-bridge.sh liwan_sales_payments` passed (auto-install, tests, isolation, route probes); `deploy/ci/odoo-app-standalone.sh liwan_sales` passed |
+| PR 5 payments web checks | Run locally on 2026-11-16: `npm -w apps/web run lint` clean; `apps/web` vitest 790 files, 7104 tests passed; contracts 110 files, 1078 tests passed; the mocked e2e `sales.spec.ts` and `sales-quote-mocked.spec.ts` 45 passed, 0 skipped, on a fresh production build |
+| PR 5 payments not verified | A real gateway payment (the Odoo tests simulate the Paymob notification and post-processing as `liwan_payments` does), real mail delivery, two concurrent callbacks on separate database connections (the row lock is in the code, not exercised by a test), the refund action in `apps/web`, the real-Odoo e2e and the full CI workflow |
 | PR 3 not verified | The real-Odoo e2e (`e2e-odoo`), the full CI workflow, real mail delivery, real wkhtmltopdf rendering under load, and a Storybook run of the new stories in RTL. `migration_guard --base origin/main` fails only because local `origin/main` is 21 commits ahead of the branch base (other addons' versions); `origin/main` must be merged into the branch before a pull request |
 
 ## 11. Added in PR 3 and open owner decisions
