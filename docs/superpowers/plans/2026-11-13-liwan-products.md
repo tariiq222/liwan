@@ -207,10 +207,10 @@ Proves: a tenant with customer messages and no payments connects a catalog and s
 
 Goal: an invoice line can name what was sold, so sales reports and the later sales application read one record. Scope under D20.
 
-- [ ] `liwan_finance` depends on `liwan_products` and registers its feature key and pick capability with the service.
-- [ ] A customer invoice or credit note line accepts an optional `product_id`: a service product the caller can pick. The label, the unit price as typed on the product and the taxes default from the product and stay editable; for an establishment that is not registered the line gets no tax (D20). The line serializer returns the product.
-- [ ] Web: a product picker on the invoice and credit note line editors, from the shared picker.
-- [ ] Version bump. No migration: existing lines keep no product.
+- [x] `liwan_finance` depends on `liwan_products` and registers its feature key and pick capability with the service. Evidence: `liwan_finance/models/products_service.py` registers `finance.enabled` and `finance.invoices.manage`; `test_finance_invoice_products.py` `test_the_products_the_caller_may_pick_are_the_finance_managers_own_in_both_modes`.
+- [x] A customer invoice or credit note line accepts an optional `product_id`: a service product the caller can pick. The label, the unit price as typed on the product and the taxes default from the product and stay editable; for an establishment that is not registered the line gets no tax and refuses typed taxes with 422 on `lines[i].tax_ids` (D20); the default price is converted to the invoice currency with the invoice's own rate. The line serializer returns the product. Evidence: `test_finance_invoice_products.py`, `packages/contracts/src/finance/__tests__/write.test.ts` and `schemas.test.ts`.
+- [x] Web: a product picker on the invoice and credit note line editors, from the shared picker. Evidence: `InvoiceLineProduct.vue` over `SharedProductPicker` (customer invoice and credit note only); `invoices/__tests__/invoiceLines.test.ts`, `stories/finance/InvoiceLineProduct.stories.ts`.
+- [x] Version bump. No migration: existing lines keep no product. `liwan_finance` 19.0.1.9.0 with a README-only `migrations/19.0.1.9.0/` (no data is rewritten).
 
 Proves: a line with a product is priced and taxed as an online order line for the same product and company, by stock; a product line of an establishment that is not registered carries no tax, by the one rule of D20; a tenant with finance and no online payments has the default tax on such a line; a line without a product still saves; a product the caller cannot read is refused; archiving a product leaves a posted invoice unchanged; a vendor bill line refuses a product; each line in `saas` and `non_saas`.
 

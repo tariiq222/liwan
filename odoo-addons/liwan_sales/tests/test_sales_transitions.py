@@ -87,12 +87,12 @@ class TestSalesStateTable(SalesWriteCase):
         self.assertEqual(self.act(writer, order_id, 'cancel', expect=403)['code'], 'transition_forbidden')
         self.assertEqual(self.act(writer, order_id, 'confirm', expect=403)['code'], 'forbidden')
 
-    def test_a_sent_quotation_moves_like_a_draft_but_is_not_edited(self):
+    def test_a_sent_quotation_moves_like_a_draft_but_is_not_edited_and_reopens(self):
         orders = [self.created(), self.created()]
         self.env['sale.order'].browse(orders).write({'state': 'sent'})
         actions = self.api_as(self.agent, 'GET', f'{ORDERS}/{orders[0]}').json()['actions']
         self.assertEqual({key: actions[key] for key in ('edit', 'confirm', 'cancel', 'reopen', 'lock')},
-                         {'edit': False, 'confirm': True, 'cancel': True, 'reopen': False, 'lock': False})
+                         {'edit': False, 'confirm': True, 'cancel': True, 'reopen': True, 'lock': False})
         self.assertEqual(self.patch_order(self.agent, orders[0], {'terms': 'x'}, expect=403)['code'], 'transition_forbidden')
         self.assertEqual(self.act(self.agent, orders[0], 'confirm')['state'], 'confirmed')
         self.assertEqual(self.act(self.agent, orders[1], 'cancel')['state'], 'cancelled')

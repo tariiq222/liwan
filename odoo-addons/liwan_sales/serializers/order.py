@@ -12,6 +12,12 @@ from odoo.addons.liwan_sales.models.sale_order import (
     LINE_KINDS,
     valid_discount,
 )
+from odoo.addons.liwan_sales.serializers.parsing import (
+    invalid,
+    parse_id,
+    parse_text,
+    refuse_unknown,
+)
 
 # The wire state of each stock state.
 STATE_WIRE = {'draft': 'draft', 'sent': 'sent', 'sale': 'confirmed', 'cancel': 'cancelled'}
@@ -23,15 +29,19 @@ def _dump_salesperson(user):
     return {'id': user.id, 'name': user.name, 'user_id': user.id} if user else None
 
 
-def _dump_line(line):
-    # The tax of a line is never read: a branch session cannot read the root company's taxes. Only the stored amounts
-    # are, rounded to the currency because a freshly computed one still carries float noise.
-    product = line.product_id.product_tmpl_id
+def dump_currency(currency):
+    return {'id': currency.id, 'name': currency.name, 'symbol': currency.symbol}
+
+
+def dump_line_values(line):
+    """What a line shows on every page: its kind, name, quantity, unit, price, discount and amounts.
+
+    The tax of a line is never read: a branch session cannot read the root company's taxes. Only the stored amounts
+    are, rounded to the currency because a freshly computed one still carries float noise.
+    """
     money = line.currency_id.round
     return {
-        'id': line.id,
         'kind': LINE_KINDS[line.display_type],
-        'product': {'id': product.id, 'name': product.name} if product else None,
         'name': line.name,
         'quantity': line.product_uom_qty,
         'unit': line.product_uom_id.name or None,
@@ -40,6 +50,30 @@ def _dump_line(line):
         'amount_untaxed': money(line.price_subtotal),
         'amount_tax': money(line.price_tax),
         'amount_total': money(line.price_total),
+    }
+
+
+def _dump_line(line):
+    product = line.product_id.product_tmpl_id
+    return {
+        'id': line.id,
+        'product': {'id': product.id, 'name': product.name} if product else None,
+        **dump_line_values(line),
+    }
+
+
+def dump_customer_answer(order):
+    """What the customer was offered and has answered, or None before the first send."""
+    if not order.liwan_answer_mode:
+        return None
+    return {
+        'mode': order.liwan_answer_mode,
+        'acceptance_confirms': order.liwan_acceptance_confirms,
+        'answer': order.liwan_answer or None,
+        'answered_at': iso(order.liwan_answered_on),
+        'signed_by': order.signed_by or None,
+        'signature_method': order.liwan_signature_method or None,
+        'decline_reason': order.liwan_decline_reason or None,
     }
 
 
@@ -57,19 +91,24 @@ def dump_order_item(order):
         'validity_date': order.validity_date.isoformat() if order.validity_date else None,
         'date': iso(order.date_order),
         'terms': html2plaintext(order.note) if order.note else '',
-        'currency': {'id': currency.id, 'name': currency.name, 'symbol': currency.symbol},
+        'currency': dump_currency(currency),
         'amount_untaxed': currency.round(order.amount_untaxed),
         'amount_tax': currency.round(order.amount_tax),
         'amount_total': currency.round(order.amount_total),
+        'expired': bool(order.is_expired),
+        'customer_answer': dump_customer_answer(order),
     }
 
 
 def dump_order(order, user):
-    """The full order shape: the row, its lines in order, and what ``user`` may do with it."""
+    """The full order shape: the row, its lines in order, what ``user`` may do with it, and whether only the tenant's
+    resend setting keeps them from sending it."""
     return {
         **dump_order_item(order),
-        'lines': [_dump_line(line) for line in order.order_line],
+        'lines': [_dump_line(line) for line in order._liwan_lines()],
         'actions': order._liwan_actions(user),
+        'resend_refused': order._liwan_resend_blocked(user),
+        **order._liwan_staff_extras(user),
     }
 
 
@@ -97,7 +136,8 @@ def parse_order_filters(args):
     return domain
 
 
-ORDER_KEYS = ('customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines')
+# ``template_id`` starts a quotation from a quotation template; it is a create key only.
+ORDER_KEYS = ('customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines', 'template_id')
 # The keys each kind of line accepts; a price or a tax is never one of them (D6, D8).
 LINE_KEYS = {
     'product': ('id', 'kind', 'product_id', 'name', 'quantity', 'discount_percent'),
@@ -109,95 +149,81 @@ MAX_TERMS = 10_000
 MAX_LINE_NAME = 2_000
 
 
-def _invalid(field, message):
-    raise ApiError(422, 'invalid', message, field=field)
-
-
-def _is_id(value):
-    return isinstance(value, int) and not isinstance(value, bool) and value > 0
-
-
-def _refuse_unknown(payload, accepted, prefix=''):
-    unknown = sorted(set(payload) - set(accepted))
-    if unknown:
-        _invalid(f'{prefix}{unknown[0]}', f'field {unknown[0]!r} is not accepted')
-
-
-def _parse_id(payload, key, field=None):
-    value = payload[key]
-    if not _is_id(value):
-        _invalid(field or key, f'{key} must be a positive integer')
-    return value
-
-
-def _parse_text(value, field, required, maximum):
-    if not isinstance(value, str) or (required and not value.strip()) or len(value) > maximum:
-        _invalid(field, f'{field} must be {"non-empty " if required else ""}text of at most {maximum} characters')
-    return value.strip() if required else value
-
-
 def _parse_line(index, line):
     """A line entry ``{index, id, kind, product_id, name, quantity, discount}``, or a 422 on ``lines.<index>.<key>``."""
     prefix = f'lines.{index}.'
     if not isinstance(line, dict):
-        _invalid(f'lines.{index}', 'a line must be an object')
-    _refuse_unknown(line, ALL_LINE_KEYS, prefix)
+        invalid(f'lines.{index}', 'a line must be an object')
+    refuse_unknown(line, ALL_LINE_KEYS, prefix)
     kind = line.get('kind')
     if kind not in LINE_KEYS:
-        _invalid(f'{prefix}kind', f'kind must be one of {tuple(LINE_KEYS)}')
-    _refuse_unknown(line, LINE_KEYS[kind], prefix)
+        invalid(f'{prefix}kind', f'kind must be one of {tuple(LINE_KEYS)}')
+    refuse_unknown(line, LINE_KEYS[kind], prefix)
     entry = {'index': index, 'id': None, 'kind': kind, 'name': None}
     if 'id' in line:
-        entry['id'] = _parse_id(line, 'id', f'{prefix}id')
+        entry['id'] = parse_id(line, 'id', f'{prefix}id')
     name = line.get('name')
     # An empty name on a product line means "not given": the stock description stays.
     if kind != 'product' or (name is not None and not (isinstance(name, str) and not name.strip())):
-        entry['name'] = _parse_text(line.get('name'), f'{prefix}name', required=True, maximum=MAX_LINE_NAME)
+        entry['name'] = parse_text(line.get('name'), f'{prefix}name', required=True, maximum=MAX_LINE_NAME)
     if kind != 'product':
         return entry
     if 'product_id' not in line:
-        _invalid(f'{prefix}product_id', 'a product line needs product_id')
-    entry['product_id'] = _parse_id(line, 'product_id', f'{prefix}product_id')
+        invalid(f'{prefix}product_id', 'a product line needs product_id')
+    entry['product_id'] = parse_id(line, 'product_id', f'{prefix}product_id')
     quantity = line.get('quantity')
     if not valid_quantity(quantity):
-        _invalid(f'{prefix}quantity', QUANTITY_BOUNDS)
+        invalid(f'{prefix}quantity', QUANTITY_BOUNDS)
     discount = line.get('discount_percent', 0)
     if not valid_discount(discount):
-        _invalid(f'{prefix}discount_percent', DISCOUNT_BOUNDS)
+        invalid(f'{prefix}discount_percent', DISCOUNT_BOUNDS)
     entry.update(quantity=quantity, discount=discount)
     return entry
 
 
-def parse_order_body(payload, creating):
-    """The whitelisted values of a create (``creating``) or a PATCH, or a 422 naming the field."""
-    _refuse_unknown(payload, ORDER_KEYS)
+def parse_order_body(payload, creating, parsers):
+    """The whitelisted values of a create (``creating``) or a PATCH, or a 422 naming the field.
+
+    ``parsers`` are the keys an installed bridge adds (``liwan.sales.service._liwan_order_parsers``), each with the
+    function that checks its value; they come back in ``values['extras']``.
+    """
+    refuse_unknown(payload, (*ORDER_KEYS, *parsers))
     if creating and 'customer_id' not in payload:
-        _invalid('customer_id', 'customer_id is required')
+        invalid('customer_id', 'customer_id is required')
     values = {}
     for key in ('customer_id', 'salesperson_id'):
         if key in payload:
-            values[key] = _parse_id(payload, key)
+            values[key] = parse_id(payload, key)
+    if 'template_id' in payload:
+        if not creating:
+            invalid('template_id', 'a template starts a quotation: it is given when the quotation is created')
+        if 'lines' in payload:
+            invalid('template_id', 'give the lines or a template, not both')
+        values['template_id'] = parse_id(payload, 'template_id')
     if 'validity_date' in payload:
         values['validity_date'] = parse_iso_date(payload['validity_date'], 'validity_date')
     if 'terms' in payload:
-        values['terms'] = _parse_text(payload['terms'], 'terms', required=False, maximum=MAX_TERMS)
+        values['terms'] = parse_text(payload['terms'], 'terms', required=False, maximum=MAX_TERMS)
     if 'lines' in payload:
         if not isinstance(payload['lines'], list):
-            _invalid('lines', 'lines must be a list')
+            invalid('lines', 'lines must be a list')
         values['lines'] = [_parse_line(index, line) for index, line in enumerate(payload['lines'])]
-    elif creating:
+    elif creating and 'template_id' not in payload:
         values['lines'] = []
+    extras = {key: parser(payload[key]) for key, parser in parsers.items() if key in payload}
+    if extras:
+        values['extras'] = extras
     if not values:
-        _invalid(None, 'nothing to change')
+        invalid(None, 'nothing to change')
     return values
 
 
 def parse_assign_body(payload):
     """The ``salesperson_id`` of an assign, or a 422."""
-    _refuse_unknown(payload, ('salesperson_id',))
+    refuse_unknown(payload, ('salesperson_id',))
     if 'salesperson_id' not in payload:
-        _invalid('salesperson_id', 'salesperson_id is required')
-    return _parse_id(payload, 'salesperson_id')
+        invalid('salesperson_id', 'salesperson_id is required')
+    return parse_id(payload, 'salesperson_id')
 
 
 def dump_salespeople(users):

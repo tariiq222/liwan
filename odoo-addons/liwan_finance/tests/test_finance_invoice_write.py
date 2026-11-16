@@ -4,6 +4,7 @@ from unittest.mock import patch
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import tagged
 
+from .common import BRIDGE_DETAIL_KEYS
 from .write_common import INVOICES, LiwanFinanceWriteCase
 
 DETAIL_KEYS = {
@@ -21,7 +22,7 @@ class TestFinanceInvoiceWrite(LiwanFinanceWriteCase):
 
     def test_creates_a_draft_1000_sar_invoice_with_15_percent_vat(self):
         body = self.create_invoice(self.invoice_body(ref='PO-77'))
-        self.assertEqual(set(body), DETAIL_KEYS)
+        self.assertEqual(set(body) - BRIDGE_DETAIL_KEYS, DETAIL_KEYS)
         self.assertEqual(
             (body['state'], body['move_type'], body['currency'], body['ref']), ('draft', 'out_invoice', 'SAR', 'PO-77'),
         )

@@ -6,7 +6,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     requires_capability,
-    requires_tenant_access,
+    requires_registered_feature,
 )
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_notify.models.access_service import MAIL_DOMAIN_MANAGE
@@ -87,7 +87,11 @@ class MailDomainController(http.Controller):
 
     @http.route(ROUTE, type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_tenant_access(operation='read')
+    @requires_registered_feature(
+        'liwan.notify.registry', '_liwan_notify_feature_keys',
+        keys=('registry:liwan.notify.registry',), operation='read', match='any',
+        open_method='_liwan_notify_has_platform_kind',
+    )
     @requires_capability(MAIL_DOMAIN_MANAGE)
     def get_domain(self, **_):
         _require_saas()
@@ -95,7 +99,11 @@ class MailDomainController(http.Controller):
 
     @http.route(f'{ROUTE}/start', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_tenant_access(operation='write')
+    @requires_registered_feature(
+        'liwan.notify.registry', '_liwan_notify_feature_keys',
+        keys=('registry:liwan.notify.registry',), operation='write', match='any',
+        open_method='_liwan_notify_has_platform_kind',
+    )
     @requires_capability(MAIL_DOMAIN_MANAGE)
     def start(self, domain=None, from_local_part=None, **_):
         _require_saas()
@@ -113,7 +121,11 @@ class MailDomainController(http.Controller):
 
     @http.route(f'{ROUTE}/verify', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_tenant_access(operation='write')
+    @requires_registered_feature(
+        'liwan.notify.registry', '_liwan_notify_feature_keys',
+        keys=('registry:liwan.notify.registry',), operation='write', match='any',
+        open_method='_liwan_notify_has_platform_kind',
+    )
     @requires_capability(MAIL_DOMAIN_MANAGE)
     def verify(self, **_):
         _require_saas()
@@ -126,7 +138,11 @@ class MailDomainController(http.Controller):
 
     @http.route(f'{ROUTE}/test-send', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_tenant_access(operation='write')
+    @requires_registered_feature(
+        'liwan.notify.registry', '_liwan_notify_feature_keys',
+        keys=('registry:liwan.notify.registry',), operation='write', match='any',
+        open_method='_liwan_notify_has_platform_kind',
+    )
     @requires_capability(MAIL_DOMAIN_MANAGE)
     def test_send(self, **_):
         _require_saas()
@@ -146,7 +162,11 @@ class MailDomainController(http.Controller):
 
     @http.route(ROUTE, type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
-    @requires_tenant_access(operation='write')
+    @requires_registered_feature(
+        'liwan.notify.registry', '_liwan_notify_feature_keys',
+        keys=('registry:liwan.notify.registry',), operation='write', match='any',
+        open_method='_liwan_notify_has_platform_kind',
+    )
     @requires_capability(MAIL_DOMAIN_MANAGE)
     def remove(self, **_):
         _require_saas()
@@ -165,7 +185,11 @@ class MailDomainController(http.Controller):
 
     @http.route(f'{ROUTE}/usage', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_tenant_access(operation='read')
+    @requires_registered_feature(
+        'liwan.notify.registry', '_liwan_notify_feature_keys',
+        keys=('registry:liwan.notify.registry',), operation='read', match='any',
+        open_method='_liwan_notify_has_platform_kind',
+    )
     @requires_capability(MAIL_DOMAIN_MANAGE)
     def usage(self, **_):
         _require_saas()

@@ -128,6 +128,8 @@ export default defineNuxtConfig({
     // The pay pages carry a document's access token in their address: never send it as a referrer
     // (to the gateway or any other origin) and never keep the page in a shared cache.
     '/pay/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
+    // The quotation page carries a quotation's access token in its address: the same rule.
+    '/quote/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
     // The booking page carries a booking's access token in its address: the same rule.
     '/book/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
     // The invitation and password-reset pages carry a one-time token in their address: the same rule.

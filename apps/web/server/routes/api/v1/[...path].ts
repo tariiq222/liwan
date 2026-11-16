@@ -7,7 +7,7 @@ import { requireApiSession } from '../../../utils/apiSessionAdmission'
 import { canonicalApiPath } from '../../../utils/apiPath'
 import { heavyRouteKind } from '../../../utils/heavyRoutes'
 import { HEAVY_TIMEOUT } from '../../../utils/upstreamDeadlines'
-import { forwardPublicApi, isBookingApiPath, isPublicApiPath, MAX_PUBLIC_API_BODY, PUBLIC_API_METHODS, PUBLIC_API_NAMESPACE_METHODS, PUBLIC_BODY_LIMITS } from '../../../utils/publicApi'
+import { forwardPublicApi, isBookingApiPath, isPublicApiPath, PUBLIC_API_METHODS, PUBLIC_API_NAMESPACE_METHODS, publicBodyLimit } from '../../../utils/publicApi'
 
 // Routes only this server may call (Nuxt writes them to Odoo directly, never through this proxy): a browser must not forge them.
 // The provider usage ledger is one: its rows come from the AI service's own stream. The audit is the other: every row
@@ -58,13 +58,15 @@ export default defineEventHandler(async (event) => {
   // Public routes skip session admission, so they draw on their own pool: the booking-link
   // routes on `booking`, the rest of the public surface on `public`, so neither can starve the
   // other nor sign-in.
-  // Allowlisted heavy routes (never public) get their own pool, a longer deadline and, for writes, a write gate.
-  const heavyKind = publicMethods ? null : heavyRouteKind(event.method, apiPath)
+  // Allowlisted heavy routes get their own pool, a longer deadline and, for writes, a write gate. The one public
+  // heavy route is the customer's quotation PDF, which Odoo limits per quotation; it draws on the smaller `pdf` pool,
+  // apart from the staff `heavy` one.
+  const heavyKind = heavyRouteKind(event.method, apiPath)
   const heavy = heavyKind ? { timeoutMs: HEAVY_TIMEOUT, write: heavyKind === 'write' } : undefined
-  const scope = publicMethods ? (isBookingApiPath(apiPath) ? 'booking' : 'public') : heavy ? 'heavy' : 'session'
+  const scope = heavy ? (publicMethods ? 'pdf' : 'heavy') : publicMethods ? (isBookingApiPath(apiPath) ? 'booking' : 'public') : 'session'
   return withTenantBody(event, scope, async () => {
-    const body = await boundedTenantBody(event, PUBLIC_BODY_LIMITS.get(apiPath) ?? (publicNamespace ? MAX_PUBLIC_API_BODY : undefined))
-    if (publicNamespace) return withTenantResponse(event, scope, async () => sendWebResponse(event, await forwardPublicApi(event, odooUrl, path, { method: event.method, body })))
+    const body = await boundedTenantBody(event, publicBodyLimit(apiPath))
+    if (publicNamespace) return withTenantResponse(event, scope, async () => sendWebResponse(event, await forwardPublicApi(event, odooUrl, path, { method: event.method, body, heavy })))
     return withTenantResponse(event, scope, async () => Object.keys(headers).length
       ? sendWebResponse(event, await tenantTransport(event, odooUrl, path, { method: event.method, body, heavy }))
       : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, path, { method: event.method, body, headers: withUiLocale(event, getProxyRequestHeaders(event, { host: false })), heavy })))

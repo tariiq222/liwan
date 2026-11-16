@@ -180,6 +180,28 @@ it.each(['shared', 'dedicated'] as const)('%s forwards a signed session-less Tik
   } finally { await wire.close() }
 })
 
+// The customer's quotation answer carries a drawn signature (a base64 PNG of up to 48 KB), so only the
+// quotation routes take a body above the 16 KB form size, up to 96 KB; every other public route keeps 16 KB.
+const PADDING = '{"access_token":"tok-7","signature":""}'.length
+const jsonBody = (bytes: number) => Buffer.from(`{"access_token":"tok-7","signature":"${'A'.repeat(bytes - PADDING)}"}`)
+
+it.each(['shared', 'dedicated'] as const)('%s forwards a public quotation answer up to 96 KB and refuses larger ones and other public bodies above 16 KB', async mode => {
+  const wire = await fixture(mode)
+  try {
+    const headers = { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' }
+    const signed = jsonBody(64 * 1024)
+    const accepted = await wire.call('/api/v1/public/sales/quotations/7/accept', signed, headers)
+    expect(accepted.status).toBe(200)
+    expect(accepted.body).toMatchObject({ path: '/api/v1/public/sales/quotations/7/accept', bytes: signed.length, digest: createHash('sha256').update(signed).digest('hex') })
+    for (const path of ['/api/v1/public/sales/quotations/7/accept', '/api/v1/public/payments/invoices/7/transactions']) {
+      const over = await wire.call(path, jsonBody(path.includes('/sales/') ? 96 * 1024 + 1 : 16 * 1024 + 1), headers)
+      expect(over.status).toBe(413)
+      expect(ApiErrorSchema.parse((over.body as { data: unknown }).data).code).toBe('payload_too_large')
+    }
+    expect(wire.calls.map(call => call.path)).toEqual(['/api/v1/public/sales/quotations/7/accept'])
+  } finally { await wire.close() }
+})
+
 it.each([
   ['shared', '/api/v1/inbox/hooks/whatsapp', 'POST'],
   ['dedicated', '/api/v1/inbox/hooks/whatsapp', 'POST'],

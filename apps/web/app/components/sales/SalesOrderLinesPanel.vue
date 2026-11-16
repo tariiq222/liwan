@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import type { SalesOrder } from '@liwan/contracts'
+import type { SalesPublicLine, SalesPublicQuotation } from '@liwan/contracts'
 import { formatCurrency } from '@/utils/formatCurrency'
 
 // The lines of a sales document, read-only, with the amounts the server stored and the document's totals. Sections
-// head the lines that follow them; notes are plain text.
-const props = defineProps<{ order: SalesOrder }>()
+// head the lines that follow them; notes are plain text. A staff document and the quotation its customer reads share it:
+// a staff line also names its product, which then heads the line.
+type PanelLine = SalesPublicLine & { product?: { name: string } | null }
+const props = defineProps<{ order: Pick<SalesPublicQuotation, 'currency' | 'amount_untaxed' | 'amount_tax' | 'amount_total'> & { lines: PanelLine[] } }>()
 const { t, n, locale } = useI18n()
 const money = (amount: number) => formatCurrency(amount, props.order.currency.name, locale.value)
 </script>
@@ -13,12 +15,12 @@ const money = (amount: number) => formatCurrency(amount, props.order.currency.na
   <SharedRecordSection variant="panel" :title="t('sales.record.lines')" data-testid="sales-lines-panel">
     <p v-if="!props.order.lines.length" class="text-sm text-muted">{{ t('sales.lines.empty') }}</p>
     <ul v-else class="flex flex-col divide-y divide-default">
-      <li v-for="line in props.order.lines" :key="line.id" class="py-2" :data-testid="`sales-record-line-${line.id}`">
+      <li v-for="(line, index) in props.order.lines" :key="index" class="py-2" :data-testid="`sales-record-line-${index}`">
         <p v-if="line.kind === 'section'" class="font-semibold text-highlighted">{{ line.name }}</p>
         <p v-else-if="line.kind === 'note'" class="whitespace-pre-line text-sm text-muted">{{ line.name }}</p>
         <div v-else class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-highlighted">{{ line.product?.name ?? line.name }}</p>
+            <p class="whitespace-pre-line text-sm font-medium text-highlighted">{{ line.product?.name ?? line.name }}</p>
             <p class="text-xs text-muted">
               <bdi dir="ltr">{{ n(line.quantity) }}</bdi> <bdi>{{ line.unit ?? '' }}</bdi> × <bdi dir="ltr">{{ money(line.unit_price) }}</bdi>
               <template v-if="line.discount_percent"> · <bdi>{{ t('sales.record.discount', { percent: n(line.discount_percent) }) }}</bdi></template>

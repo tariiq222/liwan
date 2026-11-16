@@ -2,7 +2,7 @@
 {
     'name': 'liwan Finance',
     'summary': 'liwan platform: the Finance application — /api/v1/finance over account and l10n_sa',
-    'version': '19.0.1.8.0',
+    'version': '19.0.1.9.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -14,6 +14,8 @@
     # its record rules; base_vat validates partner VAT numbers and the company VAT number
     # (the Saudi 15-digit ZATCA TIN rule); l10n_sa supplies the Saudi chart and taxes; l10n_sa_edi is the
     # ZATCA e-invoicing (Fatoora phase 2) engine that the onboarding and submission routes drive;
+    # liwan_products (rank 3) owns a product's definition: a customer invoice or credit note line may name one of its
+    # products (plan D20), picked through the service; the line takes the price and taxes stock gives that product.
     # liwan_integrations_sa (rank 3) lists ZATCA as an external provider: finance registers it there and
     # derives its status from the sales journals (models/integration_registry.py).
     # The pinned OCA modules (deploy/oca-addons.json, docs/oca-addons.md) are used unmodified through
@@ -23,7 +25,7 @@
     # balance sheet, Zakat base), mis_builder_budget (budgets by account) and account_statement_import_camt (the CAMT
     # parser behind the bank statement import, with account_statement_import_file and _base; no wizard is used).
     'depends': [
-        'liwan_api', 'liwan_customers', 'liwan_integrations_sa', 'analytic', 'account', 'account_debit_note', 'base_vat', 'l10n_sa', 'l10n_sa_edi',
+        'liwan_api', 'liwan_customers', 'liwan_products', 'liwan_integrations_sa', 'analytic', 'account', 'account_debit_note', 'base_vat', 'l10n_sa', 'l10n_sa_edi',
         'account_financial_report', 'partner_statement', 'account_asset_management',
         'account_reconcile_oca', 'mis_builder', 'mis_builder_budget',
         'account_statement_import_base', 'account_statement_import_file', 'account_statement_import_camt',

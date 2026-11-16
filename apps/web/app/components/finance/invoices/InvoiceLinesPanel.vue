@@ -28,6 +28,7 @@ const totals = computed(() => [
     <SharedDataTable bare :rows="invoice.lines" :columns="columns" row-key="id" :caption="t('financeDocuments.form.lines')">
       <template #name-cell="{ row }">
         <p>{{ row.original.name }}</p>
+        <p v-if="row.original.product" class="text-sm text-muted" :data-testid="`finance-line-product-${row.original.id}`">{{ t('financeDocuments.record.product', { name: row.original.product.name }) }}</p>
         <NuxtLink v-if="row.original.asset" :to="`/finance/assets/${row.original.asset.id}`" class="text-sm text-primary hover:underline" :data-testid="`finance-line-asset-${row.original.id}`">{{ t('financeDocuments.record.asset', { name: row.original.asset.name }) }}</NuxtLink>
         <p v-else-if="row.original.asset_profile" class="text-sm text-muted" :data-testid="`finance-line-asset-profile-${row.original.id}`">{{ t('financeDocuments.record.assetProfile', { name: row.original.asset_profile.name }) }}</p>
       </template>
@@ -40,6 +41,7 @@ const totals = computed(() => [
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="font-semibold text-highlighted">{{ row.name }}</p>
+            <p v-if="row.product" class="text-sm text-muted">{{ t('financeDocuments.record.product', { name: row.product.name }) }}</p>
             <NuxtLink v-if="row.asset" :to="`/finance/assets/${row.asset.id}`" class="text-sm text-primary hover:underline">{{ t('financeDocuments.record.asset', { name: row.asset.name }) }}</NuxtLink>
             <p v-else-if="row.asset_profile" class="text-sm text-muted">{{ t('financeDocuments.record.assetProfile', { name: row.asset_profile.name }) }}</p>
             <p class="text-sm text-muted"><bdi class="tabular-nums">{{ row.quantity }}</bdi> × <Money :amount="row.price_unit" /></p>

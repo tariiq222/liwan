@@ -105,8 +105,11 @@ class RealManifestClosureTest(unittest.TestCase):
         """A bridge addon (`<app>_pmo`, `<app>_hr`, `<app>_ai`) must depend on the capability AND on its base app."""
         capability = {'_pmo': 'liwan_pmo', '_hr': 'liwan_hr', '_ai': 'liwan_ai'}
         # The capability addons themselves end in the same suffix; a bridge is a *different* addon that joins them.
+        # Only a directory with a manifest is an addon: a removed addon can leave an empty folder behind (its
+        # __pycache__ survives an install), and that leftover is not a bridge to validate.
         bridges = [path for path in sorted(ADDONS.iterdir())
-                   if path.is_dir() and not any(path.name == name for name in capability.values())
+                   if (path / '__manifest__.py').is_file()
+                   and not any(path.name == name for name in capability.values())
                    and any(path.name.endswith(suffix) for suffix in capability)]
         self.assertTrue(bridges, 'no bridge addons found: the test would prove nothing')
         for path in bridges:
@@ -119,6 +122,19 @@ class RealManifestClosureTest(unittest.TestCase):
                                 f'{path.name} must also depend on the application it bridges')
                 self.assertIsNot(_manifest_auto_install(path / '__manifest__.py'), False,
                                  f'{path.name} is a bridge and must be auto_install')
+
+    def test_an_empty_leftover_directory_is_not_treated_as_an_addon(self):
+        """A folder with no manifest is a leftover, not an addon; reading it crashed the bridge test."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            addons = Path(root)
+            (addons / 'liwan_hr_ai').mkdir()
+            (addons / 'liwan_crm_ai').mkdir()
+            (addons / 'liwan_crm_ai' / '__manifest__.py').write_text(
+                "{'name': 'x', 'depends': ['liwan_ai', 'liwan_crm'], 'auto_install': True}\n", encoding='utf-8')
+            bridges = [path.name for path in addons.iterdir()
+                       if path.is_dir() and (path / '__manifest__.py').is_file()]
+            self.assertEqual(bridges, ['liwan_crm_ai'])
 
     def test_operator_accepts_tiers_with_implied_dependencies(self):
         entry = {'addons_paths': [str(ADDONS)]}
@@ -207,6 +223,27 @@ class RealManifestClosureTest(unittest.TestCase):
                 closure = module_closure.install_closure([ADDONS], BASE + [app])
                 self.assertIn('liwan_payments', closure)
                 self.assertIn('liwan_orders', closure)
+
+    def test_the_real_sales_payments_bridge_joins_only_with_sales_and_payments(self):
+        both = module_closure.install_closure([ADDONS], BASE + ['liwan_sales', 'liwan_payments'])
+        self.assertIn('liwan_sales_payments', both)
+        for alone in ('liwan_sales', 'liwan_payments'):
+            with self.subTest(alone=alone):
+                self.assertNotIn('liwan_sales_payments', module_closure.install_closure([ADDONS], BASE + [alone]))
+
+    def test_the_real_sales_crm_bridge_joins_only_with_sales_and_crm(self):
+        both = module_closure.install_closure([ADDONS], BASE + ['liwan_sales', 'liwan_crm'])
+        self.assertIn('liwan_sales_crm', both)
+        for alone in ('liwan_sales', 'liwan_crm'):
+            with self.subTest(alone=alone):
+                self.assertNotIn('liwan_sales_crm', module_closure.install_closure([ADDONS], BASE + [alone]))
+
+    def test_the_real_sales_finance_bridge_joins_only_with_sales_and_finance(self):
+        both = module_closure.install_closure([ADDONS], BASE + ['liwan_sales', 'liwan_finance'])
+        self.assertIn('liwan_sales_finance', both)
+        for alone in ('liwan_sales', 'liwan_finance'):
+            with self.subTest(alone=alone):
+                self.assertNotIn('liwan_sales_finance', module_closure.install_closure([ADDONS], BASE + [alone]))
 
     def test_the_real_api_account_bridge_joins_only_when_stock_account_is_installed(self):
         # liwan_api_account's other side is stock `account`, not a LiwanOS module: it joins a closure that holds

@@ -162,6 +162,27 @@ class LiwanProductsService(models.AbstractModel):
         return self._liwan_product(product_id)
 
     @api.model
+    def _liwan_usable_product(self, product_id, company, field, include_archived=False):
+        """For a pick holder: the service product ``product_id`` a document of ``company`` may name on ``field``.
+
+        403 unless the caller may pick; 422 ``invalid`` on ``field`` when the product does not exist (an archived one
+        counts with ``include_archived``, for a draft line that already carries it), belongs to a company that is
+        neither ``company`` nor an ancestor, or has several variants (a line takes the template's one variant).
+        """
+        self._liwan_require_pick()
+        try:
+            product = self._liwan_product(product_id, include_archived=include_archived)
+        except LiwanAccessRule as error:
+            if error.status == 404:
+                _refuse_invalid(field, 'the product does not exist')
+            raise
+        if product.company_id and product.company_id not in company.parent_ids:
+            _refuse_invalid(field, 'the product belongs to another company')
+        if len(product.with_context(active_test=False).product_variant_ids) > 1:
+            _refuse_invalid(field, 'products with variants are not supported yet')
+        return product
+
+    @api.model
     def _liwan_pick_search(self, query=None, limit=50, offset=0):
         """``(products, total)``: the active service products the caller can see, for a pick holder (403 otherwise)."""
         self._liwan_require_pick()

@@ -75,8 +75,9 @@ class TestPayrollFinalPayslip(PayrollCase):
         self.assertEqual(mail.model, 'hr.payslip')
         self.assertEqual(mail.email_to, 'leaver.personal@example.com')
         self.assertEqual(mail.subject, f'Your final payslip for {MONTH}')
-        # Payroll data: stock Odoo removes the row after a successful send and a failed one stays visible.
-        self.assertTrue(mail.auto_delete)
+        # Payroll data: the contract keeps every row for its retention window and scrubs a sensitive one once sent.
+        self.assertFalse(mail.auto_delete)
+        self.assertTrue(mail.liwan_sensitive)
         slip = self.env['hr.payslip'].search([('employee_id', '=', self.leaver.id)])
         net = format_amount(self.env, slip._liwan_amounts()[slip.id]['net'], slip.company_id.currency_id)
         self.assertIn(net, mail.body_html)
@@ -84,6 +85,12 @@ class TestPayrollFinalPayslip(PayrollCase):
     def test_no_final_payslip_is_queued_without_a_configured_sender(self):
         self.env['ir.config_parameter'].set_param('mail.default.from', '')
         with patch.object(config, 'get', lambda *args: None):
+            self._approve_the_run()
+        self.assertFalse(self._mails_to('leaver.personal@example.com'))
+
+    def test_an_unverified_tenant_domain_skips_the_mail_and_the_approval_still_completes(self):
+        domains = type(self.env['liwan.mail.domain'])
+        with patch.object(domains, '_liwan_provider_configured', lambda model: True):
             self._approve_the_run()
         self.assertFalse(self._mails_to('leaver.personal@example.com'))
 

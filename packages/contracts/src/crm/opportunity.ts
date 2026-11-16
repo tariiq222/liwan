@@ -31,6 +31,11 @@ export const CrmOpportunitySchema = z.strictObject({
   package: RefSchema.nullable(),
   lost_reason: RefSchema.nullable(),
   status: CrmOpportunityStatusSchema,
+  // True while an order, not a package, wins opportunities (the Sales bridge, a tenant fact): the package form steps aside and
+  // a package win is refused with 409 `crm_win_by_order`. `can_quote` is whether the caller may write what wins (a quotation);
+  // it is false whenever `win_by_order` is.
+  win_by_order: z.boolean(),
+  can_quote: z.boolean(),
   list_price: z.number().min(0),
   discount_percent: z.number().min(0).max(100),
   final_price: z.number().min(0),

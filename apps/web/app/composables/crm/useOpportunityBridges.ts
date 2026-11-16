@@ -6,6 +6,8 @@ import {
   MeetingListSchema,
   MyTaskListPageSchema,
   PersonalTaskSchema,
+  SalesOrderListSchema,
+  SalesOrderSchema,
   type CrmOpportunityMeetingCreate,
   type CrmOpportunityTaskCreate,
 } from '@liwan/contracts'
@@ -31,6 +33,14 @@ export function useOpportunityMeetingAccess() {
   return {
     read: computed(() => can('crm.leads.read') && can('meetings.read')),
     write: computed(() => can('crm.leads.work') && can('meetings.create')),
+  }
+}
+
+export function useOpportunityOrderAccess() {
+  const { can } = useAccess()
+  return {
+    read: computed(() => can('crm.leads.read') && can('sales.read')),
+    write: computed(() => can('crm.leads.read') && can('sales.quotations.manage')),
   }
 }
 
@@ -84,5 +94,27 @@ export function useCreateOpportunityMeeting(id: MaybeRefOrGetter<number>) {
   return useMutation({
     mutationFn: (body: CrmOpportunityMeetingCreate) => $api(`/api/v1/crm/opportunities/${toValue(id)}/meetings`, { method: 'POST', body, schema: MeetingDetailSchema }),
     onSuccess: () => qc.invalidateQueries({ queryKey: crmKeys.meetings(toValue(id)) }),
+  })
+}
+
+// The quotations and orders of one opportunity, served by the CRM bridge to Sales. Rows the caller cannot read in Sales
+// are neither listed nor counted. A new quotation takes the opportunity's customer and starts with no line; the page then
+// opens it in Sales to fill in.
+export function useOpportunityOrders(id: MaybeRefOrGetter<number>, enabled: MaybeRefOrGetter<boolean>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => crmKeys.orders(toValue(id))),
+    enabled: computed(() => toValue(id) > 0 && toValue(enabled)),
+    retry: false,
+    queryFn: ({ signal }) => $api(`/api/v1/crm/opportunities/${toValue(id)}/orders`, { query: { limit: OPPORTUNITY_BRIDGE_LIMIT, offset: 0 }, signal, schema: SalesOrderListSchema }),
+  })
+}
+
+export function useCreateOpportunityOrder(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => $api(`/api/v1/crm/opportunities/${toValue(id)}/orders`, { method: 'POST', body: {}, schema: SalesOrderSchema }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: crmKeys.orders(toValue(id)) }),
   })
 }

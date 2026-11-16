@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
 from decimal import Decimal
 
 from markupsafe import Markup
@@ -9,6 +10,9 @@ from odoo.tools.misc import format_amount
 
 from .payroll_math import money
 from odoo.addons.liwan_hr.rules import LiwanHrRule
+from odoo.addons.liwan_notify.models.mail_domain import LiwanMailRefused
+
+_logger = logging.getLogger(__name__)
 
 # Line codes of the Saudi structure (data/hr_payroll_structure_data.xml) that make up the figures
 # a payslip shows. Deductions are negative lines, the employer share is a positive statistical line.
@@ -205,8 +209,13 @@ class HrPayslip(models.Model):
                 continue
             # `private_email` is readable by HR users only, which a payroll approver is not.
             address = (employee.sudo().private_email or '').strip()
-            if address:
+            if not address:
+                continue
+            try:
                 slip._liwan_queue_payslip_mail(address)
+            except LiwanMailRefused as refusal:
+                # The approval must complete; the leaver's payslip is not mailed while the tenant may not send.
+                _logger.warning('final payslip %s not mailed: %s (%s)', slip.id, refusal.code, refusal)
 
     def _liwan_queue_payslip_mail(self, address):
         self.ensure_one()

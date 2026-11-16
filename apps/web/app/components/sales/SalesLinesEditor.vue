@@ -7,14 +7,16 @@ import { formatCurrency } from '@/utils/formatCurrency'
 
 // The lines of a quotation, one card per line in order. A product line picks a product of the products service, shows
 // its unit price read-only and the line's amount at that price, and takes a quantity and a discount; the server prices
-// the line on save. Section and note lines take a text. Lines are added, removed and moved with buttons.
-const props = defineProps<{
+// the line on save. Section and note lines take a text. Lines are added, removed and moved with buttons. A quotation
+// template holds no price: `priced` false leaves out the discount, the unit price and the amount.
+const props = withDefaults(defineProps<{
   modelValue: SalesLineDraft[]
   errors: SalesDraftErrors['lines']
   /** A refusal of the server on one line, shown at its field. */
   refused?: { index: number; field: SalesLineField; message: string } | null
   disabled?: boolean
-}>()
+  priced?: boolean
+}>(), { priced: true })
 const emit = defineEmits<{ 'update:modelValue': [lines: SalesLineDraft[]] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
@@ -59,13 +61,13 @@ function errorAt(index: number, problem: 'product' | 'quantity' | 'discount' | '
             <UFormField :label="t('sales.lines.quantity')" :error="errorAt(index, 'quantity', 'quantity')" required>
               <UInput :model-value="line.quantity" type="number" inputmode="decimal" min="0" step="any" dir="ltr" class="w-full" :disabled="off" :data-testid="`sales-line-quantity-${index}`" @update:model-value="value => patch(index, { quantity: String(value) })" />
             </UFormField>
-            <UFormField :label="t('sales.lines.discount')" :error="errorAt(index, 'discount', 'discount_percent')">
+            <UFormField v-if="props.priced" :label="t('sales.lines.discount')" :error="errorAt(index, 'discount', 'discount_percent')">
               <UInput :model-value="line.discount" type="number" inputmode="decimal" min="0" max="100" step="any" dir="ltr" class="w-full" :disabled="off" :data-testid="`sales-line-discount-${index}`" @update:model-value="value => patch(index, { discount: String(value) })" />
             </UFormField>
-            <UFormField :label="t('sales.lines.unitPrice')" :help="t('sales.lines.unitPriceHint')">
+            <UFormField v-if="props.priced" :label="t('sales.lines.unitPrice')" :help="t('sales.lines.unitPriceHint')">
               <p class="py-1.5 text-sm text-highlighted"><bdi dir="ltr">{{ line.unitPrice === null ? '—' : money(line.unitPrice, line.currency) }}</bdi></p>
             </UFormField>
-            <UFormField :label="t('sales.lines.amount')">
+            <UFormField v-if="props.priced" :label="t('sales.lines.amount')">
               <p class="py-1.5 text-sm font-semibold text-highlighted" :data-testid="`sales-line-amount-${index}`"><bdi dir="ltr">{{ money(salesLineAmount(line), line.currency) }}</bdi></p>
             </UFormField>
           </div>

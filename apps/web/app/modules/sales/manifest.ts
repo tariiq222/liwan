@@ -7,26 +7,52 @@ const manifest: AppManifest = {
   id: 'sales',
   feature: 'sales.enabled',
   routePrefixes: ['/sales'],
+  // An order lists its invoices (the Finance bridge): an invoice opened from it goes back to it.
+  recordListSources: [{ pattern: /^\/sales\/[1-9]\d*$/, capability: 'sales.read' }],
   appCard: { category: 'sales', plan: 'addon', surface: 'sand' },
   rail: [{ id: 'sales', labelKey: 'sales.title', icon: 'i-lucide-receipt-text', to: '/sales', order: 87 }],
-  nav: [{ to: '/sales', labelKey: 'sales.title', icon: 'i-lucide-receipt-text', shortcut: '', capability: 'sales.read' }],
+  nav: [
+    { to: '/sales', labelKey: 'sales.title', icon: 'i-lucide-receipt-text', shortcut: '', capability: 'sales.read' },
+    { to: '/sales/reports', labelKey: 'sales.reports.title', icon: 'i-lucide-chart-column', shortcut: '', capability: 'sales.reports.read' },
+  ],
   settings: {
     id: 'sales', labelKey: 'sales.title', icon: 'i-lucide-receipt-text', to: '/settings/apps/sales',
     parts: [
+      // A sector preset sets several of the cards below at once; the templates are a list of their own.
+      { id: 'presets', labelKey: 'sales.settings.presets.title', icon: 'i-lucide-wand-sparkles', capability: 'sales.settings.manage' },
       { id: 'visibility', labelKey: 'sales.settings.visibility.title', icon: 'i-lucide-eye', capability: 'sales.settings.manage' },
       { id: 'quotations', labelKey: 'sales.settings.quotations.title', icon: 'i-lucide-file-text', capability: 'sales.settings.manage' },
+      { id: 'templates', labelKey: 'sales.templates.title', icon: 'i-lucide-files', capability: 'sales.settings.manage', to: '/settings/apps/sales/templates', within: '/settings/apps/sales/templates' },
+      // The default of paying to confirm a quotation: it exists while the tenant has online payments.
+      // How a confirmed order wins its CRM opportunity: it exists while the tenant has CRM.
+      { id: 'opportunity', labelKey: 'sales.settings.opportunity.title', icon: 'i-lucide-handshake', capability: 'sales.settings.manage', feature: 'crm.enabled' },
+      // Whether a confirmed order may be invoiced in advance: it exists while the tenant has Finance.
+      { id: 'invoicing', labelKey: 'sales.settings.invoicing.title', icon: 'i-lucide-receipt', capability: 'sales.settings.manage', feature: 'finance.enabled' },
+      { id: 'payments', labelKey: 'sales.settings.payment.title', icon: 'i-lucide-credit-card', capability: 'sales.settings.manage', feature: 'payments.enabled' },
     ],
   },
   contextLinks: () => [
     { id: 'new-quotation', labelKey: 'sales.new', icon: 'i-lucide-plus', to: '/sales/new', capability: 'sales.quotations.manage', pinned: true },
     { id: 'sales', labelKey: 'sales.title', icon: 'i-lucide-receipt-text', to: '/sales', capability: 'sales.read' },
+    { id: 'sales-reports', labelKey: 'sales.reports.title', icon: 'i-lucide-chart-column', to: '/sales/reports', capability: 'sales.reports.read' },
   ],
   landing: [{ path: '/sales', capability: 'sales.read' }],
   commands: [{ id: 'sales.new-quotation', labelKey: 'sales.new', icon: 'i-lucide-receipt-text', to: '/sales/new', capability: 'sales.quotations.manage' }],
   routeCapabilities: [
+    // A report reads the documents it adds up, so it needs the right to read them as well.
+    { pattern: /^\/sales\/reports$/, capability: 'sales.reports.read', requiredCapabilities: ['sales.read'] },
     { pattern: /^\/sales\/new$/, capability: 'sales.quotations.manage' },
     { pattern: /^\/sales\/[^/]+\/edit$/, capability: 'sales.quotations.manage' },
     { pattern: /^\/sales(?:\/|$)/, capability: 'sales.read' },
   ],
+  // The customer's answer to a quotation (accepted, signed or declined) rings its salesperson; the row opens the order.
+  bell: {
+    capabilities: ['sales.read'],
+    kinds: [{
+      kind: 'sales.answered',
+      href: row => (typeof row.order_id === 'number' ? `/sales/${row.order_id}` : null),
+      title: (row, t) => `${t(`sales.bell.${String(row.answer)}`)} ${String(row.title)}`,
+    }],
+  },
 }
 export default manifest

@@ -73,6 +73,10 @@ The 24 quality axes and 24 function axes are listed in the module; the report re
 
 ## Reports
 
+Evidence lives in the **canonical checkout's** `.audit/`, not in the lane that ran the audit, so
+`wt done`, `wt lane remove` or `wt gc` cannot destroy it. The root is found through the shared git directory;
+`LIWAN_AUDIT_DIR` overrides it. It is git-ignored and never shipped.
+
 Each run writes `.audit/runs/<timestamp>-<profile>-<sha>/`:
 
 - `run.json` — stages, checks, probes, environment facts;

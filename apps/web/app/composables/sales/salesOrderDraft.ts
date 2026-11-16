@@ -1,5 +1,5 @@
-import type { ProductPick, SalesLineKind, SalesOrder, SalesOrderCreate, SalesOrderLineInput, SalesOrderPatch } from '@liwan/contracts'
-import { SALES_LIMITS } from '@liwan/contracts'
+import type { ProductPick, SalesLineKind, SalesOrder, SalesOrderCreate, SalesOrderLineInput, SalesOrderPatch, SalesPaymentToConfirm } from '@liwan/contracts'
+import { SALES_LIMITS, SALES_PREPAYMENT_PERCENT } from '@liwan/contracts'
 
 /**
  * One line of the editor. Numbers stay strings until they are validated. `unitPrice` is only a preview: the saved price
@@ -20,17 +20,24 @@ export interface SalesLineDraft {
   discount: string
 }
 
+/** How the quotation asks to be paid, as the form holds it; `percent` stays a number or null while the field is empty. */
+export interface SalesPaymentDraft { mode: SalesPaymentToConfirm; percent: number | null }
+
 export interface SalesOrderDraft {
   customerId: number | null
   customerName: string
+  /** The quotation template that gives a new quotation its lines, terms and validity; null for a hand-made quotation. */
+  templateId: number | null
   salespersonId: number | null
   validityDate: string | null
   terms: string
   lines: SalesLineDraft[]
+  /** Null until the user chooses (or the saved quotation says): a new quotation then takes the tenant's default on the server. */
+  payment: SalesPaymentDraft | null
 }
 
 export type SalesLineProblem = 'product' | 'quantity' | 'discount' | 'name'
-export interface SalesDraftErrors { customer: boolean; noLines: boolean; lines: Array<Partial<Record<SalesLineProblem, true>>> }
+export interface SalesDraftErrors { customer: boolean; noLines: boolean; payment: boolean; lines: Array<Partial<Record<SalesLineProblem, true>>> }
 
 let nextKey = 1
 
@@ -39,14 +46,16 @@ export function newSalesLine(kind: SalesLineKind = 'product'): SalesLineDraft {
 }
 
 export function emptySalesDraft(): SalesOrderDraft {
-  return { customerId: null, customerName: '', salespersonId: null, validityDate: null, terms: '', lines: [newSalesLine()] }
+  return { customerId: null, customerName: '', templateId: null, salespersonId: null, validityDate: null, terms: '', lines: [newSalesLine()], payment: null }
 }
 
-/** The editor state of a saved document. */
+/** The editor state of a saved document. A quotation that does not ask for a percentage holds none: the tenant's default is applied when the user chooses one. */
 export function salesDraftFromOrder(order: SalesOrder): SalesOrderDraft {
   return {
+    payment: order.payment ? { mode: order.payment.mode, percent: order.payment.mode === 'percent' ? order.payment.percent : null } : null,
     customerId: order.customer.id,
     customerName: order.customer.name,
+    templateId: null,
     salespersonId: order.salesperson?.id ?? null,
     validityDate: order.validity_date,
     terms: order.terms,
@@ -83,7 +92,8 @@ export function moveSalesLine(lines: SalesLineDraft[], index: number, delta: num
 
 const decimal = (value: string) => value.trim() === '' ? Number.NaN : Number(value)
 
-function lineProblems(line: SalesLineDraft): Partial<Record<SalesLineProblem, true>> {
+/** What is wrong with one line: a product line needs a product, a quantity and a discount in range; a section or note its text. */
+export function salesLineProblems(line: SalesLineDraft): Partial<Record<SalesLineProblem, true>> {
   if (line.kind !== 'product') return line.name.trim() ? {} : { name: true }
   const quantity = decimal(line.quantity)
   const discount = decimal(line.discount)
@@ -94,12 +104,26 @@ function lineProblems(line: SalesLineDraft): Partial<Record<SalesLineProblem, tr
   }
 }
 
+/** The payment the user just chose: moving to a percentage with none of its own takes `defaultPercent`; an emptied field stays empty. */
+export function salesPaymentWithDefaultPercent(next: SalesPaymentDraft, previous: SalesPaymentDraft | null, defaultPercent: number): SalesPaymentDraft {
+  return next.mode === 'percent' && previous?.mode !== 'percent' && next.percent === null ? { ...next, percent: defaultPercent } : next
+}
+
+const validPercent = (percent: number | null) => percent !== null && Number.isInteger(percent) && percent >= SALES_PREPAYMENT_PERCENT.min && percent <= SALES_PREPAYMENT_PERCENT.max
+
 export function validateSalesDraft(draft: SalesOrderDraft): SalesDraftErrors {
-  return { customer: !draft.customerId, noLines: !draft.lines.length, lines: draft.lines.map(lineProblems) }
+  return { customer: !draft.customerId, noLines: !draft.templateId && !draft.lines.length, payment: draft.payment?.mode === 'percent' && !validPercent(draft.payment.percent), lines: draft.templateId ? [] : draft.lines.map(salesLineProblems) }
 }
 
 export function hasSalesDraftErrors(errors: SalesDraftErrors): boolean {
-  return errors.customer || errors.noLines || errors.lines.some(line => Object.keys(line).length > 0)
+  return errors.customer || errors.noLines || errors.payment || errors.lines.some(line => Object.keys(line).length > 0)
+}
+
+/** The payment choice of a write while the tenant can take payments: the mode, and the percentage only under `percent`. Empty when nothing was chosen. */
+function paymentBody(draft: SalesOrderDraft, offered: boolean): Pick<SalesOrderCreate, 'payment_to_confirm' | 'prepayment_percent'> {
+  if (!offered || !draft.payment) return {}
+  const { mode, percent } = draft.payment
+  return { payment_to_confirm: mode, ...(mode === 'percent' && percent !== null ? { prepayment_percent: percent } : {}) }
 }
 
 /** The body of one line: a product line sends its product, quantity and discount; a section or note its text. No price. */
@@ -110,22 +134,25 @@ export function salesLinePayload(line: SalesLineDraft): SalesOrderLineInput {
 }
 
 /**
- * The create body. An empty validity date and empty terms are left out, so the server applies the tenant's defaults;
- * the salesperson is sent only by a holder of the assign right who chose one.
+ * The create body. An empty validity date, empty terms and an unchosen payment are left out, so the server applies the
+ * template's or the tenant's defaults; the salesperson is sent only by a holder of the assign right who chose one.
  */
-export function salesCreateBody(draft: SalesOrderDraft, canAssign: boolean): SalesOrderCreate {
+export function salesCreateBody(draft: SalesOrderDraft, canAssign: boolean, paymentOffered = false): SalesOrderCreate {
   return {
+    ...paymentBody(draft, paymentOffered),
     customer_id: draft.customerId!,
     ...(canAssign && draft.salespersonId ? { salesperson_id: draft.salespersonId } : {}),
     ...(draft.validityDate ? { validity_date: draft.validityDate } : {}),
     ...(draft.terms.trim() ? { terms: draft.terms.trim() } : {}),
-    lines: draft.lines.map(salesLinePayload),
+    // A template gives the lines (the server prices them now); a hand-made quotation sends its own.
+    ...(draft.templateId ? { template_id: draft.templateId } : { lines: draft.lines.map(salesLinePayload) }),
   }
 }
 
 /** The edit body: the header and the whole list of lines, which replaces the saved one; the salesperson only when it changed. */
-export function salesPatchBody(order: SalesOrder, draft: SalesOrderDraft, canAssign: boolean): SalesOrderPatch {
+export function salesPatchBody(order: SalesOrder, draft: SalesOrderDraft, canAssign: boolean, paymentOffered = false): SalesOrderPatch {
   return {
+    ...paymentBody(draft, paymentOffered),
     customer_id: draft.customerId!,
     ...(canAssign && draft.salespersonId && draft.salespersonId !== order.salesperson?.id ? { salesperson_id: draft.salespersonId } : {}),
     validity_date: draft.validityDate,

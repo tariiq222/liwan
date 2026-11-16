@@ -17,6 +17,11 @@ class AccountMove(models.Model):
         'A company has one year-end closing entry per fiscal year.',
     )
 
+    def _liwan_detail_extras(self):
+        """What an installed bridge adds to the wire shape of this document's record page, as ``{key: value}``."""
+        self.ensure_one()
+        return {}
+
     def _liwan_zatca_qr_data_uri(self):
         """The ZATCA QR of a Saudi invoice as an inline PNG, so the PDF never fetches /report/barcode."""
         self.ensure_one()

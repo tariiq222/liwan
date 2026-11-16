@@ -408,6 +408,22 @@
       "handler": "delete_shortcut",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/inbox/conversations/{conversation_id}/opportunity": {
+      "addon": "liwan_crm_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.work",
+        "inbox.conversations.reply"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "inbox.enabled"
+      ],
+      "handler": "unlink_conversation_opportunity",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/inbox/departments/{department_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -1488,6 +1504,54 @@
       "handler": "list_calls",
       "no_capability_reason": null
     },
+    "GET /api/v1/crm/opportunities/{lead_id}/tasks": {
+      "addon": "liwan_crm_tasks",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.read",
+        "tasks.tasks.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "tasks.enabled"
+      ],
+      "handler": "list_opportunity_tasks",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/crm/opportunities/{opportunity_id}/conversations": {
+      "addon": "liwan_crm_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.read",
+        "inbox.conversations.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "inbox.enabled"
+      ],
+      "handler": "list_opportunity_conversations",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/crm/opportunities/{opportunity_id}/meetings": {
+      "addon": "liwan_crm_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.read",
+        "meetings.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "meetings.enabled"
+      ],
+      "handler": "list_opportunity_meetings",
+      "no_capability_reason": null
+    },
     "GET /api/v1/crm/outcomes": {
       "addon": "liwan_crm",
       "auth": "user",
@@ -1614,6 +1678,18 @@
         "registry:liwan.customers.service"
       ],
       "handler": "export_customers",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/customers/pick": {
+      "addon": "liwan_customers",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "registry:liwan.customers.service"
+      ],
+      "handler": "pick_customers",
       "no_capability_reason": null
     },
     "GET /api/v1/customers/settings": {
@@ -4583,6 +4659,22 @@
       "handler": "list_messages",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/conversations/{conversation_id}/opportunity": {
+      "addon": "liwan_crm_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.read",
+        "inbox.conversations.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "inbox.enabled"
+      ],
+      "handler": "get_conversation_opportunity",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/conversations/{conversation_id}/orders": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -6001,6 +6093,63 @@
         "pmo.enabled"
       ],
       "handler": "project_dashboard_summary",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/sales/orders": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "list_orders",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/sales/orders/{order_id}": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "get_order",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/sales/salespeople": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.documents.assign"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "list_salespeople",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/sales/settings": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.read",
+        "sales.settings.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "read_settings",
       "no_capability_reason": null
     },
     "GET /api/v1/settings/inbox": {
@@ -8070,6 +8219,34 @@
       "handler": "patch_stakeholder",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/sales/orders/{order_id}": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.quotations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "update_order",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/sales/settings": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "write_settings",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/settings/inbox": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -8987,6 +9164,20 @@
       "handler": "record_call",
       "no_capability_reason": null
     },
+    "POST /api/v1/crm/opportunities/{lead_id}/customer": {
+      "addon": "liwan_crm",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.work"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled"
+      ],
+      "handler": "link_customer",
+      "no_capability_reason": null
+    },
     "POST /api/v1/crm/opportunities/{lead_id}/lost": {
       "addon": "liwan_crm",
       "auth": "user",
@@ -9029,6 +9220,22 @@
       "handler": "mark_opportunity_seen",
       "no_capability_reason": null
     },
+    "POST /api/v1/crm/opportunities/{lead_id}/tasks": {
+      "addon": "liwan_crm_tasks",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.work",
+        "tasks.tasks.create"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "tasks.enabled"
+      ],
+      "handler": "create_opportunity_task",
+      "no_capability_reason": null
+    },
     "POST /api/v1/crm/opportunities/{lead_id}/won": {
       "addon": "liwan_crm",
       "auth": "user",
@@ -9041,6 +9248,22 @@
         "crm.enabled"
       ],
       "handler": "mark_won",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/crm/opportunities/{opportunity_id}/meetings": {
+      "addon": "liwan_crm_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.work",
+        "meetings.create"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "meetings.enabled"
+      ],
+      "handler": "create_opportunity_meeting",
       "no_capability_reason": null
     },
     "POST /api/v1/crm/outcomes": {
@@ -11675,6 +11898,20 @@
       "handler": "import_contacts",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/contacts/{contact_id}/customer": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.conversations.reply"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "link_customer",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/conversations/{conversation_id}/messages": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -12991,6 +13228,119 @@
       "handler": "start_order_payment",
       "no_capability_reason": "Anonymous payer of one customer invoice or online order under /api/v1/public/ (auth='public', no session): the document's access token, checked by the stock portal check, is the authorization; no capability applies."
     },
+    "POST /api/v1/sales/orders": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.quotations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "create_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/sales/orders/{order_id}/assign": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.documents.assign"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "assign_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/sales/orders/{order_id}/cancel": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.quotations.manage",
+        "sales.orders.confirm"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "cancel_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/sales/orders/{order_id}/confirm": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.orders.confirm"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "move_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/sales/orders/{order_id}/duplicate": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.quotations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "duplicate_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/sales/orders/{order_id}/lock": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.orders.confirm"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "move_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/sales/orders/{order_id}/reopen": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.orders.confirm"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "move_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/sales/orders/{order_id}/unlock": {
+      "addon": "liwan_sales",
+      "auth": "user",
+      "capability_keys": [
+        "sales.orders.confirm"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "sales.enabled"
+      ],
+      "handler": "move_order",
+      "no_capability_reason": null
+    },
     "POST /api/v1/settings/inbox/presets/{key}": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -13239,6 +13589,22 @@
         "inbox.whatsapp"
       ],
       "handler": "upload_picture",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/inbox/conversations/{conversation_id}/opportunity": {
+      "addon": "liwan_crm_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.work",
+        "inbox.conversations.reply"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "inbox.enabled"
+      ],
+      "handler": "link_conversation_opportunity",
       "no_capability_reason": null
     },
     "PUT /api/v1/inbox/departments/{department_id}/working-hours": {

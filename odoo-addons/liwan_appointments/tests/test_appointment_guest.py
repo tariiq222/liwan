@@ -8,7 +8,7 @@ from odoo.tests import tagged
 
 from .common import LiwanAppointmentsCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_appointments.models.guest_limit import (
+from odoo.addons.liwan_appointments.controllers.appointment_guest import (
     GUEST_READ_LIMIT,
     GUEST_SLOT_READ_LIMIT,
 )

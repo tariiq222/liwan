@@ -2,6 +2,7 @@
 // `mock_caps=reader` is a read-only user: every manage / archive / grant capability is dropped, so
 // e2e specs can check what a reader does not see. `mock_caps=no_payroll` drops every `hr.payroll.*` capability (an HR
 // manager without payroll access). Without the cookie the session keeps them all.
+// `mock_caps=no_sales_reports` drops `sales.reports.read` (a salesperson without the reports right).
 // `mock_caps=inbox_templates` and `mock_caps=inbox_flows` are the audit's limited Customer Messages roles: an agent
 // keeps the conversation reads and gets exactly one area capability, never channel administration.
 const WRITE = /\.(manage|archive|grant)$/
@@ -12,10 +13,12 @@ export function capabilitiesForRequest(cookieHeader, all) {
   const cookie = cookieHeader ?? ''
   const reader = /(?:^|;\s*)mock_caps=reader(?:;|$)/.test(cookie)
   const noPayroll = /(?:^|;\s*)mock_caps=no_payroll(?:;|$)/.test(cookie)
+  const noSalesReports = /(?:^|;\s*)mock_caps=no_sales_reports(?:;|$)/.test(cookie)
   const inboxTemplates = /(?:^|;\s*)mock_caps=inbox_templates(?:;|$)/.test(cookie)
   const inboxFlows = /(?:^|;\s*)mock_caps=inbox_flows(?:;|$)/.test(cookie)
   const inboxAutomation = /(?:^|;\s*)mock_caps=inbox_automation(?:;|$)/.test(cookie)
   let kept = noPayroll ? all.filter(capability => !PAYROLL.test(capability)) : all
+  if (noSalesReports) kept = kept.filter(capability => capability !== 'sales.reports.read')
   if (inboxTemplates) {
     kept = kept.filter(capability => !capability.startsWith('inbox.') || INBOX_AGENT.test(capability) || capability === 'inbox.templates.manage')
   }

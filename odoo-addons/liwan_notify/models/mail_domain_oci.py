@@ -113,7 +113,11 @@ class LiwanMailDomainOci(models.AbstractModel):
         if params:
             url = f'{url}?{urlencode(params)}'
         payload = json.dumps(body).encode() if body is not None else None
-        key = serialization.load_pem_private_key(os.environ[PRIVATE_KEY_ENV].replace('\\n', '\n').encode(), password=None)
+        try:
+            key = serialization.load_pem_private_key(os.environ[PRIVATE_KEY_ENV].replace('\\n', '\n').encode(), password=None)
+        except ValueError:
+            msg = 'the mail provider key is not a valid private key'
+            raise MailProviderError(msg) from None
         key_id = f'{os.environ[TENANCY_ENV]}/{os.environ[USER_ENV]}/{os.environ[FINGERPRINT_ENV]}'
         headers = signed_headers(method, url, payload, key_id, key)
         try:
@@ -123,7 +127,11 @@ class LiwanMailDomainOci(models.AbstractModel):
             raise MailProviderError(f'the mail provider is unreachable ({type(error).__name__})') from None
         if response.status_code >= 400:
             raise MailProviderError(f'the mail provider refused the request ({response.status_code})', response.status_code)
-        return response.json() if response.content else {}
+        try:
+            return response.json() if response.content else {}
+        except ValueError:
+            msg = 'the mail provider answered with a body that is not JSON'
+            raise MailProviderError(msg, response.status_code) from None
 
     @api.model
     def _liwan_email(self, method, path, body=None, params=None):

@@ -23,6 +23,11 @@ const needsBaseUrl = computed(() => keyProviders.value.some(item => item.name ==
 const apiKey = ref('')
 const failure = ref('')
 const confirmingRemove = ref(false)
+// The template checker resolves `.isPending` on a mutation result against the mutation object here and
+// reports a missing `.value`; two plain computed flags keep the binding unambiguous.
+const savingPending = computed(() => saving.isPending.value)
+const removingPending = computed(() => removing.isPending.value)
+
 const busy = computed(() => !hydrated.value || saving.isPending.value || removing.isPending.value)
 const ready = computed(() => !!provider.value && model.value.trim().length > 0 && apiKey.value.length > 0 && (!needsBaseUrl.value || baseUrl.value.trim().length > 0))
 
@@ -85,13 +90,13 @@ async function removeKey() {
         :title="t('ai.settings.key.removeTitle')"
         :description="t('ai.settings.key.removeHint')"
         :confirm-label="t('ai.settings.key.remove')"
-        :pending="removing.isPending.value"
+        :pending="removingPending"
         @confirm="removeKey"
         @cancel="confirmingRemove = false"
       />
       <SharedFormActions>
         <UButton v-if="config.key.configured && !confirmingRemove" type="button" color="error" variant="outline" :label="t('ai.settings.key.remove')" :disabled="busy" @click="confirmingRemove = true" />
-        <UButton type="submit" class="ms-auto" :loading="saving.isPending.value" :disabled="busy || !ready" :label="t('ai.settings.key.save')" />
+        <UButton type="submit" class="ms-auto" :loading="savingPending" :disabled="busy || !ready" :label="t('ai.settings.key.save')" />
       </SharedFormActions>
     </form>
   </SharedRecordSection>

@@ -158,6 +158,15 @@
       ]
     },
     {
+      "reason": "Customer of one sent staff quotation under /api/v1/public/ (auth='public', no session): the quotation's own access token, compared in constant time by liwan.sales.answer, is the authorization and every refusal is the same 404; no capability applies.",
+      "routes": [
+        "liwan_sales/controllers/public.py:accept_quotation",
+        "liwan_sales/controllers/public.py:decline_quotation",
+        "liwan_sales/controllers/public.py:get_quotation",
+        "liwan_sales/controllers/public.py:quotation_pdf"
+      ]
+    },
+    {
       "reason": "Server-to-server gateway notification and payer return relayed by Nuxt (auth='public', type='http'): the stock provider controller verifies the gateway signature; no user and no capability exist.",
       "routes": [
         "liwan_payments/controllers/hooks.py:gateway_callback"

@@ -3,6 +3,7 @@ import type { ProjectCharterCatalogResource } from '@liwan/contracts'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useCharterCatalogSearch } from '@/composables/useProjectCharterCatalogs'
 import type { CharterDraft, CharterFieldKey } from '@/utils/projectCharter'
+import type { ProjectPriority } from '@liwan/contracts'
 import { CHARTER_FIELD_KEYS, PROJECT_PRIORITIES } from '@/utils/projectCharter'
 import { charterStepsForType } from '@/utils/charterSteps'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
@@ -367,7 +368,7 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
         :disabled="controlsDisabled"
         class="w-full"
         aria-labelledby="charter-priority-label"
-        @update:model-value="value => draft.priority = value === 'none' ? null : (value as typeof PROJECT_PRIORITIES[number])"
+        @update:model-value="value => draft.priority = value === 'none' ? null : (value as ProjectPriority)"
       />
     </UFormField>
 

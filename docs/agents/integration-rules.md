@@ -33,8 +33,8 @@ without asking each time, provided the evidence rules of this file hold:
 
 - commit the task's work locally on its task branch;
 - resolve a review thread after verifying the fix in the code;
-- after a merge, return the lane with `python3 -B tools/wt.py lane finish <lane>`, or remove a temporary
-  task worktree with `python3 -B tools/wt.py gc --apply`, once the content is preserved and no
+- after a merge, return the lane with `python3 -B tools/wt.py done`, or remove a temporary
+  lane with `python3 -B tools/wt.py lane remove <name>`, once the content is preserved and no
   process uses the worktree (step 6).
 
 Publication and merging need the owner's explicit words in the current conversation, each
@@ -61,7 +61,7 @@ Owner keywords:
   requested changes, then follow the six steps. It does not authorize undoing an
   earlier decision, merging unrelated worktrees or deleting recovery material.
 - «انشر» means: commit, run the checks, push the task branch, open the PR, mark it ready,
-  merge it after current-head `ci-result` is green, and return the lane (`wt lane finish`, or `wt gc` for a temporary worktree). It never means a direct push to `main`,
+  merge it after current-head `ci-result` is green, and return the lane (`wt done`, or `wt lane remove` for a temporary lane). It never means a direct push to `main`,
   a release tag or a deployment.
 - «دمج» or «ادمج» means: merge the work the owner is pointing at into `main` through its PR,
   following the six steps. These are also the words that allow enabling auto-merge on that PR.
@@ -90,9 +90,9 @@ count stays at `0`.
    and compare it with the latest committed remote policy. Inspect both
    worktrees' dirty paths and owners. Fetch `origin` without resetting a checkout
    or pruning refs; record local `main`, remote `main`, incoming branch/head,
-   PR state and active claims. Remote `main` is the publication baseline; local
+   PR state and lane holders. Remote `main` is the publication baseline; local
    `main` can be stale. Resolve policy conflicts with the current owner decision.
-2. **Prepare one candidate.** Work in a fixed lane under a recorded claim ([parallel-work.md](../parallel-work.md#fixed-lanes)). Bring the
+2. **Prepare one candidate.** Work in a lane taken with `wt take` ([parallel-work.md](../parallel-work.md#lane-pool)). Bring the
    latest remote `main` into the candidate without rebasing another owner's
    branch. Small changes made in one session or one area share one PR: each is
    its own commit on one task branch, and the PR stays in draft until the batch is
@@ -141,7 +141,7 @@ count stays at `0`.
    authorization and evidence. Cleanup is a separate action: ancestry alone
    does not preserve uncommitted, untracked or ignored files, scratch data or
    runtime state. Inspect ownership, preservation and process use, then return the
-   lane with `tools/wt.py lane finish`, or use the `tools/wt.py gc` path for a temporary task worktree.
+   lane with `tools/wt.py done`, or use `tools/wt.py lane remove` for a temporary lane.
 
 ## Local-only integration
 

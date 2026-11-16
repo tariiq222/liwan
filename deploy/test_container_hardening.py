@@ -30,7 +30,7 @@ STACKS = {
 PROXY_ADMISSION_SETTINGS = {
     'NUXT_ODOO_MAX_CONCURRENCY', 'NUXT_SESSION_CHECK_CACHE_SIZE', 'NUXT_SESSION_CHECK_CONCURRENCY',
     'NUXT_SESSION_CHECK_TTL_MS',
-    *(f'NUXT_ODOO_POOL_{pool}_{limit}' for pool in ('SESSION', 'PUBLIC', 'BOOKING', 'HEAVY')
+    *(f'NUXT_ODOO_POOL_{pool}_{limit}' for pool in ('SESSION', 'PUBLIC', 'BOOKING', 'HEAVY', 'PDF')
       for limit in ('ACTIVE', 'QUEUED')),
 }
 

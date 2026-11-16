@@ -222,6 +222,11 @@ class LiwanMailDomain(models.Model):
         _logger.warning('mail domain %s: provider call failed: %s', self.id, type(error).__name__)
         self.last_error = self.env._('The mail provider did not answer; the check is retried automatically.')
 
+    def _liwan_mark_taken(self):
+        """The domain is held by another tenant (it was free when this one started): the row fails with that reason."""
+        _logger.warning('mail domain %s: the domain is held by another tenant', self.id)
+        self.write({'state': 'failed', 'last_error': self.env._('This domain is already registered.')})
+
     def _liwan_lock(self):
         """Lock the row for this transaction, or raise ``MailDomainBusy`` when another one (the cron, a route) holds it."""
         self.ensure_one()
@@ -231,8 +236,13 @@ class LiwanMailDomain(models.Model):
     def _liwan_check(self):
         """Ask the provider for the state and move the row: verified, back to pending, failed, or a new return path."""
         self._liwan_lock()
-        if self.state == 'pending_dns' and not self._liwan_progress():
-            return
+        if self.state == 'pending_dns':
+            try:
+                if not self._liwan_progress():
+                    return
+            except MailDomainTaken:
+                self._liwan_mark_taken()
+                return
         try:
             status = self._liwan_provider().check(self)
         except MailProviderError as error:
@@ -372,9 +382,6 @@ class LiwanMailDomain(models.Model):
                         row._liwan_check()
             except MailDomainBusy:
                 _logger.info('mail domain %s: busy, checked on the next run', row.id)
-            except MailDomainTaken:
-                _logger.warning('mail domain %s: the domain is held by another tenant', row.id)
-                row.write({'state': 'failed', 'last_error': self.env._('This domain is already registered.')})
             except MailProviderError as error:
                 row._liwan_provider_failed(error)
 

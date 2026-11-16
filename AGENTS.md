@@ -58,10 +58,10 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
   canonical local development checkout is `/Users/tariq/code/liwan` on `main`.
-- Develop in the four fixed lanes under `.worktrees/` (owner decision 2026-11-13): Claude sessions in
-  `claude-1` and `claude-2`, Codex sessions in `codex-1` and `codex-2`, on task branches (any normal
-  branch name) started there from current `origin/main`. The main checkout stays on `main` for the owner;
-  no agent develops in it. Give each session explicit file ownership (its claim). One orchestrator owns
+- Develop in a lane from the pool under `.worktrees/` (owner decision 2026-11-16): one task, one branch, one
+  lane, one writing session, whichever tool runs it. Take a lane with `npm run wt -- take <branch> --owner <who>`;
+  the branch starts from current `origin/main` (any normal branch name). The main checkout stays on `main` for
+  the owner; no agent develops in it. Give each session explicit file ownership. One orchestrator owns
   Git integration, shared-file edits, runtime changes, and final checks.
 - Preserve stock Odoo source. Extend `project` through `liwan_pmo` and `hr`
   through `liwan_hr`. Do not recreate either pillar.
@@ -75,7 +75,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   older WIP describe their own checkpoints, not the current source state.
 - When reviewing a diff, follow `REVIEW.md` (what to report and what is already automated).
 - Never run tests on `liwan_dev` or `odoo19`. A local commit on the task branch and returning the lane
-  after a merge (`wt lane finish`, or `wt gc` for a temporary worktree) fall under the standing authorization in
+  after a merge (`wt done`, or `wt lane remove` for a temporary lane) fall under the standing authorization in
   [integration-rules.md](docs/agents/integration-rules.md). Push, opening a PR, marking it ready, merging and
   auto-merge each need the owner's explicit words in the current conversation (owner decision 2026-11-11), as do
   deploying, release tags, force-push, direct push to `main` and discarding work.
@@ -365,20 +365,18 @@ cross-addon links.
 
 ## Safe lane workflow
 
-Work happens in four permanent worktrees, the fixed lanes `claude-1`, `claude-2`, `codex-1` and `codex-2`
-in `<main checkout>/.worktrees/`. A Claude session uses only the `claude-*` lanes and a Codex session only
-the `codex-*` lanes; the first lane of each tool carries the batch of small and medium tasks, the second
-one long or sensitive task. A lane holds one branch at a time: `npm run wt -- lane start <lane> <branch>`
-starts it from `origin/main` and `npm run wt -- lane finish <lane>` returns the lane after the merge.
-Several sessions may share a lane's branch. Each one records its paths with
-`npm run wt -- claim --owner <session> --task <what> --scope <path>`, commits only those paths with
-`LIWAN_SESSION=<session> git commit -m "<subject>" -- <paths>`, and never switches the lane's branch.
-Overlapping another active claim needs `--allow-overlap "<reason>"` agreed with its owner.
-`npm run wt -- check` reports violations and changes nothing; the full rules are in
-`docs/parallel-work.md` ("Fixed lanes").
+Work happens in a pool of lanes: permanent worktrees in `<main checkout>/.worktrees/`, any tool, no fixed
+names. A lane holds one branch and one writing session at a time. `npm run wt -- take <branch> --owner <who>`
+takes a resting lane and starts the branch from `origin/main` (or resumes a parked local branch),
+`npm run wt -- done` returns it after the merge (`--park` keeps the branch and rests the lane), and
+`npm run wt -- lane add <name>` adds a lane when none is free. Each tool is opened with the lane folder as its
+working directory and its built-in worktree option off. Inside its lane a session may use any git command on its
+own unpublished branch. Read-only and review sessions take no lane. `npm run wt -- check` reports violations
+and changes nothing; the full rules are in `docs/parallel-work.md` ("Lane pool").
 
-Never create another worktree: no `wt new`, bare `git worktree add` or tool-owned worktree folder (the
-Claude app's `worktrees` folder under `.claude`) unless the owner asks for one in words for that task.
+Never create another worktree: no bare `git worktree add` or tool-owned worktree folder (the
+Claude app's `worktrees` folder under `.claude`) unless the owner asks for one in words for that task; it is then a lane too (`wt lane add`, removed with
+`wt lane remove` after the merge). During a rebase the pre-commit guard compares the rebase's branch to the lane record.
 Lanes have independent `node_modules` and
 `.nuxt` (never symlinked); install with `npm ci --ignore-scripts`. Ports, databases and Odoo/Nuxt
 endpoints come from the lane's `.env.worktree` profile, not from command-line overrides.

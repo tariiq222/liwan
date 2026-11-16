@@ -376,7 +376,7 @@
       "domain": "Domain",
       "domainPlaceholder": "example.com",
       "localPart": "Sender name",
-      "localPartHint": "The part before @ in the address, such as info.",
+      "localPartHint": "The part before {'@'} in the address, such as info.",
       "start": "Start verification",
       "state": {
         "not_started": "Not started",
@@ -385,7 +385,6 @@
         "failed": "Verification failed"
       },
       "records": {
-        "title": "Required DNS records",
         "hint": "Add these three records at your DNS host, then press Verify. They can take a few hours to appear.",
         "name": "Name",
         "value": "Value",
@@ -396,14 +395,9 @@
           "spf": "SPF record",
           "return_path": "Return path"
         },
-        "type": {
-          "CNAME": "CNAME",
-          "TXT": "TXT"
-        },
         "preparing": "The records are being prepared. Refresh shortly."
       },
       "verify": "Verify now",
-      "verifying": "Verifying",
       "verifyStillPending": "The records have not appeared yet. Try again later.",
       "verifiedToast": "The domain is verified",
       "returnPathLeft": "{hours} hours left before the return path record expires.",

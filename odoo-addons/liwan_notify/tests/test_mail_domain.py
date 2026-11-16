@@ -1,10 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
 import hashlib
+import os
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from cryptography.hazmat.primitives import hashes
+import requests
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from odoo import fields
@@ -18,7 +20,12 @@ from odoo.addons.liwan_notify.models.mail_domain import (
     MailDomainBusy,
     MailDomainInputError,
 )
-from odoo.addons.liwan_notify.models.mail_domain_oci import signed_headers
+from odoo.addons.liwan_notify.models.mail_domain_oci import (
+    FINGERPRINT_ENV,
+    PRIVATE_KEY_ENV,
+    REQUIRED_ENV,
+    signed_headers,
+)
 from odoo.addons.liwan_notify.models.mail_domain_provider import (
     MailDomainTaken,
     MailProviderError,
@@ -353,9 +360,6 @@ class TestMailDomainRecovery(DomainFixture, TransactionCase):
         original = type(self.domains)._liwan_check
 
         def check(record):
-            if record == first:
-                msg = 'held elsewhere'
-                raise MailDomainTaken(msg, 409)
             if record == second:
                 msg = 'provider down'
                 raise MailProviderError(msg, 500)
@@ -367,10 +371,49 @@ class TestMailDomainRecovery(DomainFixture, TransactionCase):
         })
         for domain in ('beta.example', 'gamma.example'):
             self.env['liwan.mail.domain.attempt']._liwan_begin(domain)
+        first.write({'provider_domain_id': False})
+        self.provider.taken.add('acme.example')
         self.domains._liwan_cron_verify()
         self.assertEqual(first.state, 'failed')
         self.assertTrue(second.last_error)
         self.assertTrue(third.provider_domain_id)
+
+    def _two_pending_rows(self):
+        rows = self.domains._liwan_start('acme.example', 'info')
+        other_company = self.env['res.company'].create({'name': 'Second tenant root'})
+        second = self.domains.create({
+            'company_id': other_company.id, 'domain': 'beta.example', 'from_local_part': 'info', 'state': 'pending_dns',
+        })
+        self.env['liwan.mail.domain.attempt']._liwan_begin('beta.example')
+        return rows, second
+
+    def _oci_with_key(self, pem):
+        env = {name: 'value' for name in REQUIRED_ENV}
+        env[FINGERPRINT_ENV] = 'aa:bb'
+        env[PRIVATE_KEY_ENV] = pem
+        self.patch(os, 'environ', {**os.environ, **env})
+        oci = self.env['liwan.mail.domain.provider.oci']
+        self.patch(type(self.domains), '_liwan_provider', lambda model: oci)
+
+    def test_the_cron_continues_past_a_malformed_provider_key(self):
+        first, second = self._two_pending_rows()
+        self._oci_with_key('not a pem key')
+        self.domains._liwan_cron_verify()
+        self.assertTrue(first.last_error and second.last_error)
+        self.assertNotIn('not a pem key', f'{first.last_error}{second.last_error}')
+
+    def test_the_cron_continues_past_a_non_json_provider_answer(self):
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        self._oci_with_key(key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption(),
+        ).decode())
+        first, second = self._two_pending_rows()
+        answer = requests.Response()
+        answer.status_code = 200
+        answer._content = b'<html>gateway page</html>'
+        with patch('odoo.addons.liwan_notify.models.mail_domain_oci.requests.request', return_value=answer):
+            self.domains._liwan_cron_verify()
+        self.assertTrue(first.last_error and second.last_error)
 
     def _attempt(self, domain='acme.example'):
         return self.env['liwan.mail.domain.attempt']._liwan_for(domain)
@@ -763,6 +806,17 @@ class TestMailDomainRoutes(DomainFixture, LiwanApiCase):
         self.assertTrue(all(record['name'] and record['value'] for record in body['records']))
         self.assertNotIn('x.acme.example', [record['name'] for record in body['records']])
 
+    def test_verify_after_the_name_was_taken_answers_the_failed_row(self):
+        self._login()
+        self.provider.fail_at = 'domain'
+        self.api('POST', f'{ROUTE}/start', {'domain': 'acme.example', 'from_local_part': 'info'})
+        self.provider.fail_at = None
+        self.provider.taken.add('acme.example')
+        response = self.api('POST', f'{ROUTE}/verify', {})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['state'], 'failed')
+        self.assertTrue(response.json()['last_error'])
+
     def test_a_busy_domain_answers_409(self):
         self._login()
         self.api('POST', f'{ROUTE}/start', {'domain': 'acme.example', 'from_local_part': 'info'})
@@ -770,6 +824,37 @@ class TestMailDomainRoutes(DomainFixture, LiwanApiCase):
         for method, path in (('POST', f'{ROUTE}/verify'), ('DELETE', ROUTE)):
             response = self.api(method, path, {} if method == 'POST' else None)
             self.assertEqual((response.status_code, response.json()['code']), (409, 'busy'))
+
+    def _every_route(self):
+        return (
+            ('GET', ROUTE, None), ('POST', f'{ROUTE}/start', {'domain': 'acme.example', 'from_local_part': 'info'}),
+            ('POST', f'{ROUTE}/verify', {}), ('POST', f'{ROUTE}/test-send', {}), ('DELETE', ROUTE, None),
+            ('GET', f'{ROUTE}/usage', None),
+        )
+
+    def test_every_route_is_closed_when_the_registry_holds_no_kind(self):
+        self._login()
+        self.patch(type(self.env['liwan.notify.registry']), '_liwan_notification_types', lambda model: ())
+        for method, path, body in self._every_route():
+            response = self.api(method, path, body)
+            self.assertEqual((response.status_code, response.json()['code']), (403, 'feature_not_included'), path)
+            self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': None}, path)
+
+    def test_a_read_only_tenant_keeps_the_reads_and_refuses_the_writes(self):
+        self._login()
+        self.patch(type(self.env['liwan.entitlement.service']), '_liwan_effective_state', lambda model, profile=None: 'payment_suspended')
+        for method, path, body in self._every_route():
+            response = self.api(method, path, body)
+            if method == 'GET':
+                self.assertEqual(response.status_code, 200, path)
+            else:
+                self.assertEqual((response.status_code, response.json()['code']), (403, 'tenant_read_only'), path)
+
+    def test_a_suspended_tenant_is_refused(self):
+        self._login()
+        self.patch(type(self.env['liwan.entitlement.service']), '_liwan_effective_state', lambda model, profile=None: 'suspended')
+        response = self.api('GET', ROUTE)
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'tenant_suspended'))
 
     def test_the_return_path_route_is_gone(self):
         self._login()

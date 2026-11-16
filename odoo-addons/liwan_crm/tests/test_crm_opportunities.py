@@ -15,7 +15,7 @@ URL = '/api/v1/crm/opportunities'
 AUDIT_URL = '/api/v1/crm/audit/views'
 OPPORTUNITY_KEYS = {
     'id', 'contact_name', 'phone', 'email', 'notes', 'stage', 'user', 'source', 'customer', 'package', 'lost_reason', 'status',
-    'list_price', 'discount_percent', 'final_price', 'expected_revenue', 'probability', 'attempt_count',
+    'win_by_order', 'can_quote', 'list_price', 'discount_percent', 'final_price', 'expected_revenue', 'probability', 'attempt_count',
     'next_call_at', 'cycle', 'recycle_at', 'needs_manager', 'active', 'created_at', 'properties',
 }
 TRACKED = (

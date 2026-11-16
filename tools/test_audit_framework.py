@@ -187,6 +187,30 @@ class ReviewedFalsePositives(unittest.TestCase):
         self.assertNotIn(('not-reviewed-rule', 'x.py'), stages.semgrep_reviewed())
 
 
+class EvidenceLocation(unittest.TestCase):
+    """Evidence must outlive the lane that produced it."""
+
+    def test_the_default_root_is_the_canonical_checkout_not_a_lane(self):
+        root = engine.evidence_root()
+        self.assertNotIn('/.worktrees/', str(root), 'evidence would die with the lane: %s' % root)
+        self.assertEqual(root.name, '.audit')
+
+    def test_an_override_wins(self):
+        previous = __import__('os').environ.get('LIWAN_AUDIT_DIR')
+        __import__('os').environ['LIWAN_AUDIT_DIR'] = '/tmp/liwan-audit-test'
+        try:
+            self.assertEqual(engine.evidence_root(), Path('/tmp/liwan-audit-test').resolve())
+        finally:
+            if previous is None:
+                del __import__('os').environ['LIWAN_AUDIT_DIR']
+            else:
+                __import__('os').environ['LIWAN_AUDIT_DIR'] = previous
+
+    def test_the_gitignore_keeps_evidence_out_of_the_tree(self):
+        text = (AUDIT.parents[1] / '.gitignore').read_text(encoding='utf-8')
+        self.assertIn('.audit/', text)
+
+
 class ReportHonesty(unittest.TestCase):
     def test_a_not_verified_probe_is_never_scored(self):
         import coverage
