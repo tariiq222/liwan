@@ -31,7 +31,7 @@ const journals = [
 
 const line = (id, name, quantity, price, discount = 0, taxed = true) => {
   const subtotal = quantity * price * (1 - discount / 100)
-  return { id, name, account: { id: 40, name: 'إيرادات المبيعات' }, quantity, price_unit: price, discount, taxes: taxed ? [{ id: 1, name: 'ضريبة القيمة المضافة 15%' }] : [], price_subtotal: subtotal, price_total: taxed ? subtotal * 1.15 : subtotal, analytic_distribution: [], asset_profile: null, asset: null }
+  return { id, name, product: null, account: { id: 40, name: 'إيرادات المبيعات' }, quantity, price_unit: price, discount, taxes: taxed ? [{ id: 1, name: 'ضريبة القيمة المضافة 15%' }] : [], price_subtotal: subtotal, price_total: taxed ? subtotal * 1.15 : subtotal, analytic_distribution: [], asset_profile: null, asset: null }
 }
 
 const submission = (state, extra = {}) => ({ state, mode: state === 'not_applicable' ? null : 'clearance', errors: [], warnings: [], qr_present: state === 'accepted', retry_count: 0, last_attempt_at: null, next_retry_at: null, ...extra })
@@ -87,6 +87,9 @@ export const financeDocuments = [
 ]
 // A draft debit note shows the origin link on its record page.
 financeDocuments.push(document(17, 'out_invoice', 'draft', 'not_paid', ACME, [line(18, 'إشعار مدين على الفاتورة', 1, 400)], { debit_origin: { id: 2, name: financeDocuments[1].name } }))
+
+// A draft sale invoice line may name a product of the products service (products-mock-routes.mjs, id 1).
+Object.assign(financeDocuments[0].lines[0], { product: { id: 1, name: 'باقة أساسية' } })
 
 // A posted vendor bill that capitalised its line into an asset shows the asset link on its record page.
 Object.assign(financeDocuments[10].lines[0], { asset_profile: { id: 1, name: 'أجهزة حاسب - 3 سنوات' }, asset: { id: 1, name: 'أجهزة حاسب - الدفعة الأولى' } })

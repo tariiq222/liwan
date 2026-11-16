@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FinanceInvoiceCreateSchema, FinanceInvoicePatchSchema, type FinanceInvoiceDetail } from '@liwan/contracts'
 import {
+  applyLineProduct,
   buildInvoiceCreate,
   buildInvoicePatch,
   buildLinePayload,
@@ -11,6 +12,7 @@ import {
   lineSubtotal,
   newLine,
   offersAssetProfile,
+  offersProduct,
   validateInvoiceDraft,
 } from '../invoiceLines'
 
@@ -135,5 +137,66 @@ describe('the asset profile of a line', () => {
     const line = { ...newLine(), name: 'Laptop', priceUnit: '4000' }
     expect(buildLinePayload(line)).not.toHaveProperty('asset_profile_id')
     expect(buildLinePayload({ ...line, assetProfileId: 9 })).toMatchObject({ asset_profile_id: 9 })
+  })
+})
+
+const SAR = { name: 'SAR' }
+
+describe('a product on a line', () => {
+  it('only customer invoices and credit notes offer one', () => {
+    expect(['out_invoice', 'out_refund', 'in_invoice', 'in_refund'].map(type => offersProduct(type as never))).toEqual([true, true, false, false])
+  })
+
+  it('picking fills the label and the unit price, hands the taxes back to the server and sends the product', () => {
+    const line = { ...newLine(), name: 'old', priceUnit: '5', taxIds: [3], noTax: true }
+    applyLineProduct(line, { id: 9, name: 'Audit', unit_price: 120.5, currency: SAR }, null)
+    expect(line).toMatchObject({ productId: 9, productName: 'Audit', name: 'Audit', priceUnit: '120.5', taxIds: null, noTax: false })
+    const payload = buildLinePayload(line)
+    expect(payload).toMatchObject({ product_id: 9, name: 'Audit', price_unit: 120.5 })
+    expect(payload).not.toHaveProperty('tax_ids')
+  })
+
+  it('a document in the pick currency copies the price, one in another currency leaves it for the server', () => {
+    const same = newLine()
+    applyLineProduct(same, { id: 9, name: 'Audit', unit_price: 200, currency: SAR }, 'SAR')
+    expect(same.priceUnit).toBe('200')
+    const foreign = newLine()
+    applyLineProduct(foreign, { id: 9, name: 'Audit', unit_price: 200, currency: SAR }, 'USD')
+    expect(foreign).toMatchObject({ productId: 9, name: 'Audit', priceUnit: '' })
+    const payload = buildLinePayload(foreign)
+    expect(payload).toMatchObject({ product_id: 9, name: 'Audit' })
+    expect(payload).not.toHaveProperty('price_unit')
+    expect(validateInvoiceDraft({ ...emptyInvoiceDraft(), partnerId: 1, currency: 'USD', lines: [foreign] }).lines[0]).toEqual({})
+  })
+
+  it('a blank price is an error on a line with no product', () => {
+    const line = { ...newLine(), name: 'x', priceUnit: '' }
+    expect(validateInvoiceDraft({ ...emptyInvoiceDraft(), partnerId: 1, lines: [line] }).lines[0]).toEqual({ priceUnit: true })
+  })
+
+  it('dropping the product keeps the label and price and returns the taxes to the plain-line default', () => {
+    const line = { ...newLine(), name: 'Audit', priceUnit: '120', taxIds: [3], noTax: true }
+    applyLineProduct(line, { id: 9, name: 'Audit', unit_price: 120, currency: SAR }, null)
+    line.noTax = true
+    applyLineProduct(line, null, null)
+    expect(line).toMatchObject({ productId: null, productName: '', name: 'Audit', priceUnit: '120', taxIds: null, noTax: false })
+    const payload = buildLinePayload(line)
+    expect(payload).not.toHaveProperty('product_id')
+    expect(payload).not.toHaveProperty('tax_ids')
+  })
+
+  it('a loaded line keeps its product and its taxes, and the body satisfies the contract', () => {
+    const invoice = {
+      id: 1, name: '', move_type: 'out_invoice', state: 'draft', payment_state: 'not_paid', partner: { id: 5, name: 'P' }, journal: { id: 1, name: 'J' },
+      invoice_date: null, invoice_date_due: null, payment_term: null, currency: 'SAR', amount_untaxed: 0, amount_tax: 0, amount_total: 0, amount_residual: 0,
+      ref: '', debit_origin: null, credit_origin: null, zatca: null, allowed_actions: [], blocked_actions: [],
+      lines: [{
+        id: 3, name: 'Audit', product: { id: 9, name: 'Audit' }, account: null, quantity: 1, price_unit: 100, discount: 0, taxes: [{ id: 2, name: 'VAT' }],
+        price_subtotal: 100, price_total: 115, analytic_distribution: [], asset_profile: null, asset: null,
+      }],
+    } as FinanceInvoiceDetail
+    const draft = invoiceDraftFromRecord(invoice)
+    expect(draft.lines[0]).toMatchObject({ productId: 9, productName: 'Audit', taxIds: [2] })
+    expect(FinanceInvoicePatchSchema.parse(buildInvoicePatch(draft)).lines?.[0]).toMatchObject({ product_id: 9, tax_ids: [2] })
   })
 })

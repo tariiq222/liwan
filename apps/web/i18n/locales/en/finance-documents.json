@@ -118,7 +118,15 @@
       "noPaymentTerm": "No payment term",
       "assetProfile": "Asset profile",
       "noAssetProfile": "No fixed asset",
-      "assetProfileHint": "Posting the bill creates a fixed asset from this line with the profile settings."
+      "assetProfileHint": "Posting the bill creates a fixed asset from this line with the profile settings.",
+      "product": "Product",
+      "productNone": "No product",
+      "productPick": "Pick a product",
+      "productChange": "Change product",
+      "productRemove": "Remove product",
+      "productSearch": "Search a product for the line",
+      "productHint": "Picking a product fills the description and unit price and adds the product's tax. Removing the product returns the line's tax to the account's default and keeps the description and price. All of them stay editable.",
+      "priceFromProduct": "From the product on save"
     },
     "record": {
       "taxes": "Taxes",
@@ -135,7 +143,8 @@
       "blockedByPaymentsHint": "The document cannot be cancelled or reset to draft until its payments are cancelled or reset to draft.",
       "viewPayments": "View payments",
       "asset": "Asset: {name}",
-      "assetProfile": "Asset profile: {name}"
+      "assetProfile": "Asset profile: {name}",
+      "product": "Product: {name}"
     },
     "actions": {
       "post": "Post",
