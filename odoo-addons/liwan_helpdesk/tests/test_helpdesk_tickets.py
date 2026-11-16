@@ -220,3 +220,38 @@ class TicketApiTest(LiwanHelpdeskCase):
         own = self.ticket_body(subject='Mine', description='Only mine.')
         seen = self.api('GET', f'/api/v1/helpdesk/tickets/{own["id"]}').json()
         self.assertIsNone(seen['portal_link'])
+
+    def test_the_engine_english_stages_do_not_apply_to_every_team(self):
+        """The engine treats a teamless stage as applicable everywhere; the install hook ties its six to the seeded team."""
+        engine = self.env['helpdesk.ticket.stage'].search([
+            ('company_id', '=', self.company.id), ('name', 'in',
+                                                  ['New', 'In Progress', 'Awaiting', 'Done', 'Cancelled', 'Rejected']),
+        ])
+        if not engine:
+            self.skipTest('this database installed the engine before the hook bound its stages')
+        applicable = self.team._get_applicable_stages()
+        self.assertFalse(engine & applicable, 'an engine stage still applies to the seeded team')
+        self.assertTrue(applicable, 'the seeded Arabic stages must stay applicable')
+
+    def test_every_write_answers_the_detail_shape_the_screen_parses(self):
+        """The client's schema is strict: a write that omitted the attachments would land and then report failure."""
+        self.as_user(self.agent)
+        ticket = self.ticket_body(customer_id=self.customer.id)
+        created_keys = {'attachments', 'portal_link', 'related', 'first_response', 'description'}
+        self.assertLessEqual(created_keys, set(ticket))
+        updated = self.api('PATCH', f'/api/v1/helpdesk/tickets/{ticket["id"]}',
+                           json={'subject': 'Printer is down (again)'})
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertLessEqual(created_keys, set(updated.json()))
+        # Every answering route returns the detail shape: a write that omitted the attachments would land on the
+        # server and then fail the client's strict schema, so the screen would report failure for a saved change.
+        staged = self.api('POST', f'/api/v1/helpdesk/tickets/{ticket["id"]}/stage',
+                          json={'stage_id': self.team._get_applicable_stages()[1].id})
+        self.assertEqual(staged.status_code, 200, staged.text)
+        self.assertLessEqual(created_keys, set(staged.json()), 'stage')
+        # Closing and reopening are the supervisor's right, not the agent's.
+        self.as_user(self.supervisor)
+        for action in ('close', 'reopen'):
+            response = self.api('POST', f'/api/v1/helpdesk/tickets/{ticket["id"]}/{action}', json={})
+            self.assertEqual(response.status_code, 200, '%s: %s' % (action, response.text))
+            self.assertLessEqual(created_keys, set(response.json()), action)

@@ -60,11 +60,15 @@ def can_read_type():
 
 
 def detail(ticket):
-    """The ticket's detail body; the customer's link only for whoever may write the ticket."""
+    """The ticket's detail body, the same shape for a read and for every write.
+
+    A write answers the full detail so the screen can replace its copy at once; the attachments and the customer's link
+    belong to it. The link is issued only for whoever may write the ticket, since it is their tool to send.
+    """
     link = None
     if WRITE in request.env['liwan.access.service']._liwan_capability_keys(request.env.user):
         link = request.env['liwan.helpdesk.portal']._liwan_link(ticket)
-    return dump_ticket(ticket, settings(), can_read_type(), link)
+    return {**dump_ticket(ticket, settings(), can_read_type(), link), 'attachments': attachments(ticket)}
 
 
 def find(ticket_id, *capabilities):
@@ -143,7 +147,7 @@ class HelpdeskTicketsController(http.Controller):
     @requires_capability(READ, REQUESTS_READ, match='any')
     def get_ticket(self, ticket_id, **_):
         ticket = find(ticket_id)
-        return {**detail(ticket), 'attachments': attachments(ticket)}
+        return detail(ticket)
 
     @http.route('/api/v1/helpdesk/tickets', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -152,7 +156,7 @@ class HelpdeskTicketsController(http.Controller):
         require_capabilities(WRITE, REQUESTS_CREATE, match='any')
         values = parse_create(body())
         ticket = service()._liwan_create(values)
-        return dump_ticket(ticket, settings(), can_read_type())
+        return detail(ticket)
 
     @http.route('/api/v1/helpdesk/tickets/<int:ticket_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

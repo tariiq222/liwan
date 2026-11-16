@@ -71,6 +71,8 @@ const stageItems = computed(() => (reference.data.value?.stages ?? []).map(stage
 const teamItems = computed(() => [{ value: 0, label: t('helpdesk.form.none') }, ...(reference.data.value?.teams ?? []).map(team => ({ value: team.id, label: team.name }))])
 const busy = computed(() => settings.isLoading.value || save.isPending.value)
 const canManage = computed(() => can('helpdesk.settings.manage'))
+// Every control of the policy card is read-only without the manage key, not merely while a save is in flight.
+const locked = computed(() => busy.value || !canManage.value)
 
 async function submit() {
   message.value = ''
@@ -98,7 +100,7 @@ function revert() {
           <SharedSettingsCard
             id="helpdesk-policy"
             :title="t('helpdesk.settings.policyTitle')"
-            :can-edit="can('helpdesk.settings.manage')"
+            :can-edit="canManage"
             :dirty="dirty"
             :saving="save.isPending.value"
             :message="message"
@@ -107,34 +109,34 @@ function revert() {
             @revert="revert"
           >
             <UFormField :label="t('helpdesk.settings.preset')" name="helpdesk-preset" :help="t('helpdesk.settings.presetHint')">
-              <USelect v-model="draft.preset" class="w-full" :items="presetItems" :disabled="busy" data-testid="helpdesk-settings-preset" />
+              <USelect v-model="draft.preset" class="w-full" :items="presetItems" :disabled="locked" data-testid="helpdesk-settings-preset" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.visibility')" name="helpdesk-visibility" :help="t('helpdesk.settings.visibilityHint')">
-              <USelect v-model="draft.visibility" class="w-full" :items="visibilityItems" :disabled="busy" data-testid="helpdesk-settings-visibility" />
+              <USelect v-model="draft.visibility" class="w-full" :items="visibilityItems" :disabled="locked" data-testid="helpdesk-settings-visibility" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.defaultTeam')" name="helpdesk-team">
-              <USelect :model-value="draft.default_team_id ?? 0" class="w-full" :items="teamItems" :disabled="busy" data-testid="helpdesk-settings-team" @update:model-value="value => { draft.default_team_id = Number(value) || null }" />
+              <USelect :model-value="draft.default_team_id ?? 0" class="w-full" :items="teamItems" :disabled="locked" data-testid="helpdesk-settings-team" @update:model-value="value => { draft.default_team_id = Number(value) || null }" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.defaultPriority')" name="helpdesk-priority">
-              <USelect v-model="draft.default_priority" class="w-full" :items="priorityItems" :disabled="busy" data-testid="helpdesk-settings-priority" />
+              <USelect v-model="draft.default_priority" class="w-full" :items="priorityItems" :disabled="locked" data-testid="helpdesk-settings-priority" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.prefix')" name="helpdesk-prefix" :help="t('helpdesk.settings.prefixHint')">
-              <UInput v-model="draft.reference_prefix" class="w-full" :maxlength="10" :disabled="busy" data-testid="helpdesk-settings-prefix" />
+              <UInput v-model="draft.reference_prefix" class="w-full" :maxlength="10" :disabled="locked" data-testid="helpdesk-settings-prefix" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.reopenDays')" name="helpdesk-reopen" :help="t('helpdesk.settings.reopenHint')">
-              <UInputNumber v-model="draft.reopen_days" class="w-full" :min="0" :max="90" :disabled="busy" data-testid="helpdesk-settings-reopen" />
+              <UInputNumber v-model="draft.reopen_days" class="w-full" :min="0" :max="90" :disabled="locked" data-testid="helpdesk-settings-reopen" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.firstResponse')" name="helpdesk-first-response" :help="t('helpdesk.settings.firstResponseHint')">
-              <UInputNumber v-model="draft.first_response_hours" class="w-full" :min="0" :max="720" :disabled="busy" data-testid="helpdesk-settings-first-response" />
+              <UInputNumber v-model="draft.first_response_hours" class="w-full" :min="0" :max="720" :disabled="locked" data-testid="helpdesk-settings-first-response" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.resolution')" name="helpdesk-resolution" :help="t('helpdesk.settings.resolutionHint')">
-              <UInputNumber v-model="draft.resolution_hours" class="w-full" :min="0" :max="8760" :disabled="busy" data-testid="helpdesk-settings-resolution" />
+              <UInputNumber v-model="draft.resolution_hours" class="w-full" :min="0" :max="8760" :disabled="locked" data-testid="helpdesk-settings-resolution" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.portalEnabled')" name="helpdesk-portal" :help="t('helpdesk.settings.portalEnabledHint')">
-              <USwitch v-model="draft.portal_enabled" :disabled="busy" data-testid="helpdesk-settings-portal" />
+              <USwitch v-model="draft.portal_enabled" :disabled="locked" data-testid="helpdesk-settings-portal" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.autoCloseDays')" name="helpdesk-auto-close" :help="t('helpdesk.settings.autoCloseDaysHint')">
-              <UInputNumber :model-value="draft.auto_close_days" class="w-full" :min="0" :max="365" :disabled="busy" data-testid="helpdesk-settings-auto-close" @update:model-value="value => { draft.auto_close_days = Number(value ?? 0) }" />
+              <UInputNumber :model-value="draft.auto_close_days" class="w-full" :min="0" :max="365" :disabled="locked" data-testid="helpdesk-settings-auto-close" @update:model-value="value => { draft.auto_close_days = Number(value ?? 0) }" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.autoCloseStages')" name="helpdesk-auto-close-stages" :help="t('helpdesk.settings.autoCloseStagesHint')">
               <USelectMenu v-model="draft.auto_close_stage_ids" :items="stageItems" multiple value-key="value" class="w-full" data-testid="helpdesk-settings-auto-close-stages" />
