@@ -38,12 +38,17 @@ below is the sender of every tenant.
   Odoo, so an account link is marked `failed`, not lost. There is no retry queue: that is Odoo's concern.
 - The upstream leg requires STARTTLS and verifies the certificate and host name. A server without STARTTLS is refused
   (454); there is no plaintext fallback. Authentication is optional and used only over that TLS session.
-- Sender policy: the envelope sender and the single `From` header must both be `ODOO_MAIL_SENDER`, and any `Sender`,
-  `Resent-From`, `Resent-Sender` or `Return-Path` header must name it too (an empty `Return-Path` is allowed). Otherwise
-  the relay answers 553 or 554 and sends nothing. It rejects instead of rewriting, so a message is never delivered under
-  an identity its author did not pick and a misconfiguration shows up in Odoo's log. **The display name is not checked**:
-  a tenant-controlled name such as `"Acme Billing" <no-reply@liwanos.com>` passes, so a name that impersonates someone
-  is possible wherever the sending code lets a tenant choose it.
+- Sender policy: the envelope sender, the single `From` header and any `Sender`, `Resent-From`, `Resent-Sender` or
+  `Return-Path` header must name ONE same address (an empty `Return-Path` is allowed). That address is accepted when it
+  is `ODOO_MAIL_SENDER`, or when its domain is not reserved and not a subdomain of a reserved domain. The domain of
+  `ODOO_MAIL_SENDER` is always reserved, so only the platform address sends as `liwanos.com`, and `x@mail.liwanos.com`
+  is refused. A refused envelope sender is answered 553, a mismatching header 554, and nothing is sent. The relay
+  rejects instead of rewriting, so a message is never delivered under an identity its author did not pick.
+  Addresses are compared lower-case. A domain must be lower-case ASCII labels with at least one dot (no IDN forms).
+  **The display name is not checked**: a tenant-controlled name such as `"Acme Billing" <no-reply@liwanos.com>`
+  passes, so a name that impersonates someone is possible wherever the sending code lets a tenant choose it.
+  The relay has no database and cannot know which tenant owns a domain. The provider refuses a domain that is not
+  verified in the tenancy, and Odoo checks the tenant's own verified domain on every send.
 - Strict text. The data must be CRLF lines ending with `CRLF.CRLF`. A bare CR, a bare LF, a NUL byte or any other
   terminator refuses the message (554) and closes the connection (SMTP smuggling). The header block is parsed by hand:
   every line is `Name: value` with a token name and no space before the colon, or a continuation; one `From` with one
@@ -95,8 +100,31 @@ refuse-everything mode (554 `the mail relay is not configured`), never as an ope
 | --- | --- |
 | `ODOO_MAIL_SENDER` | The one platform address, for example `no-reply@liwanos.com`. It must be an approved sender at the provider |
 | `ODOO_MAIL_UPSTREAM_HOST` | The send-only provider's SMTP host (OCI Email Delivery in Jeddah) |
+| `ODOO_MAIL_RESERVED_DOMAINS` | Comma-separated lower-case domains no tenant may send from, with their subdomains. Optional; the domain of `ODOO_MAIL_SENDER` is always reserved. A malformed value stops the relay at start |
 | `ODOO_MAIL_UPSTREAM_PORT` | Default `587` (STARTTLS) |
 | `ODOO_MAIL_UPSTREAM_USER`, `ODOO_MAIL_UPSTREAM_PASSWORD` | The provider's SMTP credentials; both or neither |
+
+### Tenant mail domains (OCI API key)
+
+A tenant sends from its own domain only after the domain is verified at OCI and in Odoo: `liwan_notify` creates the
+email domain, DKIM, return path and log through OCI, shows the DNS records, and on verification writes the
+per-database `mail.default.from_filter`. Odoo reaches OCI through `odoo-egress` (the two hosts in
+`docs/operations/odoo-egress.md`). The calls are signed with one operator API key, passed to the Odoo service
+from `deploy/.env`:
+
+| Variable | Meaning |
+| --- | --- |
+| `LIWAN_OCI_EMAIL_REGION` | Default `me-jeddah-1` |
+| `LIWAN_OCI_EMAIL_COMPARTMENT_ID` | Compartment that holds the email domains |
+| `LIWAN_OCI_TENANCY_ID`, `LIWAN_OCI_USER_ID`, `LIWAN_OCI_KEY_FINGERPRINT` | Identity of the API key |
+| `LIWAN_OCI_PRIVATE_KEY` | The API private key as PEM text |
+| `LIWAN_OCI_LOG_GROUP_ID` | Log group that holds the per-domain email delivery logs |
+| `LIWAN_OCI_EMAIL_SPF_INCLUDE` | The SPF include value shown to tenants. Operator-set: the Jeddah value is not verified yet |
+
+All empty (the default) means the provider is not configured. The key is an operator secret: never stored in a tenant
+database, never in git or the image, never logged. Its IAM user is limited by policy to email-family resources in the
+one compartment. It rotates like the relay credential: create the new key, update `deploy/.env`, recreate `odoo`, then
+delete the old key. Trade-off: every tenant's Odoo database is served by a process that holds this key.
 
 Also needed outside this repository: SPF and DKIM for the sender's domain at the provider, and an egress rule that lets
 the host reach the upstream host on its submission port. After changing a value: `docker compose ... up -d odoo-mail odoo`
