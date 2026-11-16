@@ -4,6 +4,7 @@ from . import (
     ai_agent,
     customers_service,
     feature_registry,
+    helpdesk_resources,
     helpdesk_service,
     helpdesk_settings,
     helpdesk_ticket,

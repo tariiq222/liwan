@@ -7,6 +7,7 @@ export const helpdeskKeys = {
   reference: (companyId: number | undefined) => ['helpdesk', 'reference', { companyId }] as const,
   summary: (companyId: number | undefined) => ['helpdesk', 'summary', { companyId }] as const,
   settings: (companyId: number | undefined) => ['helpdesk', 'settings', { companyId }] as const,
+  resources: (companyId: number | undefined) => ['helpdesk', 'settings', 'resources', { companyId }] as const,
 }
 
 export type HelpdeskState = 'open' | 'closed' | 'all'

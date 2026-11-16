@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { HelpdeskResourcesSchema, HelpdeskTeamSaveSchema } from '..'
 import { HelpdeskSettingsSchema } from '../settings'
 import { HelpdeskTicketPageSchema, HelpdeskTicketSchema, HelpdeskTicketCreateSchema } from '..'
 
@@ -70,5 +71,20 @@ describe('helpdesk contracts', () => {
     }
     expect(HelpdeskSettingsSchema.parse(settings).visibility).toBe('team')
     expect(HelpdeskSettingsSchema.safeParse({ ...settings, visibility: 'everyone' }).success).toBe(false)
+  })
+
+  it('reads the settings resources and validates a team save', () => {
+    const stage = { id: 1, name: 'New', active: true, sequence: 1, closed: false, unattended: false, fold: false, team_ids: [], shared: false }
+    const named = { id: 2, name: 'Network', active: true, sequence: 10 }
+    const body = {
+      teams: [{ id: 3, name: 'Support', active: true, sequence: 10, member_ids: [], leader_id: null, calendar_id: null }],
+      stages: [stage],
+      categories: [{ ...named, parent_id: null }],
+      tags: [named], channels: [named], types: [named],
+    }
+    expect(HelpdeskResourcesSchema.parse(body).teams[0].name).toBe('Support')
+    expect(HelpdeskTeamSaveSchema.safeParse({ name: 'Line 2', member_ids: [1, 2], leader_id: 1 }).success).toBe(true)
+    expect(HelpdeskTeamSaveSchema.safeParse({ name: '' }).success).toBe(false)
+    expect(HelpdeskTeamSaveSchema.safeParse({ name: 'Line 2', unknown: true }).success).toBe(false)
   })
 })

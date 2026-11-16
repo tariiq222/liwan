@@ -120,3 +120,79 @@ export type HelpdeskMessage = z.infer<typeof HelpdeskMessageSchema>
 export type HelpdeskAttachment = z.infer<typeof HelpdeskAttachmentSchema>
 export type HelpdeskReference = z.infer<typeof HelpdeskReferenceSchema>
 export type HelpdeskSummary = z.infer<typeof HelpdeskSummarySchema>
+
+// ---------------------------------------------------------------- settings resources
+
+export const HelpdeskResourceSchema = z.object({
+  id: z.number().int().positive(), name: z.string(), active: z.boolean(), sequence: z.number().int(),
+}).strict()
+
+export const HelpdeskTeamResourceSchema = HelpdeskResourceSchema.extend({
+  member_ids: z.array(z.object({ id: z.number().int().positive(), name: z.string() }).strict()),
+  leader_id: z.number().int().positive().nullable(),
+  calendar_id: z.number().int().positive().nullable(),
+}).strict()
+
+export const HelpdeskStageResourceSchema = HelpdeskResourceSchema.extend({
+  closed: z.boolean(), unattended: z.boolean(), fold: z.boolean(),
+  team_ids: z.array(z.number().int().positive()), shared: z.boolean(),
+}).strict()
+
+export const HelpdeskCategoryResourceSchema = HelpdeskResourceSchema.extend({
+  parent_id: z.number().int().positive().nullable(),
+}).strict()
+
+export const HelpdeskResourcesSchema = z.object({
+  teams: z.array(HelpdeskTeamResourceSchema),
+  stages: z.array(HelpdeskStageResourceSchema),
+  categories: z.array(HelpdeskCategoryResourceSchema),
+  tags: z.array(HelpdeskResourceSchema),
+  channels: z.array(HelpdeskResourceSchema),
+  types: z.array(HelpdeskResourceSchema),
+}).strict()
+
+export const HelpdeskTeamSaveSchema = z.object({
+  id: z.number().int().positive().optional(),
+  name: z.string().min(1).max(64),
+  member_ids: z.array(z.number().int().positive()).optional(),
+  leader_id: z.number().int().positive().nullable().optional(),
+  calendar_id: z.number().int().positive().nullable().optional(),
+  sequence: z.number().int().min(0).max(9999).optional(),
+  active: z.boolean().optional(),
+}).strict()
+
+export const HelpdeskStageSaveSchema = z.object({
+  id: z.number().int().positive().optional(),
+  name: z.string().min(1).max(64),
+  sequence: z.number().int().min(0).max(9999).optional(),
+  closed: z.boolean().optional(),
+  unattended: z.boolean().optional(),
+  fold: z.boolean().optional(),
+  team_ids: z.array(z.number().int().positive()).optional(),
+  active: z.boolean().optional(),
+}).strict()
+
+export const HelpdeskCategorySaveSchema = z.object({
+  id: z.number().int().positive().optional(),
+  name: z.string().min(1).max(64),
+  parent_id: z.number().int().positive().nullable().optional(),
+  sequence: z.number().int().min(0).max(9999).optional(),
+  active: z.boolean().optional(),
+}).strict()
+
+export const HelpdeskValueSaveSchema = z.object({
+  id: z.number().int().positive().optional(),
+  name: z.string().min(1).max(64),
+  sequence: z.number().int().min(0).max(9999).optional(),
+  active: z.boolean().optional(),
+}).strict()
+
+export type HelpdeskResource = z.infer<typeof HelpdeskResourceSchema>
+export type HelpdeskTeamResource = z.infer<typeof HelpdeskTeamResourceSchema>
+export type HelpdeskStageResource = z.infer<typeof HelpdeskStageResourceSchema>
+export type HelpdeskCategoryResource = z.infer<typeof HelpdeskCategoryResourceSchema>
+export type HelpdeskResources = z.infer<typeof HelpdeskResourcesSchema>
+export type HelpdeskTeamSave = z.infer<typeof HelpdeskTeamSaveSchema>
+export type HelpdeskStageSave = z.infer<typeof HelpdeskStageSaveSchema>
+export type HelpdeskCategorySave = z.infer<typeof HelpdeskCategorySaveSchema>
+export type HelpdeskValueSave = z.infer<typeof HelpdeskValueSaveSchema>

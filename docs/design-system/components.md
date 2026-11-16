@@ -547,6 +547,10 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/web/app/components/helpdesk/HelpdeskTicketForm.vue` | The create form of the route-backed panel and the edit page of a ticket: subject, description, team, priority, category, type and channel, and the customer picker an agent opens a ticket for | UFormField, UInput, UTextarea, USelect, SharedCustomerPicker, UButton |
 | `apps/web/app/components/helpdesk/HelpdeskThread.vue` | The conversation of one ticket: public replies and internal notes in date order through the shared rich-text renderer, a composer that sends either, and the attachments with upload, download and removal | SharedRecordSection, SharedRichText, SharedEmptyState, SharedStatusBadge, UTextarea, UCheckbox, UButton |
 
+| `apps/web/app/components/helpdesk/settings/HelpdeskTeamsSection.vue` | The support teams in the settings: each team's name, leader and members, an inline form saved whole, and an archive switch the server refuses while the team holds open tickets | SharedSubCard, SharedPersonPicker, SharedStatusBadge, UFormField, UInput, UButton, USwitch |
+| `apps/web/app/components/helpdesk/settings/HelpdeskStagesSection.vue` | The stages of the desk with their flags (closed, waiting on the customer, folded) and the teams they serve, edited inline; a shared engine stage is marked and stays read-only | SharedSubCard, SharedStatusBadge, UFormField, UInput, UInputNumber, UCheckbox, USelectMenu, UButton, USwitch |
+| `apps/web/app/components/helpdesk/settings/HelpdeskValueListSection.vue` | One value list of the support settings (categories with their parent, tags, channels, ticket types): rename inline, archive and add a row | SharedSubCard, SharedStatusBadge, UFormField, UInput, USelect, UButton, USwitch |
+
 ## التنقل والانتباه والأعمال
 
 | المكون | المسؤولية والقصة | مكونات الأساس والوصفة |

@@ -142,6 +142,54 @@
         "retail": "Retail after-sales",
         "care": "Care and clinics",
         "education": "Education"
+      },
+      "teams": {
+        "section": "Teams",
+        "sectionHint": "Who receives the tickets and who leads each team.",
+        "title": "Support teams",
+        "add": "New team",
+        "leader": "Team leader",
+        "members": "Members"
+      },
+      "stages": {
+        "title": "Stages",
+        "add": "New stage",
+        "sequence": "Order",
+        "closed": "Closed",
+        "unattended": "Waiting on the customer",
+        "fold": "Folded in the board",
+        "teams": "Teams",
+        "teamsHint": "With no team chosen the stage serves every team.",
+        "shared": "Shared"
+      },
+      "values": {
+        "section": "Workflow and lists",
+        "sectionHint": "Stages, categories, tags, channels and ticket types.",
+        "parent": "Parent category",
+        "noParent": "No parent",
+        "categories": {
+          "title": "Categories",
+          "add": "New category"
+        },
+        "tags": {
+          "title": "Tags",
+          "add": "New tag"
+        },
+        "channels": {
+          "title": "Channels",
+          "add": "New channel"
+        },
+        "types": {
+          "title": "Ticket types",
+          "add": "New type"
+        }
+      },
+      "resources": {
+        "name": "Name",
+        "save": "Save",
+        "failed": "The record could not be saved.",
+        "active": "Active",
+        "archived": "Archived"
       }
     }
   }

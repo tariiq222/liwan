@@ -2,6 +2,10 @@
 import { reactive, watch } from 'vue'
 import type { HelpdeskSettings } from '@liwan/contracts'
 import { useHelpdeskReference, useHelpdeskSettings, useSaveHelpdeskSettings } from '@/composables/helpdesk/useHelpdesk'
+import { useHelpdeskResources } from '@/composables/helpdesk/useHelpdeskResources'
+import HelpdeskStagesSection from '@/components/helpdesk/settings/HelpdeskStagesSection.vue'
+import HelpdeskTeamsSection from '@/components/helpdesk/settings/HelpdeskTeamsSection.vue'
+import HelpdeskValueListSection from '@/components/helpdesk/settings/HelpdeskValueListSection.vue'
 
 // The Support Desk settings under Settings > Applications: one card for the policy a tenant shapes without code —
 // who sees which ticket, the defaults of a new ticket, the reference prefix of its number, the reopen window and the
@@ -11,6 +15,7 @@ const { parts } = useSettingsPage('helpdesk')
 const { can } = useAccess()
 const settings = useHelpdeskSettings()
 const reference = useHelpdeskReference()
+const resources = useHelpdeskResources(() => can('helpdesk.settings.read'))
 const save = useSaveHelpdeskSettings()
 const message = ref('')
 
@@ -53,6 +58,7 @@ const visibilityItems = computed(() => (settings.data.value?.options.visibility 
 const priorityItems = computed(() => (settings.data.value?.options.priorities ?? []).map(item => ({ value: item.value, label: t(`helpdesk.priority.${settings.data.value?.options.priority_names[item.value] ?? 'medium'}`) })))
 const teamItems = computed(() => [{ value: 0, label: t('helpdesk.form.none') }, ...(reference.data.value?.teams ?? []).map(team => ({ value: team.id, label: team.name }))])
 const busy = computed(() => settings.isLoading.value || save.isPending.value)
+const canManage = computed(() => can('helpdesk.settings.manage'))
 
 async function submit() {
   message.value = ''
@@ -114,6 +120,18 @@ function revert() {
             </UFormField>
           </SharedSettingsCard>
         </SharedSettingsSection>
+        <template v-if="resources.data.value">
+          <SharedSettingsSection id="teams" :title="t('helpdesk.settings.teams.section')" :description="t('helpdesk.settings.teams.sectionHint')">
+            <HelpdeskTeamsSection :rows="resources.data.value.teams" :can-edit="canManage" />
+          </SharedSettingsSection>
+          <SharedSettingsSection id="workflow" :title="t('helpdesk.settings.values.section')" :description="t('helpdesk.settings.values.sectionHint')">
+            <HelpdeskStagesSection :rows="resources.data.value.stages" :teams="resources.data.value.teams" :can-edit="canManage" />
+            <HelpdeskValueListSection kind="categories" :rows="resources.data.value.categories" :can-edit="canManage" />
+            <HelpdeskValueListSection kind="tags" :rows="resources.data.value.tags" :can-edit="canManage" />
+            <HelpdeskValueListSection kind="channels" :rows="resources.data.value.channels" :can-edit="canManage" />
+            <HelpdeskValueListSection kind="types" :rows="resources.data.value.types" :can-edit="canManage" />
+          </SharedSettingsSection>
+        </template>
       </SharedPageState>
     </template>
   </SharedSettingsPage>
