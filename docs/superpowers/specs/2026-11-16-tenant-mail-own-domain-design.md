@@ -1,6 +1,6 @@
 # Tenant mail from the tenant's own domain
 
-Status: owner decisions D1 to D5 recorded on 2026-11-16. Nothing in this document is implemented in any branch. No environment is deployed and no tenant exists. Three claims stay separate throughout: what the owner decided (section 2), what was read in provider documentation or in code (sections 3 and 4), and what is built (nothing).
+Status: owner decisions D1 to D6 recorded on 2026-11-16. Nothing in this document is implemented in any branch. No environment is deployed and no tenant exists. Three claims stay separate throughout: what the owner decided (section 2), what was read in provider documentation or in code (sections 3 and 4), and what is built (nothing).
 
 The hosting contract ([liwan-shared-saas-and-sovereign-deployment.md](liwan-shared-saas-and-sovereign-deployment.md)) owns the shared-SaaS requirements. [Odoo outgoing mail](../../operations/odoo-mail.md) and [Odoo outbound route](../../operations/odoo-egress.md) describe the current route. This file does not change them.
 
@@ -24,7 +24,8 @@ Code facts that shape the answer:
 | D2 | Phase 1 mechanism is domain verification through OCI Email Delivery: the tenant adds DNS records. Tenant-supplied SMTP credentials are not built. Google removed password SMTP in 2025, and Microsoft 365 turns basic SMTP AUTH off by default at the end of December 2026. |
 | D3 | Platform mail stays on the LiwanOS sender: sign-in code, invitations, password reset, subscription notices (`liwan.outbound.mail` in `liwan_core` and the `deploy/odoo-mail` relay). |
 | D4 | The sender identity is scoped to the tenant root. Child companies inherit it. No per-company override is built and no schema room is left for one. |
-| D5 | Email cost is included in the subscription with a per-tenant monthly allowance, proposed at 5,000 emails (section 8). It is not sold as an add-on. |
+| D5 | Email cost is included in the subscription and is not sold as an add-on. There is no monthly allowance or quota shown to the tenant, because the cost is negligible (section 8). The real risks are the shared sending IPs and the one account-wide OCI daily limit (50,000 a day on a paid account), so protection ceilings apply instead: (a) a daily ceiling of 2,000 emails per tenant per day, counted per recipient and per 2 MB chunk with the billing weights, not shown to the tenant until reached; at the ceiling messages are not lost, they wait in the queue and leave the next day, and the tenant admin sees a notice; the vendor can raise the ceiling for one tenant from the vendor side; (b) a per-minute ceiling of 60 emails per tenant, where the excess waits in the queue and nothing is shown; (c) an automatic pause when the bounce or complaint rate is high, with a clear reason shown to the admin (thresholds are a phase 2 decision). There are no 80% or 95% warnings, since there is no monthly quota. |
+| D6 | This contract is for transactional mail: invoices, quotes, invites and notifications. Marketing campaigns are out of its scope and belong to the customer-messages application, with recipient opt-in. |
 
 Assumption pending owner confirmation (coordinator, not an owner decision): a tenant with no verified domain, or with only a public mailbox domain such as `gmail.com`, cannot email its customers from LiwanOS. It keeps the share link and the PDF download. OCI itself refuses public mailbox domains. Open question Q1 asks for confirmation.
 
@@ -39,7 +40,7 @@ Read in the OCI console for `me-jeddah-1` and in Oracle documentation. No identi
 | Custom return path is a subdomain of the email domain, activated by a CNAME. It needs DKIM or a verified domain first. If DNS is not added within 72 hours the resource goes to `Failed` and must be deleted and recreated. It is what gives SPF and DMARC alignment. | https://docs.oracle.com/en-us/iaas/Content/Email/Tasks/managing_custom_return_path.htm |
 | Metrics namespace `oci_emaildelivery`, dimension `resourceDomain`: accepted, relayed, hard bounced, soft bounced, suppressed, complaints. Kept 90 days. | https://docs.oracle.com/en-us/iaas/Content/Email/Reference/guide-to-metrics-logs.htm |
 | Logs per email domain, categories `emaildelivery.emaildomain.outboundaccepted` and `outboundrelayed`, queryable for 14 days. Each record carries `messageId` (ours, when we set the `Message-Id` header), `recipient`, `sender`, `errorType`, `smtpStatus`. Logging must be enabled per domain. | https://docs.oracle.com/en-us/iaas/Content/Logging/Reference/details_for_emaildelivery.htm |
-| The suppression list is automatic and regional (hard bounces, complaints, unsubscribes). Sending IPs are shared by default, so one abusive tenant can hurt every other tenant. This is the reason for the per-tenant limit in section 7. | Console, 2026-11-16 |
+| The suppression list is automatic and regional (hard bounces, complaints, unsubscribes). Sending IPs are shared by default, so one abusive tenant can hurt every other tenant. This is the reason for the per-tenant protection ceilings (D5, section 7). | Console, 2026-11-16 |
 | Billing counts per recipient and per 2 MB chunk. Price recorded on 2026-11-06 and not re-read today: the first 3,000 emails a month are free, then about 0.32 SAR per 1,000. | Recorded price |
 | Existing setup: email domain `liwanos.com`, sender `no-reply@liwanos.com`, SMTP endpoint `smtp.email.me-jeddah-1.oci.oraclecloud.com` on port 587. | Console |
 
@@ -70,7 +71,7 @@ LiwanOS today:
 
 Decision: extend `mail.mail` with `_inherit` (a public extension point, R9) and add one service in `liwan_notify`. No new outbox table: `mail.mail` already is the queue, the failure record and the link to the business document, and a second table would duplicate it (AGENTS.md "Clean pre-release codebase", "reuse engines").
 
-Where the delivery log lives: on the `mail.mail` row itself, with these added fields: `liwan_kind` (the sending feature, for example `meeting.invite`), `liwan_attempts` (integer), `liwan_provider_status` (selection: `submitted`, `accepted`, `relayed`, `bounced`, `complained`, `suppressed`) and `liwan_provider_checked_at`. The business record is `model` and `res_id`, which Odoo already provides. Reasons: one source of truth per fact, Odoo's own list and retry behaviour keeps working, and the monthly count is a read over these rows, never a second stored counter. Rows are kept 90 days (the length of OCI metrics) by one cron and then removed. The counter reads the current month only.
+Where the delivery log lives: on the `mail.mail` row itself, with these added fields: `liwan_kind` (the sending feature, for example `meeting.invite`), `liwan_attempts` (integer), `liwan_provider_status` (selection: `submitted`, `accepted`, `relayed`, `bounced`, `complained`, `suppressed`) and `liwan_provider_checked_at`. The business record is `model` and `res_id`, which Odoo already provides. Reasons: one source of truth per fact, Odoo's own list and retry behaviour keeps working, and the daily and per-minute counts are reads over these rows, never a second stored counter. Rows are kept 90 days (the length of OCI metrics) by one cron and then removed. The counters read the current day and the last minute only.
 
 What stock Odoo gives (section 4) and what LiwanOS adds on top:
 
@@ -80,7 +81,7 @@ What stock Odoo gives (section 4) and what LiwanOS adds on top:
 | Retry | None; manual `action_retry` | A cron that moves rows in `exception` with failure type `mail_smtp` or `unknown` back to `outgoing`, up to 3 attempts with growing delay through `scheduled_date`. Invalid-address failures are final |
 | Sender and server choice | `_find_mail_server` by `from_filter` (see section 1) | The sender comes from the tenant's verified domain. The service writes the tenant's per-database `mail.default.from_filter` (platform domain plus verified domain) on verify and on removal |
 | Attachments | `attachment_ids` | A size rule: above about 1.5 MB (trial `max-message-size` is 2,008,192 bytes, and base64 adds a third) send a download link instead of the file |
-| Monthly count and limit | None | A computed count over rows of the current month, weighted per recipient and per 2 MB chunk, checked before the row is created |
+| Protection ceilings (D5) | None | A computed count over rows of the current day, weighted per recipient and per 2 MB chunk, checked when the row is created. Over the daily ceiling the row is still created in `outgoing` with `scheduled_date` set to the start of the next day, so it waits and is sent by the stock queue cron (`mail_mail.py:205-211` reads only `outgoing` rows whose `scheduled_date` is empty or past; the field is at `:97`). The per-minute ceiling uses the same mechanism with a date a minute ahead. That the cron honours a future `scheduled_date` is read in source; the whole deferral flow is unverified until it runs in phase 1 |
 | Correlation | `message_id` stored after send | We generate the `Message-Id` before sending and store it, so OCI logs (`messageId`) match the row |
 | Gate | None | Feature and capability checks (section 7), and the verified-domain rule on every send |
 
@@ -125,7 +126,7 @@ That key is an operator secret, not a tenant secret. It is supplied through `dep
 
 ### 5.6 Customer-hosted `non_saas`
 
-R5 and R8 require the product to run without the vendor. In `non_saas` the operator configures its own outbound server in the operator configuration (server-wide SMTP options, as the single-customer template does) and the platform sender and the tenant domain are the same domain or decided by the operator's `from_filter`. The OCI provider is not configured, so the domain-verification card is hidden in `non_saas` as a commercial SaaS path, like the subscription pages. The send contract, the log, the limit and the retry cron work unchanged on any SMTP server. The monthly allowance is a commercial entitlement and does not apply in `non_saas`; the operator's server limits apply.
+R5 and R8 require the product to run without the vendor. In `non_saas` the operator configures its own outbound server in the operator configuration (server-wide SMTP options, as the single-customer template does) and the platform sender and the tenant domain are the same domain or decided by the operator's `from_filter`. The OCI provider is not configured, so the domain-verification card is hidden in `non_saas` as a commercial SaaS path, like the subscription pages. The send contract, the log, the limit and the retry cron work unchanged on any SMTP server. The protection ceilings are not an entitlement, so they are not hidden in `non_saas` (R8): they are operator-configurable values with the same defaults, and the operator may raise or disable them. The bounce and complaint pause needs OCI metrics and applies only where the OCI provider is configured.
 
 ### 5.7 Settings screen and API
 
@@ -137,7 +138,7 @@ States and what each shows:
 | --- | --- |
 | `not_started` | Explanation, domain field, sender local part, start button |
 | `pending_dns` | The three records with a copy button each, a verify button, the time left before the return path expires, any automatic recreation noted |
-| `verified` | Sender address, a test-send button, the month's usage against the allowance, a remove button |
+| `verified` | Sender address, a test-send button, a remove button. Today's usage appears only when it is near or at the daily ceiling, with a notice that queued messages leave the next day. There is no allowance bar. A pause for bounces or complaints shows its reason |
 | `failed` | The reason and a retry or remove action |
 
 API under `/api/v1/mail/domain` follows the product contracts in [AGENTS.md](../../../AGENTS.md): `type='json2'`, `auth='user'`, explicit methods, the shared `api_handler`, a capability check, serializer-whitelisted shapes, structured errors with real HTTP statuses (403 `forbidden`, 404 `not_found`, 422 `invalid`, plus 409 for a domain held by another tenant). Routes: read state, start, verify, recreate return path, test send, remove, and the usage read. Lists use `{items, total}`. Zod contracts live in `packages/contracts/src` with the others. No route returns a secret or the OCI key.
@@ -153,7 +154,7 @@ A dedicated capability, registered through `liwan.access.service` and held only 
 - The `From` domain must equal the tenant's verified domain, read from `liwan.mail.domain` in the same database, on every send. A client-supplied `From` is never trusted.
 - Display name is the company name. The local part is the one stored on the domain row, validated against a safe character set.
 - The recipient list is validated and capped per message. The relay caps recipients (`ODOO_MAIL_MAX_RECIPIENTS`).
-- Rate and quota: a per-tenant per-minute rate and the monthly allowance, both enforced before the row is created. A refused send raises a structured error and records nothing as sent.
+- Protection ceilings (D5): 2,000 per tenant per day and 60 per tenant per minute, checked when the row is created. Excess is deferred through `scheduled_date`, never refused and never lost. An automatic pause for a high bounce or complaint rate refuses sends with a structured error and a reason; nothing is recorded as sent.
 - No secret appears in logs, in the row, or in an error shown to the user. Logs carry the exception class and the row id only, as `outbound_mail.py:77-80` does today.
 
 ### 6.3 Tenant isolation, uniqueness and conflict
@@ -173,7 +174,7 @@ Isolation stays database per tenant, with one OCI email domain per tenant. A dom
 | --- | --- |
 | Tenant lifecycle | `requires_tenant_access` on every route (base service, R10) |
 | Manage domain | The dedicated capability in 6.1 |
-| Send | The caller's own application capability and feature (for example the meetings feature for an invite), then the verified-domain, rate and quota checks of 6.2 |
+| Send | The caller's own application capability and feature (for example the meetings feature for an invite), then the verified-domain check and the protection ceilings and pause of 6.2 |
 | `non_saas` | The domain-verification routes and card are hidden. The contract works against the operator's server |
 
 ## 8. Cost
@@ -182,9 +183,9 @@ OCI counts per recipient and per 2 MB chunk. A 3 MB message to two recipients co
 
 Worked example: 100 tenants at 500 emails each is 50,000 emails. After the 3,000 free, 47,000 at 0.32 per 1,000 is about 15 SAR a month for the whole platform.
 
-The proposed allowance of 5,000 emails per tenant per month costs about 1.6 SAR per tenant per month at list price if fully used (5,000 times 0.32 per 1,000). Almost every tenant will use far less. The budget line and its margin are recorded in [the 2027 launch year financial study](../../finance/2027-launch-year-financial-study.md); this file does not set them.
+There is no monthly allowance (D5). Typical expected use is a few hundred emails per tenant per month (invoices, quotes, invites, notifications), which costs a fraction of a riyal at list price. The theoretical maximum at the daily ceiling is 2,000 x 30 = 60,000 emails, about 19.2 SAR per tenant per month at list price (60,000 times 0.32 per 1,000). That figure is an abuse bound, not an expected cost. The budget line and its margin are recorded in [the 2027 launch year financial study](../../finance/2027-launch-year-financial-study.md); this file does not set them.
 
-The count that matches billing is per recipient and per chunk, so the counter in 5.1 uses the same weights, otherwise the allowance and the invoice drift apart.
+The count that matches billing is per recipient and per chunk, so the counters in 5.1 use the same weights, otherwise the ceilings and the invoice drift apart.
 
 ## 9. Phases
 
@@ -194,7 +195,7 @@ Verification command families are the ones in [testing.md](../../testing.md) and
 
 | # | Scope | Owner files | Size | Acceptance | Verify |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Send contract over `mail.mail`: entry point, log fields, retry cron, per-tenant rate and monthly count, attachment-link rule, feature and capability gates, documented `sudo()`, move the payslip mail onto it | `liwan_notify/models/` (mail inherit, service, cron), `liwan_hr/models/hr_payslip.py`, `tools/arch_documented_sudo.json` | Sensitive (authorization, tenant isolation) | A send creates one row with our `Message-Id`; a transient failure retries up to the cap and then stays visible; the count weights recipients and chunks; a send over quota is refused and recorded as refused; the payslip mail uses the contract with no `sudo()` of its own | Layer 1 on a scratch database for `liwan_notify` and `liwan_hr`, `tools` unittests, `python3 -B tools/arch_policy.py` |
+| 1 | Send contract over `mail.mail`: entry point, log fields, retry cron, per-tenant daily and per-minute protection ceilings with next-day deferral, attachment-link rule, feature and capability gates, documented `sudo()`, move the payslip mail onto it | `liwan_notify/models/` (mail inherit, service, cron), `liwan_hr/models/hr_payslip.py`, `tools/arch_documented_sudo.json` | Sensitive (authorization, tenant isolation) | A send creates one row with our `Message-Id`; a transient failure retries up to the cap and then stays visible; the count weights recipients and chunks; a send over the daily or per-minute ceiling is not lost, it stays in `outgoing` with a future `scheduled_date` and leaves later, and the admin sees a notice; the payslip mail uses the contract with no `sudo()` of its own | Layer 1 on a scratch database for `liwan_notify` and `liwan_hr`, `tools` unittests, `python3 -B tools/arch_policy.py` |
 | 2 | Domain verification and the settings screen: provider interface, OCI implementation, state machine, 72-hour recreation, filter write, relay rule change, egress host, capability, routes, zod contracts, page | `liwan_notify/models/`, `liwan_notify/controllers/`, `deploy/odoo-mail/relay.py` and its test, `deploy/docker-compose.shared.yml`, `docs/operations/odoo-egress.md`, `docs/operations/odoo-mail.md`, `packages/contracts`, `apps/web` mail card | Sensitive (security, cross-layer, operator secret) | Full cycle on a throwaway domain; a message from the verified domain leaves under that address (checked on the received headers); a message from another domain, an unverified domain or the platform domain is refused at the contract; the relay refuses a reserved domain; no secret in logs or answers | Layer 1, relay protocol tests (`deploy/test_odoo_mail.py`), layer 2 and `vue-tsc` lint, then one live proof against OCI by the owner after the account upgrade |
 | 3 | Meeting invite with an `.ics` attachment (Meetings is in the always-included base) | `liwan_meetings`, using the contract | Ordinary | An invite arrives from the tenant domain with a calendar file that opens in the common clients; a tenant without a verified domain sees the share link instead | Layer 1 for `liwan_meetings`, contracts tests |
 | 4 | CRM quote email, then the Finance invoice when Finance is sold | `liwan_crm` (or its quote surface), `liwan_finance` | Ordinary for the quote; Sensitive for the invoice (money) | The document goes as a link above the size rule and as a PDF below it; the row links to the quote or invoice; a failed send shows on the record | Layer 1 per addon, layer 2 for the button |
@@ -208,12 +209,11 @@ Tenant-supplied SMTP credentials, the Moyasar gateway, ZATCA production, bank fe
 
 ## 11. Open questions for the owner
 
-Each has a recommended default, per [AGENTS.md](../../../AGENTS.md) "User-facing decisions".
+Each has a recommended default, per [AGENTS.md](../../../AGENTS.md) "User-facing decisions". Q2 (the monthly allowance) was decided on 2026-11-16 and is recorded as D5 in section 2.
 
 | # | Question | Options | Recommended default |
 | --- | --- | --- | --- |
 | Q1 | A tenant with no verified domain, or a public mailbox domain only | (a) it cannot email its customers and keeps the share link and PDF; (b) it sends from the LiwanOS address with the company name (contradicts D1) | (a), as in section 2 |
-| Q2 | The monthly allowance and what happens at 100% | Allowance: 5,000 as proposed, or a smaller number such as 2,000 (cost about 0.64 SAR per tenant). At 100%: (a) refuse with a clear message and a link to upgrade; (b) warn at 80% and 95% (the storage pattern) and refuse at 100%; (c) allow overage and bill | 5,000, with (b): warn at 80% and 95%, refuse at 100%, matching the storage rule |
 | Q3 | Platform mail (sign-in code and the like) on the same queue | (a) keep `liwan.outbound.mail` for platform mail, justified as a different responsibility (no log, no count, no retry); (b) move platform mail to the queue and delete the thread path so one path remains | (a) for launch; revisit when the thread path needs a retry, because two paths is a standing cost |
 | Q4 | OCI client inside `liwan_notify` versus a separate bridge addon | (a) inside `liwan_notify` behind a provider interface (section 5.2); (b) a rank 5 bridge with the provider logic and no model | (a), because of `tools/arch_policy.py:175-186` |
 | Q5 | Which phases ship at release 1 | (a) phases 1 and 2 only (the capability exists, no business feature uses it); (b) phases 1 to 3 (meeting invites); (c) phases 1, 2 and the CRM quote email | (c) if quotes are emailed at launch, otherwise (a) |
