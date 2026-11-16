@@ -157,7 +157,7 @@ API under `/api/v1/mail/domain` follows the product contracts in [AGENTS.md](../
 
 ### 6.1 Who may manage the domain
 
-The capability is `mail.domain.manage`, registered by `liwan_notify` itself through `liwan.access.service` (a shared service may register its own capability; resolved). It is sensitive and in no built-in role, including `system_admin`, so only roles the tenant grants it to hold it. Membership alone never grants it ([odoo-rules.md](../../agents/odoo-rules.md)). Changing the sending domain changes the identity of all outgoing mail. A holder in a child company manages the root's domain (D4). The gate for routes uses `requires_tenant_access` as the base services do (R10), because the feature is part of the base and not a tier choice.
+The capability is `mail.domain.manage`, registered by `liwan_notify` itself through `liwan.access.service` (a shared service may register its own capability; resolved). It is sensitive and in no built-in role, including `system_admin`, so only roles the tenant grants it to hold it. Membership alone never grants it ([odoo-rules.md](../../agents/odoo-rules.md)). Changing the sending domain changes the identity of all outgoing mail. A holder in a child company manages the root's domain (D4). `liwan_notify` is a shared service (rank 3), so its routes are gated through its own registry with `requires_registered_feature`, as the notifications route is (R10); no new feature key is registered and the catalog does not change. The gate also applies the tenant lifecycle.
 
 ### 6.2 Server-side rules on every send
 
@@ -182,7 +182,7 @@ Isolation stays database per tenant, with one OCI email domain per tenant. A dom
 
 | Gate | Rule |
 | --- | --- |
-| Tenant lifecycle | `requires_tenant_access` on every route (base service, R10) |
+| Tenant lifecycle and feature | `requires_registered_feature` on the `liwan.notify.registry` keys on every route (shared service, R10); it applies the tenant lifecycle, read or write by method |
 | Manage domain | The dedicated capability in 6.1 |
 | Send | The caller's own application capability and feature (for example the meetings feature for an invite), then the verified-domain check and the protection ceilings and pause of 6.2. The contract itself checks nothing about the caller's right to the business record or the feature: every caller checks both first, and no route passes a client-supplied `model`, `res_id`, sender or raw HTML |
 | `non_saas` | The domain-verification routes and card are hidden. The contract works against the operator's server |
