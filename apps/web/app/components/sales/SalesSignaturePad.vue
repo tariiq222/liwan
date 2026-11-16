@@ -1,15 +1,19 @@
 <script setup lang="ts">
+import type { SalesSignatureMethod, SalesSignatureMethods } from '@liwan/contracts'
 import { pngBase64 } from '@/composables/sales/salesQuote'
 import { INK } from '@/utils/liwanPalette'
 
 // The box a customer draws a signature in, with a finger, a pen or a mouse. Without a pointer, the button writes the
 // signer's typed name into the same box in an italic hand; editing the name afterwards removes that typed signature,
 // a drawn one stays. The model is the drawing as a base64 PNG (dark ink on a transparent ground, no `data:` prefix)
-// once a stroke ends or the name is written, and null while the box is empty. The ink is the brand ink in every theme:
+// once a stroke ends or the name is written, and null while the box is empty. `method` says which of the two made the
+// current signature (drawing over a typed name makes it drawn; typing replaces a drawing), and the name button is
+// absent when the sender only accepts a drawn signature. The ink is the brand ink in every theme:
 // the PNG is shown on a white box and printed on white paper, so a light dark-theme text colour would vanish there.
 // The canvas is a fixed 480 x 160 so the picture stays small however large the box is drawn.
-const props = defineProps<{ disabled?: boolean; signerName?: string }>()
+const props = withDefaults(defineProps<{ disabled?: boolean; signerName?: string; methods?: SalesSignatureMethods }>(), { methods: 'draw_or_type' })
 const model = defineModel<string | null>({ default: null })
+const method = defineModel<SalesSignatureMethod | null>('method', { default: null })
 const { t } = useI18n()
 const WIDTH = 480
 const HEIGHT = 160
@@ -21,7 +25,6 @@ const typedFont = (size: number) => `italic 600 ${size}px "IBM Plex Sans Arabic"
 const ARABIC = /\p{Script=Arabic}/u
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
 let last: { x: number; y: number } | null = null
-let typed = false
 const hintId = useId()
 const typedName = computed(() => (props.signerName ?? '').trim())
 
@@ -69,7 +72,7 @@ function move(event: PointerEvent) {
 function end() {
   if (!last) return
   last = null
-  typed = false
+  method.value = 'drawn'
   model.value = pngBase64(canvas.value!.toDataURL('image/png'))
 }
 
@@ -93,17 +96,19 @@ async function signWithName() {
   ctx.textBaseline = 'middle'
   ctx.fillStyle = INK
   ctx.fillText(name, WIDTH / 2, HEIGHT / 2, WIDTH - 2 * TYPED_PADDING)
-  typed = true
+  method.value = 'typed'
   model.value = pngBase64(canvas.value!.toDataURL('image/png'))
 }
 
 function clear() {
   context()?.clearRect(0, 0, WIDTH, HEIGHT)
-  typed = false
+  method.value = null
   model.value = null
 }
 
-watch(typedName, () => { if (typed) clear() })
+watch(typedName, () => { if (method.value === 'typed') clear() })
+// A sender that takes a drawn signature only cannot take a typed one that was made before.
+watch(() => props.methods, methods => { if (methods === 'draw' && method.value === 'typed') clear() })
 </script>
 
 <template>
@@ -125,9 +130,9 @@ watch(typedName, () => { if (typed) clear() })
     />
     <p class="sr-only" role="status" aria-live="polite" data-testid="quote-signature-state">{{ model ? t('sales.quote.signatureSigned') : t('sales.quote.signatureEmpty') }}</p>
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <p :id="hintId" class="text-xs text-muted">{{ t('sales.quote.signatureHint') }}</p>
+      <p :id="hintId" class="text-xs text-muted">{{ t(props.methods === 'draw' ? 'sales.quote.signatureHintDraw' : 'sales.quote.signatureHint') }}</p>
       <div class="flex flex-wrap gap-2">
-        <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-signature" :disabled="props.disabled || !typedName" :label="t('sales.quote.signatureTyped')" :aria-describedby="hintId" data-testid="quote-signature-typed" @click="signWithName" />
+        <UButton v-if="props.methods === 'draw_or_type'" type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-signature" :disabled="props.disabled || !typedName" :label="t('sales.quote.signatureTyped')" :aria-describedby="hintId" data-testid="quote-signature-typed" @click="signWithName" />
         <UButton type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-eraser" :disabled="props.disabled" :label="t('sales.quote.signatureClear')" data-testid="quote-signature-clear" @click="clear" />
       </div>
     </div>

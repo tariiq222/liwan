@@ -25,7 +25,7 @@ const globals = {
   useI18n: () => ({ t: (key: string, params?: Record<string, string>) => params ? `${key} ${Object.values(params).join(' ')}` : key }),
   useHydrated: () => hydrated,
   formatDate: (value: string) => value.slice(0, 10),
-  SalesSignaturePad: Vue.defineComponent({ name: 'SalesSignaturePad', props: ['modelValue', 'disabled'], setup: () => () => Vue.h('canvas') }),
+  SalesSignaturePad: Vue.defineComponent({ name: 'SalesSignaturePad', props: ['modelValue', 'disabled', 'method', 'methods', 'signerName'], setup: () => () => Vue.h('canvas') }),
 }
 
 function stubs(app: Vue.App) {
@@ -39,7 +39,7 @@ function stubs(app: Vue.App) {
 const QUOTE: SalesPublicQuotation = {
   id: 7, number: 'S00007', state: 'sent', expired: false, company_name: 'Liwan', customer_name: 'Acme', date: '2026-11-14T08:00:00Z', validity_date: '2026-12-14', terms: '',
   currency: { id: 2, name: 'SAR', symbol: 'ر.س' }, amount_untaxed: 0, amount_tax: 0, amount_total: 0, lines: [],
-  answer_mode: 'accept', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
+  answer_mode: 'accept', signature_methods: 'draw_or_type', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
 }
 
 async function renderStatus(fields: Partial<SalesPublicQuotation>) {
@@ -78,7 +78,7 @@ async function renderCustomerAnswer(answer: SalesCustomerAnswer) {
   return renderToString(app)
 }
 
-const WAITING: SalesCustomerAnswer = { mode: 'accept_and_sign', acceptance_confirms: true, answer: null, answered_at: null, signed_by: null, decline_reason: null }
+const WAITING: SalesCustomerAnswer = { mode: 'accept_and_sign', acceptance_confirms: true, answer: null, answered_at: null, signed_by: null, signature_method: null, decline_reason: null }
 
 describe('SalesCustomerAnswer', () => {
   it('shows a quotation still waiting with how the customer may answer and what acceptance does', async () => {
@@ -95,6 +95,9 @@ describe('SalesCustomerAnswer', () => {
     expect(accepted).toContain('sales.answer.accepted')
     expect(accepted).toContain('sales-answer-signer')
     expect(accepted).toContain('2026-11-15')
+    expect(accepted).not.toContain('sales-answer-signature-method')
+    expect(await renderCustomerAnswer({ ...WAITING, answer: 'accepted', answered_at: '2026-11-15T10:00:00Z', signed_by: 'Mona', signature_method: 'drawn' })).toContain('sales.answer.signatureMethod.drawn')
+    expect(await renderCustomerAnswer({ ...WAITING, answer: 'accepted', answered_at: '2026-11-15T10:00:00Z', signed_by: 'Mona', signature_method: 'typed' })).toContain('sales.answer.signatureMethod.typed')
     expect(accepted).not.toContain('sales.answer.afterAcceptance')
     expect(accepted).not.toContain('sales-answer-reason')
     const declined = await renderCustomerAnswer({ ...WAITING, answer: 'declined', answered_at: '2026-11-15T10:00:00Z', decline_reason: 'Too high' })
@@ -112,10 +115,19 @@ function answerForm(fields: Partial<SalesPublicQuotation> = {}, pending: 'accept
 }
 
 describe('SalesQuoteAnswer', () => {
-  it('accepts at once when no signature is asked for', () => {
+  it('asks once before it accepts when no signature is asked for', () => {
     const { state, emitted } = answerForm()
     state.accept()
+    expect(emitted).toEqual([])
+    expect(state.accepting.value).toBe(true)
+    state.confirmAccept()
     expect(emitted).toEqual([['accept', {}]])
+  })
+
+  it('does not send the confirmed acceptance while another answer is being sent', () => {
+    const { state, emitted } = answerForm({}, 'decline')
+    state.confirmAccept()
+    expect(emitted).toEqual([])
   })
 
   it('asks for the name and the signature before it accepts, and says which is missing', async () => {
@@ -133,8 +145,10 @@ describe('SalesQuoteAnswer', () => {
     expect(emitted).toEqual([])
     state.signature.value = 'iVBORw0KGgo='
     expect(state.signatureError.value).toBeUndefined()
+    state.signatureMethod.value = 'typed'
     state.accept()
-    expect(emitted).toEqual([['accept', { signedBy: 'Mona', signature: 'iVBORw0KGgo=' }]])
+    expect(emitted).toEqual([['accept', { signedBy: 'Mona', signature: 'iVBORw0KGgo=', signatureMethod: 'typed' }]])
+    expect(state.accepting.value).toBe(false)
   })
 
   it('does nothing while an answer is being sent or before the page is live', () => {

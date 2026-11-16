@@ -6,7 +6,7 @@ import { decodedBytes, isInvalidQuoteLink, pngBase64, quoteAnswerErrorKey, quote
 const QUOTE: SalesPublicQuotation = {
   id: 7, number: 'S00007', state: 'sent', expired: false, company_name: 'Liwan', customer_name: 'Acme', date: '2026-11-14T08:00:00Z', validity_date: '2026-12-14', terms: '',
   currency: { id: 2, name: 'SAR', symbol: 'ر.س' }, amount_untaxed: 0, amount_tax: 0, amount_total: 0, lines: [],
-  answer_mode: 'accept', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
+  answer_mode: 'accept', signature_methods: 'draw_or_type', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
 }
 
 describe('quoteLinkOf', () => {
@@ -94,6 +94,9 @@ describe('quoteView', () => {
 
   it('puts a cancelled quotation before an answer and an answer before expiry', () => {
     expect(view({ state: 'cancelled', answer: 'accepted' })).toBe('cancelled')
+    // The server cancels a quotation the customer declines: it still reads as their decline, not the sender's cancellation.
+    expect(view({ state: 'cancelled', answer: 'declined', can_accept: false, can_decline: false })).toBe('declined')
+    expect(view({ state: 'cancelled', answer: null, can_accept: false, can_decline: false })).toBe('cancelled')
     expect(view({ expired: true, answer: 'declined' })).toBe('declined')
   })
 })

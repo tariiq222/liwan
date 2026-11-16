@@ -40,6 +40,7 @@ export function salesRefusalKey(error: unknown): string | null {
   if (failure?.status === 403 && failure.code === 'transition_forbidden') return 'sales.errors.transitionForbidden'
   if (failure?.status === 503 && failure.code === 'mail_unavailable') return 'sales.errors.mailUnavailable'
   if (failure?.status === 422 && failure.code === 'customer_email_missing') return 'sales.errors.customerEmailMissing'
+  if (failure?.status === 409 && failure.code === 'quotation_answered') return 'sales.errors.quotationAnswered'
   if (failure?.status === 422 && failure.code === 'quotation_expired') return 'sales.errors.quotationExpired'
   // The send queues the mail with the quotation PDF, so a missing PDF engine refuses the send (the staff PDF link is a plain download).
   if (failure?.status === 503 && failure.code === 'pdf_unavailable') return 'sales.errors.pdfUnavailable'

@@ -83,6 +83,8 @@ const moveButtons = computed(() => {
   ]
   return buttons.filter(button => actions[button.name])
 })
+// The tenant does not let an answered quotation be sent again: the send button is gone, and reopening it is the way on.
+const sendRefused = computed(() => !!order.value?.resend_refused && order.value.actions.reopen)
 const pendingMove = (name: SalesTransition) => moving.value && moveArgs.value?.transition === name
 
 const headerTags = computed<PageHeaderTag[]>(() => {
@@ -115,6 +117,7 @@ const headerTags = computed<PageHeaderTag[]>(() => {
       <UButton v-if="order.actions.cancel" color="error" variant="outline" icon="i-lucide-x" :label="t('sales.actions.cancel')" :disabled="busy" data-testid="sales-cancel" @click="toggleConfirm('cancel')" />
     </template>
     <UAlert v-if="order?.source === 'online'" color="info" variant="subtle" icon="i-lucide-globe" :title="t('sales.record.onlineTitle')" :description="t('sales.record.online')" data-testid="sales-online" />
+    <UAlert v-if="sendRefused" color="info" variant="subtle" icon="i-lucide-info" :title="t('sales.record.sendRefused')" data-testid="sales-send-refused" />
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="t('sales.record.actionError')" :description="actionMessage" data-testid="sales-action-error" />
     <SharedInlineConfirm
       v-if="confirmation"

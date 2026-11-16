@@ -257,8 +257,10 @@ test('a draft is sent to the customer, shows its answer once the customer answer
   await page.reload()
   await expect(page.getByTestId('sales-answer-status')).toHaveText('رفض العرض')
   await expect(page.getByTestId('sales-answer-reason')).toContainText('السعر مرتفع')
+  // A declined quotation is cancelled on the server: it is reopened, never sent again.
   await expect(page.getByTestId('sales-send')).toHaveCount(0)
-  await expect(page.getByTestId('sales-reopen')).toHaveCount(0)
+  await expect(page.getByTestId('sales-send-refused')).toHaveCount(0)
+  await expect(page.getByTestId('sales-reopen')).toBeVisible()
 })
 
 test('sending a quotation again asks first, because the customer\'s earlier answer is removed; cancelling the question sends nothing', async ({ page }) => {
@@ -296,11 +298,12 @@ test('a sent quotation can be reopened as a draft, an acceptance shows its signe
   await expect(page.getByTestId('sales-edit')).toBeVisible()
   await expect(page.getByTestId('sales-answer-status')).toHaveCount(0)
 
-  const accepted = await page.request.post('/api/v1/public/sales/quotations/6/accept', { data: { access_token: 'tok-6', signed_by: 'منى العتيبي', signature: 'iVBORw0KGgoAAAANSUhEUg' } })
+  const accepted = await page.request.post('/api/v1/public/sales/quotations/6/accept', { data: { access_token: 'tok-6', signed_by: 'منى العتيبي', signature: 'iVBORw0KGgoAAAANSUhEUg', signature_method: 'drawn' } })
   expect(accepted.ok()).toBe(true)
   await page.goto('/sales/6')
   await expect(page.getByTestId('sales-answer-status')).toHaveText('قبل العرض')
   await expect(page.getByTestId('sales-answer-signer')).toContainText('منى العتيبي')
+  await expect(page.getByTestId('sales-answer-signature-method')).toContainText('وقّع بالرسم')
 
   await page.goto('/sales/7')
   await expect(heading(page)).toHaveText('S00007')
@@ -323,4 +326,41 @@ test('the quotation settings choose how the customer answers, and acceptance con
   await page.getByRole('button', { name: /^حفظ/ }).first().click()
   await expect.poll(async () => (await (await page.request.get('/api/v1/sales/settings')).json()))
     .toMatchObject({ customer_answer: 'accept_and_sign', acceptance_confirms: true })
+})
+
+test('the quotation settings choose whether an answered quotation can be sent again, and how the customer signs', async ({ page }) => {
+  await page.goto('/settings/apps/sales')
+  const methods = page.getByTestId('sales-signature-methods')
+  const resend = page.getByTestId('sales-answered-resend')
+  await expect(resend.getByRole('radio', { name: /السماح/ })).toBeChecked()
+  await expect(methods.getByRole('radio', { name: /بالرسم أو بكتابة الاسم/ })).toBeChecked()
+  // The way of signing only applies while the customer signs.
+  await expect(methods.getByRole('radio', { name: /بالرسم فقط/ })).toBeDisabled()
+  await page.getByTestId('sales-customer-answer').getByText('القبول بتوقيع').click()
+  await methods.getByText('بالرسم فقط').click()
+  await resend.getByText('المنع').click()
+  await page.getByRole('button', { name: /^حفظ/ }).first().click()
+  await expect.poll(async () => (await (await page.request.get('/api/v1/sales/settings')).json()))
+    .toMatchObject({ customer_answer: 'accept_and_sign', signature_methods: 'draw', answered_resend: 'refuse' })
+})
+
+test('under the refuse setting an answered quotation has no send button, says why, and is sent again after it is reopened', async ({ page }) => {
+  const settings = await (await page.request.get('/api/v1/sales/settings')).json() as { revision: number }
+  expect((await page.request.patch('/api/v1/sales/settings', { data: { answered_resend: 'refuse', revision: settings.revision } })).ok()).toBe(true)
+  const accepted = await page.request.post('/api/v1/public/sales/quotations/6/accept', { data: { access_token: 'tok-6', signed_by: 'منى العتيبي', signature: 'iVBORw0KGgoAAAANSUhEUg', signature_method: 'typed' } })
+  expect(accepted.ok()).toBe(true)
+
+  await page.goto('/sales/6')
+  await expect(page.getByTestId('sales-answer-signature-method')).toContainText('وقّع بكتابة الاسم')
+  await expect(page.getByTestId('sales-send')).toHaveCount(0)
+  await expect(page.getByTestId('sales-send-refused')).toContainText('ردّ العميل على هذا العرض. أعد فتحه لإرساله من جديد.')
+  const refused = await page.request.post('/api/v1/sales/orders/6/send')
+  expect(refused.status()).toBe(409)
+  expect(await refused.json()).toMatchObject({ code: 'quotation_answered' })
+
+  await page.getByTestId('sales-reopen').click()
+  await expect(page.getByTestId('sales-edit')).toBeVisible()
+  await expect(page.getByTestId('sales-send-refused')).toHaveCount(0)
+  await page.getByTestId('sales-send').click()
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('بانتظار العميل')
 })

@@ -27,6 +27,7 @@ describe('salesRefusalKey', () => {
     expect(salesRefusalKey(new ApiError(403, 'forbidden', 'no'))).toBe('sales.errors.forbidden')
     expect(salesRefusalKey(new ApiError(404, 'not_found', 'no'))).toBe('sales.errors.notFound')
     expect(salesRefusalKey(new ApiError(409, 'conflict', 'no'))).toBe('sales.errors.conflict')
+    expect(salesRefusalKey(new ApiError(409, 'quotation_answered', 'no'))).toBe('sales.errors.quotationAnswered')
     expect(salesRefusalKey(new ApiError(500, 'unavailable', 'down'))).toBeNull()
   })
 

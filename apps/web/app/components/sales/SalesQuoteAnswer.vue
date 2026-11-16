@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { SALES_LIMITS, type SalesPublicQuotation } from '@liwan/contracts'
+import { SALES_LIMITS, type SalesPublicQuotation, type SalesSignatureMethod } from '@liwan/contracts'
 import { signatureFits } from '@/composables/sales/salesQuote'
 import SalesSignaturePad from './SalesSignaturePad.vue'
 
 // The answer of the customer to an open quotation: accept it (with a name and a drawn signature when the sender asked
-// for one) or decline it with an optional reason behind an inline confirmation. The page sends the answer; this only
-// collects it.
+// for one) or decline it with an optional reason behind an inline confirmation. Accepting without a signature asks
+// once as well, because the customer cannot change the answer; signing is its own confirmation. The page sends the
+// answer; this only collects it.
 const props = defineProps<{ quote: SalesPublicQuotation; pending: 'accept' | 'decline' | null; error: string | null }>()
-const emit = defineEmits<{ accept: [answer: { signedBy?: string; signature?: string }]; decline: [reason: string | undefined] }>()
+const emit = defineEmits<{ accept: [answer: { signedBy?: string; signature?: string; signatureMethod?: SalesSignatureMethod }]; decline: [reason: string | undefined] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
 const signing = computed(() => props.quote.answer_mode === 'accept_and_sign')
 const signedBy = ref('')
 const signature = ref<string | null>(null)
+const signatureMethod = ref<SalesSignatureMethod | null>(null)
 const attempted = ref(false)
+const accepting = ref(false)
 const nameError = computed(() => (attempted.value && !signedBy.value.trim() ? t('sales.quote.signedByRequired') : undefined))
 const signatureError = computed(() => {
   if (!attempted.value) return undefined
@@ -25,10 +28,16 @@ const busy = computed(() => !hydrated.value || props.pending !== null)
 
 function accept() {
   if (busy.value) return
-  if (!signing.value) return emit('accept', {})
+  if (!signing.value) {
+    accepting.value = true
+    return
+  }
   attempted.value = true
-  if (nameError.value || signatureError.value || !signature.value) return
-  emit('accept', { signedBy: signedBy.value.trim(), signature: signature.value })
+  if (nameError.value || signatureError.value || !signature.value || !signatureMethod.value) return
+  emit('accept', { signedBy: signedBy.value.trim(), signature: signature.value, signatureMethod: signatureMethod.value })
+}
+function confirmAccept() {
+  if (props.pending === null) emit('accept', {})
 }
 
 const declining = ref(false)
@@ -47,15 +56,26 @@ function decline() {
           <UInput v-model="signedBy" class="w-full" autocomplete="name" :maxlength="SALES_LIMITS.signedBy" :disabled="busy" data-testid="quote-signed-by-input" />
         </UFormField>
         <UFormField :label="t('sales.quote.signature')" :error="signatureError" required>
-          <SalesSignaturePad v-model="signature" :signer-name="signedBy" :disabled="busy" />
+          <SalesSignaturePad v-model="signature" v-model:method="signatureMethod" :signer-name="signedBy" :methods="props.quote.signature_methods ?? undefined" :disabled="busy" />
         </UFormField>
       </template>
       <UAlert v-if="props.error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="props.error" data-testid="quote-action-error" />
-      <div v-if="!declining" class="flex flex-wrap gap-2">
+      <div v-if="!declining && !accepting" class="flex flex-wrap gap-2">
         <UButton v-if="props.quote.can_accept" type="submit" size="lg" icon="i-lucide-check" :loading="props.pending === 'accept'" :disabled="busy" :label="t(signing ? 'sales.quote.acceptAndSign' : 'sales.quote.accept')" data-testid="quote-accept" />
         <UButton v-if="props.quote.can_decline" type="button" size="lg" color="error" variant="outline" icon="i-lucide-x" :disabled="busy" :label="t('sales.quote.decline')" data-testid="quote-decline" @click="declining = true" />
       </div>
     </form>
+    <SharedInlineConfirm
+      v-if="accepting"
+      class="mt-4"
+      :title="t('sales.quote.acceptTitle')"
+      :description="t('sales.quote.acceptHint')"
+      :confirm-label="t('sales.quote.acceptConfirm')"
+      :cancel-label="t('sales.quote.acceptKeep')"
+      :pending="props.pending === 'accept'"
+      @cancel="accepting = false"
+      @confirm="confirmAccept"
+    />
     <SharedInlineConfirm
       v-if="declining"
       class="mt-4"

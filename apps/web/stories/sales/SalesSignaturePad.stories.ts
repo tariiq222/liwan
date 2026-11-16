@@ -7,7 +7,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Sales/SalesSignaturePad',
   component: SalesSignaturePad,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/components/sales/SalesQuoteAnswer.vue:50', 'مربع يرسم فيه العميل توقيعه بإصبعه أو قلمه أو الفأرة، أو يكتب اسمه بلوحة المفاتيح ليصير توقيعه، وزر لمسحه.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/components/sales/SalesQuoteAnswer.vue:59', 'مربع يرسم فيه العميل توقيعه بإصبعه أو قلمه أو الفأرة، أو يكتب اسمه بلوحة المفاتيح ليصير توقيعه، وزر لمسحه.') },
   args: { disabled: false, signerName: '' },
   render: args => ({ components: { SalesSignaturePad }, setup: () => ({ args, signature: ref<string | null>(null) }), template: '<SalesSignaturePad v-bind="args" v-model="signature" />' }),
 } satisfies Meta<typeof SalesSignaturePad>
@@ -29,6 +29,15 @@ export const Dark: Story = {
     await expect(ink.length).toBeGreaterThan(0)
     // Every opaque pixel is dark: the picture is read on white paper whatever the theme of the page.
     await expect(ink.every(at => data[at]! < 80 && data[at + 1]! < 80 && data[at + 2]! < 90)).toBe(true)
+  },
+}
+export const DrawOnly: Story = {
+  name: 'بالرسم فقط: بلا زر كتابة الاسم',
+  args: { signerName: 'منى العتيبي', methods: 'draw' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.queryByTestId('quote-signature-typed')).toBeNull()
+    await expect(canvas.getByTestId('quote-signature-clear')).toBeVisible()
   },
 }
 export const Disabled: Story = { name: 'معطّل', args: { disabled: true, signerName: 'منى العتيبي' } }

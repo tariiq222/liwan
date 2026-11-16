@@ -74,6 +74,7 @@
       "resendHint": "The customer gets a new e-mail. If they already answered, their answer and signature are removed.",
       "resendAnsweredHint": "The customer gets a new e-mail. Their earlier answer and signature are removed, and they must answer again.",
       "resendConfirmAction": "Send again",
+      "sendRefused": "The customer answered this quotation. Reopen it to send it again.",
       "confirmKeep": "Keep it",
       "notEditable": "This document cannot be edited now. A quotation is edited only while it is a draft."
     },
@@ -134,6 +135,7 @@
       "notFound": "The document does not exist or you may not read it.",
       "conflict": "The document changed elsewhere. Refresh the page and try again.",
       "customerEmailMissing": "The customer has no email address. Add one to the customer, then send the quotation.",
+      "quotationAnswered": "The customer answered this quotation. Reopen it to send it again.",
       "quotationExpired": "The quotation's validity date has passed. Edit the date or duplicate the quotation.",
       "linesRequired": "Add at least one product line first.",
       "pdfUnavailable": "The quotation PDF could not be made, so nothing was sent. Try again shortly.",
@@ -172,7 +174,23 @@
           "accept_and_signHint": "The customer writes their name and draws a signature to accept, or declines."
         },
         "acceptanceConfirms": "Acceptance confirms the order",
-        "acceptanceConfirmsHint": "When the customer accepts, the quotation becomes a confirmed order without further action. Off by default: you confirm it yourself."
+        "acceptanceConfirmsHint": "When the customer accepts, the quotation becomes a confirmed order without further action. Off by default: you confirm it yourself.",
+        "signatureMethods": "How the customer signs",
+        "signatureMethodsHint": "Applies when the answer needs a signature, and to quotations sent from now on.",
+        "signature": {
+          "draw_or_type": "Draw, or type their name",
+          "draw_or_typeHint": "The customer draws a signature or types their name, which then appears as the signature. Typing suits someone using a keyboard.",
+          "draw": "Draw only",
+          "drawHint": "Only a hand-drawn signature is accepted. Someone who cannot draw will not be able to sign."
+        },
+        "answeredResend": "Sending again after the customer answered",
+        "answeredResendHint": "What happens when you send a quotation again after the customer answered it.",
+        "resend": {
+          "allow": "Allow",
+          "allowHint": "The quotation is sent again and the customer's earlier answer and signature are removed.",
+          "refuse": "Refuse",
+          "refuseHint": "Reopen the quotation first, then send it again."
+        }
       }
     },
     "expired": "Expired",
@@ -193,6 +211,11 @@
       "youConfirm": "You confirm the order yourself",
       "answeredAt": "Answered on",
       "signedBy": "Signed by",
+      "signature": "Signature",
+      "signatureMethod": {
+        "drawn": "Signed by drawing",
+        "typed": "Signed by typing the name"
+      },
       "reason": "Reason",
       "noReason": "No reason given."
     },
@@ -244,11 +267,16 @@
       "answerTitle": "Your answer",
       "accept": "Accept quotation",
       "acceptAndSign": "Accept and sign",
+      "acceptTitle": "Accept this quotation?",
+      "acceptHint": "Your answer goes to the sender. You cannot change it afterwards.",
+      "acceptConfirm": "Accept quotation",
+      "acceptKeep": "Go back",
       "signedByLabel": "Your full name",
       "signedByRequired": "Enter your full name.",
       "signature": "Signature",
       "signatureLabel": "Signature box",
       "signatureHint": "Write your name above, then draw your signature in the box with your finger or mouse, or press the Sign with my name button to use your typed name as the signature.",
+      "signatureHintDraw": "Write your name above, then draw your signature in the box with your finger or mouse.",
       "signatureClear": "Clear signature",
       "signatureTyped": "Sign with my name",
       "signatureSigned": "Signature added.",

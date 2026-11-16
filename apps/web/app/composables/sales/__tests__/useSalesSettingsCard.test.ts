@@ -9,7 +9,7 @@ const saveSettings = vi.fn()
 vi.mock('../useSalesSettings', () => ({ useSaveSalesSettings: () => ({ mutateAsync: saveSettings }) }))
 
 const { useSalesSettingsCard } = await import('../useSalesSettingsCard')
-const settings = { visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: '', customer_answer: 'accept', acceptance_confirms: false, revision: 1, can_manage: true } as const
+const settings = { visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: '', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', revision: 1, can_manage: true } as const
 
 beforeEach(() => saveSettings.mockReset())
 
@@ -23,6 +23,13 @@ describe('sales settings card', () => {
     saveSettings.mockResolvedValueOnce(settings)
     await formOptions.save({ validity_days: 30 }, { revision: 1 })
     expect(card.refusedField.value).toBeNull()
+  })
+
+  it('reads and saves the resend and signing settings with the card', async () => {
+    useSalesSettingsCard(['answered_resend', 'signature_methods'] as const, { settings: () => settings, reload: async () => settings })
+    saveSettings.mockResolvedValueOnce(settings)
+    await formOptions.save({ answered_resend: 'refuse', signature_methods: 'draw' }, { revision: 3 })
+    expect(saveSettings).toHaveBeenCalledWith({ answered_resend: 'refuse', signature_methods: 'draw', revision: 3 })
   })
 
   it('leaves the field empty for a refusal that is not a field error', async () => {

@@ -54,18 +54,20 @@ const renderer = Vue.createRenderer<Node, Node>({
 
 const Button = Vue.defineComponent({ props: ['disabled', 'label'], setup: (props, { attrs }) => () => Vue.h('button', { ...attrs, disabled: props.disabled }, props.label) })
 
-function mount(initial: { signerName?: string; disabled?: boolean }) {
+function mount(initial: { signerName?: string; disabled?: boolean; methods?: 'draw' | 'draw_or_type' }) {
   const emitted: Array<string | null> = []
+  const methods: Array<string | null> = []
+  const method = Vue.ref<string | null>(null)
   const props = Vue.reactive({ ...initial })
   const globals = { Vue, ...vueBindings, ...quote, INK: '#14102a', useI18n: () => ({ t: (key: string) => key }) }
   const pad = new Function(...Object.keys(globals), compile())(...Object.values(globals))
-  const app = renderer.createApp({ render: () => Vue.h(pad, { ...props, modelValue: current.value, 'onUpdate:modelValue': (value: string | null) => { current.value = value; emitted.push(value) } }) })
+  const app = renderer.createApp({ render: () => Vue.h(pad, { ...props, modelValue: current.value, 'onUpdate:modelValue': (value: string | null) => { current.value = value; emitted.push(value) }, method: method.value, 'onUpdate:method': (value: string | null) => { method.value = value; methods.push(value) } }) })
   const current = Vue.ref<string | null>(null)
   app.component('UButton', Button)
   const root: Node = { type: 'root', props: {}, children: [] }
   app.mount(root)
   const find = (testid: string, from: Node = root): Node | undefined => from.props['data-testid'] === testid ? from : from.children.map(child => find(testid, child)).find(Boolean)
-  return { emitted, find, props, state: () => find('quote-signature-state')!.children.map(child => child.text).join('') }
+  return { emitted, methods, find, props, state: () => find('quote-signature-state')!.children.map(child => child.text).join('') }
 }
 
 afterEach(() => { drawn.length = 0; vi.unstubAllGlobals() })
@@ -130,6 +132,7 @@ describe('SalesSignaturePad keyboard route', () => {
     await Vue.nextTick()
     await Vue.nextTick()
     expect(typed.emitted).toEqual(['iVBORw0KGgoAAAANSUhEUg', null])
+    expect(typed.methods).toEqual(['typed', null])
     expect(typed.state()).toBe('sales.quote.signatureEmpty')
 
     const hand = mount({ signerName: 'Mona' })
@@ -140,6 +143,28 @@ describe('SalesSignaturePad keyboard route', () => {
     await Vue.nextTick()
     await Vue.nextTick()
     expect(hand.emitted).toEqual(['iVBORw0KGgoAAAANSUhEUg'])
+  })
+
+  it('clears a typed signature when the sender turns to draw only, and keeps a drawn one', async () => {
+    vi.stubGlobal('document', { fonts: { load: async () => [] } })
+    const typed = mount({ signerName: 'Mona' })
+    await (typed.find('quote-signature-typed')!.props.onClick as () => Promise<void>)()
+    typed.props.methods = 'draw'
+    await Vue.nextTick()
+    await Vue.nextTick()
+    expect(typed.emitted).toEqual(['iVBORw0KGgoAAAANSUhEUg', null])
+    expect(typed.methods).toEqual(['typed', null])
+    expect(typed.state()).toBe('sales.quote.signatureEmpty')
+
+    const hand = mount({ signerName: 'Mona' })
+    const pad = hand.find('quote-signature-pad')!.props
+    ;(pad.onPointerdown as (event: unknown) => void)({ isPrimary: true, pointerType: 'touch', button: 0, pointerId: 1, clientX: 10, clientY: 10 })
+    ;(pad.onPointerup as () => void)()
+    hand.props.methods = 'draw'
+    await Vue.nextTick()
+    await Vue.nextTick()
+    expect(hand.emitted).toEqual(['iVBORw0KGgoAAAANSUhEUg'])
+    expect(hand.methods).toEqual(['drawn'])
   })
 
   it('drops a typed signature whose name changed while the font loaded', async () => {
@@ -163,5 +188,29 @@ describe('SalesSignaturePad keyboard route', () => {
     expect(emitted).toEqual([])
     stroke({ isPrimary: true, pointerType: 'mouse', button: 0 })
     expect(emitted).toEqual(['iVBORw0KGgoAAAANSUhEUg'])
+  })
+
+  it('says which method made the signature: typing after drawing and drawing after typing replace each other, clear resets', async () => {
+    vi.stubGlobal('document', { fonts: { load: async () => [] } })
+    const { methods, find } = mount({ signerName: 'Mona' })
+    const stroke = () => {
+      const pad = find('quote-signature-pad')!.props
+      ;(pad.onPointerdown as (event: unknown) => void)({ isPrimary: true, pointerType: 'touch', button: 0, pointerId: 1, clientX: 10, clientY: 10 })
+      ;(pad.onPointerup as () => void)()
+    }
+    stroke()
+    await (find('quote-signature-typed')!.props.onClick as () => Promise<void>)()
+    stroke()
+    ;(find('quote-signature-clear')!.props.onClick as () => void)()
+    await Vue.nextTick()
+    expect(methods).toEqual(['drawn', 'typed', 'drawn', null])
+  })
+
+  it('keeps no typed-name button when only a drawn signature is accepted, and tells so in its hint', () => {
+    const drawOnly = mount({ signerName: 'Mona', methods: 'draw' })
+    expect(drawOnly.find('quote-signature-typed')).toBeUndefined()
+    expect(drawOnly.find('quote-signature-clear')).toBeDefined()
+    expect(JSON.stringify(drawOnly.find('quote-signature-pad')!.parent!.children.map(child => child.children.map(node => node.children.map(inner => inner.text))))).toContain('sales.quote.signatureHintDraw')
+    expect(mount({ signerName: 'Mona' }).find('quote-signature-typed')).toBeDefined()
   })
 })

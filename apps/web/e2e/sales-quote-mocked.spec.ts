@@ -33,6 +33,7 @@ async function openQuote(page: Page, id = 5) {
 
 /** Draws a diagonal stroke across the signature box with the mouse. */
 async function sign(page: Page) {
+  await page.getByTestId('quote-signature-pad').scrollIntoViewIfNeeded()
   const box = (await page.getByTestId('quote-signature-pad').boundingBox())!
   await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.7)
   await page.mouse.down()
@@ -69,10 +70,20 @@ test('opens with no session, in Arabic RTL, under the sender\'s name, and shows 
   expect(pdf.headers()['content-type']).toBe('application/pdf')
 })
 
-test('accepting sends only the token and shows the acceptance', async ({ page }) => {
+test('accepting without a signature asks once, then sends only the token and shows the acceptance', async ({ page }) => {
   const bodies = answers(page)
   await openQuote(page)
   await accept(page).click()
+  await expect(page.getByText('هل تريد قبول عرض السعر؟')).toBeVisible()
+  await expect(accept(page)).toHaveCount(0)
+  await expect(decline(page)).toHaveCount(0)
+  expect(bodies).toEqual([])
+  await page.getByRole('button', { name: 'تراجع' }).click()
+  await expect(page.getByText('هل تريد قبول عرض السعر؟')).toHaveCount(0)
+  await expect(accept(page)).toBeEnabled()
+  expect(bodies).toEqual([])
+  await accept(page).click()
+  await page.getByRole('button', { name: 'قبول عرض السعر' }).click()
   await expect(page.getByTestId('quote-accepted')).toContainText('قبلت عرض السعر هذا')
   await expect(accept(page)).toHaveCount(0)
   await expect(decline(page)).toHaveCount(0)
@@ -109,7 +120,8 @@ test('accepting with a signature needs the name and a drawing, then sends them w
   await expect(page.getByTestId('quote-signed-by')).toContainText('منى العتيبي')
   expect(bodies).toHaveLength(1)
   const body = bodies[0]!
-  expect(Object.keys(body).sort()).toEqual(['access_token', 'signature', 'signed_by'])
+  expect(Object.keys(body).sort()).toEqual(['access_token', 'signature', 'signature_method', 'signed_by'])
+  expect(body.signature_method).toBe('drawn')
   expect(body.signed_by).toBe('منى العتيبي')
   expect(String(body.signature)).toMatch(/^iVBORw0KGgo[A-Za-z0-9+/]+=*$/)
   expect(Buffer.from(String(body.signature), 'base64').length).toBeLessThanOrEqual(48 * 1024)
@@ -145,8 +157,27 @@ test('a customer with only a keyboard signs with the typed name and accepts', as
   await page.keyboard.press('Enter')
   await expect(page.getByTestId('quote-accepted')).toContainText('قبلت عرض السعر هذا')
   expect(bodies).toHaveLength(1)
-  expect(bodies[0]).toMatchObject({ access_token: 'tok-6', signed_by: 'منى العتيبي' })
+  expect(bodies[0]).toMatchObject({ access_token: 'tok-6', signed_by: 'منى العتيبي', signature_method: 'typed' })
   expect(String(bodies[0]!.signature)).toMatch(/^iVBORw0KGgo[A-Za-z0-9+/]+=*$/)
+})
+
+test('a quotation sent for a drawn signature only has no typed-name button and sends the signature as drawn', async ({ page }) => {
+  const bodies = answers(page)
+  await login(page)
+  const settings = await (await page.request.get('/api/v1/sales/settings')).json() as { revision: number }
+  expect((await page.request.patch('/api/v1/sales/settings', { data: { customer_answer: 'accept_and_sign', signature_methods: 'draw', revision: settings.revision } })).ok()).toBe(true)
+  const created = await (await page.request.post('/api/v1/sales/orders', { data: { customer_id: 1, lines: [{ kind: 'product', product_id: 1, quantity: 1 }] } })).json() as { id: number }
+  expect((await page.request.post(`/api/v1/sales/orders/${created.id}/send`)).ok()).toBe(true)
+  await openQuote(page, created.id)
+  await expect(page.getByTestId('quote-signature-pad')).toBeVisible()
+  await expect(page.getByTestId('quote-signature-typed')).toHaveCount(0)
+  await expect(page.getByTestId('quote-signature-clear')).toBeVisible()
+  await page.getByTestId('quote-signed-by-input').fill('منى العتيبي')
+  await sign(page)
+  await accept(page).click()
+  await expect(page.getByTestId('quote-accepted')).toContainText('قبلت عرض السعر هذا')
+  expect(bodies).toHaveLength(1)
+  expect(bodies[0]).toMatchObject({ access_token: `tok-${created.id}`, signature_method: 'drawn' })
 })
 
 test('declining asks first, sends the trimmed reason and shows the decline', async ({ page }) => {
@@ -166,6 +197,11 @@ test('declining asks first, sends the trimmed reason and shows the decline', asy
   await expect(page.getByTestId('quote-declined')).toContainText('رفضت عرض السعر هذا')
   expect(bodies).toEqual([{ access_token: 'tok-5', reason: 'السعر أعلى من ميزانيتنا' }])
   await expect(decline(page)).toHaveCount(0)
+  // The server cancels a declined quotation; the customer still reads their own decline, also after a reload.
+  await expect(page.getByTestId('quote-cancelled')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByTestId('quote-declined')).toContainText('رفضت عرض السعر هذا')
+  await expect(page.getByTestId('quote-cancelled')).toHaveCount(0)
 })
 
 test('declining without a reason sends none', async ({ page }) => {
@@ -237,6 +273,7 @@ test('an answer given elsewhere meanwhile is refused in words and the page tells
   await openQuote(page)
   expect((await page.request.post(`${API}/5/decline`, { data: { access_token: 'tok-5' } })).ok()).toBe(true)
   await accept(page).click()
+  await page.getByRole('button', { name: 'قبول عرض السعر' }).click()
   await expect(page.getByTestId('quote-declined')).toBeVisible()
   await expect(accept(page)).toHaveCount(0)
   errors = withoutRefusals(errors)
@@ -247,8 +284,9 @@ test('a read-only workspace refuses the answer in words and keeps the quotation 
   await page.route(`**${API}/5/accept`, route => route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'branch_read_only', message: 'the workspace is read-only' }) }))
   await openQuote(page)
   await accept(page).click()
+  await page.getByRole('button', { name: 'قبول عرض السعر' }).click()
   await expect(page.getByTestId('quote-action-error')).toContainText('للقراءة فقط')
-  await expect(accept(page)).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'قبول عرض السعر' })).toBeEnabled()
   await expect(page.getByTestId('quote-accepted')).toHaveCount(0)
   errors = withoutRefusals(errors)
 })

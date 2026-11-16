@@ -55,12 +55,12 @@ describe('useSalesQuotation', () => {
 describe('useSalesQuotationAnswer', () => {
   const link = { id: 42, token: 'tok-42' }
 
-  it('accepts with the token alone, or with the name and the signature', async () => {
+  it('accepts with the token alone, or with the name, the signature and how it was made', async () => {
     mocks.api.mockResolvedValue({})
     await answers().accept.mutationFn({ link })
     expect(mocks.api).toHaveBeenLastCalledWith('/api/v1/public/sales/quotations/42/accept', { method: 'POST', body: { access_token: 'tok-42' }, schema: SalesPublicQuotationSchema })
-    await answers().accept.mutationFn({ link, signedBy: 'Mona', signature: 'iVBOR' })
-    expect(mocks.api).toHaveBeenLastCalledWith('/api/v1/public/sales/quotations/42/accept', { method: 'POST', body: { access_token: 'tok-42', signed_by: 'Mona', signature: 'iVBOR' }, schema: SalesPublicQuotationSchema })
+    await answers().accept.mutationFn({ link, signedBy: 'Mona', signature: 'iVBOR', signatureMethod: 'typed' })
+    expect(mocks.api).toHaveBeenLastCalledWith('/api/v1/public/sales/quotations/42/accept', { method: 'POST', body: { access_token: 'tok-42', signed_by: 'Mona', signature: 'iVBOR', signature_method: 'typed' }, schema: SalesPublicQuotationSchema })
   })
 
   it('declines with an optional reason', async () => {

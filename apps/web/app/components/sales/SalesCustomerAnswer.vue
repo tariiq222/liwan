@@ -20,6 +20,7 @@ const TONE: Record<'waiting' | 'accepted' | 'declined', StatusTone> = { waiting:
     <SharedPropertyRow v-if="props.answer.mode !== 'none' && !props.answer.answer" :label="t('sales.answer.afterAcceptance')" :value="t(props.answer.acceptance_confirms ? 'sales.answer.orderConfirmed' : 'sales.answer.youConfirm')" />
     <SharedPropertyRow v-if="props.answer.answered_at" :label="t('sales.answer.answeredAt')" data-testid="sales-answer-at"><bdi dir="ltr">{{ formatDate(props.answer.answered_at) }}</bdi></SharedPropertyRow>
     <SharedPropertyRow v-if="props.answer.signed_by" :label="t('sales.answer.signedBy')" :value="props.answer.signed_by" data-testid="sales-answer-signer" />
+    <SharedPropertyRow v-if="props.answer.signature_method" :label="t('sales.answer.signature')" :value="t(`sales.answer.signatureMethod.${props.answer.signature_method}`)" data-testid="sales-answer-signature-method" />
     <SharedPropertyRow v-if="props.answer.answer === 'declined'" :label="t('sales.answer.reason')" data-testid="sales-answer-reason">{{ props.answer.decline_reason || t('sales.answer.noReason') }}</SharedPropertyRow>
   </SharedPropertiesPanel>
 </template>

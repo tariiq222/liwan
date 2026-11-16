@@ -7,7 +7,7 @@ const branding = http.get('/api/v1/branding', () => HttpResponse.json({ name: '�
 const meta = {
   title: 'Sales/SalesQuoteHeader',
   component: SalesQuoteHeader,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/quote/[id].vue:44', 'رأس صفحة عرض السعر العامة: شعار المنشأة واسمها فوق عنوان عرض السعر.'), msw: { handlers: { api: [branding] } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/quote/[id].vue:45', 'رأس صفحة عرض السعر العامة: شعار المنشأة واسمها فوق عنوان عرض السعر.'), msw: { handlers: { api: [branding] } } },
   args: { title: 'عرض سعر S00005', company: 'مؤسسة ليوان' },
 } satisfies Meta<typeof SalesQuoteHeader>
 export default meta

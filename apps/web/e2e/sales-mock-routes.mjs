@@ -11,7 +11,7 @@
 //    approve and assign here); `mock_sales=agent` keeps the agent role (no assign, approve or settings);
 //  - the settings carry a revision: a stale one answers 409 `conflict`; `mock_sales=branch` reads `can_manage: false`;
 //  - send mails a quotation (422 `customer_email_missing` for a customer with no email; send and confirm answer
-//    422 `quotation_expired` after its validity date, and `actions.send` and `actions.confirm` are false then) and records how the customer may answer from the settings; the public routes (`handlePublicSales`,
+//    422 `quotation_expired` after its validity date, and `actions.send` and `actions.confirm` are false then) and records how the customer may answer and sign from the settings (a quotation the customer answered cannot be sent again while `answered_resend` is `refuse`: 409 `quotation_answered`, and `actions.send` is false; an e-mail that is not an address answers `customer_email_missing`); the public routes (`handlePublicSales`,
 //    no session, access token `tok-<id>`) read, accept (with a signature when asked) and decline a quotation that was
 //    sent.
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
@@ -30,6 +30,7 @@ const RECORD_PATH = /^\/api\/v1\/sales\/orders\/(\d+)(?:\/(confirm|cancel|reopen
 const PUBLIC_PATH = /^\/api\/v1\/public\/sales\/quotations\/(\d+)(?:\/(accept|decline|pdf))?$/
 // The day of the mock's documents: a quotation whose validity date is before it has expired.
 const TODAY = '2026-11-14'
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const SIGNATURE_MAX_BYTES = 48 * 1024
 const PNG_BASE64_PREFIX = 'iVBORw0KGgo'
 const PDF_BYTES = '%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n'
@@ -40,8 +41,8 @@ const LINE_KEYS = ['id', 'kind', 'product_id', 'name', 'quantity', 'discount_per
 const WRITE_KEYS = ['customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines']
 const round2 = value => Math.round(value * 100) / 100
 
-const freshSettings = () => ({ visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, revision: 1 })
-const waiting = mode => ({ mode, acceptance_confirms: false, answer: null, answered_at: null, signed_by: null, decline_reason: null })
+const freshSettings = () => ({ visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', revision: 1 })
+const waiting = mode => ({ mode, acceptance_confirms: false, answer: null, answered_at: null, signed_by: null, signature_method: null, decline_reason: null })
 const line = (id, kind, fields) => ({ id, kind, product_id: null, name: '', quantity: 0, discount_percent: 0, ...fields })
 const freshOrders = () => [
   { id: 1, number: 'S00001', state: 'draft', locked: false, source: 'staff', customer_id: 2, customer_name: 'مؤسسة النخيل', salesperson: ME, validity_date: '2026-12-14', date: '2026-11-14T08:00:00Z', terms: 'الأسعار شاملة التوصيل داخل المدينة.',
@@ -54,8 +55,8 @@ const freshOrders = () => [
     lines: [line(41, 'product', { product_id: 2, name: 'باقة متقدمة', quantity: 1 })] },
 ]
 // Four quotations sent to a customer, by another salesperson: S00005 (the customer may accept or decline), S00006
-// (accept with a signature), S00007 (expired) and S00008 (read only). Each is open at `/quote/<id>?access_token=tok-<id>`.
-const sent = (id, customer, fields) => ({ id, number: `S${String(id).padStart(5, '0')}`, state: 'sent', locked: false, source: 'staff', customer_id: customer.id, customer_name: customer.name, salesperson: PEOPLE[1],
+// (accept with a signature, drawn or typed), S00007 (expired) and S00008 (read only). Each is open at `/quote/<id>?access_token=tok-<id>`.
+const sent = (id, customer, fields) => ({ signature_methods: 'draw_or_type', id, number: `S${String(id).padStart(5, '0')}`, state: 'sent', locked: false, source: 'staff', customer_id: customer.id, customer_name: customer.name, salesperson: PEOPLE[1],
   validity_date: '2026-12-14', date: '2026-11-13T10:00:00Z', terms: 'يسري العرض لمدة شهر من تاريخه.', lines: [line(id * 10 + 1, 'product', { product_id: 1, name: 'باقة أساسية', quantity: 2 })], ...fields })
 const sentOrders = () => [
   sent(5, { id: 1, name: 'منى العتيبي' }, { answer: waiting('accept') }),
@@ -104,6 +105,13 @@ const expiredOpen = order => expired(order) && (order.state === 'draft' || order
 
 const own = (order, caps) => caps.includes('sales.documents.assign') || order.salesperson?.id === ME.id
 
+/** The tenant may refuse sending a quotation the customer answered: it is reopened first. */
+const resendRefused = order => !!order.answer?.answer && settings.answered_resend === 'refuse'
+
+/** Send would be offered to the caller but for the resend setting. */
+const sendOpen = (order, caps) => order.source === 'staff' && own(order, caps) && caps.includes('sales.quotations.manage')
+  && (order.state === 'draft' || order.state === 'sent') && !expired(order)
+
 function actionsOf(order, caps) {
   const staff = order.source === 'staff'
   const mine = staff && own(order, caps)
@@ -116,12 +124,12 @@ function actionsOf(order, caps) {
     edit: mine && quote && draft,
     confirm: mine && confirm && open && !expired(order) && order.lines.some(item => item.kind === 'product'),
     cancel: mine && ((open && quote) || (confirmed && !order.locked && confirm)),
-    reopen: mine && confirm && (order.state === 'cancelled' || (order.state === 'sent' && !order.answer?.answer)),
+    reopen: mine && confirm && (order.state === 'cancelled' || order.state === 'sent'),
     lock: mine && confirm && confirmed && !order.locked,
     unlock: mine && confirm && confirmed && order.locked,
     duplicate: quote,
     assign: staff && caps.includes('sales.documents.assign'),
-    send: mine && quote && !expired(order) && (draft || (order.state === 'sent' && !order.answer?.answer)),
+    send: sendOpen(order, caps) && !resendRefused(order),
   }
 }
 
@@ -137,7 +145,7 @@ function dumpItem(order) {
   }
 }
 
-const dump = (order, caps) => ({ ...dumpItem(order), lines: order.lines.map(dumpLine), actions: actionsOf(order, caps) })
+const dump = (order, caps) => ({ ...dumpItem(order), lines: order.lines.map(dumpLine), actions: actionsOf(order, caps), resend_refused: sendOpen(order, caps) && resendRefused(order) })
 
 /** Under `own` a reader sees their documents and the online orders; the assign holder and `all` see every one. */
 const visible = (order, caps) => settings.visibility === 'all' || caps.includes('sales.documents.assign') || order.salesperson === null || order.salesperson.id === ME.id
@@ -248,11 +256,13 @@ const MOVES = {
 /** Mails the quotation (how the customer may answer is read from the settings now); the refusal, or null when it was sent. */
 function sendQuotation(order, caps) {
   if (expiredOpen(order)) return refusal(422, 'quotation_expired', 'the quotation has expired')
+  if (sendOpen(order, caps) && resendRefused(order)) return refusal(409, 'quotation_answered', 'the customer answered this quotation; reopen it before sending it again')
   if (!actionsOf(order, caps).send) return refusal(403, 'transition_forbidden', 'send is not allowed now')
   if (!order.lines.some(item => item.kind === 'product')) return invalid('lines', 'a quotation needs a product line to be sent')
-  if (!findMockCustomer(order.customer_id)?.email) return refusal(422, 'customer_email_missing', 'the customer has no email address')
+  if (!EMAIL.test(findMockCustomer(order.customer_id)?.email ?? '')) return refusal(422, 'customer_email_missing', 'the customer has no email address')
   order.state = 'sent'
   order.answer = { ...waiting(settings.customer_answer), acceptance_confirms: settings.acceptance_confirms }
+  order.signature_methods = settings.signature_methods
   return null
 }
 
@@ -265,6 +275,8 @@ function updateSettings(body, manage) {
   if ('discount_limit_percent' in body) { const value = body.discount_limit_percent; if (!Number.isInteger(value) || value < 0 || value > 100) return invalid('discount_limit_percent'); next.discount_limit_percent = value }
   if ('default_terms' in body) { if (typeof body.default_terms !== 'string') return invalid('default_terms'); next.default_terms = body.default_terms }
   if ('customer_answer' in body) { if (!['none', 'accept', 'accept_and_sign'].includes(body.customer_answer)) return invalid('customer_answer'); next.customer_answer = body.customer_answer }
+  if ('answered_resend' in body) { if (!['allow', 'refuse'].includes(body.answered_resend)) return invalid('answered_resend'); next.answered_resend = body.answered_resend }
+  if ('signature_methods' in body) { if (!['draw', 'draw_or_type'].includes(body.signature_methods)) return invalid('signature_methods'); next.signature_methods = body.signature_methods }
   if ('acceptance_confirms' in body) { if (typeof body.acceptance_confirms !== 'boolean') return invalid('acceptance_confirms'); next.acceptance_confirms = body.acceptance_confirms }
   settings = { ...next, revision: settings.revision + 1 }
   return { status: 200, body: { ...settings, can_manage: true } }
@@ -377,18 +389,28 @@ function publicQuotation(order) {
   return {
     id: order.id, number: order.number, state: order.state, expired: item.expired, company_name: 'ليوان', customer_name: order.customer_name, date: order.date,
     validity_date: order.validity_date, terms: order.terms, currency: CURRENCY, amount_untaxed: item.amount_untaxed, amount_tax: item.amount_tax,
-    amount_total: item.amount_total, lines: order.lines.map(publicLine), answer_mode: order.answer.mode, answer: order.answer.answer,
+    amount_total: item.amount_total, lines: order.lines.map(publicLine), answer_mode: order.answer.mode, signature_methods: order.signature_methods, answer: order.answer.answer,
     answered_at: order.answer.answered_at, signed_by: order.answer.signed_by, can_accept: open, can_decline: open,
   }
 }
 
-/** The signature a customer drew, or the refusal: required in mode `accept_and_sign` and absent otherwise. */
+const SIGNATURE_KEYS = ['signed_by', 'signature', 'signature_method']
+
+/** The signature fields of an acceptance, or the refusal, in the order and with the codes of `parse_signature` in
+ * serializers/public.py: mode `accept` takes none (`unknown_field` on the first one given), `accept_and_sign` takes all three. */
 function checkSignature(order, body) {
-  const signing = order.answer.mode === 'accept_and_sign'
-  if (!signing) return 'signed_by' in body || 'signature' in body ? invalid('signature', 'a signature is not asked for') : null
-  if (typeof body.signed_by !== 'string' || !body.signed_by.trim() || typeof body.signature !== 'string') return refusal(422, 'signature_required', 'the name and the signature are required')
-  const bytes = /^[A-Za-z0-9+/]+={0,2}$/.test(body.signature) ? Buffer.from(body.signature, 'base64') : null
-  if (body.signed_by.length > 120 || !bytes || bytes.length > SIGNATURE_MAX_BYTES || !body.signature.startsWith(PNG_BASE64_PREFIX)) return refusal(422, 'signature_invalid', 'the signature is not a small PNG')
+  if (order.answer.mode !== 'accept_and_sign') {
+    const given = SIGNATURE_KEYS.find(key => key in body)
+    return given ? refusal(422, 'unknown_field', `field '${given}' is not accepted`, { field: given }) : null
+  }
+  if ('signature_method' in body && (body.signature ?? null) === null) return invalid('signature_method', 'signature_method comes with a signature')
+  if (body.signed_by == null || (typeof body.signed_by === 'string' && !body.signed_by.trim())) return refusal(422, 'signature_required', 'the name of the signer is required')
+  if (typeof body.signed_by !== 'string' || body.signed_by.trim().length > 120) return refusal(422, 'signature_invalid', 'the name of the signer is at most 120 characters')
+  if (body.signature == null) return refusal(422, 'signature_required', 'the signature is required')
+  const bytes = typeof body.signature === 'string' && /^[A-Za-z0-9+/]+={0,2}$/.test(body.signature) ? Buffer.from(body.signature, 'base64') : null
+  if (!bytes || bytes.length > SIGNATURE_MAX_BYTES || !body.signature.startsWith(PNG_BASE64_PREFIX)) return refusal(422, 'signature_invalid', 'the signature must be a small PNG image as base64 text')
+  if (!['drawn', 'typed'].includes(body.signature_method)) return invalid('signature_method', 'signature_method must be one of drawn or typed')
+  if (body.signature_method === 'typed' && order.signature_methods === 'draw') return invalid('signature_method', 'this quotation takes a hand-drawn signature only')
   return null
 }
 
@@ -400,10 +422,12 @@ function answerQuotation(order, action, body) {
   if (action === 'decline') {
     if (typeof body.reason === 'string' && body.reason.length > 1000) return invalid('reason')
     Object.assign(order.answer, { answer: 'declined', answered_at: answeredAt, decline_reason: body.reason?.trim() || null })
+    // As on the server, a decline cancels the quotation.
+    order.state = 'cancelled'
   } else {
     const failure = checkSignature(order, body)
     if (failure) return failure
-    Object.assign(order.answer, { answer: 'accepted', answered_at: answeredAt, signed_by: body.signed_by?.trim() ?? null })
+    Object.assign(order.answer, { answer: 'accepted', answered_at: answeredAt, signed_by: body.signed_by?.trim() ?? null, signature_method: body.signature_method ?? null })
     if (order.answer.acceptance_confirms) order.state = 'confirmed'
   }
   return null

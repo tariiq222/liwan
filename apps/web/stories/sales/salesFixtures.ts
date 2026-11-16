@@ -15,19 +15,20 @@ export const draftOrder: SalesOrder = {
     { id: 13, kind: 'note', product: null, name: 'يبدأ الاشتراك من أول الشهر.', quantity: 0, unit: null, unit_price: 0, discount_percent: 0, amount_untaxed: 0, amount_tax: 0, amount_total: 0 },
   ],
   actions: { ...ALL_ACTIONS_OFF, edit: true, confirm: true, cancel: true, send: true },
+  resend_refused: false,
 }
 export const confirmedOrder: SalesOrder = { ...draftOrder, id: 2, number: 'S00002', state: 'confirmed', actions: { ...ALL_ACTIONS_OFF, cancel: true, lock: true } }
 export const onlineOrder: SalesOrder = { ...draftOrder, id: 4, number: 'S00004', state: 'confirmed', locked: true, source: 'online', salesperson: null, validity_date: null, terms: '', actions: { ...ALL_ACTIONS_OFF, assign: false } }
 
-export const waitingAnswer: SalesCustomerAnswer = { mode: 'accept_and_sign', acceptance_confirms: false, answer: null, answered_at: null, signed_by: null, decline_reason: null }
-export const acceptedAnswer: SalesCustomerAnswer = { ...waitingAnswer, answer: 'accepted', answered_at: '2026-11-15T10:20:00Z', signed_by: 'منى العتيبي' }
+export const waitingAnswer: SalesCustomerAnswer = { mode: 'accept_and_sign', acceptance_confirms: false, answer: null, answered_at: null, signed_by: null, signature_method: null, decline_reason: null }
+export const acceptedAnswer: SalesCustomerAnswer = { ...waitingAnswer, answer: 'accepted', answered_at: '2026-11-15T10:20:00Z', signed_by: 'منى العتيبي', signature_method: 'drawn' }
 export const declinedAnswer: SalesCustomerAnswer = { ...waitingAnswer, answer: 'declined', answered_at: '2026-11-15T10:20:00Z', decline_reason: 'السعر أعلى من ميزانيتنا هذا الشهر.' }
 export const sentOrder: SalesOrder = { ...draftOrder, state: 'sent', customer_answer: waitingAnswer, actions: { ...ALL_ACTIONS_OFF, confirm: true, cancel: true, reopen: true, send: true } }
 
-const item = ({ lines: _lines, actions: _actions, ...rest }: SalesOrder): SalesOrderListItem => rest
+const item = ({ lines: _lines, actions: _actions, resend_refused: _refused, ...rest }: SalesOrder): SalesOrderListItem => rest
 export const orders: SalesOrderListItem[] = [item(draftOrder), item(confirmedOrder), { ...item(draftOrder), id: 3, number: 'S00003', state: 'cancelled' }, item(onlineOrder), { ...item(sentOrder), id: 5, number: 'S00005' }, { ...item(sentOrder), id: 6, number: 'S00006', expired: true, validity_date: '2026-11-01' }]
 
-export const salesSettings: SalesSettings = { visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, revision: 3, can_manage: true }
+export const salesSettings: SalesSettings = { visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', revision: 3, can_manage: true }
 export const salespeople = [{ id: 2, name: 'Admin', user_id: 2 }, { id: 7, name: 'مها الثبيتي', user_id: 7 }]
 export const customerPicks = [
   { id: 1, name: 'منى العتيبي', is_company: false, phone_last4: '0001' },
@@ -44,5 +45,5 @@ export const publicQuote: SalesPublicQuotation = {
   terms: 'الأسعار شاملة التوصيل داخل المدينة.\nالدفع خلال ٣٠ يومًا من تاريخ التأكيد.', currency,
   amount_untaxed: 216, amount_tax: 32.4, amount_total: 248.4,
   lines: draftOrder.lines.map(({ id: _id, product: _product, ...line }) => line),
-  answer_mode: 'accept', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
+  answer_mode: 'accept', signature_methods: 'draw_or_type', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
 }

@@ -58,9 +58,10 @@ export const quoteChanged = (error: unknown): boolean => refusalStatus(error) ==
 export type QuoteView = 'open' | 'accepted' | 'declined' | 'confirmed' | 'cancelled' | 'expired' | 'notOffered'
 
 export function quoteView(quote: SalesPublicQuotation): QuoteView {
+  // A decline cancels the quotation on the server, so the customer's own decline wins over the cancelled state.
+  if (quote.answer === 'declined') return 'declined'
   if (quote.state === 'cancelled') return 'cancelled'
   if (quote.answer === 'accepted') return 'accepted'
-  if (quote.answer === 'declined') return 'declined'
   if (quote.state === 'confirmed') return 'confirmed'
   if (quote.expired) return 'expired'
   return quote.can_accept || quote.can_decline ? 'open' : 'notOffered'

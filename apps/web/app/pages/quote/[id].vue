@@ -4,6 +4,7 @@ import SalesQuoteDocument from '@/components/sales/SalesQuoteDocument.vue'
 import SalesQuoteHeader from '@/components/sales/SalesQuoteHeader.vue'
 import SalesQuoteStatus from '@/components/sales/SalesQuoteStatus.vue'
 import { isInvalidQuoteLink, quoteAnswerErrorKey, quoteChanged, quotePdfHref, quoteView } from '@/composables/sales/salesQuote'
+import type { SalesSignatureMethod } from '@liwan/contracts'
 import { useSalesQuotation, useSalesQuotationAnswer } from '@/composables/sales/useSalesQuotation'
 
 // The public page a customer opens from the link of a quotation they were sent: no account, no session. The access token
@@ -34,7 +35,7 @@ async function answer(call: () => Promise<unknown>) {
     if (quoteChanged(cause)) await refetch()
   }
 }
-const accept = (body: { signedBy?: string; signature?: string }) => answer(() => answers.accept.mutateAsync({ link: link.value!, ...body }))
+const accept = (body: { signedBy?: string; signature?: string; signatureMethod?: SalesSignatureMethod }) => answer(() => answers.accept.mutateAsync({ link: link.value!, ...body }))
 const decline = (reason: string | undefined) => answer(() => answers.decline.mutateAsync({ link: link.value!, reason }))
 </script>
 

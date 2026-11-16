@@ -15,6 +15,7 @@ const ORDER: SalesOrder = {
     { id: 4, kind: 'product', product: { id: 9, name: 'Haircut' }, name: 'Haircut', quantity: 2, unit: 'Units', unit_price: 100, discount_percent: 10, amount_untaxed: 180, amount_tax: 27, amount_total: 207 },
   ],
   actions: { edit: true, confirm: true, cancel: true, reopen: false, lock: false, unlock: false, duplicate: true, assign: false, send: true },
+  resend_refused: false,
 }
 const PICK: ProductPick = { id: 11, name: 'Oil', type: 'goods', unit_price: 50, amount_untaxed: 50, amount_tax: 7.5, amount_total: 57.5, currency }
 
