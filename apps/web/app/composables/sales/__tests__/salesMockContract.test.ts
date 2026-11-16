@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { CrmOpportunitySchema, PersonRefSchema, SalesOrderListSchema, SalesOrderSchema, SalesPublicQuotationSchema, SalesQuotationAcceptSchema, SalesQuotationDeclineSchema, SalesSettingsSchema } from '@liwan/contracts'
+import { CrmOpportunitySchema, FinanceInvoiceDetailSchema, PersonRefSchema, SalesOrderListSchema, SalesOrderSchema, SalesPublicQuotationSchema, SalesQuotationAcceptSchema, SalesQuotationDeclineSchema, SalesSettingsSchema } from '@liwan/contracts'
 import { crmPreviewData, crmPreviewWrite } from '../../../../e2e/crm-ui-preview-data.mjs'
 import { handlePublicSales, handleSales } from '../../../../e2e/sales-mock-routes.mjs'
 
 // The sales mock answers the shapes of the contracts and follows the server's rules, so it cannot drift.
 type Handler = typeof handleSales
-async function run(handler: Handler, method: string, path: string, body?: object, cookie = ''): Promise<{ status: number; body: unknown }> {
+async function run(handler: Handler, method: string, path: string, body?: object, cookie = '', headers: Record<string, string> = {}): Promise<{ status: number; body: unknown }> {
   let answer: { status: number; body: unknown } | undefined
   const url = new URL(`http://mock.example.test${path}`)
   const handled = await handler(
-    { method, headers: { cookie } },
+    { method, headers: { cookie, ...headers } },
     { writeHead: (status: number) => { answer = { status, body: 'binary' } }, end: () => {} },
     url.pathname,
     url,
@@ -18,7 +18,7 @@ async function run(handler: Handler, method: string, path: string, body?: object
   expect(handled).toBe(true)
   return answer as { status: number; body: unknown }
 }
-const call = (method: string, path: string, body?: object, cookie = '') => run(handleSales, method, path, body, cookie)
+const call = (method: string, path: string, body?: object, cookie = '', headers: Record<string, string> = {}) => run(handleSales, method, path, body, cookie, headers)
 const publicCall = (method: string, path: string, body?: object, cookie = '') => run(handlePublicSales, method, path, body, cookie)
 
 describe('sales mock', () => {
@@ -467,6 +467,147 @@ describe('sales mock', () => {
       expect(manual.opportunity_win).toBe('manual')
       await confirm(SalesOrderSchema.parse((await quote(2)).body).id)
       expect(lead(2).final_price).toBe(276)
+    })
+  })
+  describe('the Finance bridge', () => {
+    const turnOn = () => publicCall('POST', '/api/v1/public/sales/__mock/finance', { on: true })
+    const order = async (id: number, cookie = '') => SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${id}`, undefined, cookie)).body)
+    const invoice = (id: number, body: object, cookie = '', headers: Record<string, string> = {}) => call('POST', `/api/v1/sales/orders/${id}/invoices`, body, cookie, headers)
+    const confirmedOrder = async () => {
+      const created = SalesOrderSchema.parse((await call('POST', '/api/v1/sales/orders', { customer_id: 2, lines: [{ kind: 'product', product_id: 1, quantity: 2 }] })).body)
+      await call('POST', `/api/v1/sales/orders/${created.id}/confirm`)
+      return created.id
+    }
+
+    it('is off by default: no invoicing on an order, no setting and no route', async () => {
+      expect((await order(2)).invoicing).toBeUndefined()
+      expect(SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body).invoice_down_payment).toBeUndefined()
+      expect((await call('PATCH', '/api/v1/sales/settings', { revision: 1, invoice_down_payment: 'refuse' })).body).toMatchObject({ code: 'feature_not_included' })
+      expect((await invoice(2, { method: 'order' })).body).toMatchObject({ code: 'feature_not_included' })
+    })
+
+    it('invoices the whole order as a draft that finance reads with its source order', async () => {
+      await turnOn()
+      expect((await order(2)).invoicing).toMatchObject({ status: 'to_invoice', amount_to_invoice: 552, can_invoice: true, can_down_payment: true, invoices: [] })
+      const made = SalesOrderSchema.parse((await invoice(2, { method: 'order' })).body)
+      expect(made.invoicing).toMatchObject({ status: 'invoiced', amount_drafted: 552, amount_to_invoice: 0, can_invoice: false, invoices: [{ id: 9001, state: 'draft', kind: 'invoice', number: null }] })
+      const detail = FinanceInvoiceDetailSchema.parse((await call('GET', '/api/v1/finance/invoices/9001')).body)
+      expect(detail).toMatchObject({ state: 'draft', source_order: { id: 2, number: 'S00002' }, amount_total: 552 })
+      expect((await call('POST', '/api/v1/finance/invoices/9001/post')).body).toMatchObject({ state: 'posted', name: 'INV/2026/09001' })
+      expect((await order(2)).invoicing).toMatchObject({ amount_invoiced: 552, amount_drafted: 0 })
+    })
+
+    it('takes down payments by percent and by amount, and the final invoice takes what is left', async () => {
+      await turnOn()
+      const id = await confirmedOrder()
+      expect((await order(id)).amount_total).toBe(276)
+      expect(SalesOrderSchema.parse((await invoice(id, { method: 'percent', percent: 25 })).body).invoicing).toMatchObject({ amount_drafted: 69, amount_to_invoice: 207, status: 'partial' })
+      expect(SalesOrderSchema.parse((await invoice(id, { method: 'amount', amount: 100 })).body).invoicing).toMatchObject({ amount_drafted: 169, amount_to_invoice: 107 })
+      const final = SalesOrderSchema.parse((await invoice(id, { method: 'order' })).body).invoicing!
+      expect(final.invoices.map(item => [item.kind, item.amount_total])).toEqual([['invoice', 107], ['down_payment', 100], ['down_payment', 69]])
+      expect(final.status).toBe('invoiced')
+      expect((await invoice(id, { method: 'percent', percent: 10 })).body).toMatchObject({ code: 'nothing_to_invoice' })
+    })
+
+    it('refuses what the server refuses', async () => {
+      await turnOn()
+      const id = await confirmedOrder()
+      for (const [body, field] of [[{}, 'method'], [{ method: 'percent' }, 'percent'], [{ method: 'percent', percent: 0 }, 'percent'], [{ method: 'percent', percent: 101 }, 'percent'], [{ method: 'amount', amount: 0 }, 'amount'], [{ method: 'order', percent: 10 }, 'percent']] as const) {
+        expect((await invoice(id, body)).body).toMatchObject({ code: 'invalid', field })
+      }
+      expect((await invoice(id, { method: 'amount', amount: 300 })).body).toMatchObject({ code: 'invalid', field: 'amount', details: { max_amount: 276 } })
+      expect((await invoice(1, { method: 'order' })).body).toMatchObject({ code: 'order_not_confirmed' })
+      expect((await invoice(4, { method: 'order' })).body).toMatchObject({ code: 'forbidden', details: { reason: 'online_order' } })
+      expect((await invoice(id, { method: 'order' }, 'mock_finance=read')).status).toBe(403)
+      expect((await invoice(id, { method: 'order' }, 'mock_sales=agent;')).status).toBe(200)
+    })
+
+    it('follows the down payment setting and shows nothing to a caller without finance read', async () => {
+      await turnOn()
+      const settings = SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body)
+      expect(settings.invoice_down_payment).toBe('allow')
+      expect((await call('PATCH', '/api/v1/sales/settings', { revision: settings.revision, invoice_down_payment: 'sometimes' })).body).toMatchObject({ code: 'invalid', field: 'invoice_down_payment' })
+      expect(SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { revision: settings.revision, invoice_down_payment: 'refuse' })).body).invoice_down_payment).toBe('refuse')
+      expect((await order(2)).invoicing).toMatchObject({ can_invoice: true, can_down_payment: false })
+      expect((await invoice(2, { method: 'percent', percent: 10 })).body).toMatchObject({ code: 'down_payment_refused', field: 'method' })
+      expect((await order(2, 'mock_finance=hidden')).invoicing).toBeNull()
+      expect((await order(2, 'mock_finance=read')).invoicing).toMatchObject({ can_invoice: false, can_down_payment: false })
+    })
+
+    it('lets only the salesperson or an assign holder invoice an order under the default actor, and any biller under the other', async () => {
+      await turnOn()
+      let settings = SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body)
+      expect(settings.invoice_actor).toBe('owner')
+      expect((await call('PATCH', '/api/v1/sales/settings', { revision: settings.revision, invoice_actor: 'everyone' })).body).toMatchObject({ code: 'invalid', field: 'invoice_actor' })
+      // Under `own` visibility an agent does not read a colleague's order at all; `all` lets them read it, and the actor setting decides the rest.
+      settings = SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { revision: settings.revision, visibility: 'all' })).body)
+      // S00002 is another salesperson's: an agent without the assign right is neither offered nor allowed to invoice it.
+      expect((await order(2, 'mock_sales=agent')).invoicing).toMatchObject({ can_invoice: false, can_down_payment: false })
+      expect((await invoice(2, { method: 'order' }, 'mock_sales=agent')).body).toMatchObject({ code: 'forbidden', details: { reason: 'not_the_salesperson' } })
+      expect((await order(2)).invoicing).toMatchObject({ can_invoice: true })
+      expect(SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { revision: settings.revision, invoice_actor: 'any_biller' })).body).invoice_actor).toBe('any_biller')
+      expect((await order(2, 'mock_sales=agent')).invoicing).toMatchObject({ can_invoice: true, can_down_payment: true })
+      expect((await invoice(2, { method: 'order' }, 'mock_sales=agent')).status).toBe(200)
+    })
+
+    it('hides the setting and refuses it without Finance', async () => {
+      expect(SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body).invoice_actor).toBeUndefined()
+      expect((await call('PATCH', '/api/v1/sales/settings', { revision: 1, invoice_actor: 'any_biller' })).body).toMatchObject({ code: 'feature_not_included' })
+    })
+
+    it('repeats the first answer of an Idempotency-Key and refuses the key for another body', async () => {
+      await turnOn()
+      const id = await confirmedOrder()
+      const key = { 'idempotency-key': 'sales-invoice-0001' }
+      const first = await invoice(id, { method: 'percent', percent: 25 }, '', key)
+      expect(first.status).toBe(200)
+      const again = await invoice(id, { method: 'percent', percent: 25 }, '', key)
+      expect(again).toEqual(first)
+      expect(SalesOrderSchema.parse((await order(id))).invoicing!.invoices).toHaveLength(1)
+      expect((await invoice(id, { method: 'percent', percent: 30 }, '', key)).body).toMatchObject({ code: 'idempotency_key_reused' })
+      expect((await invoice(id, { method: 'order' }, '', { 'idempotency-key': 'short' })).body).toMatchObject({ code: 'invalid', field: 'Idempotency-Key' })
+      // A refused request leaves no key, so the corrected one goes through under it.
+      const refused = await invoice(id, { method: 'percent', percent: 500 }, '', { 'idempotency-key': 'sales-invoice-0002' })
+      expect(refused.status).toBe(422)
+      expect((await invoice(id, { method: 'percent', percent: 10 }, '', { 'idempotency-key': 'sales-invoice-0002' })).status).toBe(200)
+    })
+
+    it('keeps an order with a posted invoice from being cancelled, and cancels its draft invoices with it', async () => {
+      await turnOn()
+      const posted = await confirmedOrder()
+      await invoice(posted, { method: 'order' })
+      await call('POST', '/api/v1/finance/invoices/9001/post')
+      expect((await order(posted)).actions.cancel).toBe(false)
+      expect((await call('POST', `/api/v1/sales/orders/${posted}/cancel`)).body).toMatchObject({ code: 'transition_forbidden' })
+      const drafted = await confirmedOrder()
+      await invoice(drafted, { method: 'percent', percent: 50 })
+      expect((await order(drafted, 'mock_finance=read')).actions.cancel).toBe(false)
+      expect((await order(drafted, 'mock_finance=retained')).actions.cancel).toBe(false)
+      expect((await order(drafted)).actions.cancel).toBe(true)
+      expect(SalesOrderSchema.parse((await call('POST', `/api/v1/sales/orders/${drafted}/cancel`)).body).invoicing).toMatchObject({ status: 'none', amount_drafted: 0, invoices: [{ state: 'cancel' }] })
+    })
+
+    it('counts what payments settled on a posted invoice as paid', async () => {
+      await turnOn()
+      const id = await confirmedOrder()
+      await invoice(id, { method: 'order' })
+      await call('POST', '/api/v1/finance/invoices/9001/post')
+      await publicCall('POST', '/api/v1/public/sales/__mock/invoice-paid', { id: 9001, amount: 100 })
+      expect((await order(id)).invoicing).toMatchObject({ amount_paid: 100, amount_invoiced: 276, invoices: [{ payment_state: 'partial', amount_residual: 176 }] })
+    })
+
+    it('subtracts what posted credit notes settled from what is paid, never below zero', async () => {
+      await turnOn()
+      const id = await confirmedOrder()
+      await invoice(id, { method: 'order' })
+      await call('POST', '/api/v1/finance/invoices/9001/post')
+      // A credit note against an unpaid invoice cancels it: nothing is paid.
+      await publicCall('POST', '/api/v1/public/sales/__mock/credit-note', { id: 9001, amount: 76 })
+      expect((await order(id)).invoicing).toMatchObject({ amount_paid: 0, amount_credited: 76, amount_invoiced: 276 })
+      // Money paid first stays paid: the credit note settles only what the invoice still owed.
+      await publicCall('POST', '/api/v1/public/sales/__mock/invoice-paid', { id: 9001, amount: 100 })
+      await publicCall('POST', '/api/v1/public/sales/__mock/credit-note', { id: 9001, amount: 200 })
+      expect((await order(id)).invoicing).toMatchObject({ amount_paid: 100, amount_credited: 276 })
     })
   })
 })

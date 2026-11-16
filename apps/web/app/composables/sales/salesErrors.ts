@@ -67,3 +67,27 @@ export function salesRefusalKey(error: unknown): string | null {
   if (failure?.status === 409) return 'sales.errors.conflict'
   return null
 }
+
+/** The field of the invoice form a 422 names; null for any other refusal. */
+export function salesInvoiceField(error: unknown): 'percent' | 'amount' | 'method' | null {
+  const failure = error as Refusal | null
+  return failure?.status === 422 && (failure.field === 'percent' || failure.field === 'amount' || failure.field === 'method') ? failure.field : null
+}
+
+const INVOICE_REFUSALS: Record<string, string> = {
+  order_not_confirmed: 'notConfirmed',
+  nothing_to_invoice: 'nothingToInvoice',
+  down_payment_refused: 'downPaymentRefused',
+  no_journal: 'noJournal',
+}
+
+/** The locale key of a refused invoice in its own words (a figure beyond what is left, a state, a policy); null for any other refusal. */
+export function salesInvoiceErrorKey(error: unknown): string | null {
+  const failure = error as Refusal | null
+  if (failure?.status === 403 && failure.code === 'forbidden' && (failure.details as { reason?: unknown } | undefined)?.reason === 'online_order') return 'sales.invoicing.errors.online'
+  if (failure?.status === 403 && failure.code === 'forbidden' && (failure.details as { reason?: unknown } | undefined)?.reason === 'not_the_salesperson') return 'sales.invoicing.errors.notSalesperson'
+  if (failure?.status === 403 && failure.code === 'feature_not_included') return 'sales.invoicing.errors.financeNotIncluded'
+  if (failure?.status === 422 && failure.code && failure.code in INVOICE_REFUSALS) return `sales.invoicing.errors.${INVOICE_REFUSALS[failure.code]}`
+  const field = salesInvoiceField(error)
+  return field === 'percent' || field === 'amount' ? `sales.invoicing.errors.${field}` : null
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../useApi'
-import { isSalesDiscountAboveLimit, salesFieldRef, salesFormField, salesRefundErrorKey, salesRefundField, salesRefusalKey } from '../salesErrors'
+import { isSalesDiscountAboveLimit, salesFieldRef, salesFormField, salesInvoiceErrorKey, salesInvoiceField, salesRefundErrorKey, salesRefundField, salesRefusalKey } from '../salesErrors'
 
 describe('salesFormField', () => {
   it('reads a header field and a line field of a 422', () => {
@@ -59,5 +59,28 @@ describe('salesRefundErrorKey', () => {
     expect(salesRefusalKey(new ApiError(403, 'forbidden', 'no'))).toBe('sales.errors.forbidden')
     expect(salesRefusalKey(new ApiError(403, 'feature_not_included', 'no'))).toBe('sales.errors.featureNotIncluded')
     expect(salesRefusalKey(new ApiError(404, 'not_found', 'no'))).toBe('sales.errors.notFound')
+  })
+})
+
+describe('salesInvoiceErrorKey', () => {
+  it('names the refusals of an invoice in their own words', () => {
+    expect(salesInvoiceErrorKey(new ApiError(422, 'order_not_confirmed', 'no'))).toBe('sales.invoicing.errors.notConfirmed')
+    expect(salesInvoiceErrorKey(new ApiError(422, 'nothing_to_invoice', 'no'))).toBe('sales.invoicing.errors.nothingToInvoice')
+    expect(salesInvoiceErrorKey(new ApiError(422, 'down_payment_refused', 'no', 'method'))).toBe('sales.invoicing.errors.downPaymentRefused')
+    expect(salesInvoiceErrorKey(new ApiError(422, 'no_journal', 'no', 'journal_id'))).toBe('sales.invoicing.errors.noJournal')
+    expect(salesInvoiceErrorKey(new ApiError(403, 'forbidden', 'no', undefined, { reason: 'online_order' }))).toBe('sales.invoicing.errors.online')
+    expect(salesInvoiceErrorKey(new ApiError(403, 'forbidden', 'no', undefined, { reason: 'not_the_salesperson' }))).toBe('sales.invoicing.errors.notSalesperson')
+    expect(salesInvoiceErrorKey(new ApiError(403, 'forbidden', 'no'))).toBeNull()
+    expect(salesInvoiceErrorKey(new ApiError(403, 'feature_not_included', 'no'))).toBe('sales.invoicing.errors.financeNotIncluded')
+  })
+
+  it('names a figure beyond what is left, at its field, and leaves any other refusal to the generic words', () => {
+    expect(salesInvoiceField(new ApiError(422, 'invalid', 'bad', 'percent'))).toBe('percent')
+    expect(salesInvoiceField(new ApiError(422, 'invalid', 'bad', 'amount'))).toBe('amount')
+    expect(salesInvoiceErrorKey(new ApiError(422, 'invalid', 'bad', 'amount', { max_amount: 5 }))).toBe('sales.invoicing.errors.amount')
+    expect(salesInvoiceErrorKey(new ApiError(422, 'invalid', 'bad', 'percent'))).toBe('sales.invoicing.errors.percent')
+    expect(salesInvoiceField(new ApiError(422, 'invalid', 'bad', 'customer_id'))).toBeNull()
+    expect(salesInvoiceErrorKey(new ApiError(500, 'internal', 'no'))).toBeNull()
+    expect(salesInvoiceErrorKey(new ApiError(403, 'forbidden', 'no'))).toBeNull()
   })
 })

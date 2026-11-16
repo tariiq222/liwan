@@ -1,4 +1,4 @@
-import { MeSchema, type SalesCustomerAnswer, type SalesOrder, type SalesOrderListItem, type SalesOrderPayment, type SalesPublicPayment, type SalesPublicQuotation, type SalesSettings } from '@liwan/contracts'
+import { MeSchema, type SalesCustomerAnswer, type SalesOrder, type SalesOrderInvoicing, type SalesOrderListItem, type SalesOrderPayment, type SalesPublicPayment, type SalesPublicQuotation, type SalesSettings } from '@liwan/contracts'
 import { me } from '../fixtures/pmo'
 
 // The wire shapes the sales stories share: a draft quotation, a confirmed order, a cancelled one and an online order.
@@ -60,3 +60,17 @@ export const publicQuote: SalesPublicQuotation = {
 export const salesSettingsWithOpportunity: SalesSettings = { ...salesSettings, opportunity_win: 'order_confirmed', opportunity_win_amount: 'untaxed' }
 /** The opportunity a quotation was written from, as the order page names it. */
 export const orderOpportunity = { id: 5, contact_name: 'فهد الحربي', status: 'pending', active: true } as const
+
+/** The settings of a tenant that has Finance: a confirmed order may be invoiced in advance. */
+export const salesSettingsWithInvoicing: SalesSettings = { ...salesSettings, invoice_down_payment: 'allow', invoice_actor: 'owner' }
+/** The invoicing of the confirmed order (total 248.40): a down payment of 30% posted and paid in part, a final invoice in draft. */
+export const orderInvoicing: SalesOrderInvoicing = {
+  status: 'invoiced', amount_invoiced: 74.52, amount_credited: 0, amount_drafted: 173.88, amount_to_invoice: 0, amount_paid: 40,
+  invoices: [
+    { id: 9002, number: null, state: 'draft', kind: 'invoice', payment_state: 'not_paid', invoice_date: null, invoice_date_due: '2026-12-15', amount_total: 173.88, amount_residual: 173.88, currency: 'SAR' },
+    { id: 9001, number: 'INV/2026/00041', state: 'posted', kind: 'down_payment', payment_state: 'partial', invoice_date: '2026-11-15', invoice_date_due: '2026-12-15', amount_total: 74.52, amount_residual: 34.52, currency: 'SAR' },
+  ],
+  can_invoice: false, can_down_payment: false,
+}
+/** A confirmed order with nothing invoiced yet, whose caller may invoice it whole or in advance. */
+export const orderReadyToInvoice: SalesOrderInvoicing = { status: 'to_invoice', amount_invoiced: 0, amount_credited: 0, amount_drafted: 0, amount_to_invoice: 248.4, amount_paid: 0, invoices: [], can_invoice: true, can_down_payment: true }

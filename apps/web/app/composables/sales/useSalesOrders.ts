@@ -1,7 +1,8 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { SalesOrderListSchema, SalesOrderRefundBodySchema, SalesOrderSchema, type SalesOrder, type SalesOrderCreate, type SalesOrderPatch, type SalesOrderRefundBody } from '@liwan/contracts'
+import { SalesOrderInvoiceBodySchema, SalesOrderListSchema, SalesOrderRefundBodySchema, SalesOrderSchema, type SalesOrder, type SalesOrderCreate, type SalesOrderInvoiceBody, type SalesOrderPatch, type SalesOrderRefundBody } from '@liwan/contracts'
+import { createInvoiceAttempts } from '../../utils/salesInvoicing'
 import { salesKeys } from './salesKeys'
 import { salesApiQuery, type SalesListState } from './salesListParams'
 
@@ -32,7 +33,7 @@ export function useSalesOrder(id: MaybeRefOrGetter<number | null>) {
  * stays pending until the server answers, so a transition button cannot be pressed twice. A refused write on an existing
  * document refetches it, so its actions show what the server now allows.
  */
-function useSalesWrite<Args>(send: (api: ReturnType<typeof useApi>['$api'], args: Args) => Promise<SalesOrder>, target?: (args: Args) => number) {
+function useSalesWrite<Args>(send: (api: ReturnType<typeof useApi>['$api'], args: Args) => Promise<SalesOrder>, target?: (args: Args) => number, alsoRefetch: readonly (readonly string[])[] = []) {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
@@ -40,6 +41,7 @@ function useSalesWrite<Args>(send: (api: ReturnType<typeof useApi>['$api'], args
     onSuccess: async (saved) => {
       qc.setQueryData(salesKeys.detail(saved.id), saved)
       await qc.invalidateQueries({ queryKey: salesKeys.all, predicate: query => query.queryKey[1] === 'list' })
+      for (const queryKey of alsoRefetch) await qc.invalidateQueries({ queryKey })
     },
     onError: async (_failure, args) => {
       if (target) await qc.invalidateQueries({ queryKey: salesKeys.detail(target(args)) })
@@ -78,3 +80,24 @@ export const useDuplicateSalesOrder = () => useSalesWrite<number>(
   (api, id) => api(`/api/v1/sales/orders/${id}/duplicate`, { method: 'POST', schema: SalesOrderSchema }),
   id => id,
 )
+
+/**
+ * Makes a draft customer invoice of a confirmed staff order (`sales.orders.confirm` and `finance.invoices.manage`): the whole
+ * order, or a down payment by percent or by amount. The body is checked against the contract before it leaves, and the answer
+ * is the order whose `invoicing` lists the new invoice first. The invoice lists of finance are stale after it, so they refetch.
+ * The request carries an `Idempotency-Key` that stays with the form while the same body is retried (see `createInvoiceAttempts`).
+ */
+export function useInvoiceSalesOrder() {
+  const attempts = createInvoiceAttempts()
+  return useSalesWrite<{ id: number; invoice: SalesOrderInvoiceBody }>(
+    async (api, { id, invoice }) => {
+      const body = SalesOrderInvoiceBodySchema.parse(invoice)
+      const saved = await api(`/api/v1/sales/orders/${id}/invoices`, { method: 'POST', body, headers: { 'Idempotency-Key': attempts.keyFor(id, body) }, schema: SalesOrderSchema })
+      attempts.settle()
+      return saved
+    },
+    ({ id }) => id,
+    // The keys of the finance invoice lists and records (`financeInvoiceKeys.all`); sales never imports another application's composables.
+    [['finance', 'invoices']],
+  )
+}

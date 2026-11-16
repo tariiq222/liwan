@@ -1,9 +1,11 @@
 import { z } from 'zod'
 import { PersonRefSchema } from '../common/person'
 import { SalesCrmSettingsShape, SalesOrderOpportunitySchema } from './crm'
+import { SalesFinanceSettingsShape, SalesOrderInvoicingSchema } from './finance'
 import { SalesOrderPaymentSchema, SalesPaymentChoiceShape, SalesPaymentSettingsShape, SalesPublicPaymentSchema } from './payments'
 
 export * from './crm'
+export * from './finance'
 export * from './payments'
 
 // liwan_sales: staff quotations and orders on sale.order, plus the online orders other channels made, read-only here.
@@ -112,6 +114,8 @@ export const SalesOrderSchema = z.object({
   payment: SalesOrderPaymentSchema.nullable().optional(),
   // The opportunity it was made from; present only with the CRM bridge, null for an order without one or one the caller cannot read in CRM.
   opportunity: SalesOrderOpportunitySchema.nullable().optional(),
+  // The invoices of the order; present only with the finance bridge, null for a caller who cannot read finance invoices.
+  invoicing: SalesOrderInvoicingSchema.nullable().optional(),
 }).strict()
 
 export const SalesOrderListSchema = z.object({
@@ -170,6 +174,10 @@ export const SalesSettingsSchema = z.object({
   // How an order wins its opportunity (the CRM bridge); both are absent while the tenant has no CRM.
   opportunity_win: SalesCrmSettingsShape.opportunity_win.optional(),
   opportunity_win_amount: SalesCrmSettingsShape.opportunity_win_amount.optional(),
+  // Whether a confirmed order may be invoiced in advance, and who may invoice an order that is not theirs (the finance bridge);
+  // both are absent while the tenant has no Finance.
+  invoice_down_payment: SalesFinanceSettingsShape.invoice_down_payment.optional(),
+  invoice_actor: SalesFinanceSettingsShape.invoice_actor.optional(),
   revision: z.number().int().positive(),
   // Whether this session may change the settings: the capability, in the root company.
   can_manage: z.boolean(),
@@ -188,6 +196,8 @@ export const SalesSettingsPatchSchema = z.object({
   prepayment_percent: SalesPaymentSettingsShape.prepayment_percent.optional(),
   opportunity_win: SalesCrmSettingsShape.opportunity_win.optional(),
   opportunity_win_amount: SalesCrmSettingsShape.opportunity_win_amount.optional(),
+  invoice_down_payment: SalesFinanceSettingsShape.invoice_down_payment.optional(),
+  invoice_actor: SalesFinanceSettingsShape.invoice_actor.optional(),
   revision: z.number().int().positive(),
 }).strict().refine(patch => Object.keys(patch).some(key => key !== 'revision'), { message: 'nothing to change' })
 

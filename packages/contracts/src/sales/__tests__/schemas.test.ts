@@ -30,7 +30,7 @@ describe('SalesOrderSchema', () => {
   it('accepts the serializer fields and refuses any other', () => {
     expect(SalesOrderSchema.parse(ORDER)).toEqual(ORDER)
     expect(Object.keys(SalesOrderSchema.shape).sort()).toEqual([
-      'actions', 'amount_tax', 'amount_total', 'amount_untaxed', 'currency', 'customer', 'customer_answer', 'date', 'expired', 'id', 'lines',
+      'actions', 'amount_tax', 'amount_total', 'amount_untaxed', 'currency', 'customer', 'customer_answer', 'date', 'expired', 'id', 'invoicing', 'lines',
       'locked', 'number', 'opportunity', 'payment', 'resend_refused', 'salesperson', 'source', 'state', 'terms', 'validity_date',
     ])
     expect(() => SalesOrderSchema.parse({ ...ORDER, resend_refused: undefined })).toThrow()

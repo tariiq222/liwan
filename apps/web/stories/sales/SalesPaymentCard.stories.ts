@@ -11,7 +11,7 @@ const refused = http.patch('/api/v1/sales/settings', () => HttpResponse.json({ c
 const meta = {
   title: 'Sales/SalesPaymentCard',
   component: SalesPaymentCard,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/index.vue:33', 'إعداد طريقة دفع عروض الأسعار الجديدة: بلا دفع، أو كامل الإجمالي، أو نسبة منه.'), msw: { handlers: { api: [manage, save] } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/index.vue:35', 'إعداد طريقة دفع عروض الأسعار الجديدة: بلا دفع، أو كامل الإجمالي، أو نسبة منه.'), msw: { handlers: { api: [manage, save] } } },
   args: { settings: salesSettingsWithPayment, canEdit: true, reloadSettings: async () => ({ ...salesSettingsWithPayment, revision: 4 }) },
 } satisfies Meta<typeof SalesPaymentCard>
 export default meta

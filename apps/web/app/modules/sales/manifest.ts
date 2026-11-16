@@ -7,6 +7,8 @@ const manifest: AppManifest = {
   id: 'sales',
   feature: 'sales.enabled',
   routePrefixes: ['/sales'],
+  // An order lists its invoices (the Finance bridge): an invoice opened from it goes back to it.
+  recordListSources: [{ pattern: /^\/sales\/[1-9]\d*$/, capability: 'sales.read' }],
   appCard: { category: 'sales', plan: 'addon', surface: 'sand' },
   rail: [{ id: 'sales', labelKey: 'sales.title', icon: 'i-lucide-receipt-text', to: '/sales', order: 87 }],
   nav: [{ to: '/sales', labelKey: 'sales.title', icon: 'i-lucide-receipt-text', shortcut: '', capability: 'sales.read' }],
@@ -18,6 +20,8 @@ const manifest: AppManifest = {
       // The default of paying to confirm a quotation: it exists while the tenant has online payments.
       // How a confirmed order wins its CRM opportunity: it exists while the tenant has CRM.
       { id: 'opportunity', labelKey: 'sales.settings.opportunity.title', icon: 'i-lucide-handshake', capability: 'sales.settings.manage', feature: 'crm.enabled' },
+      // Whether a confirmed order may be invoiced in advance: it exists while the tenant has Finance.
+      { id: 'invoicing', labelKey: 'sales.settings.invoicing.title', icon: 'i-lucide-receipt', capability: 'sales.settings.manage', feature: 'finance.enabled' },
       { id: 'payments', labelKey: 'sales.settings.payment.title', icon: 'i-lucide-credit-card', capability: 'sales.settings.manage', feature: 'payments.enabled' },
     ],
   },

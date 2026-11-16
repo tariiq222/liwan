@@ -245,6 +245,22 @@
         "untaxedHint": "The orders' totals before tax.",
         "total": "After tax",
         "totalHint": "The orders' totals including tax."
+      },
+      "invoicing": {
+        "title": "Order invoicing",
+        "hint": "Whether a confirmed order may be invoiced in advance, or only as a whole.",
+        "downPayment": "Down payments",
+        "downPaymentHint": "A change applies to the invoices made after it.",
+        "allow": "Allowed",
+        "allowHint": "Staff may invoice a percent or an amount of a confirmed order before the whole of it is invoiced.",
+        "refuse": "Closed",
+        "refuseHint": "A confirmed order is invoiced whole only.",
+        "actor": "Who may invoice an order",
+        "actorHint": "A change applies to the invoices made after it. Either way the person needs the right to confirm orders and the right to manage invoices.",
+        "owner": "The salesperson only",
+        "ownerHint": "The order's salesperson, or anyone who may assign orders, invoices it.",
+        "any_biller": "Any biller",
+        "any_billerHint": "Anyone who can read the order and holds both rights invoices it, even if it is a colleague's."
       }
     },
     "expired": "Expired",
@@ -449,6 +465,80 @@
         "amount": "The amount is not valid or is more than can be refunded. Enter an amount above zero, up to the amount available.",
         "reference": "Enter the refund reference from the gateway, 1 to 128 characters.",
         "conflict": "A payment is not recorded yet, or this same refund was already recorded. Refresh the page and check before you try again."
+      }
+    },
+    "invoicing": {
+      "title": "Invoices",
+      "hint": "The invoices of this order in finance. You draft them here, and finance posts them under its own rules.",
+      "open": "Create an invoice",
+      "online": "An online order is invoiced when it is paid, so no invoice is made for it here.",
+      "empty": "No invoice has been made for this order yet.",
+      "draftNumber": "Draft",
+      "openInvoice": "Open the invoice",
+      "created": {
+        "title": "A draft invoice was created",
+        "body": "It is not posted yet. Finance reviews it and posts it from the invoice page."
+      },
+      "cancelBlocked": "An invoice was posted for this order, so it cannot be cancelled. Issue a credit note in finance first.",
+      "cancelBlockedDraft": "This order has a draft invoice, so you cannot cancel it. Ask someone who manages invoices in finance to cancel the draft, or to cancel the order.",
+      "status": {
+        "none": "Nothing to invoice",
+        "to_invoice": "Ready to invoice",
+        "partial": "Partly invoiced",
+        "invoiced": "Fully invoiced"
+      },
+      "amounts": {
+        "invoiced": "Invoiced",
+        "credited": "Credit notes",
+        "drafted": "In draft invoices",
+        "toInvoice": "Left to invoice",
+        "paid": "Paid on invoices"
+      },
+      "kinds": {
+        "invoice": "Invoice",
+        "down_payment": "Down payment",
+        "credit_note": "Credit note"
+      },
+      "states": {
+        "draft": "Draft",
+        "posted": "Posted",
+        "cancel": "Cancelled"
+      },
+      "paymentStates": {
+        "not_paid": "Not paid",
+        "in_payment": "In payment",
+        "paid": "Paid",
+        "partial": "Partly paid",
+        "reversed": "Reversed",
+        "blocked": "Blocked",
+        "invoicing_legacy": "From an earlier system"
+      },
+      "form": {
+        "title": "Create an invoice",
+        "hint": "The invoice is drafted in finance. It is not posted until finance approves it.",
+        "method": "What do you invoice?",
+        "order": "The whole order",
+        "orderHint": "Invoices what is due and deducts the down payments already invoiced.",
+        "percent": "A down payment by percent",
+        "percentHint": "A share of the order total.",
+        "amount": "A down payment by amount",
+        "amountHint": "A total amount that includes tax.",
+        "percentLabel": "Share of the total",
+        "percentHelp": "From 1 to 100.",
+        "amountLabel": "Down payment amount",
+        "amountHelp": "Up to {max}.",
+        "submit": "Create the invoice"
+      },
+      "errors": {
+        "percent": "Enter a percent from 1 to 100 that does not pass what is left to invoice.",
+        "amount": "Enter an amount above zero that does not pass what is left to invoice.",
+        "notConfirmed": "Only confirmed orders are invoiced. Refresh the page and try again.",
+        "nothingToInvoice": "Nothing is left to invoice on this order. Refresh the page.",
+        "downPaymentRefused": "Down payments are off in the Sales settings, so the order is invoiced whole.",
+        "noJournal": "This company has no sales journal. Create one in the finance settings first.",
+        "online": "An online order is invoiced when it is paid, so no invoice is made for it here.",
+        "notSalesperson": "Only the order's salesperson, or someone who may assign orders, invoices it in this company.",
+        "financeNotIncluded": "The Finance application is not included in your subscription."
       }
     }
   }

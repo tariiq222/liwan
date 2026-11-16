@@ -7,7 +7,7 @@ const received = { amount_received: 99.36, amount_due: 0 }
 const meta = {
   title: 'Sales/SalesOrderPayment',
   component: SalesOrderPayment,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:145', 'دفع عرض السعر في صفحة السجل: كيف يطلب الدفع، والمطلوب والمستلم والمتبقي، وحالة رابط الدفع، وسبب بقاء الطلب غير مؤكد رغم وصول الدفعة.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:175', 'دفع عرض السعر في صفحة السجل: كيف يطلب الدفع، والمطلوب والمستلم والمتبقي، وحالة رابط الدفع، وسبب بقاء الطلب غير مؤكد رغم وصول الدفعة.') },
   args: { payment: orderPayment },
 } satisfies Meta<typeof SalesOrderPayment>
 export default meta

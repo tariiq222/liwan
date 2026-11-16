@@ -38,7 +38,9 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
   const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
   const query = useFinanceInvoice(computed(() => validId.value ? id.value : null))
   const invoice = computed(() => query.data.value)
-  const backTo = computed(() => safeReturnTo(route.query.returnTo, kind.listPath, [kind.listPath]))
+  // Back goes to the list, or to the record the person came from when a registered application names it (the sales order that made this invoice).
+  const origins = useRecordListPaths([kind.listPath])
+  const backTo = computed(() => safeReturnTo(route.query.returnTo, kind.listPath, origins.value))
   const actions = computed(() => invoice.value ? readFinanceActions(invoice.value) : null)
   const title = computed(() => invoice.value ? invoiceTitle(invoice.value, t('financeDocuments.draftNumber')) : t(`financeDocuments.kinds.${moveType}.record`))
   const error = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
@@ -164,6 +166,8 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
     // A credit note reverses an invoice or a bill, so its origin opens under the invoice's own type.
     creditOriginTo: computed(() => invoice.value?.credit_origin ? { path: invoiceRecordPath(reversedMoveType(invoice.value.move_type), invoice.value.credit_origin.id), query: { returnTo: backTo.value } } : null),
     debitOriginTo: computed(() => invoice.value?.debit_origin ? { path: invoiceRecordPath(invoice.value.move_type, invoice.value.debit_origin.id), query: { returnTo: backTo.value } } : null),
+    // The sales order this document was made from (the Sales bridge), coming back to this document.
+    sourceOrderTo: computed(() => invoice.value?.source_order ? { path: `/sales/${invoice.value.source_order.id}`, query: { returnTo: route.path } } : null),
     posting: transition.isPending,
     removing: removal.isPending,
     creatingDebitNote: debitNote.isPending,

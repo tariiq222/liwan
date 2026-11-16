@@ -144,7 +144,8 @@
       "viewPayments": "View payments",
       "asset": "Asset: {name}",
       "assetProfile": "Asset profile: {name}",
-      "product": "Product: {name}"
+      "product": "Product: {name}",
+      "sourceOrder": "Sales order"
     },
     "actions": {
       "post": "Post",

@@ -6,7 +6,7 @@ import { orderOpportunity } from './salesFixtures'
 const meta = {
   title: 'Sales/SalesOrderOpportunity',
   component: SalesOrderOpportunity,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:146', 'الفرصة التي كُتب منها عرض السعر في صفحة السجل: اسمها برابط صفحتها وحالتها، ولا تظهر إلا لمن يقرؤها في إدارة العلاقات.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:176', 'الفرصة التي كُتب منها عرض السعر في صفحة السجل: اسمها برابط صفحتها وحالتها، ولا تظهر إلا لمن يقرؤها في إدارة العلاقات.') },
   args: { opportunity: orderOpportunity },
 } satisfies Meta<typeof SalesOrderOpportunity>
 export default meta

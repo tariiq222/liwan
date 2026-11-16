@@ -144,7 +144,8 @@
       "viewPayments": "عرض الدفعات",
       "asset": "الأصل: {name}",
       "assetProfile": "ملف الأصل: {name}",
-      "product": "المنتج: {name}"
+      "product": "المنتج: {name}",
+      "sourceOrder": "الطلب في المبيعات"
     },
     "actions": {
       "post": "ترحيل",
