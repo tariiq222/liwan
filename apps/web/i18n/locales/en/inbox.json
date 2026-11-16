@@ -237,7 +237,10 @@
       "export": "Export conversations (CSV)",
       "exportFailed": "Could not export the conversations. Try again.",
       "csat": "Customer satisfaction",
-      "anyCsat": "Any rating"
+      "anyCsat": "Any rating",
+      "filters": "Filters",
+      "clearFilters": "Clear filters",
+      "resultCount": "{count} result | {count} results"
     },
     "thread": {
       "label": "Conversation messages",
@@ -2247,7 +2250,9 @@
         "unavailable": "This opportunity cannot be linked: it is archived or belongs to another company.",
         "missing": "The conversation or the opportunity was not found, or you cannot see it."
       }
-    }
+    },
+    "showUnassigned": "Show unassigned",
+    "connectChannel": "Connect a channel"
   },
   "errors": {
     "reasons": {

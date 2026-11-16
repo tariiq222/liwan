@@ -31,7 +31,7 @@ const contactName = computed(() => (data.value ? inboxContactName(data.value.con
 const { data: conversations } = useInboxConversations(() => routeState.value)
 const { mutate: markRead } = useMarkInboxConversationRead()
 watch(() => data.value, conversation => { if (conversation?.unread) markRead(conversation.id) }, { immediate: true })
-const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || !!routeState.value.q || routeState.value.assignee !== 'all' || !!routeState.value.state || !!routeState.value.departmentId || !!routeState.value.csat)
+const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || !!routeState.value.q || routeState.value.assignee !== 'all' || !!routeState.value.state || !!routeState.value.priority || !!routeState.value.departmentId || !!routeState.value.csat)
 const hasSelection = computed(() => !!props.conversationId)
 const infoOpen = computed(() => !!props.infoOpen && hasSelection.value)
 // Products and orders exist only with the catalog feature: the channel's commerce answer says whether it has a catalog.
@@ -46,6 +46,8 @@ const ordersTo = computed(() => ({ path: `/inbox/${props.conversationId}/orders`
 // The message the agent is answering; each conversation starts without one (the composer restores a stored draft's).
 const replyTo = ref<{ id: number; preview: string } | null>(null)
 watch(() => props.conversationId, () => { replyTo.value = null })
+const canConnectChannel = computed(() => !hasConversations.value && can('inbox.channels.manage'))
+const canShowUnassigned = computed(() => hasConversations.value && routeState.value.assignee !== 'unassigned')
 const status = computed(() => error.value instanceof ApiError ? error.value.status : undefined)
 // Escape leaves the open contact panel for the thread, as it leaves a record page for its list.
 useEscapeBack(() => (panelOpen.value ? threadTo.value : undefined))
@@ -131,7 +133,12 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
             class="w-full"
             :title="hasConversations ? t('inbox.select') : t('inbox.list.empty')"
             :description="hasConversations ? t('inbox.selectDescription') : t('inbox.list.emptyDescription')"
-          />
+          >
+            <template v-if="canShowUnassigned || canConnectChannel" #action>
+              <UButton v-if="canShowUnassigned" color="neutral" variant="soft" icon="i-lucide-user-x" :label="t('inbox.showUnassigned')" data-testid="inbox-show-unassigned" @click="updateRoute({ ...routeState, assignee: 'unassigned', offset: 0 })" />
+              <UButton v-else to="/settings/apps/inbox#channels" icon="i-lucide-plug" :label="t('inbox.connectChannel')" data-testid="inbox-connect-channel" />
+            </template>
+          </EmptyState>
         </div>
       </template>
       <template #info>

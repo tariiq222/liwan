@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import type { InboxMessageKind } from '@liwan/contracts'
+import { useDebounceFn } from '@vueuse/core'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import { useInboxConversations } from '@/composables/inbox/useInbox'
 import { CHANNEL_KIND_ICON, channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
-import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, PRIORITIES, INBOX_PRIORITY_TONE, inboxFileKindKey, inboxListTime } from '@/composables/inbox/inboxPresentation'
+import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, DEFAULT_CONVERSATION_STATE, PRIORITIES, INBOX_PRIORITY_TONE, inboxAbsoluteTime, inboxFileKindKey, inboxListTime, inboxWaitingTime } from '@/composables/inbox/inboxPresentation'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { useInboxConversationsExport } from '@/composables/inbox/useInboxConversationsExport'
 import { exportTooLargeMessage } from '@/utils/exportErrors'
 import { INBOX_PAGE_SIZE, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 
-// The conversation list pane of the inbox page (its left column): filters (assignee, state, department, search) are the URL query, owned by the page that hosts
-// this list. The component only reads them and emits the next filter state.
+// The conversation list pane of the inbox page (its left column): filters (scope, state, department, priority, rating, search) are the URL query, owned by the page
+// that hosts this list. The component only reads them and emits the next filter state; whether the four secondary filters are folded away is local UI state.
 const props = defineProps<{ routeState: InboxListRoute; selectedId?: number }>()
 const emit = defineEmits<{ 'update:routeState': [InboxListRoute, options?: { replace: boolean }] }>()
 const { t, n, locale } = useI18n()
@@ -25,13 +26,17 @@ const total = computed(() => data.value?.total ?? 0)
 const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.priority || !!props.routeState.departmentId || !!props.routeState.csat || !!props.routeState.q)
 const q = ref(props.routeState.q)
 watch(() => props.routeState.q, (value) => { q.value = value })
-// Clearing the box resets the results; any other change waits for Enter.
+// Typing applies the search after a short pause, Enter applies it at once and clearing the box resets the results at once.
+const SEARCH_DEBOUNCE_MS = 300
+const applySearchLater = useDebounceFn(applySearch, SEARCH_DEBOUNCE_MS)
 watch(q, (value) => {
   if (!value && props.routeState.q) applySearch()
+  else applySearchLater()
 })
 
 const ALL = 'all'
 // Four filters share the pane's width as soft chips, two to a row.
+const FILTER_REGION_ID = 'inbox-list-filters'
 const FILTER_SELECT = 'min-w-0 flex-[1_1_calc(50%-4px)]'
 const scopeItems = computed(() => [
   { value: 'all', label: t('inbox.list.scopeAll') },
@@ -54,14 +59,39 @@ const csatItems = computed(() => [
   { value: ALL, label: t('inbox.list.anyCsat') },
   ...CSAT_SCORES.map(value => ({ value, label: t(`inbox.csat.${value}`) })),
 ])
+const activeFilterCount = computed(() => [props.routeState.state, props.routeState.departmentId, props.routeState.priority, props.routeState.csat].filter(Boolean).length)
+const canClear = computed(() => activeFilterCount.value > 0 || !!props.routeState.q)
+// A deep link shows the filters it carries; after that the agent folds the region open or shut.
+const filtersOpen = ref(activeFilterCount.value > 0)
 const showDepartments = computed(() => (departments.data.value?.items.length ?? 0) > 0)
 
 function update(patch: Partial<InboxListRoute>) {
   emit('update:routeState', { ...props.routeState, ...patch, offset: 0 })
 }
+// Refining an applied term replaces its history entry so typing does not stack entries; the first term is a step Back returns from.
 function applySearch() {
-  update({ q: q.value.trim() })
+  const term = q.value.trim()
+  if (term === props.routeState.q) return
+  emit('update:routeState', { ...props.routeState, q: term, offset: 0 }, term && props.routeState.q ? { replace: true } : undefined)
 }
+function clearFilters() {
+  update({ state: '', departmentId: null, priority: '', csat: '', q: '' })
+}
+// Arrow keys move between the rows' links; Tab order and the links themselves are untouched.
+const rowList = useTemplateRef<HTMLUListElement>('rowList')
+function moveRowFocus(event: KeyboardEvent) {
+  const links = Array.from(rowList.value?.querySelectorAll('a') ?? [])
+  const current = links.indexOf(document.activeElement as HTMLAnchorElement)
+  const target = { ArrowDown: current + 1, ArrowUp: current - 1, Home: 0, End: links.length - 1 }[event.key]
+  if (target === undefined || !links.length) return
+  event.preventDefault()
+  links[Math.min(Math.max(target, 0), links.length - 1)]?.focus()
+}
+// An unread row shows how long the customer has waited; a read row shows when the last message came.
+function rowTime(item: { unread: boolean; last_message_at: string }) {
+  return item.unread && hydrated.value ? inboxWaitingTime(item.last_message_at, locale.value) : inboxListTime(item.last_message_at, locale.value)
+}
+const rowTimeTitle = (value: string) => (hydrated.value ? inboxAbsoluteTime(value, locale.value) : undefined)
 const currentPage = computed(() => Math.floor(props.routeState.offset / INBOX_PAGE_SIZE) + 1)
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / INBOX_PAGE_SIZE)))
 function goToPage(page: number) {
@@ -84,6 +114,7 @@ const fileLabel = (kind: InboxMessageKind | null) => {
   const key = inboxFileKindKey(kind)
   return key ? t(key) : ''
 }
+const showResultCount = computed(() => filtered.value && hydrated.value && !!data.value && !isPlaceholderData.value && !isError.value)
 const empty = computed(() => hydrated.value && !isLoading.value && !isError.value && !items.value.length)
 </script>
 
@@ -102,6 +133,20 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
             :disabled="!hydrated"
           />
         </form>
+        <UButton
+          color="neutral"
+          :variant="filtersOpen ? 'soft' : 'ghost'"
+          icon="i-lucide-sliders-horizontal"
+          :aria-expanded="filtersOpen"
+          :aria-controls="FILTER_REGION_ID"
+          :label="t('inbox.list.filters')"
+          data-testid="inbox-filters-toggle"
+          @click="filtersOpen = !filtersOpen"
+        >
+          <template v-if="activeFilterCount" #trailing>
+            <UBadge color="primary" variant="solid" size="sm" :label="n(activeFilterCount)" />
+          </template>
+        </UButton>
         <UTooltip v-if="can('inbox.conversations.export')" :text="t('inbox.list.export')">
           <UButton color="neutral" variant="soft" square icon="i-lucide-download" :loading="exportCsv.isPending.value" :disabled="!hydrated || exportCsv.isPending.value" :aria-label="t('inbox.list.export')" data-testid="inbox-export" @click="downloadCsv" />
         </UTooltip>
@@ -114,46 +159,54 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
         :label="t('inbox.list.scope')"
         @update:model-value="update({ assignee: $event as InboxListRoute['assignee'] })"
       />
-      <div class="flex flex-wrap gap-2">
-        <USelect
-          :model-value="props.routeState.state || ALL"
-          :items="stateItems"
-          variant="soft"
-          :class="FILTER_SELECT"
-          :aria-label="t('inbox.list.state')"
-          :disabled="!hydrated"
-          @update:model-value="update({ state: $event === ALL ? '' : ($event as InboxListRoute['state']) })"
-        />
-        <USelect
-          v-if="showDepartments"
-          :model-value="props.routeState.departmentId ? String(props.routeState.departmentId) : ALL"
-          :items="departmentItems"
-          variant="soft"
-          :class="FILTER_SELECT"
-          :aria-label="t('inbox.list.department')"
-          :disabled="!hydrated"
-          @update:model-value="update({ departmentId: $event === ALL ? null : Number($event) })"
-        />
-        <USelect
-          :model-value="props.routeState.priority || ALL"
-          :items="priorityItems"
-          variant="soft"
-          :class="FILTER_SELECT"
-          :aria-label="t('inbox.list.priority')"
-          :disabled="!hydrated"
-          data-testid="inbox-priority-filter"
-          @update:model-value="update({ priority: $event === ALL ? '' : ($event as InboxListRoute['priority']) })"
-        />
-        <USelect
-          :model-value="props.routeState.csat || ALL"
-          :items="csatItems"
-          variant="soft"
-          :class="FILTER_SELECT"
-          :aria-label="t('inbox.list.csat')"
-          :disabled="!hydrated"
-          data-testid="inbox-csat-filter"
-          @update:model-value="update({ csat: $event === ALL ? '' : ($event as InboxListRoute['csat']) })"
-        />
+      <UCollapsible v-model:open="filtersOpen" :unmount-on-hide="false">
+        <template #content>
+          <div :id="FILTER_REGION_ID" class="flex flex-wrap gap-2">
+            <USelect
+              :model-value="props.routeState.state || ALL"
+              :items="stateItems"
+              variant="soft"
+              :class="FILTER_SELECT"
+              :aria-label="t('inbox.list.state')"
+              :disabled="!hydrated"
+              @update:model-value="update({ state: $event === ALL ? '' : ($event as InboxListRoute['state']) })"
+            />
+            <USelect
+              v-if="showDepartments"
+              :model-value="props.routeState.departmentId ? String(props.routeState.departmentId) : ALL"
+              :items="departmentItems"
+              variant="soft"
+              :class="FILTER_SELECT"
+              :aria-label="t('inbox.list.department')"
+              :disabled="!hydrated"
+              @update:model-value="update({ departmentId: $event === ALL ? null : Number($event) })"
+            />
+            <USelect
+              :model-value="props.routeState.priority || ALL"
+              :items="priorityItems"
+              variant="soft"
+              :class="FILTER_SELECT"
+              :aria-label="t('inbox.list.priority')"
+              :disabled="!hydrated"
+              data-testid="inbox-priority-filter"
+              @update:model-value="update({ priority: $event === ALL ? '' : ($event as InboxListRoute['priority']) })"
+            />
+            <USelect
+              :model-value="props.routeState.csat || ALL"
+              :items="csatItems"
+              variant="soft"
+              :class="FILTER_SELECT"
+              :aria-label="t('inbox.list.csat')"
+              :disabled="!hydrated"
+              data-testid="inbox-csat-filter"
+              @update:model-value="update({ csat: $event === ALL ? '' : ($event as InboxListRoute['csat']) })"
+            />
+          </div>
+        </template>
+      </UCollapsible>
+      <div v-if="canClear || showResultCount" class="flex items-center justify-between gap-2">
+        <p v-if="showResultCount" class="text-xs text-muted" data-testid="inbox-result-count">{{ t('inbox.list.resultCount', { count: n(total) }, total) }}</p>
+        <UButton v-if="canClear" color="neutral" variant="ghost" size="xs" class="ms-auto" :label="t('inbox.list.clearFilters')" :disabled="!hydrated" data-testid="inbox-clear-filters" @click="clearFilters" />
       </div>
     </div>
     <EmptyState v-if="empty && !filtered" icon="i-lucide-messages-square" class="m-4" :title="t('inbox.list.empty')" :description="t('inbox.list.emptyDescription')">
@@ -166,7 +219,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
       :empty-text="t('inbox.list.emptyFiltered')"
       @retry="refetch()"
     >
-      <ul class="min-h-0 flex-1 overflow-y-auto">
+      <ul ref="rowList" class="min-h-0 flex-1 overflow-y-auto" @keydown="moveRowFocus">
         <li v-for="item in items" :key="item.id">
           <NuxtLink
             :to="conversationTo(item.id)"
@@ -178,7 +231,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate" :class="item.unread ? 'font-bold' : 'font-medium'">{{ inboxContactName(item.contact, t) }}</span>
-                <time v-if="item.last_message_at" class="shrink-0 text-xs" :class="item.unread ? 'font-semibold text-highlighted' : 'text-muted'">{{ inboxListTime(item.last_message_at, locale) }}</time>
+                <time v-if="item.last_message_at" :datetime="item.last_message_at" :title="rowTimeTitle(item.last_message_at)" class="shrink-0 text-xs" :class="item.unread ? 'font-semibold text-highlighted' : 'text-muted'">{{ rowTime({ unread: item.unread, last_message_at: item.last_message_at }) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate text-(length:--liwan-fs-small-label) text-muted">{{ item.last_message_preview || fileLabel(item.last_message_kind) || item.contact.phone || t('inbox.list.noMessages') }}</span>
@@ -186,7 +239,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
               </span>
               <span class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
                 <UIcon :name="CHANNEL_KIND_ICON[item.channel.kind]" class="size-(--liwan-conversation-channel-icon) shrink-0" :class="{ 'text-(color:--liwan-whatsapp)': item.channel.kind === 'whatsapp' }" role="img" :aria-label="t(channelKindLabelKey(item.channel.kind))" :data-testid="`inbox-conversation-kind-${item.id}`" />
-                <SharedStatusBadge size="sm" :tone="CONVERSATION_STATE_TONE[item.state]" :label="t(`inbox.states.${item.state}`)" />
+                <SharedStatusBadge v-if="item.state !== DEFAULT_CONVERSATION_STATE" size="sm" :tone="CONVERSATION_STATE_TONE[item.state]" :label="t(`inbox.states.${item.state}`)" />
                 <SharedStatusBadge v-if="INBOX_PRIORITY_TONE[item.priority]" size="sm" :tone="INBOX_PRIORITY_TONE[item.priority]!" :label="t(`inbox.priorities.${item.priority}`)" data-testid="inbox-priority-badge" />
                 <SharedStatusBadge v-if="item.csat" size="sm" :tone="CSAT_TONE[item.csat.score]" :label="t(`inbox.csat.${item.csat.score}`)" />
                 <span class="truncate">{{ item.assignee?.name ?? t('inbox.unassigned') }}</span>
