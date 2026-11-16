@@ -92,7 +92,7 @@ def dump_row(ticket, settings, can_read_type=True):
         'tags': _refs(ticket.tag_ids),
         'sla': sla(ticket),
         'created_at': iso(ticket.create_date),
-        'last_activity_at': iso(ticket.write_date),
+        'last_activity_at': iso(ticket.liwan_last_activity_at),
     }
 
 

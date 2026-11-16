@@ -35,7 +35,7 @@ def body(allowed):
 
 class HelpdeskPortalController(http.Controller):
 
-    @http.route(TICKET_PATH, type='json2', auth='public', methods=['GET'], readonly=False, save_session=False)
+    @http.route(TICKET_PATH, type='json2', auth='public', methods=['GET'], readonly=True, save_session=False)
     @api_handler
     @requires_feature('helpdesk.enabled', 'helpdesk.portal', operation='read')
     def get_ticket(self, ticket_id, **_):

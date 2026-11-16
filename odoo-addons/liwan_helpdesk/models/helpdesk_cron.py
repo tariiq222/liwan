@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Closing the ticket nobody answered: the cron and the bell that warns before it happens.
+"""Closing the ticket nobody answered: the cron and the bell that tell the owner it happened.
 
 One run per company closes the tickets that have seen no activity for the company's own number of days
 and sit in one of the stages it named, measured on the ticket's own activity stamp (``liwan_last_activity_at``)
@@ -11,6 +11,7 @@ from datetime import timedelta
 from odoo import api, fields, models
 
 AUTO_CLOSED_KIND = 'helpdesk.auto_closed'
+AUTO_CLOSE_FEATURE = 'helpdesk.auto_close'
 REQUEST_MODEL = 'helpdesk.ticket'
 
 
@@ -21,11 +22,18 @@ class LiwanHelpdeskCron(models.AbstractModel):
 
     @api.model
     def _liwan_auto_close(self):
-        """Close every inactive ticket of every company whose settings ask for it; returns the count."""
+        """Close every inactive ticket of every company whose plan and settings ask for it; returns the count.
+
+        A company whose plan does not carry ``helpdesk.auto_close`` keeps its tickets: the switch is read with the
+        platform's own reader in that company, never from a cached payload of the cron's own company.
+        """
         closed_total = 0
         for company in self.env['res.company'].search([('active', '=', True)]):
             settings = self.env['liwan.helpdesk.settings']._liwan_for(company)
             if not settings.auto_close_days:
+                continue
+            if not self.env['liwan.entitlement.service'].with_company(company)._liwan_feature_write(
+                    AUTO_CLOSE_FEATURE):
                 continue
             cutoff = fields.Datetime.now() - timedelta(days=settings.auto_close_days)
             domain = [

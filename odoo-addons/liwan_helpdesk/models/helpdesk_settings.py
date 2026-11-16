@@ -132,25 +132,6 @@ class LiwanHelpdeskSettings(models.Model):
             self.env['ir.sequence'].create({'code': SEQUENCE_CODE, **values})
         return sequence
 
-    def _liwan_apply_sequence(self):
-        """Give the company a ticket sequence carrying the settings prefix.
-
-        The capability group holds the ACL on ``ir.sequence`` and a record rule limits it to this code,
-        so a settings manager writes its own sequence without elevation. The install hook creates the
-        row for every existing company, and creating a company creates its row too.
-        """
-        self.ensure_one()
-        sequence = self.env['ir.sequence'].search(
-            [('code', '=', SEQUENCE_CODE), ('company_id', '=', self.company_id.id)], limit=1,
-        )
-        values = {'name': 'Support ticket', 'prefix': self.reference_prefix, 'padding': 5,
-                  'company_id': self.company_id.id}
-        if sequence:
-            sequence.write(values)
-        else:
-            self.env['ir.sequence'].create({'code': SEQUENCE_CODE, **values})
-        return sequence
-
     @api.model_create_multi
     def create(self, vals_list):
         rows = super().create(vals_list)

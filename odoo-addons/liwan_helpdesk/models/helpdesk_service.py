@@ -10,6 +10,7 @@ Nothing here duplicates the OCA engine: the ticket, its stages, the team's worki
 deadlines and the mail thread stay the engine's. The service adds the application's own facts (the
 internal requester, the first response, related tickets) and the transitions that need a policy.
 """
+import secrets
 from datetime import timedelta
 
 from odoo import api, fields, models
@@ -200,6 +201,9 @@ class LiwanHelpdeskService(models.AbstractModel):
         if agent:
             assignee = self._liwan_assignee(values['assignee_id']) if values.get('assignee_id') else self.env.user
         ticket_values['user_id'] = assignee.id if assignee else False
+        # The customer's page token exists from the first moment: the ticket detail is a read-only route and may
+        # not write it later, so a link is never a request that mutates the record it displays.
+        ticket_values['liwan_portal_token'] = secrets.token_urlsafe(32)
         ticket = self.env['helpdesk.ticket'].create(ticket_values)
         if ticket.user_id:
             self._liwan_notify(ticket, ticket.user_id, self.env._(

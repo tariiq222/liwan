@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from odoo import fields
+from odoo.exceptions import MissingError
 from odoo.tests import tagged
 from odoo.tests.common import HttpCase
 
@@ -35,6 +36,8 @@ class PortalApiTest(HttpCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # A feature payload written in setUpClass survives for the whole class, and the HTTP requests of these tests run
+        # in their own cursor with the same tenant policy.
         set_feature(cls, 'helpdesk.enabled', True)
         set_feature(cls, 'helpdesk.portal', True)
         cls.company = cls.env.company
@@ -107,7 +110,7 @@ class PortalApiTest(HttpCase):
     def test_a_closed_ticket_refuses_a_reply(self):
         ticket = self.ticket(stage_id=self.closed_stage)
         response = self.page(ticket, suffix='/messages', method='POST', json={'body': 'One more thing'})
-        self.assertEqual(response.status_code, 422)
+        self.assertEqual((response.status_code, response.text), (422, response.text))
         self.assertEqual(response.json()['field'], 'body')
 
     def test_the_body_is_validated(self):
@@ -117,26 +120,68 @@ class PortalApiTest(HttpCase):
         extra = self.page(ticket, suffix='/messages', method='POST', json={'body': 'x', 'author_id': 1})
         self.assertEqual((extra.status_code, extra.json()['code']), (422, 'invalid'))
 
-    def test_a_closed_feature_hides_the_page(self):
-        ticket = self.ticket()
-        self.assertEqual(self.page(ticket).status_code, 200)
-        set_feature(self, 'helpdesk.portal', False)
-        try:
-            profile = self.env.ref('liwan_platform.tenant_profile')
-            service = self.env['liwan.entitlement.service']
-            self.assertIs(profile.features.get('helpdesk.portal'), False)
-            self.assertFalse(service._liwan_feature_read('helpdesk.portal'))
-            # The route's feature gate answers the tenant's own 403, and the page service repeats the check as a
-            # 404 for a direct caller: either way nothing of the ticket leaves.
-            self.assertIn(self.page(ticket).status_code, (403, 404))
-        finally:
-            set_feature(self, 'helpdesk.portal', True)
-
     def test_the_token_is_created_once(self):
         ticket = self.ticket()
         token = ticket[TOKEN_FIELD]
         self.assertTrue(token)
         self.assertEqual(self.env['liwan.helpdesk.portal']._liwan_issue_token(ticket), token)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class PortalPolicyTest(HttpCase):
+    """The two switches that close the page, asked in process.
+
+    An HTTP request runs in its own cursor, so a feature or a settings row written inside a test transaction is invisible
+    to it; these cases call the service directly, which is where the switch is enforced.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        set_feature(cls, 'helpdesk.enabled', True)
+        set_feature(cls, 'helpdesk.portal', True)
+        cls.company = cls.env.company
+        cls.team = cls.env['helpdesk.ticket.team'].search([('company_id', '=', cls.company.id)], limit=1)
+        cls.customer = cls.env['res.partner'].create({
+            'name': 'Acme customer', 'liwan_party': True, 'email': 'acme@example.test',
+        })
+
+    def ticket(self):
+        ticket = self.env['helpdesk.ticket'].create({
+            'name': 'Printer is down', 'description': '<p>It does not print.</p>',
+            'company_id': self.company.id, 'team_id': self.team.id,
+            'stage_id': self.team._get_applicable_stages()[:1].id, 'partner_id': self.customer.id,
+        })
+        self.env['liwan.helpdesk.portal']._liwan_issue_token(ticket)
+        return ticket
+
+    def test_a_closed_feature_hides_the_page(self):
+        ticket = self.ticket()
+        portal = self.env['liwan.helpdesk.portal']
+        self.assertTrue(portal._liwan_open_by_id(ticket.id, ticket[TOKEN_FIELD])['number'])
+        set_feature(self, 'helpdesk.portal', False)
+        try:
+            self.assertFalse(self.env['liwan.entitlement.service']._liwan_feature_read('helpdesk.portal'))
+            with self.assertRaises(MissingError):
+                portal._liwan_open_by_id(ticket.id, ticket[TOKEN_FIELD])
+            with self.assertRaises(MissingError):
+                portal._liwan_link(ticket)
+        finally:
+            set_feature(self, 'helpdesk.portal', True)
+
+    def test_the_company_switch_closes_the_page(self):
+        ticket = self.ticket()
+        portal = self.env['liwan.helpdesk.portal']
+        settings = self.env['liwan.helpdesk.settings']._liwan_for(self.company)
+        settings.write({'portal_enabled': False})
+        try:
+            with self.assertRaises(MissingError):
+                portal._liwan_open_by_id(ticket.id, ticket[TOKEN_FIELD])
+            with self.assertRaises(MissingError):
+                portal._liwan_link(ticket)
+        finally:
+            settings.write({'portal_enabled': True})
+        self.assertTrue(portal._liwan_open_by_id(ticket.id, ticket[TOKEN_FIELD])['number'])
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -172,6 +217,23 @@ class AutoCloseTest(HttpCase):
             ('liwan_notification_kind', '=', 'helpdesk.auto_closed'), ('res_id', '=', ticket.id),
         ])
         self.assertTrue(bell)
+
+    def test_a_plan_without_the_feature_keeps_its_tickets(self):
+        """The cron honours its own key: a company whose plan does not carry `helpdesk.auto_close` keeps its tickets."""
+        ticket = self.env['helpdesk.ticket'].create({
+            'name': 'Forgotten', 'description': '<p>d</p>', 'company_id': self.company.id,
+            'team_id': self.team.id, 'stage_id': self.open_stage.id,
+        })
+        self._age(ticket)
+        self.settings.write({'auto_close_days': 30})
+        set_feature(self, 'helpdesk.auto_close', False)
+        try:
+            self.assertEqual(self.env['liwan.helpdesk.cron']._liwan_auto_close(), 0)
+            self.assertFalse(ticket.stage_id.closed)
+        finally:
+            set_feature(self, 'helpdesk.auto_close', True)
+        self.assertEqual(self.env['liwan.helpdesk.cron']._liwan_auto_close(), 1)
+        self.assertTrue(ticket.stage_id.closed)
 
     def test_a_recent_ticket_and_a_zero_policy_are_left_alone(self):
         self.settings.write({'auto_close_days': 30})
