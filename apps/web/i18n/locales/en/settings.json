@@ -369,6 +369,76 @@
         "6": "Sunday"
       }
     },
+    "mail": {
+      "title": "Email from your company domain",
+      "hint": "Send system email to your customers from an address on your own domain instead of the LiwanOS address.",
+      "intro": "Enter a domain you own, then add the records we show at your DNS host to verify it. Once verified, messages leave from your address.",
+      "domain": "Domain",
+      "domainPlaceholder": "example.com",
+      "localPart": "Sender name",
+      "localPartHint": "The part before @ in the address, such as info.",
+      "start": "Start verification",
+      "state": {
+        "not_started": "Not started",
+        "pending_dns": "Waiting for DNS records",
+        "verified": "Verified",
+        "failed": "Verification failed"
+      },
+      "records": {
+        "title": "Required DNS records",
+        "hint": "Add these three records at your DNS host, then press Verify. They can take a few hours to appear.",
+        "name": "Name",
+        "value": "Value",
+        "copy": "Copy",
+        "copied": "Copied",
+        "kind": {
+          "dkim": "DKIM signature",
+          "spf": "SPF record",
+          "return_path": "Return path"
+        },
+        "type": {
+          "CNAME": "CNAME",
+          "TXT": "TXT"
+        },
+        "preparing": "The records are being prepared. Refresh shortly."
+      },
+      "verify": "Verify now",
+      "verifying": "Verifying",
+      "verifyStillPending": "The records have not appeared yet. Try again later.",
+      "verifiedToast": "The domain is verified",
+      "returnPathLeft": "{hours} hours left before the return path record expires.",
+      "returnPathExpired": "The return path record has expired and will be created again.",
+      "returnPathRecreated": "The return path record was recreated automatically on {at}. Update it at your DNS host with the new value.",
+      "sender": "Sender address",
+      "verifiedAt": "Verified on {at}",
+      "testSend": "Send a test message",
+      "testSent": "A test message was sent to your address",
+      "remove": "Remove the domain",
+      "confirmRemoveTitle": "Remove the mail domain?",
+      "confirmRemoveDescription": "Messages go back to leaving from the LiwanOS address, and the verification records are deleted at the provider.",
+      "confirmRemove": "Remove",
+      "removed": "The domain was removed",
+      "usage": {
+        "title": "Sending today",
+        "text": "{today} of {ceiling} allowed messages were sent today.",
+        "deferred": "Queued messages ({deferred}) leave the next day."
+      },
+      "paused": "Sending is paused",
+      "pausedReason": "Reason: {reason}",
+      "failedTitle": "The domain could not be verified",
+      "retry": "Check again",
+      "errors": {
+        "forbidden": "You do not have permission to manage the mail domain.",
+        "unavailable": "The mail domain is not available in this service.",
+        "domainTaken": "This domain is already registered.",
+        "unverified": "Verify the domain first.",
+        "invalid": "Check the domain and the sender name.",
+        "providerError": "The email provider did not answer. Try again later.",
+        "providerUnavailable": "Email sending is not set up on this server.",
+        "paused": "Sending is paused.",
+        "busy": "Another check is running. Try again in a moment."
+      }
+    },
     "sections": {
       "company": {
         "title": "Company",
@@ -376,7 +446,8 @@
         "address": "National address",
         "contact": "Contact",
         "branding": "Identity and documents",
-        "tax": "Establishment tax"
+        "tax": "Establishment tax",
+        "mail": "Outgoing email"
       },
       "team": {
         "title": "Team and permissions"

@@ -3,6 +3,7 @@ import BrandingForm from '@/components/settings/BrandingForm.vue'
 import CompanyHeaderCard from '@/components/settings/CompanyHeaderCard.vue'
 import CompanyProfileForm from '@/components/settings/CompanyProfileForm.vue'
 import CompanyTaxCard from '@/components/settings/CompanyTaxCard.vue'
+import MailDomainCard from '@/components/settings/MailDomainCard.vue'
 import { useBrandingAdmin } from '@/composables/useBrandingAdmin'
 import { useCompanyProfile } from '@/composables/useCompanyProfile'
 import { useCompanyTax } from '@/composables/useCompanyTax'
@@ -13,6 +14,10 @@ import { useCompanyTax } from '@/composables/useCompanyTax'
 // VAT registration the profile card showed before, so the profile shows the number without a second switch for it.
 const { t } = useI18n()
 const { parts, shows } = useSettingsPage('company')
+// The mail-domain card is a SaaS path (hidden in non_saas, like the subscription pages) and needs its own capability;
+// the card hides itself when the server has no mail provider configured.
+const { can } = useAccess()
+const mailShown = computed(() => can('mail.domain.manage') && String(useRuntimeConfig().public.customerCommercialEnabled) === 'true')
 const showsProfile = computed(() => shows('profile') || shows('address') || shows('contact'))
 const cardIds = computed(() => ['profile', 'address', 'contact'].filter(shows))
 const { data: profile, isLoading, error, refetch } = useCompanyProfile(showsProfile)
@@ -34,7 +39,7 @@ async function reloadTax() {
 <template>
   <SharedSettingsPage>
     <SharedPageHeader :title="t('settings.sections.company.title')" />
-    <SharedForbiddenState v-if="!parts.length" :description="t('settings.forbidden')" />
+    <SharedForbiddenState v-if="!parts.length && !mailShown" :description="t('settings.forbidden')" />
     <template v-else>
       <!-- A card carries its own anchor; until it renders (loading or a failed load) an empty target keeps the sub-list link working. -->
       <template v-if="!profile">
@@ -61,5 +66,6 @@ async function reloadTax() {
         <BrandingForm v-if="branding" :branding="branding" />
       </SharedPageState>
     </template>
+    <MailDomainCard v-if="mailShown" />
   </SharedSettingsPage>
 </template>
