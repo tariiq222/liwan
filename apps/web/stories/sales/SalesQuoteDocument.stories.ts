@@ -6,7 +6,7 @@ import { publicQuote } from './salesFixtures'
 const meta = {
   title: 'Sales/SalesQuoteDocument',
   component: SalesQuoteDocument,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/quote/[id].vue:49', 'عرض السعر كما يقرؤه العميل: بياناته وبنوده وإجمالياته وشروطه.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/quote/[id].vue:51', 'عرض السعر كما يقرؤه العميل: بياناته وبنوده وإجمالياته وشروطه.') },
   args: { quote: publicQuote },
 } satisfies Meta<typeof SalesQuoteDocument>
 export default meta

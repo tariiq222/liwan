@@ -1,13 +1,13 @@
 interface Refusal { status?: number; code?: string; field?: string; details?: unknown }
 
 /** The header fields of the order form a 422 can name. */
-export type SalesOrderField = 'customer_id' | 'validity_date' | 'terms' | 'salesperson_id'
+export type SalesOrderField = 'customer_id' | 'validity_date' | 'terms' | 'salesperson_id' | 'payment_to_confirm' | 'prepayment_percent'
 /** The fields of one line a refusal can name, as `lines.<index>.<field>`. */
 export type SalesLineField = 'kind' | 'product_id' | 'name' | 'quantity' | 'discount_percent'
 
 export type SalesFieldRef = { kind: 'order'; field: SalesOrderField } | { kind: 'line'; index: number; field: SalesLineField }
 
-const ORDER_FIELDS: readonly string[] = ['customer_id', 'validity_date', 'terms', 'salesperson_id'] satisfies readonly SalesOrderField[]
+const ORDER_FIELDS: readonly string[] = ['customer_id', 'validity_date', 'terms', 'salesperson_id', 'payment_to_confirm', 'prepayment_percent'] satisfies readonly SalesOrderField[]
 const LINE_FIELDS: readonly string[] = ['kind', 'product_id', 'name', 'quantity', 'discount_percent'] satisfies readonly SalesLineField[]
 const LINE_PATH = /^lines\.(\d+)\.(\w+)$/
 
@@ -31,6 +31,20 @@ export function salesFormField(error: unknown): SalesFieldRef | null {
 export function isSalesDiscountAboveLimit(error: unknown): boolean {
   const failure = error as Refusal | null
   return failure?.status === 403 && failure.code === 'forbidden' && (failure.details as { reason?: unknown } | undefined)?.reason === 'discount_above_limit'
+}
+
+/** The field of the refund form a 422 names; null for any other refusal. */
+export function salesRefundField(error: unknown): 'amount' | 'reference' | null {
+  const failure = error as Refusal | null
+  return failure?.status === 422 && (failure.field === 'amount' || failure.field === 'reference') ? failure.field : null
+}
+
+/** The locale key of a refused refund in its own words (the amount, the reference, a payment not recorded yet or a repeat); null for any other refusal. */
+export function salesRefundErrorKey(error: unknown): string | null {
+  const failure = error as Refusal | null
+  const field = salesRefundField(error)
+  if (field) return `sales.refund.errors.${field}`
+  return failure?.status === 409 && failure.code === 'conflict' ? 'sales.refund.errors.conflict' : null
 }
 
 /** The locale key of a refusal the sales screens explain in their own words; null for one the generic message covers. */

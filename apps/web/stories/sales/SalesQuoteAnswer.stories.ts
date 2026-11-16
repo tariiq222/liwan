@@ -7,7 +7,7 @@ import { publicQuote } from './salesFixtures'
 const meta = {
   title: 'Sales/SalesQuoteAnswer',
   component: SalesQuoteAnswer,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/quote/[id].vue:53', 'ردّ العميل على عرض سعر مفتوح: قبول بضغطة أو باسم وتوقيع مرسوم، أو رفض بسبب اختياري بعد تأكيد مضمَّن.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/quote/[id].vue:55', 'ردّ العميل على عرض سعر مفتوح: قبول بضغطة أو باسم وتوقيع مرسوم، أو رفض بسبب اختياري بعد تأكيد مضمَّن.') },
   args: { quote: publicQuote, pending: null, error: null },
 } satisfies Meta<typeof SalesQuoteAnswer>
 export default meta

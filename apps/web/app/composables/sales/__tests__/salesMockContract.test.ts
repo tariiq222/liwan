@@ -209,4 +209,147 @@ describe('sales mock', () => {
     expect(SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { visibility: 'all', revision: 1 })).body).revision).toBe(2)
     expect((await call('PATCH', '/api/v1/sales/settings', { visibility: 'own', revision: 2 }, 'mock_sales=branch')).status).toBe(403)
   })
+
+  describe('payment to confirm', () => {
+    const LINES = [{ kind: 'product', product_id: 1, quantity: 1 }]
+    const create = async (body: object = {}, cookie = '') => SalesOrderSchema.parse((await call('POST', '/api/v1/sales/orders', { customer_id: 1, lines: LINES, ...body }, cookie)).body)
+    const sendIt = async (id: number) => SalesOrderSchema.parse((await call('POST', `/api/v1/sales/orders/${id}/send`)).body)
+    const quote = async (id: number) => SalesPublicQuotationSchema.parse((await publicCall('GET', `/api/v1/public/sales/quotations/${id}?access_token=tok-${id}`)).body)
+    const pay = (id: number) => publicCall('POST', '/api/v1/public/sales/__mock/pay', { id })
+
+    it('carries the default in the settings and drops it while the tenant cannot take payments', async () => {
+      expect(SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body)).toMatchObject({ payment_to_confirm: 'off', prepayment_percent: 50 })
+      expect(SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { payment_to_confirm: 'percent', prepayment_percent: 30, revision: 1 })).body)).toMatchObject({ payment_to_confirm: 'percent', prepayment_percent: 30 })
+      const off = SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings', undefined, 'mock_payments=off')).body)
+      expect(off.payment_to_confirm).toBeUndefined()
+      expect(off.prepayment_percent).toBeUndefined()
+      expect((await call('PATCH', '/api/v1/sales/settings', { payment_to_confirm: 'full', revision: 2 }, 'mock_payments=off')).body).toMatchObject({ code: 'feature_not_included' })
+      for (const body of [{ payment_to_confirm: 'deposit' }, { prepayment_percent: 0 }, { prepayment_percent: 101 }, { prepayment_percent: '30' }]) {
+        expect((await call('PATCH', '/api/v1/sales/settings', { ...body, revision: 2 })).body).toMatchObject({ code: 'invalid', field: Object.keys(body)[0] })
+      }
+    })
+
+    it('gives a new quotation the default once and keeps the choice of each', async () => {
+      await call('PATCH', '/api/v1/sales/settings', { payment_to_confirm: 'percent', prepayment_percent: 30, revision: 1 })
+      const first = await create()
+      expect(first.payment).toMatchObject({ mode: 'percent', percent: 30, amount_required: first.amount_total * 0.3 })
+      await call('PATCH', '/api/v1/sales/settings', { payment_to_confirm: 'off', revision: 2 })
+      expect((await create()).payment).toMatchObject({ mode: 'off', status: 'none', link: 'none' })
+      expect(SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${first.id}`)).body).payment?.mode).toBe('percent')
+      expect((await create({ payment_to_confirm: 'full' })).payment).toMatchObject({ mode: 'full', percent: 100 })
+      expect((await create({}, 'mock_payments=off')).payment).toBeNull()
+    })
+
+    it('refuses what the server refuses in a choice', async () => {
+      const draft = await create()
+      const patch = (body: object, cookie = '') => call('PATCH', `/api/v1/sales/orders/${draft.id}`, body, cookie)
+      expect((await patch({ payment_to_confirm: 'half' })).body).toMatchObject({ code: 'invalid', field: 'payment_to_confirm' })
+      expect((await patch({ prepayment_percent: 40 })).body).toMatchObject({ code: 'invalid', field: 'prepayment_percent' })
+      expect((await patch({ payment_to_confirm: 'full', prepayment_percent: 40 })).body).toMatchObject({ code: 'invalid', field: 'prepayment_percent' })
+      expect((await patch({ payment_to_confirm: 'full' }, 'mock_payments=off')).body).toMatchObject({ code: 'feature_not_included' })
+      expect(SalesOrderSchema.parse((await patch({ payment_to_confirm: 'percent', prepayment_percent: 25 })).body).payment).toMatchObject({ mode: 'percent', percent: 25 })
+      expect(SalesOrderSchema.parse((await patch({ prepayment_percent: 60 })).body).payment).toMatchObject({ percent: 60 })
+      expect(SalesOrderSchema.parse((await call('GET', '/api/v1/sales/orders/4')).body).payment).toBeNull()
+    })
+
+    it('shows the pay link only to a customer who may pay, and a signature comes first', async () => {
+      const order = await create({ payment_to_confirm: 'full' })
+      await sendIt(order.id)
+      expect((await quote(order.id)).payment).toEqual({ percent: 100, amount: order.amount_total, currency: 'SAR', pay_url: `/pay/order/${order.id}?access_token=tok-${order.id}`, state: 'payable' })
+      expect(SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${order.id}`)).body).payment).toMatchObject({ status: 'payable', link: 'ready', held: null })
+      expect((await quote(5)).payment).toBeNull()
+      await call('PATCH', '/api/v1/sales/settings', { customer_answer: 'accept_and_sign', revision: 1 })
+      const signing = await create({ payment_to_confirm: 'percent', prepayment_percent: 40 })
+      await sendIt(signing.id)
+      expect((await quote(signing.id)).payment).toMatchObject({ state: 'awaiting_signature', pay_url: null, percent: 40 })
+      expect(SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${signing.id}`)).body).payment?.link).toBe('awaiting_signature')
+      await publicCall('POST', `/api/v1/public/sales/quotations/${signing.id}/accept`, { access_token: `tok-${signing.id}`, signed_by: 'منى', signature: 'iVBORw0KGgo'.padEnd(120, 'A'), signature_method: 'drawn' })
+      expect((await quote(signing.id)).payment?.state).toBe('payable')
+    })
+
+    it('confirms the order when the payment arrives and reports it on the staff page', async () => {
+      const order = await create({ payment_to_confirm: 'full' })
+      await sendIt(order.id)
+      expect((await pay(order.id)).status).toBe(200)
+      expect(SalesPublicQuotationSchema.parse((await publicCall('GET', `/api/v1/public/sales/quotations/${order.id}?access_token=tok-${order.id}`)).body)).toMatchObject({ state: 'confirmed', answer: 'accepted', payment: { state: 'paid', amount: 0, pay_url: null } })
+      expect(SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${order.id}`)).body).payment).toMatchObject({ status: 'paid', amount_received: order.amount_total, amount_due: 0, held: null })
+      // A quotation that asks for nothing takes no payment.
+      expect((await pay(5)).status).toBe(404)
+    })
+
+    it('reads received until the order is confirmed, and says nothing after the staff confirm without the payment', async () => {
+      await call('PATCH', '/api/v1/sales/settings', { customer_answer: 'accept_and_sign', revision: 1 })
+      const signing = await create({ payment_to_confirm: 'full' })
+      await sendIt(signing.id)
+      await pay(signing.id)
+      expect((await quote(signing.id)).payment).toEqual({ percent: 100, amount: 0, currency: 'SAR', pay_url: null, state: 'received' })
+      expect(SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${signing.id}`)).body).payment).toMatchObject({ held: 'awaiting_signature', amount_refundable: signing.amount_total, can_refund: true })
+      const unpaid = await create({ payment_to_confirm: 'full' })
+      await sendIt(unpaid.id)
+      await call('POST', `/api/v1/sales/orders/${unpaid.id}/confirm`)
+      expect((await quote(unpaid.id)).payment).toBeNull()
+      expect(SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${unpaid.id}`)).body).payment).toMatchObject({ link: 'none', amount_due: 0, can_refund: false, amount_refundable: 0 })
+    })
+
+    it('does not let the acceptance alone confirm a quotation that asks to be paid', async () => {
+      await call('PATCH', '/api/v1/sales/settings', { acceptance_confirms: true, revision: 1 })
+      const asking = await create({ payment_to_confirm: 'full' })
+      await sendIt(asking.id)
+      await publicCall('POST', `/api/v1/public/sales/quotations/${asking.id}/accept`, { access_token: `tok-${asking.id}` })
+      expect((await quote(asking.id)).state).toBe('sent')
+      const free = await create({ payment_to_confirm: 'off' })
+      await sendIt(free.id)
+      await publicCall('POST', `/api/v1/public/sales/quotations/${free.id}/accept`, { access_token: `tok-${free.id}` })
+      expect((await quote(free.id)).state).toBe('confirmed')
+    })
+
+    it('reads no_gateway while no gateway is live', async () => {
+      const order = await create({ payment_to_confirm: 'full' })
+      await sendIt(order.id)
+      expect(SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${order.id}`, undefined, 'mock_gateway=none')).body).payment).toMatchObject({ status: 'payable', link: 'no_gateway' })
+    })
+
+    describe('refunds', () => {
+      const refund = (id: number, body: object, cookie = '') => call('POST', `/api/v1/sales/orders/${id}/refunds`, body, cookie)
+      async function paid() {
+        const order = await create({ payment_to_confirm: 'full' })
+        await sendIt(order.id)
+        await call('POST', `/api/v1/sales/orders/${order.id}/reopen`)
+        await pay(order.id)
+        return order
+      }
+
+      it('records a refund and answers the order, with the money that remains', async () => {
+        const order = await paid()
+        const answer = await refund(order.id, { amount: 38, reference: ' RF-1 ' })
+        expect(answer.status).toBe(200)
+        expect(SalesOrderSchema.parse(answer.body).payment).toMatchObject({ amount_received: order.amount_total - 38, amount_refundable: order.amount_total - 38, can_refund: true })
+      })
+
+      it('refuses what the bridge refuses, with its codes', async () => {
+        const order = await paid()
+        expect((await refund(order.id, { amount: order.amount_total + 1, reference: 'RF' })).body).toMatchObject({ code: 'invalid', field: 'amount' })
+        expect((await refund(order.id, { amount: 0, reference: 'RF' })).body).toMatchObject({ code: 'invalid', field: 'amount' })
+        expect((await refund(order.id, { amount: '5', reference: 'RF' })).body).toMatchObject({ code: 'invalid', field: 'amount' })
+        expect((await refund(order.id, { amount: 5, reference: '   ' })).body).toMatchObject({ code: 'invalid', field: 'reference' })
+        expect((await refund(order.id, { amount: 5, reference: 'x'.repeat(129) })).body).toMatchObject({ code: 'invalid', field: 'reference' })
+        expect((await refund(order.id, { amount: 5, reference: 'RF', note: 'x' })).body).toMatchObject({ code: 'unknown_field' })
+        expect((await refund(order.id, { amount: 5, reference: 'RF-2' })).status).toBe(200)
+        expect((await refund(order.id, { amount: 5, reference: 'RF-2' })).body).toMatchObject({ code: 'conflict' })
+        expect((await refund(order.id, { amount: 5, reference: 'RF' }, 'mock_caps=reader')).body).toMatchObject({ code: 'forbidden' })
+        expect((await refund(order.id, { amount: 5, reference: 'RF' }, 'mock_payments=off')).body).toMatchObject({ code: 'feature_not_included' })
+        expect((await refund(4, { amount: 5, reference: 'RF' })).body).toMatchObject({ code: 'forbidden' })
+        expect((await refund(999, { amount: 5, reference: 'RF' })).status).toBe(404)
+      })
+
+      it('shows no refund action to a reader or when nothing may go back', async () => {
+        const order = await paid()
+        const read = async (cookie = '') => SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${order.id}`, undefined, cookie)).body).payment
+        expect(await read()).toMatchObject({ can_refund: true })
+        expect(await read('mock_caps=reader')).toMatchObject({ can_refund: false })
+        await refund(order.id, { amount: order.amount_total, reference: 'ALL' })
+        expect(await read()).toMatchObject({ can_refund: false, amount_refundable: 0 })
+      })
+    })
+  })
 })

@@ -7,7 +7,7 @@ const closed = { can_accept: false, can_decline: false }
 const meta = {
   title: 'Sales/SalesQuoteStatus',
   component: SalesQuoteStatus,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/quote/[id].vue:48', 'ما آل إليه عرض السعر عند العميل حين لا يستطيع الرد: قبله أو رفضه، أو أكّده المرسل أو ألغاه، أو انتهت صلاحيته، أو لم يُتح الرد عبر الإنترنت.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/quote/[id].vue:50', 'ما آل إليه عرض السعر عند العميل حين لا يستطيع الرد: قبله أو رفضه، أو أكّده المرسل أو ألغاه، أو انتهت صلاحيته، أو لم يُتح الرد عبر الإنترنت.') },
   args: { quote: { ...publicQuote, ...closed, expired: true } },
 } satisfies Meta<typeof SalesQuoteStatus>
 export default meta

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProductPick, SalesOrder } from '@liwan/contracts'
 import {
   emptySalesDraft, hasSalesDraftErrors, moveSalesLine, newSalesLine, salesCreateBody, salesDraftFromOrder, salesDraftSnapshot,
-  salesLineAmount, salesPatchBody, validateSalesDraft, withPickedProduct,
+  salesLineAmount, salesPatchBody, salesPaymentWithDefaultPercent, validateSalesDraft, withPickedProduct,
 } from '../salesOrderDraft'
 
 const currency = { id: 2, name: 'SAR', symbol: 'ر.س' }
@@ -44,12 +44,49 @@ describe('sales order draft', () => {
 
   it('validates the customer, each product line and each text line', () => {
     const errors = validateSalesDraft({ ...emptySalesDraft(), lines: [newSalesLine(), { ...newSalesLine('note'), name: ' ' }, { ...withPickedProduct(newSalesLine(), PICK), quantity: '0', discount: '120' }] })
-    expect(errors).toEqual({ customer: true, noLines: false, lines: [{ product: true }, { name: true }, { quantity: true, discount: true }] })
+    expect(errors).toEqual({ customer: true, noLines: false, payment: false, lines: [{ product: true }, { name: true }, { quantity: true, discount: true }] })
     expect(validateSalesDraft({ ...emptySalesDraft(), lines: [{ ...withPickedProduct(newSalesLine(), PICK), quantity: '1000001' }] }).lines).toEqual([{ quantity: true }])
     expect(validateSalesDraft({ ...emptySalesDraft(), lines: [{ ...withPickedProduct(newSalesLine(), PICK), quantity: '1000000', name: '' }] }).lines).toEqual([{}])
     expect(hasSalesDraftErrors(errors)).toBe(true)
     expect(validateSalesDraft({ ...emptySalesDraft(), customerId: 1, lines: [] }).noLines).toBe(true)
     expect(hasSalesDraftErrors(validateSalesDraft({ ...emptySalesDraft(), customerId: 1, lines: [withPickedProduct(newSalesLine(), PICK)] }))).toBe(false)
+  })
+
+  it('sends how the quotation asks to be paid only while the tenant can take payments, and the percentage only with a percentage', () => {
+    const draft = { ...salesDraftFromOrder(ORDER), payment: { mode: 'percent', percent: 30 } as const }
+    expect(salesPatchBody(ORDER, draft, false).payment_to_confirm).toBeUndefined()
+    expect(salesPatchBody(ORDER, draft, false, true)).toMatchObject({ payment_to_confirm: 'percent', prepayment_percent: 30 })
+    expect(salesPatchBody(ORDER, { ...draft, payment: { mode: 'full', percent: 30 } }, false, true)).toMatchObject({ payment_to_confirm: 'full' })
+    expect(salesPatchBody(ORDER, { ...draft, payment: { mode: 'full', percent: 30 } }, false, true).prepayment_percent).toBeUndefined()
+    // A new quotation the user did not touch the payment of takes the tenant's default on the server.
+    const fresh = { ...emptySalesDraft(), customerId: 5, lines: [withPickedProduct(newSalesLine(), PICK)] }
+    expect(salesCreateBody(fresh, false, true).payment_to_confirm).toBeUndefined()
+    expect(salesCreateBody({ ...fresh, payment: { mode: 'off', percent: 50 } }, false, true)).toMatchObject({ payment_to_confirm: 'off' })
+  })
+
+  it('reads the payment of a saved quotation and holds no percentage unless it asks for one', () => {
+    expect(salesDraftFromOrder(ORDER).payment).toBeNull()
+    const payment = { mode: 'full', percent: 100, currency: 'SAR', amount_required: 207, amount_received: 0, amount_due: 207, amount_to_refund: 0, amount_refundable: 0, can_refund: false, status: 'payable', link: 'ready', held: null, needs_attention: false, attention: null } as const
+    expect(salesDraftFromOrder({ ...ORDER, payment }).payment).toEqual({ mode: 'full', percent: null })
+    expect(salesDraftFromOrder({ ...ORDER, payment: { ...payment, mode: 'percent', percent: 25 } }).payment).toEqual({ mode: 'percent', percent: 25 })
+  })
+
+  it('gives the tenant percentage when the user moves to a percentage with none of their own, as it stands when the user chooses', () => {
+    const off = { mode: 'off', percent: null } as const
+    expect(salesPaymentWithDefaultPercent({ mode: 'percent', percent: null }, off, 35)).toEqual({ mode: 'percent', percent: 35 })
+    expect(salesPaymentWithDefaultPercent({ mode: 'percent', percent: null }, null, 35)).toEqual({ mode: 'percent', percent: 35 })
+    // A percentage the draft already holds, and a field the user emptied, are left as they are.
+    expect(salesPaymentWithDefaultPercent({ mode: 'percent', percent: 25 }, off, 35)).toEqual({ mode: 'percent', percent: 25 })
+    expect(salesPaymentWithDefaultPercent({ mode: 'percent', percent: null }, { mode: 'percent', percent: 25 }, 35)).toEqual({ mode: 'percent', percent: null })
+    expect(salesPaymentWithDefaultPercent({ mode: 'full', percent: null }, off, 35)).toEqual({ mode: 'full', percent: null })
+  })
+
+  it('refuses a percentage that is empty or out of range, only under a percentage payment', () => {
+    const base = { ...emptySalesDraft(), customerId: 1, lines: [withPickedProduct(newSalesLine(), PICK)] }
+    for (const percent of [null, 0, 101, 12.5]) expect(validateSalesDraft({ ...base, payment: { mode: 'percent', percent } }).payment).toBe(true)
+    for (const percent of [1, 50, 100]) expect(validateSalesDraft({ ...base, payment: { mode: 'percent', percent } }).payment).toBe(false)
+    expect(validateSalesDraft({ ...base, payment: { mode: 'full', percent: null } }).payment).toBe(false)
+    expect(hasSalesDraftErrors(validateSalesDraft({ ...base, payment: { mode: 'percent', percent: null } }))).toBe(true)
   })
 
   it('moves lines within the list and amounts a product line at the product price', () => {

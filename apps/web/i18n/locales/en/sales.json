@@ -93,7 +93,20 @@
       "lines": "Lines",
       "linesHint": "Each product is priced from the products list. Tax and totals are calculated when you save the quotation.",
       "create": "Create quotation",
-      "saveError": "The quotation was not saved"
+      "saveError": "The quotation was not saved",
+      "payment": {
+        "title": "Payment to confirm",
+        "hint": "Ask the customer to pay before the quotation becomes an order. A new quotation starts with the default in the settings.",
+        "off": "No payment",
+        "offHint": "The customer is not asked to pay. You confirm the order yourself, or their acceptance does.",
+        "full": "All of the total",
+        "fullHint": "The order is confirmed when the customer pays the whole amount.",
+        "percent": "A percentage of the total",
+        "percentHint": "The order is confirmed when the customer pays that share.",
+        "shareLabel": "Share of the total %",
+        "shareHint": "A whole number from 1 to 100.",
+        "shareRequired": "Enter a whole number from 1 to 100."
+      }
     },
     "lines": {
       "empty": "No lines.",
@@ -191,6 +204,22 @@
           "refuse": "Refuse",
           "refuseHint": "Reopen the quotation first, then send it again."
         }
+      },
+      "payment": {
+        "title": "Payment to confirm",
+        "hint": "Whether a new quotation asks the customer to pay before it becomes an order.",
+        "mode": "New quotations",
+        "modeHint": "Each quotation keeps its own choice, so a change applies to new quotations only. You can change it on any draft.",
+        "off": "No payment",
+        "offHint": "The customer is not asked to pay.",
+        "full": "All of the total",
+        "fullHint": "The order is confirmed when the customer pays everything.",
+        "percent": "A percentage of the total",
+        "percentHint": "The order is confirmed when the customer pays that share.",
+        "shareLabel": "Share of the total %",
+        "shareHint": "Used when new quotations ask for a percentage.",
+        "shareRequired": "Enter a number from 1 to 100.",
+        "shareInvalid": "This value was refused. Enter a whole number from 1 to 100."
       }
     },
     "expired": "Expired",
@@ -301,7 +330,99 @@
         "readOnly": "The sender's workspace is read-only at the moment, so your answer could not be saved. Try again later.",
         "rateLimited": "Too many attempts. Wait a minute and try again."
       },
-      "heading": "Quotation"
+      "heading": "Quotation",
+      "payment": {
+        "title": "Pay to confirm",
+        "hintFull": "This quotation becomes an order when you pay {amount}.",
+        "hintPercent": "This quotation becomes an order when you pay {percent}% of the total, {amount}.",
+        "pay": "Pay {amount}",
+        "refresh": "Refresh",
+        "states": {
+          "awaiting_signature": {
+            "title": "Sign first, then pay",
+            "body": "Accept and sign this quotation above. After that you can pay {amount} to confirm it."
+          },
+          "processing": {
+            "title": "Your payment is being processed",
+            "body": "Your order is confirmed as soon as the payment arrives."
+          },
+          "paid": {
+            "title": "Payment received",
+            "body": "Thank you. The sender has your payment."
+          },
+          "received": {
+            "title": "We received your payment",
+            "body": "You will get the order confirmation shortly.",
+            "signBody": "Sign the quotation above so your order can be confirmed."
+          },
+          "unavailable": {
+            "title": "Payment is not available now",
+            "body": "Contact the sender to pay for this quotation."
+          }
+        }
+      }
+    },
+    "payment": {
+      "title": "Payment",
+      "asks": "Payment to confirm",
+      "status": "Payment status",
+      "required": "Needed to confirm",
+      "received": "Received",
+      "due": "Still due",
+      "refund": "To give back",
+      "link": "Pay link",
+      "mode": {
+        "off": "Not asked",
+        "full": "All of the total",
+        "percent": "{percent}% of the total"
+      },
+      "statuses": {
+        "none": "Not asked",
+        "payable": "Waiting for payment",
+        "processing": "Being processed",
+        "paid": "Paid",
+        "not_payable": "Not payable now",
+        "cancelled": "Cancelled"
+      },
+      "links": {
+        "none": "No payment link needed",
+        "ready": "The customer can pay",
+        "awaiting_signature": "The customer signs first",
+        "no_gateway": "No payment gateway is ready",
+        "unavailable": "Not available now"
+      },
+      "held": {
+        "title": "Payment received, order not confirmed",
+        "expired": "The payment of {amount} arrived after the quotation expired. Reopen it, extend the validity date, send it again and confirm it, or give the money back.",
+        "reopened": "The payment of {amount} arrived while the quotation was a draft. Send it again and confirm it, or give the money back.",
+        "cancelled": "The payment of {amount} arrived while the quotation is cancelled, so the order will not be confirmed. Give the money back, or reopen the quotation, send it again and confirm it.",
+        "awaiting_signature": "The payment of {amount} arrived. The order is confirmed when the customer signs the quotation."
+      },
+      "noGateway": {
+        "title": "No payment gateway is ready",
+        "body": "The customer cannot pay until a payment gateway is live. Set one up in the payments settings.",
+        "action": "Payments settings"
+      },
+      "attention": {
+        "title": "A payment needs attention",
+        "payment_not_recorded": "Money was received but was not recorded on the order. Check it in payments.",
+        "payment_reversed": "A payment that counted toward confirming the order was voided, so the order now holds less than it asked. Check it in payments."
+      }
+    },
+    "refund": {
+      "title": "Record a refund",
+      "hint": "Record a refund you already made in your payment gateway's dashboard. Liwan does not send money to the customer itself.",
+      "open": "Record a refund",
+      "amount": "Amount refunded",
+      "amountHint": "Up to {max}.",
+      "reference": "Gateway refund reference",
+      "referenceHint": "The refund reference as it appears in the gateway's dashboard, up to 128 characters.",
+      "submit": "Record the refund",
+      "errors": {
+        "amount": "The amount is not valid or is more than can be refunded. Enter an amount above zero, up to the amount available.",
+        "reference": "Enter the refund reference from the gateway, 1 to 128 characters.",
+        "conflict": "A payment is not recorded yet, or this same refund was already recorded. Refresh the page and check before you try again."
+      }
     }
   }
 }

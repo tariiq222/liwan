@@ -4,20 +4,35 @@ import { SalesPublicQuotationSchema, type SalesQuotationAccept, type SalesSignat
 import { quoteLinkOf, quotePath, type QuoteLink } from './salesQuote'
 import { salesKeys } from './salesKeys'
 
+/** How often a quotation whose payment is on its way (processing, or received and not yet confirmed) is read again, and for how long. */
+export const PROCESSING_REFETCH_MS = 8_000
+export const PROCESSING_REFETCH_LIMIT_MS = 5 * 60_000
+
 /**
  * The quotation a quote-page address names, read with its access token and no session. A malformed address makes no
- * request (`link` is null). It is not read again on focus: the page shows the answer the customer just gave.
+ * request (`link` is null). It is not read again on focus: the page shows the answer the customer just gave. While its
+ * payment is processing or received it is read again every few seconds, for a few minutes, so the page learns the payment landed or the order was confirmed.
  */
 export function useSalesQuotation() {
   const route = useRoute()
   const { $api } = useApi()
   const link = computed(() => quoteLinkOf(route.params.id, route.query.access_token))
+  let processingSince: number | null = null
   const query = useQuery({
     queryKey: computed(() => salesKeys.quote(link.value?.id ?? 0, link.value?.token ?? '')),
     enabled: computed(() => link.value !== null),
     queryFn: () => $api(quotePath(link.value!), { query: { access_token: link.value!.token }, schema: SalesPublicQuotationSchema }),
     retry: false,
     refetchOnWindowFocus: false,
+    refetchInterval: query => {
+      const state = query.state.data?.payment?.state
+      if (state !== 'processing' && state !== 'received') {
+        processingSince = null
+        return false
+      }
+      processingSince ??= Date.now()
+      return Date.now() - processingSince < PROCESSING_REFETCH_LIMIT_MS ? PROCESSING_REFETCH_MS : false
+    },
   })
   return { link, ...query }
 }

@@ -10,9 +10,9 @@ vi.mock('@tanstack/vue-query', async original => ({
   useQueryClient: () => ({ setQueryData: mocks.setQueryData }),
 }))
 
-const { useSalesQuotation, useSalesQuotationAnswer } = await import('../useSalesQuotation')
+const { PROCESSING_REFETCH_LIMIT_MS, PROCESSING_REFETCH_MS, useSalesQuotation, useSalesQuotationAnswer } = await import('../useSalesQuotation')
 
-type Read = { link: { value: unknown }; queryKey: { value: unknown }; enabled: { value: boolean }; queryFn: () => Promise<unknown>; retry: boolean; refetchOnWindowFocus: boolean }
+type Read = { link: { value: unknown }; queryKey: { value: unknown }; enabled: { value: boolean }; queryFn: () => Promise<unknown>; retry: boolean; refetchOnWindowFocus: boolean; refetchInterval: (query: { state: { data?: { payment: { state: string } | null } } }) => number | false }
 type Write = { mutationFn: (input: unknown) => Promise<unknown>; onSuccess: (saved: { id: number }, input: { link: { token: string } }) => void }
 
 function read(params: Record<string, string>, query: Record<string, unknown>): Read {
@@ -27,6 +27,7 @@ function answers() {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.clearAllMocks()
 })
@@ -49,6 +50,50 @@ describe('useSalesQuotation', () => {
     expect(read({ id: 'x' }, { access_token: 'tok' }).enabled.value).toBe(false)
     expect(read({ id: '42' }, { access_token: ['a', 'b'] }).enabled.value).toBe(false)
     expect(read({ id: '42' }, { access_token: 'tok' }).queryKey.value).not.toEqual(read({ id: '42' }, { access_token: 'other' }).queryKey.value)
+  })
+})
+
+describe('useSalesQuotation refetch while the payment is processing', () => {
+  const state = (payment: string | null) => ({ state: { data: { payment: payment ? { state: payment } : null } } })
+
+  it('reads the quotation again every 8 seconds while the payment is processing, and never otherwise', () => {
+    const { refetchInterval } = read({ id: '42' }, { access_token: 'tok-42' })
+    expect(refetchInterval(state('processing'))).toBe(PROCESSING_REFETCH_MS)
+    expect(PROCESSING_REFETCH_MS).toBe(8000)
+    for (const other of ['payable', 'paid', 'awaiting_signature', 'unavailable', null]) expect(refetchInterval(state(other))).toBe(false)
+    expect(refetchInterval({ state: {} })).toBe(false)
+  })
+
+  it('reads again while a payment was received and the order is not confirmed yet, with the same limits', () => {
+    vi.useFakeTimers()
+    const { refetchInterval } = read({ id: '42' }, { access_token: 'tok-42' })
+    expect(refetchInterval(state('received'))).toBe(PROCESSING_REFETCH_MS)
+    vi.advanceTimersByTime(PROCESSING_REFETCH_LIMIT_MS)
+    expect(refetchInterval(state('received'))).toBe(false)
+    const again = read({ id: '42' }, { access_token: 'tok-42' }).refetchInterval
+    expect(again(state('received'))).toBe(PROCESSING_REFETCH_MS)
+    // Confirmation follows: the state changes to paid and the reads stop.
+    expect(again(state('paid'))).toBe(false)
+  })
+
+  it('stops after 5 minutes, and stops as soon as the state changes', () => {
+    vi.useFakeTimers()
+    const { refetchInterval } = read({ id: '42' }, { access_token: 'tok-42' })
+    expect(refetchInterval(state('processing'))).toBe(8000)
+    vi.advanceTimersByTime(PROCESSING_REFETCH_LIMIT_MS - 1)
+    expect(refetchInterval(state('processing'))).toBe(8000)
+    vi.advanceTimersByTime(1)
+    expect(refetchInterval(state('processing'))).toBe(false)
+    expect(PROCESSING_REFETCH_LIMIT_MS).toBe(300000)
+
+    const again = read({ id: '42' }, { access_token: 'tok-42' }).refetchInterval
+    expect(again(state('processing'))).toBe(8000)
+    vi.advanceTimersByTime(60_000)
+    expect(again(state('paid'))).toBe(false)
+    // A later processing state gets a fresh five minutes.
+    expect(again(state('processing'))).toBe(8000)
+    vi.advanceTimersByTime(PROCESSING_REFETCH_LIMIT_MS - 1)
+    expect(again(state('processing'))).toBe(8000)
   })
 })
 

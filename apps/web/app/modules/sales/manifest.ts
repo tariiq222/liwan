@@ -15,6 +15,8 @@ const manifest: AppManifest = {
     parts: [
       { id: 'visibility', labelKey: 'sales.settings.visibility.title', icon: 'i-lucide-eye', capability: 'sales.settings.manage' },
       { id: 'quotations', labelKey: 'sales.settings.quotations.title', icon: 'i-lucide-file-text', capability: 'sales.settings.manage' },
+      // The default of paying to confirm a quotation: it exists while the tenant has online payments.
+      { id: 'payments', labelKey: 'sales.settings.payment.title', icon: 'i-lucide-credit-card', capability: 'sales.settings.manage', feature: 'payments.enabled' },
     ],
   },
   contextLinks: () => [

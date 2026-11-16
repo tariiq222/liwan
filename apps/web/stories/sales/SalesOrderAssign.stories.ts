@@ -10,7 +10,7 @@ const meta = {
   component: SalesOrderAssign,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/sales/[id].vue:134', 'تغيير مندوب المستند لمن يملك صلاحية التعيين.'),
+    ...storyContext('apps/web/app/pages/sales/[id].vue:139', 'تغيير مندوب المستند لمن يملك صلاحية التعيين.'),
     msw: { handlers: { api: [people, http.post('/api/v1/sales/orders/1/assign', () => HttpResponse.json(draftOrder))] } },
   },
   args: { order: draftOrder },

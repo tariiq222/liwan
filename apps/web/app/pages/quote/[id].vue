@@ -2,22 +2,24 @@
 import SalesQuoteAnswer from '@/components/sales/SalesQuoteAnswer.vue'
 import SalesQuoteDocument from '@/components/sales/SalesQuoteDocument.vue'
 import SalesQuoteHeader from '@/components/sales/SalesQuoteHeader.vue'
+import SalesQuotePayment from '@/components/sales/SalesQuotePayment.vue'
 import SalesQuoteStatus from '@/components/sales/SalesQuoteStatus.vue'
-import { isInvalidQuoteLink, quoteAnswerErrorKey, quoteChanged, quotePdfHref, quoteView } from '@/composables/sales/salesQuote'
+import { isInvalidQuoteLink, quoteAnswerErrorKey, quoteChanged, quoteNeedsSignature, quotePaymentShown, quotePdfHref, quoteView } from '@/composables/sales/salesQuote'
 import type { SalesSignatureMethod } from '@liwan/contracts'
 import { useSalesQuotation, useSalesQuotationAnswer } from '@/composables/sales/useSalesQuotation'
 
 // The public page a customer opens from the link of a quotation they were sent: no account, no session. The access token
 // in the address is the only credential. They read the quotation, download it as a PDF, and, when the sender allows it,
-// accept it (with a signature when asked) or decline it.
+// accept it (with a signature when asked) or decline it, and pay it when the sender asked for payment to confirm it.
 definePageMeta({ layout: false, access: 'public' })
 
 const { t } = useI18n()
-const { link, data: quote, error, isLoading, isError, refetch } = useSalesQuotation()
+const { link, data: quote, error, isLoading, isError, isFetching, refetch } = useSalesQuotation()
 const answers = useSalesQuotationAnswer()
 
 const invalidLink = computed(() => !link.value || isInvalidQuoteLink(error.value))
 const open = computed(() => quote.value !== undefined && quoteView(quote.value) === 'open')
+const payment = computed(() => (quote.value ? quotePaymentShown(quote.value) : null))
 const pending = computed(() => {
   if (answers.accept.isPending.value) return 'accept'
   return answers.decline.isPending.value ? 'decline' : null
@@ -50,7 +52,8 @@ const decline = (reason: string | undefined) => answer(() => answers.decline.mut
         <div class="liwan-print-hide flex justify-end">
           <UButton color="neutral" variant="outline" icon="i-lucide-download" :href="quotePdfHref(link)" external :label="t('sales.quote.pdf')" data-testid="quote-pdf" />
         </div>
-        <SalesQuoteAnswer v-if="open" class="liwan-print-hide" :quote="quote" :pending="pending" :error="actionError" @accept="accept" @decline="decline" />
+        <SalesQuoteAnswer v-if="open && (quote.can_accept || quote.can_decline)" class="liwan-print-hide" :quote="quote" :pending="pending" :error="actionError" @accept="accept" @decline="decline" />
+        <SalesQuotePayment class="liwan-print-hide" :payment="payment" :refreshing="isFetching" :sign-first="quoteNeedsSignature(quote)" @refresh="() => refetch()" />
       </div>
       <div v-else-if="isError" class="grid gap-4">
         <UAlert role="alert" color="warning" variant="subtle" icon="i-lucide-cloud-off" :title="t('sales.quote.states.unavailable.title')" :description="t('sales.quote.states.unavailable.body')" data-testid="quote-unavailable" />

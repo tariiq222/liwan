@@ -296,3 +296,124 @@ test('the page is never cached and sends no referrer, as the token is in its add
   expect(response!.headers()['referrer-policy']).toBe('no-referrer')
   expect(response!.headers()['cache-control']).toBe('no-store')
 })
+
+// A quotation that asks to be paid before it becomes an order (the payments bridge). The mock's S00009 and later are made
+// here, as the staff would: created with the choice and sent. The gateway is the mock's `__mock/pay`.
+async function sentForPayment(page: Page, body: Record<string, unknown>) {
+  // The staff session only writes the quotation; the customer's page ignores it.
+  await login(page)
+  const created = await page.request.post('/api/v1/sales/orders', { data: { customer_id: 1, lines: [{ kind: 'product', product_id: 1, quantity: 1 }], ...body } })
+  expect(created.ok()).toBe(true)
+  const { id } = await created.json() as { id: number }
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/send`)).ok()).toBe(true)
+  return id
+}
+
+test('a quotation that asks for payment shows the amount and a link to the pay page, and the link is a real link with the pay page address', async ({ page }) => {
+  const id = await sentForPayment(page, { payment_to_confirm: 'percent', prepayment_percent: 40 })
+  const body = SalesPublicQuotationSchema.parse(await (await page.request.get(`${API}/${id}?access_token=tok-${id}`)).json())
+  expect(body.payment).toMatchObject({ percent: 40, state: 'payable', pay_url: `/pay/order/${id}?access_token=tok-${id}` })
+  await page.goto(QUOTE(id))
+  await expect(page.getByTestId('quote-payment')).toContainText('55.20')
+  await expect(page.getByTestId('quote-payment-hint')).toContainText('40%')
+  await expect(page.getByTestId('quote-pay')).toHaveAttribute('href', `/pay/order/${id}?access_token=tok-${id}`)
+  await expect(page.getByTestId('quote-pay')).toContainText('ادفع')
+  // The real controls: a link by role with the pay page address, inside the polite status region.
+  await expect(page.getByRole('link', { name: /ادفع/ })).toHaveAttribute('href', `/pay/order/${id}?access_token=tok-${id}`)
+  await expect(page.getByRole('status').getByTestId('quote-pay')).toBeVisible()
+  // The customer may still accept or decline; paying does not replace the answer buttons.
+  await expect(accept(page)).toBeEnabled()
+})
+
+test('a quotation that asks for nothing shows no payment', async ({ page }) => {
+  const id = await sentForPayment(page, { payment_to_confirm: 'off' })
+  await page.goto(QUOTE(id))
+  await expect(accept(page)).toBeEnabled()
+  await expect(page.getByTestId('quote-payment')).toHaveCount(0)
+  await page.goto(QUOTE(5))
+  await expect(page.getByTestId('quote-payment')).toHaveCount(0)
+})
+
+test('a customer who must sign is told to sign first, and gets the pay link once they have', async ({ page }) => {
+  await login(page)
+  expect((await page.request.patch('/api/v1/sales/settings', { data: { customer_answer: 'accept_and_sign', revision: 1 } })).ok()).toBe(true)
+  const id = await sentForPayment(page, { payment_to_confirm: 'full' })
+  await page.goto(QUOTE(id))
+  await expect(page.getByTestId('quote-payment-awaiting_signature')).toContainText('وقّع أولًا ثم ادفع')
+  await expect(page.getByTestId('quote-pay')).toHaveCount(0)
+  await page.getByTestId('quote-signed-by-input').fill('منى العتيبي')
+  await sign(page)
+  await accept(page).click()
+  await expect(page.getByTestId('quote-pay')).toHaveAttribute('href', `/pay/order/${id}?access_token=tok-${id}`)
+  await expect(page.getByTestId('quote-payment-awaiting_signature')).toHaveCount(0)
+})
+
+test('a payment confirms the order and the page says it was received', async ({ page }) => {
+  const id = await sentForPayment(page, { payment_to_confirm: 'full' })
+  expect((await page.request.post('/api/v1/public/sales/__mock/pay', { data: { id } })).ok()).toBe(true)
+  await page.goto(QUOTE(id))
+  await expect(page.getByTestId('quote-payment-paid')).toContainText('وصلت دفعتك')
+  await expect(page.getByTestId('quote-accepted')).toContainText('تأكد الطلب')
+  await expect(page.getByTestId('quote-pay')).toHaveCount(0)
+  await expect(accept(page)).toHaveCount(0)
+})
+
+test('a payment that arrived before the order is confirmed reads as received, and the signature is what remains', async ({ page }) => {
+  await login(page)
+  expect((await page.request.patch('/api/v1/sales/settings', { data: { customer_answer: 'accept_and_sign', revision: 1 } })).ok()).toBe(true)
+  const id = await sentForPayment(page, { payment_to_confirm: 'full' })
+  expect((await page.request.post('/api/v1/public/sales/__mock/pay', { data: { id } })).ok()).toBe(true)
+  const body = SalesPublicQuotationSchema.parse(await (await page.request.get(`${API}/${id}?access_token=tok-${id}`)).json())
+  expect(body.payment).toMatchObject({ state: 'received', amount: 0, pay_url: null })
+  await page.goto(QUOTE(id))
+  await expect(page.getByTestId('quote-payment-received')).toContainText('استلمنا دفعتك')
+  await expect(page.getByTestId('quote-payment-received')).toContainText('وقّع على عرض السعر')
+  await expect(page.getByRole('status').getByTestId('quote-payment-received')).toBeVisible()
+  await expect(page.getByTestId('quote-pay')).toHaveCount(0)
+  // Signing confirms the order: the page reads it as paid.
+  await page.getByTestId('quote-signed-by-input').fill('منى العتيبي')
+  await sign(page)
+  await accept(page).click()
+  await expect(page.getByTestId('quote-accepted')).toContainText('تأكد الطلب')
+  await expect(page.getByTestId('quote-payment-paid')).toBeVisible()
+})
+
+test('a payment that arrived on a cancelled quotation reads as received, with no signature step and never as unavailable', async ({ page }) => {
+  // The staff cancel the quotation, so the customer's money cannot confirm it; the page stays quiet about signing.
+  const id = await sentForPayment(page, { payment_to_confirm: 'full' })
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/cancel`)).ok()).toBe(true)
+  expect((await page.request.post('/api/v1/public/sales/__mock/pay', { data: { id } })).ok()).toBe(true)
+  await page.goto(QUOTE(id))
+  await expect(page.getByTestId('quote-payment-received')).toContainText('سيصلك تأكيد الطلب قريبًا')
+  await expect(page.getByTestId('quote-payment-received')).not.toContainText('وقّع')
+  await expect(page.getByTestId('quote-payment-unavailable')).toHaveCount(0)
+})
+
+test('a quotation the staff confirmed without the payment, or the customer declined, says nothing about payment', async ({ page }) => {
+  const confirmed = await sentForPayment(page, { payment_to_confirm: 'full' })
+  expect((await page.request.post(`/api/v1/sales/orders/${confirmed}/confirm`)).ok()).toBe(true)
+  const body = SalesPublicQuotationSchema.parse(await (await page.request.get(`${API}/${confirmed}?access_token=tok-${confirmed}`)).json())
+  expect(body).toMatchObject({ state: 'confirmed', payment: null })
+  await page.goto(QUOTE(confirmed))
+  await expect(page.getByTestId('quote-confirmed')).toBeVisible()
+  await expect(page.locator('[data-testid^="quote-payment"]:not([data-testid="quote-payment-live"])')).toHaveCount(0)
+  await expect(page.getByTestId('quote-pay')).toHaveCount(0)
+
+  const declined = await sentForPayment(page, { payment_to_confirm: 'full' })
+  await page.goto(QUOTE(declined))
+  await expect(decline(page)).toBeEnabled()
+  await decline(page).click()
+  await page.getByRole('button', { name: 'رفض عرض السعر' }).click()
+  await expect(page.getByTestId('quote-declined')).toBeVisible()
+  await expect(page.getByTestId('quote-payment-unavailable')).toHaveCount(0)
+})
+
+test('a tenant that cannot take payments shows no pay action at all', async ({ page }) => {
+  const id = await sentForPayment(page, { payment_to_confirm: 'full' })
+  expect((await page.request.post('/api/v1/public/sales/__mock/payments', { data: { on: false } })).ok()).toBe(true)
+  await page.goto(QUOTE(id))
+  await expect(accept(page)).toBeEnabled()
+  await expect(page.getByTestId('quote-payment')).toHaveCount(0)
+  await expect(page.getByTestId('quote-pay')).toHaveCount(0)
+})
+

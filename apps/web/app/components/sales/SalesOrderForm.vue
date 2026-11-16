@@ -3,19 +3,26 @@ import type { RouteLocationRaw } from 'vue-router'
 import { SALES_LIMITS, type CustomerPick, type SalesOrder } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { salesFormField, salesRefusalKey, type SalesOrderField } from '@/composables/sales/salesErrors'
-import { emptySalesDraft, hasSalesDraftErrors, salesCreateBody, salesDraftFromOrder, salesDraftSnapshot, salesPatchBody, validateSalesDraft, type SalesDraftErrors, type SalesOrderDraft } from '@/composables/sales/salesOrderDraft'
+import { emptySalesDraft, hasSalesDraftErrors, salesCreateBody, salesDraftFromOrder, salesDraftSnapshot, salesPatchBody, salesPaymentWithDefaultPercent, validateSalesDraft, type SalesDraftErrors, type SalesOrderDraft, type SalesPaymentDraft } from '@/composables/sales/salesOrderDraft'
 import { useCreateSalesOrder, useUpdateSalesOrder } from '@/composables/sales/useSalesOrders'
+import { useSalesSettings } from '@/composables/sales/useSalesSettings'
 import SalesLinesEditor from './SalesLinesEditor.vue'
+import SalesPaymentChoice from './SalesPaymentChoice.vue'
 
 // The create form of the route-backed panel and the edit page of a quotation: the customer, the salesperson (for a
-// holder of the assign right), the validity date, the terms and the lines. The body carries no price and no tax; the
-// server prices every product line. A refusal on a field is shown at that field, any other at the top.
+// holder of the assign right), the validity date, the terms, how it asks to be paid (while the tenant can take payments)
+// and the lines. The body carries no price and no tax; the server prices every product line. A refusal on a field is
+// shown at that field, any other at the top.
 const props = defineProps<{ order?: SalesOrder | null; backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [order: SalesOrder] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const canAssign = computed(() => can('sales.documents.assign'))
+// The settings say whether the tenant can take payments (both payment values are absent otherwise) and what a new quotation starts with.
+const settings = useSalesSettings(computed(() => can('sales.read')))
+const paymentOffered = computed(() => settings.data.value?.payment_to_confirm !== undefined)
+const defaultPercent = computed(() => settings.data.value?.prepayment_percent ?? 50)
 
 const draft = ref<SalesOrderDraft>(emptySalesDraft())
 const savedState = ref('')
@@ -29,8 +36,15 @@ watch(() => props.order, (order, previous) => {
   savedState.value = salesDraftSnapshot(draft.value)
 }, { immediate: true })
 
+// What the payment control shows: the quotation's own choice, else the tenant's default a new quotation will take.
+const payment = computed<SalesPaymentDraft>({
+  get: () => draft.value.payment ?? { mode: settings.data.value?.payment_to_confirm ?? 'off', percent: defaultPercent.value },
+  // Switching to a percentage takes the tenant's default unless the draft already holds a percentage of its own.
+  set: value => { draft.value.payment = salesPaymentWithDefaultPercent(value, draft.value.payment, defaultPercent.value) },
+})
+
 const checked = ref<SalesDraftErrors | null>(null)
-const errors = computed<SalesDraftErrors>(() => checked.value ? validateSalesDraft(draft.value) : { customer: false, noLines: false, lines: [] })
+const errors = computed<SalesDraftErrors>(() => checked.value ? validateSalesDraft(draft.value) : { customer: false, noLines: false, payment: false, lines: [] })
 const formError = ref<unknown>(null)
 watch(draft, () => { formError.value = null }, { deep: true })
 const refusedField = computed(() => salesFormField(formError.value))
@@ -61,8 +75,8 @@ async function submit() {
   formError.value = null
   try {
     const saved = props.order
-      ? await update({ id: props.order.id, patch: salesPatchBody(props.order, draft.value, canAssign.value) })
-      : await create(salesCreateBody(draft.value, canAssign.value))
+      ? await update({ id: props.order.id, patch: salesPatchBody(props.order, draft.value, canAssign.value, paymentOffered.value) })
+      : await create(salesCreateBody(draft.value, canAssign.value, paymentOffered.value))
     savedState.value = salesDraftSnapshot(draft.value)
     emit('saved', saved)
   } catch (error) {
@@ -92,6 +106,9 @@ async function submit() {
           <UTextarea v-model="draft.terms" class="w-full" :rows="3" autoresize :maxlength="SALES_LIMITS.terms" :disabled="off" data-testid="sales-terms" />
         </UFormField>
       </div>
+    </SharedFormSection>
+    <SharedFormSection v-if="paymentOffered" panel :title="t('sales.form.payment.title')" :description="t('sales.form.payment.hint')">
+      <SalesPaymentChoice v-model="payment" :disabled="off" :percent-error="errors.payment ? t('sales.form.payment.shareRequired') : headerError('prepayment_percent')" />
     </SharedFormSection>
     <SharedFormSection panel :title="t('sales.form.lines')" :description="t('sales.form.linesHint')">
       <p v-if="errors.noLines" role="alert" class="text-sm text-error">{{ t('sales.lines.errors.none') }}</p>

@@ -8,7 +8,7 @@ import { meWith } from '../sales/salesFixtures'
 const meta = {
   title: 'Shared/CustomerPicker',
   component: CustomerPicker,
-  parameters: storyContext('apps/web/app/components/sales/SalesOrderForm.vue:81', 'يبحث في /api/v1/customers/pick ويعرض الاسم والنوع وآخر أربعة أرقام من الجوال. لا ينشئ عميلًا.'),
+  parameters: storyContext('apps/web/app/components/sales/SalesOrderForm.vue:95', 'يبحث في /api/v1/customers/pick ويعرض الاسم والنوع وآخر أربعة أرقام من الجوال. لا ينشئ عميلًا.'),
   args: { modelValue: null },
   render: args => ({
     components: { CustomerPicker },

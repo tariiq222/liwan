@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SalesPublicQuotation } from '@liwan/contracts'
 import { ApiError } from '../../useApi'
-import { decodedBytes, isInvalidQuoteLink, pngBase64, quoteAnswerErrorKey, quoteChanged, quoteLinkOf, quotePath, quotePdfHref, quoteView, signatureFits } from '../salesQuote'
+import { decodedBytes, isInvalidQuoteLink, pngBase64, quoteAnswerErrorKey, quoteChanged, quoteLinkOf, quoteNeedsSignature, quotePath, quotePaymentShown, quotePdfHref, quoteView, signatureFits } from '../salesQuote'
 
 const QUOTE: SalesPublicQuotation = {
   id: 7, number: 'S00007', state: 'sent', expired: false, company_name: 'Liwan', customer_name: 'Acme', date: '2026-11-14T08:00:00Z', validity_date: '2026-12-14', terms: '',
@@ -82,6 +82,15 @@ describe('quoteView', () => {
     expect(view({ answer_mode: 'accept_and_sign', can_accept: true })).toBe('open')
   })
 
+  it('is open while a quotation that cannot be answered online can still be paid', () => {
+    const payment = { percent: 100, amount: 90, currency: 'SAR', pay_url: '/pay/order/7?access_token=tok', state: 'payable' } as const
+    expect(view({ answer_mode: 'none', can_accept: false, can_decline: false, payment })).toBe('open')
+    expect(view({ answer_mode: 'none', can_accept: false, can_decline: false, payment: { ...payment, state: 'paid', pay_url: null } })).toBe('notOffered')
+    expect(view({ answer_mode: 'none', can_accept: false, can_decline: false, payment: null })).toBe('notOffered')
+    // Paying does not hide an answer that was given.
+    expect(view({ answer: 'accepted', can_accept: false, can_decline: false, payment })).toBe('accepted')
+  })
+
   it('tells what became of a quotation that is not open', () => {
     expect(view({ answer: 'accepted', can_accept: false, can_decline: false })).toBe('accepted')
     expect(view({ answer: 'accepted', state: 'confirmed', can_accept: false, can_decline: false })).toBe('accepted')
@@ -116,5 +125,38 @@ describe('signature size', () => {
 
   it('strips the data URL prefix the server refuses', () => {
     expect(pngBase64('data:image/png;base64,iVBORw0KGgo=')).toBe('iVBORw0KGgo=')
+  })
+})
+
+describe('quotePaymentShown', () => {
+  const unavailable = { percent: 100, amount: 90, currency: 'SAR', pay_url: null, state: 'unavailable' } as const
+  const shown = (patch: Partial<SalesPublicQuotation>) => quotePaymentShown({ ...QUOTE, payment: unavailable, ...patch })
+
+  it('tells "payment is not available" only while the customer can still act on the quotation', () => {
+    expect(shown({})).toBe(unavailable)
+    expect(shown({ answer: 'accepted', can_accept: false, can_decline: false })).toBe(unavailable)
+  })
+
+  it('says nothing about it on a quotation that is confirmed without payment, declined, cancelled or expired', () => {
+    expect(shown({ state: 'confirmed', can_accept: false, can_decline: false })).toBeNull()
+    expect(shown({ answer: 'accepted', state: 'confirmed', can_accept: false, can_decline: false })).toBeNull()
+    expect(shown({ state: 'cancelled', answer: 'declined', can_accept: false, can_decline: false })).toBeNull()
+    expect(shown({ state: 'cancelled', can_accept: false, can_decline: false })).toBeNull()
+    expect(shown({ expired: true, can_accept: false, can_decline: false })).toBeNull()
+  })
+
+  it('always reports the states that carry news, and nothing when there is no payment', () => {
+    const paid = { ...unavailable, state: 'paid' } as const
+    expect(shown({ payment: paid, state: 'confirmed', can_accept: false, can_decline: false })).toBe(paid)
+    expect(shown({ payment: null })).toBeNull()
+  })
+})
+
+describe('quoteNeedsSignature', () => {
+  it('is true only while a signature is asked for and the customer has not answered', () => {
+    expect(quoteNeedsSignature({ ...QUOTE, answer_mode: 'accept_and_sign' })).toBe(true)
+    expect(quoteNeedsSignature({ ...QUOTE, answer_mode: 'accept_and_sign', answer: 'accepted' })).toBe(false)
+    expect(quoteNeedsSignature({ ...QUOTE, answer_mode: 'accept' })).toBe(false)
+    expect(quoteNeedsSignature({ ...QUOTE, answer_mode: 'none' })).toBe(false)
   })
 })

@@ -13,20 +13,34 @@
 //  - send mails a quotation (422 `customer_email_missing` for a customer with no email; send and confirm answer
 //    422 `quotation_expired` after its validity date, and `actions.send` and `actions.confirm` are false then) and records how the customer may answer and sign from the settings (a quotation the customer answered cannot be sent again while `answered_resend` is `refuse`: 409 `quotation_answered`, and `actions.send` is false; an e-mail that is not an address answers `customer_email_missing`); the public routes (`handlePublicSales`,
 //    no session, access token `tok-<id>`) read, accept (with a signature when asked) and decline a quotation that was
-//    sent.
+//    sent;
+//  - the payments bridge: settings carry `payment_to_confirm` and `prepayment_percent` (absent under the cookie
+//    `mock_payments=off`, which also makes a non-`off` choice answer 403 `feature_not_included`), a quotation keeps how it asks to be paid (a new one takes
+//    the default once), the staff order shape carries `payment` and the public one `payment` with the pay page's path
+//    (`/pay/order/<id>?access_token=tok-<id>`) once the customer may pay; `POST /api/v1/public/sales/__mock/pay` stands
+//    in for the gateway: it records the payment and confirms the order as the server does, and
+//    `POST /api/v1/public/sales/__mock/payments {on}` switches the tenant's payments for the public page, which reads no cookie.
+//  - what the customer paid reads `received` on their page until the order is confirmed, and `paid` after; a quotation the staff confirmed
+//    without the payment has none. A quotation that asks to be paid is confirmed by its payment, never by the acceptance alone. The staff
+//    shape carries `amount_refundable` and `can_refund` (`payments.refund`, a payable document of the caller, something to give back), and
+//    `POST /api/v1/sales/orders/{id}/refunds {amount, reference}` records a refund as the bridge does: 422 `invalid` on `amount` beyond
+//    `amount_refundable` or on `reference`, 409 `conflict` for an exact replay, 403 `forbidden` without the capability or for an online order,
+//    403 `feature_not_included` while the tenant cannot take payments. `mock_gateway=none` makes a payable quotation read `no_gateway`.
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
 import { findMockCustomer } from './customers-mock-routes.mjs'
 import { findMockProduct } from './products-mock-routes.mjs'
 
-export const SALES_CAPABILITIES = ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm', 'sales.discounts.approve', 'sales.documents.assign', 'sales.settings.manage']
+export const SALES_CAPABILITIES = ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm', 'sales.discounts.approve', 'sales.documents.assign', 'sales.settings.manage', 'payments.refund']
 
 // Answers without a session, so a spec that never signs in (the customer's quotation page) can reset it too.
 const RESET_PATH = '/api/v1/public/sales/__mock/reset'
+const PAY_PATH = '/api/v1/public/sales/__mock/pay'
+const PAYMENTS_PATH = '/api/v1/public/sales/__mock/payments'
 const LIST_PATH = '/api/v1/sales/orders'
 const SETTINGS_PATH = '/api/v1/sales/settings'
 const SALESPEOPLE_PATH = '/api/v1/sales/salespeople'
 const SALESPEOPLE_LIMIT = 50
-const RECORD_PATH = /^\/api\/v1\/sales\/orders\/(\d+)(?:\/(confirm|cancel|reopen|lock|unlock|duplicate|assign|send|pdf))?$/
+const RECORD_PATH = /^\/api\/v1\/sales\/orders\/(\d+)(?:\/(confirm|cancel|reopen|lock|unlock|duplicate|assign|send|pdf|refunds))?$/
 const PUBLIC_PATH = /^\/api\/v1\/public\/sales\/quotations\/(\d+)(?:\/(accept|decline|pdf))?$/
 // The day of the mock's documents: a quotation whose validity date is before it has expired.
 const TODAY = '2026-11-14'
@@ -38,10 +52,11 @@ const CURRENCY = { id: 2, name: 'SAR', symbol: 'ر.س' }
 const ME = { id: 2, name: 'Admin', user_id: 2 }
 const PEOPLE = [ME, { id: 7, name: 'مها الثبيتي', user_id: 7 }, { id: 8, name: 'نايف العسيري', user_id: 8 }]
 const LINE_KEYS = ['id', 'kind', 'product_id', 'name', 'quantity', 'discount_percent']
-const WRITE_KEYS = ['customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines']
+const WRITE_KEYS = ['customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines', 'payment_to_confirm', 'prepayment_percent']
+const PAYMENT_MODES = ['off', 'full', 'percent']
 const round2 = value => Math.round(value * 100) / 100
 
-const freshSettings = () => ({ visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', revision: 1 })
+const freshSettings = () => ({ visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', payment_to_confirm: 'off', prepayment_percent: 50, revision: 1 })
 const waiting = mode => ({ mode, acceptance_confirms: false, answer: null, answered_at: null, signed_by: null, signature_method: null, decline_reason: null })
 const line = (id, kind, fields) => ({ id, kind, product_id: null, name: '', quantity: 0, discount_percent: 0, ...fields })
 const freshOrders = () => [
@@ -64,8 +79,14 @@ const sentOrders = () => [
   sent(7, { id: 3, name: 'خالد الشهري' }, { answer: waiting('accept'), validity_date: '2026-11-01' }),
   sent(8, { id: 3, name: 'خالد الشهري' }, { answer: waiting('none') }),
 ]
-let orders = [...freshOrders(), ...sentOrders()]
+const withPay = list => list.map(order => ({ pay: { mode: 'off', percent: 100, received: 0 }, ...order }))
+let orders = withPay([...freshOrders(), ...sentOrders()])
 let settings = freshSettings()
+// Whether the tenant can take payments: the switch of `__mock/payments` and, for a staff request, its cookie (`mock_payments=off`).
+let paymentsSwitch = true
+let paymentsOn = true
+// Whether a payment gateway is live for a staff request (the cookie `mock_gateway=none` takes it away): a payable quotation then reads `no_gateway`.
+let gatewayOn = true
 let nextOrderId = 100
 let nextLineId = 1000
 
@@ -145,7 +166,34 @@ function dumpItem(order) {
   }
 }
 
-const dump = (order, caps) => ({ ...dumpItem(order), lines: order.lines.map(dumpLine), actions: actionsOf(order, caps), resend_refused: sendOpen(order, caps) && resendRefused(order) })
+/** The customer still has to sign a quotation sent for a signature before they may pay it. */
+const needsSignature = order => order.answer?.mode === 'accept_and_sign' && !order.answer.answer
+
+const requiredAmount = (order, total) => round2(total * (order.pay.mode === 'off' ? 0 : order.pay.mode === 'full' ? 1 : order.pay.percent / 100))
+
+/** The most one refund may record: all of the money before the order is confirmed, what it received beyond its total after. */
+const refundable = (order, total) => order.state === 'confirmed' ? Math.max(round2(order.pay.received - total), 0) : order.pay.received
+
+/** How a staff quotation asks to be paid, as the bridge's `payment` of the order shape; null for an online order or while the tenant cannot take payments. */
+function staffPayment(order, caps) {
+  if (order.source !== 'staff' || !paymentsOn) return null
+  const total = dumpItem(order).amount_total
+  const required = requiredAmount(order, total)
+  const asks = order.pay.mode !== 'off'
+  const open = order.state === 'sent' && !expired(order)
+  const paid = asks && required > 0 && order.pay.received >= required
+  const status = !asks ? 'none' : order.state === 'cancelled' ? 'cancelled' : paid ? 'paid' : open && !needsSignature(order) ? 'payable' : 'not_payable'
+  const held = order.state === 'cancelled' && order.pay.received > 0 ? 'cancelled' : paid && order.state !== 'confirmed' && order.state !== 'cancelled' ? (order.state === 'draft' ? 'reopened' : expired(order) ? 'expired' : needsSignature(order) ? 'awaiting_signature' : null) : null
+  return {
+    mode: order.pay.mode, percent: order.pay.mode === 'off' ? 100 : order.pay.percent, currency: CURRENCY.name, amount_required: required,
+    amount_received: order.pay.received, amount_due: asks && order.state !== 'cancelled' && order.state !== 'confirmed' ? Math.max(round2(required - order.pay.received), 0) : 0,
+    amount_to_refund: order.state === 'cancelled' || held ? order.pay.received : order.state === 'confirmed' ? Math.max(round2(order.pay.received - total), 0) : 0,
+    amount_refundable: refundable(order, total), can_refund: caps.includes('payments.refund') && own(order, caps) && refundable(order, total) > 0, status,
+    link: !asks || paid || order.state === 'confirmed' ? 'none' : status === 'payable' ? (gatewayOn ? 'ready' : 'no_gateway') : open && needsSignature(order) ? 'awaiting_signature' : 'unavailable', held, needs_attention: false, attention: null,
+  }
+}
+
+const dump = (order, caps) => ({ ...dumpItem(order), lines: order.lines.map(dumpLine), actions: actionsOf(order, caps), resend_refused: sendOpen(order, caps) && resendRefused(order), payment: staffPayment(order, caps) })
 
 /** Under `own` a reader sees their documents and the online orders; the assign holder and `all` see every one. */
 const visible = (order, caps) => settings.visibility === 'all' || caps.includes('sales.documents.assign') || order.salesperson === null || order.salesperson.id === ME.id
@@ -196,7 +244,21 @@ function parseLines(lines, previous, caps) {
   return { stored }
 }
 
-function parseWrite(body, previous, caps) {
+const paymentsOff = cookie => hasCookie(cookie, 'mock_payments=off')
+
+/** The payment choice of a write, as `liwan_sales_payments` parses it, or null when the body makes none. */
+function parsePayment(body, order, cookie) {
+  if (!('payment_to_confirm' in body) && !('prepayment_percent' in body)) return null
+  if ('payment_to_confirm' in body && !PAYMENT_MODES.includes(body.payment_to_confirm)) return { failure: invalid('payment_to_confirm') }
+  if ('prepayment_percent' in body && (!Number.isInteger(body.prepayment_percent) || body.prepayment_percent < 1 || body.prepayment_percent > 100)) return { failure: invalid('prepayment_percent') }
+  const mode = body.payment_to_confirm ?? order?.pay.mode ?? settings.payment_to_confirm
+  if ('prepayment_percent' in body && mode !== 'percent') return { failure: invalid('prepayment_percent', 'the percentage applies only when the customer pays a part') }
+  if (mode !== 'off' && paymentsOff(cookie)) return { failure: refusal(403, 'feature_not_included', 'this feature is not included') }
+  const kept = order?.pay.mode === 'percent' ? order.pay.percent : settings.prepayment_percent
+  return { pay: { mode, percent: mode === 'full' ? 100 : body.prepayment_percent ?? kept, received: order?.pay.received ?? 0 } }
+}
+
+function parseWrite(body, previous, caps, cookie, order = null) {
   const unknown = Object.keys(body).find(key => !WRITE_KEYS.includes(key))
   if (unknown) return { failure: refusal(422, 'unknown_field', `field ${unknown} is not accepted`, { field: unknown }) }
   const values = {}
@@ -224,6 +286,9 @@ function parseWrite(body, previous, caps) {
     if (parsed.failure) return parsed
     values.lines = parsed.stored
   }
+  const pay = parsePayment(body, order, cookie)
+  if (pay?.failure) return pay
+  if (pay) values.pay = pay.pay
   return { values }
 }
 
@@ -232,14 +297,16 @@ function validityFromSettings() {
   return day.toISOString().slice(0, 10)
 }
 
-function create(body, caps) {
+function create(body, caps, cookie) {
   if (!('customer_id' in body)) return invalid('customer_id', 'customer_id is required')
-  const parsed = parseWrite(body, [], caps)
+  const parsed = parseWrite(body, [], caps, cookie)
   if (parsed.failure) return parsed.failure
   const id = nextOrderId++
   const order = {
     id, number: `S${String(id).padStart(5, '0')}`, state: 'draft', locked: false, source: 'staff', salesperson: ME,
-    validity_date: validityFromSettings(), date: '2026-11-14T10:00:00Z', terms: settings.default_terms, lines: [], ...parsed.values,
+    validity_date: validityFromSettings(), date: '2026-11-14T10:00:00Z', terms: settings.default_terms, lines: [],
+    pay: paymentsOff(cookie) ? { mode: 'off', percent: 100, received: 0 } : { mode: settings.payment_to_confirm, percent: settings.payment_to_confirm === 'full' ? 100 : settings.prepayment_percent, received: 0 },
+    ...parsed.values,
   }
   orders = [order, ...orders]
   return { status: 201, body: dump(order, caps) }
@@ -266,6 +333,11 @@ function sendQuotation(order, caps) {
   return null
 }
 
+const settingsView = manage => {
+  const { payment_to_confirm: mode, prepayment_percent: percent, ...rest } = settings
+  return { ...rest, ...(paymentsOn ? { payment_to_confirm: mode, prepayment_percent: percent } : {}), can_manage: manage }
+}
+
 function updateSettings(body, manage) {
   if (!manage) return refusal(403, 'forbidden', 'only the main company manages these settings')
   if (body.revision !== settings.revision) return refusal(409, 'conflict', 'Sales settings changed; reload before saving')
@@ -278,8 +350,11 @@ function updateSettings(body, manage) {
   if ('answered_resend' in body) { if (!['allow', 'refuse'].includes(body.answered_resend)) return invalid('answered_resend'); next.answered_resend = body.answered_resend }
   if ('signature_methods' in body) { if (!['draw', 'draw_or_type'].includes(body.signature_methods)) return invalid('signature_methods'); next.signature_methods = body.signature_methods }
   if ('acceptance_confirms' in body) { if (typeof body.acceptance_confirms !== 'boolean') return invalid('acceptance_confirms'); next.acceptance_confirms = body.acceptance_confirms }
+  if ('payment_to_confirm' in body) { if (!PAYMENT_MODES.includes(body.payment_to_confirm)) return invalid('payment_to_confirm'); next.payment_to_confirm = body.payment_to_confirm }
+  if ('prepayment_percent' in body) { const value = body.prepayment_percent; if (!Number.isInteger(value) || value < 1 || value > 100) return invalid('prepayment_percent'); next.prepayment_percent = value }
+  if (!paymentsOn && ('payment_to_confirm' in body || 'prepayment_percent' in body)) return refusal(403, 'feature_not_included', 'this feature is not included')
   settings = { ...next, revision: settings.revision + 1 }
-  return { status: 200, body: { ...settings, can_manage: true } }
+  return { status: 200, body: settingsView(true) }
 }
 
 /** Answers a sales request and returns true; any other path is not this stub's. */
@@ -287,6 +362,8 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
   const record = path.match(RECORD_PATH)
   if (!(path === LIST_PATH || path === SETTINGS_PATH || path === SALESPEOPLE_PATH || record)) return false
   const caps = capabilities(req.headers.cookie)
+  paymentsOn = paymentsSwitch && !paymentsOff(req.headers.cookie)
+  gatewayOn = !hasCookie(req.headers.cookie, 'mock_gateway=none')
   const send = result => json(res, result.status, result.body)
   const need = capability => {
     if (caps.includes(capability)) return true
@@ -309,7 +386,7 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
     const manage = caps.includes('sales.settings.manage') && !hasCookie(req.headers.cookie, 'mock_sales=branch')
     if (req.method === 'GET') {
       if (!caps.includes('sales.read') && !caps.includes('sales.settings.manage')) json(res, 403, { code: 'forbidden', message: 'forbidden' })
-      else json(res, 200, { ...settings, can_manage: manage })
+      else json(res, 200, settingsView(manage))
       return true
     }
     if (req.method === 'PATCH' && need('sales.settings.manage')) send(updateSettings(body, manage))
@@ -320,7 +397,7 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
     return true
   }
   if (path === LIST_PATH && req.method === 'POST') {
-    if (need('sales.quotations.manage')) send(create(body, caps))
+    if (need('sales.quotations.manage')) send(create(body, caps, req.headers.cookie))
     return true
   }
   if (!record || !need('sales.read')) return Boolean(record)
@@ -348,7 +425,11 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
   if (action === 'duplicate') {
     if (!need('sales.quotations.manage')) return true
     const lines = order.lines.map(({ id: _id, unit_price: _price, ...rest }) => rest)
-    send(create({ customer_id: order.customer_id, lines }, caps))
+    send(create({ customer_id: order.customer_id, lines }, caps, req.headers.cookie))
+    return true
+  }
+  if (action === 'refunds') {
+    send(recordRefund(order, body, caps))
     return true
   }
   if (action === 'assign') {
@@ -370,7 +451,7 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
   if (!need('sales.quotations.manage')) return true
   if (!actionsOf(order, caps).edit) return send(refusal(403, order.state === 'draft' ? 'forbidden' : 'transition_forbidden', 'not editable')), true
   if (!Object.keys(body).length) return send(invalid('customer_id', 'nothing to change')), true
-  const parsed = parseWrite(body, order.lines, caps)
+  const parsed = parseWrite(body, order.lines, caps, req.headers.cookie, order)
   if (parsed.failure) return send(parsed.failure), true
   Object.assign(order, parsed.values)
   send({ status: 200, body: dump(order, caps) })
@@ -382,6 +463,21 @@ const publicLine = stored => {
   return rest
 }
 
+/** What the link holder sees of the payment: the pay page's path only while the customer may pay. */
+function publicPayment(order, total) {
+  if (order.pay.mode === 'off' || !paymentsOn) return null
+  const required = requiredAmount(order, total)
+  const open = order.state === 'sent' && !expired(order)
+  const paid = required > 0 && order.pay.received >= required
+  // The staff confirmed the order without the payment: the customer's page says nothing about it.
+  if (order.state === 'confirmed' && !paid) return null
+  const state = paid ? (order.state === 'confirmed' ? 'paid' : 'received') : !open ? 'unavailable' : needsSignature(order) ? 'awaiting_signature' : 'payable'
+  return {
+    percent: order.pay.percent, amount: paid ? 0 : Math.max(round2(required - order.pay.received), 0), currency: CURRENCY.name,
+    pay_url: state === 'payable' ? `/pay/order/${order.id}?access_token=tok-${order.id}` : null, state,
+  }
+}
+
 /** The quotation as its customer reads it: the same document, as the link holder's contract describes it. */
 function publicQuotation(order) {
   const item = dumpItem(order)
@@ -391,7 +487,35 @@ function publicQuotation(order) {
     validity_date: order.validity_date, terms: order.terms, currency: CURRENCY, amount_untaxed: item.amount_untaxed, amount_tax: item.amount_tax,
     amount_total: item.amount_total, lines: order.lines.map(publicLine), answer_mode: order.answer.mode, signature_methods: order.signature_methods, answer: order.answer.answer,
     answered_at: order.answer.answered_at, signed_by: order.answer.signed_by, can_accept: open, can_decline: open,
+    payment: publicPayment(order, item.amount_total),
   }
+}
+
+/** The gateway's word that the customer paid what the quotation asks: the order is confirmed unless it still waits for a signature or can no longer be (the payment stays recorded). */
+function receivePayment(order) {
+  order.pay.received = requiredAmount(order, dumpItem(order).amount_total)
+  const confirmable = order.state === 'sent' && !expired(order) && !needsSignature(order)
+  if (!confirmable) return
+  if (order.answer.mode === 'accept' && !order.answer.answer) Object.assign(order.answer, { answer: 'accepted', answered_at: new Date().toISOString() })
+  order.state = 'confirmed'
+}
+
+/** A refund the tenant already made at its gateway, recorded on a staff quotation as `_liwan_record_refund` checks it. */
+function recordRefund(order, body, caps) {
+  if (order.source !== 'staff' || !caps.includes('payments.refund') || !own(order, caps)) return refusal(403, 'forbidden', 'forbidden')
+  if (!paymentsOn) return refusal(403, 'feature_not_included', 'this feature is not included')
+  const unknown = Object.keys(body).find(key => !['amount', 'reference'].includes(key))
+  if (unknown) return refusal(422, 'unknown_field', `field '${unknown}' is not accepted`, { field: unknown })
+  const reference = typeof body.reference === 'string' ? body.reference.trim() : ''
+  if (!reference || reference.length > 128) return invalid('reference', 'reference is 1 to 128 characters')
+  if (typeof body.amount !== 'number' || !(body.amount > 0)) return invalid('amount', 'amount must be greater than zero')
+  const refunds = (order.refunds ??= [])
+  if (refunds.some(done => done.amount === body.amount && done.reference === reference)) return refusal(409, 'conflict', 'this refund was already recorded')
+  const most = refundable(order, dumpItem(order).amount_total)
+  if (body.amount > most) return invalid('amount', `amount is at most ${most}`)
+  refunds.push({ amount: body.amount, reference })
+  order.pay.received = round2(order.pay.received - body.amount)
+  return { status: 200, body: dump(order, caps) }
 }
 
 const SIGNATURE_KEYS = ['signed_by', 'signature', 'signature_method']
@@ -428,7 +552,9 @@ function answerQuotation(order, action, body) {
     const failure = checkSignature(order, body)
     if (failure) return failure
     Object.assign(order.answer, { answer: 'accepted', answered_at: answeredAt, signed_by: body.signed_by?.trim() ?? null, signature_method: body.signature_method ?? null })
-    if (order.answer.acceptance_confirms) order.state = 'confirmed'
+    const paid = order.pay.mode !== 'off' && order.pay.received >= requiredAmount(order, dumpItem(order).amount_total)
+    // A quotation that asks to be paid is confirmed by its payment, never by the acceptance alone.
+    if ((order.answer.acceptance_confirms && order.pay.mode === 'off') || paid) order.state = 'confirmed'
   }
   return null
 }
@@ -436,15 +562,35 @@ function answerQuotation(order, action, body) {
 /** The routes of the customer's quotation link: no session, the access token `tok-<id>` is the only credential. */
 export async function handlePublicSales(req, res, path, url, { json, readBody }) {
   if (path === RESET_PATH && req.method === 'POST') {
-    orders = [...freshOrders(), ...sentOrders()]
+    orders = withPay([...freshOrders(), ...sentOrders()])
+    paymentsSwitch = true
     settings = freshSettings()
     nextOrderId = 100
     nextLineId = 1000
     json(res, 200, {})
     return true
   }
+  if (path === PAY_PATH && req.method === 'POST') {
+    let paid = {}
+    try { paid = JSON.parse(await readBody(req) || '{}') } catch { paid = {} }
+    const target = orders.find(candidate => candidate.id === paid.id && candidate.pay.mode !== 'off')
+    if (!target) json(res, 404, { code: 'not_found', message: 'not found' })
+    else {
+      receivePayment(target)
+      json(res, 200, {})
+    }
+    return true
+  }
+  if (path === PAYMENTS_PATH && req.method === 'POST') {
+    let switched = {}
+    try { switched = JSON.parse(await readBody(req) || '{}') } catch { switched = {} }
+    paymentsSwitch = switched.on !== false
+    json(res, 200, {})
+    return true
+  }
   const route = PUBLIC_PATH.exec(path)
   if (!route) return false
+  paymentsOn = paymentsSwitch
   const [, rawId, action] = route
   let body = {}
   if (req.method === 'POST') {

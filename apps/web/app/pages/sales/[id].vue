@@ -9,6 +9,8 @@ import SalesCustomerAnswer from '@/components/sales/SalesCustomerAnswer.vue'
 import SalesOrderAssign from '@/components/sales/SalesOrderAssign.vue'
 import SalesOrderDetails from '@/components/sales/SalesOrderDetails.vue'
 import SalesOrderLinesPanel from '@/components/sales/SalesOrderLinesPanel.vue'
+import SalesOrderPayment from '@/components/sales/SalesOrderPayment.vue'
+import SalesOrderRefund from '@/components/sales/SalesOrderRefund.vue'
 import { SALES_STATE_TONE } from '@/components/sales/salesStatus'
 import { salesRefusalKey } from '@/composables/sales/salesErrors'
 import { useDuplicateSalesOrder, useSalesOrder, useSalesTransition, type SalesTransition } from '@/composables/sales/useSalesOrders'
@@ -47,6 +49,9 @@ const confirmation = computed(() => {
 })
 const toggleConfirm = (kind: 'cancel' | 'resend') => { confirming.value = confirming.value === kind ? null : kind }
 const assigning = ref(false)
+// The refund form opens from the record's actions while the server says a refund may be recorded.
+const refunding = ref(false)
+const canRefund = computed(() => !!order.value?.payment?.can_refund)
 
 async function move(name: SalesTransition) {
   if (!order.value || busy.value) return
@@ -112,6 +117,7 @@ const headerTags = computed<PageHeaderTag[]>(() => {
       <UButton v-if="order.actions.edit" color="primary" icon="i-lucide-pencil" :disabled="busy" :to="recordChildTo(`/sales/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('app.edit')" data-testid="sales-edit" @click="!hydrated && $event.preventDefault()" />
       <UButton v-for="button in moveButtons" :key="button.name" :color="button.primary ? 'primary' : 'neutral'" :variant="button.primary ? 'solid' : 'outline'" :icon="button.icon" :label="t(`sales.actions.${button.label}`)" :loading="pendingMove(button.name)" :disabled="busy" :data-testid="`sales-${button.name}`" @click="button.name === 'send' ? send() : move(button.name)" />
       <UButton v-if="order.actions.assign" color="neutral" variant="outline" icon="i-lucide-user-round-cog" :label="t('sales.actions.assign')" :disabled="busy" data-testid="sales-assign-open" @click="assigning = !assigning" />
+      <UButton v-if="order.payment?.can_refund" color="neutral" variant="outline" icon="i-lucide-hand-coins" :label="t('sales.refund.open')" :disabled="busy" data-testid="sales-refund-open" @click="refunding = !refunding" />
       <UButton v-if="order.source === 'staff'" color="neutral" variant="outline" icon="i-lucide-download" :href="`/api/v1/sales/orders/${order.id}/pdf`" external :label="t('sales.actions.pdf')" data-testid="sales-pdf" />
       <UButton v-if="order.actions.duplicate" color="neutral" variant="outline" icon="i-lucide-copy" :label="t('sales.actions.duplicate')" :loading="duplicating" :disabled="busy" data-testid="sales-duplicate" @click="copy" />
       <UButton v-if="order.actions.cancel" color="error" variant="outline" icon="i-lucide-x" :label="t('sales.actions.cancel')" :disabled="busy" data-testid="sales-cancel" @click="toggleConfirm('cancel')" />
@@ -131,9 +137,11 @@ const headerTags = computed<PageHeaderTag[]>(() => {
       @cancel="confirming = null"
     />
     <SalesOrderAssign v-if="order && assigning && order.actions.assign" :order="order" @done="assigning = false" />
+    <SalesOrderRefund v-if="order?.payment && refunding && canRefund" :order="order" :payment="order.payment" @done="refunding = false" />
     <SalesOrderLinesPanel v-if="order" :order="order" />
     <template v-if="order" #aside>
       <SalesCustomerAnswer v-if="order.customer_answer" :answer="order.customer_answer" />
+      <SalesOrderPayment v-if="order.payment && (order.payment.mode !== 'off' || order.payment.amount_received > 0)" :payment="order.payment" />
       <SalesOrderDetails :order="order" />
     </template>
   </SharedRecordPage>

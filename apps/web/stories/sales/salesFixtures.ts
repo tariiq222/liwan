@@ -1,4 +1,4 @@
-import { MeSchema, type SalesCustomerAnswer, type SalesOrder, type SalesOrderListItem, type SalesPublicQuotation, type SalesSettings } from '@liwan/contracts'
+import { MeSchema, type SalesCustomerAnswer, type SalesOrder, type SalesOrderListItem, type SalesOrderPayment, type SalesPublicPayment, type SalesPublicQuotation, type SalesSettings } from '@liwan/contracts'
 import { me } from '../fixtures/pmo'
 
 // The wire shapes the sales stories share: a draft quotation, a confirmed order, a cancelled one and an online order.
@@ -29,6 +29,14 @@ const item = ({ lines: _lines, actions: _actions, resend_refused: _refused, ...r
 export const orders: SalesOrderListItem[] = [item(draftOrder), item(confirmedOrder), { ...item(draftOrder), id: 3, number: 'S00003', state: 'cancelled' }, item(onlineOrder), { ...item(sentOrder), id: 5, number: 'S00005' }, { ...item(sentOrder), id: 6, number: 'S00006', expired: true, validity_date: '2026-11-01' }]
 
 export const salesSettings: SalesSettings = { visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', revision: 3, can_manage: true }
+/** The settings of a tenant that can take payments: new quotations ask for nothing, and a percentage asks for half. */
+export const salesSettingsWithPayment: SalesSettings = { ...salesSettings, payment_to_confirm: 'off', prepayment_percent: 50 }
+/** A sent quotation that asks for 40% of its total (the draft order's total is 248.40), waiting for the customer to pay. */
+export const orderPayment: SalesOrderPayment = {
+  mode: 'percent', percent: 40, currency: 'SAR', amount_required: 99.36, amount_received: 0, amount_due: 99.36, amount_to_refund: 0, amount_refundable: 0, can_refund: false,
+  status: 'payable', link: 'ready', held: null, needs_attention: false, attention: null,
+}
+export const publicPayment: SalesPublicPayment = { percent: 40, amount: 99.36, currency: 'SAR', pay_url: '/pay/order/5?access_token=8f1c0c1e-6a52-4d57-9d6b-2f2b2f0f4d2a', state: 'payable' }
 export const salespeople = [{ id: 2, name: 'Admin', user_id: 2 }, { id: 7, name: 'مها الثبيتي', user_id: 7 }]
 export const customerPicks = [
   { id: 1, name: 'منى العتيبي', is_company: false, phone_last4: '0001' },

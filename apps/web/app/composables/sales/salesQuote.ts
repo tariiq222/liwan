@@ -64,7 +64,23 @@ export function quoteView(quote: SalesPublicQuotation): QuoteView {
   if (quote.answer === 'accepted') return 'accepted'
   if (quote.state === 'confirmed') return 'confirmed'
   if (quote.expired) return 'expired'
-  return quote.can_accept || quote.can_decline ? 'open' : 'notOffered'
+  // A quotation that cannot be answered online is still open while it can be paid.
+  return quote.can_accept || quote.can_decline || quote.payment?.state === 'payable' ? 'open' : 'notOffered'
+}
+
+/** Whether the customer can still act on the quotation: it is open, or answered and not yet confirmed. Only then is "payment is not available" news. */
+export function quoteAwaitsPayment(quote: SalesPublicQuotation): boolean {
+  const view = quoteView(quote)
+  return view === 'open' || (view === 'accepted' && quote.state !== 'confirmed')
+}
+
+/** Whether the customer has not yet given the signature the quotation asks for. */
+export const quoteNeedsSignature = (quote: SalesPublicQuotation): boolean => quote.answer_mode === 'accept_and_sign' && !quote.answer
+
+/** The payment the page reports: the "not available" notice only while the customer can still act on the quotation; every other state always. */
+export function quotePaymentShown(quote: SalesPublicQuotation): NonNullable<SalesPublicQuotation['payment']> | null {
+  if (!quote.payment || (quote.payment.state === 'unavailable' && !quoteAwaitsPayment(quote))) return null
+  return quote.payment
 }
 
 /** The size of a base64 string once decoded. */

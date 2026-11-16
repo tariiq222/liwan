@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { SalesOrderListSchema, SalesOrderSchema, type SalesOrder, type SalesOrderCreate, type SalesOrderPatch } from '@liwan/contracts'
+import { SalesOrderListSchema, SalesOrderRefundBodySchema, SalesOrderSchema, type SalesOrder, type SalesOrderCreate, type SalesOrderPatch, type SalesOrderRefundBody } from '@liwan/contracts'
 import { salesKeys } from './salesKeys'
 import { salesApiQuery, type SalesListState } from './salesListParams'
 
@@ -64,6 +64,12 @@ export const useSalesTransition = () => useSalesWrite<{ id: number; transition: 
 /** A new salesperson for a staff document, in any state (`sales.documents.assign`). */
 export const useAssignSalesOrder = () => useSalesWrite<{ id: number; salespersonId: number }>(
   (api, { id, salespersonId }) => api(`/api/v1/sales/orders/${id}/assign`, { method: 'POST', body: { salesperson_id: salespersonId }, schema: SalesOrderSchema }),
+  ({ id }) => id,
+)
+
+/** Records a refund the tenant already made at its gateway (`payments.refund`); the body is checked against the contract before it leaves. */
+export const useRefundSalesOrder = () => useSalesWrite<{ id: number; refund: SalesOrderRefundBody }>(
+  (api, { id, refund }) => api(`/api/v1/sales/orders/${id}/refunds`, { method: 'POST', body: SalesOrderRefundBodySchema.parse(refund), schema: SalesOrderSchema }),
   ({ id }) => id,
 )
 

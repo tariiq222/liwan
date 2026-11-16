@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../useApi'
-import { isSalesDiscountAboveLimit, salesFieldRef, salesFormField, salesRefusalKey } from '../salesErrors'
+import { isSalesDiscountAboveLimit, salesFieldRef, salesFormField, salesRefundErrorKey, salesRefundField, salesRefusalKey } from '../salesErrors'
 
 describe('salesFormField', () => {
   it('reads a header field and a line field of a 422', () => {
@@ -40,5 +40,24 @@ describe('salesRefusalKey', () => {
     expect(salesRefusalKey(new ApiError(422, 'invalid', 'bad', 'terms'))).toBeNull()
     expect(salesRefusalKey(new ApiError(503, 'pdf_unavailable', 'no engine'))).toBe('sales.errors.pdfUnavailable')
     expect(salesRefusalKey(new ApiError(503, 'mail_unavailable', 'no mail'))).toBe('sales.errors.mailUnavailable')
+  })
+})
+
+describe('salesRefundErrorKey', () => {
+  it('words a refused refund at its field, or as a payment not recorded yet or a repeat', () => {
+    expect(salesRefundField(new ApiError(422, 'invalid', 'bad', 'amount'))).toBe('amount')
+    expect(salesRefundField(new ApiError(422, 'invalid', 'bad', 'reference'))).toBe('reference')
+    expect(salesRefundField(new ApiError(422, 'invalid', 'bad', 'terms'))).toBeNull()
+    expect(salesRefundField(new ApiError(409, 'conflict', 'no', 'amount'))).toBeNull()
+    expect(salesRefundErrorKey(new ApiError(422, 'invalid', 'bad', 'amount'))).toBe('sales.refund.errors.amount')
+    expect(salesRefundErrorKey(new ApiError(422, 'invalid', 'bad', 'reference'))).toBe('sales.refund.errors.reference')
+    expect(salesRefundErrorKey(new ApiError(409, 'conflict', 'no'))).toBe('sales.refund.errors.conflict')
+  })
+
+  it('leaves the other refusals to the sales wording: not allowed, not included, not found', () => {
+    for (const error of [new ApiError(403, 'forbidden', 'no'), new ApiError(403, 'feature_not_included', 'no'), new ApiError(404, 'not_found', 'no'), new ApiError(500, 'x', 'no')]) expect(salesRefundErrorKey(error)).toBeNull()
+    expect(salesRefusalKey(new ApiError(403, 'forbidden', 'no'))).toBe('sales.errors.forbidden')
+    expect(salesRefusalKey(new ApiError(403, 'feature_not_included', 'no'))).toBe('sales.errors.featureNotIncluded')
+    expect(salesRefusalKey(new ApiError(404, 'not_found', 'no'))).toBe('sales.errors.notFound')
   })
 })
