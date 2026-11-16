@@ -6,7 +6,7 @@ import pytz
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
-from .common import LiwanPmoCase
+from .common import OVERDUE_FIXTURE_DAYS, LiwanPmoCase
 
 TASK_KEYS = {'id', 'name', 'description_excerpt', 'project', 'state', 'priority', 'date_deadline',
              'days_remaining', 'is_overdue', 'is_closed', 'personal_stage', 'stage',
@@ -61,6 +61,7 @@ class TestTaskRead(LiwanPmoCase):
         self.assertEqual(res.json()['field'], 'offset')
 
     def test_list_mine_open_by_default(self):
+        self.freeze_today_at_fixture()
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/tasks?filter=mine')
         self.assertEqual(res.status_code, 200)
@@ -71,7 +72,7 @@ class TestTaskRead(LiwanPmoCase):
         self.assertEqual(item['state'], 'in_progress')
         self.assertEqual(item['priority'], '1')
         self.assertTrue(item['is_overdue'])
-        self.assertEqual(item['days_remaining'], -3)
+        self.assertEqual(item['days_remaining'], -OVERDUE_FIXTURE_DAYS)
         self.assertEqual(item['project'], {'id': self.project.id, 'name': 'Erada Portal'})
         self.assertEqual(item['assignees'], [{'id': self.employee.id, 'name': 'Sara'}])
         self.assertEqual(set(item), TASK_KEYS)
@@ -647,6 +648,10 @@ class TestTaskFilters(LiwanPmoCase):
         cls.next_week = make('in eight days', cls.local_start(cls.today + timedelta(days=8)), [cls.employee, cls.manager])
         cls.undated = make('undated', False, [], '3')
         cls.done_overdue = make('done and late', cls.day_start - timedelta(days=2), [cls.employee], '0', state='1_done')
+
+    def setUp(self):
+        super().setUp()
+        self.freeze_today(self.today)
 
     @classmethod
     def local_start(cls, day):
