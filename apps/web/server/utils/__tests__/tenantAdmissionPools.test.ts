@@ -75,6 +75,25 @@ it('lets session and public traffic proceed while the heavy pool is saturated', 
   }
 })
 
+it('lets staff heavy traffic proceed while the anonymous heavy pool is saturated', async () => {
+  await saturate('pdf')
+  for (const kind of ['body', 'response'] as const) {
+    expect(await settledWithin(hold('heavy', kind).inside)).toBe(true)
+  }
+})
+
+it('lets anonymous heavy traffic proceed while the staff heavy pool is saturated', async () => {
+  await saturate('heavy')
+  for (const kind of ['body', 'response'] as const) {
+    expect(await settledWithin(hold('pdf', kind).inside)).toBe(true)
+  }
+})
+
+it('sizes the anonymous heavy pool smaller than the staff one', () => {
+  expect(POOL_LIMITS.pdf.active).toBeLessThan(POOL_LIMITS.heavy.active)
+  expect(POOL_LIMITS.pdf.queued).toBeLessThan(POOL_LIMITS.heavy.queued)
+})
+
 it('lets heavy traffic proceed while the session pool is saturated', async () => {
   await saturate('session')
   for (const kind of ['body', 'response'] as const) {

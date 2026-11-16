@@ -32,4 +32,19 @@ describe('crmErrorMessage', () => {
     expect(crmErrorMessage(fail(422, 'name'), t)).toBe('server text')
     expect(crmErrorMessage(new Error('x'), t)).toBe('errors.generic')
   })
+  it('names a package win refused while an order wins, before the generic conflict', () => {
+    expect(crmErrorMessage({ ...fail(409, undefined, 'crm_win_by_order'), code: 'conflict' }, t)).toBe('crm.opportunities.errors.winByOrder')
+    expect(crmErrorMessage({ ...fail(409), code: 'conflict' }, t)).toBe('crm.opportunities.errors.conflict')
+  })
+  it('names a plan without Sales (403 feature_not_included) apart from a missing right', () => {
+    expect(crmErrorMessage({ ...fail(403), code: 'feature_not_included' }, t)).toBe('crm.opportunities.errors.noSales')
+    expect(crmErrorMessage({ ...fail(403), code: 'forbidden' }, t)).toBe('crm.opportunities.errors.forbidden')
+  })
+  it('names an opportunity that is gone or hidden (404)', () => {
+    expect(crmErrorMessage(fail(404), t)).toBe('crm.opportunities.errors.notFound')
+  })
+  it('names the two reasons a quotation is refused with 422', () => {
+    expect(crmErrorMessage(fail(422, 'customer_id', 'crm_opportunity_without_customer'), t)).toBe('crm.opportunities.errors.orderNoCustomer')
+    expect(crmErrorMessage(fail(422, undefined, 'crm_opportunity_closed'), t)).toBe('crm.opportunities.errors.orderClosed')
+  })
 })

@@ -36,7 +36,8 @@ def dump_customer_ref(lead, visible_customers=None):
     return lead.env['liwan.customers.service']._liwan_link_ref(customer)
 
 
-def dump_opportunity(lead, visible_customers=None):
+def dump_opportunity(lead, visible_customers=None, win=None):
+    """``win`` is ``lead._liwan_win_shape()``; a list reads it once for every row."""
     return {
         'id': lead.id,
         'contact_name': lead.contact_name or '',
@@ -50,6 +51,8 @@ def dump_opportunity(lead, visible_customers=None):
         'package': ref(lead.liwan_package_id, label='display_name'),
         'lost_reason': ref(lead.lost_reason_id, label='display_name'),
         'status': lead.won_status,
+        # `win_by_order`: an order, not a package, wins opportunities now (the package form steps aside); `can_quote`: the caller may write it.
+        **(win or lead._liwan_win_shape()),
         'list_price': lead.liwan_list_price,
         'discount_percent': lead.liwan_discount_percent,
         'final_price': lead.liwan_final_price,

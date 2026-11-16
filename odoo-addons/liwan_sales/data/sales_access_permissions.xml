@@ -40,6 +40,14 @@
         <field name="group_xmlid">liwan_sales.group_cap_sales_documents_assign</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_sales_reports_read" model="liwan.access.permission">
+        <field name="key">sales.reports.read</field><field name="domain">sales</field>
+        <field name="resource">reports</field><field name="action">read</field>
+        <field name="name_ar">تقارير المبيعات وتصديرها</field><field name="name_en">Sales reports and export</field>
+        <field name="description_ar">تقارير المبيعات وتصديرها</field><field name="description_en">Sales reports and export</field>
+        <field name="group_xmlid">liwan_sales.group_cap_sales_reports_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
     <record id="permission_sales_settings_manage" model="liwan.access.permission">
         <field name="key">sales.settings.manage</field><field name="domain">sales</field>
         <field name="resource">settings</field><field name="action">manage</field>
@@ -57,7 +65,7 @@
         <record id="role_sales_manager" model="liwan.access.role">
             <field name="key">sales_manager</field><field name="name_ar">مدير المبيعات</field><field name="name_en">Sales manager</field>
             <field name="description">Sales manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_sales_read'),ref('permission_sales_quotations_manage'),ref('permission_sales_orders_confirm'),ref('permission_sales_discounts_approve'),ref('permission_sales_documents_assign'),ref('permission_sales_settings_manage')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_sales_read'),ref('permission_sales_quotations_manage'),ref('permission_sales_orders_confirm'),ref('permission_sales_discounts_approve'),ref('permission_sales_documents_assign'),ref('permission_sales_reports_read'),ref('permission_sales_settings_manage')])]"/>
         </record>
     </data>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and

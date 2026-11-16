@@ -69,6 +69,8 @@ const manifest: AppManifest = {
   id: 'finance',
   feature: 'finance.enabled',
   routePrefixes: ['/finance'],
+  // A sales order lists its invoices (the Sales bridge): an order opened from an invoice goes back to it.
+  recordListSources: [{ pattern: /^\/finance\/sales\/(?:invoices|credit-notes)\/[1-9]\d*$/, capability: 'finance.invoices.read' }],
   appCard: { category: 'sales', plan: 'addon', surface: 'forest' },
   rail: [{ id: 'finance', labelKey: 'nav.finance', icon: 'i-lucide-landmark', to: '/finance', order: 55 }],
   nav: [

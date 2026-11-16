@@ -13,6 +13,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /invoices`, `GET /invoices/<id>` (carries the `zatca` block), `GET /invoices/<id>/pdf` | `finance.invoices.read` |
 | `POST /invoices` (201, a draft), `PATCH /invoices/<id>`, `DELETE /invoices/<id>` (204) | `finance.invoices.manage` |
 | `POST /invoices/<id>/post`, `/cancel`, `/reset-to-draft` | `finance.invoices.post` |
+| `GET /invoices/<id>` also carries `source_order` (`{id, number}`, else `null`) when `liwan_sales_finance` is installed, for a caller who reads that order in Sales | `finance.invoices.read` |
 | `GET /payments` | `finance.payments.read` |
 | `POST /payments` (201), `POST /payments/standalone` (201), `PATCH /payments/<id>`, `POST /payments/<id>/cancel`, `/reset-to-draft`, `/post`, `/allocate`, `/unallocate` | `finance.payments.manage` |
 | `GET /accounts` (`archived=true\|false`, `account_type`, `q`), `GET /accounts/<id>` | `finance.accounts.read` |
@@ -111,6 +112,25 @@ the unique `(company, key)` constraint and is not covered by a test (the test ca
   least one line `{name, price_unit, quantity=1, discount=0, tax_ids?, account_id?}`. Omitted
   `tax_ids` means the account's default taxes, `[]` means no tax. `currency` is a code and
   defaults to the company currency; `ref` is the customer/bill reference.
+- A line of a customer invoice or credit note (`out_invoice`, `out_refund`) may name `product_id`, a product of the
+  products service (`liwan_products`, plan D20) that the caller can pick. Finance registers `finance.enabled` and
+  `finance.invoices.manage` with the service, so whoever writes an invoice picks its products and `/api/v1/products/pick`
+  is open to a tenant with Finance. With a product, `name` and `price_unit` are optional: the label is the product's, and
+  the unit price is the price as typed on the product (the service's price function, in the company currency), converted
+  to the invoice's currency at the invoice date with the rate the invoice itself uses (`res.currency._convert`; no rate
+  is the invoice's own 422 `missing_exchange_rate`). Both stay editable. Omitted `tax_ids`
+  means the taxes stock puts on the product for the company (`[]` is still no tax). For an establishment not registered
+  for VAT (`res.company._liwan_vat_registered`) a product line has no tax, one rule: the API refuses non-empty `tax_ids`
+  on such a line (422 `invalid` on `lines[i].tax_ids`, on create and on edit; `[]` is accepted), and
+  `account.move.line._compute_tax_ids` clears the taxes of a product line of a sale document on every recompute (it also
+  covers invoices stock makes from sale orders and ORM writes), the rule `liwan_orders` applies to an order line. The
+  tax-lock pre-check counts the default taxes of a product line, so it answers `period_locked` as for typed taxes. A line with no product
+  is unchanged. A product that does not exist, belongs to another company or is archived is 422 `invalid` on
+  `lines[i].product_id`; a draft may send back a product it already carries after the product was archived, and a posted
+  invoice never changes when its product is archived. A vendor bill or vendor refund line with a `product_id` is 422
+  `invalid` on `lines[i].product_id`, because a service product is a thing the company sells. The line serializer
+  returns `product: {id, name} | null` (the template's id, as the products API names it); a line of a product stock made
+  returns null. A credit note made from a posted invoice keeps its lines' products.
 - `PATCH` of a draft: a body with `lines` replaces every line, a body without `lines` keeps
   them. The move type cannot change. A non-draft invoice answers 422 `not_draft` to
   `PATCH`, `DELETE` and `post`; `cancel` on a cancelled and `reset-to-draft` on a draft invoice

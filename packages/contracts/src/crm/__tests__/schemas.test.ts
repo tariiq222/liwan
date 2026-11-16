@@ -176,6 +176,8 @@ describe('CRM opportunity probability', () => {
     package: null,
     lost_reason: null,
     status: 'pending',
+    win_by_order: false,
+    can_quote: false,
     list_price: 0,
     discount_percent: 0,
     final_price: 0,

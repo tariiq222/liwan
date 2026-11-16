@@ -17,7 +17,7 @@ import { handleEvm } from './pmo-evm-mock-routes.mjs'
 import { CUSTOMERS_CAPABILITIES, handleCustomers } from './customers-mock-routes.mjs'
 import { handleProducts, PRODUCTS_CAPABILITIES } from './products-mock-routes.mjs'
 import { handleIntegrations, INTEGRATIONS_MANAGE, INTEGRATIONS_READ } from './integrations-mock-routes.mjs'
-import { handleSales, SALES_CAPABILITIES } from './sales-mock-routes.mjs'
+import { handlePublicSales, handleSales, SALES_CAPABILITIES } from './sales-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import { handleSsrFixtures, hasFixtureSession } from './ssr-fixture-sessions.mjs'
 import crypto from 'node:crypto'
@@ -25,7 +25,7 @@ import { URL } from 'node:url'
 
 // The three row exports (CRM, customers, conversations) refuse like the server when the filters keep more rows than one file
 // carries. The cookie `mock_export=too_large` switches that on for a spec.
-const EXPORT_PATHS = new Set(['/api/v1/crm/export', '/api/v1/customers/export', '/api/v1/inbox/conversations/export.csv'])
+const EXPORT_PATHS = new Set(['/api/v1/crm/export', '/api/v1/customers/export', '/api/v1/inbox/conversations/export.csv', '/api/v1/sales/reports/export'])
 const EXPORT_TOO_LARGE = { code: 'export_too_large', message: 'the filters keep more rows than one file carries', details: { rows: 61000, max_rows: 50000 } }
 
 const PORT = Number(process.env.MOCK_PORT || 4388)
@@ -493,6 +493,8 @@ async function handle(req, res) {
   if (await handlePublicPayments(req, res, path, url, { json, readBody })) return
   // The invited requester's routes answer without a session too: the booking's access token is the only credential.
   if (await handlePublicAppointments(req, res, path, url, { json, readBody })) return
+  // The customer's quotation link answers without a session too: the quotation's access token is the only credential.
+  if (await handlePublicSales(req, res, path, url, { json, readBody })) return
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
@@ -647,7 +649,7 @@ async function handle(req, res) {
     if (write) return json(res, write.status, write.body)
   }
 
-  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(crm\/|__mock\/reset-crm$)/.test(path)) {
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(crm\/|__mock\/(reset-crm|crm-win-by-order)$)/.test(path)) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const write = crmPreviewWrite(method, path, body)

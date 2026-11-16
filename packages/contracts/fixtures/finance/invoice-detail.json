@@ -53,6 +53,7 @@
       "price_subtotal": 1000.0,
       "price_total": 1150.0,
       "price_unit": 1000.0,
+      "product": null,
       "quantity": 1.0,
       "taxes": [
         {

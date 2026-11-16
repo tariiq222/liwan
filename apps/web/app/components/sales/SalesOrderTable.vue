@@ -21,7 +21,7 @@ const columns = computed<TableColumn<SalesOrderListItem>[]>(() => [
   column('customer', t('sales.columns.customer'), 'min-w-[200px]', false),
   column('salesperson', t('sales.columns.salesperson'), 'w-[160px] min-w-[160px]', false),
   column('date', t('sales.columns.date'), 'w-[120px] min-w-[120px]'),
-  column('state', t('sales.columns.state'), 'w-[128px] min-w-[128px]'),
+  column('state', t('sales.columns.state'), 'w-[200px] min-w-[200px]'),
   column('source', t('sales.columns.source'), 'w-[112px] min-w-[112px]'),
   column('total', t('sales.columns.total'), 'w-[152px] min-w-[152px]'),
 ])
@@ -38,14 +38,22 @@ const salesperson = (order: SalesOrderListItem) => order.salesperson?.name ?? t(
       <template #customer-cell="{ row }">{{ row.original.customer.name }}</template>
       <template #salesperson-cell="{ row }">{{ salesperson(row.original) }}</template>
       <template #date-cell="{ row }"><bdi dir="ltr">{{ formatDate(row.original.date) }}</bdi></template>
-      <template #state-cell="{ row }"><SharedStatusBadge :tone="SALES_STATE_TONE[row.original.state]" :label="t(`sales.state.${row.original.state}`)" size="sm" /></template>
+      <template #state-cell="{ row }">
+        <span class="flex items-center gap-1">
+          <SharedStatusBadge :tone="SALES_STATE_TONE[row.original.state]" :label="t(`sales.state.${row.original.state}`)" size="sm" />
+          <SharedStatusBadge v-if="row.original.expired" tone="warning" :label="t('sales.expired')" size="sm" data-testid="sales-expired" />
+        </span>
+      </template>
       <template #source-cell="{ row }">{{ t(`sales.source.${row.original.source}`) }}</template>
       <template #total-cell="{ row }"><bdi dir="ltr">{{ money(row.original) }}</bdi></template>
       <template #mobile-row="{ row }">
         <NuxtLink :to="props.recordTo(row)" class="flex min-w-0 flex-col gap-1">
           <span class="flex min-w-0 items-center justify-between gap-2">
             <span class="min-w-0 truncate font-semibold text-highlighted"><bdi dir="ltr">{{ row.number }}</bdi></span>
-            <SharedStatusBadge :tone="SALES_STATE_TONE[row.state]" :label="t(`sales.state.${row.state}`)" size="sm" />
+            <span class="flex shrink-0 items-center gap-1">
+              <SharedStatusBadge :tone="SALES_STATE_TONE[row.state]" :label="t(`sales.state.${row.state}`)" size="sm" />
+              <SharedStatusBadge v-if="row.expired" tone="warning" :label="t('sales.expired')" size="sm" />
+            </span>
           </span>
           <span class="truncate text-sm text-muted">{{ row.customer.name }} · <bdi dir="ltr">{{ money(row) }}</bdi></span>
           <span class="truncate text-sm text-muted">{{ salesperson(row) }} · {{ t(`sales.source.${row.source}`) }}</span>

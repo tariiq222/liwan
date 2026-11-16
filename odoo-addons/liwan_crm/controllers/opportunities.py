@@ -172,8 +172,9 @@ class CrmOpportunitiesController(http.Controller):
         Lead = request.env['crm.lead'].with_context(active_test=filters.get('status') not in ('lost', 'all'))
         leads = Lead.search(domain, limit=limit, offset=offset, order=ORDER)
         customers = request.env['liwan.customers.service']._liwan_visible_parties(leads.partner_id)
+        win = Lead._liwan_win_shape()
         return {
-            'items': [dump_opportunity(lead, customers) for lead in leads],
+            'items': [dump_opportunity(lead, customers, win) for lead in leads],
             'total': Lead.search_count(domain),
         }
 

@@ -8,7 +8,9 @@ from odoo.addons.liwan_api.tests.common import set_probe_feature
 ORDERS = '/api/v1/sales/orders'
 SETTINGS = '/api/v1/sales/settings'
 SALESPEOPLE = '/api/v1/sales/salespeople'
-WRITE_ACTIONS = ('confirm', 'cancel', 'reopen', 'lock', 'unlock', 'duplicate')
+TEMPLATES = '/api/v1/sales/templates'
+PRESETS = '/api/v1/sales/settings/presets'
+WRITE_ACTIONS = ('send', 'confirm', 'cancel', 'reopen', 'lock', 'unlock', 'duplicate')
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -18,6 +20,7 @@ class TestSalesGates(LiwanSalesCase):
         return (
             ('GET', ORDERS, None),
             ('GET', f'{ORDERS}/{order.id}', None),
+            ('GET', f'{ORDERS}/{order.id}/pdf', None),
             ('GET', SETTINGS, None),
             ('PATCH', SETTINGS, {'revision': 1, 'validity_days': 10}),
             ('POST', ORDERS, {'customer_id': order.partner_id.id, 'lines': []}),
@@ -25,6 +28,13 @@ class TestSalesGates(LiwanSalesCase):
             *(('POST', f'{ORDERS}/{order.id}/{action}', None) for action in WRITE_ACTIONS),
             ('POST', f'{ORDERS}/{order.id}/assign', {'salesperson_id': self.agent.id}),
             ('GET', SALESPEOPLE, None),
+            ('GET', TEMPLATES, None),
+            ('GET', f'{TEMPLATES}/1', None),
+            ('POST', TEMPLATES, {'name': 'x'}),
+            ('PATCH', f'{TEMPLATES}/1', {'name': 'x'}),
+            ('POST', f'{TEMPLATES}/1/archive', None),
+            ('POST', f'{TEMPLATES}/1/restore', None),
+            ('GET', PRESETS, None),
         )
 
     def test_a_closed_feature_refuses_every_route_with_the_feature_code(self):
@@ -47,7 +57,7 @@ class TestSalesGates(LiwanSalesCase):
     def test_the_write_routes_need_their_own_capability(self):
         order = self.make_order(self.agent)
         reader = self.custom_user('sales_gate_reader', ['sales.read'])
-        for method, path, body in self.routes(order)[4:]:
+        for method, path, body in self.routes(order)[5:]:
             with self.subTest(route=f'{method} {path}'):
                 response = self.api_as(reader, method, path, body)
                 self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'))

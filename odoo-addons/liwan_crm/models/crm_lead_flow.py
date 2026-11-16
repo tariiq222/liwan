@@ -5,8 +5,14 @@ Every method taking a ``user`` judges that actor: only the agent of the opportun
 holder of ``crm.leads.assign``, may change it. Writes that assign an agent never send the
 stock assignment mail (``mail_auto_subscribe_no_notify``): LiwanOS tells the agent through
 the bell instead.
+
+Two extension points serve an application that sells by order (the Sales bridge): ``_liwan_win_with_amount`` wins an
+opportunity for an amount with no package, and ``_liwan_win_by_order`` / ``_liwan_can_quote`` say, as the opportunity shape's
+``win_by_order`` and ``can_quote``, that an order wins now (``_liwan_mark_won`` then refuses with 409 ``crm_win_by_order``)
+and whether the caller may write it. CRM names no other application.
 """
-from odoo import models
+from odoo import api, models
+from odoo.exceptions import UserError
 
 from .visibility import ASSIGN_CAPABILITY
 from odoo.addons.liwan_api.controllers.common import ApiError
@@ -71,6 +77,8 @@ class CrmLeadFlow(models.Model):
         """Sell ``package`` at ``final_price``: won stage, prices set, follow-up cleared, and the lead linked to a
         customer at the latest now (``_liwan_link_customer``: the one named, a new one, or one made from the lead)."""
         self.ensure_one()
+        if self._liwan_win_by_order():
+            raise ApiError(409, 'conflict', 'this opportunity is won with an order', details={'reason': 'crm_win_by_order'})
         self._liwan_visibility()._liwan_check_write(self, user)
         self._liwan_require_open()
         list_price = self._liwan_package_price(package)
@@ -85,6 +93,51 @@ class CrmLeadFlow(models.Model):
             **CLEARED_FOLLOW_UP,
         })
         self.action_set_won()
+
+    @api.model
+    def _liwan_win_by_order(self):
+        """Whether opportunities are won with an order instead of a package: ``False`` here. An application that sells by
+        order answers ``True`` while it does. Then the package win is refused (``_liwan_mark_won``) and the opportunity
+        page steps its package form aside. A tenant fact, never the caller's rights: see ``_liwan_can_quote``."""
+        return False
+
+    @api.model
+    def _liwan_can_quote(self):
+        """Whether the caller may write what wins an opportunity by order (a quotation): ``False`` here. Only meaningful
+        while ``_liwan_win_by_order`` is true; the page tells a caller who cannot to ask someone who can."""
+        return False
+
+    @api.model
+    def _liwan_win_shape(self):
+        """The two answers above as the opportunity wire shape carries them, read once for a whole list."""
+        by_order = self._liwan_win_by_order()
+        return {'win_by_order': by_order, 'can_quote': by_order and self._liwan_can_quote()}
+
+    def _liwan_win_with_amount(self, amount):
+        """Win this opportunity for ``amount`` (in the company's currency) instead of a package: the extension point of an
+        application that sells by order (the order is the sale, so no package, list price or discount stays on the record).
+
+        The caller has authorised the sale elsewhere, so no user is judged and no customer is linked. A pending
+        opportunity is closed as won with ``amount`` as its final price and loses its follow-up (``UserError`` when the
+        company has no won stage). A won one only takes the new ``amount``, and any package sale it carried is cleared
+        with it. A lost or archived opportunity is left as it is. Returns whether it is won afterwards.
+        """
+        self.ensure_one()
+        if not self.active or self.won_status == 'lost':
+            return False
+        pending = self.won_status == 'pending'
+        if pending and not self.env['crm.stage'].search_count([('is_won', '=', True)], limit=1):
+            raise UserError(self.env._('There is no won stage to close the opportunity in.'))
+        self.write({
+            'liwan_final_price': amount,
+            'liwan_package_id': False,
+            'liwan_list_price': 0,
+            'liwan_discount_percent': 0,
+            **({'liwan_recycle_at': False, **CLEARED_FOLLOW_UP} if pending else {}),
+        })
+        if pending:
+            self.action_set_won()
+        return True
 
     def _liwan_link_on_win(self, customer_id, create_new):
         """A win never relinks a linked lead: one linked to a customer the caller cannot see keeps it, untouched and

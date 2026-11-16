@@ -2,18 +2,21 @@
 import type { RouteLocationRaw } from 'vue-router'
 import { INVOICE_KINDS, type FinanceMoveType } from './invoiceKinds'
 import {
+  applyLineProduct,
   buildInvoiceCreate,
   buildInvoicePatch,
   emptyInvoiceDraft,
   hasInvoiceErrors,
   invoiceDraftDirty,
   offersAssetProfile,
+  offersProduct,
   lineSubtotal,
   newLine,
   validateInvoiceDraft,
   type InvoiceFormDraft,
 } from './invoiceLines'
 import { formatAmount } from './formatAmount'
+import InvoiceLineProduct from './InvoiceLineProduct.vue'
 import PartnerPicker from './PartnerPicker.vue'
 import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from './invoiceErrors'
@@ -64,6 +67,9 @@ const profileItems = computed(() => [
 function pickProfile(line: InvoiceFormDraft['lines'][number], value: unknown) {
   line.assetProfileId = value === NO_PROFILE ? null : Number(value)
 }
+
+// A customer invoice or credit note line may name a product of the products service; a vendor bill line may not.
+const showProduct = computed(() => offersProduct(props.moveType))
 
 const baseline = props.initial ?? emptyInvoiceDraft()
 const draft = reactive<InvoiceFormDraft>(structuredClone(toRaw(baseline)))
@@ -140,10 +146,13 @@ async function submit() {
             <UInput v-model="line.quantity" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.quantity') })" />
           </UFormField>
           <UFormField :label="t('financeDocuments.form.unitPrice')" :name="`finance-line-price-${index}`" :error="shown?.lines[index]?.priceUnit ? t('financeDocuments.form.priceInvalid') : undefined">
-            <UInput v-model="line.priceUnit" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.unitPrice') })" />
+            <UInput v-model="line.priceUnit" inputmode="decimal" class="w-full tabular-nums" :placeholder="line.productId ? t('financeDocuments.form.priceFromProduct') : undefined" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.unitPrice') })" />
           </UFormField>
           <UFormField :label="t('financeDocuments.form.discount')" :name="`finance-line-discount-${index}`" :error="shown?.lines[index]?.discount ? t('financeDocuments.form.discountInvalid') : undefined">
             <UInput v-model="line.discount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.discount') })" />
+          </UFormField>
+          <UFormField v-if="showProduct" class="md:col-span-4" :label="t('financeDocuments.form.product')" :name="`finance-line-product-${index}`" :description="t('financeDocuments.form.productHint')">
+            <InvoiceLineProduct v-model:product-id="line.productId" :product-name="line.productName" :disabled="!hydrated || pending" @resolve="product => applyLineProduct(line, product, draft.currency)" />
           </UFormField>
           <UFormField v-if="showAssetProfile" class="md:col-span-4" :label="t('financeDocuments.form.assetProfile')" :name="`finance-line-asset-profile-${index}`" :description="t('financeDocuments.form.assetProfileHint')">
             <USelect :model-value="line.assetProfileId ? String(line.assetProfileId) : NO_PROFILE" :items="profileItems" class="w-full" :loading="profiles.isLoading.value" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.assetProfile') })" :data-testid="`finance-line-asset-profile-${index}`" @update:model-value="value => pickProfile(line, value)" />

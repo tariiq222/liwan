@@ -223,6 +223,26 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   type takes online payment (in full or a deposit) and the product that sells it; a booking of a paying
   type is held by an online order of `liwan.payments.service`, which the engine keeps `scheduled` until the
   order is paid, then `confirmed`; an unpaid order that expires cancels the booking and frees its slot.
+- `odoo-addons/liwan_sales_payments` (bridge, rank 5, `auto_install` on `liwan_sales` and the shared service
+  `liwan_payments`) owns whether a staff quotation asks to be paid before it becomes an order: the tenant's default
+  (`payment_to_confirm`, `prepayment_percent` on `liwan.sales.settings`), the per-quotation choice kept in stock's
+  `require_payment` and `prepayment_percent`, the `payment` of the staff and public wire shapes, the pay note of the
+  e-mail, and the confirmation of the order by the payment through the Sales path. It defines no model; it reuses
+  the pay page and the gateway of `liwan_payments`.
+- `odoo-addons/liwan_sales_crm` (bridge, rank 5, `auto_install` on `liwan_sales` and `liwan_crm`) owns the `liwan_lead_id`
+  link of a quotation to an opportunity, the routes that list and create the quotations of an opportunity
+  (`/api/v1/crm/opportunities/<id>/orders`), the win of the opportunity when one of its orders is confirmed (through the
+  one Sales confirm path, so staff, the customer's acceptance and a payment all reach it) and its two settings
+  `opportunity_win` and `opportunity_win_amount` on `liwan.sales.settings`. It defines no model; CRM carries the neutral
+  `crm.lead._liwan_win_with_amount`, `_liwan_win_by_order` and `_liwan_can_quote` points it uses (a package win is refused with 409
+  `crm_win_by_order` while an order wins).
+- `odoo-addons/liwan_sales_finance` (bridge, rank 5, `auto_install` on `liwan_sales` and `liwan_finance`) owns the route that
+  makes a draft customer invoice or a down payment from a confirmed staff order (`POST /api/v1/sales/orders/<id>/invoices`,
+  stock `sale.advance.payment.inv`, nothing posted), the `invoicing` block of the staff order shape (status, invoiced, drafted,
+  credited, to-invoice and paid amounts, the invoices; null without `finance.invoices.read`), the `source_order` of the finance
+  invoice detail (through the `account.move._liwan_detail_extras` hook of finance), the rule that an order with a posted invoice
+  is not cancelled and its two settings `invoice_down_payment` and `invoice_actor` on `liwan.sales.settings`. It defines no model; one documented
+  `sudo()` runs stock's wizard.
 - `odoo-addons/liwan_inbox_payments` (bridge, rank 5, `auto_install` on `liwan_inbox` and the shared service
   `liwan_payments`) owns the link to the tenant's Meta commerce catalog (one per WhatsApp business account), the
   catalog items and their push to Meta by cron, the public product image route Meta fetches from, a minimal editor

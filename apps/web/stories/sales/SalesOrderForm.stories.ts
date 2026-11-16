@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { http, HttpResponse } from 'msw'
 import SalesOrderForm from '../../app/components/sales/SalesOrderForm.vue'
 import { storyContext } from '../support/context'
-import { SALES_ALL, customerPicks, draftOrder, meWith, salespeople } from './salesFixtures'
+import { SALES_ALL, customerPicks, draftOrder, meWith, orderPayment, salespeople, salesSettingsWithPayment } from './salesFixtures'
 
 const session = (capabilities: string[]) => http.get('/api/v1/me', () => HttpResponse.json(meWith([...capabilities, 'products.read'])))
 const picks = [http.get('/api/v1/customers/pick', () => HttpResponse.json({ items: customerPicks, total: customerPicks.length })), http.get('/api/v1/sales/salespeople', () => HttpResponse.json(salespeople))]
@@ -13,7 +13,7 @@ const refuse = (status: number, body: object) => handlers(agent, http.patch('/ap
 const meta = {
   title: 'Sales/SalesOrderForm',
   component: SalesOrderForm,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/new.vue:19', 'نموذج عرض السعر: العميل والمندوب والصلاحية والشروط والبنود. لا يرسل سعرًا ولا ضريبة.'), ...handlers(SALES_ALL) },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/new.vue:20', 'نموذج عرض السعر: العميل والمندوب والصلاحية والشروط والبنود. لا يرسل سعرًا ولا ضريبة.'), ...handlers(SALES_ALL) },
   args: { backTo: '/sales' },
 } satisfies Meta<typeof SalesOrderForm>
 export default meta
@@ -22,5 +22,8 @@ type Story = StoryObj<typeof meta>
 export const New: Story = { name: 'عرض سعر جديد (مدير)' }
 export const NewAgent: Story = { name: 'عرض سعر جديد (مندوب)', parameters: handlers(agent) }
 export const Edit: Story = { name: 'تعديل', args: { order: draftOrder }, parameters: handlers(agent) }
+const withPayments = handlers(SALES_ALL, http.get('/api/v1/sales/settings', () => HttpResponse.json(salesSettingsWithPayment)))
+export const NewWithPaymentChoice: Story = { name: 'عرض سعر جديد مع اختيار الدفع', parameters: withPayments }
+export const EditWithPaymentChoice: Story = { name: 'تعديل مع اختيار الدفع', args: { order: { ...draftOrder, payment: orderPayment } }, parameters: withPayments }
 export const DiscountRefused: Story = { name: 'خصم أعلى من الحد', args: { order: draftOrder }, parameters: refuse(403, { code: 'forbidden', message: 'discount', field: 'lines.1.discount_percent', details: { reason: 'discount_above_limit' } }) }
 export const CustomerRefused: Story = { name: 'عميل غير صالح', args: { order: draftOrder }, parameters: refuse(422, { code: 'invalid', message: 'bad', field: 'customer_id' }) }

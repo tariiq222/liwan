@@ -38,4 +38,16 @@
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
     </record>
+    <!-- Stock's analysis has its own personal rule for the salesman group (the user's own and the unassigned rows);
+         this one opens the whole company exactly where the order rule above does, so a report and a list agree. -->
+    <record id="rule_sales_report_open_read" model="ir.rule">
+        <field name="name">liwan Sales analysis: the whole company where it is open (read)</field>
+        <field name="model_id" ref="sale.model_sale_report"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_sales_read'))]"/>
+        <field name="domain_force">[('company_id', 'in', user.liwan_sales_open_company_ids.ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
 </odoo>

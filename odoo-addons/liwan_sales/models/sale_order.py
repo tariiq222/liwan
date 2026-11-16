@@ -2,12 +2,29 @@
 from odoo import fields, models
 
 from .access_service import DOCUMENTS_ASSIGN, ORDERS_CONFIRM, QUOTATIONS_MANAGE
+from .sales_settings import ANSWER_MODES, SIGNATURE_METHODS, SIGNATURE_MODES
 from odoo.addons.liwan_products.models.products_service import is_number
 
 # The wire kind of each stock display type; a subsection is reported as a section.
 LINE_KINDS = {False: 'product', 'line_section': 'section', 'line_subsection': 'section', 'line_note': 'note'}
-# The stock states of a quotation: `sent` is one, though no Sales route produces it yet.
+# The stock states of a quotation.
 QUOTATION_STATES = ('draft', 'sent')
+# The stock states a customer may still read: sent, confirmed and cancelled.
+PUBLIC_STATES = ('sent', 'sale', 'cancel')
+# The values a send and a reopen write to leave no answer, snapshot or signature of an earlier send on the order.
+ANSWER_RESET = {
+    'liwan_answer_mode': False,
+    'liwan_acceptance_confirms': False,
+    'liwan_signature_methods': False,
+    'liwan_answer': False,
+    'liwan_signature_method': False,
+    'liwan_answered_on': False,
+    'liwan_decline_reason': False,
+    'require_signature': False,
+    'signature': False,
+    'signed_by': False,
+    'signed_on': False,
+}
 DISCOUNT_BOUNDS = 'discount_percent must be a number from 0 to 100'
 
 
@@ -22,6 +39,77 @@ class SaleOrder(models.Model):
     # Set by the Sales service on create: a document a member of staff wrote, as opposed to an online order. Every
     # Sales write refuses a document without it.
     liwan_staff_document = fields.Boolean(readonly=True, copy=False, index=True)
+    # Set when the quotation is sent, from the tenant's settings of that moment (a later change does not touch it):
+    # what the customer may do on the public page, how they may sign, and whether accepting confirms the order. Empty before the first send.
+    liwan_answer_mode = fields.Selection([(mode, mode) for mode in ANSWER_MODES], readonly=True, copy=False)
+    liwan_acceptance_confirms = fields.Boolean(readonly=True, copy=False)
+    # Also copied at send: how the customer may sign under ``accept_and_sign``.
+    liwan_signature_methods = fields.Selection([(mode, mode) for mode in SIGNATURE_MODES], readonly=True, copy=False)
+    # The customer's answer on the public page; the signature itself is stock's `signature`, `signed_by` and `signed_on`.
+    liwan_answer = fields.Selection([('accepted', 'accepted'), ('declined', 'declined')], readonly=True, copy=False)
+    liwan_answered_on = fields.Datetime(readonly=True, copy=False)
+    # How the customer made the signature of an accepted, signed quotation.
+    liwan_signature_method = fields.Selection([(mode, mode) for mode in SIGNATURE_METHODS], readonly=True, copy=False)
+    liwan_decline_reason = fields.Text(readonly=True, copy=False)
+
+    def _liwan_lines(self):
+        """The lines Sales shows and edits: the section and the lines that stock adds for a down payment (``is_downpayment``)
+        are invoicing bookkeeping, not part of what was sold, and no Sales shape, write or document carries them."""
+        self.ensure_one()
+        return self.order_line.filtered(lambda line: not line.is_downpayment)
+
+    def _get_order_lines_to_report(self):
+        """The quotation PDF of a staff document lists what was sold, not stock's down payment section."""
+        lines = super()._get_order_lines_to_report()
+        return lines.filtered(lambda line: not (line.is_downpayment and line.order_id.liwan_staff_document))
+
+    def _liwan_staff_extras(self, user):
+        """What an installed bridge adds to the staff wire shape of this order for ``user``, as ``{key: value}``."""
+        self.ensure_one()
+        return {}
+
+    def _liwan_public_extras(self):
+        """What an installed bridge adds to the customer's page of this order, as ``{key: value}``."""
+        self.ensure_one()
+        return {}
+
+    def _liwan_public_open(self):
+        """Whether the customer's page of this order opens: a staff document sent for an answer and not reopened since."""
+        self.ensure_one()
+        return bool(self.liwan_staff_document and self.liwan_answer_mode and self.state in PUBLIC_STATES)
+
+    def _liwan_acceptance_confirms(self):
+        """Whether the customer's acceptance confirms this order: the snapshot taken at send. A bridge that owns another
+        way to confirm the order (a payment, say) narrows it."""
+        self.ensure_one()
+        return self.liwan_acceptance_confirms
+
+    def _liwan_can_answer(self):
+        """Whether the customer may still answer this sent quotation: an answer mode other than ``none``, no answer yet."""
+        self.ensure_one()
+        return bool(self.liwan_answer_mode not in (False, 'none') and self.state == 'sent' and not self.liwan_answer)
+
+    def _liwan_resend_refused(self):
+        """Whether the tenant's ``answered_resend`` setting, read now, keeps staff from sending this answered quotation
+        again: they reopen it first."""
+        self.ensure_one()
+        return bool(self.liwan_answer) and self.env['liwan.sales.settings']._liwan_current().answered_resend == 'refuse'
+
+    def _liwan_send_open(self, user):
+        """Whether ``user`` could send this order but for the tenant's resend setting: a staff document they own or may
+        assign, they hold the quotations capability, and it is an unexpired quotation."""
+        self.ensure_one()
+        keys = self.env['liwan.sales.visibility']._liwan_keys(user, self.company_id)
+        mine = self.liwan_staff_document and (self.user_id == user or DOCUMENTS_ASSIGN in keys)
+        return bool(mine and QUOTATIONS_MANAGE in keys and self.state in QUOTATION_STATES and not self.is_expired)
+
+    def _liwan_resend_blocked(self, user):
+        """Whether the resend setting is the only reason send is not offered to ``user``."""
+        return self._liwan_send_open(user) and self._liwan_resend_refused()
+
+    def _liwan_can_accept(self):
+        """Whether the customer may accept: they may answer and the quotation has not expired. Declining stays open."""
+        return self._liwan_can_answer() and not self.is_expired
 
     def _liwan_actions(self, user):
         """What ``user`` may do with this order now: the state table of the Sales plan (D1), in one place.
@@ -36,12 +124,14 @@ class SaleOrder(models.Model):
         assign = DOCUMENTS_ASSIGN in keys
         mine = self.liwan_staff_document and (self.user_id == user or assign)
         quotation = self.state in QUOTATION_STATES
+        open_quotation = quotation and not self.is_expired
         confirmed = self.state == 'sale'
         return {
             'edit': bool(mine and manage and self.state == 'draft'),
-            'confirm': bool(mine and confirm and quotation),
+            'send': self._liwan_send_open(user) and not self._liwan_resend_refused(),
+            'confirm': bool(mine and confirm and open_quotation),
             'cancel': bool(mine and ((quotation and manage) or (confirmed and not self.locked and confirm))),
-            'reopen': bool(mine and confirm and self.state == 'cancel'),
+            'reopen': bool(mine and confirm and self.state in ('cancel', 'sent')),
             'lock': bool(mine and confirm and confirmed and not self.locked),
             'unlock': bool(mine and confirm and confirmed and self.locked),
             'duplicate': manage,

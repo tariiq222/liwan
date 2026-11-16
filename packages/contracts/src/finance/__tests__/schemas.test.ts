@@ -38,6 +38,7 @@ const INVOICE = {
 const LINE = {
   id: 11,
   name: 'خدمة استشارية',
+  product: null,
   account: { id: 40, name: '400000 Product Sales' },
   quantity: 1,
   price_unit: 1000,
@@ -156,6 +157,8 @@ describe('FinanceInvoiceDetailSchema', () => {
     expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, credit_origin: { id: 3 } })).toThrow()
     expect(() => FinanceInvoiceDetailSchema.parse(INVOICE)).toThrow()
     expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, lines: [{ ...LINE, extra: 1 }] })).toThrow()
+    expect(FinanceInvoiceDetailSchema.parse({ ...detail, lines: [{ ...LINE, product: { id: 9, name: 'Audit' } }] }).lines[0].product).toEqual({ id: 9, name: 'Audit' })
+    expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, lines: [{ ...LINE, product: undefined }] })).toThrow()
   })
 
   it('carries the ZATCA block of a Saudi sale document and is strict about it', () => {

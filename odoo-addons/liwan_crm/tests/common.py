@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo import Command
 from odoo.tests import new_test_user
 
@@ -11,6 +13,11 @@ class LiwanCrmCase(LiwanApiCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # An application that sells by order may take the package win away in a database that has it installed; these
+        # tests are about the package win, so they run as in a tenant without one.
+        patcher = patch.object(type(cls.env['crm.lead']), '_liwan_win_by_order', lambda self: False)
+        patcher.start()
+        cls.addClassCleanup(patcher.stop)
         cls.company = cls.env.company
         cls.other_company = cls.env['res.company'].create({'name': 'Other CRM company'})
         cls.agent = cls._user('crm_agent', 'CRM Agent', 'liwan_crm.role_crm_agent')
