@@ -4,6 +4,9 @@ import { heavyRouteKind } from '../heavyRoutes'
 afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 
 const READS = [
+  '/api/v1/sales/reports/summary',
+  '/api/v1/sales/reports/breakdown',
+  '/api/v1/sales/reports/export',
   ...['aged-partner-balance', 'analytic', 'analytic/lines', 'balance-sheet', 'budget-vs-actual', 'cash-flow', 'general-ledger', 'partner-statement', 'profit-loss', 'trial-balance', 'vat', 'vat-return', 'vat-return/items', 'withholding', 'zakat-base']
     .map(name => `/api/v1/finance/reports/${name}`),
   '/api/v1/hr/payroll/runs/12/gosi-statement',
@@ -12,6 +15,7 @@ const READS = [
   '/api/v1/meetings/7/minutes.pdf',
   '/api/v1/finance/invoices/7/pdf',
   '/api/v1/sales/orders/7/pdf',
+  '/api/v1/public/sales/quotations/7/pdf',
 ]
 const WRITES = [
   '/api/v1/finance/assets/compute-depreciation',
@@ -29,6 +33,9 @@ describe('heavyRouteKind', () => {
   it.each([
     ...WRITES.flatMap(path => ['GET', 'PUT', 'PATCH', 'DELETE'].map(method => [method, path])),
     ...READS.flatMap(path => ['POST', 'PUT', 'DELETE'].map(method => [method, path])),
+    ['GET', '/api/v1/sales/reports'],
+    ['GET', '/api/v1/sales/reports/summary/extra'],
+    ['GET', '/api/v1/sales/reports/other'],
     ['GET', '/api/v1/finance/reports'],
     ['GET', '/api/v1/finance/reports/'],
     ['GET', '/api/v1/finance/reports/unknown-report'],
@@ -60,7 +67,9 @@ describe('heavyRouteKind', () => {
     ['GET', '/api/v1/finance/invoices/7/pdfs'],
     ['GET', '/api/v1/sales/orders/7/pdfs'],
     ['GET', '/api/v1/sales/orders/x/pdf'],
-    ['GET', '/api/v1/public/sales/quotations/7/pdf'],
+    ['GET', '/api/v1/public/sales/quotations/7'],
+    ['GET', '/api/v1/public/sales/quotations/x/pdf'],
+    ['GET', '/api/v1/public/sales/quotations/7/pdfs'],
     ['POST', '/api/v1/auth/totp'],
     ['GET', '/api/v1/branding'],
     ['GET', '/api/v1/tasks'],

@@ -16,6 +16,10 @@ const PROXY_TOKEN = 'synthetic-heavy-wire-token'.repeat(3)
 // Heavy admission pool: two credits run, eight more wait (see bufferAdmission POOL_LIMITS).
 const HEAVY_CREDITS = 2
 const HEAVY_QUEUE = 8
+// The anonymous quotation PDF has its own, smaller pool: one credit runs, four more wait.
+const PDF_CREDITS = 1
+const PDF_QUEUE = 4
+const PUBLIC_PDF = '/api/v1/public/sales/quotations/7/pdf'
 
 let upstream: http.Server
 let app: http.Server
@@ -121,6 +125,23 @@ describe.each(['dedicated', 'shared'] as const)('heavy API routes over the %s tr
     expect(await heavy).toMatchObject({ status: 502, body: { data: { code: 'tenant_upstream_unavailable' } } })
   })
 
+  // The customer's public quotation PDF is the one public heavy route: it keeps the heavy deadline, and the
+  // ordinary public routes keep 15s.
+  it('gives the public quotation PDF the heavy deadline and the other public routes the ordinary one', async () => {
+    const publicPdf = '/api/v1/public/sales/quotations/7/pdf'
+    const publicPage = '/api/v1/public/sales/quotations/7'
+    await call(ORDINARY_PATH)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const page = call(held1(publicPage))
+    const pdf = call(held1(publicPdf))
+    await until(() => held.length === 2)
+    await vi.advanceTimersByTimeAsync(WAIT_TIMEOUT)
+    expect(await page).toMatchObject({ status: 502, body: { data: { code: 'tenant_upstream_unavailable' } } })
+    await vi.advanceTimersByTimeAsync(40_000 - WAIT_TIMEOUT)
+    answer(held.findIndex(item => item.url.startsWith(publicPdf)))
+    expect((await pdf).status).toBe(200)
+  })
+
   // Odoo decodes escapes and ignores one trailing slash, so these reach the heavy route: they must get its budget
   // and the upstream must see the one canonical spelling that was classified.
   it.each([
@@ -215,6 +236,37 @@ describe.each(['dedicated', 'shared'] as const)('heavy API routes over the %s tr
     }
     expect((await Promise.all(accepted)).map(reply => reply.status)).toEqual(Array(accepted.length).fill(200))
     expect((await call(HEAVY_READ)).status).toBe(200)
+  })
+
+  it('keeps the anonymous quotation PDF pool apart from the staff heavy pool, both ways', async () => {
+    await call(ORDINARY_PATH)
+    // A flood of anonymous PDFs fills its own pool and is refused beyond it, yet a staff report still runs.
+    const flood = Array.from({ length: PDF_CREDITS + PDF_QUEUE }, () => call(held1(PUBLIC_PDF)))
+    await until(() => held.length === PDF_CREDITS)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(await call(held1(PUBLIC_PDF))).toMatchObject({ status: 502, body: { data: { code: 'tenant_upstream_unavailable' } } })
+    const report = call(held1(HEAVY_READ))
+    await until(() => held.length === PDF_CREDITS + 1)
+    answer(held.findIndex(item => item.url.startsWith(HEAVY_READ)))
+    expect((await report).status).toBe(200)
+    for (let index = 0; index < flood.length; index++) {
+      await until(() => held.filter(item => item.url.startsWith(PUBLIC_PDF)).length > index)
+      held.filter(item => item.url.startsWith(PUBLIC_PDF))[index]!.res.end('{}')
+    }
+    expect((await Promise.all(flood)).map(reply => reply.status)).toEqual(Array(flood.length).fill(200))
+    // And a saturated staff heavy pool never refuses the customer's PDF.
+    held = []
+    const staff = Array.from({ length: HEAVY_CREDITS + HEAVY_QUEUE }, () => call(held1(HEAVY_READ)))
+    await until(() => held.length === HEAVY_CREDITS)
+    const customer = call(held1(PUBLIC_PDF))
+    await until(() => held.length === HEAVY_CREDITS + 1)
+    held.find(item => item.url.startsWith(PUBLIC_PDF))!.res.end('{}')
+    expect((await customer).status).toBe(200)
+    for (let index = 0; index < staff.length; index++) {
+      await until(() => held.filter(item => item.url.startsWith(HEAVY_READ)).length > index)
+      held.filter(item => item.url.startsWith(HEAVY_READ))[index]!.res.end('{}')
+    }
+    expect((await Promise.all(staff)).map(reply => reply.status)).toEqual(Array(staff.length).fill(200))
   })
 
   // A queued write whose browser left must neither reach Odoo later nor keep the gate or a credit.

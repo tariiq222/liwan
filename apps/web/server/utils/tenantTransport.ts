@@ -375,11 +375,12 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
 
 /** `public` is the separate small pool for requests that skip session admission;
  * `booking` isolates the invited requester's booking-link routes from sign-in and MFA;
- * `heavy` isolates allowlisted long-running routes from ordinary session traffic. */
-export type AdmissionScope = 'session' | 'public' | 'booking' | 'heavy'
+ * `heavy` isolates allowlisted long-running routes from ordinary session traffic;
+ * `pdf` is the same for the heavy route an anonymous visitor reaches, so it can never take a staff heavy credit. */
+export type AdmissionScope = 'session' | 'public' | 'booking' | 'heavy' | 'pdf'
 
 // Heavy credits are held for the whole heavy run, so a waiter waits as long as that run may take.
-const acquireBody = { session: createBodyAdmission('session'), public: createBodyAdmission('public'), booking: createBodyAdmission('booking'), heavy: createBodyAdmission('heavy', HEAVY_TIMEOUT) }
+const acquireBody = { session: createBodyAdmission('session'), public: createBodyAdmission('public'), booking: createBodyAdmission('booking'), heavy: createBodyAdmission('heavy', HEAVY_TIMEOUT), pdf: createBodyAdmission('pdf', HEAVY_TIMEOUT) }
 
 /** Keep memory credit while reading, waiting for upstream admission and forwarding. */
 export async function withTenantBody<T>(event: H3Event, scope: AdmissionScope, run: () => Promise<T>): Promise<T> {
@@ -390,7 +391,7 @@ export async function withTenantBody<T>(event: H3Event, scope: AdmissionScope, r
   } catch (error) { throw createError(error as Error) } finally { releaseBody?.() }
 }
 
-const responseAdmission = { session: createResponseAdmission('session'), public: createResponseAdmission('public'), booking: createResponseAdmission('booking'), heavy: createResponseAdmission('heavy', HEAVY_TIMEOUT) }
+const responseAdmission = { session: createResponseAdmission('session'), public: createResponseAdmission('public'), booking: createResponseAdmission('booking'), heavy: createResponseAdmission('heavy', HEAVY_TIMEOUT), pdf: createResponseAdmission('pdf', HEAVY_TIMEOUT) }
 
 /** Own response capacity until native work and the downstream HTTP output settle. */
 export async function withTenantResponse<T>(event: H3Event, scope: AdmissionScope, run: () => Promise<T>): Promise<T> {

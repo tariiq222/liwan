@@ -17,8 +17,11 @@ const HEAVY_ROUTES: ReadonlyArray<{ kind: HeavyKind; pattern: RegExp }> = [
   { kind: 'read', pattern: new RegExp(`^/api/v1/hr/payroll/runs/${ID}/gosi-statement$`) },
   // Project portfolio reports (liwan_pmo)
   { kind: 'read', pattern: /^\/api\/v1\/reports\/projects\/(?:summary|analytics)$/ },
-  // PDF documents (liwan_meetings, liwan_finance, liwan_sales)
-  { kind: 'read', pattern: new RegExp(`^/api/v1/(?:meetings/${ID}/minutes\\.pdf|finance/invoices/${ID}/pdf|sales/orders/${ID}/pdf)$`) },
+  // Sales reports and their export (liwan_sales)
+  { kind: 'read', pattern: /^\/api\/v1\/sales\/reports\/(?:summary|breakdown|export)$/ },
+  // PDF documents (liwan_meetings, liwan_finance, liwan_sales), the customer's public quotation PDF included
+  // (liwan_sales limits it per quotation, so the heavy pool is not open to one leaked link)
+  { kind: 'read', pattern: new RegExp(`^/api/v1/(?:meetings/${ID}/minutes\\.pdf|finance/invoices/${ID}/pdf|sales/orders/${ID}/pdf|public/sales/quotations/${ID}/pdf)$`) },
 ]
 
 /** Classify a request: `read` (report, file, PDF) or `write` (bulk posting, compute), `null` when it is not an

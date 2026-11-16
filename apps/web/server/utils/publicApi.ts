@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { getProxyRequestHeaders } from 'h3'
-import { legacyTenantResponse, MAX_PUBLIC_HOOK_BODY, MAX_PUBLIC_MFA_BODY, tenantTransport } from './tenantTransport'
+import { type HeavyBudget, legacyTenantResponse, MAX_PUBLIC_HOOK_BODY, MAX_PUBLIC_MFA_BODY, tenantTransport } from './tenantTransport'
 import { tenantUpstreamHeaders } from './tenantRequest'
 import { withUiLocale } from './uiLocale'
 
@@ -65,10 +65,10 @@ export function isBookingApiPath(apiPath: string): boolean {
 }
 
 /** Forward one public request to Odoo with no cookie either way. `path` is canonical and may carry a query. */
-export async function forwardPublicApi(event: H3Event, odooUrl: string, path: string, options: { method: string; body?: Buffer }): Promise<Response> {
+export async function forwardPublicApi(event: H3Event, odooUrl: string, path: string, options: { method: string; body?: Buffer; heavy?: HeavyBudget }): Promise<Response> {
   const response = Object.keys(tenantUpstreamHeaders(event)).length
-    ? await tenantTransport(event, odooUrl, path, { method: options.method, body: options.body, headers: { cookie: '' } })
-    : await legacyTenantResponse(event, odooUrl, path, { method: options.method, body: options.body, headers: withUiLocale(event, withoutCookie(getProxyRequestHeaders(event, { host: false }))) })
+    ? await tenantTransport(event, odooUrl, path, { method: options.method, body: options.body, headers: { cookie: '' }, heavy: options.heavy })
+    : await legacyTenantResponse(event, odooUrl, path, { method: options.method, body: options.body, headers: withUiLocale(event, withoutCookie(getProxyRequestHeaders(event, { host: false }))), heavy: options.heavy })
   response.headers.delete('set-cookie')
   return response
 }
