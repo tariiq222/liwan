@@ -20,6 +20,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_finance.serializers.invoice import (
     WRITABLE_MOVE_TYPES,
     dump_invoice_detail,
@@ -33,6 +34,7 @@ from odoo.addons.liwan_finance.serializers.zatca import (
     zatca_document,
     zatca_state,
 )
+from odoo.addons.liwan_products.models.products_service import valid_quantity
 
 
 def _invoice_types():
@@ -112,8 +114,86 @@ def _asset_profile(profile_id, index, tax_use, company):
     )
 
 
+def _line_product(line, index, company, kept):
+    """The variant a line names: the products service's product usable in ``company``, else 422 on its field.
+
+    ``kept`` holds the products the draft already carries, which an edit may send back even after the product was
+    archived. A line names a template and takes its one variant (variants come with a later pull request).
+    """
+    field = f'lines[{index}].product_id'
+    service = request.env['liwan.products.service']
+    try:
+        service._liwan_require_pick()
+        product = service._liwan_product(line['product_id'], include_archived=line['product_id'] in kept)
+    except LiwanAccessRule as error:
+        if error.status == 404:
+            raise ApiError(422, 'invalid', 'the product does not exist', field=field) from error
+        raise
+    if product.company_id and product.company_id not in company.parent_ids:
+        raise ApiError(422, 'invalid', 'the product belongs to another company', field=field)
+    if len(product.with_context(active_test=False).product_variant_ids) > 1:
+        raise ApiError(422, 'invalid', 'products with variants are not supported yet', field=field)
+    return product
+
+
+def resolve_line_products(parsed, move_type, company, invoice=None):
+    """Replace each ``product_id`` of the parsed lines with its product, and default the unit price from it (D20).
+
+    A vendor bill line refuses a product (a service product is a thing the company sells). A price typed on the line
+    stays; an absent one is the price as typed on the product, which is in the company currency, converted to the
+    invoice's currency at the invoice's day with the rate the invoice itself uses (``res.currency._convert``; a missing
+    rate is the invoice's own 422). Runs before the exchange-rate check, which reads the prices. ``invoice`` is the draft
+    being edited: its own products stay usable after they were archived.
+
+    A product line of a company not registered for VAT refuses taxes (422 on ``lines[i].tax_ids``): the establishment's
+    one rule is that such a line has none (``account.move.line._compute_tax_ids`` enforces it on every recompute).
+    """
+    kept = set(invoice.invoice_line_ids.product_id.product_tmpl_id.ids) if invoice else set()
+    currency, day = _effective_currency_and_day(invoice, parsed)
+    registered = company._liwan_vat_registered()
+    for index, line in enumerate(parsed.get('lines', ())):
+        if 'product_id' not in line:
+            continue
+        if _tax_use(move_type) != 'sale':
+            raise ApiError(422, 'invalid', 'a vendor bill line cannot name a product', field=f'lines[{index}].product_id')
+        if line.get('tax_ids') and not registered:
+            raise ApiError(
+                422, 'invalid', 'a product line of a company not registered for VAT has no tax',
+                field=f'lines[{index}].tax_ids',
+            )
+        product = _line_product(line, index, company, kept)
+        line['product'] = product
+        if 'price_unit' not in line:
+            quantity = line['quantity'] if valid_quantity(line['quantity']) else 1.0
+            price = request.env['liwan.products.service']._liwan_price(
+                product, quantity=quantity, company=company,
+            )['unit_price']
+            if currency != company.currency_id:
+                _require_exchange_rate(currency, company, day)
+                price = currency.round(company.currency_id._convert(price, currency, company, day))
+            line['price_unit'] = price
+
+
+def _lines_have_tax(lines, move_type, company):
+    """Whether the parsed lines will carry a tax, for the lock-date pre-check: typed taxes, or a product line that takes
+    the product's default ones (an establishment not registered for VAT takes none)."""
+    taxed_by_default = company._liwan_vat_registered()
+    return any(
+        line.get('tax_ids') or (
+            'tax_ids' not in line and taxed_by_default and 'product' in line
+            and _tax_use(move_type) == 'sale' and bool(line['product'].taxes_id._filter_taxes_by_company(company))
+        )
+        for line in lines
+    )
+
+
 def _line_command(line, index, tax_use, company):
-    values = {key: line[key] for key in ('name', 'quantity', 'price_unit', 'discount')}
+    values = {key: line[key] for key in ('quantity', 'price_unit', 'discount')}
+    # A line with a product and no label takes the product's, which stock computes.
+    if 'name' in line:
+        values['name'] = line['name']
+    if 'product' in line:
+        values['product_id'] = line['product'].with_context(active_test=False).product_variant_ids[:1].id
     if 'tax_ids' in line:
         taxes = company_records(
             'account.tax', line['tax_ids'], f'lines[{index}].tax_ids',
@@ -170,14 +250,20 @@ def _line_values(line):
     }
 
 
-def _effective_invoice_conversion(invoice, parsed, company):
-    currency = invoice.currency_id
+def _effective_currency_and_day(invoice, parsed):
+    """The currency and the day the invoice will convert at: what the body sets, else what the draft has (a new
+    invoice has the company's currency and today)."""
+    currency = invoice.currency_id if invoice else request.env.company.currency_id
     if 'currency' in parsed:
         currency = request.env['res.currency'].search([('name', '=', parsed['currency'])], limit=1)
         if not currency:
             raise ApiError(422, 'invalid', 'currency is not an active currency code', field='currency')
-    invoice_date = parsed.get('invoice_date', invoice.invoice_date)
-    invoice_date = invoice_date or fields.Date.context_today(invoice)
+    day = parsed.get('invoice_date', invoice.invoice_date if invoice else None)
+    return currency, day or fields.Date.context_today(request.env['account.move'])
+
+
+def _effective_invoice_conversion(invoice, parsed, company):
+    currency, invoice_date = _effective_currency_and_day(invoice, parsed)
     lines = parsed.get('lines', invoice.invoice_line_ids)
     _require_invoice_conversion(currency, company, invoice_date, lines)
 
@@ -282,6 +368,7 @@ class FinanceInvoiceController(http.Controller):
     @idempotent
     def create_invoice(self, **payload):
         parsed = parse_invoice_create(payload)
+        resolve_line_products(parsed, parsed['move_type'], request.env.company)
         values = _move_values(parsed, parsed['move_type'], request.env.company)
         effective_currency = request.env['res.currency'].browse(
             values.get('currency_id', request.env.company.currency_id.id),
@@ -302,7 +389,7 @@ class FinanceInvoiceController(http.Controller):
         lock = {
             'day': values.get('invoice_date'),
             'journal': request.env['account.journal'].browse(values['journal_id']),
-            'has_tax': any(line.get('tax_ids') for line in parsed['lines']),
+            'has_tax': _lines_have_tax(parsed['lines'], parsed['move_type'], request.env.company),
         }
         require_open_period(**lock, company=request.env.company, field='invoice_date')
         invoice = attempt(lambda: request.env['account.move'].create(values), **lock)
@@ -325,6 +412,7 @@ class FinanceInvoiceController(http.Controller):
             if invoice.invoice_line_ids.asset_profile_id:
                 # Replacing the lines would drop their asset profiles, which only fixed-assets managers can resend.
                 require_capability('finance.assets.manage')
+        resolve_line_products(parsed, invoice.move_type, invoice.company_id, invoice)
         _effective_invoice_conversion(invoice, parsed, invoice.company_id)
         values = _move_values(parsed, invoice.move_type, invoice.company_id)
         written = tuple(values)  # account.move.write adds is_manually_modified in place
@@ -332,7 +420,8 @@ class FinanceInvoiceController(http.Controller):
             'day': values.get('invoice_date') or _lock_context(invoice)['day'],
             'journal': invoice.journal_id,
             'company': invoice.company_id,
-            'has_tax': any(line.get('tax_ids') for line in parsed.get('lines', ())) or bool(invoice.invoice_line_ids.tax_ids),
+            'has_tax': _lines_have_tax(parsed.get('lines', ()), invoice.move_type, invoice.company_id)
+            or bool(invoice.invoice_line_ids.tax_ids),
         }
         require_open_period(**lock, field='invoice_date')
         attempt(lambda: invoice.write(values), **lock)

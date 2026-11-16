@@ -1,0 +1,1 @@
+The addon depends on `liwan_products`, registers `finance.enabled` and `finance.invoices.manage` with its products service, and adds a compute override for the taxes of a product line. No stored company, journal, invoice or line data is rewritten: existing lines keep no product.

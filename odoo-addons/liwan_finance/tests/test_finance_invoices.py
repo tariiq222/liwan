@@ -12,7 +12,7 @@ INVOICE_KEYS = {
     'invoice_date_due', 'payment_term', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_residual',
 }
 LINE_KEYS = {
-    'id', 'name', 'account', 'quantity', 'price_unit', 'discount', 'taxes', 'price_subtotal', 'price_total',
+    'id', 'name', 'product', 'account', 'quantity', 'price_unit', 'discount', 'taxes', 'price_subtotal', 'price_total',
     'analytic_distribution', 'asset_profile', 'asset',
 }
 

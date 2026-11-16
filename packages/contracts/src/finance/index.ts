@@ -41,6 +41,8 @@ export const FinanceInvoiceSchema = z.object({
 export const FinanceInvoiceLineSchema = z.object({
   id,
   name: z.string(),
+  /** The product of the products service the line names (customer invoices and credit notes only); null otherwise. */
+  product: FinanceRefSchema.nullable(),
   account: FinanceRefSchema.nullable(),
   quantity: z.number(),
   price_unit: z.number(),

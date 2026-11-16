@@ -2,6 +2,7 @@
 from . import (
     access_service,
     account_move,
+    account_move_line,
     action_service,
     ai_agent,
     ai_readiness,
@@ -18,6 +19,7 @@ from . import (
     integration_registry,
     mis_report,
     privacy_hooks,
+    products_service,
     res_company,
     res_partner,
     setup_service,
