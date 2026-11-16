@@ -101,4 +101,26 @@ describe('BrandingForm: the presets are one choice', () => {
     expect(press('Tab', 1).preventDefault).not.toHaveBeenCalled()
     stop()
   })
+
+  it('leaves modified arrows alone and jumps to the first and last preset with Home and End', () => {
+    vi.stubGlobal('getComputedStyle', () => ({ direction: 'rtl' }))
+    const { state, draft, stop } = run('#0055ff')
+    const focus = vi.fn()
+    state.presetGroup = { querySelectorAll: () => [{ focus }, { focus }, { focus }, { focus }] }
+    const press = (key: string, index: number, mods: Record<string, boolean> = {}) => {
+      const event = { key, ...mods, preventDefault: vi.fn() } as unknown as KeyboardEvent
+      ;(state.onPresetKey as (event: KeyboardEvent, index: number) => void)(event, index)
+      return event
+    }
+    for (const mod of ['altKey', 'ctrlKey', 'metaKey']) {
+      expect(press('ArrowLeft', 1, { [mod]: true }).preventDefault).not.toHaveBeenCalled()
+    }
+    expect(draft.value.primary_color).toBe('#0055ff')
+    expect(focus).not.toHaveBeenCalled()
+    expect(press('End', 0).preventDefault).toHaveBeenCalled()
+    expect(draft.value.primary_color).toBe('#b45309')
+    press('Home', 3)
+    expect(draft.value.primary_color).toBe('#14102a')
+    stop()
+  })
 })

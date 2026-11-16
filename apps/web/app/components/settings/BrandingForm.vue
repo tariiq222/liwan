@@ -52,11 +52,13 @@ const tabbablePreset = computed(() => PRESETS.find(preset => isSelected(preset.c
 // right-to-left row. Up and Down follow the DOM order.
 const ARROW_STEP: Record<string, 1 | -1> = { ArrowDown: 1, ArrowUp: -1 }
 function onPresetKey(event: KeyboardEvent, index: number) {
+  if (event.altKey || event.ctrlKey || event.metaKey) return
   const rtl = presetGroup.value ? getComputedStyle(presetGroup.value).direction === 'rtl' : false
   const step = event.key === 'ArrowRight' ? (rtl ? -1 : 1) : event.key === 'ArrowLeft' ? (rtl ? 1 : -1) : ARROW_STEP[event.key]
-  if (!step) return
+  const edge = event.key === 'Home' ? 0 : event.key === 'End' ? PRESETS.length - 1 : null
+  if (!step && edge === null) return
   event.preventDefault()
-  const next = (index + step + PRESETS.length) % PRESETS.length
+  const next = edge ?? (index + step! + PRESETS.length) % PRESETS.length
   draft.value.primary_color = PRESETS[next]!.color
   presetGroup.value?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus()
 }
