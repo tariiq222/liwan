@@ -2,9 +2,10 @@
 
 واجهة العميل: [DESIGN.md](../DESIGN.md). التقارير المؤرخة ليست تعليمات واجهة.
 
-LiwanOS development runs in four fixed lanes (owner decision 2026-11-13): `claude-1` and `claude-2` for
-Claude sessions, `codex-1` and `codex-2` for Codex sessions, each a permanent worktree under
-`/Users/tariq/code/liwan/.worktrees/`. The main checkout `/Users/tariq/code/liwan` rests on `main` and
+LiwanOS development runs in a pool of lanes (owner decision 2026-11-16, replacing the four named lanes of
+2026-11-13). A lane is a permanent worktree under `/Users/tariq/code/liwan/.worktrees/`. One task is one
+branch, one lane and one writing session, whichever tool the session runs (Claude, Codex or OpenCode).
+The main checkout `/Users/tariq/code/liwan` rests on `main` and
 belongs to the owner, for manual testing and the one running development stack; no agent develops in it.
 One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.
@@ -73,102 +74,89 @@ shared change must state the contract and the single writer before work starts.
 
 ## Starting a task
 
-1. Inspect the selected worktree's branch, status, remotes, and changed paths.
-   Preserve unrelated edits. Use any normal task branch name (for example `<area>-<slug>`).
-2. Decide file ownership and list collisions before editing. Keep dependent
-   work sequential; independent slices go to separate sessions of a lane, each with its own claim.
-3. Give each worktree independent `node_modules` and `.nuxt` directories. Use
-   `npm ci --ignore-scripts`; if offline, use the available local npm cache.
-   Never symlink dependency or generated-state directories between worktrees.
-4. Give each worktree its own `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, `NUXT_PUBLIC_WS_URL`, Nuxt port and Odoo
+1. Inspect the lane's branch, status, remotes, and changed paths. Preserve unrelated edits.
+   Use any normal task branch name (for example `<area>-<slug>`).
+2. Decide file ownership and list collisions before editing. Keep dependent work in one branch and one
+   session; independent tasks go to separate lanes.
+3. Take a lane with `npm run wt -- take <branch> --owner <who>` (see "Lane pool"). The lane already has its
+   own `node_modules`, `.nuxt`, ports and scratch database name, so there is nothing else to set up.
+4. Each lane has its own `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, `NUXT_PUBLIC_WS_URL`, Nuxt port and Odoo
    HTTP port. They live in the git-ignored `.env.worktree`; `npm run dev` (`tools/dev_web.mjs`) reads that
    file and rejects command-line overrides, so do not pass `--port` or export those variables by hand.
+   Never symlink dependency or generated-state directories between worktrees.
 
-`npm run wt -- lane setup <lane>` performs steps 3 and 4 once for a lane (ports and scratch database name
-are written to `.env.worktree`); the lane keeps them for every later task (`tools/wt.py`).
+### Lane pool
 
-### Fixed lanes
+A lane is any worktree under `<main checkout>/.worktrees/` that holds a take record
+(the file liwan-take.json in its git directory: branch, holder, task, `taken_at` and the hash of
+`package-lock.json` at the last install). Lanes have no fixed names and no tool split. The number of lanes
+is the owner's choice and grows with `lane add`.
 
-| Lane | Tool | Use |
-| --- | --- | --- |
-| `claude-1` | Claude | The batch: several sessions on one branch, small and medium tasks, one PR |
-| `claude-2` | Claude | One long or sensitive task (money, authorization, schema or migrations, security, tenant isolation) with a PR of its own |
-| `codex-1` | Codex | Same use as `claude-1` |
-| `codex-2` | Codex | Same use as `claude-2` |
+| Command | What it does |
+| --- | --- |
+| `npm run wt -- lane add <name> [--owner X --task Y] [--no-install]` | Creates a new lane from the fetched `origin/main` and prepares it: ports, scratch database name, `.env.worktree` and dependencies. Given an existing worktree folder under `.worktrees/`, it adopts that folder in place: it records the folder's current branch with `--owner` and `--task` and deletes the old lane and claim record files. |
+| `npm run wt -- take <branch> --owner <who> [--task <what>] [--lane <name>]` | Takes the named lane, or the first resting clean one. Fetches `origin/main`, creates the branch from it (or switches to the local branch when it exists, which resumes a parked task), records the holder, reinstalls dependencies when `package-lock.json` changed since the last install, and prints the lane path. Refuses `main` and `HEAD`, an occupied or dirty lane, and reports "no free lane" with the holders and a pointer to `lane add`. |
+| `npm run wt -- done [--lane <name>] [--park]` | Needs a clean tree. Without `--park` the branch must be merged into `origin/main`: the lane detaches to `origin/main`, the local branch is deleted and the record is emptied. With `--park` the local branch stays and the lane rests; resume later with `take <branch>`. |
+| `npm run wt -- status` | Lists lanes with holder, branch, ahead/behind, dirty state, ports and database, then a "shared files" section with the files changed in two occupied lanes at once. It only reports. |
+| `npm run wt -- check` | Read-only; exit 1 on a violation. See the rules below. |
+| `npm run wt -- lane remove <name>` | Removes a resting, clean lane (a parked branch survives as a local branch and can be taken again). Refuses an occupied, dirty, missing or in-use lane; drops the lane's scratch database when nobody is connected. |
+| `npm run wt -- gc [--apply] [--branch ...]` | Cleans merged, clean, idle worktrees that are not lanes (leftovers from before the pool). It never removes a lane. |
 
-1. **Four lanes, no others.** A Claude session writes only in a `claude-*` lane and a Codex session only in
-   a `codex-*` lane. Neither enters the other tool's lanes or develops in the main checkout, and no tool's
-   built-in worktree option is used. A temporary task worktree (`wt new`, rules below) needs the owner's
-   explicit words for that task.
-2. **One branch per lane at a time.** A lane rests on a detached `origin/main`.
-   `npm run wt -- lane start <lane> <branch>` starts the task branch there from the fetched `origin/main`.
-   `npm run wt -- lane finish <lane>` returns the lane to `origin/main` after the branch is merged and
-   deletes the local branch. Between the two, no session runs `git checkout`, `git switch`, `git stash`,
-   `git reset`, `git rebase` or `git pull` in the lane.
-3. **One coordinating session.** The session that starts the branch coordinates the lane: it alone merges
-   `origin/main` into the branch (after the other sessions have committed), runs the checks of the combined
-   branch, and finishes the lane.
-4. **One claim per session.** Before editing, a session records its paths inside the lane with
-   `npm run wt -- claim --owner <session> --task <what> --scope <path>`. The claim is refused when another
-   active claim holds an overlapping path, in the same lane or in any other worktree; that session waits or
-   takes another task. Its subagents work under the same claim. A claim expires 24 hours after its last
-   refresh and then no longer holds its paths; the session renews it with the same `claim` command. `npm run wt -- release --owner <session>`
-   drops the claim once the session's work is committed. A schema change of one addon (its version bump and
-   migration) stays with one session.
-5. **Commit by path, under the session's name.** `LIWAN_SESSION=<session> git commit -m "<subject>" -- <paths>`;
-   never `git add -A` or `git commit -a`. The pre-commit lane guard (`tools/hooks.py`) refuses a commit in a
-   lane that is not on the branch it started, a commit whose `LIWAN_SESSION` names no claim there or an expired one, and a
-   commit with a staged path outside that session's claim.
-6. **Checks.** Each session runs the focused checks of its own paths. Another session's unfinished edit can
-   fail a whole-tree check (the `apps/web` type check reads every file), so sessions commit small and often.
-   The coordinating session runs the combined branch's checks once, on a clean tree, before the PR.
-7. **Across tools.** Lanes isolate files on disk, not merges. The orchestrator splits each round's work
-   between Claude and Codex by area, and each file of the shared-file protocol has one owner per round.
+Rules:
 
-The lane guard is a commit-time check, not a lock: Git has no hook that stops a branch switch. `wt check`
-reports a lane that left its branch, and the guard refuses the commit that would land on the wrong one.
-`wt gc` never removes a lane.
+1. **One writing session per lane.** The session that takes a lane is its only writer, whatever the tool.
+   Subagents of that session work in the same lane under its direction. Read-only and review sessions take no
+   lane. Two sessions never write in one lane, and no agent develops in the main checkout.
+2. **Open the tool in the lane.** Each tool starts with the lane folder as its working directory and its
+   built-in worktree option off. No tool-owned worktree (the Claude app's `worktrees` folder under `.claude`
+   and the like) is created.
+3. **Free use of Git inside the lane.** On its own unpublished branch a session may use any git command
+   (stash, reset, rebase and amend included). Published history is never rewritten, and a push, a PR, a
+   merge and an auto-merge still need the owner's explicit words.
+4. **One schema writer per addon.** A schema change (version bump and migration) of one addon stays in one
+   lane. `wt check` fails when two lanes both change the same `odoo-addons/<addon>/migrations/`.
+5. **Shared files.** `wt status` lists files changed in two occupied lanes at once. Report only: the
+   coordinating session follows the shared-file protocol above and merges `origin/main` into its branch
+   before the PR.
+6. **Checks.** The session runs the focused checks of its own paths, and the combined branch's checks once,
+   on a clean tree, before the PR.
+7. **Batching.** Small finished branches are batched at delivery in one `<prefix>/tools-integrate-<slug>`
+   branch and one PR; a sensitive task (money, authorization, schema or migrations, security, tenant
+   isolation) gets its own PR. Delivery steps are in [integration-rules.md](agents/integration-rules.md).
 
-### Worktree rules
+`wt check` exits 1 on:
 
-These rules apply to a temporary task worktree, which since 2026-11-13 is created only when the owner asks
-for one in words. A worktree that predates them is reported by `wt check`, never moved, renamed or
-removed by it; its owner records a claim with `wt claim` or finishes and merges it as it is.
+- a worktree that is neither the main checkout nor a lane;
+- a lane whose checked-out branch differs from its record;
+- an occupied lane with no holder;
+- two lanes that both change the same `odoo-addons/<addon>/migrations/`.
 
-1. **One location.** Task worktrees live only in `<main checkout>/.worktrees/<area>-<slug>` (git-ignored),
-   where `wt new` creates them, also when run from another worktree. Never create one with a bare
-   `git worktree add`, under `../liwan-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`).
-2. **One name.** Any valid Git branch name is accepted; descriptive names are recommended.
-   `wt new <suffix>` creates branch `codex/<suffix>` and folder `.worktrees/<suffix>`.
-   Other valid task branch names may be claimed; `wt check` checks their folder suffix and claim.
-   In `AGENTS.md` and `docs/agents/integration-rules.md`, `<prefix>/...` for an integration candidate
-   means `codex/...`, the prefix `wt new` adds (for example `codex/tools-integrate-<slug>`).
-   Throwaway `spike/<slug>` experiments are created with plain `git switch -c spike/<slug>` (`wt new` only
-   makes `codex/` branches) and are never merged.
-3. **One base.** `main` is the default `--base`; any valid branch name is accepted.
-   Use the agreed integration branch for a dependent lane.
-   Fetch and compare local `main` with `origin/main` first. When local `main` is dirty or stale,
-   preserve it; after creation update the clean task candidate to the recorded remote baseline
-   before implementation. Do not call the default local base current without checking.
-4. **One owner.** Every worktree has a claim: its owner (session, agent or person), its task and the
-   workspace-relative paths it will change (`--scope`, repeatable; `.` is the whole repository, used by an
-   integration worktree). The claim lives in the worktree's own git directory, so it is never tracked and
-   goes away with the worktree.
-5. **No silent overlap.** `wt new` and `wt claim` refuse scopes that overlap another worktree's active claim.
-   `--allow-overlap "<reason>"` is the explicit permission: use it only after agreeing with the other
-   owner; the reason is stored in the claim and shown by `wt status`.
-6. **Expiry.** A claim with no commit, no edited file and no refresh for 24 hours is expired: it is still
-   listed, but no longer blocks. Its owner refreshes it with `wt claim --owner <same owner>`; another owner
-   may take over an expired claim with `wt claim`, never an active one.
+The pre-commit guard (`tools/hooks.py`) runs for every tool. It refuses a commit on `main`; in a lane it
+refuses when the lane is resting or the branch differs from the record; in a linked worktree with no take
+record it refuses and names `wt lane add` and `wt take`. It has no session identity and no path check. During a rebase in a lane it compares the rebase's branch
+to the record.
+It is a commit-time check, not a lock: Git has no hook that stops a branch switch, so `wt check` reports a
+lane that left its branch.
 
-`npm run wt -- check` reports every worktree that breaks a rule and exits 1 when there is one; it only reads.
-`npm run wt -- status` answers "which worktrees exist, who owns them, which are merged, which are dirty"
-and ends with the same report; it marks a worktree outside `.worktrees/` with `*`. `npm run wt -- gc` lists
-what is safe to remove (merged, clean, behind `main`, no process inside) and `--apply` removes it; after a merge that falls under
+Rollout: an existing worktree is adopted with `lane add` only when it rests, or after its branch has merged
+the new `main`. An older branch runs its own older copy of the hook.
+
+### Other worktrees
+
+Never create another worktree (no `git worktree add`, no tool-owned worktree folder) unless the owner asks
+for one in words for that task. `wt check` reports it, and the pre-commit guard refuses a commit in it. A
+worktree the owner asks for is a lane too: add it with `npm run wt -- lane add <name> [--owner X --task Y]`
+and remove it when it rests and is clean with `npm run wt -- lane remove <name>` (a parked branch survives as a local branch and can be taken again). `lane remove` refuses an
+occupied, dirty, missing or in-use lane, removes the worktree and drops its scratch database when nobody is
+connected. Throwaway `spike/<slug>` experiments use plain
+`git switch -c spike/<slug>` inside a lane and are never merged.
+
+`npm run wt -- check` only reads. `npm run wt -- gc` never removes a lane. It lists the non-lane worktrees
+left from before the pool (merged, clean, no process inside) and `--apply` removes them; after a merge that falls under
 the standing authorization in [integration-rules.md](agents/integration-rules.md#standing-authorization-owner-decision-2026-11-11), and any other removal needs the owner.
 
-These are workflow rules carried by the tool, not an operating-system lock: a bare `git worktree add` or
-an edit outside the claimed scopes is still possible. `wt check` makes it visible; the integration checks
+These are workflow rules carried by the tool, not an operating-system lock: a bare `git worktree add` is
+still possible. `wt check` makes it visible; the integration checks
 in `docs/agents/integration-rules.md` remain the binding gate.
 
 The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
@@ -198,7 +186,7 @@ The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`. Port `
 The allocator excludes both for new `apps/web` worktrees, even when idle; existing `.env.worktree`
 allocations remain unchanged. `npm run dev` loads that worktree file automatically. Install independent
 local dependencies and regenerate Nuxt files first; main uses its private apps/web/.env configuration.
-The Odoo database/port above are placeholders; match the allocated `.env.worktree` values before launch. Worktree dev rejects CLI overrides. Check current worktree claims before selecting values. Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
+The Odoo database/port above are placeholders; match the allocated `.env.worktree` values before launch. Worktree dev rejects CLI overrides. Check `wt status` for the ports and databases of the other lanes before selecting values. Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
 worktrees. Temporary integration values are disposable and must not be
 presented as production evidence.
 
@@ -223,8 +211,8 @@ with current remote `main` too. A merged head with dirty files still contains
 undelivered work. A child sharing its parent's head is dependent work, not a
 second independent delivery.
 
-After the merge, the coordinating session returns its lane with `wt lane finish <lane>`; a temporary task
-worktree is removed with `wt gc`.
+After the merge, the session returns its lane with `wt done`; a lane the owner
+asked for as a temporary one is removed with `wt lane remove <name>`.
 
 The task owner reports the files changed and verification evidence. The
 orchestrator resolves shared-file conflicts, verifies the combined candidate
