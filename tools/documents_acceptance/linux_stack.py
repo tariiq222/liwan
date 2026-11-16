@@ -658,7 +658,7 @@ os.chown('/data',10001,10001)
                 database,
                 "--db-filter=^" + database + "$",
                 "-i",
-                "liwan_documents,liwan_hr,liwan_documents_hr",
+                "liwan_documents,liwan_hr",
                 "--stop-after-init",
                 "--no-http",
                 "--without-demo=all",

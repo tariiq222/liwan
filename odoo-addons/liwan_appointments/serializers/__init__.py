@@ -7,5 +7,6 @@ from . import (
     appointment_settings,
     appointment_slot,
     appointment_type,
+    booking_payment,
     payload,
 )

@@ -22,6 +22,7 @@ from . import (
     project_charter_reference,
     project_constants,
     project_copy,
+    project_document,
     project_finance,
     project_governance,
     project_milestone,

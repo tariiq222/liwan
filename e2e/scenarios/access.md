@@ -4,7 +4,7 @@ Pages: `/settings/team/users` (`new`, `[userId]`, `access`, `branches`, `securit
 `/settings/team/roles` (`new`, `[roleId]`, `edit`), `/settings/team/branches`,
 `/settings/team/access-log`, `/settings/company`, `/settings/system`, `/account`, `/account/settings`,
 `/hr/employees/[id]/access`.
-Owners: `liwan_core`, `liwan_api`, `liwan_access_hr`. Personas and status values: [README](README.md).
+Owners: `liwan_core`, `liwan_api`, `liwan_hr` (employee accounts). Personas and status values: [README](README.md).
 
 Custom roles can hold only `access.users.read`, `access.roles.read`, `access.audit.read`,
 `settings.company.read`, `settings.company.manage`, `settings.branding.manage` and
@@ -140,7 +140,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 
-## Employee accounts (`liwan_access_hr`)
+## Employee accounts (`liwan_hr`)
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -62,7 +62,7 @@ reports, assets and bank"). Only modules a route uses are declared:
 `account_fiscal_year` are in the pinned repositories but unused.
 
 `dms` (OCA/dms) is the engine used by the implemented `liwan_documents` library; the
-`liwan_documents_hr` bridge adds HR department and own-employee contexts. Attachment, migration and access
+`liwan_hr` application adds HR department and own-employee contexts. Attachment, migration and access
 acceptance remain separate release checks. Source implementation and a pin do not prove deployment
 or tenant acceptance. Provenance and license headers are recorded in
 [the DMS provenance record](verification/oca-dms/PROVENANCE.md).
@@ -89,7 +89,7 @@ before they ship.
 |---|---|
 | `resource_booking` (calendar) | booking types of `liwan_appointments` today; slots, combinations and booking states once the booking routes exist |
 | `web_calendar_slot_duration` (web) | backend calendar-view dependency of `resource_booking`; no LiwanOS use |
-| `sale_resource_booking` (sale-workflow) | paid bookings in the bridge `liwan_appointments_payments`: links a product to a booking type and a booking to its sale order line, keeps a booking with an unpaid order out of `confirmed`, confirms it once the order is confirmed and cancels it with the order |
+| `sale_resource_booking` (sale-workflow) | paid bookings in `liwan_appointments`: links a product to a booking type and a booking to its sale order line, keeps a booking with an unpaid order out of `confirmed`, confirms it once the order is confirmed and cancels it with the order |
 | `web_ir_actions_act_multi` (web) | backend action dependency of `sale_resource_booking`; no LiwanOS use |
 
 `calendar_public_holiday` (calendar) and the other OCA/web modules are in the pinned repositories but unused;

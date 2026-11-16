@@ -3,6 +3,7 @@ from odoo.exceptions import UserError
 from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.liwan_api.models.removed_addons import (
+    REMOVED_ADDONS,
     forget_removed_addons,
     hand_over_xml_ids,
 )
@@ -58,3 +59,14 @@ class TestRemovedAddons(TransactionCase):
         with self.assertRaisesRegex(UserError, 'probe_group'):
             hand_over_xml_ids(self.env, GONE, HEIR, ['probe_group'])
         self.assertEqual(self.env.ref(f'{GONE}.probe_group'), group, 'nothing moves on refusal')
+
+    def test_the_bridges_folded_into_their_applications_are_listed_and_forgotten(self):
+        bridges = (
+            'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_operations', 'liwan_documents_pmo',
+            'liwan_inbox_payments', 'liwan_appointments_payments',
+        )
+        for name in bridges:
+            self.assertIn(name, REMOVED_ADDONS)
+            self.env['ir.module.module'].create({'name': name, 'state': 'to upgrade'})
+        forget_removed_addons(self.env, names=bridges)
+        self.assertFalse(self.env['ir.module.module'].search([('name', 'in', bridges)]))

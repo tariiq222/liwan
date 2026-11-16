@@ -54,7 +54,7 @@ def is_modifiable(booking, now):
 
 def awaits_confirmation(booking):
     """Whether the scheduled booking waits for the requester's confirmation. A booking that scheduling already
-    confirms does not, whatever the company setting says: the payments bridge confirms a paying booking on schedule
+    confirms does not, whatever the company setting says: a booking held by an online order is confirmed on schedule
     and the engine then holds it until its order is paid."""
     return booking.state == 'scheduled' and not booking._liwan_confirms_on_schedule()
 

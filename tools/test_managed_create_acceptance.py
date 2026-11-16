@@ -53,7 +53,7 @@ class ManagedCreatePolicyCase(ManagedRuntimeCase):
             'commercial_mode': 'saas', 'entitlement_source': 'control_plane',
             'status': 'active', 'valid_until': None,
             'features': self.policy_value['features'], 'policy_revision': 1,
-            'modules': ['base', 'project', 'hr', 'liwan_access_hr', 'liwan_notify'] + self.policy_value['modules'],
+            'modules': ['base', 'project', 'hr', 'liwan_notify', 'liwan_document_service', 'liwan_approval_service'] + self.policy_value['modules'],
         }) + '\n'
 
     def credential_snapshot(self, changed):

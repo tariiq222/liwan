@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-from .access_service import REPLY
+from .access_service import ORDERS_MANAGE, REPLY
 from .constants import INBOX_FEATURE
 
 
@@ -15,5 +15,6 @@ class LiwanInboxCustomersService(models.AbstractModel):
 
     @api.model
     def _liwan_customers_pick_capabilities(self):
-        """A conversation agent picks, or creates, the customer of a contact from the contact panel."""
-        return (*super()._liwan_customers_pick_capabilities(), REPLY)
+        """A conversation agent picks, or creates, the customer of a contact from the contact panel; placing an order picks
+        the contact's customer, or creates one."""
+        return (*super()._liwan_customers_pick_capabilities(), REPLY, ORDERS_MANAGE)

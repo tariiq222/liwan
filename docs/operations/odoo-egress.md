@@ -27,7 +27,7 @@ page describes the route and how to add a host. It states what the files do; it 
 | Host | Called from |
 | --- | --- |
 | `api.authentica.sa` | `odoo-addons/liwan_core/models/sms_gateway.py:24` (`AUTHENTICA_ENDPOINT`, sign-in SMS) |
-| `graph.facebook.com` | `odoo-addons/liwan_inbox/adapters/whatsapp.py:19` (`GRAPH_BASE`); `liwan_inbox_payments/adapters/meta_catalog.py` calls it through `graph_request` |
+| `graph.facebook.com` | `odoo-addons/liwan_inbox/adapters/whatsapp.py:19` (`GRAPH_BASE`); `odoo-addons/liwan_inbox/adapters/meta_catalog.py` calls it through `graph_request` |
 | `lookaside.fbsbx.com` | `odoo-addons/liwan_inbox/adapters/whatsapp.py:26` (`MEDIA_HOSTS`, WhatsApp media download) |
 | `business-api.tiktok.com` | `odoo-addons/liwan_inbox/adapters/tiktok.py:15` (`API_BASE`, including the OAuth token calls) |
 | `.tiktokcdn.com`, `.tiktokcdn-us.com`, `.tiktokv.com` | `odoo-addons/liwan_inbox/adapters/tiktok.py:59` (`MEDIA_DOMAINS`; the media URL is named by TikTok's answer, so these are domain suffixes) |

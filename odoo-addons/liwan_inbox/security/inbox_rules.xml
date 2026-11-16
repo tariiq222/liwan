@@ -226,7 +226,7 @@
         <field name="name">liwan.inbox.channel: multi-company</field>
         <field name="model_id" ref="model_liwan_inbox_channel"/>
         <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
-        <field name="groups" eval="[Command.link(ref('group_cap_inbox_conversations_read')), Command.link(ref('group_cap_inbox_channels_manage')), Command.link(ref('group_cap_inbox_templates_manage')), Command.link(ref('group_cap_inbox_automation_manage')), Command.link(ref('group_cap_inbox_flows_manage')), Command.link(ref('group_cap_inbox_campaigns_manage')), Command.link(ref('group_cap_inbox_reports_read'))]"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_inbox_conversations_read')), Command.link(ref('group_cap_inbox_channels_manage')), Command.link(ref('group_cap_inbox_templates_manage')), Command.link(ref('group_cap_inbox_automation_manage')), Command.link(ref('group_cap_inbox_flows_manage')), Command.link(ref('group_cap_inbox_campaigns_manage')), Command.link(ref('group_cap_inbox_reports_read')), Command.link(ref('group_cap_inbox_catalog_manage'))]"/>
     </record>
     <record id="liwan_inbox_channel_hook_rule" model="ir.rule">
         <field name="name">liwan.inbox.channel: webhook identity</field>
@@ -248,5 +248,25 @@
         <field name="perm_read" eval="False"/>
         <field name="perm_write" eval="False"/>
         <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="liwan_inbox_catalog_company_rule" model="ir.rule">
+        <field name="name">liwan.inbox.catalog: multi-company</field>
+        <field name="model_id" ref="model_liwan_inbox_catalog"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="liwan_inbox_catalog_item_company_rule" model="ir.rule">
+        <field name="name">liwan.inbox.catalog.item: multi-company</field>
+        <field name="model_id" ref="model_liwan_inbox_catalog_item"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="liwan_inbox_order_company_rule" model="ir.rule">
+        <field name="name">liwan.inbox.order: multi-company</field>
+        <field name="model_id" ref="model_liwan_inbox_order"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="liwan_inbox_order_line_company_rule" model="ir.rule">
+        <field name="name">liwan.inbox.order.line: multi-company</field>
+        <field name="model_id" ref="model_liwan_inbox_order_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

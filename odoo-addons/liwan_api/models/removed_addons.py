@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Addons removed from the source tree whose rows a database installed earlier still holds.
 
-The AI bridges ``liwan_<app>_ai`` are folded into their applications once the AI registries live in liwan_api. A database
-installed before keeps the removed addon's module row (left ``to upgrade`` by ``-u``, which Odoo reports as an inconsistent
+The AI bridges ``liwan_<app>_ai`` are folded into their applications once the AI registries live in liwan_api, and the
+HR, documents, customer messages and appointments bridges into their applications. A database installed before keeps the removed addon's module row (left ``to upgrade`` by ``-u``, which Odoo reports as an inconsistent
 state) and its ``ir.model.data`` rows. A later removal adds its name here and calls ``forget_removed_addons`` from the end
 migration of its version. A removed addon that owned data records (an ACL, a group) first hands their xml ids to the new
 owner with ``hand_over_xml_ids``.
@@ -12,6 +12,8 @@ from odoo.exceptions import UserError
 REMOVED_ADDONS = (
     'liwan_sales_ai', 'liwan_hr_ai', 'liwan_finance_ai', 'liwan_operations_ai', 'liwan_pmo_ai',
     'liwan_crm_ai', 'liwan_tasks_ai', 'liwan_meetings_ai',
+    'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_operations', 'liwan_documents_pmo',
+    'liwan_inbox_payments', 'liwan_appointments_payments',
 )
 
 # The rows Odoo itself writes for an addon that only extends models (`_inherit`) and ships no data file.

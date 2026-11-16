@@ -22,6 +22,8 @@ POLICY = {
     'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_hr'],
     'features': {'users.limit': None, 'storage.limit_mb': 50, 'hr.enabled': True},
 }
+# What installing liwan_hr brings along: it depends on notify and the document and approval shared services.
+HR_IMPLIED = ['liwan_notify', 'liwan_document_service', 'liwan_approval_service']
 
 
 def snapshot():
@@ -30,8 +32,7 @@ def snapshot():
         'entitlement_source': 'control_plane', 'status': 'active',
         'valid_until': None, 'features': copy.deepcopy(POLICY['features']),
         'policy_revision': 1,
-        # liwan_access_hr is the auto-installed bridge of liwan_api and liwan_hr.
-        'modules': sorted([*POLICY['modules'], 'liwan_access_hr', 'liwan_notify', 'base', 'hr', 'project']),
+        'modules': sorted([*POLICY['modules'], *HR_IMPLIED, 'base', 'hr', 'project']),
     }
 
 
@@ -107,7 +108,7 @@ class Profile:
 class Modules:
     def __init__(self, events):
         self.events = events
-        self.names = [*POLICY['modules'], 'liwan_access_hr', 'liwan_notify', 'base', 'hr', 'project']
+        self.names = [*POLICY['modules'], *HR_IMPLIED, 'base', 'hr', 'project']
 
     def search(self, domain, limit=None):
         self.events.append(('modules.search', domain, limit))
@@ -360,7 +361,7 @@ class VerifyCase(unittest.TestCase):
                       'features': {'users.limit': None, 'storage.limit_mb': None, **extra_features}}
             env = Environment()
             # Odoo also installs what the selection implies (pmo needs notify and directory).
-            implied = ['liwan_notify', 'liwan_directory'] if 'liwan_pmo' in selected else []
+            implied = ['liwan_notify', 'liwan_directory', 'liwan_document_service'] if 'liwan_pmo' in selected else []
             env.modules.names = base + selected + implied + ['hr', 'project']
             stdout = execute_script(verify.build_policy_script(policy, DATABASE), env)
             self.assertEqual(verify.parse_snapshot(stdout, policy, DATABASE)['features'], policy['features'])
@@ -371,7 +372,7 @@ class VerifyCase(unittest.TestCase):
                   'features': {'users.limit': None, 'storage.limit_mb': None,
                                'pmo.enabled': True, 'meetings.enabled': True,
                                'projects.max_projects': None}}
-        closure = base + ['liwan_notify', 'liwan_directory', 'liwan_pmo']
+        closure = base + ['liwan_notify', 'liwan_directory', 'liwan_document_service', 'liwan_pmo']
 
         def installed(extra):
             data = snapshot()
@@ -386,7 +387,7 @@ class VerifyCase(unittest.TestCase):
             self.assertEqual(caught.exception.code, 'modules_mismatch')
         data = snapshot()
         data['features'] = copy.deepcopy(policy['features'])
-        data['modules'] = sorted([*base, 'liwan_notify', 'liwan_pmo', 'base'])  # liwan_directory missing
+        data['modules'] = sorted([*base, 'liwan_notify', 'liwan_document_service', 'liwan_pmo', 'base'])  # liwan_directory missing
         with self.assertRaises(verify.VerificationError) as caught:
             verify.parse_snapshot(output(data), policy, DATABASE)
         self.assertEqual(caught.exception.code, 'modules_mismatch')
@@ -397,7 +398,7 @@ class VerifyCase(unittest.TestCase):
                   'features': {'users.limit': None, 'storage.limit_mb': None,
                                'pmo.enabled': True, 'meetings.enabled': True,
                                'projects.max_projects': None}}
-        closure = base + ['liwan_notify', 'liwan_directory', 'liwan_pmo']
+        closure = base + ['liwan_notify', 'liwan_directory', 'liwan_document_service', 'liwan_pmo']
         for names, ok in [(closure, True), (closure + ['liwan_chat'], False),
                           ([n for n in closure if n != 'liwan_notify'], False)]:
             env = Environment()

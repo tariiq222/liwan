@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { AssignmentListSchema } from './access'
 
-// The employee-account bridge (liwan_access_hr): present only when the HR application is installed.
+// Employee accounts (part of liwan_hr): present only when the HR application is installed.
 export const EmployeeAccountCandidateSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),

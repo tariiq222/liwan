@@ -108591,7 +108591,7 @@
     },
     "/api/v1/admin/employee-accounts": {
       "post": {
-        "operationId": "liwan_access_hr.EmployeeAccountsController.grant.post",
+        "operationId": "liwan_hr.EmployeeAccountsController.grant.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -108610,10 +108610,10 @@
         ],
         "summary": "grant",
         "tags": [
-          "liwan_access_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_access_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -108631,7 +108631,7 @@
     },
     "/api/v1/admin/employee-accounts/candidates": {
       "get": {
-        "operationId": "liwan_access_hr.EmployeeAccountsController.candidates.get",
+        "operationId": "liwan_hr.EmployeeAccountsController.candidates.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -108650,10 +108650,10 @@
         ],
         "summary": "candidates",
         "tags": [
-          "liwan_access_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_access_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -111540,7 +111540,7 @@
     },
     "/api/v1/appointments/bookings/{booking_id}/payment": {
       "get": {
-        "operationId": "liwan_appointments_payments.BookingPaymentController.get_booking_payment.get",
+        "operationId": "liwan_appointments.BookingPaymentController.get_booking_payment.get",
         "parameters": [
           {
             "in": "path",
@@ -111572,10 +111572,10 @@
         ],
         "summary": "get_booking_payment",
         "tags": [
-          "liwan_appointments_payments"
+          "liwan_appointments"
         ],
         "x-liwan": {
-          "addon": "liwan_appointments_payments",
+          "addon": "liwan_appointments",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -111593,7 +111593,7 @@
     },
     "/api/v1/appointments/bookings/{booking_id}/payment/link": {
       "post": {
-        "operationId": "liwan_appointments_payments.BookingPaymentController.create_booking_payment_link.post",
+        "operationId": "liwan_appointments.BookingPaymentController.create_booking_payment_link.post",
         "parameters": [
           {
             "in": "path",
@@ -111625,10 +111625,10 @@
         ],
         "summary": "The pay-page path of the booking's online order, for the staff who booked it to send to the customer.",
         "tags": [
-          "liwan_appointments_payments"
+          "liwan_appointments"
         ],
         "x-liwan": {
-          "addon": "liwan_appointments_payments",
+          "addon": "liwan_appointments",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -112775,7 +112775,7 @@
     },
     "/api/v1/appointments/types/{type_id}/payment": {
       "get": {
-        "operationId": "liwan_appointments_payments.BookingPaymentController.get_type_payment.get",
+        "operationId": "liwan_appointments.BookingPaymentController.get_type_payment.get",
         "parameters": [
           {
             "in": "path",
@@ -112807,10 +112807,10 @@
         ],
         "summary": "get_type_payment",
         "tags": [
-          "liwan_appointments_payments"
+          "liwan_appointments"
         ],
         "x-liwan": {
-          "addon": "liwan_appointments_payments",
+          "addon": "liwan_appointments",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -112826,7 +112826,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_appointments_payments.BookingPaymentController.patch_type_payment.patch",
+        "operationId": "liwan_appointments.BookingPaymentController.patch_type_payment.patch",
         "parameters": [
           {
             "in": "path",
@@ -112858,10 +112858,10 @@
         ],
         "summary": "patch_type_payment",
         "tags": [
-          "liwan_appointments_payments"
+          "liwan_appointments"
         ],
         "x-liwan": {
-          "addon": "liwan_appointments_payments",
+          "addon": "liwan_appointments",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -116940,7 +116940,7 @@
     },
     "/api/v1/document-contexts/employee/{subject_id}/{document_id}/employee-access": {
       "post": {
-        "operationId": "liwan_documents_hr.EmployeeContextAccess.share_context_document.post",
+        "operationId": "liwan_hr.EmployeeContextAccess.share_context_document.post",
         "parameters": [
           {
             "in": "path",
@@ -116980,10 +116980,10 @@
         ],
         "summary": "share_context_document",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -118073,7 +118073,7 @@
     },
     "/api/v1/documents/employee/me": {
       "get": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.list_own_documents.get",
+        "operationId": "liwan_hr.EmployeeDocuments.list_own_documents.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -118092,10 +118092,10 @@
         ],
         "summary": "list_own_documents",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -118113,7 +118113,7 @@
     },
     "/api/v1/documents/employee/me/{document_id}": {
       "get": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.get_own_document.get",
+        "operationId": "liwan_hr.EmployeeDocuments.get_own_document.get",
         "parameters": [
           {
             "in": "path",
@@ -118145,10 +118145,10 @@
         ],
         "summary": "get_own_document",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -118166,7 +118166,7 @@
     },
     "/api/v1/documents/employee/me/{document_id}/files": {
       "get": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.list_own_document_files.get",
+        "operationId": "liwan_hr.EmployeeDocuments.list_own_document_files.get",
         "parameters": [
           {
             "in": "path",
@@ -118198,10 +118198,10 @@
         ],
         "summary": "list_own_document_files",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -118219,7 +118219,7 @@
     },
     "/api/v1/documents/employee/me/{document_id}/files/{file_id}/download": {
       "get": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.download_own_document_file.get",
+        "operationId": "liwan_hr.EmployeeDocuments.download_own_document_file.get",
         "parameters": [
           {
             "in": "path",
@@ -118259,10 +118259,10 @@
         ],
         "summary": "download_own_document_file",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "contract_namespace": "documents",
@@ -118277,7 +118277,7 @@
         }
       },
       "head": {
-        "operationId": "liwan_documents_hr.EmployeeDocuments.download_own_document_file.head",
+        "operationId": "liwan_hr.EmployeeDocuments.download_own_document_file.head",
         "parameters": [
           {
             "in": "path",
@@ -118317,10 +118317,10 @@
         ],
         "summary": "download_own_document_file",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "contract_namespace": "documents",
@@ -118662,7 +118662,7 @@
     },
     "/api/v1/documents/{document_id}/employee-access": {
       "post": {
-        "operationId": "liwan_documents_hr.EmployeeDocumentAccess.share_with_employee.post",
+        "operationId": "liwan_hr.EmployeeDocumentAccess.share_with_employee.post",
         "parameters": [
           {
             "in": "path",
@@ -118694,10 +118694,10 @@
         ],
         "summary": "The explicit choice made when a document is linked to an employee: let the employee read it.",
         "tags": [
-          "liwan_documents_hr"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_documents_hr",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -128583,7 +128583,7 @@
     },
     "/api/v1/hr/leave/approval-process": {
       "delete": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.archive_process.delete",
+        "operationId": "liwan_hr.HrLeaveApprovalController.archive_process.delete",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -128602,10 +128602,10 @@
         ],
         "summary": "archive_process",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -128621,7 +128621,7 @@
         }
       },
       "get": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.get_approval_process.get",
+        "operationId": "liwan_hr.HrLeaveApprovalController.get_approval_process.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -128640,10 +128640,10 @@
         ],
         "summary": "get_approval_process",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -128661,7 +128661,7 @@
     },
     "/api/v1/hr/leave/approval-process/default": {
       "post": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.create_default_process.post",
+        "operationId": "liwan_hr.HrLeaveApprovalController.create_default_process.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -128680,10 +128680,10 @@
         ],
         "summary": "create_default_process",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -128701,7 +128701,7 @@
     },
     "/api/v1/hr/leave/approval-process/editor": {
       "get": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.approval_editor.get",
+        "operationId": "liwan_hr.HrLeaveApprovalController.approval_editor.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -128720,10 +128720,10 @@
         ],
         "summary": "approval_editor",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -128739,7 +128739,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.save_approval_editor.patch",
+        "operationId": "liwan_hr.HrLeaveApprovalController.save_approval_editor.patch",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -128758,10 +128758,10 @@
         ],
         "summary": "save_approval_editor",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -128779,7 +128779,7 @@
     },
     "/api/v1/hr/leave/approval-process/editor/resolvers": {
       "get": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.approval_edit_resolvers.get",
+        "operationId": "liwan_hr.HrLeaveApprovalController.approval_edit_resolvers.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -128798,10 +128798,10 @@
         ],
         "summary": "approval_edit_resolvers",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -129043,7 +129043,7 @@
     },
     "/api/v1/hr/leave/requests/{leave_id}/approval": {
       "get": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.get_approval.get",
+        "operationId": "liwan_hr.HrLeaveApprovalController.get_approval.get",
         "parameters": [
           {
             "in": "path",
@@ -129075,10 +129075,10 @@
         ],
         "summary": "get_approval",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -129094,7 +129094,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_hr_operations.HrLeaveApprovalController.decide_approval.post",
+        "operationId": "liwan_hr.HrLeaveApprovalController.decide_approval.post",
         "parameters": [
           {
             "in": "path",
@@ -129126,10 +129126,10 @@
         ],
         "summary": "decide_approval",
         "tags": [
-          "liwan_hr_operations"
+          "liwan_hr"
         ],
         "x-liwan": {
-          "addon": "liwan_hr_operations",
+          "addon": "liwan_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136265,7 +136265,7 @@
     },
     "/api/v1/inbox/catalog-items/{item_id}": {
       "delete": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.delete_item.delete",
+        "operationId": "liwan_inbox.CatalogItemController.delete_item.delete",
         "parameters": [
           {
             "in": "path",
@@ -136297,10 +136297,10 @@
         ],
         "summary": "delete_item",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136317,7 +136317,7 @@
         }
       },
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.read_item.get",
+        "operationId": "liwan_inbox.CatalogItemController.read_item.get",
         "parameters": [
           {
             "in": "path",
@@ -136349,10 +136349,10 @@
         ],
         "summary": "read_item",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136369,7 +136369,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.patch_item.patch",
+        "operationId": "liwan_inbox.CatalogItemController.patch_item.patch",
         "parameters": [
           {
             "in": "path",
@@ -136401,10 +136401,10 @@
         ],
         "summary": "patch_item",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136423,7 +136423,7 @@
     },
     "/api/v1/inbox/catalogs": {
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogController.list_catalogs.get",
+        "operationId": "liwan_inbox.CatalogController.list_catalogs.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -136442,10 +136442,10 @@
         ],
         "summary": "list_catalogs",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136462,7 +136462,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_inbox_payments.CatalogController.create_catalog.post",
+        "operationId": "liwan_inbox.CatalogController.create_catalog.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -136481,10 +136481,10 @@
         ],
         "summary": "create_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136503,7 +136503,7 @@
     },
     "/api/v1/inbox/catalogs/{catalog_id}": {
       "delete": {
-        "operationId": "liwan_inbox_payments.CatalogController.delete_catalog.delete",
+        "operationId": "liwan_inbox.CatalogController.delete_catalog.delete",
         "parameters": [
           {
             "in": "path",
@@ -136535,10 +136535,10 @@
         ],
         "summary": "delete_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136555,7 +136555,7 @@
         }
       },
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogController.read_catalog.get",
+        "operationId": "liwan_inbox.CatalogController.read_catalog.get",
         "parameters": [
           {
             "in": "path",
@@ -136587,10 +136587,10 @@
         ],
         "summary": "read_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136607,7 +136607,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_inbox_payments.CatalogController.patch_catalog.patch",
+        "operationId": "liwan_inbox.CatalogController.patch_catalog.patch",
         "parameters": [
           {
             "in": "path",
@@ -136639,10 +136639,10 @@
         ],
         "summary": "patch_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136661,7 +136661,7 @@
     },
     "/api/v1/inbox/catalogs/{catalog_id}/items": {
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.list_items.get",
+        "operationId": "liwan_inbox.CatalogItemController.list_items.get",
         "parameters": [
           {
             "in": "path",
@@ -136693,10 +136693,10 @@
         ],
         "summary": "list_items",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136713,7 +136713,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.create_item.post",
+        "operationId": "liwan_inbox.CatalogItemController.create_item.post",
         "parameters": [
           {
             "in": "path",
@@ -136745,10 +136745,10 @@
         ],
         "summary": "create_item",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -136767,7 +136767,7 @@
     },
     "/api/v1/inbox/catalogs/{catalog_id}/sync": {
       "post": {
-        "operationId": "liwan_inbox_payments.CatalogController.sync_catalog.post",
+        "operationId": "liwan_inbox.CatalogController.sync_catalog.post",
         "parameters": [
           {
             "in": "path",
@@ -136799,10 +136799,10 @@
         ],
         "summary": "sync_catalog",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -137347,7 +137347,7 @@
     },
     "/api/v1/inbox/channels/{channel_id}/commerce": {
       "get": {
-        "operationId": "liwan_inbox_payments.ChannelCommerceController.read_commerce.get",
+        "operationId": "liwan_inbox.ChannelCommerceController.read_commerce.get",
         "parameters": [
           {
             "in": "path",
@@ -137379,10 +137379,10 @@
         ],
         "summary": "The channel's catalog and Meta's cart and catalog button settings (refreshed by a catalog manager when stale).",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -137399,7 +137399,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_inbox_payments.ChannelCommerceController.patch_commerce.patch",
+        "operationId": "liwan_inbox.ChannelCommerceController.patch_commerce.patch",
         "parameters": [
           {
             "in": "path",
@@ -137431,10 +137431,10 @@
         ],
         "summary": "Switch the cart and the catalog button at Meta first; nothing is kept when Meta refuses.",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -139338,7 +139338,7 @@
     },
     "/api/v1/inbox/conversations/{conversation_id}/catalog-items": {
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogItemController.pick_items.get",
+        "operationId": "liwan_inbox.CatalogItemController.pick_items.get",
         "parameters": [
           {
             "in": "path",
@@ -139370,10 +139370,10 @@
         ],
         "summary": "What the composer's product picker lists: the listed, synced, not rejected items of the conversation's catalog.",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -139603,7 +139603,7 @@
     },
     "/api/v1/inbox/conversations/{conversation_id}/orders": {
       "get": {
-        "operationId": "liwan_inbox_payments.OrderController.list_conversation_orders.get",
+        "operationId": "liwan_inbox.OrderController.list_conversation_orders.get",
         "parameters": [
           {
             "in": "path",
@@ -139635,10 +139635,10 @@
         ],
         "summary": "list_conversation_orders",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -139655,7 +139655,7 @@
         }
       },
       "post": {
-        "operationId": "liwan_inbox_payments.OrderController.create_order.post",
+        "operationId": "liwan_inbox.OrderController.create_order.post",
         "parameters": [
           {
             "in": "path",
@@ -139687,10 +139687,10 @@
         ],
         "summary": "create_order",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -140909,7 +140909,7 @@
     },
     "/api/v1/inbox/orders": {
       "get": {
-        "operationId": "liwan_inbox_payments.OrderController.list_orders.get",
+        "operationId": "liwan_inbox.OrderController.list_orders.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -140928,10 +140928,10 @@
         ],
         "summary": "list_orders",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -140950,7 +140950,7 @@
     },
     "/api/v1/inbox/orders/{order_id}": {
       "get": {
-        "operationId": "liwan_inbox_payments.OrderController.read_order.get",
+        "operationId": "liwan_inbox.OrderController.read_order.get",
         "parameters": [
           {
             "in": "path",
@@ -140982,10 +140982,10 @@
         ],
         "summary": "read_order",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -141002,7 +141002,7 @@
         }
       },
       "patch": {
-        "operationId": "liwan_inbox_payments.OrderController.patch_order.patch",
+        "operationId": "liwan_inbox.OrderController.patch_order.patch",
         "parameters": [
           {
             "in": "path",
@@ -141034,10 +141034,10 @@
         ],
         "summary": "patch_order",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -141056,7 +141056,7 @@
     },
     "/api/v1/inbox/orders/{order_id}/cancel": {
       "post": {
-        "operationId": "liwan_inbox_payments.OrderController.cancel_order.post",
+        "operationId": "liwan_inbox.OrderController.cancel_order.post",
         "parameters": [
           {
             "in": "path",
@@ -141088,10 +141088,10 @@
         ],
         "summary": "cancel_order",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -141110,7 +141110,7 @@
     },
     "/api/v1/inbox/orders/{order_id}/checkout": {
       "post": {
-        "operationId": "liwan_inbox_payments.OrderController.checkout_order.post",
+        "operationId": "liwan_inbox.OrderController.checkout_order.post",
         "parameters": [
           {
             "in": "path",
@@ -141142,10 +141142,10 @@
         ],
         "summary": "Create the online order (once) for the contact's customer and send its pay link; everything is undone when",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -151750,7 +151750,7 @@
     },
     "/api/v1/public/inbox/catalog/images/{item_id}/{token}": {
       "get": {
-        "operationId": "liwan_inbox_payments.CatalogImageController.product_image.get",
+        "operationId": "liwan_inbox.CatalogImageController.product_image.get",
         "parameters": [
           {
             "in": "path",
@@ -151777,10 +151777,10 @@
         "security": [],
         "summary": "The image of a listed catalog item, JPEG or PNG; an unknown or unlisted item and a wrong token answer the same 404.",
         "tags": [
-          "liwan_inbox_payments"
+          "liwan_inbox"
         ],
         "x-liwan": {
-          "addon": "liwan_inbox_payments",
+          "addon": "liwan_inbox",
           "api_handler": false,
           "auth": "public",
           "contract_namespace": null,
@@ -153825,25 +153825,20 @@
     }
   ],
   "tags": [
-    "liwan_access_hr",
+    "liwan_hr",
     "liwan_ai",
     "liwan_api",
     "liwan_api_account",
     "liwan_appointments",
-    "liwan_appointments_payments",
     "liwan_chat",
     "liwan_crm",
     "liwan_customers",
     "liwan_directory",
     "liwan_document_service",
     "liwan_documents",
-    "liwan_documents_hr",
     "liwan_finance",
-    "liwan_hr",
     "liwan_hr_finance",
-    "liwan_hr_operations",
     "liwan_inbox",
-    "liwan_inbox_payments",
     "liwan_integrations_sa",
     "liwan_meetings",
     "liwan_meetings_pmo",

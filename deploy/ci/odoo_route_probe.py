@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Call the parameterless GET /api/v1 routes of some modules on a scratch database; run inside `odoo-bin shell`.
 
-    LIWAN_PROBE_ANSWER=liwan_hr [LIWAN_PROBE_ALSO_ANSWER=liwan_documents_hr] [LIWAN_PROBE_OFF=liwan_documents] \
-      [LIWAN_PROBE_CALM=liwan_documents_hr] \
+    LIWAN_PROBE_ANSWER=liwan_hr [LIWAN_PROBE_ALSO_ANSWER=liwan_pmo] [LIWAN_PROBE_OFF=liwan_documents] \
+      [LIWAN_PROBE_CALM=liwan_pmo] \
       odoo-bin shell -d <scratch db> ... < deploy/ci/odoo_route_probe.py
 
 Every boolean feature of the installed modules is switched on (reads and writes), then every feature owned

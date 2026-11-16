@@ -259,7 +259,7 @@ export const HrLeaveListSchema = z.object({ items: z.array(HrLeaveSchema), total
 export const HrLeaveBalanceListSchema = z.object({ items: z.array(HrLeaveBalanceSchema), total: z.number().int().nonnegative() }).strict()
 export const HrLeaveAllocationListSchema = z.object({ items: z.array(HrLeaveAllocationSchema), total: z.number().int().nonnegative() }).strict()
 
-// Leave approval runs on the operations workflow engine (bridge liwan_hr_operations); these are its HR-side shapes.
+// Leave approval runs on the operations workflow engine (inside liwan_hr); these are its HR-side shapes.
 export const HrLeaveApprovalSchema = z.object({
   request_id: z.number().int().positive(),
   state: z.enum(['draft', 'pending', 'returned', 'rejected', 'withdrawn', 'done']),

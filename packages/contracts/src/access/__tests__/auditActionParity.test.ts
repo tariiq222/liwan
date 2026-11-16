@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { AuditActionSchema } from '../access'
 
 const REPO = fileURLToPath(new URL('../../../../../', import.meta.url))
-const ADDONS = ['liwan_core', 'liwan_api', 'liwan_access_hr']
+const ADDONS = ['liwan_core', 'liwan_api', 'liwan_hr']
 /** The call that writes an access-log entry, and the company helper that forwards its first argument to it. */
 const LOG_CALL = /_liwan_log(?:_company_change)?\(/g
 const ACTION_LITERAL = /'([a-z_]+\.[a-z_]+)'/g

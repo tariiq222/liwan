@@ -192,8 +192,3 @@ class LiwanInboxChannel(models.Model):
         for purpose, content in (('welcome', welcome), ('away', away)):
             if content and not self._liwan_auto_message(purpose):
                 self._liwan_set_auto_message(purpose, content)
-
-    def _liwan_catalog_id(self):
-        """The Meta catalog id this channel's WhatsApp account sells from; none without a product catalog (hook)."""
-        self.ensure_one()
-        return False

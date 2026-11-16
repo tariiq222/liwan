@@ -343,7 +343,14 @@ class LiwanHrEmployee(models.Model):
         return {'code': code, 'message': message, 'details': {'employee_ids': employees.ids, **details}}
 
     def _liwan_before_archive(self):
-        """Extension point run inside the archive savepoint, before the rows are deactivated."""
+        """Run inside the archive savepoint, before the rows are deactivated: disable the linked accounts."""
+        service = self.env['liwan.access.service']
+        for employee in self.filtered('user_id'):
+            service._liwan_disable_employee_account(
+                employee.id,
+                employee.user_id.id,
+                service._liwan_user_version(employee.user_id),
+            )
 
     def _liwan_assert_lifecycle_writable(self, vals):
         """Employee SQL writes (archive, account link) skip the ORM write fence; apply it to both rows they change."""

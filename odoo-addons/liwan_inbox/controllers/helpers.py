@@ -129,3 +129,27 @@ def visible_message(message_id):
 
 def no_content():
     return request.make_json_response('', status=204)
+
+
+def whatsapp_channel(channel_id, *capabilities):
+    """The channel the caller reaches with one of `capabilities`; 422 when it is not a WhatsApp one.
+
+    A catalog, a catalog item and an order are WhatsApp commerce: none of them can be reached through a TikTok channel.
+    """
+    channel = get_channel(channel_id, *capabilities)
+    require_kind(channel, 'whatsapp')
+    return channel
+
+
+def whatsapp_conversation(conversation_id):
+    """The conversation the caller may see; 422 when its channel is not a WhatsApp one."""
+    conversation = visible_conversation(conversation_id)
+    require_kind(conversation.channel_id, 'whatsapp')
+    return conversation
+
+
+def require_whatsapp_catalog(catalog):
+    """Refuse a catalog whose WhatsApp account resolves to a channel of another kind."""
+    for channel in catalog._liwan_channels():
+        require_kind(channel, 'whatsapp')
+    return catalog

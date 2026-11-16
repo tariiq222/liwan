@@ -233,7 +233,7 @@
       "no_capability_reason": null
     },
     "DELETE /api/v1/hr/leave/approval-process": {
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "hr.leave.config"
@@ -351,7 +351,7 @@
       "no_capability_reason": null
     },
     "DELETE /api/v1/inbox/catalog-items/{item_id}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -366,7 +366,7 @@
       "no_capability_reason": null
     },
     "DELETE /api/v1/inbox/catalogs/{catalog_id}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -788,7 +788,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/admin/employee-accounts/candidates": {
-      "addon": "liwan_access_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "access.users.grant"
@@ -1085,7 +1085,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/appointments/bookings/{booking_id}/payment": {
-      "addon": "liwan_appointments_payments",
+      "addon": "liwan_appointments",
       "auth": "user",
       "capability_keys": [
         "appointments.bookings.read"
@@ -1199,7 +1199,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/appointments/types/{type_id}/payment": {
-      "addon": "liwan_appointments_payments",
+      "addon": "liwan_appointments",
       "auth": "user",
       "capability_keys": [
         "appointments.bookings.read"
@@ -1780,7 +1780,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/documents/employee/me": {
-      "addon": "liwan_documents_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "documents.items.read",
@@ -1795,7 +1795,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/documents/employee/me/{document_id}": {
-      "addon": "liwan_documents_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "documents.items.read",
@@ -1810,7 +1810,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/documents/employee/me/{document_id}/files": {
-      "addon": "liwan_documents_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "documents.items.read",
@@ -1825,7 +1825,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/documents/employee/me/{document_id}/files/{file_id}/download": {
-      "addon": "liwan_documents_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "documents.items.read",
@@ -3063,7 +3063,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/hr/leave/approval-process": {
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "hr.leave.config"
@@ -3077,7 +3077,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/hr/leave/approval-process/editor": {
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "hr.leave.config"
@@ -3091,7 +3091,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/hr/leave/approval-process/editor/resolvers": {
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "hr.leave.config"
@@ -3161,7 +3161,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/hr/leave/requests/{leave_id}/approval": {
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "hr.leave.read"
@@ -4180,7 +4180,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/catalog-items/{item_id}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -4195,7 +4195,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/catalogs": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -4210,7 +4210,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/catalogs/{catalog_id}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -4225,7 +4225,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/catalogs/{catalog_id}/items": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -4327,7 +4327,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/channels/{channel_id}/commerce": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.conversations.reply"
@@ -4540,7 +4540,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/conversations/{conversation_id}/catalog-items": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.conversations.reply"
@@ -4584,7 +4584,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/conversations/{conversation_id}/orders": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.conversations.read"
@@ -4706,7 +4706,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/orders": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.conversations.read"
@@ -4721,7 +4721,7 @@
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/orders/{order_id}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.conversations.read"
@@ -5929,7 +5929,7 @@
       "no_capability_reason": "Invited requester of one booking under /api/v1/public/ (auth='public', no session): the booking's access token, compared in constant time by liwan.appointment.guest, is the authorization; no capability applies."
     },
     "GET /api/v1/public/inbox/catalog/images/{item_id}/{token}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "public",
       "capability_keys": [],
       "capability_match": null,
@@ -6242,7 +6242,7 @@
       "no_capability_reason": null
     },
     "HEAD /api/v1/documents/employee/me/{document_id}/files/{file_id}/download": {
-      "addon": "liwan_documents_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "documents.items.read",
@@ -6561,7 +6561,7 @@
       "no_capability_reason": null
     },
     "PATCH /api/v1/appointments/types/{type_id}/payment": {
-      "addon": "liwan_appointments_payments",
+      "addon": "liwan_appointments",
       "auth": "user",
       "capability_keys": [
         "appointments.bookings.manage"
@@ -7150,7 +7150,7 @@
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/leave/approval-process/editor": {
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "hr.leave.config"
@@ -7464,7 +7464,7 @@
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/catalog-items/{item_id}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -7479,7 +7479,7 @@
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/catalogs/{catalog_id}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -7523,7 +7523,7 @@
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/channels/{channel_id}/commerce": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -7655,7 +7655,7 @@
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/orders/{order_id}": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.orders.manage"
@@ -8148,7 +8148,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/admin/employee-accounts": {
-      "addon": "liwan_access_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "access.users.grant"
@@ -8536,7 +8536,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/appointments/bookings/{booking_id}/payment/link": {
-      "addon": "liwan_appointments_payments",
+      "addon": "liwan_appointments",
       "auth": "user",
       "capability_keys": [
         "appointments.bookings.write"
@@ -9198,7 +9198,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/document-contexts/employee/{subject_id}/{document_id}/employee-access": {
-      "addon": "liwan_documents_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "documents.access.manage",
@@ -9305,7 +9305,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/documents/{document_id}/employee-access": {
-      "addon": "liwan_documents_hr",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "documents.access.manage",
@@ -10558,7 +10558,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/hr/leave/approval-process/default": {
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "hr.leave.config"
@@ -10586,7 +10586,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/hr/leave/requests/{leave_id}/approval": {
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
         "operations.requests.read",
@@ -11378,7 +11378,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/catalogs": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -11393,7 +11393,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/catalogs/{catalog_id}/items": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -11408,7 +11408,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/catalogs/{catalog_id}/sync": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.catalog.manage"
@@ -11704,7 +11704,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/conversations/{conversation_id}/orders": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.orders.manage"
@@ -11886,7 +11886,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/orders/{order_id}/cancel": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.orders.manage"
@@ -11901,7 +11901,7 @@
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/orders/{order_id}/checkout": {
-      "addon": "liwan_inbox_payments",
+      "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
         "inbox.orders.manage"

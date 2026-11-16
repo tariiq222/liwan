@@ -286,7 +286,7 @@ class TestSalesFences(SalesWriteCase):
 
     def test_the_moves_of_a_staff_order_touch_no_inbox_order(self):
         if 'liwan.inbox.order' not in self.env:
-            self.skipTest('liwan_inbox_payments is not installed in this run: no inbox order model exists')
+            self.skipTest('liwan_inbox is not installed in this run: no inbox order model exists')
         models = ('liwan.inbox.order', 'liwan.inbox.order.line')
         before = {model: self.snapshot(model) for model in models}
         order_id = self.post(self.agent, self.body())['id']
@@ -296,7 +296,7 @@ class TestSalesFences(SalesWriteCase):
 
     def test_the_moves_of_a_staff_order_touch_no_booking(self):
         if 'resource.booking' not in self.env:
-            self.skipTest('liwan_appointments_payments is not installed in this run: no booking model exists')
+            self.skipTest('liwan_appointments is not installed in this run: no booking model exists')
         before = self.snapshot('resource.booking')
         order_id = self.post(self.agent, self.body())['id']
         for action in ('confirm', 'cancel', 'reopen'):

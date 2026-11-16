@@ -8,6 +8,7 @@ from . import (
     feature_registry,
     guest_limit,
     guest_service,
+    product_template,
     products_service,
     res_company,
     resource_booking,

@@ -818,7 +818,7 @@
     },
     {
       "name": "hr/leave-approval",
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/leave/requests/{id}/approval",
       "status": 200,
@@ -826,7 +826,7 @@
     },
     {
       "name": "hr/leave-approval-process",
-      "addon": "liwan_hr_operations",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/leave/approval-process",
       "status": 200,

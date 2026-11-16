@@ -135,7 +135,7 @@ No production deployment or DNS cutover is implied by this repository.
   `liwan_tasks_pmo` bridging personal-task creation when both are installed;
   `liwan_meetings` owns meetings, series and minutes, and `liwan_meetings_pmo` links them to projects and tasks;
   `liwan_finance`, `liwan_documents`, `liwan_operations` and `liwan_hr` own
-  their corresponding application APIs and capabilities; `liwan_documents_hr`
+  their corresponding application APIs and capabilities; `liwan_hr` also
   connects the document library to HR department and own-employee contexts.
 - `deploy` contains per-customer provisioning and reverse-proxy templates.
 

@@ -36,6 +36,10 @@ addon محذوف من الشجرة يترك في قاعدة مثبّتة ساب�
    بياناته xml id مسلَّمًا ويحدّث السجل بدل إنشاء سجل ثانٍ. الدالة idempotent، وترفض إن كان `target` يملك الاسم من قبل.
    مثال 19.0.1.5.0 من `liwan_api`: سلّم `liwan_ai.group_ai_indexer` لنفسه في `pre`، وتسلّم `liwan_crm` و`liwan_tasks`
    صفوف ACL من جسريهما في `pre` كل منهما، ثم نسي ترحيل `end` في `liwan_api` الجسور بعد تحديث كل الوحدات.
+   مثال 19.0.1.6.0 من `liwan_api`: دُمجت جسور `liwan_access_hr` و`liwan_documents_hr` و`liwan_hr_operations` في `liwan_hr`
+   (19.0.1.22.0) وجسر `liwan_documents_pmo` في `liwan_pmo` (19.0.1.14.0)
+   وجسر `liwan_inbox_payments` في `liwan_inbox` وجسر `liwan_appointments_payments` في `liwan_appointments`، وتسلّم
+   التطبيقات xml ids الجسور في ترحيل `pre` ثم نسي ترحيل `end` في `liwan_api` الجسور الستة.
    صفوف `ir.model` و`ir.model.fields` وما يشبهها التي يكتبها Odoo لـaddon يوسّع موديلات فقط لا تمنع.
    القاعدة العامة: بعد تسليم xml id تُرقّى الوحدة المالكة الجديدة مع الوحدات التي تشير إليه. مثلًا نُقلت مجموعة فهرسة الـAI
    إلى `liwan_api` (19.0.1.5.0) وملفات ACL في التطبيقات تشير إلى `liwan_api.group_ai_indexer`، فقاعدة أقدم من هذا الإصدار

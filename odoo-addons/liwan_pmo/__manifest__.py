@@ -2,7 +2,7 @@
 {
     'name': 'liwan PMO',
     'summary': 'liwan platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages)',
-    'version': '19.0.1.13.0',
+    'version': '19.0.1.14.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -19,8 +19,9 @@
     # liwan_pmo owns the pmo.* capabilities, their groups and the pmo_manager role
     # (spec R2). Meetings are liwan_meetings'; their links to projects and tasks
     # are the bridge liwan_meetings_pmo's.
+    # liwan_document_service: the managed-document contexts a project adds to it.
     'depends': [
-        'liwan_api', 'liwan_platform', 'liwan_directory', 'liwan_notify',
+        'liwan_api', 'liwan_platform', 'liwan_directory', 'liwan_notify', 'liwan_document_service',
         'project', 'mail', 'bus',
     ],
     'data': [

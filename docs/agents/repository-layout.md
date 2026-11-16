@@ -20,9 +20,8 @@ limits describe implementation stages, not permanent product exclusions.
 
 The authoritative addon list and ranks (0-2 foundation, 3 shared service, 4 application, 5 bridge,
 6 customer overlay) are in `tools/arch_layers.json`; the entries below describe ownership, not the
-complete list. Applications without an entry below: `liwan_finance` (Finance, `/api/v1/finance`),
-`liwan_appointments` (Appointments, `/api/v1/appointments`) and `liwan_inbox` (Customer Messages,
-WhatsApp, `/api/v1/inbox`); the shared service `liwan_payments` (online payments through the
+complete list. Application without an entry below: `liwan_finance` (Finance, `/api/v1/finance`); the shared
+service `liwan_payments` (online payments through the
 tenant's own gateway account, `/api/v1/payments`). The AI registries live in `liwan_api`, and each
 application declares its AI agent and tools in its own addon (see `liwan_ai` below).
 
@@ -111,14 +110,24 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
 - `odoo-addons/liwan_pmo` owns projects, tasks, timelines, project settings,
   attachments, dependencies, archive/restore, its task and digest notification
   kinds, producers and `/api/v1/notification-digests`, and the `pmo.*`
-  capabilities, their groups and the `pmo_manager` role. It does not depend on
-  the meeting engine.
+  capabilities, their groups and the `pmo_manager` role. It also owns the project
+  documents context of `/api/v1/document-contexts` over `liwan_document_service`. It
+  does not depend on the meeting engine.
 - `odoo-addons/liwan_ai_notify` (bridge, rank 5, `auto_install` on `liwan_ai` and `liwan_notify`) tells the AI
   settings managers in the bell when AI usage reaches 80% of a limit.
 - `odoo-addons/liwan_hr` owns the HR directory, departments, HR-specific
   serializers/controllers, `/api/v1/hr/*` (employee ids are
   `hr.employee` ids), and the `hr.*` capabilities, their groups and the
-  `hr_manager` role.
+  `hr_manager` role. It also owns the user-to-employee link: granting an account from an employee
+  (`/api/v1/admin/employee-accounts`, `.../candidates`), the `department_id` user filter, the `employee`
+  field of the admin user shape, the archived-employee reactivation refusal and disabling the linked
+  account when an employee is archived (the foundation account routes `/api/v1/admin/users` know no HR);
+  the employee and department documents context of `/api/v1/document-contexts` over
+  `liwan_document_service`; and leave approval on the central workflow of `liwan_approval_service`.
+  Leave routes check the HR feature and the acting user's rights, review notifications link to the HR
+  leave record when the recipient can read it, archiving the published leave process stops new requests
+  entering it, open requests retain their submitted stage snapshots, and HR settings reuse the process
+  form to edit and republish the process.
 - `odoo-addons/liwan_crm` (application, rank 4) owns the CRM: opportunities, calls and follow-up over stock
   `crm` and OCA `crm_phonecall`, the `/api/v1/crm` routes, their serializers, `crm.enabled`, the `crm.*`
   capabilities and their groups, and the opportunity custom-field definition of the current company. It knows
@@ -141,10 +150,10 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
 - `odoo-addons/liwan_documents` (application, rank 4) owns the central library, its management role
   and its `/api/v1/documents` routes. The catalog lists the addon in `base_modules` for every
   installation. The central routes enforce tenant lifecycle and document permissions.
-  The `liwan_documents_hr` and `liwan_documents_pmo` bridges reuse the shared management routes
-  under `/api/v1/document-contexts`. HR authorizes the employee or department. PMO authorizes
-  the project and checks project management rights for writes. Company scope and document grants
-  apply in both contexts. HR also exposes an employee's granted documents in self-service.
+  `liwan_hr` and `liwan_pmo` reuse the shared management routes under `/api/v1/document-contexts`. HR
+  authorizes the employee or department. PMO authorizes the project and checks project management rights
+  for writes. Company scope and document grants apply in both contexts. HR also exposes an employee's
+  granted documents in self-service.
 - `odoo-addons/liwan_meetings` (application, rank 4) owns the meeting engine
   (`liwan.meeting.minute`, `liwan.meeting.resolution`; LGPL, vendored from Cyan,
   see `odoo-addons/liwan_meetings/PROVENANCE.md`) and the meeting,
@@ -159,11 +168,6 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   columns of meetings, series and recommendations, the task origin columns and
   their unique index, recommendation-to-task conversion and its route, and the
   project/task implementation of `liwan.meeting.links`.
-- `odoo-addons/liwan_access_hr` (bridge, rank 5, `auto_install`) is installed whenever `liwan_api`
-  and `liwan_hr` both are. It owns the user-to-employee link: granting an account from an employee
-  (`/api/v1/admin/employee-accounts`, `.../candidates`), the `department_id` user filter, the `employee`
-  field of the admin user shape, the archived-employee reactivation refusal and disabling the linked
-  account when an employee is archived. The foundation account routes (`/api/v1/admin/users`) know no HR.
 - `odoo-addons/liwan_tasks` (application, rank 4) owns personal tasks (a `project.task` without a
   project, with `liwan_parent_id` for sub-tasks), `/api/v1/my-tasks` (the unified list, CRUD,
   transitions, comments, attachments), `tasks.enabled`, the `tasks.*` capabilities, their
@@ -198,11 +202,6 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   request visibility.
 - `odoo-addons/liwan_operations_pmo` (bridge, rank 5, `auto_install`) adapts the central
   workflow to the existing designated-reviewer rule of project task completion.
-- `odoo-addons/liwan_hr_operations` (bridge, rank 5, `auto_install`) runs leave
-  approval from HR. Its routes check the HR feature and the acting user's rights. Review
-  notifications link to the HR leave record when the recipient can read it. Archiving the
-  published leave process stops new requests entering it. Open requests retain their submitted
-  stage snapshots. HR settings reuse the process form to edit and republish the process.
 - `odoo-addons/liwan_pmo_finance` (bridge, rank 5, `auto_install`) is installed whenever `liwan_pmo`
   and `liwan_finance` both are. While `finance.enabled` is on, a project's actual cost is the posted
   expense of its cost center (an analytic account linked by `liwan_project_id`) instead of manual
@@ -218,17 +217,18 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   (`.../payment`) and the monthly end-of-service provision (`/api/v1/hr/payroll/eos-provisions`). It answers the neutral
   `liwan.hr.payroll.finance.link` hooks of `liwan_hr` and runs in the caller's own environment through
   its own ACLs and record rules, with no `sudo()`.
-- `odoo-addons/liwan_appointments_payments` (bridge, rank 5, `auto_install` on `liwan_appointments` and the
-  shared service `liwan_payments`) brings OCA `sale_resource_booking` with it. It owns whether a booking
-  type takes online payment (in full or a deposit) and the product that sells it; a booking of a paying
-  type is held by an online order of `liwan.payments.service`, which the engine keeps `scheduled` until the
-  order is paid, then `confirmed`; an unpaid order that expires cancels the booking and frees its slot.
-- `odoo-addons/liwan_inbox_payments` (bridge, rank 5, `auto_install` on `liwan_inbox` and the shared service
-  `liwan_payments`) owns the link to the tenant's Meta commerce catalog (one per WhatsApp business account), the
-  catalog items and their push to Meta by cron, the public product image route Meta fetches from, a minimal editor
-  of catalog-made products, the implementations of the neutral commerce hooks of `liwan_inbox`, and the carts that
-  become online orders of `liwan.payments.service` (checkout, pay link, paid and cancelled notes). Feature
-  `inbox.catalog`; capabilities `inbox.catalog.manage` and `inbox.orders.manage`.
+- `odoo-addons/liwan_appointments` (Appointments, `/api/v1/appointments`, rank 4) depends on the shared service
+  `liwan_payments` and brings OCA `sale_resource_booking` with it. It owns whether a booking type takes online
+  payment (in full or a deposit) and the product that sells it; a booking of a paying type is held by an online
+  order of `liwan.payments.service`, which the engine keeps `scheduled` until the order is paid, then `confirmed`;
+  an unpaid order that expires cancels the booking and frees its slot.
+- `odoo-addons/liwan_inbox` (Customer Messages, WhatsApp and TikTok, `/api/v1/inbox`, rank 4) depends on the shared
+  service `liwan_payments` and stock `sale`. Besides the conversation workspace it owns the link to the tenant's
+  Meta commerce catalog (one per WhatsApp business account), the catalog items and their push to Meta by cron, the
+  public product image route Meta fetches from, a minimal editor of catalog-made products, the implementations of
+  the neutral commerce hooks, and the carts that become online orders of `liwan.payments.service` (checkout, pay
+  link, paid and cancelled notes). Feature `inbox.catalog`; capabilities `inbox.catalog.manage` and
+  `inbox.orders.manage`.
 - `odoo-addons/liwan_payments_customers` (bridge, rank 5, `auto_install` on the shared services `liwan_payments` and
   `liwan_customers`, which are both rank 3 and may not depend on each other) owns what online payments hold about a
   customer in the privacy export and erase: online orders and their lines (kept), payment transactions (the payer's

@@ -18,6 +18,9 @@
          the reply and assign capabilities, which test_campaigns_api.py proves a campaigns-only role does not hold. -->
     <record id="group_cap_inbox_campaigns_manage" model="res.groups"><field name="name">Capability: manage Customer Messages campaigns</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
     <record id="group_cap_inbox_reports_read" model="res.groups"><field name="name">Capability: read Customer Messages reports</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_inbox_catalog_manage" model="res.groups"><field name="name">Capability: manage Customer Messages product catalog</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <!-- Placing an order creates the contact's customer through liwan.customers.service, which writes parties only. -->
+    <record id="group_cap_inbox_orders_manage" model="res.groups"><field name="name">Capability: manage Customer Messages orders</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('liwan_customers.group_customers_party_writer'))]"/></record>
 
     <record id="group_inbox_manager" model="res.groups">
         <field name="name">Customer Messages Manager</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/>
@@ -26,7 +29,8 @@
             'group_cap_inbox_conversations_assign', 'group_cap_inbox_conversations_export',
             'group_cap_inbox_channels_manage', 'group_cap_inbox_templates_manage', 'group_cap_inbox_settings_manage',
             'group_cap_inbox_automation_manage', 'group_cap_inbox_flows_manage',
-            'group_cap_inbox_reports_read', 'group_cap_inbox_campaigns_manage')])]"/>
+            'group_cap_inbox_reports_read', 'group_cap_inbox_campaigns_manage',
+            'group_cap_inbox_catalog_manage', 'group_cap_inbox_orders_manage')])]"/>
     </record>
 
     <!-- The machine identity of the WhatsApp webhook (data/inbox_hook_user.xml). It reads channels

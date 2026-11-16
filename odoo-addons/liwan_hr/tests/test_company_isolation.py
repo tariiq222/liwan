@@ -52,8 +52,9 @@ CURRENT_COMPANY_ROUTES = {
     'insurance_enrollment': '/api/v1/hr/insurance/enrollments/{}',
 }
 
-# Every GET /api/v1 record, export or file route of liwan_hr, counted by the discovery test.
-EXPECTED_GET_RECORD_ROUTES = 27
+# Every GET /api/v1 record, export or file route of liwan_hr, counted by the discovery test: the pillar's own 27,
+# the own-employee document routes (3) and the leave approval route (1).
+EXPECTED_GET_RECORD_ROUTES = 31
 
 # The lists the pillar serves, with the fixture key whose id must be the only one.
 LISTS = (
