@@ -1,2 +1,2 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import resources, settings, sla, tickets
+from . import reports, resources, settings, sla, tickets

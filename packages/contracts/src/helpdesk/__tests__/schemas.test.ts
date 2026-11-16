@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HelpdeskResourcesSchema, HelpdeskSlaSaveSchema, HelpdeskSlaListSchema, HelpdeskTeamSaveSchema } from '..'
+import { HelpdeskReportSchema, HelpdeskResourcesSchema, HelpdeskSlaSaveSchema, HelpdeskSlaListSchema, HelpdeskTeamSaveSchema } from '..'
 import { HelpdeskSettingsSchema } from '../settings'
 import { HelpdeskTicketPageSchema, HelpdeskTicketSchema, HelpdeskTicketCreateSchema } from '..'
 
@@ -98,5 +98,22 @@ describe('helpdesk contracts', () => {
     expect(HelpdeskSlaSaveSchema.safeParse({ name: 'x', days: 1, hours: 0, stage_id: 7 }).success).toBe(true)
     expect(HelpdeskSlaSaveSchema.safeParse({ name: 'x', days: 0, hours: 24, stage_id: 7 }).success).toBe(false)
     expect(HelpdeskSlaSaveSchema.safeParse({ name: 'x', days: 1, hours: 0 }).success).toBe(false)
+  })
+
+  it('reads the report with its nullable measures', () => {
+    const report = {
+      period: 30,
+      periods: [{ value: '7', label: 'Last 7 days' }],
+      total: 2, open: 1, closed: 1,
+      kpis: {
+        first_response_hours: 1.5, first_response_target: 8, first_response_answered: 1,
+        resolution_hours: null, resolution_target: 72, sla_met: 0, sla_late: 0,
+        sla_compliance_percent: null, open_percent: 50,
+      },
+      agents: [{ name: 'Sara', open: 1, closed: 1, overdue: 0, first_response_hours: 1.5 }],
+      stages: [{ name: 'New', count: 1 }],
+    }
+    expect(HelpdeskReportSchema.parse(report).kpis.sla_compliance_percent).toBeNull()
+    expect(HelpdeskReportSchema.safeParse({ ...report, total: -1 }).success).toBe(false)
   })
 })

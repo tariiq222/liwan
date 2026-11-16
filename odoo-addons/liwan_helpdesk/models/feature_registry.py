@@ -2,7 +2,7 @@
 """The Support Desk features a plan carries.
 
 ``helpdesk.enabled`` installs the application and gates every route of it; ``helpdesk.merge`` gates the
-routes that fold one ticket into another. Every other area (SLA policies, ratings, automatic closing, the
+routes that fold one ticket into another, and ``helpdesk.reports`` the reports page. Every other area (SLA policies, ratings, automatic closing, the
 customer page, the email channel) registers its key with the pull request that first uses it, so the
 catalog never carries a switch nothing reads.
 """
@@ -23,6 +23,12 @@ class LiwanHelpdeskFeatureRegistry(models.AbstractModel):
             },
             {
                 'key': 'helpdesk.merge',
+                'type': 'boolean',
+                'owner': 'liwan_helpdesk',
+                'module': 'liwan_helpdesk',
+            },
+            {
+                'key': 'helpdesk.reports',
                 'type': 'boolean',
                 'owner': 'liwan_helpdesk',
                 'module': 'liwan_helpdesk',

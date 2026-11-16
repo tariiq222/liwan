@@ -13,7 +13,8 @@
     "unassigned": "Unassigned",
     "footer": "{shown} of {total} tickets",
     "nav": {
-      "tickets": "Tickets"
+      "tickets": "Tickets",
+      "reports": "Support reports"
     },
     "queue": {
       "label": "Queue",
@@ -225,6 +226,34 @@
       "search": "Search by number or subject",
       "submit": "Merge {count} tickets",
       "failed": "The merge could not be completed."
+    },
+    "reports": {
+      "title": "Support reports",
+      "subtitle": "First response and resolution time, service-level compliance and each agent’s load.",
+      "periodLabel": "Period",
+      "period": {
+        "7": "Last 7 days",
+        "30": "Last 30 days",
+        "90": "Last 90 days",
+        "365": "Last year"
+      },
+      "firstResponse": "First response",
+      "resolution": "Resolution",
+      "sla": "Service levels",
+      "open": "Open tickets",
+      "hours": "{count}h",
+      "target": "Target {count}h",
+      "noTarget": "No target set",
+      "slaHint": "{met} met, {late} late",
+      "totalHint": "of {total} tickets in the period",
+      "agents": "Agent workload",
+      "agent": "Agent",
+      "openShort": "Open",
+      "closedShort": "Closed",
+      "overdueShort": "Overdue",
+      "firstResponseShort": "First response",
+      "byStage": "Tickets by stage",
+      "empty": "No data in this period."
     }
   }
 }

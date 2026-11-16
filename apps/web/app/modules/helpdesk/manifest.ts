@@ -8,6 +8,7 @@ const READ = 'helpdesk.tickets.read'
 const WRITE = 'helpdesk.tickets.write'
 const REQUESTS_READ = 'helpdesk.requests.read'
 const REQUESTS_CREATE = 'helpdesk.requests.create'
+const REPORTS = 'helpdesk.reports.read'
 
 const manifest: AppManifest = {
   id: 'helpdesk',
@@ -19,6 +20,10 @@ const manifest: AppManifest = {
       to: '/helpdesk', labelKey: 'helpdesk.nav.tickets', icon: 'i-lucide-life-buoy', shortcut: '',
       capability: READ, anyCapabilities: [REQUESTS_READ],
     },
+    {
+      to: '/helpdesk/reports', labelKey: 'helpdesk.nav.reports', icon: 'i-lucide-chart-column', shortcut: '',
+      capability: REPORTS, feature: 'helpdesk.reports',
+    },
   ],
   settings: {
     id: 'helpdesk', labelKey: 'nav.helpdesk', icon: 'i-lucide-life-buoy', to: '/settings/apps/helpdesk',
@@ -28,11 +33,17 @@ const manifest: AppManifest = {
   },
   contextLinks: () => [
     { id: 'helpdesk-tickets', labelKey: 'helpdesk.nav.tickets', icon: 'i-lucide-life-buoy', to: '/helpdesk', capability: READ, anyCapabilities: [REQUESTS_READ] },
+    { id: 'helpdesk-reports', labelKey: 'helpdesk.nav.reports', icon: 'i-lucide-chart-column', to: '/helpdesk/reports', capability: REPORTS, feature: 'helpdesk.reports' },
   ],
   landing: [{ path: '/helpdesk', capability: READ }],
   // Merging needs both its capability and the merge sub-feature the server checks on the same route.
-  subFeatures: { 'helpdesk.tickets.merge': 'helpdesk.merge', 'helpdesk.tickets.merge.': 'helpdesk.merge' },
+  subFeatures: {
+    'helpdesk.tickets.merge': 'helpdesk.merge', 'helpdesk.tickets.merge.': 'helpdesk.merge',
+    'helpdesk.reports.': 'helpdesk.reports',
+  },
   routeCapabilities: [
+    // The reports have their own capability and sub-feature, matched before the generic helpdesk rule.
+    { pattern: /^\/helpdesk\/reports(?:\/|$)/, capability: REPORTS, feature: 'helpdesk.reports' },
     // The panel's form and the server both open a ticket for whoever may answer or ask.
     { pattern: /^\/helpdesk\/new$/, capability: REQUESTS_CREATE, anyCapabilities: [WRITE] },
     { pattern: /^\/helpdesk\/[^/]+\/edit$/, capability: WRITE },
@@ -42,6 +53,8 @@ const manifest: AppManifest = {
   commands: [
     { id: 'helpdesk.new', labelKey: 'helpdesk.new', icon: 'i-lucide-plus', to: '/helpdesk/new', capability: REQUESTS_CREATE },
   ],
+  // The tickets item is not lit on the reports page, which has its own entry.
+  isNavActive: (path, target) => (target === '/helpdesk' && /^\/helpdesk\/reports(?:\/|$)/.test(path) ? false : undefined),
   appCard: helpdeskAppCard,
   search: [
     {

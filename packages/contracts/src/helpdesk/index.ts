@@ -234,3 +234,34 @@ export const HelpdeskSlaSaveSchema = z.object({
 export type HelpdeskSlaPolicy = z.infer<typeof HelpdeskSlaPolicySchema>
 export type HelpdeskSlaList = z.infer<typeof HelpdeskSlaListSchema>
 export type HelpdeskSlaSave = z.infer<typeof HelpdeskSlaSaveSchema>
+
+// ---------------------------------------------------------------- reports
+
+export const HelpdeskReportSchema = z.object({
+  period: z.number().int().positive(),
+  periods: z.array(z.object({ value: z.string(), label: z.string() }).strict()),
+  total: z.number().int().nonnegative(),
+  open: z.number().int().nonnegative(),
+  closed: z.number().int().nonnegative(),
+  kpis: z.object({
+    first_response_hours: z.number().nullable(),
+    first_response_target: z.number().nullable(),
+    first_response_answered: z.number().int().nonnegative(),
+    resolution_hours: z.number().nullable(),
+    resolution_target: z.number().nullable(),
+    sla_met: z.number().int().nonnegative(),
+    sla_late: z.number().int().nonnegative(),
+    sla_compliance_percent: z.number().nullable(),
+    open_percent: z.number().nullable(),
+  }).strict(),
+  agents: z.array(z.object({
+    name: z.string(),
+    open: z.number().int().nonnegative(),
+    closed: z.number().int().nonnegative(),
+    overdue: z.number().int().nonnegative(),
+    first_response_hours: z.number().nullable(),
+  }).strict()),
+  stages: z.array(z.object({ name: z.string(), count: z.number().int().nonnegative() }).strict()),
+}).strict()
+
+export type HelpdeskReport = z.infer<typeof HelpdeskReportSchema>
