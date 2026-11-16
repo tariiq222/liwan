@@ -347,4 +347,14 @@ describe('personal pages follow the home company', () => {
     expect(canReachPath(employee, '/helpdesk/new')).toBe(true)
     expect(canReachPath(readerOnly, '/helpdesk/new')).toBe(false)
   })
+  it('keeps the plan and the read-only state above the desk keys', () => {
+    // The keys open the page only while the application is in the plan, and a request is a write: a read-only tenant
+    // still reads the queue and cannot open the form.
+    const desk = ['helpdesk.tickets.read', 'helpdesk.requests.read', 'helpdesk.requests.create']
+    const off = { id: 1, capabilities: desk, platform: { readable_features: [], writable_features: [] } } as never
+    const readOnly = { id: 2, capabilities: desk, platform: { readable_features: ['helpdesk.enabled'], writable_features: [] } } as never
+    expect(canReachPath(off, '/helpdesk')).toBe(false)
+    expect(canReachPath(readOnly, '/helpdesk')).toBe(true)
+    expect(canReachPath(readOnly, '/helpdesk/new')).toBe(false)
+  })
 })
