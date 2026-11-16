@@ -229,6 +229,13 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   `require_payment` and `prepayment_percent`, the `payment` of the staff and public wire shapes, the pay note of the
   e-mail, and the confirmation of the order by the payment through the Sales path. It defines no model; it reuses
   the pay page and the gateway of `liwan_payments`.
+- `odoo-addons/liwan_sales_crm` (bridge, rank 5, `auto_install` on `liwan_sales` and `liwan_crm`) owns the `liwan_lead_id`
+  link of a quotation to an opportunity, the routes that list and create the quotations of an opportunity
+  (`/api/v1/crm/opportunities/<id>/orders`), the win of the opportunity when one of its orders is confirmed (through the
+  one Sales confirm path, so staff, the customer's acceptance and a payment all reach it) and its two settings
+  `opportunity_win` and `opportunity_win_amount` on `liwan.sales.settings`. It defines no model; CRM carries the neutral
+  `crm.lead._liwan_win_with_amount`, `_liwan_win_by_order` and `_liwan_can_quote` points it uses (a package win is refused with 409
+  `crm_win_by_order` while an order wins).
 - `odoo-addons/liwan_inbox_payments` (bridge, rank 5, `auto_install` on `liwan_inbox` and the shared service
   `liwan_payments`) owns the link to the tenant's Meta commerce catalog (one per WhatsApp business account), the
   catalog items and their push to Meta by cron, the public product image route Meta fetches from, a minimal editor

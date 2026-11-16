@@ -212,6 +212,13 @@ class RealManifestClosureTest(unittest.TestCase):
             with self.subTest(alone=alone):
                 self.assertNotIn('liwan_sales_payments', module_closure.install_closure([ADDONS], BASE + [alone]))
 
+    def test_the_real_sales_crm_bridge_joins_only_with_sales_and_crm(self):
+        both = module_closure.install_closure([ADDONS], BASE + ['liwan_sales', 'liwan_crm'])
+        self.assertIn('liwan_sales_crm', both)
+        for alone in ('liwan_sales', 'liwan_crm'):
+            with self.subTest(alone=alone):
+                self.assertNotIn('liwan_sales_crm', module_closure.install_closure([ADDONS], BASE + [alone]))
+
     def test_the_real_inbox_payments_bridge_joins_only_with_inbox_and_payments(self):
         both = module_closure.install_closure([ADDONS], BASE + ['liwan_inbox', 'liwan_payments'])
         self.assertIn('liwan_inbox_payments', both)

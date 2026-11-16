@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { PersonRefSchema } from '../common/person'
+import { SalesCrmSettingsShape, SalesOrderOpportunitySchema } from './crm'
 import { SalesOrderPaymentSchema, SalesPaymentChoiceShape, SalesPaymentSettingsShape, SalesPublicPaymentSchema } from './payments'
 
+export * from './crm'
 export * from './payments'
 
 // liwan_sales: staff quotations and orders on sale.order, plus the online orders other channels made, read-only here.
@@ -108,6 +110,8 @@ export const SalesOrderSchema = z.object({
   resend_refused: z.boolean(),
   // How the quotation asks to be paid; present only with the payments bridge, null while the tenant cannot take payments.
   payment: SalesOrderPaymentSchema.nullable().optional(),
+  // The opportunity it was made from; present only with the CRM bridge, null for an order without one or one the caller cannot read in CRM.
+  opportunity: SalesOrderOpportunitySchema.nullable().optional(),
 }).strict()
 
 export const SalesOrderListSchema = z.object({
@@ -163,6 +167,9 @@ export const SalesSettingsSchema = z.object({
   // The default way a new quotation asks to be paid (the payments bridge); both are absent while the tenant cannot take payments.
   payment_to_confirm: SalesPaymentSettingsShape.payment_to_confirm.optional(),
   prepayment_percent: SalesPaymentSettingsShape.prepayment_percent.optional(),
+  // How an order wins its opportunity (the CRM bridge); both are absent while the tenant has no CRM.
+  opportunity_win: SalesCrmSettingsShape.opportunity_win.optional(),
+  opportunity_win_amount: SalesCrmSettingsShape.opportunity_win_amount.optional(),
   revision: z.number().int().positive(),
   // Whether this session may change the settings: the capability, in the root company.
   can_manage: z.boolean(),
@@ -179,6 +186,8 @@ export const SalesSettingsPatchSchema = z.object({
   signature_methods: SalesSignatureMethodsSchema.optional(),
   payment_to_confirm: SalesPaymentSettingsShape.payment_to_confirm.optional(),
   prepayment_percent: SalesPaymentSettingsShape.prepayment_percent.optional(),
+  opportunity_win: SalesCrmSettingsShape.opportunity_win.optional(),
+  opportunity_win_amount: SalesCrmSettingsShape.opportunity_win_amount.optional(),
   revision: z.number().int().positive(),
 }).strict().refine(patch => Object.keys(patch).some(key => key !== 'revision'), { message: 'nothing to change' })
 

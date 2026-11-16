@@ -289,22 +289,6 @@ class LiwanSalesService(models.AbstractModel):
         return customer
 
     @api.model
-    def _liwan_product(self, product_id, company, field):
-        """The product service's product ``product_id`` usable in ``company``, else 422 on ``field``."""
-        try:
-            product = self.env['liwan.products.service']._liwan_pick_product(product_id)
-        except LiwanAccessRule as error:
-            if error.status == 404:
-                _invalid(field, 'the product does not exist')
-            raise
-        if product.company_id and product.company_id not in company.parent_ids:
-            _invalid(field, 'the product belongs to another company')
-        # A line names a template and takes its one variant; products with variants come with a later pull request.
-        if len(product.product_variant_ids) > 1:
-            _invalid(field, 'products with variants are not supported yet')
-        return product
-
-    @api.model
     def _liwan_validity(self, value):
         if value and value < fields.Date.context_today(self):
             _invalid('validity_date', 'the validity date is in the past')
@@ -336,7 +320,9 @@ class LiwanSalesService(models.AbstractModel):
                     vals['display_type'] = DISPLAY_TYPES[entry['kind']]
                 plan.append((line, vals))
                 continue
-            product = self._liwan_product(entry['product_id'], company, f'{field}.product_id')
+            product = self.env['liwan.products.service']._liwan_usable_product(
+                entry['product_id'], company, f'{field}.product_id',
+            )
             variant = product.product_variant_id
             vals.update(product_uom_qty=entry['quantity'], discount=entry['discount'])
             if line and line.product_id == variant:

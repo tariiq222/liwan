@@ -55,7 +55,9 @@ Sales names no other application. A bridge adds its own values through hooks tha
 `liwan.sales.service._liwan_order_parsers` and `_liwan_write_extras` (keys of an order write, applied after the lines are
 saved, with the tenant's defaults on create), `sale.order._liwan_staff_extras` and `_liwan_public_extras` (keys of the
 staff and the customer's wire shapes) and `liwan.sales.document._liwan_mail_notes` (notes in the quotation e-mail). The
-payments bridge `liwan_sales_payments` is the first user.
+payments bridge `liwan_sales_payments` was the first user; the CRM bridge `liwan_sales_crm` uses the settings and the staff-shape hooks and
+extends `liwan.sales.service._liwan_move`, the one path a staff move, the customer's confirming acceptance and a payment's
+confirmation share.
 
 ## Visibility
 
@@ -164,4 +166,4 @@ passed. It is documented in `tools/arch_documented_sudo.json`, like the other tw
 
 ## Later pull requests
 
-Invoices and down payments (PR 4), the CRM link and payment links (PR 5), templates and reports (PR 6).
+Invoices and down payments (PR 4), templates and reports (PR 6). The CRM link and the payment links (PR 5) are the bridges `liwan_sales_crm` and `liwan_sales_payments`.
