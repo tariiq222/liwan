@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_mail_domain_manage" model="liwan.access.permission">
+        <field name="key">mail.domain.manage</field><field name="domain">mail</field>
+        <field name="resource">domain</field><field name="action">manage</field>
+        <field name="name_ar">إدارة نطاق البريد المرسل</field><field name="name_en">Manage the sending mail domain</field>
+        <field name="description_ar">ربط نطاق الشركة بالبريد الصادر والتحقق منه وإزالته، فتخرج رسائل الشركة باسم هذا النطاق</field><field name="description_en">Connect, verify and remove the company domain that all its outgoing email is sent from</field>
+        <field name="group_xmlid">liwan_notify.group_cap_mail_domain_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+</odoo>

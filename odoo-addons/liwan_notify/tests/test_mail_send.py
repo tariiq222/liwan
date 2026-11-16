@@ -64,6 +64,7 @@ class TestMailSend(TransactionCase):
         self.assertEqual(mail.email_to, 'a@example.com, b@example.com')
         self.assertTrue(mail.message_id.startswith('<') and mail.message_id.endswith('@liwanos.example>'))
         self.assertFalse(mail.auto_delete)
+        self.assertFalse(mail.liwan_sensitive)
 
     def test_the_message_id_is_ours_and_unique(self):
         first, second = self._send(), self._send()
@@ -132,8 +133,13 @@ class TestMailSend(TransactionCase):
     def test_scheduled_date_is_indexed(self):
         self.assertTrue(self.env['mail.mail']._fields['scheduled_date'].index)
 
-    def test_the_provider_fields_wait_for_phase_two(self):
-        self.assertFalse({'liwan_provider_status', 'liwan_provider_checked_at'} & set(self.env['mail.mail']._fields))
+    def test_the_weight_counts_the_encoded_attachment_size(self):
+        # 1.2 MB raw is 1.6 MB in base64: with a small body it fits one chunk, two recipients weigh 2.
+        data = b'x' * 1_100_000
+        mail = self._send(('a@example.com', 'b@example.com'), attachments=[('a.bin', data)])
+        self.assertEqual(mail.liwan_weight, 2)
+        heavy = self.send_service._liwan_encoded_size('<p>B</p>', [('a.bin', b'x' * (CHUNK_BYTES - 1000))])
+        self.assertGreater(heavy, CHUNK_BYTES)
 
     def test_the_daily_ceiling_defers_to_the_next_day_and_loses_nothing(self):
         self._set_ceilings(daily=3, per_minute=0)
@@ -249,10 +255,69 @@ class TestMailSend(TransactionCase):
         own = f'{self.env.user.get_base_url().rstrip("/")}/files/1'
         self.assertIn(own, self._send(attachments=big, download_link=own).body_html)
 
-    def test_a_sensitive_row_is_marked_for_stock_deletion_after_a_successful_send(self):
-        ordinary = self._send()
-        sensitive = self._send(sensitive=True)
-        self.assertEqual((ordinary.auto_delete, sensitive.auto_delete), (False, True))
+    def test_a_sent_sensitive_row_loses_its_content_and_keeps_counting(self):
+        self._set_ceilings(daily=0, per_minute=0)
+        with self._clock():
+            sensitive = self._send(sensitive=True, attachments=[('slip.pdf', b'salary')])
+            ordinary = self._send(attachments=[('note.txt', b'hello')])
+        attachment = sensitive.attachment_ids
+        self.assertEqual((sensitive.auto_delete, sensitive.liwan_sensitive), (False, True))
+        (sensitive | ordinary).write({'state': 'sent'})
+        (sensitive | ordinary)._postprocess_sent_message(success_pids=self.env['res.partner'], success_emails=[])
+        self.assertTrue(sensitive.exists())
+        self.assertFalse(sensitive.body_html or sensitive.attachment_ids or attachment.exists())
+        self.assertTrue(ordinary.body_html and ordinary.attachment_ids)
+        start, end = self.send_service._liwan_day_bounds(NOON, self.send_service._liwan_zone())
+        self.assertEqual(self.send_service._liwan_load(self.env['mail.mail'], start, end), 2)
+
+    def test_a_failed_sensitive_row_keeps_its_content(self):
+        mail = self._send(sensitive=True, attachments=[('slip.pdf', b'salary')])
+        mail.write({'state': 'exception'})
+        mail._postprocess_sent_message(success_pids=self.env['res.partner'], success_emails=[], failure_type='mail_smtp')
+        self.assertTrue(mail.body_html and mail.attachment_ids)
+
+    def test_slot_choice_takes_the_database_lock(self):
+        with patch.object(type(self.send_service), '_liwan_lock_slots', autospec=True) as lock:
+            mail = self._send()
+            self._fail(mail, 'mail_smtp', 1)
+            self.env['mail.mail']._liwan_retry_failed()
+        self.assertEqual(lock.call_count, 2)
+        self.send_service._liwan_lock_slots()  # the real lock runs inside the transaction
+
+    def test_a_retry_writes_state_and_moment_together(self):
+        mail = self._send()
+        self._fail(mail, 'mail_smtp', 1)
+        writes = []
+        original = type(mail).write
+
+        def spy(records, values):
+            if records.ids == mail.ids:
+                writes.append(set(values))
+            return original(records, values)
+        with patch.object(type(mail), 'write', spy), self._clock():
+            self.env['mail.mail']._liwan_retry_failed()
+        self.assertIn(
+            {'state', 'scheduled_date', 'email_from', 'liwan_attempts', 'failure_type', 'failure_reason'}, writes,
+        )
+        self.assertNotIn({'state'}, writes)
+
+    def test_an_http_base_url_link_is_accepted_and_a_lookalike_host_is_not(self):
+        self.env['ir.config_parameter'].set_param('web.base.url', 'http://tenant.example')
+        self.env['ir.config_parameter'].set_param('web.base.url.freeze', True)
+        big = [('report.pdf', b'x' * MAX_ENCODED_BYTES)]
+        self.assertIn('http://tenant.example/files/1', self._send(attachments=big, download_link='http://tenant.example/files/1').body_html)
+        for link in ('http://tenant.example.evil.com/x', 'http://tenant.exampleevil/x'):
+            with self.subTest(link=link), self.assertRaises(ValidationError):
+                self._send(attachments=big, download_link=link)
+
+    def test_retention_removes_a_row_that_still_fails(self):
+        mail = self._send()
+        self._fail(mail, 'mail_smtp', MAX_ATTEMPTS)
+        long_ago = fields.Datetime.now() - RETENTION - timedelta(days=1)
+        self.env.cr.execute('UPDATE mail_mail SET create_date = %s WHERE id = %s', (long_ago, mail.id))
+        self.env['mail.mail'].invalidate_model(['create_date'])
+        self.env['mail.mail']._liwan_purge_old()
+        self.assertFalse(mail.exists())
 
     def test_a_retry_into_a_full_minute_is_deferred(self):
         self._set_ceilings(daily=0, per_minute=1)

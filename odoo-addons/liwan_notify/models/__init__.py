@@ -1,5 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    access_service,
+    mail_domain,
+    mail_domain_oci,
+    mail_domain_provider,
     mail_mail,
     mail_message,
     mail_send,

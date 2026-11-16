@@ -11,6 +11,7 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.fields import Command
 
+from .mail_domain import LiwanMailRefused
 from .mail_mail import (
     CHUNK_BYTES,
     DAILY_CEILING,
@@ -23,6 +24,10 @@ from .mail_mail import (
 from odoo.addons.liwan_platform.models.usage_window import BILLING_TIMEZONE
 
 _logger = logging.getLogger(__name__)
+# One advisory lock key per database for the slot choice (pg advisory locks are scoped to the database).
+SLOT_LOCK_KEY = 0x6C69_7761  # 'liwa'
+# The settings card shows today's usage from this share of the daily ceiling (spec 5.7).
+NEAR_CEILING_SHARE = 0.9
 
 
 class LiwanMailSend(models.AbstractModel):
@@ -47,8 +52,30 @@ class LiwanMailSend(models.AbstractModel):
 
     @api.model
     def _liwan_sender(self):
-        """The From address of tenant mail, or ``None``. Phase 2 replaces only this method with the verified domain."""
-        return self.env['liwan.outbound.mail']._liwan_sender()
+        """The From address of tenant mail, decided on the server and never taken from a caller.
+
+        Where the domain provider is configured it is ``"<Company name>" <local@verified-domain>`` from the tenant's
+        ``liwan.mail.domain``, and a ``LiwanMailRefused`` (``mail_domain_unverified`` or ``mail_paused``) when that
+        domain may not send. Where it is not configured (``non_saas``, or an installation without OCI) it is the
+        operator's sender, or ``None`` when none is configured (spec 5.6).
+        """
+        domains = self.env['liwan.mail.domain']
+        if not domains._liwan_provider_configured():
+            return self.env['liwan.outbound.mail']._liwan_sender()
+        return domains._liwan_tenant_domain()._liwan_sender()
+
+    @api.model
+    def _liwan_sender_or_refusal(self):
+        """``(sender, None)``, or ``(None, refusal)`` when the tenant may not send now."""
+        try:
+            return self._liwan_sender(), None
+        except LiwanMailRefused as refusal:
+            return None, refusal
+
+    @api.model
+    def _liwan_lock_slots(self):
+        """Serialise slot selection in this database until the transaction ends, so two sends cannot take one slot."""
+        self.env.cr.execute('SELECT pg_advisory_xact_lock(%s)', [SLOT_LOCK_KEY])
 
     @api.model
     def _liwan_send(
@@ -59,10 +86,10 @@ class LiwanMailSend(models.AbstractModel):
         ``body`` is HTML and ``attachments`` are ``(name, bytes)`` pairs. Recipients are deduplicated ignoring case
         and at most ``MAX_RECIPIENTS``. Over ``MAX_ENCODED_BYTES`` nothing is attached: the caller must then pass
         ``download_link`` (``https://``, or this instance's own base URL), which is appended to the body. With no sender
-        configured nothing is queued and an empty recordset comes back. A ceiling defers the row (``scheduled_date``),
-        never refuses it. Business mail keeps its row for 90 days. A ``sensitive`` row (payroll) has ``auto_delete``:
-        stock Odoo removes it after a successful send, which also takes it out of the ceiling count, and a failed one
-        stays visible.
+        configured nothing is queued and an empty recordset comes back; a tenant domain that may not send raises
+        ``LiwanMailRefused`` and nothing is created. A ceiling defers the row (``scheduled_date``), never refuses it.
+        Every row is kept for 90 days. A ``sensitive`` row (payroll) loses its body and attachments once it is sent
+        and keeps its weight, so it still counts toward the ceilings.
 
         Caller gate: nothing here checks the caller's right to the record or the application feature; the caller
         must have checked both, and no route may pass a client-supplied ``model``, ``res_id``, sender or raw HTML.
@@ -74,10 +101,9 @@ class LiwanMailSend(models.AbstractModel):
         addresses = self._liwan_addresses(recipients)
         self._liwan_check_link(download_link)
         body, attachments = self._liwan_fit_size(body, attachments, download_link)
-        weight = len(addresses) * max(
-            ceil((len(str(body).encode()) + sum(len(data) for _name, data in attachments)) / CHUNK_BYTES), 1,
-        )
+        weight = len(addresses) * max(ceil(self._liwan_encoded_size(body, attachments) / CHUNK_BYTES), 1)
         outbox = self._liwan_outbox()
+        self._liwan_lock_slots()
         moment = self._liwan_slot(weight, fields.Datetime.now(), outbox.browse())
         mail = outbox.create({
             'model': model,
@@ -88,7 +114,8 @@ class LiwanMailSend(models.AbstractModel):
             'email_to': ', '.join(addresses),
             'author_id': self.env.user.partner_id.id,
             'message_id': make_msgid(domain=sender.rsplit('@', 1)[-1].rstrip('>')),
-            'auto_delete': sensitive,
+            'auto_delete': False,
+            'liwan_sensitive': sensitive,
             'scheduled_date': moment,
             'liwan_kind': kind,
             'liwan_attempts': 1,
@@ -129,12 +156,33 @@ class LiwanMailSend(models.AbstractModel):
         attachments = tuple(attachments)
         if not attachments:
             return body, attachments
-        encoded = len(str(body).encode()) + sum(4 * ceil(len(data) / 3) for _name, data in attachments)
-        if encoded <= MAX_ENCODED_BYTES:
+        if self._liwan_encoded_size(body, attachments) <= MAX_ENCODED_BYTES:
             return body, attachments
         if not download_link:
             raise ValidationError(self.env._('The attachments are too large to email: a download link is required.'))
         return Markup('{}<p><a href="{}">{}</a></p>').format(Markup(body), download_link, download_link), ()
+
+    @api.model
+    def _liwan_encoded_size(self, body, attachments):
+        """The size of the message as sent: the body plus each attachment in base64."""
+        return len(str(body).encode()) + sum(4 * ceil(len(data) / 3) for _name, data in attachments)
+
+    @api.model
+    def _liwan_usage(self):
+        """Today's weight against the daily ceiling, and the rows waiting for a later moment (the settings card)."""
+        ceiling = self._liwan_ceiling(DAILY_CEILING_PARAM, DAILY_CEILING)
+        now = fields.Datetime.now()
+        start, end = self._liwan_day_bounds(now, self._liwan_zone())
+        today = self._liwan_load(self._liwan_outbox().browse(), start, end)
+        deferred = self._liwan_outbox().search_count([
+            ('liwan_kind', '!=', False), ('state', '=', 'outgoing'), ('scheduled_date', '>', now),
+        ])
+        return {
+            'today': today,
+            'ceiling': ceiling,
+            'near_ceiling': bool(ceiling) and today >= ceiling * NEAR_CEILING_SHARE,
+            'deferred': deferred,
+        }
 
     @api.model
     def _liwan_ceiling(self, param, default):
