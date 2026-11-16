@@ -9,12 +9,15 @@ const props = defineProps<{ ticket?: HelpdeskTicket | null; backTo: RouteLocatio
 const emit = defineEmits<{ saved: [ticket: HelpdeskTicket] }>()
 const { t } = useI18n()
 const { can } = useAccess()
+// A field the server rendered from a record value and the browser hydrated with another would drop what the user
+// typed, so the form stays disabled until hydration finished (the same rule the ticket thread follows).
+const hydrated = useHydrated()
 const reference = useHelpdeskReference()
 const create = useCreateHelpdeskTicket()
 const patch = useUpdateHelpdeskTicket()
 const router = useRouter()
 const editing = computed(() => Boolean(props.ticket))
-const off = computed(() => create.isPending.value || patch.isPending.value)
+const off = computed(() => !hydrated.value || create.isPending.value || patch.isPending.value)
 
 const subject = ref(props.ticket?.subject ?? '')
 const description = ref(props.ticket?.description ?? '')
