@@ -199,17 +199,19 @@ REVIEWED_VERSIONS = {
     'zod': '^4.6.7',
     # Owner approval 2026-11-07 (Tariq, in chat), npm group bump PR #428: minor and patch updates only.
     'nuxt': '^4.6.4',
-    '@tailwindcss/vite': '^4.3.4',
-    '@unovis/ts': '^1.7.1',
-    '@unovis/vue': '^1.7.1',
+    '@tailwindcss/vite': '^4.3.5',
+    '@unovis/ts': '^1.8.1',
+    '@unovis/vue': '^1.8.1',
     'reka-ui': '^2.11.0',
-    'tailwindcss': '^4.3.4',
+    'tailwindcss': '^4.3.5',
     # Owner approval 2026-11-09 (Tariq, in chat), Dependabot PRs #601 (without vue-tsc), #602, #603.
     '@playwright/test': '^1.65.0',
     '@tanstack/vue-query': '^5.106.1',
-    '@tiptap/extension-link': '^3.33.0',
-    '@tiptap/starter-kit': '^3.33.0',
-    '@tiptap/vue-3': '^3.33.0',
+    '@tiptap/extension-link': '^3.33.1',
+    '@tiptap/starter-kit': '^3.33.1',
+    '@tiptap/vue-3': '^3.33.1',
+    # Owner approval 2026-11-16 (Tariq, in chat), Dependabot PR #746: minor and patch updates only.
+    'vue-router': '^5.5.0',
     'vue': '^3.5.45',
 }
 
